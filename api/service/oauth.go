@@ -13,9 +13,9 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	genDb "github.com/nikumar1206/loco/api/gen/db"
-	"github.com/nikumar1206/loco/api/jwtutil"
-	oAuth "github.com/nikumar1206/loco/shared/proto/oauth/v1"
+	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/jwtutil"
+	oAuth "github.com/loco-team/loco/shared/proto/oauth/v1"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 )

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/nikumar1206/loco/internal/client"
-	"github.com/nikumar1206/loco/internal/config"
-	"github.com/nikumar1206/loco/internal/keychain"
+	"github.com/loco-team/loco/internal/client"
+	"github.com/loco-team/loco/internal/config"
+	"github.com/loco-team/loco/internal/keychain"
 	"github.com/spf13/cobra"
 )
 

@@ -12,31 +12,31 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/grpcreflect"
 	charmLog "github.com/charmbracelet/log"
-	"github.com/nikumar1206/loco/api/db"
-	genDb "github.com/nikumar1206/loco/api/gen/db"
-	"github.com/nikumar1206/loco/api/middleware"
-	"github.com/nikumar1206/loco/api/pkg/kube"
-	"github.com/nikumar1206/loco/api/service"
-	"github.com/nikumar1206/loco/shared"
-	"github.com/nikumar1206/loco/shared/proto/app/v1/appv1connect"
-	"github.com/nikumar1206/loco/shared/proto/deployment/v1/deploymentv1connect"
-	"github.com/nikumar1206/loco/shared/proto/oauth/v1/oauthv1connect"
-	"github.com/nikumar1206/loco/shared/proto/org/v1/orgv1connect"
-	"github.com/nikumar1206/loco/shared/proto/registry/v1/registryv1connect"
-	"github.com/nikumar1206/loco/shared/proto/user/v1/userv1connect"
-	"github.com/nikumar1206/loco/shared/proto/workspace/v1/workspacev1connect"
+	"github.com/loco-team/loco/api/db"
+	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/middleware"
+	"github.com/loco-team/loco/api/pkg/kube"
+	"github.com/loco-team/loco/api/service"
+	"github.com/loco-team/loco/shared"
+	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
+	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
+	"github.com/loco-team/loco/shared/proto/oauth/v1/oauthv1connect"
+	"github.com/loco-team/loco/shared/proto/org/v1/orgv1connect"
+	"github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
+	"github.com/loco-team/loco/shared/proto/user/v1/userv1connect"
+	"github.com/loco-team/loco/shared/proto/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
 
 type AppConfig struct {
-	Env             string     // Environment (e.g., dev, prod)
-	ProjectID       string     // GitLab project ID
-	GitlabURL       string     // Container registry URL
-	RegistryURL     string     // Container registry URL
-	DeployTokenName string     // Deploy token name
-	GitlabPAT       string     // GitLab Personal Access Token
-	DatabaseURL     string     // PostgreSQL connection string
+	Env             string // Environment (e.g., dev, prod)
+	ProjectID       string // GitLab project ID
+	GitlabURL       string // Container registry URL
+	RegistryURL     string // Container registry URL
+	DeployTokenName string // Deploy token name
+	GitlabPAT       string // GitLab Personal Access Token
+	DatabaseURL     string // PostgreSQL connection string
 	LogLevel        slog.Level
 	Port            string
 	JwtSecret       string
