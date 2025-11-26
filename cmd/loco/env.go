@@ -11,11 +11,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/joho/godotenv"
-	"github.com/nikumar1206/loco/internal/client"
-	"github.com/nikumar1206/loco/internal/ui"
-	"github.com/nikumar1206/loco/shared"
-	appv1 "github.com/nikumar1206/loco/shared/proto/app/v1"
-	appv1connect "github.com/nikumar1206/loco/shared/proto/app/v1/appv1connect"
+	"github.com/loco-team/loco/internal/client"
+	"github.com/loco-team/loco/internal/ui"
+	"github.com/loco-team/loco/shared"
+	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
+	appv1connect "github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
 	"github.com/spf13/cobra"
 )
 

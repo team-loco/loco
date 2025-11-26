@@ -11,9 +11,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/nikumar1206/loco/internal/client"
-	"github.com/nikumar1206/loco/internal/ui"
-	appv1 "github.com/nikumar1206/loco/shared/proto/app/v1"
+	"github.com/loco-team/loco/internal/client"
+	"github.com/loco-team/loco/internal/ui"
+	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
 	"github.com/spf13/cobra"
 )
 

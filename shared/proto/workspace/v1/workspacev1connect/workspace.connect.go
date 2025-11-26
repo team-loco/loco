@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "github.com/nikumar1206/loco/shared/proto/workspace/v1"
+	v1 "github.com/loco-team/loco/shared/proto/workspace/v1"
 	http "net/http"
 	strings "strings"
 )

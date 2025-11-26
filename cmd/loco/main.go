@@ -8,7 +8,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/fang"
-	"github.com/nikumar1206/loco/internal/ui"
+	"github.com/loco-team/loco/internal/ui"
 )
 
 // LocoColorScheme is a color scheme inspired by the Southern Pacific 4449.
@@ -43,7 +43,7 @@ func Cli() {
 	if !ok {
 		i = &runtimeDebug.BuildInfo{
 			Main: runtimeDebug.Module{
-				Path:    "github.com/nikumar1206/loco",
+				Path:    "github.com/loco-team/loco",
 				Version: "v0.0.1",
 			},
 		}

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/nikumar1206/loco/api/jwtutil"
+	"github.com/loco-team/loco/api/jwtutil"
 )
 
 type githubAuthInterceptor struct{}
