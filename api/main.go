@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"connectrpc.com/connect"
+	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
 	charmLog "github.com/charmbracelet/log"
 	"github.com/nikumar1206/loco/api/db"
@@ -25,18 +26,19 @@ import (
 	"github.com/nikumar1206/loco/shared/proto/registry/v1/registryv1connect"
 	"github.com/nikumar1206/loco/shared/proto/user/v1/userv1connect"
 	"github.com/nikumar1206/loco/shared/proto/workspace/v1/workspacev1connect"
+	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
 
 type AppConfig struct {
-	Env             string     // Environment (e.g., dev, prod)
-	ProjectID       string     // GitLab project ID
-	GitlabURL       string     // Container registry URL
-	RegistryURL     string     // Container registry URL
-	DeployTokenName string     // Deploy token name
-	GitlabPAT       string     // GitLab Personal Access Token
-	DatabaseURL     string     // PostgreSQL connection string
+	Env             string // Environment (e.g., dev, prod)
+	ProjectID       string // GitLab project ID
+	GitlabURL       string // Container registry URL
+	RegistryURL     string // Container registry URL
+	DeployTokenName string // Deploy token name
+	GitlabPAT       string // GitLab Personal Access Token
+	DatabaseURL     string // PostgreSQL connection string
 	LogLevel        slog.Level
 	Port            string
 	JwtSecret       string
@@ -65,6 +67,20 @@ func newAppConfig() *AppConfig {
 		JwtSecret:       os.Getenv("JWT_SECRET"),
 		RegistryTag:     os.Getenv("REGISTRY_TAG"),
 	}
+}
+
+func withCORS(h http.Handler) http.Handler {
+	middleware := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedMethods:   connectcors.AllowedMethods(),
+		AllowedHeaders:   connectcors.AllowedHeaders(),
+		ExposedHeaders:   connectcors.ExposedHeaders(),
+		AllowCredentials: true,
+		// AllowOriginFunc: func(origin string) bool {
+		// 	return true
+		// },
+	})
+	return middleware.Handler(h)
 }
 
 func main() {
@@ -185,7 +201,8 @@ func main() {
 	mux.Handle(deploymentPath, deploymentHandler)
 	mux.Handle(registryPath, registryHandler)
 
-	muxWTiming := middleware.Timing(mux)
+	muxWCors := withCORS(mux)
+	muxWTiming := middleware.Timing(muxWCors)
 	muxWContext := middleware.SetContext(muxWTiming)
 
 	log.Fatal(http.ListenAndServe(

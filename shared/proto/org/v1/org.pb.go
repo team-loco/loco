@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.8
 // 	protoc        (unknown)
-// source: shared/proto/org/v1/org.proto
+// source: org/v1/org.proto
 
 package orgv1
 
@@ -35,7 +35,7 @@ type Organization struct {
 
 func (x *Organization) Reset() {
 	*x = Organization{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[0]
+	mi := &file_org_v1_org_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +47,7 @@ func (x *Organization) String() string {
 func (*Organization) ProtoMessage() {}
 
 func (x *Organization) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[0]
+	mi := &file_org_v1_org_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +60,7 @@ func (x *Organization) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Organization.ProtoReflect.Descriptor instead.
 func (*Organization) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{0}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Organization) GetId() int64 {
@@ -110,7 +110,7 @@ type WorkspaceSummary struct {
 
 func (x *WorkspaceSummary) Reset() {
 	*x = WorkspaceSummary{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[1]
+	mi := &file_org_v1_org_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -122,7 +122,7 @@ func (x *WorkspaceSummary) String() string {
 func (*WorkspaceSummary) ProtoMessage() {}
 
 func (x *WorkspaceSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[1]
+	mi := &file_org_v1_org_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -135,7 +135,7 @@ func (x *WorkspaceSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkspaceSummary.ProtoReflect.Descriptor instead.
 func (*WorkspaceSummary) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{1}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *WorkspaceSummary) GetId() int64 {
@@ -175,7 +175,7 @@ type CreateOrgRequest struct {
 
 func (x *CreateOrgRequest) Reset() {
 	*x = CreateOrgRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[2]
+	mi := &file_org_v1_org_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -187,7 +187,7 @@ func (x *CreateOrgRequest) String() string {
 func (*CreateOrgRequest) ProtoMessage() {}
 
 func (x *CreateOrgRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[2]
+	mi := &file_org_v1_org_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -200,7 +200,7 @@ func (x *CreateOrgRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateOrgRequest.ProtoReflect.Descriptor instead.
 func (*CreateOrgRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{2}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateOrgRequest) GetName() string {
@@ -219,7 +219,7 @@ type CreateOrgResponse struct {
 
 func (x *CreateOrgResponse) Reset() {
 	*x = CreateOrgResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[3]
+	mi := &file_org_v1_org_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -231,7 +231,7 @@ func (x *CreateOrgResponse) String() string {
 func (*CreateOrgResponse) ProtoMessage() {}
 
 func (x *CreateOrgResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[3]
+	mi := &file_org_v1_org_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -244,7 +244,7 @@ func (x *CreateOrgResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateOrgResponse.ProtoReflect.Descriptor instead.
 func (*CreateOrgResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{3}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CreateOrgResponse) GetOrg() *Organization {
@@ -263,7 +263,7 @@ type GetOrgRequest struct {
 
 func (x *GetOrgRequest) Reset() {
 	*x = GetOrgRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[4]
+	mi := &file_org_v1_org_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -275,7 +275,7 @@ func (x *GetOrgRequest) String() string {
 func (*GetOrgRequest) ProtoMessage() {}
 
 func (x *GetOrgRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[4]
+	mi := &file_org_v1_org_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -288,7 +288,7 @@ func (x *GetOrgRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrgRequest.ProtoReflect.Descriptor instead.
 func (*GetOrgRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{4}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetOrgRequest) GetId() int64 {
@@ -307,7 +307,7 @@ type GetOrgResponse struct {
 
 func (x *GetOrgResponse) Reset() {
 	*x = GetOrgResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[5]
+	mi := &file_org_v1_org_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +319,7 @@ func (x *GetOrgResponse) String() string {
 func (*GetOrgResponse) ProtoMessage() {}
 
 func (x *GetOrgResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[5]
+	mi := &file_org_v1_org_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +332,7 @@ func (x *GetOrgResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrgResponse.ProtoReflect.Descriptor instead.
 func (*GetOrgResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{5}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetOrgResponse) GetOrg() *Organization {
@@ -350,7 +350,7 @@ type GetCurrentUserOrgsRequest struct {
 
 func (x *GetCurrentUserOrgsRequest) Reset() {
 	*x = GetCurrentUserOrgsRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[6]
+	mi := &file_org_v1_org_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -362,7 +362,7 @@ func (x *GetCurrentUserOrgsRequest) String() string {
 func (*GetCurrentUserOrgsRequest) ProtoMessage() {}
 
 func (x *GetCurrentUserOrgsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[6]
+	mi := &file_org_v1_org_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -375,7 +375,7 @@ func (x *GetCurrentUserOrgsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserOrgsRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserOrgsRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{6}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{6}
 }
 
 type GetCurrentUserOrgsResponse struct {
@@ -387,7 +387,7 @@ type GetCurrentUserOrgsResponse struct {
 
 func (x *GetCurrentUserOrgsResponse) Reset() {
 	*x = GetCurrentUserOrgsResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[7]
+	mi := &file_org_v1_org_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +399,7 @@ func (x *GetCurrentUserOrgsResponse) String() string {
 func (*GetCurrentUserOrgsResponse) ProtoMessage() {}
 
 func (x *GetCurrentUserOrgsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[7]
+	mi := &file_org_v1_org_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +412,7 @@ func (x *GetCurrentUserOrgsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCurrentUserOrgsResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrentUserOrgsResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{7}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetCurrentUserOrgsResponse) GetOrgs() []*Organization {
@@ -433,7 +433,7 @@ type ListOrgsRequest struct {
 
 func (x *ListOrgsRequest) Reset() {
 	*x = ListOrgsRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[8]
+	mi := &file_org_v1_org_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +445,7 @@ func (x *ListOrgsRequest) String() string {
 func (*ListOrgsRequest) ProtoMessage() {}
 
 func (x *ListOrgsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[8]
+	mi := &file_org_v1_org_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +458,7 @@ func (x *ListOrgsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgsRequest.ProtoReflect.Descriptor instead.
 func (*ListOrgsRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{8}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListOrgsRequest) GetUserId() int64 {
@@ -494,7 +494,7 @@ type ListOrgsResponse struct {
 
 func (x *ListOrgsResponse) Reset() {
 	*x = ListOrgsResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[9]
+	mi := &file_org_v1_org_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -506,7 +506,7 @@ func (x *ListOrgsResponse) String() string {
 func (*ListOrgsResponse) ProtoMessage() {}
 
 func (x *ListOrgsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[9]
+	mi := &file_org_v1_org_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -519,7 +519,7 @@ func (x *ListOrgsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgsResponse.ProtoReflect.Descriptor instead.
 func (*ListOrgsResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{9}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListOrgsResponse) GetOrgs() []*Organization {
@@ -560,7 +560,7 @@ type UpdateOrgRequest struct {
 
 func (x *UpdateOrgRequest) Reset() {
 	*x = UpdateOrgRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[10]
+	mi := &file_org_v1_org_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -572,7 +572,7 @@ func (x *UpdateOrgRequest) String() string {
 func (*UpdateOrgRequest) ProtoMessage() {}
 
 func (x *UpdateOrgRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[10]
+	mi := &file_org_v1_org_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -585,7 +585,7 @@ func (x *UpdateOrgRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrgRequest.ProtoReflect.Descriptor instead.
 func (*UpdateOrgRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{10}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateOrgRequest) GetId() int64 {
@@ -611,7 +611,7 @@ type UpdateOrgResponse struct {
 
 func (x *UpdateOrgResponse) Reset() {
 	*x = UpdateOrgResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[11]
+	mi := &file_org_v1_org_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -623,7 +623,7 @@ func (x *UpdateOrgResponse) String() string {
 func (*UpdateOrgResponse) ProtoMessage() {}
 
 func (x *UpdateOrgResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[11]
+	mi := &file_org_v1_org_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -636,7 +636,7 @@ func (x *UpdateOrgResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateOrgResponse.ProtoReflect.Descriptor instead.
 func (*UpdateOrgResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{11}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateOrgResponse) GetOrg() *Organization {
@@ -655,7 +655,7 @@ type DeleteOrgRequest struct {
 
 func (x *DeleteOrgRequest) Reset() {
 	*x = DeleteOrgRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[12]
+	mi := &file_org_v1_org_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -667,7 +667,7 @@ func (x *DeleteOrgRequest) String() string {
 func (*DeleteOrgRequest) ProtoMessage() {}
 
 func (x *DeleteOrgRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[12]
+	mi := &file_org_v1_org_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -680,7 +680,7 @@ func (x *DeleteOrgRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteOrgRequest.ProtoReflect.Descriptor instead.
 func (*DeleteOrgRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{12}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteOrgRequest) GetId() int64 {
@@ -699,7 +699,7 @@ type DeleteOrgResponse struct {
 
 func (x *DeleteOrgResponse) Reset() {
 	*x = DeleteOrgResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[13]
+	mi := &file_org_v1_org_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +711,7 @@ func (x *DeleteOrgResponse) String() string {
 func (*DeleteOrgResponse) ProtoMessage() {}
 
 func (x *DeleteOrgResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[13]
+	mi := &file_org_v1_org_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +724,7 @@ func (x *DeleteOrgResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteOrgResponse.ProtoReflect.Descriptor instead.
 func (*DeleteOrgResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{13}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DeleteOrgResponse) GetSuccess() bool {
@@ -744,7 +744,7 @@ type IsUniqueOrgNameRequest struct {
 
 func (x *IsUniqueOrgNameRequest) Reset() {
 	*x = IsUniqueOrgNameRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[14]
+	mi := &file_org_v1_org_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -756,7 +756,7 @@ func (x *IsUniqueOrgNameRequest) String() string {
 func (*IsUniqueOrgNameRequest) ProtoMessage() {}
 
 func (x *IsUniqueOrgNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[14]
+	mi := &file_org_v1_org_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +769,7 @@ func (x *IsUniqueOrgNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsUniqueOrgNameRequest.ProtoReflect.Descriptor instead.
 func (*IsUniqueOrgNameRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{14}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *IsUniqueOrgNameRequest) GetName() string {
@@ -795,7 +795,7 @@ type IsUniqueOrgNameResponse struct {
 
 func (x *IsUniqueOrgNameResponse) Reset() {
 	*x = IsUniqueOrgNameResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[15]
+	mi := &file_org_v1_org_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -807,7 +807,7 @@ func (x *IsUniqueOrgNameResponse) String() string {
 func (*IsUniqueOrgNameResponse) ProtoMessage() {}
 
 func (x *IsUniqueOrgNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[15]
+	mi := &file_org_v1_org_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -820,7 +820,7 @@ func (x *IsUniqueOrgNameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsUniqueOrgNameResponse.ProtoReflect.Descriptor instead.
 func (*IsUniqueOrgNameResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{15}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *IsUniqueOrgNameResponse) GetIsUnique() bool {
@@ -839,7 +839,7 @@ type ListWorkspacesRequest struct {
 
 func (x *ListWorkspacesRequest) Reset() {
 	*x = ListWorkspacesRequest{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[16]
+	mi := &file_org_v1_org_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -851,7 +851,7 @@ func (x *ListWorkspacesRequest) String() string {
 func (*ListWorkspacesRequest) ProtoMessage() {}
 
 func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[16]
+	mi := &file_org_v1_org_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -864,7 +864,7 @@ func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspacesRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{16}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListWorkspacesRequest) GetOrgId() int64 {
@@ -883,7 +883,7 @@ type ListWorkspacesResponse struct {
 
 func (x *ListWorkspacesResponse) Reset() {
 	*x = ListWorkspacesResponse{}
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[17]
+	mi := &file_org_v1_org_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -895,7 +895,7 @@ func (x *ListWorkspacesResponse) String() string {
 func (*ListWorkspacesResponse) ProtoMessage() {}
 
 func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_org_v1_org_proto_msgTypes[17]
+	mi := &file_org_v1_org_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -908,7 +908,7 @@ func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspacesResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_org_v1_org_proto_rawDescGZIP(), []int{17}
+	return file_org_v1_org_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListWorkspacesResponse) GetWorkspaces() []*WorkspaceSummary {
@@ -918,11 +918,11 @@ func (x *ListWorkspacesResponse) GetWorkspaces() []*WorkspaceSummary {
 	return nil
 }
 
-var File_shared_proto_org_v1_org_proto protoreflect.FileDescriptor
+var File_org_v1_org_proto protoreflect.FileDescriptor
 
-const file_shared_proto_org_v1_org_proto_rawDesc = "" +
+const file_org_v1_org_proto_rawDesc = "" +
 	"\n" +
-	"\x1dshared/proto/org/v1/org.proto\x12\vloco.org.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x01\n" +
+	"\x10org/v1/org.proto\x12\vloco.org.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x01\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -994,19 +994,19 @@ const file_shared_proto_org_v1_org_proto_rawDesc = "" +
 	"\x0fIsUniqueOrgName\x12#.loco.org.v1.IsUniqueOrgNameRequest\x1a$.loco.org.v1.IsUniqueOrgNameResponseB7Z5github.com/nikumar1206/loco/shared/proto/org/v1;orgv1b\x06proto3"
 
 var (
-	file_shared_proto_org_v1_org_proto_rawDescOnce sync.Once
-	file_shared_proto_org_v1_org_proto_rawDescData []byte
+	file_org_v1_org_proto_rawDescOnce sync.Once
+	file_org_v1_org_proto_rawDescData []byte
 )
 
-func file_shared_proto_org_v1_org_proto_rawDescGZIP() []byte {
-	file_shared_proto_org_v1_org_proto_rawDescOnce.Do(func() {
-		file_shared_proto_org_v1_org_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_shared_proto_org_v1_org_proto_rawDesc), len(file_shared_proto_org_v1_org_proto_rawDesc)))
+func file_org_v1_org_proto_rawDescGZIP() []byte {
+	file_org_v1_org_proto_rawDescOnce.Do(func() {
+		file_org_v1_org_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_org_v1_org_proto_rawDesc), len(file_org_v1_org_proto_rawDesc)))
 	})
-	return file_shared_proto_org_v1_org_proto_rawDescData
+	return file_org_v1_org_proto_rawDescData
 }
 
-var file_shared_proto_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
-var file_shared_proto_org_v1_org_proto_goTypes = []any{
+var file_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_org_v1_org_proto_goTypes = []any{
 	(*Organization)(nil),               // 0: loco.org.v1.Organization
 	(*WorkspaceSummary)(nil),           // 1: loco.org.v1.WorkspaceSummary
 	(*CreateOrgRequest)(nil),           // 2: loco.org.v1.CreateOrgRequest
@@ -1027,7 +1027,7 @@ var file_shared_proto_org_v1_org_proto_goTypes = []any{
 	(*ListWorkspacesResponse)(nil),     // 17: loco.org.v1.ListWorkspacesResponse
 	(*timestamppb.Timestamp)(nil),      // 18: google.protobuf.Timestamp
 }
-var file_shared_proto_org_v1_org_proto_depIdxs = []int32{
+var file_org_v1_org_proto_depIdxs = []int32{
 	18, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
 	18, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
 	18, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
@@ -1060,28 +1060,28 @@ var file_shared_proto_org_v1_org_proto_depIdxs = []int32{
 	0,  // [0:9] is the sub-list for field type_name
 }
 
-func init() { file_shared_proto_org_v1_org_proto_init() }
-func file_shared_proto_org_v1_org_proto_init() {
-	if File_shared_proto_org_v1_org_proto != nil {
+func init() { file_org_v1_org_proto_init() }
+func file_org_v1_org_proto_init() {
+	if File_org_v1_org_proto != nil {
 		return
 	}
-	file_shared_proto_org_v1_org_proto_msgTypes[2].OneofWrappers = []any{}
-	file_shared_proto_org_v1_org_proto_msgTypes[14].OneofWrappers = []any{}
+	file_org_v1_org_proto_msgTypes[2].OneofWrappers = []any{}
+	file_org_v1_org_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_shared_proto_org_v1_org_proto_rawDesc), len(file_shared_proto_org_v1_org_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_org_v1_org_proto_rawDesc), len(file_org_v1_org_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_shared_proto_org_v1_org_proto_goTypes,
-		DependencyIndexes: file_shared_proto_org_v1_org_proto_depIdxs,
-		MessageInfos:      file_shared_proto_org_v1_org_proto_msgTypes,
+		GoTypes:           file_org_v1_org_proto_goTypes,
+		DependencyIndexes: file_org_v1_org_proto_depIdxs,
+		MessageInfos:      file_org_v1_org_proto_msgTypes,
 	}.Build()
-	File_shared_proto_org_v1_org_proto = out.File
-	file_shared_proto_org_v1_org_proto_goTypes = nil
-	file_shared_proto_org_v1_org_proto_depIdxs = nil
+	File_org_v1_org_proto = out.File
+	file_org_v1_org_proto_goTypes = nil
+	file_org_v1_org_proto_depIdxs = nil
 }

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.8
 // 	protoc        (unknown)
-// source: shared/proto/app/v1/app.proto
+// source: app/v1/app.proto
 
 package appv1
 
@@ -65,11 +65,11 @@ func (x AppType) String() string {
 }
 
 func (AppType) Descriptor() protoreflect.EnumDescriptor {
-	return file_shared_proto_app_v1_app_proto_enumTypes[0].Descriptor()
+	return file_app_v1_app_proto_enumTypes[0].Descriptor()
 }
 
 func (AppType) Type() protoreflect.EnumType {
-	return &file_shared_proto_app_v1_app_proto_enumTypes[0]
+	return &file_app_v1_app_proto_enumTypes[0]
 }
 
 func (x AppType) Number() protoreflect.EnumNumber {
@@ -78,7 +78,7 @@ func (x AppType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AppType.Descriptor instead.
 func (AppType) EnumDescriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{0}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{0}
 }
 
 type App struct {
@@ -99,7 +99,7 @@ type App struct {
 
 func (x *App) Reset() {
 	*x = App{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[0]
+	mi := &file_app_v1_app_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -111,7 +111,7 @@ func (x *App) String() string {
 func (*App) ProtoMessage() {}
 
 func (x *App) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[0]
+	mi := &file_app_v1_app_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -124,7 +124,7 @@ func (x *App) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use App.ProtoReflect.Descriptor instead.
 func (*App) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{0}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *App) GetId() int64 {
@@ -210,7 +210,7 @@ type CreateAppRequest struct {
 
 func (x *CreateAppRequest) Reset() {
 	*x = CreateAppRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[1]
+	mi := &file_app_v1_app_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -222,7 +222,7 @@ func (x *CreateAppRequest) String() string {
 func (*CreateAppRequest) ProtoMessage() {}
 
 func (x *CreateAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[1]
+	mi := &file_app_v1_app_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -235,7 +235,7 @@ func (x *CreateAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAppRequest.ProtoReflect.Descriptor instead.
 func (*CreateAppRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{1}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreateAppRequest) GetWorkspaceId() int64 {
@@ -282,7 +282,7 @@ type CreateAppResponse struct {
 
 func (x *CreateAppResponse) Reset() {
 	*x = CreateAppResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[2]
+	mi := &file_app_v1_app_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -294,7 +294,7 @@ func (x *CreateAppResponse) String() string {
 func (*CreateAppResponse) ProtoMessage() {}
 
 func (x *CreateAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[2]
+	mi := &file_app_v1_app_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -307,7 +307,7 @@ func (x *CreateAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAppResponse.ProtoReflect.Descriptor instead.
 func (*CreateAppResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{2}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateAppResponse) GetApp() *App {
@@ -326,7 +326,7 @@ type GetAppRequest struct {
 
 func (x *GetAppRequest) Reset() {
 	*x = GetAppRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[3]
+	mi := &file_app_v1_app_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -338,7 +338,7 @@ func (x *GetAppRequest) String() string {
 func (*GetAppRequest) ProtoMessage() {}
 
 func (x *GetAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[3]
+	mi := &file_app_v1_app_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -351,7 +351,7 @@ func (x *GetAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppRequest.ProtoReflect.Descriptor instead.
 func (*GetAppRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{3}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetAppRequest) GetId() int64 {
@@ -370,7 +370,7 @@ type GetAppResponse struct {
 
 func (x *GetAppResponse) Reset() {
 	*x = GetAppResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[4]
+	mi := &file_app_v1_app_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -382,7 +382,7 @@ func (x *GetAppResponse) String() string {
 func (*GetAppResponse) ProtoMessage() {}
 
 func (x *GetAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[4]
+	mi := &file_app_v1_app_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -395,7 +395,7 @@ func (x *GetAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppResponse.ProtoReflect.Descriptor instead.
 func (*GetAppResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{4}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetAppResponse) GetApp() *App {
@@ -415,7 +415,7 @@ type GetAppByNameRequest struct {
 
 func (x *GetAppByNameRequest) Reset() {
 	*x = GetAppByNameRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[5]
+	mi := &file_app_v1_app_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -427,7 +427,7 @@ func (x *GetAppByNameRequest) String() string {
 func (*GetAppByNameRequest) ProtoMessage() {}
 
 func (x *GetAppByNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[5]
+	mi := &file_app_v1_app_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -440,7 +440,7 @@ func (x *GetAppByNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppByNameRequest.ProtoReflect.Descriptor instead.
 func (*GetAppByNameRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{5}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetAppByNameRequest) GetWorkspaceId() int64 {
@@ -466,7 +466,7 @@ type GetAppByNameResponse struct {
 
 func (x *GetAppByNameResponse) Reset() {
 	*x = GetAppByNameResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[6]
+	mi := &file_app_v1_app_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -478,7 +478,7 @@ func (x *GetAppByNameResponse) String() string {
 func (*GetAppByNameResponse) ProtoMessage() {}
 
 func (x *GetAppByNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[6]
+	mi := &file_app_v1_app_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -491,7 +491,7 @@ func (x *GetAppByNameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppByNameResponse.ProtoReflect.Descriptor instead.
 func (*GetAppByNameResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{6}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetAppByNameResponse) GetApp() *App {
@@ -510,7 +510,7 @@ type ListAppsRequest struct {
 
 func (x *ListAppsRequest) Reset() {
 	*x = ListAppsRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[7]
+	mi := &file_app_v1_app_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +522,7 @@ func (x *ListAppsRequest) String() string {
 func (*ListAppsRequest) ProtoMessage() {}
 
 func (x *ListAppsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[7]
+	mi := &file_app_v1_app_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -535,7 +535,7 @@ func (x *ListAppsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAppsRequest.ProtoReflect.Descriptor instead.
 func (*ListAppsRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{7}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListAppsRequest) GetWorkspaceId() int64 {
@@ -554,7 +554,7 @@ type ListAppsResponse struct {
 
 func (x *ListAppsResponse) Reset() {
 	*x = ListAppsResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[8]
+	mi := &file_app_v1_app_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +566,7 @@ func (x *ListAppsResponse) String() string {
 func (*ListAppsResponse) ProtoMessage() {}
 
 func (x *ListAppsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[8]
+	mi := &file_app_v1_app_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +579,7 @@ func (x *ListAppsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAppsResponse.ProtoReflect.Descriptor instead.
 func (*ListAppsResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{8}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListAppsResponse) GetApps() []*App {
@@ -601,7 +601,7 @@ type UpdateAppRequest struct {
 
 func (x *UpdateAppRequest) Reset() {
 	*x = UpdateAppRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[9]
+	mi := &file_app_v1_app_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -613,7 +613,7 @@ func (x *UpdateAppRequest) String() string {
 func (*UpdateAppRequest) ProtoMessage() {}
 
 func (x *UpdateAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[9]
+	mi := &file_app_v1_app_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -626,7 +626,7 @@ func (x *UpdateAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAppRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAppRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{9}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpdateAppRequest) GetId() int64 {
@@ -666,7 +666,7 @@ type UpdateAppResponse struct {
 
 func (x *UpdateAppResponse) Reset() {
 	*x = UpdateAppResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[10]
+	mi := &file_app_v1_app_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -678,7 +678,7 @@ func (x *UpdateAppResponse) String() string {
 func (*UpdateAppResponse) ProtoMessage() {}
 
 func (x *UpdateAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[10]
+	mi := &file_app_v1_app_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -691,7 +691,7 @@ func (x *UpdateAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAppResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAppResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{10}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateAppResponse) GetApp() *App {
@@ -710,7 +710,7 @@ type DeleteAppRequest struct {
 
 func (x *DeleteAppRequest) Reset() {
 	*x = DeleteAppRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[11]
+	mi := &file_app_v1_app_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -722,7 +722,7 @@ func (x *DeleteAppRequest) String() string {
 func (*DeleteAppRequest) ProtoMessage() {}
 
 func (x *DeleteAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[11]
+	mi := &file_app_v1_app_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -735,7 +735,7 @@ func (x *DeleteAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAppRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAppRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{11}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteAppRequest) GetId() int64 {
@@ -754,7 +754,7 @@ type DeleteAppResponse struct {
 
 func (x *DeleteAppResponse) Reset() {
 	*x = DeleteAppResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[12]
+	mi := &file_app_v1_app_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -766,7 +766,7 @@ func (x *DeleteAppResponse) String() string {
 func (*DeleteAppResponse) ProtoMessage() {}
 
 func (x *DeleteAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[12]
+	mi := &file_app_v1_app_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -779,7 +779,7 @@ func (x *DeleteAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAppResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAppResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{12}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteAppResponse) GetSuccess() bool {
@@ -800,7 +800,7 @@ type CheckSubdomainAvailabilityRequest struct {
 
 func (x *CheckSubdomainAvailabilityRequest) Reset() {
 	*x = CheckSubdomainAvailabilityRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[13]
+	mi := &file_app_v1_app_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -812,7 +812,7 @@ func (x *CheckSubdomainAvailabilityRequest) String() string {
 func (*CheckSubdomainAvailabilityRequest) ProtoMessage() {}
 
 func (x *CheckSubdomainAvailabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[13]
+	mi := &file_app_v1_app_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -825,7 +825,7 @@ func (x *CheckSubdomainAvailabilityRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use CheckSubdomainAvailabilityRequest.ProtoReflect.Descriptor instead.
 func (*CheckSubdomainAvailabilityRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{13}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CheckSubdomainAvailabilityRequest) GetSubdomain() string {
@@ -851,7 +851,7 @@ type CheckSubdomainAvailabilityResponse struct {
 
 func (x *CheckSubdomainAvailabilityResponse) Reset() {
 	*x = CheckSubdomainAvailabilityResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[14]
+	mi := &file_app_v1_app_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -863,7 +863,7 @@ func (x *CheckSubdomainAvailabilityResponse) String() string {
 func (*CheckSubdomainAvailabilityResponse) ProtoMessage() {}
 
 func (x *CheckSubdomainAvailabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[14]
+	mi := &file_app_v1_app_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -876,7 +876,7 @@ func (x *CheckSubdomainAvailabilityResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use CheckSubdomainAvailabilityResponse.ProtoReflect.Descriptor instead.
 func (*CheckSubdomainAvailabilityResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{14}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CheckSubdomainAvailabilityResponse) GetAvailable() bool {
@@ -895,7 +895,7 @@ type GetAppStatusRequest struct {
 
 func (x *GetAppStatusRequest) Reset() {
 	*x = GetAppStatusRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[15]
+	mi := &file_app_v1_app_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -907,7 +907,7 @@ func (x *GetAppStatusRequest) String() string {
 func (*GetAppStatusRequest) ProtoMessage() {}
 
 func (x *GetAppStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[15]
+	mi := &file_app_v1_app_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -920,7 +920,7 @@ func (x *GetAppStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetAppStatusRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{15}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetAppStatusRequest) GetAppId() int64 {
@@ -943,7 +943,7 @@ type DeploymentStatus struct {
 
 func (x *DeploymentStatus) Reset() {
 	*x = DeploymentStatus{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[16]
+	mi := &file_app_v1_app_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -955,7 +955,7 @@ func (x *DeploymentStatus) String() string {
 func (*DeploymentStatus) ProtoMessage() {}
 
 func (x *DeploymentStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[16]
+	mi := &file_app_v1_app_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -968,7 +968,7 @@ func (x *DeploymentStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeploymentStatus.ProtoReflect.Descriptor instead.
 func (*DeploymentStatus) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{16}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeploymentStatus) GetId() int64 {
@@ -1016,7 +1016,7 @@ type GetAppStatusResponse struct {
 
 func (x *GetAppStatusResponse) Reset() {
 	*x = GetAppStatusResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[17]
+	mi := &file_app_v1_app_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1028,7 +1028,7 @@ func (x *GetAppStatusResponse) String() string {
 func (*GetAppStatusResponse) ProtoMessage() {}
 
 func (x *GetAppStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[17]
+	mi := &file_app_v1_app_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1041,7 +1041,7 @@ func (x *GetAppStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetAppStatusResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{17}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetAppStatusResponse) GetApp() *App {
@@ -1069,7 +1069,7 @@ type StreamLogsRequest struct {
 
 func (x *StreamLogsRequest) Reset() {
 	*x = StreamLogsRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[18]
+	mi := &file_app_v1_app_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1081,7 +1081,7 @@ func (x *StreamLogsRequest) String() string {
 func (*StreamLogsRequest) ProtoMessage() {}
 
 func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[18]
+	mi := &file_app_v1_app_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1094,7 +1094,7 @@ func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamLogsRequest.ProtoReflect.Descriptor instead.
 func (*StreamLogsRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{18}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *StreamLogsRequest) GetAppId() int64 {
@@ -1132,7 +1132,7 @@ type LogEntry struct {
 
 func (x *LogEntry) Reset() {
 	*x = LogEntry{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[19]
+	mi := &file_app_v1_app_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1144,7 +1144,7 @@ func (x *LogEntry) String() string {
 func (*LogEntry) ProtoMessage() {}
 
 func (x *LogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[19]
+	mi := &file_app_v1_app_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1157,7 +1157,7 @@ func (x *LogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{19}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *LogEntry) GetPodName() string {
@@ -1215,7 +1215,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[20]
+	mi := &file_app_v1_app_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1227,7 +1227,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[20]
+	mi := &file_app_v1_app_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1240,7 +1240,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{20}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Event) GetTimestamp() *timestamppb.Timestamp {
@@ -1288,7 +1288,7 @@ type GetEventsRequest struct {
 
 func (x *GetEventsRequest) Reset() {
 	*x = GetEventsRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[21]
+	mi := &file_app_v1_app_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1300,7 +1300,7 @@ func (x *GetEventsRequest) String() string {
 func (*GetEventsRequest) ProtoMessage() {}
 
 func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[21]
+	mi := &file_app_v1_app_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1313,7 +1313,7 @@ func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetEventsRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{21}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetEventsRequest) GetAppId() int64 {
@@ -1339,7 +1339,7 @@ type GetEventsResponse struct {
 
 func (x *GetEventsResponse) Reset() {
 	*x = GetEventsResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[22]
+	mi := &file_app_v1_app_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1351,7 +1351,7 @@ func (x *GetEventsResponse) String() string {
 func (*GetEventsResponse) ProtoMessage() {}
 
 func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[22]
+	mi := &file_app_v1_app_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1364,7 +1364,7 @@ func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsResponse.ProtoReflect.Descriptor instead.
 func (*GetEventsResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{22}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetEventsResponse) GetEvents() []*Event {
@@ -1386,7 +1386,7 @@ type ScaleAppRequest struct {
 
 func (x *ScaleAppRequest) Reset() {
 	*x = ScaleAppRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[23]
+	mi := &file_app_v1_app_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1398,7 +1398,7 @@ func (x *ScaleAppRequest) String() string {
 func (*ScaleAppRequest) ProtoMessage() {}
 
 func (x *ScaleAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[23]
+	mi := &file_app_v1_app_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1411,7 +1411,7 @@ func (x *ScaleAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleAppRequest.ProtoReflect.Descriptor instead.
 func (*ScaleAppRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{23}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ScaleAppRequest) GetAppId() int64 {
@@ -1451,7 +1451,7 @@ type ScaleAppResponse struct {
 
 func (x *ScaleAppResponse) Reset() {
 	*x = ScaleAppResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[24]
+	mi := &file_app_v1_app_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1463,7 +1463,7 @@ func (x *ScaleAppResponse) String() string {
 func (*ScaleAppResponse) ProtoMessage() {}
 
 func (x *ScaleAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[24]
+	mi := &file_app_v1_app_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1476,7 +1476,7 @@ func (x *ScaleAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleAppResponse.ProtoReflect.Descriptor instead.
 func (*ScaleAppResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{24}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ScaleAppResponse) GetDeployment() *DeploymentStatus {
@@ -1496,7 +1496,7 @@ type UpdateAppEnvRequest struct {
 
 func (x *UpdateAppEnvRequest) Reset() {
 	*x = UpdateAppEnvRequest{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[25]
+	mi := &file_app_v1_app_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1508,7 +1508,7 @@ func (x *UpdateAppEnvRequest) String() string {
 func (*UpdateAppEnvRequest) ProtoMessage() {}
 
 func (x *UpdateAppEnvRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[25]
+	mi := &file_app_v1_app_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1521,7 +1521,7 @@ func (x *UpdateAppEnvRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAppEnvRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAppEnvRequest) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{25}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UpdateAppEnvRequest) GetAppId() int64 {
@@ -1547,7 +1547,7 @@ type UpdateAppEnvResponse struct {
 
 func (x *UpdateAppEnvResponse) Reset() {
 	*x = UpdateAppEnvResponse{}
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[26]
+	mi := &file_app_v1_app_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1559,7 +1559,7 @@ func (x *UpdateAppEnvResponse) String() string {
 func (*UpdateAppEnvResponse) ProtoMessage() {}
 
 func (x *UpdateAppEnvResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_shared_proto_app_v1_app_proto_msgTypes[26]
+	mi := &file_app_v1_app_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1572,7 +1572,7 @@ func (x *UpdateAppEnvResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAppEnvResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAppEnvResponse) Descriptor() ([]byte, []int) {
-	return file_shared_proto_app_v1_app_proto_rawDescGZIP(), []int{26}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UpdateAppEnvResponse) GetDeployment() *DeploymentStatus {
@@ -1582,11 +1582,11 @@ func (x *UpdateAppEnvResponse) GetDeployment() *DeploymentStatus {
 	return nil
 }
 
-var File_shared_proto_app_v1_app_proto protoreflect.FileDescriptor
+var File_app_v1_app_proto protoreflect.FileDescriptor
 
-const file_shared_proto_app_v1_app_proto_rawDesc = "" +
+const file_app_v1_app_proto_rawDesc = "" +
 	"\n" +
-	"\x1dshared/proto/app/v1/app.proto\x12\vloco.app.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x02\n" +
+	"\x10app/v1/app.proto\x12\vloco.app.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x02\n" +
 	"\x03App\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\x03R\vworkspaceId\x12\x12\n" +
@@ -1728,20 +1728,20 @@ const file_shared_proto_app_v1_app_proto_rawDesc = "" +
 	"\fUpdateAppEnv\x12 .loco.app.v1.UpdateAppEnvRequest\x1a!.loco.app.v1.UpdateAppEnvResponseB7Z5github.com/nikumar1206/loco/shared/proto/app/v1;appv1b\x06proto3"
 
 var (
-	file_shared_proto_app_v1_app_proto_rawDescOnce sync.Once
-	file_shared_proto_app_v1_app_proto_rawDescData []byte
+	file_app_v1_app_proto_rawDescOnce sync.Once
+	file_app_v1_app_proto_rawDescData []byte
 )
 
-func file_shared_proto_app_v1_app_proto_rawDescGZIP() []byte {
-	file_shared_proto_app_v1_app_proto_rawDescOnce.Do(func() {
-		file_shared_proto_app_v1_app_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_shared_proto_app_v1_app_proto_rawDesc), len(file_shared_proto_app_v1_app_proto_rawDesc)))
+func file_app_v1_app_proto_rawDescGZIP() []byte {
+	file_app_v1_app_proto_rawDescOnce.Do(func() {
+		file_app_v1_app_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_app_v1_app_proto_rawDesc), len(file_app_v1_app_proto_rawDesc)))
 	})
-	return file_shared_proto_app_v1_app_proto_rawDescData
+	return file_app_v1_app_proto_rawDescData
 }
 
-var file_shared_proto_app_v1_app_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_shared_proto_app_v1_app_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
-var file_shared_proto_app_v1_app_proto_goTypes = []any{
+var file_app_v1_app_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_app_v1_app_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_app_v1_app_proto_goTypes = []any{
 	(AppType)(0),                               // 0: loco.app.v1.AppType
 	(*App)(nil),                                // 1: loco.app.v1.App
 	(*CreateAppRequest)(nil),                   // 2: loco.app.v1.CreateAppRequest
@@ -1773,7 +1773,7 @@ var file_shared_proto_app_v1_app_proto_goTypes = []any{
 	nil,                                        // 28: loco.app.v1.UpdateAppEnvRequest.EnvEntry
 	(*timestamppb.Timestamp)(nil),              // 29: google.protobuf.Timestamp
 }
-var file_shared_proto_app_v1_app_proto_depIdxs = []int32{
+var file_app_v1_app_proto_depIdxs = []int32{
 	0,  // 0: loco.app.v1.App.type:type_name -> loco.app.v1.AppType
 	29, // 1: loco.app.v1.App.created_at:type_name -> google.protobuf.Timestamp
 	29, // 2: loco.app.v1.App.updated_at:type_name -> google.protobuf.Timestamp
@@ -1822,33 +1822,33 @@ var file_shared_proto_app_v1_app_proto_depIdxs = []int32{
 	0,  // [0:17] is the sub-list for field type_name
 }
 
-func init() { file_shared_proto_app_v1_app_proto_init() }
-func file_shared_proto_app_v1_app_proto_init() {
-	if File_shared_proto_app_v1_app_proto != nil {
+func init() { file_app_v1_app_proto_init() }
+func file_app_v1_app_proto_init() {
+	if File_app_v1_app_proto != nil {
 		return
 	}
-	file_shared_proto_app_v1_app_proto_msgTypes[1].OneofWrappers = []any{}
-	file_shared_proto_app_v1_app_proto_msgTypes[9].OneofWrappers = []any{}
-	file_shared_proto_app_v1_app_proto_msgTypes[16].OneofWrappers = []any{}
-	file_shared_proto_app_v1_app_proto_msgTypes[18].OneofWrappers = []any{}
-	file_shared_proto_app_v1_app_proto_msgTypes[21].OneofWrappers = []any{}
-	file_shared_proto_app_v1_app_proto_msgTypes[23].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[1].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[9].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[16].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[18].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[21].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_shared_proto_app_v1_app_proto_rawDesc), len(file_shared_proto_app_v1_app_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_app_v1_app_proto_rawDesc), len(file_app_v1_app_proto_rawDesc)),
 			NumEnums:      1,
 			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_shared_proto_app_v1_app_proto_goTypes,
-		DependencyIndexes: file_shared_proto_app_v1_app_proto_depIdxs,
-		EnumInfos:         file_shared_proto_app_v1_app_proto_enumTypes,
-		MessageInfos:      file_shared_proto_app_v1_app_proto_msgTypes,
+		GoTypes:           file_app_v1_app_proto_goTypes,
+		DependencyIndexes: file_app_v1_app_proto_depIdxs,
+		EnumInfos:         file_app_v1_app_proto_enumTypes,
+		MessageInfos:      file_app_v1_app_proto_msgTypes,
 	}.Build()
-	File_shared_proto_app_v1_app_proto = out.File
-	file_shared_proto_app_v1_app_proto_goTypes = nil
-	file_shared_proto_app_v1_app_proto_depIdxs = nil
+	File_app_v1_app_proto = out.File
+	file_app_v1_app_proto_goTypes = nil
+	file_app_v1_app_proto_depIdxs = nil
 }

@@ -55,6 +55,10 @@ reload-cli:
 		--build.bin "./bin/loco" \
 		--build.exclude_dir "bin,api,archive,assets,dashboards,docs,kube,terraform,web")
 
+gen:
+	buf generate
+	cd api && sqlc generate
+
 lint: clean
 	@(golangci-lint run)
 
