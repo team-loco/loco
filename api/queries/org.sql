@@ -57,10 +57,6 @@ SELECT COUNT(*) = 0 as is_unique
 FROM organizations
 WHERE name = $1;
 
--- name: GetOrgMemberRole :one
-SELECT role FROM organization_members
-WHERE organization_id = $1 AND user_id = $2;
-
 -- name: IsOrgMember :one
 SELECT EXISTS(
   SELECT 1 FROM organization_members
@@ -68,5 +64,5 @@ SELECT EXISTS(
 ) as is_member;
 
 -- name: AddOrgMember :exec
-INSERT INTO organization_members (organization_id, user_id, role)
-VALUES ($1, $2, $3);
+INSERT INTO organization_members (organization_id, user_id)
+VALUES ($1, $2);
