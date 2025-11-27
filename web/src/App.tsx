@@ -6,7 +6,7 @@ import { Login } from "@/pages/Login";
 import { OAuthCallback } from "@/pages/OAuthCallback";
 import { TransportProvider, useQuery } from "@connectrpc/connect-query";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Route, Routes } from "react-router";
 import { createTransport } from "./auth/connect-transport";
 
 const queryClient = new QueryClient({
@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 	},
 });
 
-function AppContent() {
+function Landing() {
 	const { isAuthenticated } = useAuth();
 	const {
 		data: currentUserRes,
@@ -66,7 +66,7 @@ export default function App() {
 						<Routes>
 							<Route path="/login" element={<Login />} />
 							<Route path="/oauth/callback" element={<OAuthCallback />} />
-							<Route path="/" element={<AppContent />} />
+							<Route path="/" element={<Landing />} />
 						</Routes>
 					</QueryClientProvider>
 				</TransportProvider>
