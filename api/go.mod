@@ -76,6 +76,12 @@ require (
 )
 
 require (
+	connectrpc.com/cors v0.1.0
+	github.com/allegro/bigcache/v3 v3.1.0
+	github.com/rs/cors v1.11.1
+)
+
+require (
 	github.com/clipperhouse/displaywidth v0.6.0 // indirect
 	github.com/go-openapi/swag/cmdutils v0.25.3 // indirect
 	github.com/go-openapi/swag/conv v0.25.3 // indirect

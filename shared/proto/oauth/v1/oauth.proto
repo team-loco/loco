@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package shared.proto.oauth.v1;
+package loco.oauth.v1;
 
 option go_package = "github.com/loco-team/loco/shared/proto/oauth/v1;oauthv1";
 
@@ -24,7 +24,32 @@ message ExchangeGithubTokenResponse {
   string username = 6;
 }
 
+message GetGithubAuthorizationURLRequest {
+  string state = 1;
+  string redirect_uri = 2;
+}
+
+message GetGithubAuthorizationURLResponse {
+  string authorization_url = 1;
+  string state = 2;
+}
+
+message ExchangeGithubCodeRequest {
+  string code = 1;
+  string state = 2;
+  string redirect_uri = 3;
+}
+
+message ExchangeGithubCodeResponse {
+  string loco_token = 1;
+  int64 expires_in = 2;
+  int64 user_id = 3;
+  string username = 6;
+}
+
 service OAuthService {
   rpc GithubOAuthDetails(GithubOAuthDetailsRequest) returns (GithubOAuthDetailsResponse) {}
   rpc ExchangeGithubToken(ExchangeGithubTokenRequest) returns (ExchangeGithubTokenResponse);
+  rpc GetGithubAuthorizationURL(GetGithubAuthorizationURLRequest) returns (GetGithubAuthorizationURLResponse) {}
+  rpc ExchangeGithubCode(ExchangeGithubCodeRequest) returns (ExchangeGithubCodeResponse) {}
 }
