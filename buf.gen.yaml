@@ -1,8 +1,23 @@
 version: v2
 plugins:
     - local: protoc-gen-go
-      out: ./
+      out: ./shared/proto
       opt: paths=source_relative
     - local: protoc-gen-connect-go
-      out: ./
+      out: ./shared/proto
       opt: paths=source_relative
+    - local: protoc-gen-es
+      out: web/src/gen
+      opt:
+        - target=ts
+        - json_types=true
+    - local: protoc-gen-connect-es
+      out: web/src/gen
+      opt:
+        - target=ts
+        - import_extension=none
+    - local: protoc-gen-connect-query
+      out: web/src/gen
+      opt:
+        - target=ts
+        - import_extension=none

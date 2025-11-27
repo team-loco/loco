@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"connectrpc.com/connect"
+	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
 	charmLog "github.com/charmbracelet/log"
 	"github.com/loco-team/loco/api/db"
@@ -25,6 +26,7 @@ import (
 	"github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
 	"github.com/loco-team/loco/shared/proto/user/v1/userv1connect"
 	"github.com/loco-team/loco/shared/proto/workspace/v1/workspacev1connect"
+	"github.com/rs/cors"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -67,6 +69,20 @@ func newAppConfig() *AppConfig {
 	}
 }
 
+func withCORS(h http.Handler) http.Handler {
+	middleware := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowedMethods:   connectcors.AllowedMethods(),
+		AllowedHeaders:   connectcors.AllowedHeaders(),
+		ExposedHeaders:   connectcors.ExposedHeaders(),
+		AllowCredentials: true,
+		// AllowOriginFunc: func(origin string) bool {
+		// 	return true
+		// },
+	})
+	return middleware.Handler(h)
+}
+
 func main() {
 	ac := newAppConfig()
 
@@ -99,7 +115,10 @@ func main() {
 
 	httpClient := shared.NewHTTPClient()
 
-	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient)
+	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient)
+	if err != nil {
+		log.Fatal(err)
+	}
 	userServiceHandler := service.NewUserServer(pool, queries)
 	orgServiceHandler := service.NewOrgServer(pool, queries)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
@@ -125,8 +144,13 @@ func main() {
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
-		// user service
+		// oauth service
 		oauthv1connect.OAuthServiceGithubOAuthDetailsProcedure,
+		oauthv1connect.OAuthServiceExchangeGithubTokenProcedure,
+		oauthv1connect.OAuthServiceGetGithubAuthorizationURLProcedure,
+		oauthv1connect.OAuthServiceExchangeGithubCodeProcedure,
+
+		// user service
 		userv1connect.UserServiceCreateUserProcedure,
 		userv1connect.UserServiceGetUserProcedure,
 		userv1connect.UserServiceGetCurrentUserProcedure,
@@ -185,7 +209,8 @@ func main() {
 	mux.Handle(deploymentPath, deploymentHandler)
 	mux.Handle(registryPath, registryHandler)
 
-	muxWTiming := middleware.Timing(mux)
+	muxWCors := withCORS(mux)
+	muxWTiming := middleware.Timing(muxWCors)
 	muxWContext := middleware.SetContext(muxWTiming)
 
 	log.Fatal(http.ListenAndServe(
