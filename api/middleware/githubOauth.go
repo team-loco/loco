@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -16,25 +17,45 @@ func NewGithubAuthInterceptor() *githubAuthInterceptor {
 	return &githubAuthInterceptor{}
 }
 
+func extractToken(header http.Header) (string, error) {
+	authHeader := header.Get("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer "), nil
+	}
+
+	cookieHeader := header.Get("Cookie")
+	cookies, err := http.ParseCookie(cookieHeader)
+	if err != nil {
+		return "", err
+	}
+
+	for _, cookie := range cookies {
+		if cookie.Name == "loco_token" {
+			return cookie.Value, nil
+		}
+	}
+
+	return "", errors.New("no token provided")
+}
+
 func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return connect.UnaryFunc(func(
 		ctx context.Context,
 		req connect.AnyRequest,
 	) (connect.AnyResponse, error) {
 		// todo: need to fix the service name
-		if req.Spec().Procedure == "/shared.proto.oauth.v1.OAuthService/GithubOAuthDetails" ||
-			req.Spec().Procedure == "/shared.proto.oauth.v1.OAuthService/ExchangeGithubToken" {
+		if req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GithubOAuthDetails" ||
+			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubAuthorizationURL" ||
+			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeGithubCode" ||
+			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubUser" {
 			return next(ctx, req)
 		}
 
-		authHeader := req.Header().Get("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			return nil, connect.NewError(
-				connect.CodeUnauthenticated,
-				errors.New("no token provided"),
-			)
+		token, err := extractToken(req.Header())
+		if err != nil {
+			slog.Error(err.Error())
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
 		}
-		token := strings.TrimPrefix(authHeader, "Bearer ")
 
 		claims, err := jwtutil.ValidateLocoJWT(token)
 		if err != nil {
@@ -71,26 +92,23 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 		ctx context.Context,
 		conn connect.StreamingHandlerConn,
 	) error {
-		if conn.Spec().Procedure == "/shared.proto.oauth.v1.OAuthService/GithubOAuthDetails" ||
-			conn.Spec().Procedure == "/shared.proto.oauth.v1.OAuthService/ExchangeGithubToken" {
+		if conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GithubOAuthDetails" ||
+			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubAuthorizationURL" ||
+			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeGithubCode" ||
+			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubUser" {
 			return next(ctx, conn)
 		}
-		authHeader := conn.RequestHeader().Get("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			return connect.NewError(
-				connect.CodeUnauthenticated,
-				errors.New("no token provided"),
-			)
+
+		token, err := extractToken(conn.RequestHeader())
+		if err != nil {
+			slog.Error(err.Error())
+			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
-		token := strings.TrimPrefix(authHeader, "Bearer ")
 
 		claims, err := jwtutil.ValidateLocoJWT(token)
 		if err != nil {
 			slog.Error(err.Error())
-			return connect.NewError(
-				connect.CodeUnauthenticated,
-				err,
-			)
+			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
 		slog.Info("claims validated; populating ctx", slog.Int64("userId", claims.UserId))

@@ -1,46 +1,51 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
-import { authManager } from './auth-manager'
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 interface AuthContextType {
-  token: string | null
-  login: (token: string) => void
-  logout: () => void
-  isAuthenticated: boolean
+	token: string | null;
+	login: () => void;
+	logout: () => void;
+	isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null)
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setTokenState] = useState(authManager.getToken())
+	// With cookie-based auth, we just need to know if user is authenticated
+	// The backend will verify the cookie when we make requests
+	// A non-empty token indicates successful login
+	const [token, setTokenState] = useState<string | null>("cookie-based");
 
-  const login = (newToken: string) => {
-    authManager.login(newToken)
-    setTokenState(newToken)
-  }
+	const login = () => {
+		// Token is stored in HTTP-only cookie, not in state
+		setTokenState("cookie-based");
+		console.log("AuthProvider: login successful (token in cookie)");
+	};
 
-  const logout = () => {
-    authManager.logout()
-    setTokenState(null)
-  }
+	const logout = () => {
+		// Clear the cookie by calling logout endpoint
+		fetch("http://localhost:8000/logout", { method: "POST" }).catch(() => {});
+		setTokenState(null);
+		console.log("AuthProvider: logout");
+	};
 
-  return (
-    <AuthContext.Provider
-      value={{
-        token,
-        login,
-        logout,
-        isAuthenticated: !!token,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+	return (
+		<AuthContext.Provider
+			value={{
+				token,
+				login,
+				logout,
+				isAuthenticated: !!token,
+			}}
+		>
+			{children}
+		</AuthContext.Provider>
+	);
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) {
-    throw new Error('useAuth must be used inside AuthProvider')
-  }
-  return ctx
+	const ctx = useContext(AuthContext);
+	if (!ctx) {
+		throw new Error("useAuth must be used inside AuthProvider");
+	}
+	return ctx;
 }

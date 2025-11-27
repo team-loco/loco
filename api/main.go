@@ -115,7 +115,10 @@ func main() {
 
 	httpClient := shared.NewHTTPClient()
 
-	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient)
+	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient)
+	if err != nil {
+		log.Fatal(err)
+	}
 	userServiceHandler := service.NewUserServer(pool, queries)
 	orgServiceHandler := service.NewOrgServer(pool, queries)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
@@ -141,8 +144,13 @@ func main() {
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
-		// user service
+		// oauth service
 		oauthv1connect.OAuthServiceGithubOAuthDetailsProcedure,
+		oauthv1connect.OAuthServiceExchangeGithubTokenProcedure,
+		oauthv1connect.OAuthServiceGetGithubAuthorizationURLProcedure,
+		oauthv1connect.OAuthServiceExchangeGithubCodeProcedure,
+
+		// user service
 		userv1connect.UserServiceCreateUserProcedure,
 		userv1connect.UserServiceGetUserProcedure,
 		userv1connect.UserServiceGetCurrentUserProcedure,

@@ -77,6 +77,7 @@ require (
 
 require (
 	connectrpc.com/cors v0.1.0
+	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/rs/cors v1.11.1
 )
 

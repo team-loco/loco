@@ -22,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// OAuthServiceName is the fully-qualified name of the OAuthService service.
-	OAuthServiceName = "shared.proto.oauth.v1.OAuthService"
+	OAuthServiceName = "loco.oauth.v1.OAuthService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -35,22 +35,30 @@ const (
 const (
 	// OAuthServiceGithubOAuthDetailsProcedure is the fully-qualified name of the OAuthService's
 	// GithubOAuthDetails RPC.
-	OAuthServiceGithubOAuthDetailsProcedure = "/shared.proto.oauth.v1.OAuthService/GithubOAuthDetails"
+	OAuthServiceGithubOAuthDetailsProcedure = "/loco.oauth.v1.OAuthService/GithubOAuthDetails"
 	// OAuthServiceExchangeGithubTokenProcedure is the fully-qualified name of the OAuthService's
 	// ExchangeGithubToken RPC.
-	OAuthServiceExchangeGithubTokenProcedure = "/shared.proto.oauth.v1.OAuthService/ExchangeGithubToken"
+	OAuthServiceExchangeGithubTokenProcedure = "/loco.oauth.v1.OAuthService/ExchangeGithubToken"
+	// OAuthServiceGetGithubAuthorizationURLProcedure is the fully-qualified name of the OAuthService's
+	// GetGithubAuthorizationURL RPC.
+	OAuthServiceGetGithubAuthorizationURLProcedure = "/loco.oauth.v1.OAuthService/GetGithubAuthorizationURL"
+	// OAuthServiceExchangeGithubCodeProcedure is the fully-qualified name of the OAuthService's
+	// ExchangeGithubCode RPC.
+	OAuthServiceExchangeGithubCodeProcedure = "/loco.oauth.v1.OAuthService/ExchangeGithubCode"
 )
 
-// OAuthServiceClient is a client for the shared.proto.oauth.v1.OAuthService service.
+// OAuthServiceClient is a client for the loco.oauth.v1.OAuthService service.
 type OAuthServiceClient interface {
 	GithubOAuthDetails(context.Context, *connect.Request[v1.GithubOAuthDetailsRequest]) (*connect.Response[v1.GithubOAuthDetailsResponse], error)
 	ExchangeGithubToken(context.Context, *connect.Request[v1.ExchangeGithubTokenRequest]) (*connect.Response[v1.ExchangeGithubTokenResponse], error)
+	GetGithubAuthorizationURL(context.Context, *connect.Request[v1.GetGithubAuthorizationURLRequest]) (*connect.Response[v1.GetGithubAuthorizationURLResponse], error)
+	ExchangeGithubCode(context.Context, *connect.Request[v1.ExchangeGithubCodeRequest]) (*connect.Response[v1.ExchangeGithubCodeResponse], error)
 }
 
-// NewOAuthServiceClient constructs a client for the shared.proto.oauth.v1.OAuthService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewOAuthServiceClient constructs a client for the loco.oauth.v1.OAuthService service. By default,
+// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
+// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
+// or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
@@ -70,29 +78,55 @@ func NewOAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(oAuthServiceMethods.ByName("ExchangeGithubToken")),
 			connect.WithClientOptions(opts...),
 		),
+		getGithubAuthorizationURL: connect.NewClient[v1.GetGithubAuthorizationURLRequest, v1.GetGithubAuthorizationURLResponse](
+			httpClient,
+			baseURL+OAuthServiceGetGithubAuthorizationURLProcedure,
+			connect.WithSchema(oAuthServiceMethods.ByName("GetGithubAuthorizationURL")),
+			connect.WithClientOptions(opts...),
+		),
+		exchangeGithubCode: connect.NewClient[v1.ExchangeGithubCodeRequest, v1.ExchangeGithubCodeResponse](
+			httpClient,
+			baseURL+OAuthServiceExchangeGithubCodeProcedure,
+			connect.WithSchema(oAuthServiceMethods.ByName("ExchangeGithubCode")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // oAuthServiceClient implements OAuthServiceClient.
 type oAuthServiceClient struct {
-	githubOAuthDetails  *connect.Client[v1.GithubOAuthDetailsRequest, v1.GithubOAuthDetailsResponse]
-	exchangeGithubToken *connect.Client[v1.ExchangeGithubTokenRequest, v1.ExchangeGithubTokenResponse]
+	githubOAuthDetails        *connect.Client[v1.GithubOAuthDetailsRequest, v1.GithubOAuthDetailsResponse]
+	exchangeGithubToken       *connect.Client[v1.ExchangeGithubTokenRequest, v1.ExchangeGithubTokenResponse]
+	getGithubAuthorizationURL *connect.Client[v1.GetGithubAuthorizationURLRequest, v1.GetGithubAuthorizationURLResponse]
+	exchangeGithubCode        *connect.Client[v1.ExchangeGithubCodeRequest, v1.ExchangeGithubCodeResponse]
 }
 
-// GithubOAuthDetails calls shared.proto.oauth.v1.OAuthService.GithubOAuthDetails.
+// GithubOAuthDetails calls loco.oauth.v1.OAuthService.GithubOAuthDetails.
 func (c *oAuthServiceClient) GithubOAuthDetails(ctx context.Context, req *connect.Request[v1.GithubOAuthDetailsRequest]) (*connect.Response[v1.GithubOAuthDetailsResponse], error) {
 	return c.githubOAuthDetails.CallUnary(ctx, req)
 }
 
-// ExchangeGithubToken calls shared.proto.oauth.v1.OAuthService.ExchangeGithubToken.
+// ExchangeGithubToken calls loco.oauth.v1.OAuthService.ExchangeGithubToken.
 func (c *oAuthServiceClient) ExchangeGithubToken(ctx context.Context, req *connect.Request[v1.ExchangeGithubTokenRequest]) (*connect.Response[v1.ExchangeGithubTokenResponse], error) {
 	return c.exchangeGithubToken.CallUnary(ctx, req)
 }
 
-// OAuthServiceHandler is an implementation of the shared.proto.oauth.v1.OAuthService service.
+// GetGithubAuthorizationURL calls loco.oauth.v1.OAuthService.GetGithubAuthorizationURL.
+func (c *oAuthServiceClient) GetGithubAuthorizationURL(ctx context.Context, req *connect.Request[v1.GetGithubAuthorizationURLRequest]) (*connect.Response[v1.GetGithubAuthorizationURLResponse], error) {
+	return c.getGithubAuthorizationURL.CallUnary(ctx, req)
+}
+
+// ExchangeGithubCode calls loco.oauth.v1.OAuthService.ExchangeGithubCode.
+func (c *oAuthServiceClient) ExchangeGithubCode(ctx context.Context, req *connect.Request[v1.ExchangeGithubCodeRequest]) (*connect.Response[v1.ExchangeGithubCodeResponse], error) {
+	return c.exchangeGithubCode.CallUnary(ctx, req)
+}
+
+// OAuthServiceHandler is an implementation of the loco.oauth.v1.OAuthService service.
 type OAuthServiceHandler interface {
 	GithubOAuthDetails(context.Context, *connect.Request[v1.GithubOAuthDetailsRequest]) (*connect.Response[v1.GithubOAuthDetailsResponse], error)
 	ExchangeGithubToken(context.Context, *connect.Request[v1.ExchangeGithubTokenRequest]) (*connect.Response[v1.ExchangeGithubTokenResponse], error)
+	GetGithubAuthorizationURL(context.Context, *connect.Request[v1.GetGithubAuthorizationURLRequest]) (*connect.Response[v1.GetGithubAuthorizationURLResponse], error)
+	ExchangeGithubCode(context.Context, *connect.Request[v1.ExchangeGithubCodeRequest]) (*connect.Response[v1.ExchangeGithubCodeResponse], error)
 }
 
 // NewOAuthServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +148,28 @@ func NewOAuthServiceHandler(svc OAuthServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(oAuthServiceMethods.ByName("ExchangeGithubToken")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/shared.proto.oauth.v1.OAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	oAuthServiceGetGithubAuthorizationURLHandler := connect.NewUnaryHandler(
+		OAuthServiceGetGithubAuthorizationURLProcedure,
+		svc.GetGithubAuthorizationURL,
+		connect.WithSchema(oAuthServiceMethods.ByName("GetGithubAuthorizationURL")),
+		connect.WithHandlerOptions(opts...),
+	)
+	oAuthServiceExchangeGithubCodeHandler := connect.NewUnaryHandler(
+		OAuthServiceExchangeGithubCodeProcedure,
+		svc.ExchangeGithubCode,
+		connect.WithSchema(oAuthServiceMethods.ByName("ExchangeGithubCode")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/loco.oauth.v1.OAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OAuthServiceGithubOAuthDetailsProcedure:
 			oAuthServiceGithubOAuthDetailsHandler.ServeHTTP(w, r)
 		case OAuthServiceExchangeGithubTokenProcedure:
 			oAuthServiceExchangeGithubTokenHandler.ServeHTTP(w, r)
+		case OAuthServiceGetGithubAuthorizationURLProcedure:
+			oAuthServiceGetGithubAuthorizationURLHandler.ServeHTTP(w, r)
+		case OAuthServiceExchangeGithubCodeProcedure:
+			oAuthServiceExchangeGithubCodeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -130,9 +180,17 @@ func NewOAuthServiceHandler(svc OAuthServiceHandler, opts ...connect.HandlerOpti
 type UnimplementedOAuthServiceHandler struct{}
 
 func (UnimplementedOAuthServiceHandler) GithubOAuthDetails(context.Context, *connect.Request[v1.GithubOAuthDetailsRequest]) (*connect.Response[v1.GithubOAuthDetailsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("shared.proto.oauth.v1.OAuthService.GithubOAuthDetails is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.GithubOAuthDetails is not implemented"))
 }
 
 func (UnimplementedOAuthServiceHandler) ExchangeGithubToken(context.Context, *connect.Request[v1.ExchangeGithubTokenRequest]) (*connect.Response[v1.ExchangeGithubTokenResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("shared.proto.oauth.v1.OAuthService.ExchangeGithubToken is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.ExchangeGithubToken is not implemented"))
+}
+
+func (UnimplementedOAuthServiceHandler) GetGithubAuthorizationURL(context.Context, *connect.Request[v1.GetGithubAuthorizationURLRequest]) (*connect.Response[v1.GetGithubAuthorizationURLResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.GetGithubAuthorizationURL is not implemented"))
+}
+
+func (UnimplementedOAuthServiceHandler) ExchangeGithubCode(context.Context, *connect.Request[v1.ExchangeGithubCodeRequest]) (*connect.Response[v1.ExchangeGithubCodeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.ExchangeGithubCode is not implemented"))
 }
