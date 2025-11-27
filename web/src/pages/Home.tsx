@@ -4,10 +4,10 @@ import { AppCard } from '@/components/AppCard'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { getCurrentUserOrgs } from '@/gen/org/v1/org-OrgService_connectquery'
-import { listWorkspaces } from '@/gen/workspace/v1/workspace-WorkspaceService_connectquery'
-import { listApps } from '@/gen/app/v1/app-AppService_connectquery'
-import { listDeployments } from '@/gen/deployment/v1/deployment-DeploymentService_connectquery'
+import { getCurrentUserOrgs } from '@/gen/org/v1'
+import { listWorkspaces } from '@/gen/workspace/v1'
+import { listApps } from '@/gen/app/v1'
+import { listDeployments } from '@/gen/deployment/v1'
 
 export function Home() {
   const { data: getCurrentUserOrgsRes, isLoading: orgsLoading, error: orgsError } = useQuery(

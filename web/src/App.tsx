@@ -5,7 +5,7 @@ import { Login } from "@/pages/Login";
 import { TransportProvider, useQuery } from "@connectrpc/connect-query";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createTransport } from "./auth/connect-transport";
-import { getCurrentUser } from "./gen/user/v1/user-UserService_connectquery";
+import { getCurrentUser } from "@/gen/user/v1";
 const queryClient = new QueryClient();
 
 function AppContent() {
