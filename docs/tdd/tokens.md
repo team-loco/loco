@@ -61,3 +61,9 @@ wks: admin
 project: read
 project: write
 project: admin
+
+create table scope2user (
+overall text primary key // org:read, org:write, org:admin
+entity_id: text, // org id
+user_id: text,
+)

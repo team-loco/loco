@@ -1,6 +1,9 @@
 package vending
 
 import (
+	"context"
+	"os"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/loco-team/loco/api/db"
 )
@@ -191,13 +194,33 @@ var actionScopes = map[string][]string{
 
 type Claims struct {
 	EntityID string   `json:"entity_id"` // on behalf of which entity the token is issued
-	Scopes   []string `json:"scopes"`    // permissions associated with the token
+	Scopes   []string `json:"scopes"`    // scopes associated with the token
 	jwt.RegisteredClaims
 }
 
-type VendingMachine struct {
-	db *db.DB
+type TokenService interface {
+	IssueToken(ctx context.Context, subject string, scopes []string, opts ...IssueOption) (string, error)
+	ValidateToken(ctx context.Context, token string) (*Claims, error)
+	RefreshToken(ctx context.Context, refreshToken string) (string, string, error)
+	RevokeToken(ctx context.Context, tokenID string) error
 }
 
-func IssueJWT() {
+type VendingMachine struct {
+	db     *db.DB
+	secret []byte
+}
+
+func (tvm *VendingMachine) Issue(scopes []string) (string, error) {
+
+}
+
+func NewVendingMachine(db *db.DB) *VendingMachine {
+	secret := os.Getenv("JWT_SECRET")
+	if len(secret) == 0 {
+		panic("JWT_SECRET not set")
+	}
+	return &VendingMachine{
+		db:     db,
+		secret: []byte(secret),
+	}
 }
