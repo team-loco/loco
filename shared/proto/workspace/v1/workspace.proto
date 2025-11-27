@@ -4,7 +4,7 @@ package loco.workspace.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/nikumar1206/loco/shared/proto/workspace/v1;workspacev1";
+option go_package = "github.com/loco-team/loco/shared/proto/workspace/v1;workspacev1";
 
 service WorkspaceService {
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);

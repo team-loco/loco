@@ -20,7 +20,7 @@ Loco is a container orchestration platform that simplifies application deploymen
 1.  **Download the loco cli**
 
 ```bash
-go install github.com/nikumar1206/loco@latest
+go install github.com/loco-team/loco@latest
 ```
 
 2. **Run `loco init` to create a `loco.toml` file.**

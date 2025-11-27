@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/nikumar1206/loco/internal/ui"
-	"github.com/nikumar1206/loco/shared/config"
+	"github.com/loco-team/loco/internal/ui"
+	"github.com/loco-team/loco/shared/config"
 	"github.com/spf13/cobra"
 )
 

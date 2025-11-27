@@ -8,10 +8,10 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/nikumar1206/loco/internal/client"
-	"github.com/nikumar1206/loco/internal/config"
-	"github.com/nikumar1206/loco/internal/keychain"
-	"github.com/nikumar1206/loco/internal/ui"
+	"github.com/loco-team/loco/internal/client"
+	"github.com/loco-team/loco/internal/config"
+	"github.com/loco-team/loco/internal/keychain"
+	"github.com/loco-team/loco/internal/ui"
 	"github.com/spf13/cobra"
 )
 

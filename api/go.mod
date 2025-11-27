@@ -1,4 +1,4 @@
-module github.com/nikumar1206/loco/api
+module github.com/loco-team/loco/api
 
 go 1.25.0
 
@@ -10,7 +10,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/nikumar1206/loco/shared v0.0.0-20251123182415-9216adda056e
+	github.com/loco-team/loco/shared v0.0.0-20251123182415-9216adda056e
 	golang.org/x/oauth2 v0.33.0
 	k8s.io/api v0.34.2
 	// cannot upgrade: https://github.com/kubernetes-sigs/gateway-api/issues/4055
@@ -99,4 +99,4 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1 // indirect
 )
 
-replace github.com/nikumar1206/loco/shared => ../shared
+replace github.com/loco-team/loco/shared => ../shared

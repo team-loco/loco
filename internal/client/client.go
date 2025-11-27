@@ -13,17 +13,17 @@ import (
 	json "github.com/goccy/go-json"
 
 	"connectrpc.com/connect"
-	"github.com/nikumar1206/loco/shared"
-	appv1 "github.com/nikumar1206/loco/shared/proto/app/v1"
-	"github.com/nikumar1206/loco/shared/proto/app/v1/appv1connect"
-	deploymentv1 "github.com/nikumar1206/loco/shared/proto/deployment/v1"
-	"github.com/nikumar1206/loco/shared/proto/deployment/v1/deploymentv1connect"
-	orgv1 "github.com/nikumar1206/loco/shared/proto/org/v1"
-	"github.com/nikumar1206/loco/shared/proto/org/v1/orgv1connect"
-	userv1 "github.com/nikumar1206/loco/shared/proto/user/v1"
-	"github.com/nikumar1206/loco/shared/proto/user/v1/userv1connect"
-	workspacev1 "github.com/nikumar1206/loco/shared/proto/workspace/v1"
-	"github.com/nikumar1206/loco/shared/proto/workspace/v1/workspacev1connect"
+	"github.com/loco-team/loco/shared"
+	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
+	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
+	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
+	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
+	orgv1 "github.com/loco-team/loco/shared/proto/org/v1"
+	"github.com/loco-team/loco/shared/proto/org/v1/orgv1connect"
+	userv1 "github.com/loco-team/loco/shared/proto/user/v1"
+	"github.com/loco-team/loco/shared/proto/user/v1/userv1connect"
+	workspacev1 "github.com/loco-team/loco/shared/proto/workspace/v1"
+	"github.com/loco-team/loco/shared/proto/workspace/v1/workspacev1connect"
 )
 
 // todo: is this too bloated? we likely need to fix this.
