@@ -25,14 +25,6 @@ export function EventBell() {
 		const unsubscribe = subscribeToEvents("workspace", (event) => {
 			setEvents((prev) => [event, ...prev.slice(0, 9)]);
 			setUnreadCount((prev) => prev + 1);
-			toast("Event has been created", {
-				description: "Sunday, December 03, 2023 at 9:00 AM",
-				action: {
-					label: "Undo",
-					onClick: () => console.log("Undo"),
-				},
-			});
-			// Show toast notification
 			if (event.severity === "error") {
 				toast(event.message, {});
 				toast.error(event.message, {

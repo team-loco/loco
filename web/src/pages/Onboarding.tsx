@@ -1,11 +1,11 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { useEffect } from "react";
-import { useNavigate } from "react-router";
 import { useAuth } from "@/auth/AuthProvider";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { getCurrentUser } from "@/gen/user/v1";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
 import { useQuery } from "@connectrpc/connect-query";
-import { getCurrentUser } from "@/gen/user/v1";
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
 
 export function Onboarding() {
 	const navigate = useNavigate();
@@ -81,10 +81,12 @@ export function Onboarding() {
 			<Card className="max-w-md w-full">
 				<CardContent className="p-8">
 					<div className="text-center mb-8">
-						<div className="w-12 h-12 bg-main rounded-neo flex items-center justify-center text-white font-heading text-lg font-bold mx-auto mb-4">
+						<div className="w-12 h-12 bg-main rounded-neo flex items-center justify-center text-white font-heading text-lg mx-auto mb-4">
 							L
 						</div>
-						<h1 className="text-2xl font-heading font-bold text-foreground mb-2">Welcome to Loco</h1>
+						<h1 className="text-2xl font-heading text-foreground mb-2">
+							Welcome to Loco
+						</h1>
 						<p className="text-sm text-muted-foreground">
 							Setting up your account...
 						</p>
@@ -100,9 +102,7 @@ export function Onboarding() {
 
 						{error && (
 							<div className="bg-red-50 border border-red-200 rounded p-3">
-								<p className="text-sm text-red-700">
-									Error: {error}
-								</p>
+								<p className="text-sm text-red-700">Error: {error}</p>
 								<button
 									onClick={() => window.location.reload()}
 									className="text-sm text-red-600 underline mt-2 hover:text-red-700"
