@@ -44,15 +44,15 @@ func (s *OrgServer) CreateOrg(
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	externalId, ok := ctx.Value("external_user_id").(string)
+	username, ok := ctx.Value("user").(string)
 	if !ok {
-		slog.ErrorContext(ctx, "extnernal id not found in context")
+		slog.ErrorContext(ctx, "username not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	orgName := r.GetName()
 	if orgName == "" {
-		orgName = fmt.Sprintf("%s's Organization", externalId)
+		orgName = fmt.Sprintf("%s's Organization", username)
 	}
 
 	isUnique, err := s.queries.IsOrgNameUnique(ctx, orgName)
