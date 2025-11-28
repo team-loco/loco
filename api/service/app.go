@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/contextkeys"
 	"github.com/loco-team/loco/api/pkg/klogmux"
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/timeutil"
@@ -54,7 +55,7 @@ func (s *AppServer) CreateApp(
 ) (*connect.Response[appv1.CreateAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -137,7 +138,7 @@ func (s *AppServer) GetApp(
 	r := req.Msg
 
 	// todo: role checks should actually be done first.
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -170,7 +171,7 @@ func (s *AppServer) GetAppByName(
 ) (*connect.Response[appv1.GetAppByNameResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -206,7 +207,7 @@ func (s *AppServer) ListApps(
 ) (*connect.Response[appv1.ListAppsResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -244,7 +245,7 @@ func (s *AppServer) UpdateApp(
 ) (*connect.Response[appv1.UpdateAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -307,7 +308,7 @@ func (s *AppServer) DeleteApp(
 ) (*connect.Response[appv1.DeleteAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -381,7 +382,7 @@ func (s *AppServer) GetAppStatus(
 ) (*connect.Response[appv1.GetAppStatusResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -442,7 +443,7 @@ func (s *AppServer) StreamLogs(
 ) error {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -532,7 +533,7 @@ func (s *AppServer) GetEvents(
 ) (*connect.Response[appv1.GetEventsResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -607,7 +608,7 @@ func (s *AppServer) ScaleApp(
 ) (*connect.Response[appv1.ScaleAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -774,7 +775,7 @@ func (s *AppServer) UpdateAppEnv(
 ) (*connect.Response[appv1.UpdateAppEnvResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)

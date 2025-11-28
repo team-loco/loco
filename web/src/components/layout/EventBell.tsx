@@ -26,7 +26,6 @@ export function EventBell() {
 			setEvents((prev) => [event, ...prev.slice(0, 9)]);
 			setUnreadCount((prev) => prev + 1);
 			if (event.severity === "error") {
-				toast(event.message, {});
 				toast.error(event.message, {
 					description: `${event.appName} • ${formatTime(event.timestamp)}`,
 				});

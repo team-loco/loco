@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/contextkeys"
 	"github.com/loco-team/loco/api/timeutil"
 	userv1 "github.com/loco-team/loco/shared/proto/user/v1"
 )
@@ -142,7 +143,7 @@ func (s *UserServer) GetCurrentUser(
 	ctx context.Context,
 	req *connect.Request[userv1.GetCurrentUserRequest],
 ) (*connect.Response[userv1.GetCurrentUserResponse], error) {
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)

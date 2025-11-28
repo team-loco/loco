@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/contextkeys"
 	"github.com/loco-team/loco/api/timeutil"
 	orgv1 "github.com/loco-team/loco/shared/proto/org/v1"
 )
@@ -39,12 +40,12 @@ func (s *OrgServer) CreateOrg(
 ) (*connect.Response[orgv1.CreateOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	username, ok := ctx.Value("user").(string)
+	username, ok := ctx.Value(contextkeys.UserKey).(string)
 	if !ok {
 		slog.ErrorContext(ctx, "username not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -103,7 +104,7 @@ func (s *OrgServer) GetOrg(
 ) (*connect.Response[orgv1.GetOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -145,7 +146,7 @@ func (s *OrgServer) GetCurrentUserOrgs(
 	ctx context.Context,
 	req *connect.Request[orgv1.GetCurrentUserOrgsRequest],
 ) (*connect.Response[orgv1.GetCurrentUserOrgsResponse], error) {
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -231,7 +232,7 @@ func (s *OrgServer) UpdateOrg(
 ) (*connect.Response[orgv1.UpdateOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -292,7 +293,7 @@ func (s *OrgServer) DeleteOrg(
 ) (*connect.Response[orgv1.DeleteOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -356,7 +357,7 @@ func (s *OrgServer) ListWorkspaces(
 ) (*connect.Response[orgv1.ListWorkspacesResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
