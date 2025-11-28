@@ -43,8 +43,6 @@ function Landing() {
 	}
 
 	if (error) {
-		// Store error message for login page to display
-		sessionStorage.setItem("oauth_error", error.message);
 		return <Login />;
 	}
 
