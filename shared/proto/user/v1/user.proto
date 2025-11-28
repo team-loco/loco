@@ -13,6 +13,7 @@ service UserService {
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
 message User {
@@ -79,4 +80,10 @@ message DeleteUserRequest {
 message DeleteUserResponse {
   User user = 1;
   string message = 2;
+}
+
+message LogoutRequest {}
+
+message LogoutResponse {
+  string message = 1;
 }

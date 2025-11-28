@@ -714,6 +714,86 @@ func (x *DeleteUserResponse) GetMessage() string {
 	return ""
 }
 
+type LogoutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutRequest) Reset() {
+	*x = LogoutRequest{}
+	mi := &file_user_v1_user_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutRequest) ProtoMessage() {}
+
+func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
+func (*LogoutRequest) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{13}
+}
+
+type LogoutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LogoutResponse) Reset() {
+	*x = LogoutResponse{}
+	mi := &file_user_v1_user_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LogoutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LogoutResponse) ProtoMessage() {}
+
+func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_user_v1_user_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
+func (*LogoutResponse) Descriptor() ([]byte, []int) {
+	return file_user_v1_user_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *LogoutResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_user_v1_user_proto_rawDesc = "" +
@@ -773,7 +853,10 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\"V\n" +
 	"\x12DeleteUserResponse\x12&\n" +
 	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xf3\x03\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x0f\n" +
+	"\rLogoutRequest\"*\n" +
+	"\x0eLogoutResponse\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage2\xb8\x04\n" +
 	"\vUserService\x12O\n" +
 	"\n" +
 	"CreateUser\x12\x1f.loco.user.v1.CreateUserRequest\x1a .loco.user.v1.CreateUserResponse\x12F\n" +
@@ -783,7 +866,8 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"UpdateUser\x12\x1f.loco.user.v1.UpdateUserRequest\x1a .loco.user.v1.UpdateUserResponse\x12L\n" +
 	"\tListUsers\x12\x1e.loco.user.v1.ListUsersRequest\x1a\x1f.loco.user.v1.ListUsersResponse\x12O\n" +
 	"\n" +
-	"DeleteUser\x12\x1f.loco.user.v1.DeleteUserRequest\x1a .loco.user.v1.DeleteUserResponseB7Z5github.com/loco-team/loco/shared/proto/user/v1;userv1b\x06proto3"
+	"DeleteUser\x12\x1f.loco.user.v1.DeleteUserRequest\x1a .loco.user.v1.DeleteUserResponse\x12C\n" +
+	"\x06Logout\x12\x1b.loco.user.v1.LogoutRequest\x1a\x1c.loco.user.v1.LogoutResponseB7Z5github.com/loco-team/loco/shared/proto/user/v1;userv1b\x06proto3"
 
 var (
 	file_user_v1_user_proto_rawDescOnce sync.Once
@@ -797,7 +881,7 @@ func file_user_v1_user_proto_rawDescGZIP() []byte {
 	return file_user_v1_user_proto_rawDescData
 }
 
-var file_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_user_v1_user_proto_goTypes = []any{
 	(*User)(nil),                   // 0: loco.user.v1.User
 	(*CreateUserRequest)(nil),      // 1: loco.user.v1.CreateUserRequest
@@ -812,11 +896,13 @@ var file_user_v1_user_proto_goTypes = []any{
 	(*ListUsersResponse)(nil),      // 10: loco.user.v1.ListUsersResponse
 	(*DeleteUserRequest)(nil),      // 11: loco.user.v1.DeleteUserRequest
 	(*DeleteUserResponse)(nil),     // 12: loco.user.v1.DeleteUserResponse
-	(*timestamppb.Timestamp)(nil),  // 13: google.protobuf.Timestamp
+	(*LogoutRequest)(nil),          // 13: loco.user.v1.LogoutRequest
+	(*LogoutResponse)(nil),         // 14: loco.user.v1.LogoutResponse
+	(*timestamppb.Timestamp)(nil),  // 15: google.protobuf.Timestamp
 }
 var file_user_v1_user_proto_depIdxs = []int32{
-	13, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	13, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	15, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	15, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: loco.user.v1.CreateUserResponse.user:type_name -> loco.user.v1.User
 	0,  // 3: loco.user.v1.GetUserResponse.user:type_name -> loco.user.v1.User
 	0,  // 4: loco.user.v1.GetCurrentUserResponse.user:type_name -> loco.user.v1.User
@@ -829,14 +915,16 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	7,  // 11: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
 	9,  // 12: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
 	11, // 13: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
-	2,  // 14: loco.user.v1.UserService.CreateUser:output_type -> loco.user.v1.CreateUserResponse
-	4,  // 15: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
-	6,  // 16: loco.user.v1.UserService.GetCurrentUser:output_type -> loco.user.v1.GetCurrentUserResponse
-	8,  // 17: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
-	10, // 18: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
-	12, // 19: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
+	13, // 14: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
+	2,  // 15: loco.user.v1.UserService.CreateUser:output_type -> loco.user.v1.CreateUserResponse
+	4,  // 16: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
+	6,  // 17: loco.user.v1.UserService.GetCurrentUser:output_type -> loco.user.v1.GetCurrentUserResponse
+	8,  // 18: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
+	10, // 19: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
+	12, // 20: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
+	14, // 21: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -856,7 +944,7 @@ func file_user_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_user_v1_user_proto_rawDesc), len(file_user_v1_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

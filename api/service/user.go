@@ -286,6 +286,21 @@ func (s *UserServer) DeleteUser(
 	}), nil
 }
 
+// Logout logs out the user by clearing the session cookie
+func (s *UserServer) Logout(
+	ctx context.Context,
+	req *connect.Request[userv1.LogoutRequest],
+) (*connect.Response[userv1.LogoutResponse], error) {
+	res := connect.NewResponse(&userv1.LogoutResponse{
+		Message: "logged out successfully",
+	})
+
+	res.Header().Set("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+
+	slog.InfoContext(ctx, "user logged out")
+	return res, nil
+}
+
 // Helper methods
 
 func (s *UserServer) getUserByID(ctx context.Context, id int64) (*userv1.User, error) {

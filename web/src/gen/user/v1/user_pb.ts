@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file user/v1/user.proto.
  */
 export const file_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCJHChJDcmVhdGVVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyEg8KB21lc3NhZ2UYAiABKAkiUAoOR2V0VXNlclJlcXVlc3QSFAoHdXNlcl9pZBgBIAEoA0gAiAEBEhIKBWVtYWlsGAIgASgJSAGIAQFCCgoIX3VzZXJfaWRCCAoGX2VtYWlsIjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIiFwoVR2V0Q3VycmVudFVzZXJSZXF1ZXN0IjoKFkdldEN1cnJlbnRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIkwKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSFwoKYXZhdGFyX3VybBgCIAEoCUgAiAEBQg0KC19hdmF0YXJfdXJsIkcKElVwZGF0ZVVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXISDwoHbWVzc2FnZRgCIAEoCSIxChBMaXN0VXNlcnNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJLChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhMKC3RvdGFsX2NvdW50GAIgASgDIiQKEURlbGV0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMiRwoSRGVsZXRlVXNlclJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIPCgdtZXNzYWdlGAIgASgJMvMDCgtVc2VyU2VydmljZRJPCgpDcmVhdGVVc2VyEh8ubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXNwb25zZRJGCgdHZXRVc2VyEhwubG9jby51c2VyLnYxLkdldFVzZXJSZXF1ZXN0Gh0ubG9jby51c2VyLnYxLkdldFVzZXJSZXNwb25zZRJbCg5HZXRDdXJyZW50VXNlchIjLmxvY28udXNlci52MS5HZXRDdXJyZW50VXNlclJlcXVlc3QaJC5sb2NvLnVzZXIudjEuR2V0Q3VycmVudFVzZXJSZXNwb25zZRJPCgpVcGRhdGVVc2VyEh8ubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLlVwZGF0ZVVzZXJSZXNwb25zZRJMCglMaXN0VXNlcnMSHi5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVxdWVzdBofLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXNwb25zZRJPCgpEZWxldGVVc2VyEh8ubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXNwb25zZUI3WjVnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by91c2VyL3YxO3VzZXJ2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCJHChJDcmVhdGVVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyEg8KB21lc3NhZ2UYAiABKAkiUAoOR2V0VXNlclJlcXVlc3QSFAoHdXNlcl9pZBgBIAEoA0gAiAEBEhIKBWVtYWlsGAIgASgJSAGIAQFCCgoIX3VzZXJfaWRCCAoGX2VtYWlsIjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIiFwoVR2V0Q3VycmVudFVzZXJSZXF1ZXN0IjoKFkdldEN1cnJlbnRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIkwKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSFwoKYXZhdGFyX3VybBgCIAEoCUgAiAEBQg0KC19hdmF0YXJfdXJsIkcKElVwZGF0ZVVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXISDwoHbWVzc2FnZRgCIAEoCSIxChBMaXN0VXNlcnNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJLChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhMKC3RvdGFsX2NvdW50GAIgASgDIiQKEURlbGV0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMiRwoSRGVsZXRlVXNlclJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIPCgdtZXNzYWdlGAIgASgJIg8KDUxvZ291dFJlcXVlc3QiIQoOTG9nb3V0UmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCTK4BAoLVXNlclNlcnZpY2USTwoKQ3JlYXRlVXNlchIfLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVzcG9uc2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USWwoOR2V0Q3VycmVudFVzZXISIy5sb2NvLnVzZXIudjEuR2V0Q3VycmVudFVzZXJSZXF1ZXN0GiQubG9jby51c2VyLnYxLkdldEN1cnJlbnRVc2VyUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2VCN1o1Z2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vdXNlci92MTt1c2VydjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.user.v1.User
@@ -518,6 +518,52 @@ export const DeleteUserResponseSchema: GenMessage<DeleteUserResponse, {jsonType:
   messageDesc(file_user_v1_user, 12);
 
 /**
+ * @generated from message loco.user.v1.LogoutRequest
+ */
+export type LogoutRequest = Message<"loco.user.v1.LogoutRequest"> & {
+};
+
+/**
+ * @generated from message loco.user.v1.LogoutRequest
+ */
+export type LogoutRequestJson = {
+};
+
+/**
+ * Describes the message loco.user.v1.LogoutRequest.
+ * Use `create(LogoutRequestSchema)` to create a new message.
+ */
+export const LogoutRequestSchema: GenMessage<LogoutRequest, {jsonType: LogoutRequestJson}> = /*@__PURE__*/
+  messageDesc(file_user_v1_user, 13);
+
+/**
+ * @generated from message loco.user.v1.LogoutResponse
+ */
+export type LogoutResponse = Message<"loco.user.v1.LogoutResponse"> & {
+  /**
+   * @generated from field: string message = 1;
+   */
+  message: string;
+};
+
+/**
+ * @generated from message loco.user.v1.LogoutResponse
+ */
+export type LogoutResponseJson = {
+  /**
+   * @generated from field: string message = 1;
+   */
+  message?: string;
+};
+
+/**
+ * Describes the message loco.user.v1.LogoutResponse.
+ * Use `create(LogoutResponseSchema)` to create a new message.
+ */
+export const LogoutResponseSchema: GenMessage<LogoutResponse, {jsonType: LogoutResponseJson}> = /*@__PURE__*/
+  messageDesc(file_user_v1_user, 14);
+
+/**
  * @generated from service loco.user.v1.UserService
  */
 export const UserService: GenService<{
@@ -568,6 +614,14 @@ export const UserService: GenService<{
     methodKind: "unary";
     input: typeof DeleteUserRequestSchema;
     output: typeof DeleteUserResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.user.v1.UserService.Logout
+   */
+  logout: {
+    methodKind: "unary";
+    input: typeof LogoutRequestSchema;
+    output: typeof LogoutResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_user_v1_user, 0);

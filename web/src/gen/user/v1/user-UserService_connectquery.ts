@@ -33,3 +33,8 @@ export const listUsers = UserService.method.listUsers;
  * @generated from rpc loco.user.v1.UserService.DeleteUser
  */
 export const deleteUser = UserService.method.deleteUser;
+
+/**
+ * @generated from rpc loco.user.v1.UserService.Logout
+ */
+export const logout = UserService.method.logout;

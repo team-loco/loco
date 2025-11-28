@@ -1,4 +1,3 @@
-import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -9,26 +8,38 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import type { User } from "@/gen/user/v1/user_pb";
+import { logout } from "@/gen/user/v1";
+import { useMutation } from "@connectrpc/connect-query";
 import { useQuery } from "@connectrpc/connect-query";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { BreadcrumbNav } from "./layout/Breadcrumb";
 import { EventBell } from "./layout/EventBell";
 import { NavMenu } from "./layout/NavMenu";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 interface NavbarProps {
 	user: User | null;
 }
 
 export function Navbar({ user }: NavbarProps) {
-	const { logout } = useAuth();
 	const navigate = useNavigate();
 	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
 	const orgs = orgsRes?.orgs ?? [];
 	const firstOrgId = orgs.length > 0 ? orgs[0].id : null;
+	const { mutate: logoutMutation } = useMutation(logout);
 
 	const handleLogout = () => {
-		logout();
-		window.location.href = "/";
+		logoutMutation({}, {
+			onSuccess: () => {
+				toast.success("Logged out successfully");
+				navigate("/");
+			},
+			onError: (error) => {
+				toast.error("Failed to logout");
+				console.error(error);
+			},
+		});
 	};
 
 	return (
@@ -64,9 +75,12 @@ export function Navbar({ user }: NavbarProps) {
 									variant="noShadow"
 									className="flex items-center gap-2 border-0"
 								>
-									<div className="w-5 h-5 bg-main rounded-neo text-white flex items-center justify-center text-xs font-heading">
-										{user.name.charAt(0).toUpperCase()}
-									</div>
+									<Avatar className="w-6 h-6 border-0">
+										<AvatarImage src={user.avatarUrl} alt="user avatar" />
+										<AvatarFallback>
+											{user.name.charAt(0).toUpperCase()}
+										</AvatarFallback>
+									</Avatar>
 									<span className="text-sm hidden sm:inline">{user.name}</span>
 								</Button>
 							</DropdownMenuTrigger>

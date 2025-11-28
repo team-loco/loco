@@ -46,6 +46,8 @@ const (
 	UserServiceListUsersProcedure = "/loco.user.v1.UserService/ListUsers"
 	// UserServiceDeleteUserProcedure is the fully-qualified name of the UserService's DeleteUser RPC.
 	UserServiceDeleteUserProcedure = "/loco.user.v1.UserService/DeleteUser"
+	// UserServiceLogoutProcedure is the fully-qualified name of the UserService's Logout RPC.
+	UserServiceLogoutProcedure = "/loco.user.v1.UserService/Logout"
 )
 
 // UserServiceClient is a client for the loco.user.v1.UserService service.
@@ -56,6 +58,7 @@ type UserServiceClient interface {
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
 // NewUserServiceClient constructs a client for the loco.user.v1.UserService service. By default, it
@@ -105,6 +108,12 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("DeleteUser")),
 			connect.WithClientOptions(opts...),
 		),
+		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
+			httpClient,
+			baseURL+UserServiceLogoutProcedure,
+			connect.WithSchema(userServiceMethods.ByName("Logout")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -116,6 +125,7 @@ type userServiceClient struct {
 	updateUser     *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
 	listUsers      *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
 	deleteUser     *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
+	logout         *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 }
 
 // CreateUser calls loco.user.v1.UserService.CreateUser.
@@ -148,6 +158,11 @@ func (c *userServiceClient) DeleteUser(ctx context.Context, req *connect.Request
 	return c.deleteUser.CallUnary(ctx, req)
 }
 
+// Logout calls loco.user.v1.UserService.Logout.
+func (c *userServiceClient) Logout(ctx context.Context, req *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return c.logout.CallUnary(ctx, req)
+}
+
 // UserServiceHandler is an implementation of the loco.user.v1.UserService service.
 type UserServiceHandler interface {
 	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
@@ -156,6 +171,7 @@ type UserServiceHandler interface {
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
 // NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -201,6 +217,12 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("DeleteUser")),
 		connect.WithHandlerOptions(opts...),
 	)
+	userServiceLogoutHandler := connect.NewUnaryHandler(
+		UserServiceLogoutProcedure,
+		svc.Logout,
+		connect.WithSchema(userServiceMethods.ByName("Logout")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.user.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case UserServiceCreateUserProcedure:
@@ -215,6 +237,8 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 			userServiceListUsersHandler.ServeHTTP(w, r)
 		case UserServiceDeleteUserProcedure:
 			userServiceDeleteUserHandler.ServeHTTP(w, r)
+		case UserServiceLogoutProcedure:
+			userServiceLogoutHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -246,4 +270,8 @@ func (UnimplementedUserServiceHandler) ListUsers(context.Context, *connect.Reque
 
 func (UnimplementedUserServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.DeleteUser is not implemented"))
+}
+
+func (UnimplementedUserServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.Logout is not implemented"))
 }
