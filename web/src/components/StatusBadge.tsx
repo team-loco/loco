@@ -1,43 +1,42 @@
-import { Badge } from '@/components/ui/badge'
+import { Badge } from "@/components/ui/badge";
 
 interface StatusBadgeProps {
-  status: string
+	status: string;
 }
 
-const statusConfig: Record<
-  string,
-  { className: string; dot: string }
-> = {
-  running: {
-    className: 'bg-chart-4 text-black',
-    dot: 'bg-chart-4',
-  },
-  deploying: {
-    className: 'bg-chart-1 text-black',
-    dot: 'bg-chart-1',
-  },
-  stopped: {
-    className: 'bg-muted text-foreground',
-    dot: 'bg-muted-foreground',
-  },
-  failed: {
-    className: 'bg-destructive text-white',
-    dot: 'bg-destructive',
-  },
-  pending: {
-    className: 'bg-chart-2 text-white',
-    dot: 'bg-chart-2',
-  },
-}
+const statusConfig: Record<string, { className: string; dot: string }> = {
+	running: {
+		className: "bg-green text-white",
+		dot: "bg-white",
+	},
+	deploying: {
+		className: "bg-cyan text-white",
+		dot: "bg-white",
+	},
+	stopped: {
+		className: "bg-border-muted text-fg-default",
+		dot: "bg-fg-default",
+	},
+	failed: {
+		className: "bg-red text-white",
+		dot: "bg-white",
+	},
+	pending: {
+		className: "bg-yellow text-white",
+		dot: "bg-white",
+	},
+};
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  const normalizedStatus = status.toLowerCase()
-  const config = statusConfig[normalizedStatus] || statusConfig.pending
+	const normalizedStatus = status.toLowerCase();
+	const config = statusConfig[normalizedStatus] || statusConfig.pending;
 
-  return (
-    <Badge className={config.className}>
-      <span className={`w-2 h-2 rounded-full ${config.dot}`}></span>
-      {status.charAt(0).toUpperCase() + status.slice(1)}
-    </Badge>
-  )
+	return (
+		<Badge className={`${config.className} flex items-center gap-2`}>
+			<span
+				className={`w-2 h-2 rounded-full shrink-0 inline-block ${config.dot}`}
+			></span>
+			{status.charAt(0).toUpperCase() + status.slice(1)}
+		</Badge>
+	);
 }

@@ -1,32 +1,40 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { AppCard } from "@/components/AppCard";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
+import { OrgFilter } from "@/components/dashboard/OrgFilter";
+import { AppSearch } from "@/components/dashboard/AppSearch";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { listApps } from "@/gen/app/v1";
-import { listDeployments } from "@/gen/deployment/v1";
+import { useNavigate } from "react-router";
+import { subscribeToEvents } from "@/lib/events";
 
 export function Home() {
+	const navigate = useNavigate();
+	const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+	const [searchTerm, setSearchTerm] = useState("");
+
+	// Fetch all organizations
 	const {
 		data: getCurrentUserOrgsRes,
 		isLoading: orgsLoading,
 		error: orgsError,
 	} = useQuery(getCurrentUserOrgs, {});
 	const orgs = getCurrentUserOrgsRes?.orgs ?? [];
-	const currentOrgId = orgs.length > 0 ? orgs[0].id : null;
 
+	// Set default org on load
+	useMemo(() => {
+		if (selectedOrgId === null && orgs.length > 0) {
+			setSelectedOrgId(orgs[0].id);
+		}
+	}, [orgs, selectedOrgId]);
+
+	const currentOrgId = selectedOrgId || (orgs.length > 0 ? orgs[0].id : null);
+
+	// Fetch workspaces for selected org
 	const { data: listWorkspacesRes, isLoading: workspacesLoading } = useQuery(
 		listWorkspaces,
 		currentOrgId ? { orgId: currentOrgId } : undefined,
@@ -35,44 +43,44 @@ export function Home() {
 	const workspaces = listWorkspacesRes?.workspaces ?? [];
 	const currentWorkspaceId = workspaces.length > 0 ? workspaces[0].id : null;
 
+	// Fetch all apps for selected workspace
 	const {
 		data: listAppsRes,
 		isLoading: appsLoading,
 		error: appsError,
+		refetch: refetchApps,
 	} = useQuery(
 		listApps,
 		currentWorkspaceId ? { workspaceId: currentWorkspaceId } : undefined,
 		{ enabled: !!currentWorkspaceId }
 	);
-	const apps = listAppsRes?.apps ?? [];
+	const allApps = listAppsRes?.apps ?? [];
 
-	const firstAppId = apps.length > 0 ? apps[0].id : null;
+	// Filter apps by search term
+	const filteredApps = useMemo(() => {
+		if (!searchTerm.trim()) {
+			return allApps;
+		}
+		return allApps.filter((app) =>
+			app.name.toLowerCase().includes(searchTerm.toLowerCase())
+		);
+	}, [allApps, searchTerm]);
 
-	const { data: deploymentsRes } = useQuery(
-		listDeployments,
-		firstAppId ? { appId: firstAppId, limit: 5 } : undefined,
-		{ enabled: !!firstAppId }
-	);
+	// Subscribe to real-time app status updates
+	useEffect(() => {
+		const unsubscribe = subscribeToEvents("workspace", (event) => {
+			// Refetch apps when deployment status changes
+			if (
+				event.type === "deployment_started" ||
+				event.type === "deployment_completed" ||
+				event.type === "deployment_failed"
+			) {
+				refetchApps();
+			}
+		});
 
-	const allDeployments = useMemo(() => {
-		return (deploymentsRes?.deployments ?? [])
-			.sort((a, b) => {
-				const aTime =
-					a.createdAt &&
-					typeof a.createdAt === "object" &&
-					"seconds" in a.createdAt
-						? Number(a.createdAt.seconds) * 1000
-						: 0;
-				const bTime =
-					b.createdAt &&
-					typeof b.createdAt === "object" &&
-					"seconds" in b.createdAt
-						? Number(b.createdAt.seconds) * 1000
-						: 0;
-				return bTime - aTime;
-			})
-			.slice(0, 5);
-	}, [deploymentsRes]);
+		return unsubscribe;
+	}, [refetchApps]);
 
 	const isLoading = orgsLoading || workspacesLoading || appsLoading;
 	const error = orgsError || appsError;
@@ -99,7 +107,7 @@ export function Home() {
 							Error Loading Data
 						</p>
 						<p className="text-sm text-foreground opacity-70 mb-4">
-							{error.message}
+							{error instanceof Error ? error.message : "Unknown error"}
 						</p>
 						<p className="text-xs text-foreground opacity-50">
 							Make sure the backend is running on http://localhost:8000
@@ -110,121 +118,64 @@ export function Home() {
 		);
 	}
 
-	const currentOrg = orgs.length > 0 ? orgs[0] : null;
-
 	return (
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="space-y-1">
-				<h2 className="text-3xl font-heading text-foreground">
-					{currentOrg?.name || "Dashboard"}
-				</h2>
+				<h2 className="text-3xl font-heading text-foreground">Dashboard</h2>
 				<p className="text-sm text-foreground opacity-70">
 					Manage your applications and deployments
 				</p>
 			</div>
 
-			{/* Stats Row */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<Card>
-					<CardContent className="p-6">
-						<p className="text-xs text-foreground opacity-60 font-base uppercase tracking-wide">
-							Total Apps
-						</p>
-						<p className="text-3xl font-heading mt-2">{apps.length}</p>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardContent className="p-6">
-						<p className="text-xs text-foreground opacity-60 font-base uppercase tracking-wide">
-							Workspaces
-						</p>
-						<p className="text-3xl font-heading mt-2">{workspaces.length}</p>
-					</CardContent>
-				</Card>
-				<Card>
-					<CardContent className="p-6">
-						<p className="text-xs text-foreground opacity-60 font-base uppercase tracking-wide">
-							Organizations
-						</p>
-						<p className="text-3xl font-heading mt-2">{orgs.length}</p>
-					</CardContent>
-				</Card>
+			{/* Controls: Org Filter, Search, Create Button */}
+			<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+				<OrgFilter selectedOrgId={currentOrgId} onOrgChange={setSelectedOrgId} />
+				<AppSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+				<Button
+					onClick={() => navigate("/create-app")}
+					className="w-full sm:w-auto"
+				>
+					+ Create App
+				</Button>
 			</div>
 
-			{/* Main Apps Section */}
+			{/* Apps Grid */}
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
-					<h3 className="text-2xl font-heading">Your Applications</h3>
-					<Button>+ New App</Button>
+					<h3 className="text-2xl font-heading">
+						{searchTerm ? "Search Results" : "Your Applications"}
+					</h3>
+					{allApps.length > 0 && (
+						<p className="text-sm text-foreground opacity-60">
+							{filteredApps.length} of {allApps.length}
+						</p>
+					)}
 				</div>
 
-				{apps.length > 0 ? (
+				{filteredApps.length > 0 ? (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{apps.map((app) => (
-							<AppCard key={app.id} app={app} />
+						{filteredApps.map((app) => (
+							<AppCard
+								key={app.id}
+								app={app}
+								onAppDeleted={() => refetchApps()}
+							/>
 						))}
 					</div>
+				) : allApps.length > 0 ? (
+					<EmptyState
+						title="No Results"
+						description={`No apps match "${searchTerm}"`}
+					/>
 				) : (
 					<EmptyState
 						title="No Applications Yet"
 						description="Create your first application to get started with Loco"
-						action={{ label: "Create Your First App", onClick: () => {} }}
-					/>
-				)}
-			</div>
-
-			{/* Recent Deployments */}
-			<div className="space-y-4">
-				<h3 className="text-2xl font-heading">Recent Deployments</h3>
-
-				{allDeployments.length > 0 ? (
-					<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead className="max-w-xs">Image</TableHead>
-									<TableHead>Replicas</TableHead>
-									<TableHead>Created</TableHead>
-									<TableHead className="text-right">Status</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{allDeployments.map((deployment) => (
-									<TableRow key={deployment.id} className="cursor-pointer">
-										<TableCell
-											className="font-base text-foreground max-w-xs truncate"
-											title={deployment.image}
-										>
-											{deployment.image}
-										</TableCell>
-										<TableCell className="text-foreground opacity-70 text-sm">
-											{deployment.replicas || "—"}
-										</TableCell>
-										<TableCell className="text-sm text-foreground opacity-60">
-											{deployment.createdAt &&
-											typeof deployment.createdAt === "object" &&
-											"seconds" in deployment.createdAt
-												? new Date(
-														Number(deployment.createdAt.seconds) * 1000
-												  ).toLocaleString("en-US", {
-														month: "short",
-														day: "numeric",
-														hour: "2-digit",
-														minute: "2-digit",
-												  })
-												: "unknown"}
-										</TableCell>
-										<TableCell className="text-right">
-											<StatusBadge status={deployment.status} />
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-			) : (
-					<EmptyState
-						title="No Deployments Yet"
-						description="Your recent deployments will appear here"
+						action={{
+							label: "Create Your First App",
+							onClick: () => navigate("/create-app"),
+						}}
 					/>
 				)}
 			</div>

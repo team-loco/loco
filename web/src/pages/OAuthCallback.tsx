@@ -3,6 +3,7 @@ import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@connectrpc/connect-query";
 import { exchangeGithubCode } from "@/gen/oauth/v1";
+import { getCurrentUserOrgs } from "@/gen/org/v1";
 
 export function OAuthCallback() {
 	const navigate = useNavigate();
@@ -24,6 +25,13 @@ export function OAuthCallback() {
 				}
 			: undefined,
 		{ enabled: !!(code && state) }
+	);
+
+	// After exchange, check if user has orgs
+	const { data: orgsRes, isLoading: orgsLoading } = useQuery(
+		getCurrentUserOrgs,
+		{},
+		{ enabled: !isLoading && !!exchangeRes }
 	);
 
 	useEffect(() => {
@@ -54,12 +62,21 @@ export function OAuthCallback() {
 
 			// Clear any previous OAuth errors on successful login
 			sessionStorage.removeItem("oauth_error");
-
-			console.log("OAuthCallback: Success, navigating to home");
-			// Navigate to home - auth state will update automatically
-			navigate("/");
 		}
-	}, [code, state, error, errorDescription, queryError, isLoading, exchangeRes, navigate]);
+
+		// After orgs are loaded, check if user has any orgs
+		if (!orgsLoading && orgsRes) {
+			const hasOrgs = (orgsRes.orgs ?? []).length > 0;
+			
+			if (hasOrgs) {
+				console.log("OAuthCallback: User has orgs, navigating to dashboard");
+				navigate("/dashboard");
+			} else {
+				console.log("OAuthCallback: User has no orgs, navigating to onboarding");
+				navigate("/onboarding");
+			}
+		}
+	}, [code, state, error, errorDescription, queryError, isLoading, exchangeRes, orgsLoading, orgsRes, navigate]);
 
 	return (
 		<div className="min-h-screen bg-background flex items-center justify-center px-6">

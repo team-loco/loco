@@ -1,12 +1,19 @@
-import { AuthProvider, useAuth } from "@/auth/AuthProvider";
-import { Layout } from "@/components/Layout";
-import { getCurrentUser } from "@/gen/user/v1";
+import { AuthProvider } from "@/auth/AuthProvider";
+import { ProtectedLayout } from "@/components/layout/ProtectedLayout";
+import { Toaster } from "@/components/ui/sonner";
+import { AppDetails } from "@/pages/AppDetails";
+import { AppSettings } from "@/pages/AppSettings";
+import { CreateApp } from "@/pages/CreateApp";
 import { Home } from "@/pages/Home";
 import { Login } from "@/pages/Login";
 import { OAuthCallback } from "@/pages/OAuthCallback";
-import { TransportProvider, useQuery } from "@connectrpc/connect-query";
+import { Onboarding } from "@/pages/Onboarding";
+import { OrgSettings } from "@/pages/OrgSettings";
+import { Profile } from "@/pages/Profile";
+import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
+import { TransportProvider } from "@connectrpc/connect-query";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { createTransport } from "./auth/connect-transport";
 
 const queryClient = new QueryClient({
@@ -18,53 +25,84 @@ const queryClient = new QueryClient({
 	},
 });
 
-function Landing() {
-	const { isAuthenticated } = useAuth();
-	const {
-		data: currentUserRes,
-		isLoading,
-		error,
-	} = useQuery(getCurrentUser, {});
-
-	// If not authenticated, show login
-	if (!isAuthenticated) {
-		return <Login />;
-	}
-
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-screen bg-background">
-				<div className="text-center">
-					<div className="w-8 h-8 bg-main rounded-neo mx-auto mb-4 animate-pulse"></div>
-					<p className="text-foreground font-base">Loading Loco...</p>
-				</div>
-			</div>
-		);
-	}
-
-	if (error) {
-		return <Login />;
-	}
-
-	const user = currentUserRes?.user ?? null;
-
-	return (
-		<Layout user={user}>
-			<Home />
-		</Layout>
-	);
-}
-
 export default function App() {
 	return (
 		<BrowserRouter>
 			<AuthProvider>
 				<TransportProvider transport={createTransport()}>
 					<QueryClientProvider client={queryClient}>
+						<Toaster />
 						<Routes>
+							{/* Public routes */}
 							<Route path="/login" element={<Login />} />
 							<Route path="/oauth/callback" element={<OAuthCallback />} />
-							<Route path="/" element={<Landing />} />
+							<Route path="/onboarding" element={<Onboarding />} />
+
+							{/* Protected routes */}
+							<Route
+								path="/dashboard"
+								element={
+									<ProtectedLayout>
+										<Home />
+									</ProtectedLayout>
+								}
+							/>
+
+							{/* App routes */}
+							<Route
+								path="/app/:appId"
+								element={
+									<ProtectedLayout>
+										<AppDetails />
+									</ProtectedLayout>
+								}
+							/>
+							<Route
+								path="/app/:appId/settings"
+								element={
+									<ProtectedLayout>
+										<AppSettings />
+									</ProtectedLayout>
+								}
+							/>
+							<Route
+								path="/create-app"
+								element={
+									<ProtectedLayout>
+										<CreateApp />
+									</ProtectedLayout>
+								}
+							/>
+
+							{/* Settings pages */}
+							<Route
+								path="/profile"
+								element={
+									<ProtectedLayout>
+										<Profile />
+									</ProtectedLayout>
+								}
+							/>
+							<Route
+								path="/org/:orgId/settings"
+								element={
+									<ProtectedLayout>
+										<OrgSettings />
+									</ProtectedLayout>
+								}
+							/>
+							<Route
+								path="/workspace/:workspaceId/settings"
+								element={
+									<ProtectedLayout>
+										<WorkspaceSettings />
+									</ProtectedLayout>
+								}
+							/>
+
+							{/* Default redirect */}
+							<Route path="/" element={<Navigate to="/dashboard" />} />
+							<Route path="*" element={<Navigate to="/dashboard" />} />
 						</Routes>
 					</QueryClientProvider>
 				</TransportProvider>
