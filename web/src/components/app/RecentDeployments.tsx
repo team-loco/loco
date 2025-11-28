@@ -15,29 +15,28 @@ import { useState } from "react";
 
 interface RecentDeploymentsProps {
 	deployments: Deployment[];
-	appId: string;
+	appId?: string;
 	isLoading?: boolean;
 }
 
 export function RecentDeployments({
 	deployments,
-	appId,
 	isLoading = false,
 }: RecentDeploymentsProps) {
-	const [expandedId, setExpandedId] = useState<string | null>(null);
+	const [expandedId, setExpandedId] = useState<bigint | null>(null);
 
-	const formatTimestamp = (timestamp: any): string => {
+	const formatTimestamp = (timestamp: unknown): string => {
 		if (!timestamp) return "unknown";
 		try {
 			let ms: number;
 			if (typeof timestamp === "object" && "seconds" in timestamp) {
-				ms = Number(timestamp.seconds) * 1000;
+				ms = Number((timestamp as Record<string, unknown>).seconds) * 1000;
 			} else if (typeof timestamp === "number") {
 				ms = timestamp;
 			} else {
 				return "unknown";
 			}
-			const now = Date.now();
+			const now = new Date().getTime();
 			const diff = now - ms;
 			const hours = Math.floor(diff / (1000 * 60 * 60));
 			const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -113,7 +112,7 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell className="text-right">
 										<Button
-											variant="ghost"
+											variant="neutral"
 											size="sm"
 											className="h-8"
 											onClick={(e) => {

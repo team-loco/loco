@@ -52,9 +52,16 @@ export function EnvironmentVariables({
 		try {
 			// Filter out empty entries
 			const cleanedVars = vars.filter((v) => v.key.trim());
+			const envMap = cleanedVars.reduce(
+				(acc, v) => {
+					acc[v.key] = v.value;
+					return acc;
+				},
+				{} as { [key: string]: string }
+			);
 			await updateEnvMutation.mutateAsync({
-				appId,
-				envVars: cleanedVars,
+				appId: BigInt(appId),
+				env: envMap,
 			});
 			setIsEditing(false);
 		} catch (error) {
@@ -136,7 +143,7 @@ export function EnvironmentVariables({
 										</TableCell>
 										<TableCell className="text-right">
 											<Button
-												variant="ghost"
+												variant="neutral"
 												size="sm"
 												onClick={() => handleRemove(index)}
 												className="h-8 w-8 p-0"

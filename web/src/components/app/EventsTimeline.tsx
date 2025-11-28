@@ -35,7 +35,7 @@ export function EventsTimeline({ appId, isLoading = false }: EventsTimelineProps
 					{events.map((event, index) => (
 						<div key={index} className="flex gap-4">
 							{/* Icon */}
-							<div className="flex-shrink-0 mt-1">
+							<div className="shrink-0 mt-1">
 								{event.severity === "Warning" ? (
 									<AlertCircle className="w-5 h-5 text-yellow-600" />
 								) : (
@@ -50,7 +50,7 @@ export function EventsTimeline({ appId, isLoading = false }: EventsTimelineProps
 										{event.eventType}
 									</p>
 									<Badge
-										variant="outline"
+										variant="neutral"
 										className="text-xs"
 									>
 										{new Date(event.timestamp).toLocaleTimeString()}

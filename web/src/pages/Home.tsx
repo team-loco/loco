@@ -14,7 +14,7 @@ import { subscribeToEvents } from "@/lib/events";
 
 export function Home() {
 	const navigate = useNavigate();
-	const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
 	const [searchTerm, setSearchTerm] = useState("");
 
 	// Fetch all organizations
@@ -24,13 +24,6 @@ export function Home() {
 		error: orgsError,
 	} = useQuery(getCurrentUserOrgs, {});
 	const orgs = getCurrentUserOrgsRes?.orgs ?? [];
-
-	// Set default org on load
-	useMemo(() => {
-		if (selectedOrgId === null && orgs.length > 0) {
-			setSelectedOrgId(orgs[0].id);
-		}
-	}, [orgs, selectedOrgId]);
 
 	const currentOrgId = selectedOrgId || (orgs.length > 0 ? orgs[0].id : null);
 
@@ -54,7 +47,8 @@ export function Home() {
 		currentWorkspaceId ? { workspaceId: currentWorkspaceId } : undefined,
 		{ enabled: !!currentWorkspaceId }
 	);
-	const allApps = listAppsRes?.apps ?? [];
+
+	const allApps = useMemo(() => listAppsRes?.apps ?? [], [listAppsRes?.apps]);
 
 	// Filter apps by search term
 	const filteredApps = useMemo(() => {

@@ -60,7 +60,6 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 				<div className="flex-1 flex items-center gap-2 break-all">
 					<span className="text-sm text-foreground">https://{appUrl}</span>
 					<Button
-						variant="ghost"
 						size="sm"
 						onClick={handleCopyUrl}
 						className="h-6 w-6 p-0"

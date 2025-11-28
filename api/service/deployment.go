@@ -29,6 +29,23 @@ var (
 
 var imagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$`)
 
+func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
+	switch status {
+	case genDb.DeploymentStatusPending:
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
+	case genDb.DeploymentStatusRunning:
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
+	case genDb.DeploymentStatusSucceeded:
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
+	case genDb.DeploymentStatusFailed:
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
+	case genDb.DeploymentStatusCanceled:
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
+	default:
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
+	}
+}
+
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
 	db         *pgxpool.Pool
@@ -146,7 +163,7 @@ func (s *DeploymentServer) CreateDeployment(
 		AppId:     deployment.AppID,
 		Image:     deployment.Image,
 		Replicas:  deployment.Replicas,
-		Status:    string(deployment.Status),
+		Status:    *deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING.Enum(),
 		IsCurrent: deployment.IsCurrent,
 		CreatedBy: deployment.CreatedBy,
 		CreatedAt: timeutil.ParsePostgresTimestamp(deployment.CreatedAt.Time),
@@ -208,13 +225,12 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	// todo: lets make status an enum.
 	deploymentResp := &deploymentv1.Deployment{
 		Id:        deploymentData.ID,
 		AppId:     deploymentData.AppID,
 		Image:     deploymentData.Image,
 		Replicas:  deploymentData.Replicas,
-		Status:    string(deploymentData.Status),
+		Status:    parseDeploymentPhase(deploymentData.Status),
 		IsCurrent: deploymentData.IsCurrent,
 		CreatedBy: deploymentData.CreatedBy,
 		CreatedAt: timeutil.ParsePostgresTimestamp(deploymentData.CreatedAt.Time),
@@ -309,7 +325,7 @@ func (s *DeploymentServer) ListDeployments(
 			AppId:     d.AppID,
 			Image:     d.Image,
 			Replicas:  d.Replicas,
-			Status:    string(d.Status),
+			Status:    parseDeploymentPhase(d.Status),
 			IsCurrent: d.IsCurrent,
 			CreatedBy: d.CreatedBy,
 			CreatedAt: timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
@@ -428,16 +444,17 @@ func (s *DeploymentServer) sendDeploymentEvent(
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	status := string(deployment.Status)
+	statusPhase := parseDeploymentPhase(deployment.Status)
+	statusStr := string(deployment.Status)
 	message := ""
 	if deployment.Message.Valid {
 		message = deployment.Message.String
 	}
 
-	if status != *lastStatus {
+	if statusStr != *lastStatus {
 		event := &deploymentv1.DeploymentEvent{
 			DeploymentId: parsedDeploymentID,
-			Status:       status,
+			Status:       statusPhase,
 			Message:      message,
 			Timestamp:    timestamppb.New(time.Now()),
 		}
@@ -450,8 +467,8 @@ func (s *DeploymentServer) sendDeploymentEvent(
 			return err
 		}
 
-		*lastStatus = status
-		slog.InfoContext(ctx, "sent deployment event", "deployment_id", deploymentID, "status", status)
+		*lastStatus = statusStr
+		slog.InfoContext(ctx, "sent deployment event", "deployment_id", deploymentID, "status", statusStr)
 	}
 
 	return nil
@@ -482,7 +499,7 @@ func (s *DeploymentServer) allocateDeployment(
 		return
 	}
 
-	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusInProgress, "Allocating Kubernetes resources...")
+	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusRunning, "Allocating Kubernetes resources...")
 
 	if err := s.kubeClient.AllocateResources(ctx, ldc, envVars, nil); err != nil {
 		slog.ErrorContext(ctx, "Failed to allocate Kubernetes resources", "deployment_id", deployment.ID, "error", err)

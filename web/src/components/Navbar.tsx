@@ -7,10 +7,10 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { User } from "@/gen/user/v1/user_pb";
-import { useNavigate } from "react-router";
-import { useQuery } from "@connectrpc/connect-query";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
+import type { User } from "@/gen/user/v1/user_pb";
+import { useQuery } from "@connectrpc/connect-query";
+import { useNavigate } from "react-router";
 import { BreadcrumbNav } from "./layout/Breadcrumb";
 import { EventBell } from "./layout/EventBell";
 import { NavMenu } from "./layout/NavMenu";
@@ -39,12 +39,10 @@ export function Navbar({ user }: NavbarProps) {
 					onClick={() => navigate("/")}
 					className="flex items-center gap-3 shrink-0 hover:opacity-80 transition-opacity"
 				>
-					<div className="w-8 h-8 bg-main rounded-neo flex items-center justify-center text-white font-heading text-sm font-bold">
+					<div className="w-8 h-8 bg-main rounded-neo flex items-center justify-center text-white font-heading text-sm">
 						L
 					</div>
-					<h1 className="text-lg font-heading font-bold hidden sm:block">
-						Loco
-					</h1>
+					<h1 className="text-lg font-heading hidden sm:block">Loco</h1>
 				</button>
 
 				{/* Center: Navigation Menu */}
@@ -66,7 +64,7 @@ export function Navbar({ user }: NavbarProps) {
 									variant="noShadow"
 									className="flex items-center gap-2 border-0"
 								>
-									<div className="w-5 h-5 bg-main rounded-neo text-white flex items-center justify-center text-xs font-heading font-bold">
+									<div className="w-5 h-5 bg-main rounded-neo text-white flex items-center justify-center text-xs font-heading">
 										{user.name.charAt(0).toUpperCase()}
 									</div>
 									<span className="text-sm hidden sm:inline">{user.name}</span>

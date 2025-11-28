@@ -1,12 +1,18 @@
-import { useParams } from "react-router";
-import { useQuery } from "@connectrpc/connect-query";
-import { getOrg } from "@/gen/org/v1";
-import { listWorkspaces } from "@/gen/workspace/v1";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getOrg } from "@/gen/org/v1";
+import { listWorkspaces } from "@/gen/workspace/v1";
+import { useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
+import { useParams } from "react-router";
 import { toast } from "sonner";
 
 export function OrgSettings() {
@@ -16,7 +22,7 @@ export function OrgSettings() {
 
 	const { data: orgRes, isLoading: orgLoading } = useQuery(
 		getOrg,
-		orgId ? { id: BigInt(orgId) } : undefined,
+		orgId ? { orgId: BigInt(orgId) } : undefined,
 		{ enabled: !!orgId }
 	);
 
@@ -46,12 +52,10 @@ export function OrgSettings() {
 	return (
 		<div className="max-w-4xl mx-auto py-8">
 			<div className="mb-8">
-				<h1 className="text-3xl font-heading font-bold text-foreground mb-2">
+				<h1 className="text-3xl font-bold text-foreground mb-2">
 					Organization Settings
 				</h1>
-				<p className="text-muted-foreground">
-					Manage {org.name}
-				</p>
+				<p className="text-muted-foreground">Manage {org.name}</p>
 			</div>
 
 			{/* Org Info */}
@@ -78,7 +82,11 @@ export function OrgSettings() {
 					<div>
 						<Label className="text-sm mb-2 block">Created</Label>
 						<p className="text-sm text-muted-foreground">
-							{new Date(org.createdAt?.seconds ? Number(org.createdAt.seconds) * 1000 : 0).toLocaleDateString()}
+							{new Date(
+								org.createdAt?.seconds
+									? Number(org.createdAt.seconds) * 1000
+									: 0
+							).toLocaleDateString()}
 						</p>
 					</div>
 
@@ -93,10 +101,7 @@ export function OrgSettings() {
 					{/* Actions */}
 					<div className="flex gap-3 pt-4 border-t border-border">
 						{!isEditing ? (
-							<Button
-								variant="neutral"
-								onClick={() => setIsEditing(true)}
-							>
+							<Button variant="neutral" onClick={() => setIsEditing(true)}>
 								Edit Organization
 							</Button>
 						) : (
@@ -110,9 +115,7 @@ export function OrgSettings() {
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleSave}>
-									Save Changes
-								</Button>
+								<Button onClick={handleSave}>Save Changes</Button>
 							</>
 						)}
 					</div>
@@ -129,9 +132,7 @@ export function OrgSettings() {
 				</CardHeader>
 				<CardContent>
 					{workspaces.length === 0 ? (
-						<p className="text-sm text-muted-foreground">
-							No workspaces yet
-						</p>
+						<p className="text-sm text-muted-foreground">No workspaces yet</p>
 					) : (
 						<div className="space-y-3">
 							{workspaces.map((ws) => (
@@ -140,9 +141,7 @@ export function OrgSettings() {
 									className="flex items-center justify-between p-4 border border-border rounded-neo"
 								>
 									<div>
-										<p className="font-medium text-foreground">
-											{ws.name}
-										</p>
+										<p className="font-medium text-foreground">{ws.name}</p>
 										<p className="text-xs text-muted-foreground mt-1">
 											ID: {ws.id}
 										</p>

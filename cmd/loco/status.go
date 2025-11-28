@@ -136,7 +136,7 @@ func (m statusModel) View() string {
 	var status, replicas, subdomain, domain, deploymentID string
 
 	if m.response.CurrentDeployment != nil {
-		status = m.response.CurrentDeployment.Status
+		status = m.response.CurrentDeployment.Status.String()
 		replicas = fmt.Sprintf("%d", m.response.CurrentDeployment.Replicas)
 		deploymentID = fmt.Sprintf("%d", m.response.CurrentDeployment.Id)
 	} else {

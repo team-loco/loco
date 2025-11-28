@@ -1,9 +1,15 @@
-import { useQuery } from "@connectrpc/connect-query";
-import { getCurrentUser } from "@/gen/user/v1";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getCurrentUser } from "@/gen/user/v1";
+import { useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -30,7 +36,7 @@ export function Profile() {
 	return (
 		<div className="max-w-2xl mx-auto py-8">
 			<div className="mb-8">
-				<h1 className="text-3xl font-heading font-bold text-foreground mb-2">
+				<h1 className="text-3xl font-heading text-foreground mb-2">
 					Profile Settings
 				</h1>
 				<p className="text-muted-foreground">
@@ -48,15 +54,13 @@ export function Profile() {
 					<div>
 						<Label className="text-sm mb-3 block">Avatar</Label>
 						<div className="flex items-center gap-4">
-							<div className="w-16 h-16 bg-main rounded-neo flex items-center justify-center text-white font-heading text-2xl font-bold">
+							<div className="w-16 h-16 bg-main rounded-neo flex items-center justify-center text-white font-heading text-2xl">
 								{user.name.charAt(0).toUpperCase()}
 							</div>
 							<Button variant="neutral" size="sm" disabled>
 								Upload Photo
 							</Button>
-							<p className="text-xs text-muted-foreground">
-								Coming soon
-							</p>
+							<p className="text-xs text-muted-foreground">Coming soon</p>
 						</div>
 					</div>
 
@@ -93,10 +97,7 @@ export function Profile() {
 					{/* Actions */}
 					<div className="flex gap-3 pt-4">
 						{!isEditing ? (
-							<Button
-								variant="neutral"
-								onClick={() => setIsEditing(true)}
-							>
+							<Button variant="neutral" onClick={() => setIsEditing(true)}>
 								Edit Profile
 							</Button>
 						) : (
@@ -110,9 +111,7 @@ export function Profile() {
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleSave}>
-									Save Changes
-								</Button>
+								<Button onClick={handleSave}>Save Changes</Button>
 							</>
 						)}
 					</div>

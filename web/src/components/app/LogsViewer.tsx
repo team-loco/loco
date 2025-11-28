@@ -22,12 +22,12 @@ export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
 		}
 	}, [logs, isFollowing]);
 
-	const filteredLogs = logs.filter((log) =>
-		log.message.toLowerCase().includes(searchTerm.toLowerCase())
+	const filteredLogs = logs.filter((logEntry) =>
+		logEntry.log.toLowerCase().includes(searchTerm.toLowerCase())
 	);
 
 	const getLogColor = (level: string): string => {
-		switch (level) {
+		switch (level.toUpperCase()) {
 			case "ERROR":
 				return "text-red-600";
 			case "WARN":
@@ -39,9 +39,14 @@ export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
 		}
 	};
 
+	const formatTimestamp = (ts?: { seconds?: bigint; nanos?: number }): string => {
+		if (!ts?.seconds) return new Date().toISOString();
+		return new Date(Number(ts.seconds) * 1000).toISOString();
+	};
+
 	const handleExport = () => {
 		const logsText = logs
-			.map((log) => `[${log.timestamp}] ${log.level} ${log.message}`)
+			.map((log) => `[${formatTimestamp(log.timestamp)}] ${log.level} ${log.log}`)
 			.join("\n");
 		const element = document.createElement("a");
 		element.setAttribute(
@@ -119,19 +124,19 @@ export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
 				<div className="bg-foreground/5 border-2 border-border rounded-neo p-4 font-mono text-xs max-h-96 overflow-y-auto">
 					{filteredLogs.length > 0 ? (
 						<div className="space-y-1">
-							{filteredLogs.map((log, index) => (
+							{filteredLogs.map((logEntry, index) => (
 								<div
 									key={index}
-									className={`flex gap-2 ${getLogColor(log.level)}`}
+									className={`flex gap-2 ${getLogColor(logEntry.level)}`}
 								>
-									<span className="text-foreground opacity-50 flex-shrink-0">
-										{new Date(log.timestamp).toLocaleTimeString()}
+									<span className="text-foreground opacity-50 shrink-0">
+										[{logEntry.podName}] {formatTimestamp(logEntry.timestamp).split("T")[1]?.split(".")[0] || ""}
 									</span>
-									<span className="flex-shrink-0 w-8">
-										[{log.level}]
+									<span className="shrink-0 w-8">
+										[{logEntry.level}]
 									</span>
 									<span className="text-foreground opacity-80 break-all">
-										{log.message}
+										{logEntry.log}
 									</span>
 								</div>
 							))}

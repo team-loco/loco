@@ -1,10 +1,10 @@
-import { useParams, useNavigate } from "react-router";
-import { useQuery, useMutation } from "@connectrpc/connect-query";
-import { getApp, updateApp, deleteApp } from "@/gen/app/v1";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { deleteApp, getApp, updateApp } from "@/gen/app/v1";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
+import { useNavigate, useParams } from "react-router";
 
 export function AppSettings() {
 	const { appId } = useParams<{ appId: string }>();
@@ -12,7 +12,7 @@ export function AppSettings() {
 
 	const { data: appRes, isLoading } = useQuery(
 		getApp,
-		{ appId: appId || "" },
+		appId ? { appId: BigInt(appId) } : undefined,
 		{ enabled: !!appId }
 	);
 	const app = appRes?.app;
@@ -34,7 +34,7 @@ export function AppSettings() {
 		if (!appId) return;
 		try {
 			await updateAppMutation.mutateAsync({
-				appId,
+				appId: BigInt(appId),
 				name: name || app?.name || "",
 				subdomain: subdomain || app?.subdomain || "",
 				domain: domain || app?.domain || "",
@@ -47,7 +47,7 @@ export function AppSettings() {
 	const handleDelete = async () => {
 		if (!appId) return;
 		try {
-			await deleteAppMutation.mutateAsync({ appId });
+			await deleteAppMutation.mutateAsync({ appId: BigInt(appId) });
 			navigate("/dashboard");
 		} catch (error) {
 			console.error("Failed to delete app:", error);
@@ -72,9 +72,7 @@ export function AppSettings() {
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-2">
-							App Not Found
-						</p>
+						<p className="text-destructive font-heading mb-2">App Not Found</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -84,9 +82,7 @@ export function AppSettings() {
 	return (
 		<div className="space-y-6 max-w-2xl">
 			<div className="space-y-1">
-				<h1 className="text-3xl font-heading text-foreground">
-					Settings
-				</h1>
+				<h1 className="text-3xl font-heading text-foreground">Settings</h1>
 				<p className="text-sm text-foreground opacity-70">
 					Manage your application settings
 				</p>
@@ -175,15 +171,12 @@ export function AppSettings() {
 								Delete Application
 							</h3>
 							<p className="text-sm text-foreground opacity-70 mb-4">
-								This action cannot be undone. All data associated with
-								this app will be permanently deleted.
+								This action cannot be undone. All data associated with this app
+								will be permanently deleted.
 							</p>
 						</div>
 
-						<Button
-							variant="destructive"
-							onClick={() => setShowDeleteConfirm(true)}
-						>
+						<Button onClick={() => setShowDeleteConfirm(true)}>
 							Delete Application
 						</Button>
 					</div>
@@ -208,11 +201,7 @@ export function AppSettings() {
 								</p>
 							</div>
 
-							<Input
-								placeholder={app.name}
-								className="mt-2"
-								disabled
-							/>
+							<Input placeholder={app.name} className="mt-2" disabled />
 
 							<div className="flex gap-2 pt-4">
 								<Button
@@ -224,7 +213,6 @@ export function AppSettings() {
 									Cancel
 								</Button>
 								<Button
-									variant="destructive"
 									onClick={handleDelete}
 									disabled={deleteAppMutation.isPending}
 									className="flex-1"

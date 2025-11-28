@@ -185,6 +185,7 @@ func (x *CreateUserRequest) GetAvatarUrl() string {
 type CreateUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -226,9 +227,16 @@ func (x *CreateUserResponse) GetUser() *User {
 	return nil
 }
 
+func (x *CreateUserResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type GetUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            *int64                 `protobuf:"varint,1,opt,name=id,proto3,oneof" json:"id,omitempty"`
+	UserId        *int64                 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
 	Email         *string                `protobuf:"bytes,2,opt,name=email,proto3,oneof" json:"email,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -264,9 +272,9 @@ func (*GetUserRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetUserRequest) GetId() int64 {
-	if x != nil && x.Id != nil {
-		return *x.Id
+func (x *GetUserRequest) GetUserId() int64 {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
 	}
 	return 0
 }
@@ -404,7 +412,7 @@ func (x *GetCurrentUserResponse) GetUser() *User {
 
 type UpdateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	AvatarUrl     *string                `protobuf:"bytes,2,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -440,9 +448,9 @@ func (*UpdateUserRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *UpdateUserRequest) GetId() int64 {
+func (x *UpdateUserRequest) GetUserId() int64 {
 	if x != nil {
-		return x.Id
+		return x.UserId
 	}
 	return 0
 }
@@ -457,6 +465,7 @@ func (x *UpdateUserRequest) GetAvatarUrl() string {
 type UpdateUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -498,10 +507,17 @@ func (x *UpdateUserResponse) GetUser() *User {
 	return nil
 }
 
+func (x *UpdateUserResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type ListUsersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          int32                  `protobuf:"varint,1,opt,name=page,proto3" json:"page,omitempty"`
-	PerPage       int32                  `protobuf:"varint,2,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -536,16 +552,16 @@ func (*ListUsersRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ListUsersRequest) GetPage() int32 {
+func (x *ListUsersRequest) GetLimit() int32 {
 	if x != nil {
-		return x.Page
+		return x.Limit
 	}
 	return 0
 }
 
-func (x *ListUsersRequest) GetPerPage() int32 {
+func (x *ListUsersRequest) GetOffset() int32 {
 	if x != nil {
-		return x.PerPage
+		return x.Offset
 	}
 	return 0
 }
@@ -553,9 +569,7 @@ func (x *ListUsersRequest) GetPerPage() int32 {
 type ListUsersResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	TotalCount    int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
-	PerPage       int32                  `protobuf:"varint,4,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -597,30 +611,16 @@ func (x *ListUsersResponse) GetUsers() []*User {
 	return nil
 }
 
-func (x *ListUsersResponse) GetTotalCount() int32 {
+func (x *ListUsersResponse) GetTotalCount() int64 {
 	if x != nil {
 		return x.TotalCount
 	}
 	return 0
 }
 
-func (x *ListUsersResponse) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
-
-func (x *ListUsersResponse) GetPerPage() int32 {
-	if x != nil {
-		return x.PerPage
-	}
-	return 0
-}
-
 type DeleteUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -655,16 +655,17 @@ func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *DeleteUserRequest) GetId() int64 {
+func (x *DeleteUserRequest) GetUserId() int64 {
 	if x != nil {
-		return x.Id
+		return x.UserId
 	}
 	return 0
 }
 
 type DeleteUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -699,11 +700,18 @@ func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
 	return file_user_v1_user_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *DeleteUserResponse) GetSuccess() bool {
+func (x *DeleteUserResponse) GetUser() *User {
 	if x != nil {
-		return x.Success
+		return x.User
 	}
-	return false
+	return nil
+}
+
+func (x *DeleteUserResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
 }
 
 var File_user_v1_user_proto protoreflect.FileDescriptor
@@ -731,39 +739,41 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"avatar_url\x18\x04 \x01(\tH\x01R\tavatarUrl\x88\x01\x01B\a\n" +
 	"\x05_nameB\r\n" +
-	"\v_avatar_url\"<\n" +
+	"\v_avatar_url\"V\n" +
 	"\x12CreateUserResponse\x12&\n" +
-	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"Q\n" +
-	"\x0eGetUserRequest\x12\x13\n" +
-	"\x02id\x18\x01 \x01(\x03H\x00R\x02id\x88\x01\x01\x12\x19\n" +
-	"\x05email\x18\x02 \x01(\tH\x01R\x05email\x88\x01\x01B\x05\n" +
-	"\x03_idB\b\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"_\n" +
+	"\x0eGetUserRequest\x12\x1c\n" +
+	"\auser_id\x18\x01 \x01(\x03H\x00R\x06userId\x88\x01\x01\x12\x19\n" +
+	"\x05email\x18\x02 \x01(\tH\x01R\x05email\x88\x01\x01B\n" +
+	"\n" +
+	"\b_user_idB\b\n" +
 	"\x06_email\"9\n" +
 	"\x0fGetUserResponse\x12&\n" +
 	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"\x17\n" +
 	"\x15GetCurrentUserRequest\"@\n" +
 	"\x16GetCurrentUserResponse\x12&\n" +
-	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"V\n" +
-	"\x11UpdateUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\"\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"_\n" +
+	"\x11UpdateUserRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\"\n" +
 	"\n" +
 	"avatar_url\x18\x02 \x01(\tH\x00R\tavatarUrl\x88\x01\x01B\r\n" +
-	"\v_avatar_url\"<\n" +
+	"\v_avatar_url\"V\n" +
 	"\x12UpdateUserResponse\x12&\n" +
-	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"A\n" +
-	"\x10ListUsersRequest\x12\x12\n" +
-	"\x04page\x18\x01 \x01(\x05R\x04page\x12\x19\n" +
-	"\bper_page\x18\x02 \x01(\x05R\aperPage\"\x8d\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"@\n" +
+	"\x10ListUsersRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x02 \x01(\x05R\x06offset\"^\n" +
 	"\x11ListUsersResponse\x12(\n" +
 	"\x05users\x18\x01 \x03(\v2\x12.loco.user.v1.UserR\x05users\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x12\n" +
-	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x19\n" +
-	"\bper_page\x18\x04 \x01(\x05R\aperPage\"#\n" +
-	"\x11DeleteUserRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\".\n" +
-	"\x12DeleteUserResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\xf3\x03\n" +
+	"\vtotal_count\x18\x02 \x01(\x03R\n" +
+	"totalCount\",\n" +
+	"\x11DeleteUserRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\"V\n" +
+	"\x12DeleteUserResponse\x12&\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\xf3\x03\n" +
 	"\vUserService\x12O\n" +
 	"\n" +
 	"CreateUser\x12\x1f.loco.user.v1.CreateUserRequest\x1a .loco.user.v1.CreateUserResponse\x12F\n" +
@@ -812,23 +822,24 @@ var file_user_v1_user_proto_depIdxs = []int32{
 	0,  // 4: loco.user.v1.GetCurrentUserResponse.user:type_name -> loco.user.v1.User
 	0,  // 5: loco.user.v1.UpdateUserResponse.user:type_name -> loco.user.v1.User
 	0,  // 6: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
-	1,  // 7: loco.user.v1.UserService.CreateUser:input_type -> loco.user.v1.CreateUserRequest
-	3,  // 8: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
-	5,  // 9: loco.user.v1.UserService.GetCurrentUser:input_type -> loco.user.v1.GetCurrentUserRequest
-	7,  // 10: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
-	9,  // 11: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
-	11, // 12: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
-	2,  // 13: loco.user.v1.UserService.CreateUser:output_type -> loco.user.v1.CreateUserResponse
-	4,  // 14: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
-	6,  // 15: loco.user.v1.UserService.GetCurrentUser:output_type -> loco.user.v1.GetCurrentUserResponse
-	8,  // 16: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
-	10, // 17: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
-	12, // 18: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
-	13, // [13:19] is the sub-list for method output_type
-	7,  // [7:13] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	0,  // 7: loco.user.v1.DeleteUserResponse.user:type_name -> loco.user.v1.User
+	1,  // 8: loco.user.v1.UserService.CreateUser:input_type -> loco.user.v1.CreateUserRequest
+	3,  // 9: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
+	5,  // 10: loco.user.v1.UserService.GetCurrentUser:input_type -> loco.user.v1.GetCurrentUserRequest
+	7,  // 11: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
+	9,  // 12: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
+	11, // 13: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
+	2,  // 14: loco.user.v1.UserService.CreateUser:output_type -> loco.user.v1.CreateUserResponse
+	4,  // 15: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
+	6,  // 16: loco.user.v1.UserService.GetCurrentUser:output_type -> loco.user.v1.GetCurrentUserResponse
+	8,  // 17: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
+	10, // 18: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
+	12, // 19: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_user_v1_user_proto_init() }

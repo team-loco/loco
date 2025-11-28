@@ -1,14 +1,19 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMutation } from "@connectrpc/connect-query";
-import { createApp } from "@/gen/app/v1";
-import { useQuery } from "@connectrpc/connect-query";
+import { createApp, AppType } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
 const APP_TYPES = [
@@ -23,7 +28,7 @@ const APP_TYPES = [
 export function CreateApp() {
 	const navigate = useNavigate();
 	const { workspaceId: paramWorkspaceId } = useParams();
-	
+
 	const [appName, setAppName] = useState("");
 	const [appType, setAppType] = useState("SERVICE");
 	const [subdomain, setSubdomain] = useState("");
@@ -39,7 +44,8 @@ export function CreateApp() {
 		{ enabled: !!firstOrgId }
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
-	const workspaceId = paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
+	const workspaceId =
+		paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
 	const createAppMutation = useMutation(createApp);
 
@@ -59,8 +65,9 @@ export function CreateApp() {
 		try {
 			const res = await createAppMutation.mutateAsync({
 				name: appName,
-				workspaceId: typeof workspaceId === 'string' ? BigInt(workspaceId) : workspaceId,
-				type: appType as any,
+				workspaceId:
+					typeof workspaceId === "string" ? BigInt(workspaceId) : workspaceId,
+				type: AppType[appType as keyof typeof AppType],
 				subdomain: subdomain || undefined,
 			});
 
@@ -71,7 +78,8 @@ export function CreateApp() {
 				toast.error("Failed to create app");
 			}
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Failed to create app";
+			const message =
+				error instanceof Error ? error.message : "Failed to create app";
 			toast.error(message);
 		}
 	};
@@ -79,7 +87,7 @@ export function CreateApp() {
 	return (
 		<div className="max-w-2xl mx-auto py-8">
 			<div className="mb-8">
-				<h1 className="text-3xl font-heading font-bold text-foreground mb-2">
+				<h1 className="text-3xl font-heading text-foreground mb-2">
 					Create App
 				</h1>
 				<p className="text-muted-foreground">
@@ -111,7 +119,9 @@ export function CreateApp() {
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-lg">App Type</CardTitle>
-						<CardDescription>Choose what kind of app you're deploying</CardDescription>
+						<CardDescription>
+							Choose what kind of app you're deploying
+						</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<div className="grid grid-cols-2 gap-3">
@@ -149,7 +159,11 @@ export function CreateApp() {
 							<Input
 								placeholder="my-app"
 								value={subdomain}
-								onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+								onChange={(e) =>
+									setSubdomain(
+										e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
+									)
+								}
 								className="border-border flex-1"
 							/>
 							<div className="flex items-center px-3 bg-secondary rounded-neo border border-border text-sm text-muted-foreground shrink-0">
@@ -163,7 +177,9 @@ export function CreateApp() {
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-lg">Custom Domain</CardTitle>
-						<CardDescription>Optional: Use your own domain (advanced)</CardDescription>
+						<CardDescription>
+							Optional: Use your own domain (advanced)
+						</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<Input

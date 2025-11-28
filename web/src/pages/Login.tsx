@@ -67,8 +67,8 @@ export function Login() {
 						</div>
 
 						{error && (
-							<div className="bg-destructive/10 border border-destructive rounded px-3 py-2">
-								<p className="text-xs text-destructive">{error}</p>
+							<div className="bg-error-bg border border-error-border rounded px-3 py-2">
+								<p className="text-xs text-error-text">{error}</p>
 							</div>
 						)}
 

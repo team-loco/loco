@@ -124,7 +124,8 @@ func (s *AppServer) CreateApp(
 	}
 
 	return connect.NewResponse(&appv1.CreateAppResponse{
-		App: dbAppToProto(app),
+		App:     dbAppToProto(app),
+		Message: "App created successfully",
 	}), nil
 }
 
@@ -142,9 +143,9 @@ func (s *AppServer) GetApp(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.Id)
+	app, err := s.queries.GetAppByID(ctx, r.AppId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "id", r.Id)
+		slog.WarnContext(ctx, "app not found", "id", r.AppId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
 	}
 
@@ -249,7 +250,7 @@ func (s *AppServer) UpdateApp(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.Id)
+	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
@@ -272,7 +273,7 @@ func (s *AppServer) UpdateApp(
 	}
 
 	updateParams := genDb.UpdateAppParams{
-		ID: r.Id,
+		ID: r.AppId,
 	}
 
 	if r.GetName() != "" {
@@ -294,7 +295,8 @@ func (s *AppServer) UpdateApp(
 	}
 
 	return connect.NewResponse(&appv1.UpdateAppResponse{
-		App: dbAppToProto(app),
+		App:     dbAppToProto(app),
+		Message: "App updated successfully",
 	}), nil
 }
 
@@ -311,7 +313,7 @@ func (s *AppServer) DeleteApp(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.Id)
+	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
@@ -333,14 +335,21 @@ func (s *AppServer) DeleteApp(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin to delete app"))
 	}
 
-	err = s.queries.DeleteApp(ctx, r.Id)
+	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get app", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	err = s.queries.DeleteApp(ctx, r.AppId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete app", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&appv1.DeleteAppResponse{
-		Success: true,
+		App:     dbAppToProto(app),
+		Message: "App deleted successfully",
 	}), nil
 }
 
@@ -408,7 +417,7 @@ func (s *AppServer) GetAppStatus(
 		deployment := deploymentList[0]
 		deploymentStatus = &appv1.DeploymentStatus{
 			Id:       deployment.ID,
-			Status:   string(deployment.Status),
+			Status:   deploymentStatusToProto(deployment.Status),
 			Replicas: deployment.Replicas,
 		}
 		if deployment.Message.Valid {
@@ -741,7 +750,7 @@ func (s *AppServer) ScaleApp(
 
 	deploymentStatus := &appv1.DeploymentStatus{
 		Id:       deployment.ID,
-		Status:   string(deployment.Status),
+		Status:   deploymentStatusToProto(deployment.Status),
 		Replicas: deployment.Replicas,
 	}
 
@@ -881,7 +890,7 @@ func (s *AppServer) UpdateAppEnv(
 
 	deploymentStatus := &appv1.DeploymentStatus{
 		Id:       deployment.ID,
-		Status:   string(deployment.Status),
+		Status:   deploymentStatusToProto(deployment.Status),
 		Replicas: deployment.Replicas,
 	}
 
@@ -923,7 +932,7 @@ func (s *AppServer) allocateDeployment(
 		return
 	}
 
-	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusInProgress, "Allocating Kubernetes resources...")
+	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusRunning, "Allocating Kubernetes resources...")
 
 	if err := s.kubeClient.AllocateResources(ctx, ldc, envVars, nil); err != nil {
 		slog.ErrorContext(ctx, "Failed to allocate Kubernetes resources", "deployment_id", deployment.ID, "error", err)
@@ -945,6 +954,22 @@ func (s *AppServer) updateDeploymentStatus(ctx context.Context, deploymentID int
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to update deployment status", "deployment_id", deploymentID, "error", err)
+	}
+}
+
+// deploymentStatusToProto converts database deployment status to proto enum
+func deploymentStatusToProto(status genDb.DeploymentStatus) appv1.DeploymentPhase {
+	switch status {
+	case genDb.DeploymentStatusPending:
+		return appv1.DeploymentPhase_PENDING
+	case genDb.DeploymentStatusRunning:
+		return appv1.DeploymentPhase_RUNNING
+	case genDb.DeploymentStatusSucceeded:
+		return appv1.DeploymentPhase_SUCCEEDED
+	case genDb.DeploymentStatusFailed:
+		return appv1.DeploymentPhase_FAILED
+	default:
+		return appv1.DeploymentPhase_PENDING
 	}
 }
 

@@ -112,7 +112,7 @@ func (x *GithubOAuthDetailsResponse) GetTokenTtl() float64 {
 type ExchangeGithubTokenRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	GithubAccessToken     string                 `protobuf:"bytes,1,opt,name=github_access_token,json=githubAccessToken,proto3" json:"github_access_token,omitempty"`
-	CreateUserIfNotExists bool                   `protobuf:"varint,2,opt,name=createUserIfNotExists,proto3" json:"createUserIfNotExists,omitempty"`
+	CreateUserIfNotExists bool                   `protobuf:"varint,2,opt,name=create_user_if_not_exists,json=createUserIfNotExists,proto3" json:"create_user_if_not_exists,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -165,10 +165,8 @@ type ExchangeGithubTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LocoToken     string                 `protobuf:"bytes,1,opt,name=loco_token,json=locoToken,proto3" json:"loco_token,omitempty"`
 	ExpiresIn     int64                  `protobuf:"varint,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"` // seconds
-	WorkspaceId   int64                  `protobuf:"varint,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	OrgId         int64                  `protobuf:"varint,4,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	UserId        int64                  `protobuf:"varint,5,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Username      string                 `protobuf:"bytes,6,opt,name=username,proto3" json:"username,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Username      string                 `protobuf:"bytes,4,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -213,20 +211,6 @@ func (x *ExchangeGithubTokenResponse) GetLocoToken() string {
 func (x *ExchangeGithubTokenResponse) GetExpiresIn() int64 {
 	if x != nil {
 		return x.ExpiresIn
-	}
-	return 0
-}
-
-func (x *ExchangeGithubTokenResponse) GetWorkspaceId() int64 {
-	if x != nil {
-		return x.WorkspaceId
-	}
-	return 0
-}
-
-func (x *ExchangeGithubTokenResponse) GetOrgId() int64 {
-	if x != nil {
-		return x.OrgId
 	}
 	return 0
 }
@@ -485,19 +469,17 @@ const file_oauth_v1_oauth_proto_rawDesc = "" +
 	"\x19GithubOAuthDetailsRequest\"V\n" +
 	"\x1aGithubOAuthDetailsResponse\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1b\n" +
-	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\x82\x01\n" +
+	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\x86\x01\n" +
 	"\x1aExchangeGithubTokenRequest\x12.\n" +
-	"\x13github_access_token\x18\x01 \x01(\tR\x11githubAccessToken\x124\n" +
-	"\x15createUserIfNotExists\x18\x02 \x01(\bR\x15createUserIfNotExists\"\xca\x01\n" +
+	"\x13github_access_token\x18\x01 \x01(\tR\x11githubAccessToken\x128\n" +
+	"\x19create_user_if_not_exists\x18\x02 \x01(\bR\x15createUserIfNotExists\"\x90\x01\n" +
 	"\x1bExchangeGithubTokenResponse\x12\x1d\n" +
 	"\n" +
 	"loco_token\x18\x01 \x01(\tR\tlocoToken\x12\x1d\n" +
 	"\n" +
-	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12!\n" +
-	"\fworkspace_id\x18\x03 \x01(\x03R\vworkspaceId\x12\x15\n" +
-	"\x06org_id\x18\x04 \x01(\x03R\x05orgId\x12\x17\n" +
-	"\auser_id\x18\x05 \x01(\x03R\x06userId\x12\x1a\n" +
-	"\busername\x18\x06 \x01(\tR\busername\"[\n" +
+	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1a\n" +
+	"\busername\x18\x04 \x01(\tR\busername\"[\n" +
 	" GetGithubAuthorizationURLRequest\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12!\n" +
 	"\fredirect_uri\x18\x02 \x01(\tR\vredirectUri\"f\n" +

@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
-
-export interface LogEntry {
-	timestamp: string;
-	level: "INFO" | "WARN" | "ERROR" | "DEBUG";
-	message: string;
-	pod?: string;
-}
+import { createClient } from "@connectrpc/connect";
+import { AppService } from "@/gen/app/v1/app_pb";
+import type { LogEntry } from "@/gen/app/v1/app_pb";
+import { createTransport } from "@/auth/connect-transport";
 
 export function useStreamLogs(appId: string) {
 	const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -18,25 +15,46 @@ export function useStreamLogs(appId: string) {
 			return;
 		}
 
-		// TODO: In Phase 3, implement actual WebSocket/SSE streaming
-		// For now, return mock data to establish structure
-		const mockLogs: LogEntry[] = [
-			{
-				timestamp: new Date().toISOString(),
-				level: "INFO",
-				message: "Application started successfully",
-				pod: "pod-1",
-			},
-			{
-				timestamp: new Date(Date.now() - 1000).toISOString(),
-				level: "INFO",
-				message: "Server listening on port 8080",
-				pod: "pod-1",
-			},
-		];
+		let isMounted = true;
+		const abortController = new AbortController();
 
-		setLogs(mockLogs);
-		setIsLoading(false);
+		const streamLogs = async () => {
+			try {
+				const client = createClient(AppService, createTransport());
+				const logsList: LogEntry[] = [];
+
+				// Stream logs from the server
+				for await (const logEntry of client.streamLogs(
+					{ appId: BigInt(appId) },
+					{ signal: abortController.signal }
+				)) {
+					if (!isMounted) break;
+					logsList.push(logEntry);
+					if (isMounted) {
+						setLogs([...logsList]);
+					}
+				}
+
+				if (isMounted) {
+					setIsLoading(false);
+				}
+			} catch (err) {
+				if (!isMounted) return;
+				if (err instanceof Error && err.name === "AbortError") {
+					return;
+				}
+				const errorMsg = err instanceof Error ? err.message : "Failed to stream logs";
+				setError(err instanceof Error ? err : new Error(errorMsg));
+				setIsLoading(false);
+			}
+		};
+
+		streamLogs();
+
+		return () => {
+			isMounted = false;
+			abortController.abort();
+		};
 	}, [appId]);
 
 	return {

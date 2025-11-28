@@ -38,10 +38,11 @@ message CreateOrgRequest {
 
 message CreateOrgResponse {
   Organization org = 1;
+  string message = 2;
 }
 
 message GetOrgRequest {
-  int64 id = 1;
+  int64 org_id = 1;
 }
 
 message GetOrgResponse {
@@ -56,32 +57,32 @@ message GetCurrentUserOrgsResponse {
 
 message ListOrgsRequest {
   int64 user_id = 1;
-  int32 page = 2;
-  int32 per_page = 3;
+  int32 limit = 2;
+  int32 offset = 3;
 }
 
 message ListOrgsResponse {
   repeated Organization orgs = 1;
-  int32 total_count = 2;
-  int32 page = 3;
-  int32 per_page = 4;
+  int64 total_count = 2;
 }
 
 message UpdateOrgRequest {
-  int64 id = 1;
+  int64 org_id = 1;
   string new_name = 2;
 }
 
 message UpdateOrgResponse {
   Organization org = 1;
+  string message = 2;
 }
 
 message DeleteOrgRequest {
-  int64 id = 1;
+  int64 org_id = 1;
 }
 
 message DeleteOrgResponse {
-  bool success = 1;
+  Organization org = 1;
+  string message = 2;
 }
 
 message IsUniqueOrgNameRequest {

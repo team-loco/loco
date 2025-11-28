@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file workspace/v1/workspace.proto.
  */
 export const file_workspace_v1_workspace: GenFile = /*@__PURE__*/
-  fileDesc("Chx3b3Jrc3BhY2UvdjEvd29ya3NwYWNlLnByb3RvEhFsb2NvLndvcmtzcGFjZS52MSK+AQoJV29ya3NwYWNlEgoKAmlkGAEgASgDEg4KBm9yZ19pZBgCIAEoAxIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAMSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidgoPV29ya3NwYWNlTWVtYmVyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYAoWQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSDAoEbmFtZRgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBQg4KDF9kZXNjcmlwdGlvbiJKChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiIQoTR2V0V29ya3NwYWNlUmVxdWVzdBIKCgJpZBgBIAEoAyJHChRHZXRXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiGgoYR2V0VXNlcldvcmtzcGFjZXNSZXF1ZXN0Ik0KGUdldFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSInChVMaXN0V29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDIkoKFkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSJqChZVcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0EgoKAmlkGAEgASgDEhEKBG5hbWUYAiABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgDIAEoCUgBiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbiJKChdVcGRhdGVXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiQQoWRGVsZXRlV29ya3NwYWNlUmVxdWVzdBIKCgJpZBgBIAEoAxIbChNjb25maXJtX2RlbGV0ZV9hcHBzGAIgASgIIioKF0RlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiRwoQQWRkTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDwoHdXNlcl9pZBgCIAEoAxIMCgRyb2xlGAMgASgJIkcKEUFkZE1lbWJlclJlc3BvbnNlEjIKBm1lbWJlchgBIAEoCzIiLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZU1lbWJlciI8ChNSZW1vdmVNZW1iZXJSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDIicKFFJlbW92ZU1lbWJlclJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiKgoSTGlzdE1lbWJlcnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAyJKChNMaXN0TWVtYmVyc1Jlc3BvbnNlEjMKB21lbWJlcnMYASADKAsyIi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXIynwcKEFdvcmtzcGFjZVNlcnZpY2USaAoPQ3JlYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEl8KDEdldFdvcmtzcGFjZRImLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXNwb25zZRJuChFHZXRVc2VyV29ya3NwYWNlcxIrLmxvY28ud29ya3NwYWNlLnYxLkdldFVzZXJXb3Jrc3BhY2VzUmVxdWVzdBosLmxvY28ud29ya3NwYWNlLnYxLkdldFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USZQoOTGlzdFdvcmtzcGFjZXMSKC5sb2NvLndvcmtzcGFjZS52MS5MaXN0V29ya3NwYWNlc1JlcXVlc3QaKS5sb2NvLndvcmtzcGFjZS52MS5MaXN0V29ya3NwYWNlc1Jlc3BvbnNlEmgKD1VwZGF0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXNwb25zZRJoCg9EZWxldGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVzcG9uc2USVgoJQWRkTWVtYmVyEiMubG9jby53b3Jrc3BhY2UudjEuQWRkTWVtYmVyUmVxdWVzdBokLmxvY28ud29ya3NwYWNlLnYxLkFkZE1lbWJlclJlc3BvbnNlEl8KDFJlbW92ZU1lbWJlchImLmxvY28ud29ya3NwYWNlLnYxLlJlbW92ZU1lbWJlclJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5SZW1vdmVNZW1iZXJSZXNwb25zZRJcCgtMaXN0TWVtYmVycxIlLmxvY28ud29ya3NwYWNlLnYxLkxpc3RNZW1iZXJzUmVxdWVzdBomLmxvY28ud29ya3NwYWNlLnYxLkxpc3RNZW1iZXJzUmVzcG9uc2VCQVo/Z2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vd29ya3NwYWNlL3YxO3dvcmtzcGFjZXYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Chx3b3Jrc3BhY2UvdjEvd29ya3NwYWNlLnByb3RvEhFsb2NvLndvcmtzcGFjZS52MSK+AQoJV29ya3NwYWNlEgoKAmlkGAEgASgDEg4KBm9yZ19pZBgCIAEoAxIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAMSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidgoPV29ya3NwYWNlTWVtYmVyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYAoWQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSDAoEbmFtZRgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBQg4KDF9kZXNjcmlwdGlvbiJbChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USDwoHbWVzc2FnZRgCIAEoCSIrChNHZXRXb3Jrc3BhY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAyJHChRHZXRXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiGgoYR2V0VXNlcldvcmtzcGFjZXNSZXF1ZXN0Ik0KGUdldFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSInChVMaXN0V29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDIkoKFkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSJ0ChZVcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIRCgRuYW1lGAIgASgJSACIAQESGAoLZGVzY3JpcHRpb24YAyABKAlIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb24iWwoXVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEg8KB21lc3NhZ2UYAiABKAkiSwoWRGVsZXRlV29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSGwoTY29uZmlybV9kZWxldGVfYXBwcxgCIAEoCCJbChdEZWxldGVXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USDwoHbWVzc2FnZRgCIAEoCSJHChBBZGRNZW1iZXJSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkiRwoRQWRkTWVtYmVyUmVzcG9uc2USMgoGbWVtYmVyGAEgASgLMiIubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlTWVtYmVyIjwKE1JlbW92ZU1lbWJlclJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEg8KB3VzZXJfaWQYAiABKAMiJwoUUmVtb3ZlTWVtYmVyUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCIqChJMaXN0TWVtYmVyc1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDIkoKE0xpc3RNZW1iZXJzUmVzcG9uc2USMwoHbWVtYmVycxgBIAMoCzIiLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZU1lbWJlcjKfBwoQV29ya3NwYWNlU2VydmljZRJoCg9DcmVhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USXwoMR2V0V29ya3NwYWNlEiYubG9jby53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlc3BvbnNlEm4KEUdldFVzZXJXb3Jrc3BhY2VzEisubG9jby53b3Jrc3BhY2UudjEuR2V0VXNlcldvcmtzcGFjZXNSZXF1ZXN0GiwubG9jby53b3Jrc3BhY2UudjEuR2V0VXNlcldvcmtzcGFjZXNSZXNwb25zZRJlCg5MaXN0V29ya3NwYWNlcxIoLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVxdWVzdBopLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USaAoPVXBkYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLlVwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlEmgKD0RlbGV0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVXb3Jrc3BhY2VSZXNwb25zZRJWCglBZGRNZW1iZXISIy5sb2NvLndvcmtzcGFjZS52MS5BZGRNZW1iZXJSZXF1ZXN0GiQubG9jby53b3Jrc3BhY2UudjEuQWRkTWVtYmVyUmVzcG9uc2USXwoMUmVtb3ZlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuUmVtb3ZlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLlJlbW92ZU1lbWJlclJlc3BvbnNlElwKC0xpc3RNZW1iZXJzEiUubG9jby53b3Jrc3BhY2UudjEuTGlzdE1lbWJlcnNSZXF1ZXN0GiYubG9jby53b3Jrc3BhY2UudjEuTGlzdE1lbWJlcnNSZXNwb25zZUJBWj9naXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by93b3Jrc3BhY2UvdjE7d29ya3NwYWNldjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.workspace.v1.Workspace
@@ -213,6 +213,11 @@ export type CreateWorkspaceResponse = Message<"loco.workspace.v1.CreateWorkspace
    * @generated from field: loco.workspace.v1.Workspace workspace = 1;
    */
   workspace?: Workspace;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -223,6 +228,11 @@ export type CreateWorkspaceResponseJson = {
    * @generated from field: loco.workspace.v1.Workspace workspace = 1;
    */
   workspace?: WorkspaceJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -237,9 +247,9 @@ export const CreateWorkspaceResponseSchema: GenMessage<CreateWorkspaceResponse, 
  */
 export type GetWorkspaceRequest = Message<"loco.workspace.v1.GetWorkspaceRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 workspace_id = 1;
    */
-  id: bigint;
+  workspaceId: bigint;
 };
 
 /**
@@ -247,9 +257,9 @@ export type GetWorkspaceRequest = Message<"loco.workspace.v1.GetWorkspaceRequest
  */
 export type GetWorkspaceRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 workspace_id = 1;
    */
-  id?: string;
+  workspaceId?: string;
 };
 
 /**
@@ -391,9 +401,9 @@ export const ListWorkspacesResponseSchema: GenMessage<ListWorkspacesResponse, {j
  */
 export type UpdateWorkspaceRequest = Message<"loco.workspace.v1.UpdateWorkspaceRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 workspace_id = 1;
    */
-  id: bigint;
+  workspaceId: bigint;
 
   /**
    * @generated from field: optional string name = 2;
@@ -411,9 +421,9 @@ export type UpdateWorkspaceRequest = Message<"loco.workspace.v1.UpdateWorkspaceR
  */
 export type UpdateWorkspaceRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 workspace_id = 1;
    */
-  id?: string;
+  workspaceId?: string;
 
   /**
    * @generated from field: optional string name = 2;
@@ -441,6 +451,11 @@ export type UpdateWorkspaceResponse = Message<"loco.workspace.v1.UpdateWorkspace
    * @generated from field: loco.workspace.v1.Workspace workspace = 1;
    */
   workspace?: Workspace;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -451,6 +466,11 @@ export type UpdateWorkspaceResponseJson = {
    * @generated from field: loco.workspace.v1.Workspace workspace = 1;
    */
   workspace?: WorkspaceJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -465,9 +485,9 @@ export const UpdateWorkspaceResponseSchema: GenMessage<UpdateWorkspaceResponse, 
  */
 export type DeleteWorkspaceRequest = Message<"loco.workspace.v1.DeleteWorkspaceRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 workspace_id = 1;
    */
-  id: bigint;
+  workspaceId: bigint;
 
   /**
    * @generated from field: bool confirm_delete_apps = 2;
@@ -480,9 +500,9 @@ export type DeleteWorkspaceRequest = Message<"loco.workspace.v1.DeleteWorkspaceR
  */
 export type DeleteWorkspaceRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 workspace_id = 1;
    */
-  id?: string;
+  workspaceId?: string;
 
   /**
    * @generated from field: bool confirm_delete_apps = 2;
@@ -502,9 +522,14 @@ export const DeleteWorkspaceRequestSchema: GenMessage<DeleteWorkspaceRequest, {j
  */
 export type DeleteWorkspaceResponse = Message<"loco.workspace.v1.DeleteWorkspaceResponse"> & {
   /**
-   * @generated from field: bool success = 1;
+   * @generated from field: loco.workspace.v1.Workspace workspace = 1;
    */
-  success: boolean;
+  workspace?: Workspace;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -512,9 +537,14 @@ export type DeleteWorkspaceResponse = Message<"loco.workspace.v1.DeleteWorkspace
  */
 export type DeleteWorkspaceResponseJson = {
   /**
-   * @generated from field: bool success = 1;
+   * @generated from field: loco.workspace.v1.Workspace workspace = 1;
    */
-  success?: boolean;
+  workspace?: WorkspaceJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**

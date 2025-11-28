@@ -96,7 +96,7 @@ export function EventBell() {
 							</p>
 							{events.length > 0 && (
 								<Button
-									variant="ghost"
+									variant="neutral"
 									size="sm"
 									onClick={handleClearAll}
 									className="h-6 text-xs"
@@ -118,7 +118,7 @@ export function EventBell() {
 											<p className="text-sm font-medium text-foreground">
 												{event.appName}
 											</p>
-											<p className="text-xs text-foreground opacity-70 mt-0.5 break-words">
+											<p className="text-xs text-foreground opacity-70 mt-0.5 wrap-break-word">
 												{event.message}
 											</p>
 											<p className="text-xs text-foreground opacity-50 mt-1">
@@ -126,10 +126,10 @@ export function EventBell() {
 											</p>
 										</div>
 										<Button
-											variant="ghost"
+											variant="neutral"
 											size="sm"
 											onClick={() => handleDismiss(event.id)}
-											className="h-5 w-5 p-0 flex-shrink-0"
+											className="h-5 w-5 p-0 shrink-0"
 										>
 											<X className="w-3 h-3" />
 										</Button>

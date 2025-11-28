@@ -1,12 +1,18 @@
-import { useParams } from "react-router";
-import { useQuery } from "@connectrpc/connect-query";
-import { getWorkspace } from "@/gen/workspace/v1";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getWorkspace } from "@/gen/workspace/v1";
+import { useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
+import { useParams } from "react-router";
 import { toast } from "sonner";
 
 export function WorkspaceSettings() {
@@ -17,7 +23,7 @@ export function WorkspaceSettings() {
 
 	const { data: wsRes, isLoading: wsLoading } = useQuery(
 		getWorkspace,
-		workspaceId ? { id: BigInt(workspaceId) } : undefined,
+		workspaceId ? { workspaceId: BigInt(workspaceId) } : undefined,
 		{ enabled: !!workspaceId }
 	);
 
@@ -47,12 +53,10 @@ export function WorkspaceSettings() {
 	return (
 		<div className="max-w-4xl mx-auto py-8">
 			<div className="mb-8">
-				<h1 className="text-3xl font-heading font-bold text-foreground mb-2">
+				<h1 className="text-3xl font-heading text-foreground mb-2">
 					Workspace Settings
 				</h1>
-				<p className="text-muted-foreground">
-					Manage {workspace.name}
-				</p>
+				<p className="text-muted-foreground">Manage {workspace.name}</p>
 			</div>
 
 			{/* Workspace Info */}
@@ -82,7 +86,7 @@ export function WorkspaceSettings() {
 						</Label>
 						<Textarea
 							id="ws-desc"
-							value={isEditing ? wsDescription : (workspace.description ?? "")}
+							value={isEditing ? wsDescription : workspace.description ?? ""}
 							onChange={(e) => setWsDescription(e.target.value)}
 							disabled={!isEditing}
 							className="border-border"
@@ -94,10 +98,7 @@ export function WorkspaceSettings() {
 					{/* Actions */}
 					<div className="flex gap-3 pt-4 border-t border-border">
 						{!isEditing ? (
-							<Button
-								variant="neutral"
-								onClick={() => setIsEditing(true)}
-							>
+							<Button variant="neutral" onClick={() => setIsEditing(true)}>
 								Edit Workspace
 							</Button>
 						) : (
@@ -112,9 +113,7 @@ export function WorkspaceSettings() {
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleSave}>
-									Save Changes
-								</Button>
+								<Button onClick={handleSave}>Save Changes</Button>
 							</>
 						)}
 					</div>
@@ -145,9 +144,7 @@ export function WorkspaceSettings() {
 			<Card className="border-red-200 bg-red-50/50">
 				<CardHeader>
 					<CardTitle className="text-lg text-red-700">Danger Zone</CardTitle>
-					<CardDescription>
-						Irreversible actions
-					</CardDescription>
+					<CardDescription>Irreversible actions</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<Button

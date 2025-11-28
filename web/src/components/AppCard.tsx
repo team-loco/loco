@@ -32,13 +32,11 @@ export function AppCard({ app, onAppDeleted }: AppCardProps) {
 				timestamp = Number(app.createdAt.seconds) * 1000;
 			} else if (typeof app.createdAt === "number") {
 				timestamp = app.createdAt;
-			} else if (app.createdAt instanceof Date) {
-				timestamp = app.createdAt.getTime();
 			} else {
 				return "unknown";
 			}
 
-			const now = Date.now();
+			const now = new Date().getTime();
 			const diff = now - timestamp;
 			const hours = Math.floor(diff / (1000 * 60 * 60));
 			const days = Math.floor(diff / (1000 * 60 * 60 * 24));
