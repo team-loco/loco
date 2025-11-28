@@ -134,7 +134,7 @@ func (s *WorkspaceServer) GetWorkspace(
 	}
 
 	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: r.Id,
+		WorkspaceID: r.WorkspaceId,
 		UserID:      userID,
 	})
 	if err != nil {
@@ -143,13 +143,13 @@ func (s *WorkspaceServer) GetWorkspace(
 	}
 
 	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, r.Id)
+	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, r.WorkspaceId)
 	if err != nil {
-		slog.WarnContext(ctx, "workspace not found", "id", r.Id)
+		slog.WarnContext(ctx, "workspace not found", "id", r.WorkspaceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
 	}
 
@@ -266,16 +266,16 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	}
 
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: r.Id,
+		WorkspaceID: r.WorkspaceId,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	if role != genDb.WorkspaceRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.Id, "userId", userID, "role", string(role))
+		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.WorkspaceId, "userId", userID, "role", string(role))
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceAdmin)
 	}
 
@@ -285,7 +285,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
 		}
 
-		orgID, err := s.queries.GetWorkspaceOrgID(ctx, r.Id)
+		orgID, err := s.queries.GetWorkspaceOrgID(ctx, r.WorkspaceId)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get workspace org", "error", err)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -310,12 +310,12 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
 	ws, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-		ID:          r.Id,
+		ID:          r.WorkspaceId,
 		Name:        name,
 		Description: description,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "workspace not found", "id", r.Id)
+		slog.WarnContext(ctx, "workspace not found", "id", r.WorkspaceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
 	}
 
@@ -346,30 +346,33 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	}
 
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: r.Id,
+		WorkspaceID: r.WorkspaceId,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	if role != genDb.WorkspaceRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.Id, "userId", userID, "role", string(role))
+		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.WorkspaceId, "userId", userID, "role", string(role))
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceAdmin)
 	}
 
 	// TODO: Check if workspace has apps (when apps table exists)
 	// For now, skip this check
 
-	err = s.queries.RemoveWorkspace(ctx, r.Id)
+	err = s.queries.RemoveWorkspace(ctx, r.WorkspaceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{
-		Success: true,
+		Workspace: &workspacev1.Workspace{
+			Id: r.WorkspaceId,
+		},
+		Message: "Successfully deleted workspace",
 	}), nil
 }
 

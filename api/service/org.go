@@ -110,7 +110,7 @@ func (s *OrgServer) GetOrg(
 	}
 
 	isMember, err := s.queries.IsOrgMember(ctx, genDb.IsOrgMemberParams{
-		OrganizationID: r.Id,
+		OrganizationID: r.OrgId,
 		UserID:         userID,
 	})
 	if err != nil {
@@ -119,11 +119,11 @@ func (s *OrgServer) GetOrg(
 	}
 
 	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
 	}
 
-	org, err := s.queries.GetOrgByID(ctx, r.Id)
+	org, err := s.queries.GetOrgByID(ctx, r.OrgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to query org", "error", err)
 		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
@@ -181,23 +181,15 @@ func (s *OrgServer) ListOrgs(
 ) (*connect.Response[orgv1.ListOrgsResponse], error) {
 	r := req.Msg
 
-	// TODO: Add admin check here
-	// For now, any authenticated user can list
-
-	page := r.Page
-	if page < 1 {
-		page = 1
+	limit := r.Limit
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
 	}
 
-	perPage := r.PerPage
-	if perPage < 1 {
-		perPage = 50
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
-
-	offset := (page - 1) * perPage
+	offset := r.Offset
 
 	totalCount, err := s.queries.CountOrgsForUser(ctx, r.UserId)
 	if err != nil {
@@ -207,8 +199,8 @@ func (s *OrgServer) ListOrgs(
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
 		UserID: r.UserId,
-		Offset: int32(offset),
-		Limit:  int32(perPage),
+		Offset: offset,
+		Limit:  limit,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list orgs", "error", err)
@@ -228,9 +220,7 @@ func (s *OrgServer) ListOrgs(
 
 	return connect.NewResponse(&orgv1.ListOrgsResponse{
 		Orgs:       orgResponses,
-		TotalCount: int32(totalCount),
-		Page:       page,
-		PerPage:    perPage,
+		TotalCount: totalCount,
 	}), nil
 }
 
@@ -248,16 +238,16 @@ func (s *OrgServer) UpdateOrg(
 	}
 
 	role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{
-		OrganizationID: r.Id,
+		OrganizationID: r.OrgId,
 		UserID:         userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
 	}
 
 	if role != genDb.OrganizationRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.Id, "userId", userID, "role", string(role))
+		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.OrgId, "userId", userID, "role", string(role))
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgAdmin)
 	}
 
@@ -269,14 +259,14 @@ func (s *OrgServer) UpdateOrg(
 
 	if !isUnique {
 		existingOrg, err := s.queries.GetOrgByName(ctx, r.NewName)
-		if err != nil || existingOrg.ID != r.Id {
+		if err != nil || existingOrg.ID != r.OrgId {
 			slog.WarnContext(ctx, "org name already exists", "name", r.NewName)
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 		}
 	}
 
 	org, err := s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-		ID:   r.Id,
+		ID:   r.OrgId,
 		Name: r.NewName,
 	})
 	if err != nil {
@@ -309,40 +299,53 @@ func (s *OrgServer) DeleteOrg(
 	}
 
 	role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{
-		OrganizationID: r.Id,
+		OrganizationID: r.OrgId,
 		UserID:         userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
 	}
 
 	if role != genDb.OrganizationRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.Id, "userId", userID, "role", string(role))
+		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.OrgId, "userId", userID, "role", string(role))
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgAdmin)
 	}
 
 	// TODO: Check if org has workspaces with apps or not.
 	// var hasApps bool
-	hasApps, err := s.queries.OrgHasWorkspacesWithApps(ctx, r.Id)
+	hasApps, err := s.queries.OrgHasWorkspacesWithApps(ctx, r.OrgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for apps in workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasApps {
-		slog.WarnContext(ctx, "org has workspaces with apps", "orgId", r.Id)
+		slog.WarnContext(ctx, "org has workspaces with apps", "orgId", r.OrgId)
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithApps)
 	}
 
-	err = s.queries.DeleteOrg(ctx, r.Id)
+	err = s.queries.DeleteOrg(ctx, r.OrgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete org", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	org, err := s.queries.GetOrgByID(ctx, r.OrgId)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get org", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&orgv1.DeleteOrgResponse{
-		Success: true,
+		Org: &orgv1.Organization{
+			Id:        org.ID,
+			Name:      org.Name,
+			CreatedBy: org.CreatedBy,
+			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
+			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+		},
+		Message: "Organization deleted successfully",
 	}), nil
 }
 

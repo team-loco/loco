@@ -213,6 +213,7 @@ func (x *CreateOrgRequest) GetName() string {
 type CreateOrgResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Org           *Organization          `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -254,9 +255,16 @@ func (x *CreateOrgResponse) GetOrg() *Organization {
 	return nil
 }
 
+func (x *CreateOrgResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type GetOrgRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,9 +299,9 @@ func (*GetOrgRequest) Descriptor() ([]byte, []int) {
 	return file_org_v1_org_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetOrgRequest) GetId() int64 {
+func (x *GetOrgRequest) GetOrgId() int64 {
 	if x != nil {
-		return x.Id
+		return x.OrgId
 	}
 	return 0
 }
@@ -425,8 +433,8 @@ func (x *GetCurrentUserOrgsResponse) GetOrgs() []*Organization {
 type ListOrgsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Page          int32                  `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
-	PerPage       int32                  `protobuf:"varint,3,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -468,16 +476,16 @@ func (x *ListOrgsRequest) GetUserId() int64 {
 	return 0
 }
 
-func (x *ListOrgsRequest) GetPage() int32 {
+func (x *ListOrgsRequest) GetLimit() int32 {
 	if x != nil {
-		return x.Page
+		return x.Limit
 	}
 	return 0
 }
 
-func (x *ListOrgsRequest) GetPerPage() int32 {
+func (x *ListOrgsRequest) GetOffset() int32 {
 	if x != nil {
-		return x.PerPage
+		return x.Offset
 	}
 	return 0
 }
@@ -485,9 +493,7 @@ func (x *ListOrgsRequest) GetPerPage() int32 {
 type ListOrgsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Orgs          []*Organization        `protobuf:"bytes,1,rep,name=orgs,proto3" json:"orgs,omitempty"`
-	TotalCount    int32                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
-	Page          int32                  `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
-	PerPage       int32                  `protobuf:"varint,4,opt,name=per_page,json=perPage,proto3" json:"per_page,omitempty"`
+	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -529,30 +535,16 @@ func (x *ListOrgsResponse) GetOrgs() []*Organization {
 	return nil
 }
 
-func (x *ListOrgsResponse) GetTotalCount() int32 {
+func (x *ListOrgsResponse) GetTotalCount() int64 {
 	if x != nil {
 		return x.TotalCount
 	}
 	return 0
 }
 
-func (x *ListOrgsResponse) GetPage() int32 {
-	if x != nil {
-		return x.Page
-	}
-	return 0
-}
-
-func (x *ListOrgsResponse) GetPerPage() int32 {
-	if x != nil {
-		return x.PerPage
-	}
-	return 0
-}
-
 type UpdateOrgRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	NewName       string                 `protobuf:"bytes,2,opt,name=new_name,json=newName,proto3" json:"new_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -588,9 +580,9 @@ func (*UpdateOrgRequest) Descriptor() ([]byte, []int) {
 	return file_org_v1_org_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *UpdateOrgRequest) GetId() int64 {
+func (x *UpdateOrgRequest) GetOrgId() int64 {
 	if x != nil {
-		return x.Id
+		return x.OrgId
 	}
 	return 0
 }
@@ -605,6 +597,7 @@ func (x *UpdateOrgRequest) GetNewName() string {
 type UpdateOrgResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Org           *Organization          `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -646,9 +639,16 @@ func (x *UpdateOrgResponse) GetOrg() *Organization {
 	return nil
 }
 
+func (x *UpdateOrgResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type DeleteOrgRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -683,16 +683,17 @@ func (*DeleteOrgRequest) Descriptor() ([]byte, []int) {
 	return file_org_v1_org_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *DeleteOrgRequest) GetId() int64 {
+func (x *DeleteOrgRequest) GetOrgId() int64 {
 	if x != nil {
-		return x.Id
+		return x.OrgId
 	}
 	return 0
 }
 
 type DeleteOrgResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Org           *Organization          `protobuf:"bytes,1,opt,name=org,proto3" json:"org,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -727,11 +728,18 @@ func (*DeleteOrgResponse) Descriptor() ([]byte, []int) {
 	return file_org_v1_org_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *DeleteOrgResponse) GetSuccess() bool {
+func (x *DeleteOrgResponse) GetOrg() *Organization {
 	if x != nil {
-		return x.Success
+		return x.Org
 	}
-	return false
+	return nil
+}
+
+func (x *DeleteOrgResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
 }
 
 type IsUniqueOrgNameRequest struct {
@@ -941,35 +949,36 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"4\n" +
 	"\x10CreateOrgRequest\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tH\x00R\x04name\x88\x01\x01B\a\n" +
-	"\x05_name\"@\n" +
+	"\x05_name\"Z\n" +
 	"\x11CreateOrgResponse\x12+\n" +
-	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\"\x1f\n" +
-	"\rGetOrgRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"=\n" +
+	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"&\n" +
+	"\rGetOrgRequest\x12\x15\n" +
+	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\"=\n" +
 	"\x0eGetOrgResponse\x12+\n" +
 	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\"\x1b\n" +
 	"\x19GetCurrentUserOrgsRequest\"K\n" +
 	"\x1aGetCurrentUserOrgsResponse\x12-\n" +
-	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\"Y\n" +
+	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\"X\n" +
 	"\x0fListOrgsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04page\x18\x02 \x01(\x05R\x04page\x12\x19\n" +
-	"\bper_page\x18\x03 \x01(\x05R\aperPage\"\x91\x01\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\x05R\x06offset\"b\n" +
 	"\x10ListOrgsResponse\x12-\n" +
 	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\x12\x12\n" +
-	"\x04page\x18\x03 \x01(\x05R\x04page\x12\x19\n" +
-	"\bper_page\x18\x04 \x01(\x05R\aperPage\"=\n" +
-	"\x10UpdateOrgRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x19\n" +
-	"\bnew_name\x18\x02 \x01(\tR\anewName\"@\n" +
+	"\vtotal_count\x18\x02 \x01(\x03R\n" +
+	"totalCount\"D\n" +
+	"\x10UpdateOrgRequest\x12\x15\n" +
+	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x19\n" +
+	"\bnew_name\x18\x02 \x01(\tR\anewName\"Z\n" +
 	"\x11UpdateOrgResponse\x12+\n" +
-	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\"\"\n" +
-	"\x10DeleteOrgRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"-\n" +
-	"\x11DeleteOrgResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"j\n" +
+	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\")\n" +
+	"\x10DeleteOrgRequest\x12\x15\n" +
+	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\"Z\n" +
+	"\x11DeleteOrgResponse\x12+\n" +
+	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"j\n" +
 	"\x16IsUniqueOrgNameRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12)\n" +
 	"\x0eexclude_org_id\x18\x02 \x01(\x03H\x00R\fexcludeOrgId\x88\x01\x01B\x11\n" +
@@ -1036,28 +1045,29 @@ var file_org_v1_org_proto_depIdxs = []int32{
 	0,  // 5: loco.org.v1.GetCurrentUserOrgsResponse.orgs:type_name -> loco.org.v1.Organization
 	0,  // 6: loco.org.v1.ListOrgsResponse.orgs:type_name -> loco.org.v1.Organization
 	0,  // 7: loco.org.v1.UpdateOrgResponse.org:type_name -> loco.org.v1.Organization
-	1,  // 8: loco.org.v1.ListWorkspacesResponse.workspaces:type_name -> loco.org.v1.WorkspaceSummary
-	2,  // 9: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	4,  // 10: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	6,  // 11: loco.org.v1.OrgService.GetCurrentUserOrgs:input_type -> loco.org.v1.GetCurrentUserOrgsRequest
-	8,  // 12: loco.org.v1.OrgService.ListOrgs:input_type -> loco.org.v1.ListOrgsRequest
-	10, // 13: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	12, // 14: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	16, // 15: loco.org.v1.OrgService.ListWorkspaces:input_type -> loco.org.v1.ListWorkspacesRequest
-	14, // 16: loco.org.v1.OrgService.IsUniqueOrgName:input_type -> loco.org.v1.IsUniqueOrgNameRequest
-	3,  // 17: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	5,  // 18: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	7,  // 19: loco.org.v1.OrgService.GetCurrentUserOrgs:output_type -> loco.org.v1.GetCurrentUserOrgsResponse
-	9,  // 20: loco.org.v1.OrgService.ListOrgs:output_type -> loco.org.v1.ListOrgsResponse
-	11, // 21: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	13, // 22: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	17, // 23: loco.org.v1.OrgService.ListWorkspaces:output_type -> loco.org.v1.ListWorkspacesResponse
-	15, // 24: loco.org.v1.OrgService.IsUniqueOrgName:output_type -> loco.org.v1.IsUniqueOrgNameResponse
-	17, // [17:25] is the sub-list for method output_type
-	9,  // [9:17] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	0,  // 8: loco.org.v1.DeleteOrgResponse.org:type_name -> loco.org.v1.Organization
+	1,  // 9: loco.org.v1.ListWorkspacesResponse.workspaces:type_name -> loco.org.v1.WorkspaceSummary
+	2,  // 10: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
+	4,  // 11: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
+	6,  // 12: loco.org.v1.OrgService.GetCurrentUserOrgs:input_type -> loco.org.v1.GetCurrentUserOrgsRequest
+	8,  // 13: loco.org.v1.OrgService.ListOrgs:input_type -> loco.org.v1.ListOrgsRequest
+	10, // 14: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
+	12, // 15: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
+	16, // 16: loco.org.v1.OrgService.ListWorkspaces:input_type -> loco.org.v1.ListWorkspacesRequest
+	14, // 17: loco.org.v1.OrgService.IsUniqueOrgName:input_type -> loco.org.v1.IsUniqueOrgNameRequest
+	3,  // 18: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
+	5,  // 19: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
+	7,  // 20: loco.org.v1.OrgService.GetCurrentUserOrgs:output_type -> loco.org.v1.GetCurrentUserOrgsResponse
+	9,  // 21: loco.org.v1.OrgService.ListOrgs:output_type -> loco.org.v1.ListOrgsResponse
+	11, // 22: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
+	13, // 23: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
+	17, // 24: loco.org.v1.OrgService.ListWorkspaces:output_type -> loco.org.v1.ListWorkspacesResponse
+	15, // 25: loco.org.v1.OrgService.IsUniqueOrgName:output_type -> loco.org.v1.IsUniqueOrgNameResponse
+	18, // [18:26] is the sub-list for method output_type
+	10, // [10:18] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_org_v1_org_proto_init() }

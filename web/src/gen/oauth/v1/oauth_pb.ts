@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file oauth/v1/oauth.proto.
  */
 export const file_oauth_v1_oauth: GenFile = /*@__PURE__*/
-  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSIbChlHaXRodWJPQXV0aERldGFpbHNSZXF1ZXN0IkIKGkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEiWAoaRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QSGwoTZ2l0aHViX2FjY2Vzc190b2tlbhgBIAEoCRIdChVjcmVhdGVVc2VySWZOb3RFeGlzdHMYAiABKAgijgEKG0V4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSFAoMd29ya3NwYWNlX2lkGAMgASgDEg4KBm9yZ19pZBgEIAEoAxIPCgd1c2VyX2lkGAUgASgDEhAKCHVzZXJuYW1lGAYgASgJIkcKIEdldEdpdGh1YkF1dGhvcml6YXRpb25VUkxSZXF1ZXN0Eg0KBXN0YXRlGAEgASgJEhQKDHJlZGlyZWN0X3VyaRgCIAEoCSJNCiFHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkSDQoFc3RhdGUYAiABKAkiTgoZRXhjaGFuZ2VHaXRodWJDb2RlUmVxdWVzdBIMCgRjb2RlGAEgASgJEg0KBXN0YXRlGAIgASgJEhQKDHJlZGlyZWN0X3VyaRgDIAEoCSJnChpFeGNoYW5nZUdpdGh1YkNvZGVSZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSDwoHdXNlcl9pZBgDIAEoAxIQCgh1c2VybmFtZRgGIAEoCTLZAwoMT0F1dGhTZXJ2aWNlEmsKEkdpdGh1Yk9BdXRoRGV0YWlscxIoLmxvY28ub2F1dGgudjEuR2l0aHViT0F1dGhEZXRhaWxzUmVxdWVzdBopLmxvY28ub2F1dGgudjEuR2l0aHViT0F1dGhEZXRhaWxzUmVzcG9uc2UiABJsChNFeGNoYW5nZUdpdGh1YlRva2VuEikubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YlRva2VuUmVxdWVzdBoqLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJUb2tlblJlc3BvbnNlEoABChlHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMEi8ubG9jby5vYXV0aC52MS5HZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVxdWVzdBowLmxvY28ub2F1dGgudjEuR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlc3BvbnNlIgASawoSRXhjaGFuZ2VHaXRodWJDb2RlEigubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YkNvZGVSZXF1ZXN0GikubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YkNvZGVSZXNwb25zZSIAQjlaN2dpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL29hdXRoL3YxO29hdXRodjFiBnByb3RvMw");
+  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSIbChlHaXRodWJPQXV0aERldGFpbHNSZXF1ZXN0IkIKGkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEiXAoaRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QSGwoTZ2l0aHViX2FjY2Vzc190b2tlbhgBIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAIgASgIImgKG0V4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSDwoHdXNlcl9pZBgDIAEoAxIQCgh1c2VybmFtZRgEIAEoCSJHCiBHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVxdWVzdBINCgVzdGF0ZRgBIAEoCRIUCgxyZWRpcmVjdF91cmkYAiABKAkiTQohR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlc3BvbnNlEhkKEWF1dGhvcml6YXRpb25fdXJsGAEgASgJEg0KBXN0YXRlGAIgASgJIk4KGUV4Y2hhbmdlR2l0aHViQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiZwoaRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2USEgoKbG9jb190b2tlbhgBIAEoCRISCgpleHBpcmVzX2luGAIgASgDEg8KB3VzZXJfaWQYAyABKAMSEAoIdXNlcm5hbWUYBiABKAky2QMKDE9BdXRoU2VydmljZRJrChJHaXRodWJPQXV0aERldGFpbHMSKC5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1JlcXVlc3QaKS5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlIgASbAoTRXhjaGFuZ2VHaXRodWJUb2tlbhIpLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QaKi5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRKAAQoZR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTBIvLmxvY28ub2F1dGgudjEuR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlcXVlc3QaMC5sb2NvLm9hdXRoLnYxLkdldEdpdGh1YkF1dGhvcml6YXRpb25VUkxSZXNwb25zZSIAEmsKEkV4Y2hhbmdlR2l0aHViQ29kZRIoLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVxdWVzdBopLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2UiAEI5WjdnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM");
 
 /**
  * @generated from message loco.oauth.v1.GithubOAuthDetailsRequest
@@ -78,7 +78,7 @@ export type ExchangeGithubTokenRequest = Message<"loco.oauth.v1.ExchangeGithubTo
   githubAccessToken: string;
 
   /**
-   * @generated from field: bool createUserIfNotExists = 2;
+   * @generated from field: bool create_user_if_not_exists = 2;
    */
   createUserIfNotExists: boolean;
 };
@@ -93,7 +93,7 @@ export type ExchangeGithubTokenRequestJson = {
   githubAccessToken?: string;
 
   /**
-   * @generated from field: bool createUserIfNotExists = 2;
+   * @generated from field: bool create_user_if_not_exists = 2;
    */
   createUserIfNotExists?: boolean;
 };
@@ -122,22 +122,12 @@ export type ExchangeGithubTokenResponse = Message<"loco.oauth.v1.ExchangeGithubT
   expiresIn: bigint;
 
   /**
-   * @generated from field: int64 workspace_id = 3;
-   */
-  workspaceId: bigint;
-
-  /**
-   * @generated from field: int64 org_id = 4;
-   */
-  orgId: bigint;
-
-  /**
-   * @generated from field: int64 user_id = 5;
+   * @generated from field: int64 user_id = 3;
    */
   userId: bigint;
 
   /**
-   * @generated from field: string username = 6;
+   * @generated from field: string username = 4;
    */
   username: string;
 };
@@ -159,22 +149,12 @@ export type ExchangeGithubTokenResponseJson = {
   expiresIn?: string;
 
   /**
-   * @generated from field: int64 workspace_id = 3;
-   */
-  workspaceId?: string;
-
-  /**
-   * @generated from field: int64 org_id = 4;
-   */
-  orgId?: string;
-
-  /**
-   * @generated from field: int64 user_id = 5;
+   * @generated from field: int64 user_id = 3;
    */
   userId?: string;
 
   /**
-   * @generated from field: string username = 6;
+   * @generated from field: string username = 4;
    */
   username?: string;
 };

@@ -6,6 +6,15 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/deployment/v1;deploymentv1";
 
+enum DeploymentPhase {
+  DEPLOYMENT_PHASE_UNSPECIFIED = 0;
+  DEPLOYMENT_PHASE_PENDING = 1;
+  DEPLOYMENT_PHASE_RUNNING = 2;
+  DEPLOYMENT_PHASE_SUCCEEDED = 3;
+  DEPLOYMENT_PHASE_FAILED = 4;
+  DEPLOYMENT_PHASE_CANCELED = 5;
+}
+
 service DeploymentService {
   rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
   rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
@@ -28,7 +37,7 @@ message Deployment {
    int64 app_id = 2;
    string image = 6;
    int32 replicas = 7;
-   string status = 8;
+   DeploymentPhase status = 8;
    bool is_current = 9;
    optional string message = 10;
    optional string error_message = 11;
@@ -52,6 +61,7 @@ message CreateDeploymentRequest {
 
 message CreateDeploymentResponse {
   Deployment deployment = 1;
+  string message = 2;
 }
 
 message GetDeploymentRequest {
@@ -79,7 +89,7 @@ message StreamDeploymentRequest {
 
 message DeploymentEvent {
   int64 deployment_id = 1;
-  string status = 2;
+  DeploymentPhase status = 2;
   string message = 3;
   google.protobuf.Timestamp timestamp = 4;
   optional string error_message = 5;

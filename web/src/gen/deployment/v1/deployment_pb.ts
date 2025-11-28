@@ -2,8 +2,8 @@
 // @generated from file deployment/v1/deployment.proto (package loco.deployment.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file deployment/v1/deployment.proto.
  */
 export const file_deployment_v1_deployment: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSL1AwoKRGVwbG95bWVudBIKCgJpZBgBIAEoAxIOCgZhcHBfaWQYAiABKAMSDQoFaW1hZ2UYBiABKAkSEAoIcmVwbGljYXMYByABKAUSDgoGc3RhdHVzGAggASgJEhIKCmlzX2N1cnJlbnQYCSABKAgSFAoHbWVzc2FnZRgKIAEoCUgAiAEBEhoKDWVycm9yX21lc3NhZ2UYCyABKAlIAYgBARISCgpjcmVhdGVkX2J5GAwgASgDEi4KCmNyZWF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKCnN0YXJ0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESNQoMY29tcGxldGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEi4KCnVwZGF0ZWRfYXQYECABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDnNjaGVtYV92ZXJzaW9uGBEgASgFEhMKBmNvbmZpZxgSIAEoCUgEiAEBQgoKCF9tZXNzYWdlQhAKDl9lcnJvcl9tZXNzYWdlQg0KC19zdGFydGVkX2F0Qg8KDV9jb21wbGV0ZWRfYXRCCQoHX2NvbmZpZyK8AgoXQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEg0KBWltYWdlGAMgASgJEhUKCHJlcGxpY2FzGAQgASgFSACIAQESQQoDZW52GAYgAygLMjQubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXF1ZXN0LkVudkVudHJ5EicKBXBvcnRzGAcgAygLMhgubG9jby5kZXBsb3ltZW50LnYxLlBvcnQSOAoJcmVzb3VyY2VzGAggASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlJlc291cmNlU3BlY0gBiAEBGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCCwoJX3JlcGxpY2FzQgwKCl9yZXNvdXJjZXMiTgoYQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEjIKCmRlcGxveW1lbnQYASABKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudCItChRHZXREZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiZgoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEgoFbGltaXQYAiABKAVIAIgBARITCgZvZmZzZXQYAyABKAVIAYgBAUIICgZfbGltaXRCCQoHX29mZnNldCJdChdMaXN0RGVwbG95bWVudHNSZXNwb25zZRIzCgtkZXBsb3ltZW50cxgBIAMoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50Eg0KBXRvdGFsGAIgASgDIjAKF1N0cmVhbURlcGxveW1lbnRSZXF1ZXN0EhUKDWRlcGxveW1lbnRfaWQYASABKAMipgEKD0RlcGxveW1lbnRFdmVudBIVCg1kZXBsb3ltZW50X2lkGAEgASgDEg4KBnN0YXR1cxgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoNZXJyb3JfbWVzc2FnZRgFIAEoCUgAiAEBQhAKDl9lcnJvcl9tZXNzYWdlMrwDChFEZXBsb3ltZW50U2VydmljZRJtChBDcmVhdGVEZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXF1ZXN0GiwubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXNwb25zZRJkCg1HZXREZXBsb3ltZW50EigubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXF1ZXN0GikubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXNwb25zZRJqCg9MaXN0RGVwbG95bWVudHMSKi5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVxdWVzdBorLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXNwb25zZRJmChBTdHJlYW1EZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLlN0cmVhbURlcGxveW1lbnRSZXF1ZXN0GiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRFdmVudDABQkNaQWdpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL2RlcGxveW1lbnQvdjE7ZGVwbG95bWVudHYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSKaBAoKRGVwbG95bWVudBIKCgJpZBgBIAEoAxIOCgZhcHBfaWQYAiABKAMSDQoFaW1hZ2UYBiABKAkSEAoIcmVwbGljYXMYByABKAUSMwoGc3RhdHVzGAggASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRISCgppc19jdXJyZW50GAkgASgIEhQKB21lc3NhZ2UYCiABKAlIAIgBARIaCg1lcnJvcl9tZXNzYWdlGAsgASgJSAGIAQESEgoKY3JlYXRlZF9ieRgMIAEoAxIuCgpjcmVhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCgpzdGFydGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgCiAEBEjUKDGNvbXBsZXRlZF9hdBgPIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIA4gBARIuCgp1cGRhdGVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5zY2hlbWFfdmVyc2lvbhgRIAEoBRITCgZjb25maWcYEiABKAlIBIgBAUIKCghfbWVzc2FnZUIQCg5fZXJyb3JfbWVzc2FnZUINCgtfc3RhcnRlZF9hdEIPCg1fY29tcGxldGVkX2F0QgkKB19jb25maWcivAIKF0NyZWF0ZURlcGxveW1lbnRSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxINCgVpbWFnZRgDIAEoCRIVCghyZXBsaWNhcxgEIAEoBUgAiAEBEkEKA2VudhgGIAMoCzI0LmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVxdWVzdC5FbnZFbnRyeRInCgVwb3J0cxgHIAMoCzIYLmxvY28uZGVwbG95bWVudC52MS5Qb3J0EjgKCXJlc291cmNlcxgIIAEoCzIgLmxvY28uZGVwbG95bWVudC52MS5SZXNvdXJjZVNwZWNIAYgBARoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQgsKCV9yZXBsaWNhc0IMCgpfcmVzb3VyY2VzIl8KGENyZWF0ZURlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQSDwoHbWVzc2FnZRgCIAEoCSItChRHZXREZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiZgoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEgoFbGltaXQYAiABKAVIAIgBARITCgZvZmZzZXQYAyABKAVIAYgBAUIICgZfbGltaXRCCQoHX29mZnNldCJdChdMaXN0RGVwbG95bWVudHNSZXNwb25zZRIzCgtkZXBsb3ltZW50cxgBIAMoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50Eg0KBXRvdGFsGAIgASgDIjAKF1N0cmVhbURlcGxveW1lbnRSZXF1ZXN0EhUKDWRlcGxveW1lbnRfaWQYASABKAMiywEKD0RlcGxveW1lbnRFdmVudBIVCg1kZXBsb3ltZW50X2lkGAEgASgDEjMKBnN0YXR1cxgCIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USDwoHbWVzc2FnZRgDIAEoCRItCgl0aW1lc3RhbXAYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKDWVycm9yX21lc3NhZ2UYBSABKAlIAIgBAUIQCg5fZXJyb3JfbWVzc2FnZSrLAQoPRGVwbG95bWVudFBoYXNlEiAKHERFUExPWU1FTlRfUEhBU0VfVU5TUEVDSUZJRUQQABIcChhERVBMT1lNRU5UX1BIQVNFX1BFTkRJTkcQARIcChhERVBMT1lNRU5UX1BIQVNFX1JVTk5JTkcQAhIeChpERVBMT1lNRU5UX1BIQVNFX1NVQ0NFRURFRBADEhsKF0RFUExPWU1FTlRfUEhBU0VfRkFJTEVEEAQSHQoZREVQTE9ZTUVOVF9QSEFTRV9DQU5DRUxFRBAFMrwDChFEZXBsb3ltZW50U2VydmljZRJtChBDcmVhdGVEZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXF1ZXN0GiwubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXNwb25zZRJkCg1HZXREZXBsb3ltZW50EigubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXF1ZXN0GikubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXNwb25zZRJqCg9MaXN0RGVwbG95bWVudHMSKi5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVxdWVzdBorLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXNwb25zZRJmChBTdHJlYW1EZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLlN0cmVhbURlcGxveW1lbnRSZXF1ZXN0GiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRFdmVudDABQkNaQWdpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL2RlcGxveW1lbnQvdjE7ZGVwbG95bWVudHYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.deployment.v1.Port
@@ -113,9 +113,9 @@ export type Deployment = Message<"loco.deployment.v1.Deployment"> & {
   replicas: number;
 
   /**
-   * @generated from field: string status = 8;
+   * @generated from field: loco.deployment.v1.DeploymentPhase status = 8;
    */
-  status: string;
+  status: DeploymentPhase;
 
   /**
    * @generated from field: bool is_current = 9;
@@ -193,9 +193,9 @@ export type DeploymentJson = {
   replicas?: number;
 
   /**
-   * @generated from field: string status = 8;
+   * @generated from field: loco.deployment.v1.DeploymentPhase status = 8;
    */
-  status?: string;
+  status?: DeploymentPhaseJson;
 
   /**
    * @generated from field: bool is_current = 9;
@@ -340,6 +340,11 @@ export type CreateDeploymentResponse = Message<"loco.deployment.v1.CreateDeploym
    * @generated from field: loco.deployment.v1.Deployment deployment = 1;
    */
   deployment?: Deployment;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -350,6 +355,11 @@ export type CreateDeploymentResponseJson = {
    * @generated from field: loco.deployment.v1.Deployment deployment = 1;
    */
   deployment?: DeploymentJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -534,9 +544,9 @@ export type DeploymentEvent = Message<"loco.deployment.v1.DeploymentEvent"> & {
   deploymentId: bigint;
 
   /**
-   * @generated from field: string status = 2;
+   * @generated from field: loco.deployment.v1.DeploymentPhase status = 2;
    */
-  status: string;
+  status: DeploymentPhase;
 
   /**
    * @generated from field: string message = 3;
@@ -564,9 +574,9 @@ export type DeploymentEventJson = {
   deploymentId?: string;
 
   /**
-   * @generated from field: string status = 2;
+   * @generated from field: loco.deployment.v1.DeploymentPhase status = 2;
    */
-  status?: string;
+  status?: DeploymentPhaseJson;
 
   /**
    * @generated from field: string message = 3;
@@ -590,6 +600,52 @@ export type DeploymentEventJson = {
  */
 export const DeploymentEventSchema: GenMessage<DeploymentEvent, {jsonType: DeploymentEventJson}> = /*@__PURE__*/
   messageDesc(file_deployment_v1_deployment, 10);
+
+/**
+ * @generated from enum loco.deployment.v1.DeploymentPhase
+ */
+export enum DeploymentPhase {
+  /**
+   * @generated from enum value: DEPLOYMENT_PHASE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_PHASE_PENDING = 1;
+   */
+  PENDING = 1,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_PHASE_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_PHASE_SUCCEEDED = 3;
+   */
+  SUCCEEDED = 3,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_PHASE_FAILED = 4;
+   */
+  FAILED = 4,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_PHASE_CANCELED = 5;
+   */
+  CANCELED = 5,
+}
+
+/**
+ * @generated from enum loco.deployment.v1.DeploymentPhase
+ */
+export type DeploymentPhaseJson = "DEPLOYMENT_PHASE_UNSPECIFIED" | "DEPLOYMENT_PHASE_PENDING" | "DEPLOYMENT_PHASE_RUNNING" | "DEPLOYMENT_PHASE_SUCCEEDED" | "DEPLOYMENT_PHASE_FAILED" | "DEPLOYMENT_PHASE_CANCELED";
+
+/**
+ * Describes the enum loco.deployment.v1.DeploymentPhase.
+ */
+export const DeploymentPhaseSchema: GenEnum<DeploymentPhase, DeploymentPhaseJson> = /*@__PURE__*/
+  enumDesc(file_deployment_v1_deployment, 0);
 
 /**
  * @generated from service loco.deployment.v1.DeploymentService
