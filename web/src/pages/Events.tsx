@@ -7,14 +7,13 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
 	getRecentEvents,
 	subscribeToEvents,
 	type WorkspaceEvent,
 } from "@/lib/events";
 import { AlertCircle, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const severityColors: Record<string, string> = {
 	error: "border-l-4 border-l-red-500 bg-red-50 dark:bg-red-950",
@@ -31,19 +30,13 @@ const severityBadgeColors: Record<string, string> = {
 };
 
 export function Events() {
-	const [events, setEvents] = useState<WorkspaceEvent[]>([]);
-	const [filteredEvents, setFilteredEvents] = useState<WorkspaceEvent[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const initialEvents = getRecentEvents(100);
+	const [events, setEvents] = useState<WorkspaceEvent[]>(() => initialEvents);
+	const [filteredEvents, setFilteredEvents] = useState<WorkspaceEvent[]>(() => initialEvents);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [severityFilter, setSeverityFilter] = useState<string>("all");
 
 	useEffect(() => {
-		// Load initial events
-		const initial = getRecentEvents(100);
-		setEvents(initial);
-		setFilteredEvents(initial);
-		setIsLoading(false);
-
 		// Subscribe to new events
 		const unsubscribe = subscribeToEvents("workspace", (event) => {
 			setEvents((prev) => [event, ...prev]);
@@ -52,13 +45,13 @@ export function Events() {
 		return unsubscribe;
 	}, []);
 
-	// Filter events based on search and severity
-	useEffect(() => {
-		let filtered = events;
+	// useMemo ensures filtering is only recalculated when dependencies change
+	const filtered = useMemo(() => {
+		let result = events;
 
 		if (searchTerm) {
 			const term = searchTerm.toLowerCase();
-			filtered = filtered.filter(
+			result = result.filter(
 				(e) =>
 					e.appName.toLowerCase().includes(term) ||
 					e.message.toLowerCase().includes(term)
@@ -66,11 +59,15 @@ export function Events() {
 		}
 
 		if (severityFilter !== "all") {
-			filtered = filtered.filter((e) => e.severity === severityFilter);
+			result = result.filter((e) => e.severity === severityFilter);
 		}
 
-		setFilteredEvents(filtered);
+		return result;
 	}, [events, searchTerm, severityFilter]);
+
+	useEffect(() => {
+		setFilteredEvents(filtered);
+	}, [filtered]);
 
 	const handleDismiss = (eventId: string) => {
 		setEvents((prev) => prev.filter((e) => e.id !== eventId));
@@ -83,7 +80,7 @@ export function Events() {
 	return (
 		<div className="min-h-screen bg-background">
 			{/* Header */}
-			<div className="border-b-2 border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
+			<div className="border-b-2 border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-40">
 				<div className="container px-4 py-4 flex items-center justify-between">
 					<div>
 						<h1 className="text-2xl font-bold">Events</h1>
@@ -138,13 +135,7 @@ export function Events() {
 
 			{/* Events List */}
 			<div className="container px-4 pb-8">
-				{isLoading ? (
-					<div className="space-y-3">
-						<Skeleton className="h-20 w-full rounded-neo" />
-						<Skeleton className="h-20 w-full rounded-neo" />
-						<Skeleton className="h-20 w-full rounded-neo" />
-					</div>
-				) : filteredEvents.length === 0 ? (
+				{filteredEvents.length === 0 ? (
 					<div className="py-12 text-center">
 						<AlertCircle className="h-12 w-12 mx-auto text-foreground opacity-30 mb-3" />
 						<p className="text-foreground opacity-60">
@@ -177,9 +168,9 @@ export function Events() {
 													event.severity.slice(1)}
 											</span>
 										</div>
-										<p className="text-sm text-foreground opacity-80 break-words mb-2">
-											{event.message}
-										</p>
+										<p className="text-sm text-foreground opacity-80 wrap-break-word mb-2">
+															{event.message}
+														</p>
 										<p className="text-xs text-foreground opacity-60">
 											{formatDateTime(event.timestamp)}
 										</p>

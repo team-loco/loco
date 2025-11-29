@@ -1,10 +1,11 @@
+import { useAuth } from "@/auth/AuthProvider";
 import { AppCard } from "@/components/AppCard";
 import { EmptyState } from "@/components/EmptyState";
 import { AppSearch } from "@/components/dashboard/AppSearch";
 import { OrgFilter } from "@/components/dashboard/OrgFilter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAuth } from "@/auth/AuthProvider";
+import { useHeader } from "@/context/HeaderContext";
 import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
@@ -16,10 +17,13 @@ import { useNavigate, useSearchParams } from "react-router";
 export function Home() {
 	const navigate = useNavigate();
 	const { logout } = useAuth();
+	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
-	const selectedWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
+	const selectedWorkspaceId = workspaceFromUrl
+		? BigInt(workspaceFromUrl)
+		: null;
 	const [searchTerm, setSearchTerm] = useState("");
 
 	// Fetch all organizations
@@ -28,7 +32,10 @@ export function Home() {
 		isLoading: orgsLoading,
 		error: orgsError,
 	} = useQuery(getCurrentUserOrgs, {});
-	const orgs = getCurrentUserOrgsRes?.orgs ?? [];
+	const orgs = useMemo(
+		() => getCurrentUserOrgsRes?.orgs ?? [],
+		[getCurrentUserOrgsRes]
+	);
 
 	const currentOrgId = selectedOrgId || (orgs.length > 0 ? orgs[0].id : null);
 
@@ -38,7 +45,10 @@ export function Home() {
 		currentOrgId ? { orgId: currentOrgId } : undefined,
 		{ enabled: !!currentOrgId }
 	);
-	const workspaces = listWorkspacesRes?.workspaces ?? [];
+	const workspaces = useMemo(
+		() => listWorkspacesRes?.workspaces ?? [],
+		[listWorkspacesRes]
+	);
 	const currentWorkspaceId =
 		selectedWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
@@ -65,6 +75,20 @@ export function Home() {
 			app.name.toLowerCase().includes(searchTerm.toLowerCase())
 		);
 	}, [allApps, searchTerm]);
+
+	// Set header content
+	useEffect(() => {
+		const currentWorkspace = workspaces.find(
+			(ws) => ws.id === currentWorkspaceId
+		);
+		const workspaceName = currentWorkspace?.name || "Workspace";
+
+		setHeader(
+			<h2 className="text-3xl font-heading text-foreground">
+				{workspaceName}'s Dashboard
+			</h2>
+		);
+	}, [setHeader, workspaces, currentWorkspaceId]);
 
 	// Subscribe to real-time app status updates
 	useEffect(() => {
@@ -128,14 +152,6 @@ export function Home() {
 
 	return (
 		<div className="space-y-6">
-			{/* Header */}
-			<div className="space-y-1">
-				<h2 className="text-3xl font-heading text-foreground">Dashboard</h2>
-				<p className="text-sm text-foreground opacity-70">
-					Manage your applications and deployments
-				</p>
-			</div>
-
 			{/* Controls: Org Filter, Search, Create Button */}
 			{allApps.length > 0 && (
 				<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
@@ -173,6 +189,7 @@ export function Home() {
 								key={app.id}
 								app={app}
 								onAppDeleted={() => refetchApps()}
+								workspaceId={currentWorkspaceId || undefined}
 							/>
 						))}
 					</div>

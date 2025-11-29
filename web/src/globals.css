@@ -4,71 +4,38 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-	/* Light Mode - Backgrounds */
 	--background: oklch(95.38% 0.0357 72.89);
 	--secondary-background: oklch(100% 0 0);
 	--foreground: oklch(0% 0 0);
 	--main-foreground: oklch(0% 0 0);
+	--main: oklch(72.27% 0.1894 50.19);
 	--border: oklch(0% 0 0);
 	--ring: oklch(0% 0 0);
 	--overlay: oklch(0% 0 0 / 0.8);
-
-	/* Custom Accent Colors */
-	--main: #88ccca;
-	--teal: #88ccca;
-	--orange: #cb4b16;
-	--red: #dc322f;
-	--green: #22543d;
-
-	/* Semantic Colors - Light */
-	--success-bg: #c6f6d5;
-	--success-border: #88ccca;
-	--success-text: #22543d;
-
-	--warning-bg: #fcf4d9;
-	--warning-border: #e0c86a;
-	--warning-text: #8a6b00;
-
-	--error-bg: #fbe8e7;
-	--error-border: #e5a09c;
-	--error-text: #9d1c1a;
-
-	/* Shadow for neobrutalism */
-	--shadow: 0px 2px 0px 0px var(--border);
+	--shadow: 2px 2px 0px 0px var(--border);
+	--chart-1: #ff7a05;
+	--chart-2: #0099ff;
+	--chart-3: #ffbf00;
+	--chart-4: #00d696;
+	--chart-5: #7a83ff;
+	--chart-active-dot: #000;
 }
 
 .dark {
-	/* Dark Mode - Backgrounds */
-	--background: oklch(26.86% 0.0327 60.06);
-	--secondary-background: oklch(23.93% 0 0);
+	--background: oklch(25% 0 0);
+	--secondary-background: oklch(28% 0 0);
 	--foreground: oklch(92.49% 0 0);
 	--main-foreground: oklch(0% 0 0);
+	--main: oklch(67.56% 0.1796 49.61);
 	--border: oklch(0% 0 0);
 	--ring: oklch(100% 0 0);
-	--overlay: oklch(0% 0 0 / 0.8);
-
-	/* Custom Accent Colors */
-	--main: #88ccca;
-	--teal: #88ccca;
-	--orange: #cb4b16;
-	--red: #dc322f;
-	--green: #22543d;
-
-	/* Semantic Colors - Dark */
-	--success-bg: #1b2a00;
-	--success-border: #4f6300;
-	--success-text: #a9cf4f;
-
-	--warning-bg: #3b2f00;
-	--warning-border: #8a6b00;
-	--warning-text: #e0c86a;
-
-	--error-bg: #3a0000;
-	--error-border: #9d1c1a;
-	--error-text: #f5a4a0;
-
-	/* Shadow for neobrutalism */
-	--shadow: 0px 2px 0px 0px var(--border);
+	--shadow: 2px 2px 0px 0px var(--border);
+	--chart-1: #eb6d00;
+	--chart-2: #008ae5;
+	--chart-3: #e5ac00;
+	--chart-4: #00bd84;
+	--chart-5: #7a83ff;
+	--chart-active-dot: #fff;
 }
 
 @theme inline {
@@ -80,31 +47,17 @@
 	--color-border: var(--border);
 	--color-overlay: var(--overlay);
 	--color-ring: var(--ring);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
 
-	/* Accent Colors */
-	--color-teal: var(--teal);
-	--color-orange: var(--orange);
-	--color-red: var(--red);
-	--color-green: var(--green);
-
-	/* Semantic Colors */
-	--color-success-bg: var(--success-bg);
-	--color-success-border: var(--success-border);
-	--color-success-text: var(--success-text);
-
-	--color-warning-bg: var(--warning-bg);
-	--color-warning-border: var(--warning-border);
-	--color-warning-text: var(--warning-text);
-
-	--color-error-bg: var(--error-bg);
-	--color-error-border: var(--error-border);
-	--color-error-text: var(--error-text);
-
-	--spacing-boxShadowX: 0px;
+	--spacing-boxShadowX: 2px;
 	--spacing-boxShadowY: 2px;
-	--spacing-reverseBoxShadowX: -0px;
+	--spacing-reverseBoxShadowX: -2px;
 	--spacing-reverseBoxShadowY: -2px;
-	--radius-base: 5px;
+	--radius-base: 1px;
 	--shadow-shadow: var(--shadow);
 	--font-weight-base: 500;
 	--font-weight-heading: 700;
@@ -123,4 +76,17 @@
 	h6 {
 		@apply font-heading;
 	}
+}
+
+@keyframes pulse-dot {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.4;
+	}
+}
+
+.pulse-dot {
+	animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

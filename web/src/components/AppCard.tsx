@@ -8,13 +8,14 @@ import { AppMenu } from "./dashboard/AppMenu";
 interface AppCardProps {
 	app: App;
 	onAppDeleted?: () => void;
+	workspaceId?: bigint;
 }
 
-export function AppCard({ app, onAppDeleted }: AppCardProps) {
+export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 	const navigate = useNavigate();
 
 	const handleCardClick = () => {
-		navigate(`/app/${app.id}`);
+		navigate(`/app/${app.id}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
 	};
 
 	// Format app type for display

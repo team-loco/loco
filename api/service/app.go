@@ -78,7 +78,7 @@ func (s *AppServer) CreateApp(
 
 	domain := r.GetDomain()
 	if domain == "" {
-		domain = "loco.deploy-app.com"
+		domain = "deploy-app.com"
 	}
 
 	available, err := s.queries.CheckSubdomainAvailability(ctx, genDb.CheckSubdomainAvailabilityParams{
@@ -110,7 +110,7 @@ func (s *AppServer) CreateApp(
 	// todo: set namepsace after creating and saving app. or perhaps its set after first deployment on the app.
 	app, err := s.queries.CreateApp(ctx, genDb.CreateAppParams{
 		WorkspaceID: r.WorkspaceId,
-		ClusterID:   1,
+		ClusterID:   2,
 		Name:        r.Name,
 		Type:        int32(r.Type.Number()),
 		Subdomain:   r.Subdomain,

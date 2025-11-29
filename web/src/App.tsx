@@ -1,6 +1,7 @@
 import { AuthProvider } from "@/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/ui/sonner";
+import { HeaderProvider } from "@/context/HeaderContext";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { AppDetails } from "@/pages/AppDetails";
 import { AppSettings } from "@/pages/AppSettings";
@@ -35,42 +36,44 @@ export default function App() {
 		<ThemeProvider>
 			<BrowserRouter>
 				<AuthProvider>
-					<TransportProvider transport={createTransport()}>
-						<QueryClientProvider client={queryClient}>
-							<Toaster />
-							<Routes>
-								{/* Public routes */}
-								<Route path="/login" element={<Login />} />
-								<Route path="/oauth/callback" element={<OAuthCallback />} />
-								<Route path="/onboarding" element={<Onboarding />} />
+					<HeaderProvider>
+						<TransportProvider transport={createTransport()}>
+							<QueryClientProvider client={queryClient}>
+								<Toaster />
+								<Routes>
+									{/* Public routes */}
+									<Route path="/login" element={<Login />} />
+									<Route path="/oauth/callback" element={<OAuthCallback />} />
+									<Route path="/onboarding" element={<Onboarding />} />
 
-								{/* Protected routes */}
-								<Route element={<ProtectedRoute />}>
-									<Route path="/dashboard" element={<Home />} />
-									<Route path="/app/:appId" element={<AppDetails />} />
-									<Route
-										path="/app/:appId/settings"
-										element={<AppSettings />}
-									/>
-									<Route path="/create-app" element={<CreateApp />} />
-									<Route path="/events" element={<Events />} />
-									<Route path="/profile" element={<Profile />} />
-									<Route
-										path="/org/:orgId/settings"
-										element={<OrgSettings />}
-									/>
-									<Route
-										path="/workspace/:workspaceId/settings"
-										element={<WorkspaceSettings />}
-									/>
-								</Route>
+									{/* Protected routes */}
+									<Route element={<ProtectedRoute />}>
+										<Route path="/dashboard" element={<Home />} />
+										<Route path="/app/:appId" element={<AppDetails />} />
+										<Route
+											path="/app/:appId/settings"
+											element={<AppSettings />}
+										/>
+										<Route path="/create-app" element={<CreateApp />} />
+										<Route path="/events" element={<Events />} />
+										<Route path="/profile" element={<Profile />} />
+										<Route
+											path="/org/:orgId/settings"
+											element={<OrgSettings />}
+										/>
+										<Route
+											path="/workspace/:workspaceId/settings"
+											element={<WorkspaceSettings />}
+										/>
+									</Route>
 
-								{/* Default redirect */}
-								<Route path="/" element={<Navigate to="/dashboard" />} />
-								<Route path="*" element={<Navigate to="/dashboard" />} />
-							</Routes>
-						</QueryClientProvider>
-					</TransportProvider>
+									{/* Default redirect */}
+									<Route path="/" element={<Navigate to="/dashboard" />} />
+									<Route path="*" element={<Navigate to="/dashboard" />} />
+								</Routes>
+							</QueryClientProvider>
+						</TransportProvider>
+					</HeaderProvider>
 				</AuthProvider>
 			</BrowserRouter>
 		</ThemeProvider>
