@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { getCurrentUser, logout } from "@/gen/user/v1";
+import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import {
 	ArrowRight,
@@ -34,7 +35,6 @@ import {
 import { useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { OrgsSidebar } from "./sidebar/OrgsSidebar";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AppSidebar() {
@@ -47,7 +47,6 @@ export function AppSidebar() {
 	const appIdMatch = location.pathname.match(/\/app\/(\d+)/);
 	const activeAppId = appIdMatch ? BigInt(appIdMatch[1]) : null;
 	const { mutate: logoutMutation } = useMutation(logout);
-	const [expandedOrgs, setExpandedOrgs] = useState<Set<bigint>>(new Set());
 	const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(
 		null
 	);
@@ -59,6 +58,16 @@ export function AppSidebar() {
 	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
 
 	const orgs = orgsRes?.orgs ?? [];
+	const firstOrgId = orgs[0]?.id ?? null;
+
+	// Get workspaces for first org
+	const { data: workspacesRes } = useQuery(
+		listWorkspaces,
+		firstOrgId ? { orgId: firstOrgId } : undefined,
+		{ enabled: !!firstOrgId }
+	);
+
+	const workspaces = workspacesRes?.workspaces ?? [];
 
 	// Get apps for active workspace
 	const appsQuery = useQuery(
@@ -80,18 +89,6 @@ export function AppSidebar() {
 				},
 			}
 		);
-	};
-
-	const toggleOrgExpansion = (orgId: bigint) => {
-		setExpandedOrgs((prev) => {
-			const next = new Set(prev);
-			if (next.has(orgId)) {
-				next.delete(orgId);
-			} else {
-				next.add(orgId);
-			}
-			return next;
-		});
 	};
 
 	const handleWorkspaceClick = (workspaceId: bigint) => {
@@ -123,17 +120,31 @@ export function AppSidebar() {
 					</SidebarMenu>
 				</SidebarGroup>
 
-				{/* Orgs & Workspaces */}
+				{/* Workspaces */}
 				<SidebarGroup>
 					<SidebarGroupLabel>Workspaces</SidebarGroupLabel>
-					<OrgsSidebar
-						orgs={orgs}
-						expandedOrgs={expandedOrgs}
-						onExpandOrg={toggleOrgExpansion}
-						onWorkspaceClick={handleWorkspaceClick}
-						onWorkspaceNameChange={setActiveWorkspaceName}
-						activeWorkspaceId={activeWorkspaceId}
-					/>
+					<SidebarMenu className="space-y-1 pl-4">
+						{workspaces.length === 0 ? (
+							<>
+								<Skeleton className="h-8 w-full rounded-neo" />
+								<Skeleton className="h-8 w-full rounded-neo" />
+							</>
+						) : (
+							workspaces.map((ws) => (
+								<SidebarMenuItem key={ws.id.toString()}>
+									<SidebarMenuButton
+										onClick={() => {
+											handleWorkspaceClick(ws.id);
+											setActiveWorkspaceName(ws.name);
+										}}
+										isActive={activeWorkspaceId === ws.id}
+									>
+										<span>{ws.name}</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							))
+						)}
+					</SidebarMenu>
 				</SidebarGroup>
 
 				{/* Apps in Active Workspace */}
@@ -157,7 +168,7 @@ export function AppSidebar() {
 							</button>
 						)}
 					</div>
-					<SidebarMenu className="space-y-1">
+					<SidebarMenu className="space-y-1 pl-4">
 						{activeWorkspaceId ? (
 							appsQuery.isLoading ? (
 								<>
