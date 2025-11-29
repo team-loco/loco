@@ -26,6 +26,7 @@ import { useMutation, useQuery } from "@connectrpc/connect-query";
 import {
 	ArrowRight,
 	Bell,
+	ChevronDown,
 	ChevronsUpDown,
 	Grid,
 	Home,
@@ -50,7 +51,22 @@ export function AppSidebar() {
 	const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(
 		null
 	);
+	const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<bigint>>(
+		new Set(activeWorkspaceId ? [activeWorkspaceId] : [])
+	);
 	const [eventCount] = useState(0);
+
+	const toggleWorkspaceExpansion = (workspaceId: bigint) => {
+		setExpandedWorkspaces((prev) => {
+			const next = new Set(prev);
+			if (next.has(workspaceId)) {
+				next.delete(workspaceId);
+			} else {
+				next.add(workspaceId);
+			}
+			return next;
+		});
+	};
 
 	const { data: userRes } = useQuery(getCurrentUser, {});
 	const user = userRes?.user ?? null;
@@ -133,19 +149,32 @@ export function AppSidebar() {
 							workspaces.map((ws) => (
 								<div key={ws.id.toString()}>
 									<SidebarMenuItem>
-										<SidebarMenuButton
-											onClick={() => {
-												handleWorkspaceClick(ws.id);
-												setActiveWorkspaceName(ws.name);
-											}}
-											isActive={activeWorkspaceId === ws.id}
-										>
-											<span>{ws.name}</span>
-										</SidebarMenuButton>
+										<div className="flex items-center w-full">
+											<button
+												onClick={() => toggleWorkspaceExpansion(ws.id)}
+												className="p-1 -ml-2 hover:bg-secondary-background rounded"
+											>
+												<ChevronDown
+													className={`h-4 w-4 transition-transform ${
+														expandedWorkspaces.has(ws.id) ? "" : "-rotate-90"
+													}`}
+												/>
+											</button>
+											<SidebarMenuButton
+												onClick={() => {
+													handleWorkspaceClick(ws.id);
+													setActiveWorkspaceName(ws.name);
+												}}
+												isActive={activeWorkspaceId === ws.id && !activeAppId}
+												className="flex-1"
+											>
+												<span>{ws.name}</span>
+											</SidebarMenuButton>
+										</div>
 									</SidebarMenuItem>
 
 									{/* Apps under this workspace */}
-									{activeWorkspaceId === ws.id && (
+									{activeWorkspaceId === ws.id && expandedWorkspaces.has(ws.id) && (
 										<div className="space-y-1 mt-1">
 											<div className="flex items-center justify-between px-4 py-1">
 												<span className="text-xs font-heading">Apps</span>
