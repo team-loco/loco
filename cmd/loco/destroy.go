@@ -94,7 +94,7 @@ func destroyCmdFunc(cmd *cobra.Command) error {
 	slog.Debug("destroying app", "app_id", appID, "app_name", appName)
 
 	destroyReq := connect.NewRequest(&appv1.DeleteAppRequest{
-		Id: appID,
+		AppId: appID,
 	})
 	destroyReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 

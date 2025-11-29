@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file app/v1/app.proto.
  */
 export const file_app_v1_app: GenFile = /*@__PURE__*/
-  fileDesc("ChBhcHAvdjEvYXBwLnByb3RvEgtsb2NvLmFwcC52MSKDAgoDQXBwEgoKAmlkGAEgASgDEhQKDHdvcmtzcGFjZV9pZBgCIAEoAxIMCgRuYW1lGAQgASgJEhEKCW5hbWVzcGFjZRgFIAEoCRIiCgR0eXBlGAYgASgOMhQubG9jby5hcHAudjEuQXBwVHlwZRIRCglzdWJkb21haW4YByABKAkSDgoGZG9tYWluGAggASgJEhIKCmNyZWF0ZWRfYnkYCyABKAMSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijQEKEENyZWF0ZUFwcFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAyABKAkSIgoEdHlwZRgEIAEoDjIULmxvY28uYXBwLnYxLkFwcFR5cGUSEQoJc3ViZG9tYWluGAUgASgJEhMKBmRvbWFpbhgGIAEoCUgAiAEBQgkKB19kb21haW4iMgoRQ3JlYXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIhsKDUdldEFwcFJlcXVlc3QSCgoCaWQYASABKAMiLwoOR2V0QXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIjkKE0dldEFwcEJ5TmFtZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAiABKAkiNQoUR2V0QXBwQnlOYW1lUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIicKD0xpc3RBcHBzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMiMgoQTGlzdEFwcHNSZXNwb25zZRIeCgRhcHBzGAEgAygLMhAubG9jby5hcHAudjEuQXBwIoABChBVcGRhdGVBcHBSZXF1ZXN0EgoKAmlkGAEgASgDEhEKBG5hbWUYAiABKAlIAIgBARIWCglzdWJkb21haW4YAyABKAlIAYgBARITCgZkb21haW4YBCABKAlIAogBAUIHCgVfbmFtZUIMCgpfc3ViZG9tYWluQgkKB19kb21haW4iMgoRVXBkYXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIh4KEERlbGV0ZUFwcFJlcXVlc3QSCgoCaWQYASABKAMiJAoRRGVsZXRlQXBwUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCJGCiFDaGVja1N1YmRvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QSEQoJc3ViZG9tYWluGAEgASgJEg4KBmRvbWFpbhgCIAEoCSI3CiJDaGVja1N1YmRvbWFpbkF2YWlsYWJpbGl0eVJlc3BvbnNlEhEKCWF2YWlsYWJsZRgBIAEoCCIlChNHZXRBcHBTdGF0dXNSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAyKQAQoQRGVwbG95bWVudFN0YXR1cxIKCgJpZBgBIAEoAxIOCgZzdGF0dXMYAiABKAkSEAoIcmVwbGljYXMYAyABKAUSFAoHbWVzc2FnZRgEIAEoCUgAiAEBEhoKDWVycm9yX21lc3NhZ2UYBSABKAlIAYgBAUIKCghfbWVzc2FnZUIQCg5fZXJyb3JfbWVzc2FnZSJwChRHZXRBcHBTdGF0dXNSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHASOQoSY3VycmVudF9kZXBsb3ltZW50GAIgASgLMh0ubG9jby5hcHAudjEuRGVwbG95bWVudFN0YXR1cyJhChFTdHJlYW1Mb2dzUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEgoFbGltaXQYAiABKAVIAIgBARITCgZmb2xsb3cYAyABKAhIAYgBAUIICgZfbGltaXRCCQoHX2ZvbGxvdyKNAQoITG9nRW50cnkSEAoIcG9kX25hbWUYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJEhEKCWNvbnRhaW5lchgDIAEoCRItCgl0aW1lc3RhbXAYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgsKA2xvZxgFIAEoCRINCgVsZXZlbBgGIAEoCSJ3CgVFdmVudBItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnJlYXNvbhgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEgwKBHR5cGUYBCABKAkSEAoIcG9kX25hbWUYBSABKAkiQAoQR2V0RXZlbnRzUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEgoFbGltaXQYAiABKAVIAIgBAUIICgZfbGltaXQiNwoRR2V0RXZlbnRzUmVzcG9uc2USIgoGZXZlbnRzGAEgAygLMhIubG9jby5hcHAudjEuRXZlbnQifwoPU2NhbGVBcHBSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxIVCghyZXBsaWNhcxgCIAEoBUgAiAEBEhAKA2NwdRgDIAEoCUgBiAEBEhMKBm1lbW9yeRgEIAEoCUgCiAEBQgsKCV9yZXBsaWNhc0IGCgRfY3B1QgkKB19tZW1vcnkiRQoQU2NhbGVBcHBSZXNwb25zZRIxCgpkZXBsb3ltZW50GAEgASgLMh0ubG9jby5hcHAudjEuRGVwbG95bWVudFN0YXR1cyKJAQoTVXBkYXRlQXBwRW52UmVxdWVzdBIOCgZhcHBfaWQYASABKAMSNgoDZW52GAIgAygLMikubG9jby5hcHAudjEuVXBkYXRlQXBwRW52UmVxdWVzdC5FbnZFbnRyeRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkkKFFVwZGF0ZUFwcEVudlJlc3BvbnNlEjEKCmRlcGxveW1lbnQYASABKAsyHS5sb2NvLmFwcC52MS5EZXBsb3ltZW50U3RhdHVzKlIKB0FwcFR5cGUSCwoHU0VSVklDRRAAEgwKCERBVEFCQVNFEAESDAoIRlVOQ1RJT04QAhIJCgVDQUNIRRADEgkKBVFVRVVFEAQSCAoEQkxPQhAFMtYHCgpBcHBTZXJ2aWNlEkoKCUNyZWF0ZUFwcBIdLmxvY28uYXBwLnYxLkNyZWF0ZUFwcFJlcXVlc3QaHi5sb2NvLmFwcC52MS5DcmVhdGVBcHBSZXNwb25zZRJBCgZHZXRBcHASGi5sb2NvLmFwcC52MS5HZXRBcHBSZXF1ZXN0GhsubG9jby5hcHAudjEuR2V0QXBwUmVzcG9uc2USUwoMR2V0QXBwQnlOYW1lEiAubG9jby5hcHAudjEuR2V0QXBwQnlOYW1lUmVxdWVzdBohLmxvY28uYXBwLnYxLkdldEFwcEJ5TmFtZVJlc3BvbnNlEkcKCExpc3RBcHBzEhwubG9jby5hcHAudjEuTGlzdEFwcHNSZXF1ZXN0Gh0ubG9jby5hcHAudjEuTGlzdEFwcHNSZXNwb25zZRJKCglVcGRhdGVBcHASHS5sb2NvLmFwcC52MS5VcGRhdGVBcHBSZXF1ZXN0Gh4ubG9jby5hcHAudjEuVXBkYXRlQXBwUmVzcG9uc2USSgoJRGVsZXRlQXBwEh0ubG9jby5hcHAudjEuRGVsZXRlQXBwUmVxdWVzdBoeLmxvY28uYXBwLnYxLkRlbGV0ZUFwcFJlc3BvbnNlElMKDEdldEFwcFN0YXR1cxIgLmxvY28uYXBwLnYxLkdldEFwcFN0YXR1c1JlcXVlc3QaIS5sb2NvLmFwcC52MS5HZXRBcHBTdGF0dXNSZXNwb25zZRJ9ChpDaGVja1N1YmRvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uYXBwLnYxLkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uYXBwLnYxLkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USRQoKU3RyZWFtTG9ncxIeLmxvY28uYXBwLnYxLlN0cmVhbUxvZ3NSZXF1ZXN0GhUubG9jby5hcHAudjEuTG9nRW50cnkwARJKCglHZXRFdmVudHMSHS5sb2NvLmFwcC52MS5HZXRFdmVudHNSZXF1ZXN0Gh4ubG9jby5hcHAudjEuR2V0RXZlbnRzUmVzcG9uc2USRwoIU2NhbGVBcHASHC5sb2NvLmFwcC52MS5TY2FsZUFwcFJlcXVlc3QaHS5sb2NvLmFwcC52MS5TY2FsZUFwcFJlc3BvbnNlElMKDFVwZGF0ZUFwcEVudhIgLmxvY28uYXBwLnYxLlVwZGF0ZUFwcEVudlJlcXVlc3QaIS5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXNwb25zZUI1WjNnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9hcHAvdjE7YXBwdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("ChBhcHAvdjEvYXBwLnByb3RvEgtsb2NvLmFwcC52MSKDAgoDQXBwEgoKAmlkGAEgASgDEhQKDHdvcmtzcGFjZV9pZBgCIAEoAxIMCgRuYW1lGAQgASgJEhEKCW5hbWVzcGFjZRgFIAEoCRIiCgR0eXBlGAYgASgOMhQubG9jby5hcHAudjEuQXBwVHlwZRIRCglzdWJkb21haW4YByABKAkSDgoGZG9tYWluGAggASgJEhIKCmNyZWF0ZWRfYnkYCyABKAMSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijQEKEENyZWF0ZUFwcFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAyABKAkSIgoEdHlwZRgEIAEoDjIULmxvY28uYXBwLnYxLkFwcFR5cGUSEQoJc3ViZG9tYWluGAUgASgJEhMKBmRvbWFpbhgGIAEoCUgAiAEBQgkKB19kb21haW4iQwoRQ3JlYXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiHwoNR2V0QXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMiLwoOR2V0QXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIjkKE0dldEFwcEJ5TmFtZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAiABKAkiNQoUR2V0QXBwQnlOYW1lUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIicKD0xpc3RBcHBzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMiMgoQTGlzdEFwcHNSZXNwb25zZRIeCgRhcHBzGAEgAygLMhAubG9jby5hcHAudjEuQXBwIoQBChBVcGRhdGVBcHBSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxIRCgRuYW1lGAIgASgJSACIAQESFgoJc3ViZG9tYWluGAMgASgJSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCBwoFX25hbWVCDAoKX3N1YmRvbWFpbkIJCgdfZG9tYWluIkMKEVVwZGF0ZUFwcFJlc3BvbnNlEh0KA2FwcBgBIAEoCzIQLmxvY28uYXBwLnYxLkFwcBIPCgdtZXNzYWdlGAIgASgJIiIKEERlbGV0ZUFwcFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDIkMKEURlbGV0ZUFwcFJlc3BvbnNlEh0KA2FwcBgBIAEoCzIQLmxvY28uYXBwLnYxLkFwcBIPCgdtZXNzYWdlGAIgASgJIkYKIUNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBIRCglzdWJkb21haW4YASABKAkSDgoGZG9tYWluGAIgASgJIjcKIkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USEQoJYXZhaWxhYmxlGAEgASgIIiUKE0dldEFwcFN0YXR1c1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDIq4BChBEZXBsb3ltZW50U3RhdHVzEgoKAmlkGAEgASgDEiwKBnN0YXR1cxgCIAEoDjIcLmxvY28uYXBwLnYxLkRlcGxveW1lbnRQaGFzZRIQCghyZXBsaWNhcxgDIAEoBRIUCgdtZXNzYWdlGAQgASgJSACIAQESGgoNZXJyb3JfbWVzc2FnZRgFIAEoCUgBiAEBQgoKCF9tZXNzYWdlQhAKDl9lcnJvcl9tZXNzYWdlInAKFEdldEFwcFN0YXR1c1Jlc3BvbnNlEh0KA2FwcBgBIAEoCzIQLmxvY28uYXBwLnYxLkFwcBI5ChJjdXJyZW50X2RlcGxveW1lbnQYAiABKAsyHS5sb2NvLmFwcC52MS5EZXBsb3ltZW50U3RhdHVzImEKEVN0cmVhbUxvZ3NSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBEhMKBmZvbGxvdxgDIAEoCEgBiAEBQggKBl9saW1pdEIJCgdfZm9sbG93Io0BCghMb2dFbnRyeRIQCghwb2RfbmFtZRgBIAEoCRIRCgluYW1lc3BhY2UYAiABKAkSEQoJY29udGFpbmVyGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASCwoDbG9nGAUgASgJEg0KBWxldmVsGAYgASgJIncKBUV2ZW50Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSDAoEdHlwZRgEIAEoCRIQCghwb2RfbmFtZRgFIAEoCSJAChBHZXRFdmVudHNSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBQggKBl9saW1pdCI3ChFHZXRFdmVudHNSZXNwb25zZRIiCgZldmVudHMYASADKAsyEi5sb2NvLmFwcC52MS5FdmVudCJ/Cg9TY2FsZUFwcFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhUKCHJlcGxpY2FzGAIgASgFSACIAQESEAoDY3B1GAMgASgJSAGIAQESEwoGbWVtb3J5GAQgASgJSAKIAQFCCwoJX3JlcGxpY2FzQgYKBF9jcHVCCQoHX21lbW9yeSJFChBTY2FsZUFwcFJlc3BvbnNlEjEKCmRlcGxveW1lbnQYASABKAsyHS5sb2NvLmFwcC52MS5EZXBsb3ltZW50U3RhdHVzIokBChNVcGRhdGVBcHBFbnZSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxI2CgNlbnYYAiADKAsyKS5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXF1ZXN0LkVudkVudHJ5GioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSQoUVXBkYXRlQXBwRW52UmVzcG9uc2USMQoKZGVwbG95bWVudBgBIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMqUgoHQXBwVHlwZRILCgdTRVJWSUNFEAASDAoIREFUQUJBU0UQARIMCghGVU5DVElPThACEgkKBUNBQ0hFEAMSCQoFUVVFVUUQBBIICgRCTE9CEAUqVAoPRGVwbG95bWVudFBoYXNlEgsKB1BFTkRJTkcQABILCgdSVU5OSU5HEAESDQoJU1VDQ0VFREVEEAISCgoGRkFJTEVEEAMSDAoIQ0FOQ0VMRUQQBCpUCglBcHBTdGF0dXMSDQoJQVZBSUxBQkxFEAASDwoLUFJPR1JFU1NJTkcQARIMCghERUdSQURFRBACEg8KC1VOQVZBSUxBQkxFEAMSCAoESURMRRAEMtYHCgpBcHBTZXJ2aWNlEkoKCUNyZWF0ZUFwcBIdLmxvY28uYXBwLnYxLkNyZWF0ZUFwcFJlcXVlc3QaHi5sb2NvLmFwcC52MS5DcmVhdGVBcHBSZXNwb25zZRJBCgZHZXRBcHASGi5sb2NvLmFwcC52MS5HZXRBcHBSZXF1ZXN0GhsubG9jby5hcHAudjEuR2V0QXBwUmVzcG9uc2USUwoMR2V0QXBwQnlOYW1lEiAubG9jby5hcHAudjEuR2V0QXBwQnlOYW1lUmVxdWVzdBohLmxvY28uYXBwLnYxLkdldEFwcEJ5TmFtZVJlc3BvbnNlEkcKCExpc3RBcHBzEhwubG9jby5hcHAudjEuTGlzdEFwcHNSZXF1ZXN0Gh0ubG9jby5hcHAudjEuTGlzdEFwcHNSZXNwb25zZRJKCglVcGRhdGVBcHASHS5sb2NvLmFwcC52MS5VcGRhdGVBcHBSZXF1ZXN0Gh4ubG9jby5hcHAudjEuVXBkYXRlQXBwUmVzcG9uc2USSgoJRGVsZXRlQXBwEh0ubG9jby5hcHAudjEuRGVsZXRlQXBwUmVxdWVzdBoeLmxvY28uYXBwLnYxLkRlbGV0ZUFwcFJlc3BvbnNlElMKDEdldEFwcFN0YXR1cxIgLmxvY28uYXBwLnYxLkdldEFwcFN0YXR1c1JlcXVlc3QaIS5sb2NvLmFwcC52MS5HZXRBcHBTdGF0dXNSZXNwb25zZRJ9ChpDaGVja1N1YmRvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uYXBwLnYxLkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uYXBwLnYxLkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USRQoKU3RyZWFtTG9ncxIeLmxvY28uYXBwLnYxLlN0cmVhbUxvZ3NSZXF1ZXN0GhUubG9jby5hcHAudjEuTG9nRW50cnkwARJKCglHZXRFdmVudHMSHS5sb2NvLmFwcC52MS5HZXRFdmVudHNSZXF1ZXN0Gh4ubG9jby5hcHAudjEuR2V0RXZlbnRzUmVzcG9uc2USRwoIU2NhbGVBcHASHC5sb2NvLmFwcC52MS5TY2FsZUFwcFJlcXVlc3QaHS5sb2NvLmFwcC52MS5TY2FsZUFwcFJlc3BvbnNlElMKDFVwZGF0ZUFwcEVudhIgLmxvY28uYXBwLnYxLlVwZGF0ZUFwcEVudlJlcXVlc3QaIS5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXNwb25zZUI1WjNnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9hcHAvdjE7YXBwdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.app.v1.App
@@ -206,6 +206,11 @@ export type CreateAppResponse = Message<"loco.app.v1.CreateAppResponse"> & {
    * @generated from field: loco.app.v1.App app = 1;
    */
   app?: App;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -216,6 +221,11 @@ export type CreateAppResponseJson = {
    * @generated from field: loco.app.v1.App app = 1;
    */
   app?: AppJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -230,9 +240,9 @@ export const CreateAppResponseSchema: GenMessage<CreateAppResponse, {jsonType: C
  */
 export type GetAppRequest = Message<"loco.app.v1.GetAppRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 app_id = 1;
    */
-  id: bigint;
+  appId: bigint;
 };
 
 /**
@@ -240,9 +250,9 @@ export type GetAppRequest = Message<"loco.app.v1.GetAppRequest"> & {
  */
 export type GetAppRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 app_id = 1;
    */
-  id?: string;
+  appId?: string;
 };
 
 /**
@@ -402,9 +412,9 @@ export const ListAppsResponseSchema: GenMessage<ListAppsResponse, {jsonType: Lis
  */
 export type UpdateAppRequest = Message<"loco.app.v1.UpdateAppRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 app_id = 1;
    */
-  id: bigint;
+  appId: bigint;
 
   /**
    * @generated from field: optional string name = 2;
@@ -427,9 +437,9 @@ export type UpdateAppRequest = Message<"loco.app.v1.UpdateAppRequest"> & {
  */
 export type UpdateAppRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 app_id = 1;
    */
-  id?: string;
+  appId?: string;
 
   /**
    * @generated from field: optional string name = 2;
@@ -462,6 +472,11 @@ export type UpdateAppResponse = Message<"loco.app.v1.UpdateAppResponse"> & {
    * @generated from field: loco.app.v1.App app = 1;
    */
   app?: App;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -472,6 +487,11 @@ export type UpdateAppResponseJson = {
    * @generated from field: loco.app.v1.App app = 1;
    */
   app?: AppJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -486,9 +506,9 @@ export const UpdateAppResponseSchema: GenMessage<UpdateAppResponse, {jsonType: U
  */
 export type DeleteAppRequest = Message<"loco.app.v1.DeleteAppRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 app_id = 1;
    */
-  id: bigint;
+  appId: bigint;
 };
 
 /**
@@ -496,9 +516,9 @@ export type DeleteAppRequest = Message<"loco.app.v1.DeleteAppRequest"> & {
  */
 export type DeleteAppRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 app_id = 1;
    */
-  id?: string;
+  appId?: string;
 };
 
 /**
@@ -513,9 +533,14 @@ export const DeleteAppRequestSchema: GenMessage<DeleteAppRequest, {jsonType: Del
  */
 export type DeleteAppResponse = Message<"loco.app.v1.DeleteAppResponse"> & {
   /**
-   * @generated from field: bool success = 1;
+   * @generated from field: loco.app.v1.App app = 1;
    */
-  success: boolean;
+  app?: App;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -523,9 +548,14 @@ export type DeleteAppResponse = Message<"loco.app.v1.DeleteAppResponse"> & {
  */
 export type DeleteAppResponseJson = {
   /**
-   * @generated from field: bool success = 1;
+   * @generated from field: loco.app.v1.App app = 1;
    */
-  success?: boolean;
+  app?: AppJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -640,9 +670,9 @@ export type DeploymentStatus = Message<"loco.app.v1.DeploymentStatus"> & {
   id: bigint;
 
   /**
-   * @generated from field: string status = 2;
+   * @generated from field: loco.app.v1.DeploymentPhase status = 2;
    */
-  status: string;
+  status: DeploymentPhase;
 
   /**
    * @generated from field: int32 replicas = 3;
@@ -670,9 +700,9 @@ export type DeploymentStatusJson = {
   id?: string;
 
   /**
-   * @generated from field: string status = 2;
+   * @generated from field: loco.app.v1.DeploymentPhase status = 2;
    */
-  status?: string;
+  status?: DeploymentPhaseJson;
 
   /**
    * @generated from field: int32 replicas = 3;
@@ -1182,6 +1212,88 @@ export type AppTypeJson = "SERVICE" | "DATABASE" | "FUNCTION" | "CACHE" | "QUEUE
  */
 export const AppTypeSchema: GenEnum<AppType, AppTypeJson> = /*@__PURE__*/
   enumDesc(file_app_v1_app, 0);
+
+/**
+ * @generated from enum loco.app.v1.DeploymentPhase
+ */
+export enum DeploymentPhase {
+  /**
+   * @generated from enum value: PENDING = 0;
+   */
+  PENDING = 0,
+
+  /**
+   * @generated from enum value: RUNNING = 1;
+   */
+  RUNNING = 1,
+
+  /**
+   * @generated from enum value: SUCCEEDED = 2;
+   */
+  SUCCEEDED = 2,
+
+  /**
+   * @generated from enum value: FAILED = 3;
+   */
+  FAILED = 3,
+
+  /**
+   * @generated from enum value: CANCELED = 4;
+   */
+  CANCELED = 4,
+}
+
+/**
+ * @generated from enum loco.app.v1.DeploymentPhase
+ */
+export type DeploymentPhaseJson = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELED";
+
+/**
+ * Describes the enum loco.app.v1.DeploymentPhase.
+ */
+export const DeploymentPhaseSchema: GenEnum<DeploymentPhase, DeploymentPhaseJson> = /*@__PURE__*/
+  enumDesc(file_app_v1_app, 1);
+
+/**
+ * @generated from enum loco.app.v1.AppStatus
+ */
+export enum AppStatus {
+  /**
+   * @generated from enum value: AVAILABLE = 0;
+   */
+  AVAILABLE = 0,
+
+  /**
+   * @generated from enum value: PROGRESSING = 1;
+   */
+  PROGRESSING = 1,
+
+  /**
+   * @generated from enum value: DEGRADED = 2;
+   */
+  DEGRADED = 2,
+
+  /**
+   * @generated from enum value: UNAVAILABLE = 3;
+   */
+  UNAVAILABLE = 3,
+
+  /**
+   * @generated from enum value: IDLE = 4;
+   */
+  IDLE = 4,
+}
+
+/**
+ * @generated from enum loco.app.v1.AppStatus
+ */
+export type AppStatusJson = "AVAILABLE" | "PROGRESSING" | "DEGRADED" | "UNAVAILABLE" | "IDLE";
+
+/**
+ * Describes the enum loco.app.v1.AppStatus.
+ */
+export const AppStatusSchema: GenEnum<AppStatus, AppStatusJson> = /*@__PURE__*/
+  enumDesc(file_app_v1_app, 2);
 
 /**
  * @generated from service loco.app.v1.AppService

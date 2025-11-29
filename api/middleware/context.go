@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/loco-team/loco/api/contextkeys"
 )
 
 func SetContext(next http.Handler) http.Handler {
@@ -20,10 +21,10 @@ func SetContext(next http.Handler) http.Handler {
 		}
 
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, "requestId", requestHeader)
-		ctx = context.WithValue(ctx, "method", r.Method)
-		ctx = context.WithValue(ctx, "path", r.URL.Path)
-		ctx = context.WithValue(ctx, "sourceIp", r.RemoteAddr)
+		ctx = context.WithValue(ctx, contextkeys.RequestIDKey, requestHeader)
+		ctx = context.WithValue(ctx, contextkeys.MethodKey, r.Method)
+		ctx = context.WithValue(ctx, contextkeys.PathKey, r.URL.Path)
+		ctx = context.WithValue(ctx, contextkeys.SourceIPKey, r.RemoteAddr)
 
 		w.Header().Set("X-Loco-Request-Id", requestHeader)
 

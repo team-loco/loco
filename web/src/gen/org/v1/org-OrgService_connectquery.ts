@@ -35,11 +35,6 @@ export const updateOrg = OrgService.method.updateOrg;
 export const deleteOrg = OrgService.method.deleteOrg;
 
 /**
- * @generated from rpc loco.org.v1.OrgService.ListWorkspaces
- */
-export const listWorkspaces = OrgService.method.listWorkspaces;
-
-/**
  * @generated from rpc loco.org.v1.OrgService.IsUniqueOrgName
  */
 export const isUniqueOrgName = OrgService.method.isUniqueOrgName;

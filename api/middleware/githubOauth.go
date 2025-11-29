@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/loco-team/loco/api/contextkeys"
 	"github.com/loco-team/loco/api/jwtutil"
 )
 
@@ -66,11 +67,11 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 			)
 		}
 
-		slog.Info("claims validated; populating ctx", slog.Int64("userId", claims.UserId))
+		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("userId", claims.UserId))
 
-		c := context.WithValue(ctx, "user", claims.Username)
-		c = context.WithValue(c, "userId", claims.UserId)
-		c = context.WithValue(c, "externalUsername", claims.ExternalUsername)
+		c := context.WithValue(ctx, contextkeys.UserKey, claims.Username)
+		c = context.WithValue(c, contextkeys.UserIDKey, claims.UserId)
+		c = context.WithValue(c, contextkeys.ExternalUsernameKey, claims.ExternalUsername)
 
 		return next(c, req)
 	})
@@ -113,9 +114,9 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 
 		slog.Info("claims validated; populating ctx", slog.Int64("userId", claims.UserId))
 
-		c := context.WithValue(ctx, "user", claims.Username)
-		c = context.WithValue(c, "userId", claims.UserId)
-		c = context.WithValue(c, "externalUsername", claims.ExternalUsername)
+		c := context.WithValue(ctx, contextkeys.UserKey, claims.Username)
+		c = context.WithValue(c, contextkeys.UserIDKey, claims.UserId)
+		c = context.WithValue(c, contextkeys.ExternalUsernameKey, claims.ExternalUsername)
 
 		return next(c, conn)
 	})

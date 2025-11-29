@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/loco-team/loco/api/contextkeys"
 	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/timeutil"
 	workspacev1 "github.com/loco-team/loco/shared/proto/workspace/v1"
@@ -45,7 +46,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 ) (*connect.Response[workspacev1.CreateWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -127,14 +128,14 @@ func (s *WorkspaceServer) GetWorkspace(
 ) (*connect.Response[workspacev1.GetWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: r.Id,
+		WorkspaceID: r.WorkspaceId,
 		UserID:      userID,
 	})
 	if err != nil {
@@ -143,13 +144,13 @@ func (s *WorkspaceServer) GetWorkspace(
 	}
 
 	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, r.Id)
+	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, r.WorkspaceId)
 	if err != nil {
-		slog.WarnContext(ctx, "workspace not found", "id", r.Id)
+		slog.WarnContext(ctx, "workspace not found", "id", r.WorkspaceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
 	}
 
@@ -171,7 +172,7 @@ func (s *WorkspaceServer) GetUserWorkspaces(
 	ctx context.Context,
 	req *connect.Request[workspacev1.GetUserWorkspacesRequest],
 ) (*connect.Response[workspacev1.GetUserWorkspacesResponse], error) {
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -207,8 +208,9 @@ func (s *WorkspaceServer) ListWorkspaces(
 	req *connect.Request[workspacev1.ListWorkspacesRequest],
 ) (*connect.Response[workspacev1.ListWorkspacesResponse], error) {
 	r := req.Msg
+	slog.InfoContext(ctx, "list workspaces req for org", "orgId", r.OrgId)
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -259,23 +261,23 @@ func (s *WorkspaceServer) UpdateWorkspace(
 ) (*connect.Response[workspacev1.UpdateWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: r.Id,
+		WorkspaceID: r.WorkspaceId,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	if role != genDb.WorkspaceRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.Id, "userId", userID, "role", string(role))
+		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.WorkspaceId, "userId", userID, "role", string(role))
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceAdmin)
 	}
 
@@ -285,7 +287,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
 		}
 
-		orgID, err := s.queries.GetWorkspaceOrgID(ctx, r.Id)
+		orgID, err := s.queries.GetWorkspaceOrgID(ctx, r.WorkspaceId)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get workspace org", "error", err)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -310,12 +312,12 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
 	ws, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-		ID:          r.Id,
+		ID:          r.WorkspaceId,
 		Name:        name,
 		Description: description,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "workspace not found", "id", r.Id)
+		slog.WarnContext(ctx, "workspace not found", "id", r.WorkspaceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
 	}
 
@@ -339,37 +341,40 @@ func (s *WorkspaceServer) DeleteWorkspace(
 ) (*connect.Response[workspacev1.DeleteWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: r.Id,
+		WorkspaceID: r.WorkspaceId,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.Id, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	if role != genDb.WorkspaceRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.Id, "userId", userID, "role", string(role))
+		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", r.WorkspaceId, "userId", userID, "role", string(role))
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceAdmin)
 	}
 
 	// TODO: Check if workspace has apps (when apps table exists)
 	// For now, skip this check
 
-	err = s.queries.RemoveWorkspace(ctx, r.Id)
+	err = s.queries.RemoveWorkspace(ctx, r.WorkspaceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{
-		Success: true,
+		Workspace: &workspacev1.Workspace{
+			Id: r.WorkspaceId,
+		},
+		Message: "Successfully deleted workspace",
 	}), nil
 }
 
@@ -380,7 +385,7 @@ func (s *WorkspaceServer) AddMember(
 ) (*connect.Response[workspacev1.AddMemberResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -440,7 +445,7 @@ func (s *WorkspaceServer) RemoveMember(
 ) (*connect.Response[workspacev1.RemoveMemberResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -485,7 +490,7 @@ func (s *WorkspaceServer) ListMembers(
 ) (*connect.Response[workspacev1.ListMembersResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)

@@ -33,7 +33,7 @@ const createApp = `-- name: CreateApp :one
 
 INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, subdomain, domain, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, created_by, created_at, updated_at
+RETURNING id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at
 `
 
 type CreateAppParams struct {
@@ -69,6 +69,7 @@ func (q *Queries) CreateApp(ctx context.Context, arg CreateAppParams) (App, erro
 		&i.Type,
 		&i.Subdomain,
 		&i.Domain,
+		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -86,7 +87,7 @@ func (q *Queries) DeleteApp(ctx context.Context, id int64) error {
 }
 
 const getAppByID = `-- name: GetAppByID :one
-SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, created_by, created_at, updated_at FROM apps WHERE id = $1
+SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at FROM apps WHERE id = $1
 `
 
 func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
@@ -101,6 +102,7 @@ func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
 		&i.Type,
 		&i.Subdomain,
 		&i.Domain,
+		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -109,7 +111,7 @@ func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
 }
 
 const getAppByNameAndWorkspace = `-- name: GetAppByNameAndWorkspace :one
-SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, created_by, created_at, updated_at FROM apps WHERE workspace_id = $1 AND name = $2
+SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at FROM apps WHERE workspace_id = $1 AND name = $2
 `
 
 type GetAppByNameAndWorkspaceParams struct {
@@ -129,6 +131,7 @@ func (q *Queries) GetAppByNameAndWorkspace(ctx context.Context, arg GetAppByName
 		&i.Type,
 		&i.Subdomain,
 		&i.Domain,
+		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -167,7 +170,7 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDe
 }
 
 const listAppsForWorkspace = `-- name: ListAppsForWorkspace :many
-SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, created_by, created_at, updated_at FROM apps
+SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at FROM apps
 WHERE workspace_id = $1
 ORDER BY created_at DESC
 `
@@ -190,6 +193,7 @@ func (q *Queries) ListAppsForWorkspace(ctx context.Context, workspaceID int64) (
 			&i.Type,
 			&i.Subdomain,
 			&i.Domain,
+			&i.Status,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -211,7 +215,7 @@ SET name = COALESCE($2, name),
     domain = COALESCE($4, domain),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, created_by, created_at, updated_at
+RETURNING id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at
 `
 
 type UpdateAppParams struct {
@@ -238,6 +242,7 @@ func (q *Queries) UpdateApp(ctx context.Context, arg UpdateAppParams) (App, erro
 		&i.Type,
 		&i.Subdomain,
 		&i.Domain,
+		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,

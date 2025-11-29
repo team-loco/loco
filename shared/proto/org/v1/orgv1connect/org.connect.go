@@ -46,9 +46,6 @@ const (
 	OrgServiceUpdateOrgProcedure = "/loco.org.v1.OrgService/UpdateOrg"
 	// OrgServiceDeleteOrgProcedure is the fully-qualified name of the OrgService's DeleteOrg RPC.
 	OrgServiceDeleteOrgProcedure = "/loco.org.v1.OrgService/DeleteOrg"
-	// OrgServiceListWorkspacesProcedure is the fully-qualified name of the OrgService's ListWorkspaces
-	// RPC.
-	OrgServiceListWorkspacesProcedure = "/loco.org.v1.OrgService/ListWorkspaces"
 	// OrgServiceIsUniqueOrgNameProcedure is the fully-qualified name of the OrgService's
 	// IsUniqueOrgName RPC.
 	OrgServiceIsUniqueOrgNameProcedure = "/loco.org.v1.OrgService/IsUniqueOrgName"
@@ -62,7 +59,6 @@ type OrgServiceClient interface {
 	ListOrgs(context.Context, *connect.Request[v1.ListOrgsRequest]) (*connect.Response[v1.ListOrgsResponse], error)
 	UpdateOrg(context.Context, *connect.Request[v1.UpdateOrgRequest]) (*connect.Response[v1.UpdateOrgResponse], error)
 	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error)
-	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
 	IsUniqueOrgName(context.Context, *connect.Request[v1.IsUniqueOrgNameRequest]) (*connect.Response[v1.IsUniqueOrgNameResponse], error)
 }
 
@@ -113,12 +109,6 @@ func NewOrgServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(orgServiceMethods.ByName("DeleteOrg")),
 			connect.WithClientOptions(opts...),
 		),
-		listWorkspaces: connect.NewClient[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse](
-			httpClient,
-			baseURL+OrgServiceListWorkspacesProcedure,
-			connect.WithSchema(orgServiceMethods.ByName("ListWorkspaces")),
-			connect.WithClientOptions(opts...),
-		),
 		isUniqueOrgName: connect.NewClient[v1.IsUniqueOrgNameRequest, v1.IsUniqueOrgNameResponse](
 			httpClient,
 			baseURL+OrgServiceIsUniqueOrgNameProcedure,
@@ -136,7 +126,6 @@ type orgServiceClient struct {
 	listOrgs           *connect.Client[v1.ListOrgsRequest, v1.ListOrgsResponse]
 	updateOrg          *connect.Client[v1.UpdateOrgRequest, v1.UpdateOrgResponse]
 	deleteOrg          *connect.Client[v1.DeleteOrgRequest, v1.DeleteOrgResponse]
-	listWorkspaces     *connect.Client[v1.ListWorkspacesRequest, v1.ListWorkspacesResponse]
 	isUniqueOrgName    *connect.Client[v1.IsUniqueOrgNameRequest, v1.IsUniqueOrgNameResponse]
 }
 
@@ -170,11 +159,6 @@ func (c *orgServiceClient) DeleteOrg(ctx context.Context, req *connect.Request[v
 	return c.deleteOrg.CallUnary(ctx, req)
 }
 
-// ListWorkspaces calls loco.org.v1.OrgService.ListWorkspaces.
-func (c *orgServiceClient) ListWorkspaces(ctx context.Context, req *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error) {
-	return c.listWorkspaces.CallUnary(ctx, req)
-}
-
 // IsUniqueOrgName calls loco.org.v1.OrgService.IsUniqueOrgName.
 func (c *orgServiceClient) IsUniqueOrgName(ctx context.Context, req *connect.Request[v1.IsUniqueOrgNameRequest]) (*connect.Response[v1.IsUniqueOrgNameResponse], error) {
 	return c.isUniqueOrgName.CallUnary(ctx, req)
@@ -188,7 +172,6 @@ type OrgServiceHandler interface {
 	ListOrgs(context.Context, *connect.Request[v1.ListOrgsRequest]) (*connect.Response[v1.ListOrgsResponse], error)
 	UpdateOrg(context.Context, *connect.Request[v1.UpdateOrgRequest]) (*connect.Response[v1.UpdateOrgResponse], error)
 	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error)
-	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
 	IsUniqueOrgName(context.Context, *connect.Request[v1.IsUniqueOrgNameRequest]) (*connect.Response[v1.IsUniqueOrgNameResponse], error)
 }
 
@@ -235,12 +218,6 @@ func NewOrgServiceHandler(svc OrgServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(orgServiceMethods.ByName("DeleteOrg")),
 		connect.WithHandlerOptions(opts...),
 	)
-	orgServiceListWorkspacesHandler := connect.NewUnaryHandler(
-		OrgServiceListWorkspacesProcedure,
-		svc.ListWorkspaces,
-		connect.WithSchema(orgServiceMethods.ByName("ListWorkspaces")),
-		connect.WithHandlerOptions(opts...),
-	)
 	orgServiceIsUniqueOrgNameHandler := connect.NewUnaryHandler(
 		OrgServiceIsUniqueOrgNameProcedure,
 		svc.IsUniqueOrgName,
@@ -261,8 +238,6 @@ func NewOrgServiceHandler(svc OrgServiceHandler, opts ...connect.HandlerOption) 
 			orgServiceUpdateOrgHandler.ServeHTTP(w, r)
 		case OrgServiceDeleteOrgProcedure:
 			orgServiceDeleteOrgHandler.ServeHTTP(w, r)
-		case OrgServiceListWorkspacesProcedure:
-			orgServiceListWorkspacesHandler.ServeHTTP(w, r)
 		case OrgServiceIsUniqueOrgNameProcedure:
 			orgServiceIsUniqueOrgNameHandler.ServeHTTP(w, r)
 		default:
@@ -296,10 +271,6 @@ func (UnimplementedOrgServiceHandler) UpdateOrg(context.Context, *connect.Reques
 
 func (UnimplementedOrgServiceHandler) DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.DeleteOrg is not implemented"))
-}
-
-func (UnimplementedOrgServiceHandler) ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.ListWorkspaces is not implemented"))
 }
 
 func (UnimplementedOrgServiceHandler) IsUniqueOrgName(context.Context, *connect.Request[v1.IsUniqueOrgNameRequest]) (*connect.Response[v1.IsUniqueOrgNameResponse], error) {

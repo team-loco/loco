@@ -1,3 +1,9 @@
+-- Deployment status enum
+CREATE TYPE deployment_status AS ENUM ('pending', 'running', 'succeeded', 'failed', 'canceled');
+
+-- App status enum
+CREATE TYPE app_status AS ENUM ('available', 'progressing', 'degraded', 'unavailable', 'idle');
+
 -- Clusters table
 CREATE TABLE clusters (
     id BIGSERIAL PRIMARY KEY,
@@ -27,6 +33,7 @@ CREATE TABLE apps (
     type INT NOT NULL,
     subdomain TEXT NOT NULL,
     domain TEXT NOT NULL DEFAULT 'loco.deploy-app.com',
+    status app_status DEFAULT 'idle',
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -39,8 +46,6 @@ CREATE INDEX idx_apps_workspace_id ON apps (workspace_id);
 CREATE INDEX idx_apps_cluster_id ON apps (cluster_id);
 CREATE INDEX idx_apps_subdomain_domain ON apps (subdomain, domain);
 
--- Deployment status enum
-CREATE TYPE deployment_status AS ENUM ('pending', 'in_progress', 'succeeded', 'failed');
 
 -- Deployments table
 CREATE TABLE deployments (
