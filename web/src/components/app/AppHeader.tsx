@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { App } from "@/gen/app/v1/app_pb";
 import { Copy, ExternalLink, Pencil } from "lucide-react";
-import { useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
 interface AppHeaderProps {
 	app: App | null;
@@ -13,7 +13,6 @@ interface AppHeaderProps {
 
 export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 	const navigate = useNavigate();
-	const [copied, setCopied] = useState(false);
 
 	if (isLoading) {
 		return (
@@ -33,8 +32,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 
 	const handleCopyUrl = () => {
 		navigator.clipboard.writeText(`https://${appUrl}`);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 2000);
+		toast.success("URL copied to clipboard");
 	};
 
 	return (
@@ -90,12 +88,6 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 					</Button>
 				</div>
 			</div>
-
-			{copied && (
-				<p className="text-xs text-foreground opacity-60">
-					URL copied to clipboard
-				</p>
-			)}
 		</div>
 	);
 }

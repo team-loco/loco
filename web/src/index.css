@@ -1,17 +1,1 @@
 @import "./globals.css";
-
-html {
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-	background-color: white;
-}
-
-body {
-	margin: 0;
-	padding: 0;
-	background-color: white;
-}
-
-#root {
-	background-color: white;
-}

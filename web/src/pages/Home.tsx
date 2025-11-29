@@ -85,7 +85,7 @@ export function Home() {
 
 		setHeader(
 			<h2 className="text-3xl font-heading text-foreground">
-				{workspaceName}'s Dashboard
+				Workspace: {workspaceName}
 			</h2>
 		);
 	}, [setHeader, workspaces, currentWorkspaceId]);
@@ -173,7 +173,7 @@ export function Home() {
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<h3 className="text-2xl font-heading">
-						{searchTerm ? "Search Results" : "Your Applications"}
+						{searchTerm ? "Search Results" : "Applications"}
 					</h3>
 					{allApps.length > 0 && (
 						<p className="text-sm text-foreground opacity-60">
