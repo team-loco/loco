@@ -19,12 +19,12 @@ import {
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useHeader } from "@/context/HeaderContext";
 import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { getCurrentUser, logout } from "@/gen/user/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { useHeader } from "@/context/HeaderContext";
 import {
 	ArrowRight,
 	Bell,
@@ -98,8 +98,10 @@ export function AppSidebar() {
 
 	// Update header based on current route
 	useEffect(() => {
-		const appName = appsQuery.data?.apps?.find((app) => app.id === activeAppId)?.name;
-		
+		const appName = appsQuery.data?.apps?.find(
+			(app) => app.id === activeAppId
+		)?.name;
+
 		if (activeAppId && appName) {
 			setHeader(
 				<div className="flex flex-col">
@@ -107,7 +109,9 @@ export function AppSidebar() {
 				</div>
 			);
 		} else if (activeWorkspaceId) {
-			const workspaceName = workspaces.find((ws) => ws.id === activeWorkspaceId)?.name;
+			const workspaceName = workspaces.find(
+				(ws) => ws.id === activeWorkspaceId
+			)?.name;
 			if (workspaceName) {
 				setHeader(
 					<div className="flex flex-col">
@@ -122,7 +126,13 @@ export function AppSidebar() {
 				</div>
 			);
 		}
-	}, [activeAppId, activeWorkspaceId, appsQuery.data?.apps, workspaces, setHeader]);
+	}, [
+		activeAppId,
+		activeWorkspaceId,
+		appsQuery.data?.apps,
+		workspaces,
+		setHeader,
+	]);
 
 	const handleLogout = () => {
 		logoutMutation(
@@ -144,10 +154,16 @@ export function AppSidebar() {
 	};
 
 	const handleAppClick = (appId: bigint) => {
-		navigate(`/app/${appId}${activeWorkspaceId ? `?workspace=${activeWorkspaceId}` : ""}`);
+		navigate(
+			`/app/${appId}${
+				activeWorkspaceId ? `?workspace=${activeWorkspaceId}` : ""
+			}`
+		);
 	};
 
-	const activeOrg = orgs.find((org) => org.id === (selectedOrgId || orgs[0]?.id));
+	const activeOrg = orgs.find(
+		(org) => org.id === (selectedOrgId || orgs[0]?.id)
+	);
 
 	return (
 		<Sidebar className="border-r-2 border-border">
@@ -161,7 +177,9 @@ export function AppSidebar() {
 									className="data-[state=open]:bg-main data-[state=open]:text-main-foreground data-[state=open]:outline-border data-[state=open]:outline-2"
 								>
 									<div className="flex items-center gap-2 flex-1">
-										<span className="font-heading truncate">{activeOrg?.name}</span>
+										<span className="font-heading truncate">
+											{activeOrg?.name}
+										</span>
 									</div>
 									<ChevronsUpDown className="ml-auto" />
 								</SidebarMenuButton>
@@ -246,47 +264,49 @@ export function AppSidebar() {
 									</SidebarMenuItem>
 
 									{/* Apps under this workspace */}
-									{activeWorkspaceId === ws.id && expandedWorkspaces.has(ws.id) && (
-										<div className="space-y-1 mt-1">
-											<div className="flex items-center justify-between px-4 py-1">
-												<span className="text-xs font-heading">Apps</span>
-												<button
-													onClick={() => navigate("/create-app")}
-													className="p-0.5 hover:bg-secondary-background rounded-neo"
-													title="Create App"
-												>
-													<Plus className="h-3 w-3" />
-												</button>
+									{activeWorkspaceId === ws.id &&
+										expandedWorkspaces.has(ws.id) && (
+											<div className="space-y-1 mt-1">
+												<div className="flex items-center justify-between px-4 py-1">
+													<span className="text-xs font-heading">Apps</span>
+													<button
+														onClick={() => navigate("/create-app")}
+														className="p-0.5 hover:bg-secondary-background rounded-neo"
+														title="Create App"
+													>
+														<Plus className="h-3 w-3" />
+													</button>
+												</div>
+												<SidebarMenu className="space-y-1 pl-4">
+													{appsQuery.isLoading ? (
+														<>
+															<Skeleton className="h-7 w-full rounded-neo" />
+															<Skeleton className="h-7 w-full rounded-neo" />
+														</>
+													) : appsQuery.data?.apps &&
+													  appsQuery.data.apps.length > 0 ? (
+														appsQuery.data.apps.map((app) => (
+															<SidebarMenuItem key={app.id.toString()}>
+																<SidebarMenuButton
+																	asChild
+																	onClick={() => handleAppClick(app.id)}
+																	isActive={activeAppId === app.id}
+																>
+																	<button className="flex items-center gap-2 text-sm">
+																		<Grid className="h-4 w-4 shrink-0" />
+																		<span className="truncate">{app.name}</span>
+																	</button>
+																</SidebarMenuButton>
+															</SidebarMenuItem>
+														))
+													) : (
+														<p className="text-xs text-foreground opacity-50 px-3 py-1">
+															No apps yet
+														</p>
+													)}
+												</SidebarMenu>
 											</div>
-											<SidebarMenu className="space-y-1 pl-4">
-												{appsQuery.isLoading ? (
-													<>
-														<Skeleton className="h-7 w-full rounded-neo" />
-														<Skeleton className="h-7 w-full rounded-neo" />
-													</>
-												) : appsQuery.data?.apps && appsQuery.data.apps.length > 0 ? (
-													appsQuery.data.apps.map((app) => (
-														<SidebarMenuItem key={app.id.toString()}>
-															<SidebarMenuButton
-																asChild
-																onClick={() => handleAppClick(app.id)}
-																isActive={activeAppId === app.id}
-															>
-																<button className="flex items-center gap-2 text-sm">
-																	<Grid className="h-4 w-4 shrink-0" />
-																	<span className="truncate">{app.name}</span>
-																</button>
-															</SidebarMenuButton>
-														</SidebarMenuItem>
-													))
-												) : (
-													<p className="text-xs text-foreground opacity-50 px-3 py-1">
-														No apps yet
-													</p>
-												)}
-											</SidebarMenu>
-										</div>
-									)}
+										)}
 								</div>
 							))
 						)}
@@ -300,7 +320,7 @@ export function AppSidebar() {
 
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
-						<button className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-neo hover:bg-secondary-background transition-colors">
+						<button className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-neo transition-colors">
 							<div className="flex items-center gap-2 min-w-0">
 								<Avatar className="h-8 w-8">
 									<AvatarImage src={user?.avatarUrl} alt={user?.name} />
@@ -320,10 +340,6 @@ export function AppSidebar() {
 						align="end"
 						className="w-80 max-h-96 overflow-y-auto"
 					>
-						<DropdownMenuLabel className="font-heading">
-							{user?.name}
-						</DropdownMenuLabel>
-						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							onClick={() => navigate("/events")}
 							className="cursor-pointer"

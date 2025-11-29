@@ -5,6 +5,8 @@ import { deleteApp, getApp, updateApp } from "@/gen/app/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { toastConnectError } from "@/lib/error-handler";
+import { toast } from "sonner";
 
 export function AppSettings() {
 	const { appId } = useParams<{ appId: string }>();
@@ -39,7 +41,9 @@ export function AppSettings() {
 				subdomain: subdomain || app?.subdomain || "",
 				domain: domain || app?.domain || "",
 			});
+			toast.success("App updated successfully");
 		} catch (error) {
+			toastConnectError(error);
 			console.error("Failed to update app:", error);
 		}
 	};
@@ -48,8 +52,10 @@ export function AppSettings() {
 		if (!appId) return;
 		try {
 			await deleteAppMutation.mutateAsync({ appId: BigInt(appId) });
+			toast.success("App deleted successfully");
 			navigate("/dashboard");
 		} catch (error) {
+			toastConnectError(error);
 			console.error("Failed to delete app:", error);
 		}
 	};
@@ -160,9 +166,9 @@ export function AppSettings() {
 			</Card>
 
 			{/* Danger Zone */}
-			<Card className="border-2 border-red-200">
+			<Card className="border-2 border-error-border bg-error-bg/10">
 				<CardHeader>
-					<CardTitle className="text-destructive">Danger Zone</CardTitle>
+					<CardTitle className="text-error-text">Danger Zone</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-4">
@@ -176,7 +182,11 @@ export function AppSettings() {
 							</p>
 						</div>
 
-						<Button onClick={() => setShowDeleteConfirm(true)}>
+						<Button
+							className="text-error-text border-error-border bg-error-bg hover:bg-error-bg/80"
+							variant="noShadow"
+							onClick={() => setShowDeleteConfirm(true)}
+						>
 							Delete Application
 						</Button>
 					</div>
@@ -185,43 +195,30 @@ export function AppSettings() {
 
 			{/* Delete Confirmation Dialog */}
 			{showDeleteConfirm && (
-				<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-					<Card className="max-w-sm">
-						<CardHeader>
-							<CardTitle>Delete Application</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div>
-								<p className="text-sm text-foreground opacity-70 mb-4">
-									Are you sure you want to delete <strong>{app.name}</strong>?
-									This action cannot be undone.
-								</p>
-								<p className="text-xs text-foreground opacity-50">
-									Type the app name to confirm deletion:
-								</p>
-							</div>
-
-							<Input placeholder={app.name} className="mt-2" disabled />
-
-							<div className="flex gap-2 pt-4">
-								<Button
-									variant="noShadow"
-									onClick={() => setShowDeleteConfirm(false)}
-									className="border-2 flex-1"
-									disabled={deleteAppMutation.isPending}
-								>
-									Cancel
-								</Button>
-								<Button
-									onClick={handleDelete}
-									disabled={deleteAppMutation.isPending}
-									className="flex-1"
-								>
-									{deleteAppMutation.isPending ? "Deleting..." : "Delete"}
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
+				<div className="space-y-2 p-4 border-2 border-error-border rounded-neo bg-error-bg">
+					<p className="text-sm text-error-text font-medium">
+						Are you sure? This action cannot be undone.
+					</p>
+					<p className="text-xs text-error-text opacity-80">
+						Deleting <strong>{app.name}</strong> will permanently remove all data associated with this application.
+					</p>
+					<div className="flex gap-2 pt-2">
+						<Button
+							variant="neutral"
+							className="flex-1 text-sm"
+							onClick={() => setShowDeleteConfirm(false)}
+							disabled={deleteAppMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							className="flex-1 text-sm bg-error-bg text-error-text border-error-border hover:bg-error-bg/80"
+							onClick={handleDelete}
+							disabled={deleteAppMutation.isPending}
+						>
+							{deleteAppMutation.isPending ? "Deleting..." : "Delete"}
+						</Button>
+					</div>
 				</div>
 			)}
 		</div>
