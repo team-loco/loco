@@ -8,8 +8,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
-	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/contextkeys"
+	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/timeutil"
 	orgv1 "github.com/loco-team/loco/shared/proto/org/v1"
 )
@@ -347,54 +347,6 @@ func (s *OrgServer) DeleteOrg(
 			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
 		},
 		Message: "Organization deleted successfully",
-	}), nil
-}
-
-// ListWorkspaces lists workspaces for an organization
-func (s *OrgServer) ListWorkspaces(
-	ctx context.Context,
-	req *connect.Request[orgv1.ListWorkspacesRequest],
-) (*connect.Response[orgv1.ListWorkspacesResponse], error) {
-	r := req.Msg
-
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	isMember, err := s.queries.IsOrgMember(ctx, genDb.IsOrgMemberParams{
-		OrganizationID: r.OrgId,
-		UserID:         userID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check org membership", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
-	}
-
-	workspaces, err := s.queries.ListWorkspacesForOrg(ctx, r.OrgId)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	var workspaceResponses []*orgv1.WorkspaceSummary
-	for _, ws := range workspaces {
-		workspaceResponses = append(workspaceResponses, &orgv1.WorkspaceSummary{
-			Id:        ws.ID,
-			Name:      ws.Name,
-			CreatedBy: ws.CreatedBy,
-			CreatedAt: timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-		})
-	}
-
-	return connect.NewResponse(&orgv1.ListWorkspacesResponse{
-		Workspaces: workspaceResponses,
 	}), nil
 }
 

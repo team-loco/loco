@@ -387,3 +387,5 @@ Phase I ends Here
 
 - eventually use.go should be able to switch between different scopes.
 - we should have a way to list all the scopes and switch between them.
+
+- connect does not hve any out of the box validation for requests coming in. we need to manually all incoming params

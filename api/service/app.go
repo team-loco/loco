@@ -12,8 +12,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/contextkeys"
+	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/pkg/klogmux"
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/timeutil"
@@ -207,6 +207,7 @@ func (s *AppServer) ListApps(
 ) (*connect.Response[appv1.ListAppsResponse], error) {
 	r := req.Msg
 
+	slog.InfoContext(ctx, "received req to list apps", "workspaceId", r.WorkspaceId)
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")

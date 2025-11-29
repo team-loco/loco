@@ -173,6 +173,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		orgClient := orgv1connect.NewOrgServiceClient(httpClient, host)
+		wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 
 		existingCfg, err := config.Load()
 		if err != nil {
@@ -199,7 +200,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		var selectedOrg *orgv1.Organization
-		var selectedWorkspace *orgv1.WorkspaceSummary
+		var selectedWorkspace *workspacev1.Workspace
 
 		orgRequest := connect.NewRequest(&orgv1.GetCurrentUserOrgsRequest{})
 		orgRequest.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
@@ -296,12 +297,12 @@ var loginCmd = &cobra.Command{
 		if len(orgs) == 1 {
 			selectedOrg = orgs[0]
 
-			wsReq := connect.NewRequest(&orgv1.ListWorkspacesRequest{
+			wsReq := connect.NewRequest(&workspacev1.ListWorkspacesRequest{
 				OrgId: selectedOrg.Id,
 			})
 			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-			wsResp, err := orgClient.ListWorkspaces(context.Background(), wsReq)
+			wsResp, err := wsClient.ListWorkspaces(context.Background(), wsReq)
 			if err != nil {
 				slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
 				return fmt.Errorf("failed to list workspaces: %w", err)
@@ -316,12 +317,12 @@ var loginCmd = &cobra.Command{
 		} else {
 			selectedOrg = orgs[0]
 
-			wsReq := connect.NewRequest(&orgv1.ListWorkspacesRequest{
+			wsReq := connect.NewRequest(&workspacev1.ListWorkspacesRequest{
 				OrgId: selectedOrg.Id,
 			})
 			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-			wsResp, err := orgClient.ListWorkspaces(context.Background(), wsReq)
+			wsResp, err := wsClient.ListWorkspaces(context.Background(), wsReq)
 			if err != nil {
 				slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
 				return fmt.Errorf("failed to list workspaces: %w", err)
