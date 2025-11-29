@@ -189,6 +189,7 @@ export function Home() {
 								key={app.id}
 								app={app}
 								onAppDeleted={() => refetchApps()}
+								workspaceId={currentWorkspaceId || undefined}
 							/>
 						))}
 					</div>

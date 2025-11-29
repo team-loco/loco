@@ -13,7 +13,7 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
 const APP_TYPES = [
@@ -28,6 +28,8 @@ const APP_TYPES = [
 export function CreateApp() {
 	const navigate = useNavigate();
 	const { workspaceId: paramWorkspaceId } = useParams();
+	const [searchParams] = useSearchParams();
+	const workspaceFromUrl = searchParams.get("workspace");
 
 	const [appName, setAppName] = useState("");
 	const [appType, setAppType] = useState("SERVICE");
@@ -72,7 +74,7 @@ export function CreateApp() {
 
 			if (res.app?.id) {
 				toast.success("App created successfully");
-				navigate(`/app/${res.app.id}`);
+				navigate(`/app/${res.app.id}${workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""}`);
 			} else {
 				toast.error("Failed to create app");
 			}

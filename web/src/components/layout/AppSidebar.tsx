@@ -32,16 +32,20 @@ import {
 	Settings,
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { OrgsSidebar } from "./sidebar/OrgsSidebar";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AppSidebar() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
+
+	const appIdMatch = location.pathname.match(/\/app\/(\d+)/);
+	const activeAppId = appIdMatch ? BigInt(appIdMatch[1]) : null;
 	const { mutate: logoutMutation } = useMutation(logout);
 	const [expandedOrgs, setExpandedOrgs] = useState<Set<bigint>>(new Set());
 	const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(
@@ -95,7 +99,7 @@ export function AppSidebar() {
 	};
 
 	const handleAppClick = (appId: bigint) => {
-		navigate(`/app/${appId}`);
+		navigate(`/app/${appId}${activeWorkspaceId ? `?workspace=${activeWorkspaceId}` : ""}`);
 	};
 
 	return (
@@ -166,6 +170,7 @@ export function AppSidebar() {
 										<SidebarMenuButton
 											asChild
 											onClick={() => handleAppClick(app.id)}
+											isActive={activeAppId === app.id}
 										>
 											<button className="flex items-center gap-2 text-sm">
 												<Grid className="h-4 w-4 shrink-0" />
