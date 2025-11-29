@@ -7,7 +7,7 @@ interface StatusBadgeProps {
 const statusConfig: Record<string, { className: string; dot: string }> = {
 	running: {
 		className: "bg-green text-white",
-		dot: "bg-white",
+		dot: "bg-green-600",
 	},
 	deploying: {
 		className: "bg-cyan text-white",
@@ -30,11 +30,12 @@ const statusConfig: Record<string, { className: string; dot: string }> = {
 export function StatusBadge({ status }: StatusBadgeProps) {
 	const normalizedStatus = status.toLowerCase();
 	const config = statusConfig[normalizedStatus] || statusConfig.pending;
+	const isPulsing = normalizedStatus === "running" || normalizedStatus === "deploying";
 
 	return (
 		<Badge className={`${config.className} flex items-center gap-2`}>
 			<span
-				className={`w-2 h-2 rounded-full shrink-0 inline-block ${config.dot}`}
+				className={`w-2 h-2 rounded-full shrink-0 inline-block ${config.dot} ${isPulsing ? "pulse-dot" : ""}`}
 			></span>
 			{status.charAt(0).toUpperCase() + status.slice(1)}
 		</Badge>
