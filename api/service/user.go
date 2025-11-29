@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/contextkeys"
 	"github.com/loco-team/loco/api/timeutil"
 	userv1 "github.com/loco-team/loco/shared/proto/user/v1"
 )
@@ -114,7 +115,7 @@ func (s *UserServer) GetUser(
 ) (*connect.Response[userv1.GetUserResponse], error) {
 	r := req.Msg
 
-	if r.GetId() == 0 && r.GetEmail() == "" {
+	if r.GetUserId() == 0 && r.GetEmail() == "" {
 		slog.ErrorContext(ctx, "invalid request: either id or email must be provided")
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
@@ -122,8 +123,8 @@ func (s *UserServer) GetUser(
 	var user *userv1.User
 	var err error
 
-	if r.GetId() != 0 {
-		user, err = s.getUserByID(ctx, r.GetId())
+	if r.GetUserId() != 0 {
+		user, err = s.getUserByID(ctx, r.GetUserId())
 	} else {
 		user, err = s.getUserByEmail(ctx, r.GetEmail())
 	}
@@ -142,7 +143,7 @@ func (s *UserServer) GetCurrentUser(
 	ctx context.Context,
 	req *connect.Request[userv1.GetCurrentUserRequest],
 ) (*connect.Response[userv1.GetCurrentUserResponse], error) {
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -171,15 +172,15 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if r.Id != currentUserID {
-		slog.WarnContext(ctx, "user attempted to update another user", "target_user", r.Id, "currentUser", currentUserID)
+	if r.UserId != currentUserID {
+		slog.WarnContext(ctx, "user attempted to update another user", "target_user", r.UserId, "currentUser", currentUserID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrUnauthorized)
 	}
 
 	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
 
 	user, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
-		ID:        r.Id,
+		ID:        r.UserId,
 		AvatarUrl: avatarURL,
 	})
 	if err != nil {
@@ -199,20 +200,18 @@ func (s *UserServer) ListUsers(
 ) (*connect.Response[userv1.ListUsersResponse], error) {
 	r := req.Msg
 
-	page := r.Page
-	if page < 1 {
-		page = 1
+	limit := r.Limit
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
 	}
 
-	perPage := r.PerPage
-	if perPage < 1 {
-		perPage = 50
+	offset := r.Offset
+	if offset < 0 {
+		offset = 0
 	}
-	if perPage > 100 {
-		perPage = 100
-	}
-
-	offset := (page - 1) * perPage
 
 	totalCount, err := s.queries.CountUsers(ctx)
 	if err != nil {
@@ -221,7 +220,7 @@ func (s *UserServer) ListUsers(
 	}
 
 	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
-		Limit:  perPage,
+		Limit:  limit,
 		Offset: offset,
 	})
 	if err != nil {
@@ -236,9 +235,7 @@ func (s *UserServer) ListUsers(
 
 	return connect.NewResponse(&userv1.ListUsersResponse{
 		Users:      users,
-		TotalCount: int32(totalCount),
-		Page:       page,
-		PerPage:    perPage,
+		TotalCount: int64(totalCount),
 	}), nil
 }
 
@@ -249,37 +246,59 @@ func (s *UserServer) DeleteUser(
 ) (*connect.Response[userv1.DeleteUserResponse], error) {
 	r := req.Msg
 
-	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, r.Id)
+	user, err := s.queries.GetUserByID(ctx, r.UserId)
+	if err != nil {
+		slog.WarnContext(ctx, "user not found", "user_id", r.UserId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+	}
+
+	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, r.UserId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasWorkspaces {
-		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", r.Id)
+		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", r.UserId)
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
 	}
 
-	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, r.Id)
+	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, r.UserId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasOrganizations {
-		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", r.Id)
+		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", r.UserId)
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
 	}
 
-	err = s.queries.DeleteUser(ctx, r.Id)
+	err = s.queries.DeleteUser(ctx, r.UserId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&userv1.DeleteUserResponse{
-		Success: true,
+		User:    dbUserToProto(user),
+		Message: "User deleted successfully",
 	}), nil
+}
+
+// Logout logs out the user by clearing the session cookie
+func (s *UserServer) Logout(
+	ctx context.Context,
+	req *connect.Request[userv1.LogoutRequest],
+) (*connect.Response[userv1.LogoutResponse], error) {
+	res := connect.NewResponse(&userv1.LogoutResponse{
+		Message: "logged out successfully",
+	})
+
+	res.Header().Set("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+
+	slog.InfoContext(ctx, "user logged out")
+	return res, nil
 }
 
 // Helper methods

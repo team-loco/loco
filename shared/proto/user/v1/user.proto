@@ -13,6 +13,7 @@ service UserService {
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
 message User {
@@ -34,10 +35,11 @@ message CreateUserRequest {
 
 message CreateUserResponse {
   User user = 1;
+  string message = 2;
 }
 
 message GetUserRequest {
-  optional int64 id = 1;
+  optional int64 user_id = 1;
   optional string email = 2;
 }
 
@@ -52,30 +54,36 @@ message GetCurrentUserResponse {
 }
 
 message UpdateUserRequest {
-  int64 id = 1;
+  int64 user_id = 1;
   optional string avatar_url = 2;
 }
 
 message UpdateUserResponse {
   User user = 1;
+  string message = 2;
 }
 
 message ListUsersRequest {
-  int32 page = 1;
-  int32 per_page = 2;
+  int32 limit = 1;
+  int32 offset = 2;
 }
 
 message ListUsersResponse {
   repeated User users = 1;
-  int32 total_count = 2;
-  int32 page = 3;
-  int32 per_page = 4;
+  int64 total_count = 2;
 }
 
 message DeleteUserRequest {
-  int64 id = 1;
+  int64 user_id = 1;
 }
 
 message DeleteUserResponse {
-  bool success = 1;
+  User user = 1;
+  string message = 2;
+}
+
+message LogoutRequest {}
+
+message LogoutResponse {
+  string message = 1;
 }

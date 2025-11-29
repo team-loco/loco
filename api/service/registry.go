@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/loco-team/loco/api/client"
 	"github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/contextkeys"
 	registryv1 "github.com/loco-team/loco/shared/proto/registry/v1"
 )
 
@@ -54,7 +55,7 @@ func (s *RegistryServer) GitlabToken(
 	ctx context.Context,
 	req *connect.Request[registryv1.GitlabTokenRequest],
 ) (*connect.Response[registryv1.GitlabTokenResponse], error) {
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)

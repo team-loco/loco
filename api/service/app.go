@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/loco-team/loco/api/contextkeys"
 	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/pkg/klogmux"
 	"github.com/loco-team/loco/api/pkg/kube"
@@ -54,7 +55,7 @@ func (s *AppServer) CreateApp(
 ) (*connect.Response[appv1.CreateAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -77,7 +78,7 @@ func (s *AppServer) CreateApp(
 
 	domain := r.GetDomain()
 	if domain == "" {
-		domain = "loco.deploy-app.com"
+		domain = "deploy-app.com"
 	}
 
 	available, err := s.queries.CheckSubdomainAvailability(ctx, genDb.CheckSubdomainAvailabilityParams{
@@ -109,7 +110,7 @@ func (s *AppServer) CreateApp(
 	// todo: set namepsace after creating and saving app. or perhaps its set after first deployment on the app.
 	app, err := s.queries.CreateApp(ctx, genDb.CreateAppParams{
 		WorkspaceID: r.WorkspaceId,
-		ClusterID:   1,
+		ClusterID:   2,
 		Name:        r.Name,
 		Type:        int32(r.Type.Number()),
 		Subdomain:   r.Subdomain,
@@ -124,7 +125,8 @@ func (s *AppServer) CreateApp(
 	}
 
 	return connect.NewResponse(&appv1.CreateAppResponse{
-		App: dbAppToProto(app),
+		App:     dbAppToProto(app),
+		Message: "App created successfully",
 	}), nil
 }
 
@@ -136,15 +138,15 @@ func (s *AppServer) GetApp(
 	r := req.Msg
 
 	// todo: role checks should actually be done first.
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.Id)
+	app, err := s.queries.GetAppByID(ctx, r.AppId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "id", r.Id)
+		slog.WarnContext(ctx, "app not found", "id", r.AppId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
 	}
 
@@ -169,7 +171,7 @@ func (s *AppServer) GetAppByName(
 ) (*connect.Response[appv1.GetAppByNameResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -205,7 +207,8 @@ func (s *AppServer) ListApps(
 ) (*connect.Response[appv1.ListAppsResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	slog.InfoContext(ctx, "received req to list apps", "workspaceId", r.WorkspaceId)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -243,13 +246,13 @@ func (s *AppServer) UpdateApp(
 ) (*connect.Response[appv1.UpdateAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.Id)
+	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
@@ -272,7 +275,7 @@ func (s *AppServer) UpdateApp(
 	}
 
 	updateParams := genDb.UpdateAppParams{
-		ID: r.Id,
+		ID: r.AppId,
 	}
 
 	if r.GetName() != "" {
@@ -294,7 +297,8 @@ func (s *AppServer) UpdateApp(
 	}
 
 	return connect.NewResponse(&appv1.UpdateAppResponse{
-		App: dbAppToProto(app),
+		App:     dbAppToProto(app),
+		Message: "App updated successfully",
 	}), nil
 }
 
@@ -305,13 +309,13 @@ func (s *AppServer) DeleteApp(
 ) (*connect.Response[appv1.DeleteAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.Id)
+	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
@@ -333,14 +337,21 @@ func (s *AppServer) DeleteApp(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin to delete app"))
 	}
 
-	err = s.queries.DeleteApp(ctx, r.Id)
+	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get app", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	err = s.queries.DeleteApp(ctx, r.AppId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete app", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&appv1.DeleteAppResponse{
-		Success: true,
+		App:     dbAppToProto(app),
+		Message: "App deleted successfully",
 	}), nil
 }
 
@@ -372,7 +383,7 @@ func (s *AppServer) GetAppStatus(
 ) (*connect.Response[appv1.GetAppStatusResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -408,7 +419,7 @@ func (s *AppServer) GetAppStatus(
 		deployment := deploymentList[0]
 		deploymentStatus = &appv1.DeploymentStatus{
 			Id:       deployment.ID,
-			Status:   string(deployment.Status),
+			Status:   deploymentStatusToProto(deployment.Status),
 			Replicas: deployment.Replicas,
 		}
 		if deployment.Message.Valid {
@@ -433,7 +444,7 @@ func (s *AppServer) StreamLogs(
 ) error {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -523,7 +534,7 @@ func (s *AppServer) GetEvents(
 ) (*connect.Response[appv1.GetEventsResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -598,7 +609,7 @@ func (s *AppServer) ScaleApp(
 ) (*connect.Response[appv1.ScaleAppResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -741,7 +752,7 @@ func (s *AppServer) ScaleApp(
 
 	deploymentStatus := &appv1.DeploymentStatus{
 		Id:       deployment.ID,
-		Status:   string(deployment.Status),
+		Status:   deploymentStatusToProto(deployment.Status),
 		Replicas: deployment.Replicas,
 	}
 
@@ -765,7 +776,7 @@ func (s *AppServer) UpdateAppEnv(
 ) (*connect.Response[appv1.UpdateAppEnvResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -881,7 +892,7 @@ func (s *AppServer) UpdateAppEnv(
 
 	deploymentStatus := &appv1.DeploymentStatus{
 		Id:       deployment.ID,
-		Status:   string(deployment.Status),
+		Status:   deploymentStatusToProto(deployment.Status),
 		Replicas: deployment.Replicas,
 	}
 
@@ -923,7 +934,7 @@ func (s *AppServer) allocateDeployment(
 		return
 	}
 
-	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusInProgress, "Allocating Kubernetes resources...")
+	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusRunning, "Allocating Kubernetes resources...")
 
 	if err := s.kubeClient.AllocateResources(ctx, ldc, envVars, nil); err != nil {
 		slog.ErrorContext(ctx, "Failed to allocate Kubernetes resources", "deployment_id", deployment.ID, "error", err)
@@ -945,6 +956,22 @@ func (s *AppServer) updateDeploymentStatus(ctx context.Context, deploymentID int
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to update deployment status", "deployment_id", deploymentID, "error", err)
+	}
+}
+
+// deploymentStatusToProto converts database deployment status to proto enum
+func deploymentStatusToProto(status genDb.DeploymentStatus) appv1.DeploymentPhase {
+	switch status {
+	case genDb.DeploymentStatusPending:
+		return appv1.DeploymentPhase_PENDING
+	case genDb.DeploymentStatusRunning:
+		return appv1.DeploymentPhase_RUNNING
+	case genDb.DeploymentStatusSucceeded:
+		return appv1.DeploymentPhase_SUCCEEDED
+	case genDb.DeploymentStatusFailed:
+		return appv1.DeploymentPhase_FAILED
+	default:
+		return appv1.DeploymentPhase_PENDING
 	}
 }
 

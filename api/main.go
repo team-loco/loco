@@ -165,7 +165,6 @@ func main() {
 		orgv1connect.OrgServiceListOrgsProcedure,
 		orgv1connect.OrgServiceUpdateOrgProcedure,
 		orgv1connect.OrgServiceDeleteOrgProcedure,
-		orgv1connect.OrgServiceListWorkspacesProcedure,
 		orgv1connect.OrgServiceIsUniqueOrgNameProcedure,
 
 		// workspace service

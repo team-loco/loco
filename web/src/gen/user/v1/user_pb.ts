@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file user/v1/user.proto.
  */
 export const file_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCI2ChJDcmVhdGVVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIkYKDkdldFVzZXJSZXF1ZXN0Eg8KAmlkGAEgASgDSACIAQESEgoFZW1haWwYAiABKAlIAYgBAUIFCgNfaWRCCAoGX2VtYWlsIjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIiFwoVR2V0Q3VycmVudFVzZXJSZXF1ZXN0IjoKFkdldEN1cnJlbnRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIkcKEVVwZGF0ZVVzZXJSZXF1ZXN0EgoKAmlkGAEgASgDEhcKCmF2YXRhcl91cmwYAiABKAlIAIgBAUINCgtfYXZhdGFyX3VybCI2ChJVcGRhdGVVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIjIKEExpc3RVc2Vyc1JlcXVlc3QSDAoEcGFnZRgBIAEoBRIQCghwZXJfcGFnZRgCIAEoBSJrChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhMKC3RvdGFsX2NvdW50GAIgASgFEgwKBHBhZ2UYAyABKAUSEAoIcGVyX3BhZ2UYBCABKAUiHwoRRGVsZXRlVXNlclJlcXVlc3QSCgoCaWQYASABKAMiJQoSRGVsZXRlVXNlclJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgy8wMKC1VzZXJTZXJ2aWNlEk8KCkNyZWF0ZVVzZXISHy5sb2NvLnVzZXIudjEuQ3JlYXRlVXNlclJlcXVlc3QaIC5sb2NvLnVzZXIudjEuQ3JlYXRlVXNlclJlc3BvbnNlEkYKB0dldFVzZXISHC5sb2NvLnVzZXIudjEuR2V0VXNlclJlcXVlc3QaHS5sb2NvLnVzZXIudjEuR2V0VXNlclJlc3BvbnNlElsKDkdldEN1cnJlbnRVc2VyEiMubG9jby51c2VyLnYxLkdldEN1cnJlbnRVc2VyUmVxdWVzdBokLmxvY28udXNlci52MS5HZXRDdXJyZW50VXNlclJlc3BvbnNlEk8KClVwZGF0ZVVzZXISHy5sb2NvLnVzZXIudjEuVXBkYXRlVXNlclJlcXVlc3QaIC5sb2NvLnVzZXIudjEuVXBkYXRlVXNlclJlc3BvbnNlEkwKCUxpc3RVc2VycxIeLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXF1ZXN0Gh8ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1Jlc3BvbnNlEk8KCkRlbGV0ZVVzZXISHy5sb2NvLnVzZXIudjEuRGVsZXRlVXNlclJlcXVlc3QaIC5sb2NvLnVzZXIudjEuRGVsZXRlVXNlclJlc3BvbnNlQjdaNWdpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL3VzZXIvdjE7dXNlcnYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCJHChJDcmVhdGVVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyEg8KB21lc3NhZ2UYAiABKAkiUAoOR2V0VXNlclJlcXVlc3QSFAoHdXNlcl9pZBgBIAEoA0gAiAEBEhIKBWVtYWlsGAIgASgJSAGIAQFCCgoIX3VzZXJfaWRCCAoGX2VtYWlsIjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIiFwoVR2V0Q3VycmVudFVzZXJSZXF1ZXN0IjoKFkdldEN1cnJlbnRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIkwKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSFwoKYXZhdGFyX3VybBgCIAEoCUgAiAEBQg0KC19hdmF0YXJfdXJsIkcKElVwZGF0ZVVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXISDwoHbWVzc2FnZRgCIAEoCSIxChBMaXN0VXNlcnNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEg4KBm9mZnNldBgCIAEoBSJLChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhMKC3RvdGFsX2NvdW50GAIgASgDIiQKEURlbGV0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMiRwoSRGVsZXRlVXNlclJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIPCgdtZXNzYWdlGAIgASgJIg8KDUxvZ291dFJlcXVlc3QiIQoOTG9nb3V0UmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCTK4BAoLVXNlclNlcnZpY2USTwoKQ3JlYXRlVXNlchIfLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVzcG9uc2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USWwoOR2V0Q3VycmVudFVzZXISIy5sb2NvLnVzZXIudjEuR2V0Q3VycmVudFVzZXJSZXF1ZXN0GiQubG9jby51c2VyLnYxLkdldEN1cnJlbnRVc2VyUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2VCN1o1Z2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vdXNlci92MTt1c2VydjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.user.v1.User
@@ -166,6 +166,11 @@ export type CreateUserResponse = Message<"loco.user.v1.CreateUserResponse"> & {
    * @generated from field: loco.user.v1.User user = 1;
    */
   user?: User;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -176,6 +181,11 @@ export type CreateUserResponseJson = {
    * @generated from field: loco.user.v1.User user = 1;
    */
   user?: UserJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -190,9 +200,9 @@ export const CreateUserResponseSchema: GenMessage<CreateUserResponse, {jsonType:
  */
 export type GetUserRequest = Message<"loco.user.v1.GetUserRequest"> & {
   /**
-   * @generated from field: optional int64 id = 1;
+   * @generated from field: optional int64 user_id = 1;
    */
-  id?: bigint;
+  userId?: bigint;
 
   /**
    * @generated from field: optional string email = 2;
@@ -205,9 +215,9 @@ export type GetUserRequest = Message<"loco.user.v1.GetUserRequest"> & {
  */
 export type GetUserRequestJson = {
   /**
-   * @generated from field: optional int64 id = 1;
+   * @generated from field: optional int64 user_id = 1;
    */
-  id?: string;
+  userId?: string;
 
   /**
    * @generated from field: optional string email = 2;
@@ -300,9 +310,9 @@ export const GetCurrentUserResponseSchema: GenMessage<GetCurrentUserResponse, {j
  */
 export type UpdateUserRequest = Message<"loco.user.v1.UpdateUserRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 user_id = 1;
    */
-  id: bigint;
+  userId: bigint;
 
   /**
    * @generated from field: optional string avatar_url = 2;
@@ -315,9 +325,9 @@ export type UpdateUserRequest = Message<"loco.user.v1.UpdateUserRequest"> & {
  */
 export type UpdateUserRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 user_id = 1;
    */
-  id?: string;
+  userId?: string;
 
   /**
    * @generated from field: optional string avatar_url = 2;
@@ -340,6 +350,11 @@ export type UpdateUserResponse = Message<"loco.user.v1.UpdateUserResponse"> & {
    * @generated from field: loco.user.v1.User user = 1;
    */
   user?: User;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -350,6 +365,11 @@ export type UpdateUserResponseJson = {
    * @generated from field: loco.user.v1.User user = 1;
    */
   user?: UserJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -364,14 +384,14 @@ export const UpdateUserResponseSchema: GenMessage<UpdateUserResponse, {jsonType:
  */
 export type ListUsersRequest = Message<"loco.user.v1.ListUsersRequest"> & {
   /**
-   * @generated from field: int32 page = 1;
+   * @generated from field: int32 limit = 1;
    */
-  page: number;
+  limit: number;
 
   /**
-   * @generated from field: int32 per_page = 2;
+   * @generated from field: int32 offset = 2;
    */
-  perPage: number;
+  offset: number;
 };
 
 /**
@@ -379,14 +399,14 @@ export type ListUsersRequest = Message<"loco.user.v1.ListUsersRequest"> & {
  */
 export type ListUsersRequestJson = {
   /**
-   * @generated from field: int32 page = 1;
+   * @generated from field: int32 limit = 1;
    */
-  page?: number;
+  limit?: number;
 
   /**
-   * @generated from field: int32 per_page = 2;
+   * @generated from field: int32 offset = 2;
    */
-  perPage?: number;
+  offset?: number;
 };
 
 /**
@@ -406,19 +426,9 @@ export type ListUsersResponse = Message<"loco.user.v1.ListUsersResponse"> & {
   users: User[];
 
   /**
-   * @generated from field: int32 total_count = 2;
+   * @generated from field: int64 total_count = 2;
    */
-  totalCount: number;
-
-  /**
-   * @generated from field: int32 page = 3;
-   */
-  page: number;
-
-  /**
-   * @generated from field: int32 per_page = 4;
-   */
-  perPage: number;
+  totalCount: bigint;
 };
 
 /**
@@ -431,19 +441,9 @@ export type ListUsersResponseJson = {
   users?: UserJson[];
 
   /**
-   * @generated from field: int32 total_count = 2;
+   * @generated from field: int64 total_count = 2;
    */
-  totalCount?: number;
-
-  /**
-   * @generated from field: int32 page = 3;
-   */
-  page?: number;
-
-  /**
-   * @generated from field: int32 per_page = 4;
-   */
-  perPage?: number;
+  totalCount?: string;
 };
 
 /**
@@ -458,9 +458,9 @@ export const ListUsersResponseSchema: GenMessage<ListUsersResponse, {jsonType: L
  */
 export type DeleteUserRequest = Message<"loco.user.v1.DeleteUserRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 user_id = 1;
    */
-  id: bigint;
+  userId: bigint;
 };
 
 /**
@@ -468,9 +468,9 @@ export type DeleteUserRequest = Message<"loco.user.v1.DeleteUserRequest"> & {
  */
 export type DeleteUserRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: int64 user_id = 1;
    */
-  id?: string;
+  userId?: string;
 };
 
 /**
@@ -485,9 +485,14 @@ export const DeleteUserRequestSchema: GenMessage<DeleteUserRequest, {jsonType: D
  */
 export type DeleteUserResponse = Message<"loco.user.v1.DeleteUserResponse"> & {
   /**
-   * @generated from field: bool success = 1;
+   * @generated from field: loco.user.v1.User user = 1;
    */
-  success: boolean;
+  user?: User;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message: string;
 };
 
 /**
@@ -495,9 +500,14 @@ export type DeleteUserResponse = Message<"loco.user.v1.DeleteUserResponse"> & {
  */
 export type DeleteUserResponseJson = {
   /**
-   * @generated from field: bool success = 1;
+   * @generated from field: loco.user.v1.User user = 1;
    */
-  success?: boolean;
+  user?: UserJson;
+
+  /**
+   * @generated from field: string message = 2;
+   */
+  message?: string;
 };
 
 /**
@@ -506,6 +516,52 @@ export type DeleteUserResponseJson = {
  */
 export const DeleteUserResponseSchema: GenMessage<DeleteUserResponse, {jsonType: DeleteUserResponseJson}> = /*@__PURE__*/
   messageDesc(file_user_v1_user, 12);
+
+/**
+ * @generated from message loco.user.v1.LogoutRequest
+ */
+export type LogoutRequest = Message<"loco.user.v1.LogoutRequest"> & {
+};
+
+/**
+ * @generated from message loco.user.v1.LogoutRequest
+ */
+export type LogoutRequestJson = {
+};
+
+/**
+ * Describes the message loco.user.v1.LogoutRequest.
+ * Use `create(LogoutRequestSchema)` to create a new message.
+ */
+export const LogoutRequestSchema: GenMessage<LogoutRequest, {jsonType: LogoutRequestJson}> = /*@__PURE__*/
+  messageDesc(file_user_v1_user, 13);
+
+/**
+ * @generated from message loco.user.v1.LogoutResponse
+ */
+export type LogoutResponse = Message<"loco.user.v1.LogoutResponse"> & {
+  /**
+   * @generated from field: string message = 1;
+   */
+  message: string;
+};
+
+/**
+ * @generated from message loco.user.v1.LogoutResponse
+ */
+export type LogoutResponseJson = {
+  /**
+   * @generated from field: string message = 1;
+   */
+  message?: string;
+};
+
+/**
+ * Describes the message loco.user.v1.LogoutResponse.
+ * Use `create(LogoutResponseSchema)` to create a new message.
+ */
+export const LogoutResponseSchema: GenMessage<LogoutResponse, {jsonType: LogoutResponseJson}> = /*@__PURE__*/
+  messageDesc(file_user_v1_user, 14);
 
 /**
  * @generated from service loco.user.v1.UserService
@@ -558,6 +614,14 @@ export const UserService: GenService<{
     methodKind: "unary";
     input: typeof DeleteUserRequestSchema;
     output: typeof DeleteUserResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.user.v1.UserService.Logout
+   */
+  logout: {
+    methodKind: "unary";
+    input: typeof LogoutRequestSchema;
+    output: typeof LogoutResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_user_v1_user, 0);

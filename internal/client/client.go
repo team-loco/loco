@@ -161,7 +161,7 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*appv1.App, error) {
 		return nil, fmt.Errorf("invalid app ID: %w", err)
 	}
 
-	req := connect.NewRequest(&appv1.GetAppRequest{Id: appIDInt})
+	req := connect.NewRequest(&appv1.GetAppRequest{AppId: appIDInt})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.App.GetApp(ctx, req)
@@ -284,7 +284,7 @@ func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 	if err != nil {
 		return fmt.Errorf("invalid app ID: %w", err)
 	}
-	req := connect.NewRequest(&appv1.DeleteAppRequest{Id: appIDInt})
+	req := connect.NewRequest(&appv1.DeleteAppRequest{AppId: appIDInt})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	_, err = c.App.DeleteApp(ctx, req)
