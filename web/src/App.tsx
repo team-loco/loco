@@ -1,9 +1,11 @@
 import { AuthProvider } from "@/auth/AuthProvider";
-import { ProtectedLayout } from "@/components/layout/ProtectedLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/lib/theme-provider";
 import { AppDetails } from "@/pages/AppDetails";
 import { AppSettings } from "@/pages/AppSettings";
 import { CreateApp } from "@/pages/CreateApp";
+import { Events } from "@/pages/Events";
 import { Home } from "@/pages/Home";
 import { Login } from "@/pages/Login";
 import { OAuthCallback } from "@/pages/OAuthCallback";
@@ -22,91 +24,55 @@ const queryClient = new QueryClient({
 			refetchOnWindowFocus: false,
 			retry: false,
 		},
+		mutations: {
+			retry: false,
+		},
 	},
 });
 
 export default function App() {
 	return (
-		<BrowserRouter>
-			<AuthProvider>
-				<TransportProvider transport={createTransport()}>
-					<QueryClientProvider client={queryClient}>
-						<Toaster />
-						<Routes>
-							{/* Public routes */}
-							<Route path="/login" element={<Login />} />
-							<Route path="/oauth/callback" element={<OAuthCallback />} />
-							<Route path="/onboarding" element={<Onboarding />} />
+		<ThemeProvider>
+			<BrowserRouter>
+				<AuthProvider>
+					<TransportProvider transport={createTransport()}>
+						<QueryClientProvider client={queryClient}>
+							<Toaster />
+							<Routes>
+								{/* Public routes */}
+								<Route path="/login" element={<Login />} />
+								<Route path="/oauth/callback" element={<OAuthCallback />} />
+								<Route path="/onboarding" element={<Onboarding />} />
 
-							{/* Protected routes */}
-							<Route
-								path="/dashboard"
-								element={
-									<ProtectedLayout>
-										<Home />
-									</ProtectedLayout>
-								}
-							/>
+								{/* Protected routes */}
+								<Route element={<ProtectedRoute />}>
+									<Route path="/dashboard" element={<Home />} />
+									<Route path="/app/:appId" element={<AppDetails />} />
+									<Route
+										path="/app/:appId/settings"
+										element={<AppSettings />}
+									/>
+									<Route path="/create-app" element={<CreateApp />} />
+									<Route path="/events" element={<Events />} />
+									<Route path="/profile" element={<Profile />} />
+									<Route
+										path="/org/:orgId/settings"
+										element={<OrgSettings />}
+									/>
+									<Route
+										path="/workspace/:workspaceId/settings"
+										element={<WorkspaceSettings />}
+									/>
+								</Route>
 
-							{/* App routes */}
-							<Route
-								path="/app/:appId"
-								element={
-									<ProtectedLayout>
-										<AppDetails />
-									</ProtectedLayout>
-								}
-							/>
-							<Route
-								path="/app/:appId/settings"
-								element={
-									<ProtectedLayout>
-										<AppSettings />
-									</ProtectedLayout>
-								}
-							/>
-							<Route
-								path="/create-app"
-								element={
-									<ProtectedLayout>
-										<CreateApp />
-									</ProtectedLayout>
-								}
-							/>
-
-							{/* Settings pages */}
-							<Route
-								path="/profile"
-								element={
-									<ProtectedLayout>
-										<Profile />
-									</ProtectedLayout>
-								}
-							/>
-							<Route
-								path="/org/:orgId/settings"
-								element={
-									<ProtectedLayout>
-										<OrgSettings />
-									</ProtectedLayout>
-								}
-							/>
-							<Route
-								path="/workspace/:workspaceId/settings"
-								element={
-									<ProtectedLayout>
-										<WorkspaceSettings />
-									</ProtectedLayout>
-								}
-							/>
-
-							{/* Default redirect */}
-							<Route path="/" element={<Navigate to="/dashboard" />} />
-							<Route path="*" element={<Navigate to="/dashboard" />} />
-						</Routes>
-					</QueryClientProvider>
-				</TransportProvider>
-			</AuthProvider>
-		</BrowserRouter>
+								{/* Default redirect */}
+								<Route path="/" element={<Navigate to="/dashboard" />} />
+								<Route path="*" element={<Navigate to="/dashboard" />} />
+							</Routes>
+						</QueryClientProvider>
+					</TransportProvider>
+				</AuthProvider>
+			</BrowserRouter>
+		</ThemeProvider>
 	);
 }

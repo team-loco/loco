@@ -1,20 +1,25 @@
-import { useMemo, useState, useEffect } from "react";
-import { useQuery } from "@connectrpc/connect-query";
 import { AppCard } from "@/components/AppCard";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/EmptyState";
-import { OrgFilter } from "@/components/dashboard/OrgFilter";
 import { AppSearch } from "@/components/dashboard/AppSearch";
+import { OrgFilter } from "@/components/dashboard/OrgFilter";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/auth/AuthProvider";
+import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
-import { listApps } from "@/gen/app/v1";
-import { useNavigate } from "react-router";
 import { subscribeToEvents } from "@/lib/events";
+import { useQuery } from "@connectrpc/connect-query";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
 export function Home() {
 	const navigate = useNavigate();
+	const { logout } = useAuth();
+	const [searchParams] = useSearchParams();
+	const workspaceFromUrl = searchParams.get("workspace");
 	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
+	const selectedWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
 	const [searchTerm, setSearchTerm] = useState("");
 
 	// Fetch all organizations
@@ -34,9 +39,10 @@ export function Home() {
 		{ enabled: !!currentOrgId }
 	);
 	const workspaces = listWorkspacesRes?.workspaces ?? [];
-	const currentWorkspaceId = workspaces.length > 0 ? workspaces[0].id : null;
+	const currentWorkspaceId =
+		selectedWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
-	// Fetch all apps for selected workspace
+	// Fetch all apps for selected workspace (only if workspace is selected)
 	const {
 		data: listAppsRes,
 		isLoading: appsLoading,
@@ -44,7 +50,7 @@ export function Home() {
 		refetch: refetchApps,
 	} = useQuery(
 		listApps,
-		currentWorkspaceId ? { workspaceId: currentWorkspaceId } : undefined,
+		{ workspaceId: currentWorkspaceId ?? 0n },
 		{ enabled: !!currentWorkspaceId }
 	);
 
@@ -78,6 +84,14 @@ export function Home() {
 
 	const isLoading = orgsLoading || workspacesLoading || appsLoading;
 	const error = orgsError || appsError;
+
+	// Handle auth failures by redirecting to login
+	useEffect(() => {
+		if (orgsError) {
+			logout();
+			navigate("/login", { replace: true });
+		}
+	}, [orgsError, logout, navigate]);
 
 	if (isLoading) {
 		return (
@@ -123,16 +137,21 @@ export function Home() {
 			</div>
 
 			{/* Controls: Org Filter, Search, Create Button */}
-			<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-				<OrgFilter selectedOrgId={currentOrgId} onOrgChange={setSelectedOrgId} />
-				<AppSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-				<Button
-					onClick={() => navigate("/create-app")}
-					className="w-full sm:w-auto"
-				>
-					+ Create App
-				</Button>
-			</div>
+			{allApps.length > 0 && (
+				<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+					<OrgFilter
+						selectedOrgId={currentOrgId}
+						onOrgChange={setSelectedOrgId}
+					/>
+					<AppSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+					<Button
+						onClick={() => navigate("/create-app")}
+						className="w-full sm:w-auto"
+					>
+						+ Create App
+					</Button>
+				</div>
+			)}
 
 			{/* Apps Grid */}
 			<div className="space-y-4">

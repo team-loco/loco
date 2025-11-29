@@ -1,35 +1,34 @@
 import { useAuth } from "@/auth/AuthProvider";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { getCurrentUser } from "@/gen/user/v1";
+import { initializeMockEvents } from "@/lib/events";
+import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useQuery } from "@connectrpc/connect-query";
-import { Navbar } from "@/components/Navbar";
-import { initializeMockEvents } from "@/lib/events";
 
 interface ProtectedLayoutProps {
 	children: ReactNode;
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
-	const { isAuthenticated } = useAuth();
 	const navigate = useNavigate();
-	const {
-		data: currentUserRes,
-		isLoading,
-		error,
-	} = useQuery(getCurrentUser, {});
+	const { logout } = useAuth();
+	const { isLoading, error } = useQuery(getCurrentUser, {});
 
-	// Initialize mock event streaming once
+	// Handle auth failures by redirecting to login
+	useEffect(() => {
+		if (error) {
+			logout();
+			navigate("/login", { replace: true });
+		}
+	}, [error, logout, navigate]);
+
+	// todo: remove this;Initialize mock event streaming once
 	useEffect(() => {
 		initializeMockEvents();
 	}, []);
-
-	// Not authenticated - redirect to login
-	if (!isAuthenticated) {
-		navigate("/login");
-		return null;
-	}
 
 	// Loading user data
 	if (isLoading) {
@@ -43,20 +42,17 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		);
 	}
 
-	// Error fetching user
-	if (error) {
-		navigate("/login");
-		return null;
-	}
-
-	const user = currentUserRes?.user ?? null;
-
 	return (
-		<div className="flex flex-col min-h-screen bg-background">
-			<Navbar user={user} />
-			<main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
-				{children}
-			</main>
-		</div>
+		<SidebarProvider>
+			<div className="flex min-h-screen bg-background w-full">
+				<AppSidebar />
+				<div className="flex-1 flex flex-col">
+					<div className="p-4">
+						<SidebarTrigger className="-ml-2" />
+					</div>
+					<main className="flex-1 w-full px-6 py-8">{children}</main>
+				</div>
+			</div>
+		</SidebarProvider>
 	);
 }

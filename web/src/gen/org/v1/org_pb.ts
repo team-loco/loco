@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file org/v1/org.proto.
  */
 export const file_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChBvcmcvdjEvb3JnLnByb3RvEgtsb2NvLm9yZy52MSKcAQoMT3JnYW5pemF0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJwChBXb3Jrc3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIuChBDcmVhdGVPcmdSZXF1ZXN0EhEKBG5hbWUYASABKAlIAIgBAUIHCgVfbmFtZSJMChFDcmVhdGVPcmdSZXNwb25zZRImCgNvcmcYASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SDwoHbWVzc2FnZRgCIAEoCSIfCg1HZXRPcmdSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAyI4Cg5HZXRPcmdSZXNwb25zZRImCgNvcmcYASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24iGwoZR2V0Q3VycmVudFVzZXJPcmdzUmVxdWVzdCJFChpHZXRDdXJyZW50VXNlck9yZ3NSZXNwb25zZRInCgRvcmdzGAEgAygLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uIkEKD0xpc3RPcmdzUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJQChBMaXN0T3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SEwoLdG90YWxfY291bnQYAiABKAMiNAoQVXBkYXRlT3JnUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSEAoIbmV3X25hbWUYAiABKAkiTAoRVXBkYXRlT3JnUmVzcG9uc2USJgoDb3JnGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEg8KB21lc3NhZ2UYAiABKAkiIgoQRGVsZXRlT3JnUmVxdWVzdBIOCgZvcmdfaWQYASABKAMiTAoRRGVsZXRlT3JnUmVzcG9uc2USJgoDb3JnGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEg8KB21lc3NhZ2UYAiABKAkiVgoWSXNVbmlxdWVPcmdOYW1lUmVxdWVzdBIMCgRuYW1lGAEgASgJEhsKDmV4Y2x1ZGVfb3JnX2lkGAIgASgDSACIAQFCEQoPX2V4Y2x1ZGVfb3JnX2lkIiwKF0lzVW5pcXVlT3JnTmFtZVJlc3BvbnNlEhEKCWlzX3VuaXF1ZRgBIAEoCCInChVMaXN0V29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDIksKFkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USMQoKd29ya3NwYWNlcxgBIAMoCzIdLmxvY28ub3JnLnYxLldvcmtzcGFjZVN1bW1hcnkynAUKCk9yZ1NlcnZpY2USSgoJQ3JlYXRlT3JnEh0ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1Jlc3BvbnNlEkEKBkdldE9yZxIaLmxvY28ub3JnLnYxLkdldE9yZ1JlcXVlc3QaGy5sb2NvLm9yZy52MS5HZXRPcmdSZXNwb25zZRJlChJHZXRDdXJyZW50VXNlck9yZ3MSJi5sb2NvLm9yZy52MS5HZXRDdXJyZW50VXNlck9yZ3NSZXF1ZXN0GicubG9jby5vcmcudjEuR2V0Q3VycmVudFVzZXJPcmdzUmVzcG9uc2USRwoITGlzdE9yZ3MSHC5sb2NvLm9yZy52MS5MaXN0T3Jnc1JlcXVlc3QaHS5sb2NvLm9yZy52MS5MaXN0T3Jnc1Jlc3BvbnNlEkoKCVVwZGF0ZU9yZxIdLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXNwb25zZRJKCglEZWxldGVPcmcSHS5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVzcG9uc2USWQoOTGlzdFdvcmtzcGFjZXMSIi5sb2NvLm9yZy52MS5MaXN0V29ya3NwYWNlc1JlcXVlc3QaIy5sb2NvLm9yZy52MS5MaXN0V29ya3NwYWNlc1Jlc3BvbnNlElwKD0lzVW5pcXVlT3JnTmFtZRIjLmxvY28ub3JnLnYxLklzVW5pcXVlT3JnTmFtZVJlcXVlc3QaJC5sb2NvLm9yZy52MS5Jc1VuaXF1ZU9yZ05hbWVSZXNwb25zZUI1WjNnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9vcmcvdjE7b3JndjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChBvcmcvdjEvb3JnLnByb3RvEgtsb2NvLm9yZy52MSKcAQoMT3JnYW5pemF0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJwChBXb3Jrc3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIuChBDcmVhdGVPcmdSZXF1ZXN0EhEKBG5hbWUYASABKAlIAIgBAUIHCgVfbmFtZSJMChFDcmVhdGVPcmdSZXNwb25zZRImCgNvcmcYASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SDwoHbWVzc2FnZRgCIAEoCSIfCg1HZXRPcmdSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAyI4Cg5HZXRPcmdSZXNwb25zZRImCgNvcmcYASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24iGwoZR2V0Q3VycmVudFVzZXJPcmdzUmVxdWVzdCJFChpHZXRDdXJyZW50VXNlck9yZ3NSZXNwb25zZRInCgRvcmdzGAEgAygLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uIkEKD0xpc3RPcmdzUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJQChBMaXN0T3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SEwoLdG90YWxfY291bnQYAiABKAMiNAoQVXBkYXRlT3JnUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSEAoIbmV3X25hbWUYAiABKAkiTAoRVXBkYXRlT3JnUmVzcG9uc2USJgoDb3JnGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEg8KB21lc3NhZ2UYAiABKAkiIgoQRGVsZXRlT3JnUmVxdWVzdBIOCgZvcmdfaWQYASABKAMiTAoRRGVsZXRlT3JnUmVzcG9uc2USJgoDb3JnGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEg8KB21lc3NhZ2UYAiABKAkiVgoWSXNVbmlxdWVPcmdOYW1lUmVxdWVzdBIMCgRuYW1lGAEgASgJEhsKDmV4Y2x1ZGVfb3JnX2lkGAIgASgDSACIAQFCEQoPX2V4Y2x1ZGVfb3JnX2lkIiwKF0lzVW5pcXVlT3JnTmFtZVJlc3BvbnNlEhEKCWlzX3VuaXF1ZRgBIAEoCDLBBAoKT3JnU2VydmljZRJKCglDcmVhdGVPcmcSHS5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVzcG9uc2USQQoGR2V0T3JnEhoubG9jby5vcmcudjEuR2V0T3JnUmVxdWVzdBobLmxvY28ub3JnLnYxLkdldE9yZ1Jlc3BvbnNlEmUKEkdldEN1cnJlbnRVc2VyT3JncxImLmxvY28ub3JnLnYxLkdldEN1cnJlbnRVc2VyT3Jnc1JlcXVlc3QaJy5sb2NvLm9yZy52MS5HZXRDdXJyZW50VXNlck9yZ3NSZXNwb25zZRJHCghMaXN0T3JncxIcLmxvY28ub3JnLnYxLkxpc3RPcmdzUmVxdWVzdBodLmxvY28ub3JnLnYxLkxpc3RPcmdzUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJcCg9Jc1VuaXF1ZU9yZ05hbWUSIy5sb2NvLm9yZy52MS5Jc1VuaXF1ZU9yZ05hbWVSZXF1ZXN0GiQubG9jby5vcmcudjEuSXNVbmlxdWVPcmdOYW1lUmVzcG9uc2VCNVozZ2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.org.v1.Organization
@@ -589,60 +589,6 @@ export const IsUniqueOrgNameResponseSchema: GenMessage<IsUniqueOrgNameResponse, 
   messageDesc(file_org_v1_org, 15);
 
 /**
- * @generated from message loco.org.v1.ListWorkspacesRequest
- */
-export type ListWorkspacesRequest = Message<"loco.org.v1.ListWorkspacesRequest"> & {
-  /**
-   * @generated from field: int64 org_id = 1;
-   */
-  orgId: bigint;
-};
-
-/**
- * @generated from message loco.org.v1.ListWorkspacesRequest
- */
-export type ListWorkspacesRequestJson = {
-  /**
-   * @generated from field: int64 org_id = 1;
-   */
-  orgId?: string;
-};
-
-/**
- * Describes the message loco.org.v1.ListWorkspacesRequest.
- * Use `create(ListWorkspacesRequestSchema)` to create a new message.
- */
-export const ListWorkspacesRequestSchema: GenMessage<ListWorkspacesRequest, {jsonType: ListWorkspacesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 16);
-
-/**
- * @generated from message loco.org.v1.ListWorkspacesResponse
- */
-export type ListWorkspacesResponse = Message<"loco.org.v1.ListWorkspacesResponse"> & {
-  /**
-   * @generated from field: repeated loco.org.v1.WorkspaceSummary workspaces = 1;
-   */
-  workspaces: WorkspaceSummary[];
-};
-
-/**
- * @generated from message loco.org.v1.ListWorkspacesResponse
- */
-export type ListWorkspacesResponseJson = {
-  /**
-   * @generated from field: repeated loco.org.v1.WorkspaceSummary workspaces = 1;
-   */
-  workspaces?: WorkspaceSummaryJson[];
-};
-
-/**
- * Describes the message loco.org.v1.ListWorkspacesResponse.
- * Use `create(ListWorkspacesResponseSchema)` to create a new message.
- */
-export const ListWorkspacesResponseSchema: GenMessage<ListWorkspacesResponse, {jsonType: ListWorkspacesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 17);
-
-/**
  * @generated from service loco.org.v1.OrgService
  */
 export const OrgService: GenService<{
@@ -693,14 +639,6 @@ export const OrgService: GenService<{
     methodKind: "unary";
     input: typeof DeleteOrgRequestSchema;
     output: typeof DeleteOrgResponseSchema;
-  },
-  /**
-   * @generated from rpc loco.org.v1.OrgService.ListWorkspaces
-   */
-  listWorkspaces: {
-    methodKind: "unary";
-    input: typeof ListWorkspacesRequestSchema;
-    output: typeof ListWorkspacesResponseSchema;
   },
   /**
    * @generated from rpc loco.org.v1.OrgService.IsUniqueOrgName

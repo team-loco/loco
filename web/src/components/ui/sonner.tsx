@@ -8,13 +8,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
 		<Sonner
 			theme={theme as ToasterProps["theme"]}
 			// closeButton
-			position="top-right"
+			position="bottom-right"
 			style={{ fontFamily: "inherit", overflowWrap: "anywhere" }}
 			toastOptions={{
 				unstyled: true,
 				classNames: {
 					toast:
-						"bg-bg-default text-fg-default border-border-default border-2 font-heading shadow-shadow rounded-base text-[13px] flex items-center gap-2.5 px-5 py-5 w-[356px] [&:has(button)]:justify-between",
+						"bg-bg-default text-fg-default border-border-default border-2 font-heading rounded-base text-[13px] flex items-center gap-2.5 px-5 py-5 w-[356px] [&:has(button)]:justify-between",
 					description: "text-fg-muted font-base",
 					actionButton:
 						"font-base border-2 text-[12px] h-6 px-2 bg-blue text-white border-border-default rounded-base shrink-0",

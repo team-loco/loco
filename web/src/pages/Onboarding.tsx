@@ -1,32 +1,28 @@
-import { useAuth } from "@/auth/AuthProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getCurrentUser } from "@/gen/user/v1";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
 import { useQuery } from "@connectrpc/connect-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 
 export function Onboarding() {
 	const navigate = useNavigate();
-	const { isAuthenticated } = useAuth();
+	const hasStarted = useRef(false);
 	const { data: currentUserRes } = useQuery(getCurrentUser, {});
 	const { autoCreate, step, error } = useAutoCreateOrgWorkspace();
 
 	const user = currentUserRes?.user;
 
 	useEffect(() => {
-		if (!isAuthenticated) {
-			navigate("/login");
+		if (!user || hasStarted.current) {
 			return;
 		}
 
-		if (!user) {
-			return;
-		}
+		hasStarted.current = true;
 
 		// Start auto-creation
-		autoCreate(user.email, user.name)
+		autoCreate(user.email)
 			.then(() => {
 				// Wait a moment for smooth UX, then redirect
 				setTimeout(() => {
@@ -36,7 +32,7 @@ export function Onboarding() {
 			.catch(() => {
 				// Error is handled in hook state
 			});
-	}, [user, isAuthenticated, navigate, autoCreate]);
+	}, [user, navigate, autoCreate]);
 
 	if (!user) {
 		return null;
