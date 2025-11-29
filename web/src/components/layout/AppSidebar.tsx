@@ -120,7 +120,7 @@ export function AppSidebar() {
 					</SidebarMenu>
 				</SidebarGroup>
 
-				{/* Workspaces */}
+				{/* Workspaces & Apps Tree */}
 				<SidebarGroup>
 					<SidebarGroupLabel>Workspaces</SidebarGroupLabel>
 					<SidebarMenu className="space-y-1 pl-4">
@@ -131,74 +131,63 @@ export function AppSidebar() {
 							</>
 						) : (
 							workspaces.map((ws) => (
-								<SidebarMenuItem key={ws.id.toString()}>
-									<SidebarMenuButton
-										onClick={() => {
-											handleWorkspaceClick(ws.id);
-											setActiveWorkspaceName(ws.name);
-										}}
-										isActive={activeWorkspaceId === ws.id}
-									>
-										<span>{ws.name}</span>
-									</SidebarMenuButton>
-								</SidebarMenuItem>
-							))
-						)}
-					</SidebarMenu>
-				</SidebarGroup>
-
-				{/* Apps in Active Workspace */}
-				<SidebarGroup>
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-1">
-							<SidebarGroupLabel className="m-0">Apps</SidebarGroupLabel>
-							{activeWorkspaceId && (
-								<span className="text-xs opacity-60 leading-none">
-									In Workspace: {activeWorkspaceName}
-								</span>
-							)}
-						</div>
-						{activeWorkspaceId && (
-							<button
-								onClick={() => navigate("/create-app")}
-								className="p-1 hover:bg-secondary-background rounded-neo"
-								title="Create App"
-							>
-								<Plus className="h-4 w-4" />
-							</button>
-						)}
-					</div>
-					<SidebarMenu className="space-y-1 pl-4">
-						{activeWorkspaceId ? (
-							appsQuery.isLoading ? (
-								<>
-									<Skeleton className="h-8 w-full rounded-neo" />
-									<Skeleton className="h-8 w-full rounded-neo" />
-								</>
-							) : appsQuery.data?.apps && appsQuery.data.apps.length > 0 ? (
-								appsQuery.data.apps.map((app) => (
-									<SidebarMenuItem key={app.id.toString()}>
+								<div key={ws.id.toString()}>
+									<SidebarMenuItem>
 										<SidebarMenuButton
-											asChild
-											onClick={() => handleAppClick(app.id)}
-											isActive={activeAppId === app.id}
+											onClick={() => {
+												handleWorkspaceClick(ws.id);
+												setActiveWorkspaceName(ws.name);
+											}}
+											isActive={activeWorkspaceId === ws.id}
 										>
-											<button className="flex items-center gap-2 text-sm">
-												<Grid className="h-4 w-4 shrink-0" />
-												<span className="truncate">{app.name}</span>
-											</button>
+											<span>{ws.name}</span>
 										</SidebarMenuButton>
 									</SidebarMenuItem>
-								))
-							) : (
-								<p className="text-xs text-foreground opacity-50 px-3 py-2">
-									No apps yet
-								</p>
-							)
-						) : (
-							<p className="text-xs text-foreground opacity-50 px-3 py-2">
-								Select a workspace to view apps
-							</p>
+
+									{/* Apps under this workspace */}
+									{activeWorkspaceId === ws.id && (
+										<div className="space-y-1 mt-1">
+											<div className="flex items-center justify-between px-4 py-1">
+												<span className="text-xs font-heading">Apps</span>
+												<button
+													onClick={() => navigate("/create-app")}
+													className="p-0.5 hover:bg-secondary-background rounded-neo"
+													title="Create App"
+												>
+													<Plus className="h-3 w-3" />
+												</button>
+											</div>
+											<SidebarMenu className="space-y-1 pl-4">
+												{appsQuery.isLoading ? (
+													<>
+														<Skeleton className="h-7 w-full rounded-neo" />
+														<Skeleton className="h-7 w-full rounded-neo" />
+													</>
+												) : appsQuery.data?.apps && appsQuery.data.apps.length > 0 ? (
+													appsQuery.data.apps.map((app) => (
+														<SidebarMenuItem key={app.id.toString()}>
+															<SidebarMenuButton
+																asChild
+																onClick={() => handleAppClick(app.id)}
+																isActive={activeAppId === app.id}
+															>
+																<button className="flex items-center gap-2 text-sm">
+																	<Grid className="h-4 w-4 shrink-0" />
+																	<span className="truncate">{app.name}</span>
+																</button>
+															</SidebarMenuButton>
+														</SidebarMenuItem>
+													))
+												) : (
+													<p className="text-xs text-foreground opacity-50 px-3 py-1">
+														No apps yet
+													</p>
+												)}
+											</SidebarMenu>
+										</div>
+									)}
+								</div>
+							))
 						)}
 					</SidebarMenu>
 				</SidebarGroup>
