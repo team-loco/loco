@@ -55,6 +55,49 @@ func (ns NullDeploymentStatus) Value() (driver.Value, error) {
 	return string(ns.DeploymentStatus), nil
 }
 
+type EntityType string
+
+const (
+	EntityTypeOrganization EntityType = "organization"
+	EntityTypeWorkspace    EntityType = "workspace"
+	EntityTypeProject      EntityType = "project"
+)
+
+func (e *EntityType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = EntityType(s)
+	case string:
+		*e = EntityType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for EntityType: %T", src)
+	}
+	return nil
+}
+
+type NullEntityType struct {
+	EntityType EntityType `json:"entityType"`
+	Valid      bool       `json:"valid"` // Valid is true if EntityType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullEntityType) Scan(value interface{}) error {
+	if value == nil {
+		ns.EntityType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.EntityType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullEntityType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.EntityType), nil
+}
+
 type WorkspaceRole string
 
 const (
@@ -159,6 +202,14 @@ type OrganizationMember struct {
 	CreatedAt      pgtype.Timestamptz `json:"createdAt"`
 }
 
+type Token struct {
+	Token      string             `json:"token"`
+	Scopes     []byte             `json:"scopes"`
+	EntityType EntityType         `json:"entityType"`
+	EntityID   int64              `json:"entityId"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+}
+
 type User struct {
 	ID         int64              `json:"id"`
 	ExternalID string             `json:"externalId"`
@@ -167,6 +218,13 @@ type User struct {
 	AvatarUrl  pgtype.Text        `json:"avatarUrl"`
 	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type UserScope struct {
+	UserID     int64      `json:"userId"`
+	Scope      string     `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
 }
 
 type Workspace struct {

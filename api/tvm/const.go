@@ -1,12 +1,6 @@
-package vending
+package tvm
 
-import (
-	"context"
-	"os"
-
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/loco-team/loco/api/db"
-)
+import "errors"
 
 const issuer = "loco-api"
 const (
@@ -87,16 +81,17 @@ const (
 	ActionEditProjectPermissions = "edit_project_permissions" // edit permissions (project-level r/w/a)
 
 	// user
-	ActionReadOwnData        = "read_own_data"         // view own data
-	ActionReadOwnOrgs        = "read_own_orgs"         // view what organizations the user is a member of
-	ActionReadOwnWks         = "read_own_workspaces"   // view what workspaces the user is a member of
+	ActionReadUserInfo       = "read_user_info"        // view user info
+	ActionReadUserOrgs       = "read_user_orgs"        // view what organizations the user is a member of
+	ActionReadUserWks        = "read_user_workspaces"  // view what workspaces the user is a member of
 	ActionReadUserEventTrail = "read_user_event_trail" // read the user-level event trail
+	ActionReadUserSettings   = "read_user_settings"    // read user settings
 
-	ActionCreateOrg         = "create_org"          // create a new organization
-	ActionUpdateOwnProfile  = "update_own_profile"  // update own profile
-	ActionUpdateOwnSettings = "update_own_settings" // update own settings
-	ActionLeaveOrg          = "leave_org"           // leave an organization
-	ActionLeaveWks          = "leave_workspace"     // leave a workspace
+	ActionEditUserInfo     = "edit_user_info"     // edit user info
+	ActionEditUserSettings = "edit_user_settings" // edit user settings
+	ActionCreateOrg        = "create_org"         // create a new organization
+	ActionLeaveOrg         = "leave_org"          // leave an organization
+	ActionLeaveWks         = "leave_workspace"    // leave a workspace
 
 	ActionDeleteOwnAccount = "delete_own_account" // delete own account
 )
@@ -165,16 +160,16 @@ var actionScopes = map[string][]string{
 	// the project admin can also delete the project, as listed above
 
 	// user
-	ActionReadOwnData:        {ScopeUserRead},
-	ActionReadOwnOrgs:        {ScopeUserRead},
-	ActionReadOwnWks:         {ScopeUserRead},
+	ActionReadUserInfo:       {ScopeUserRead},
+	ActionReadUserOrgs:       {ScopeUserRead},
+	ActionReadUserWks:        {ScopeUserRead},
 	ActionReadUserEventTrail: {ScopeUserRead},
 
-	ActionCreateOrg:         {ScopeUserWrite},
-	ActionUpdateOwnProfile:  {ScopeUserWrite},
-	ActionUpdateOwnSettings: {ScopeUserWrite},
-	ActionLeaveOrg:          {ScopeUserWrite},
-	ActionLeaveWks:          {ScopeUserWrite},
+	ActionCreateOrg:        {ScopeUserWrite},
+	ActionEditUserInfo:     {ScopeUserWrite},
+	ActionEditUserSettings: {ScopeUserWrite},
+	ActionLeaveOrg:         {ScopeUserWrite},
+	ActionLeaveWks:         {ScopeUserWrite},
 
 	ActionDeleteOwnAccount: {ScopeUserAdmin},
 }
@@ -192,35 +187,7 @@ var actionScopes = map[string][]string{
 // project trail: resource creation/deletion, user invites/removals, permission changes, token created for "on behalf of" the project, etc.
 // user trail: own account changes, org joins/leaves, wks joins/leaves, logins etc, token created for "on behalf of" the user, etc.
 
-type Claims struct {
-	EntityID string   `json:"entity_id"` // on behalf of which entity the token is issued
-	Scopes   []string `json:"scopes"`    // scopes associated with the token
-	jwt.RegisteredClaims
-}
-
-type TokenService interface {
-	IssueToken(ctx context.Context, subject string, scopes []string, opts ...IssueOption) (string, error)
-	ValidateToken(ctx context.Context, token string) (*Claims, error)
-	RefreshToken(ctx context.Context, refreshToken string) (string, string, error)
-	RevokeToken(ctx context.Context, tokenID string) error
-}
-
-type VendingMachine struct {
-	db     *db.DB
-	secret []byte
-}
-
-func (tvm *VendingMachine) Issue(scopes []string) (string, error) {
-
-}
-
-func NewVendingMachine(db *db.DB) *VendingMachine {
-	secret := os.Getenv("JWT_SECRET")
-	if len(secret) == 0 {
-		panic("JWT_SECRET not set")
-	}
-	return &VendingMachine{
-		db:     db,
-		secret: []byte(secret),
-	}
-}
+var (
+	ErrDurationExceedsMaxAllowed = errors.New("token duration exceeds maximum allowed")
+	ErrInsufficentPermissions    = errors.New("insufficient permissions to issue token with requested scopes")
+)
