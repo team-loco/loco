@@ -13,6 +13,7 @@ import {
 	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupLabel,
+	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
@@ -23,6 +24,7 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { getCurrentUser, logout } from "@/gen/user/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useHeader } from "@/context/HeaderContext";
 import {
 	ArrowRight,
 	Bell,
@@ -33,7 +35,7 @@ import {
 	Plus,
 	Settings,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { ThemeToggle } from "./ThemeToggle";
@@ -41,6 +43,7 @@ import { ThemeToggle } from "./ThemeToggle";
 export function AppSidebar() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
@@ -54,6 +57,7 @@ export function AppSidebar() {
 	const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<bigint>>(
 		new Set(activeWorkspaceId ? [activeWorkspaceId] : [])
 	);
+	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
 	const [eventCount] = useState(0);
 
 	const toggleWorkspaceExpansion = (workspaceId: bigint) => {
@@ -92,6 +96,34 @@ export function AppSidebar() {
 		{ enabled: !!activeWorkspaceId }
 	);
 
+	// Update header based on current route
+	useEffect(() => {
+		const appName = appsQuery.data?.apps?.find((app) => app.id === activeAppId)?.name;
+		
+		if (activeAppId && appName) {
+			setHeader(
+				<div className="flex flex-col">
+					<h1 className="text-2xl font-heading">{appName}</h1>
+				</div>
+			);
+		} else if (activeWorkspaceId) {
+			const workspaceName = workspaces.find((ws) => ws.id === activeWorkspaceId)?.name;
+			if (workspaceName) {
+				setHeader(
+					<div className="flex flex-col">
+						<h1 className="text-2xl font-heading">{workspaceName}</h1>
+					</div>
+				);
+			}
+		} else {
+			setHeader(
+				<div className="flex flex-col">
+					<h1 className="text-2xl font-heading">Dashboard</h1>
+				</div>
+			);
+		}
+	}, [activeAppId, activeWorkspaceId, appsQuery.data?.apps, workspaces, setHeader]);
+
 	const handleLogout = () => {
 		logoutMutation(
 			{},
@@ -115,8 +147,48 @@ export function AppSidebar() {
 		navigate(`/app/${appId}${activeWorkspaceId ? `?workspace=${activeWorkspaceId}` : ""}`);
 	};
 
+	const activeOrg = orgs.find((org) => org.id === (selectedOrgId || orgs[0]?.id));
+
 	return (
 		<Sidebar className="border-r-2 border-border">
+			<SidebarHeader>
+				<SidebarMenu>
+					<SidebarMenuItem>
+						<DropdownMenu>
+							<DropdownMenuTrigger className="focus-visible:ring-0" asChild>
+								<SidebarMenuButton
+									size="lg"
+									className="data-[state=open]:bg-main data-[state=open]:text-main-foreground data-[state=open]:outline-border data-[state=open]:outline-2"
+								>
+									<div className="flex items-center gap-2 flex-1">
+										<span className="font-heading truncate">{activeOrg?.name}</span>
+									</div>
+									<ChevronsUpDown className="ml-auto" />
+								</SidebarMenuButton>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-base"
+								align="start"
+								side="right"
+								sideOffset={4}
+							>
+								<DropdownMenuLabel className="text-sm font-heading">
+									Organizations
+								</DropdownMenuLabel>
+								{orgs.map((org) => (
+									<DropdownMenuItem
+										key={org.id.toString()}
+										onClick={() => setSelectedOrgId(org.id)}
+										className="gap-2 p-1.5"
+									>
+										<span>{org.name}</span>
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</SidebarMenuItem>
+				</SidebarMenu>
+			</SidebarHeader>
 			<SidebarContent className="space-y-0">
 				{/* Dashboard Quick Access */}
 				<SidebarGroup>
