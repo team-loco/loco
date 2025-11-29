@@ -12,9 +12,8 @@ SELECT scope FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity
 -- name: GetUsersWithScopeOnEntity :many
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3;
 
--- what scopes are associated with token x?
--- name: GetTokenScopes :one
-SELECT scopes, entity_type, entity_id FROM tokens WHERE token = $1;
+-- name: GetToken :one
+SELECT scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1;
 
 -- which tokens exist on behalf of entity y?
 -- name: GetTokensForEntity :many

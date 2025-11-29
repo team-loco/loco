@@ -7,8 +7,7 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 )
 
 const addUserScope = `-- name: AddUserScope :exec
@@ -55,21 +54,26 @@ func (q *Queries) DeleteTokensForEntity(ctx context.Context, arg DeleteTokensFor
 	return err
 }
 
-const getTokenScopes = `-- name: GetTokenScopes :one
-SELECT scopes, entity_type, entity_id FROM tokens WHERE token = $1
+const getToken = `-- name: GetToken :one
+SELECT scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1
 `
 
-type GetTokenScopesRow struct {
-	Scopes     []byte     `json:"scopes"`
-	EntityType EntityType `json:"entityType"`
-	EntityID   int64      `json:"entityId"`
+type GetTokenRow struct {
+	Scopes     []EntityScope `json:"scopes"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   int64         `json:"entityId"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
 }
 
-// what scopes are associated with token x?
-func (q *Queries) GetTokenScopes(ctx context.Context, token string) (GetTokenScopesRow, error) {
-	row := q.db.QueryRow(ctx, getTokenScopes, token)
-	var i GetTokenScopesRow
-	err := row.Scan(&i.Scopes, &i.EntityType, &i.EntityID)
+func (q *Queries) GetToken(ctx context.Context, token string) (GetTokenRow, error) {
+	row := q.db.QueryRow(ctx, getToken, token)
+	var i GetTokenRow
+	err := row.Scan(
+		&i.Scopes,
+		&i.EntityType,
+		&i.EntityID,
+		&i.ExpiresAt,
+	)
 	return i, err
 }
 
@@ -251,11 +255,11 @@ INSERT INTO tokens (token, entity_type, entity_id, scopes, expires_at) VALUES ($
 `
 
 type StoreTokenParams struct {
-	Token      string             `json:"token"`
-	EntityType EntityType         `json:"entityType"`
-	EntityID   int64              `json:"entityId"`
-	Scopes     []byte             `json:"scopes"`
-	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	Token      string        `json:"token"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   int64         `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
 }
 
 func (q *Queries) StoreToken(ctx context.Context, arg StoreTokenParams) error {

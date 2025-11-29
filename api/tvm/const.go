@@ -1,25 +1,13 @@
 package tvm
 
-import "errors"
+import (
+	"errors"
+
+	queries "github.com/loco-team/loco/api/gen/db"
+)
 
 const issuer = "loco-api"
-const (
-	ScopeSysRead      = "sys:read"      // system-level read access (e.g., list all orgs, list users, list clusters, read system "event trail", etc.: infra visibility)
-	ScopeSysWrite     = "sys:write"     // system-level write access (e.g., create clusters, delete clusters, run migrations, undo migrations, etc.: infra changes)
-	ScopeSysAdmin     = "sys:admin"     // system-level admin access (e.g., permission giving at the system level, spin up loco db)
-	ScopeOrgRead      = "org:read"      // organization-level read access (e.g., list workspaces, list users in org, see billing info, see org "event trail", etc.: org visibility)
-	ScopeOrgWrite     = "org:write"     // organization-level write access (e.g., create workspaces, delete workspaces, invite users to org, remove users from org, etc.: org changes)
-	ScopeOrgAdmin     = "org:admin"     // organization-level admin access  (e.g org update billing, perm giving at org level, etc.: org admin tasks)
-	ScopeWksRead      = "wks:read"      // workspace-level read access (e.g., view workspace resources, view workspace settings, read workspace "event trail", etc.: workspace visibility)
-	ScopeWksWrite     = "wks:write"     // workspace-level write access (e.g., create resources in workspace, update workspace settings, add users, remove users, etc.: workspace changes)
-	ScopeWksAdmin     = "wks:admin"     // workspace-level admin access (e.g., delete workspace, perm giving at workspace level, etc.: workspace admin tasks)
-	ScopeProjectRead  = "project:read"  // project-level read access (e.g., view project resources, view project settings, view project "event trail", etc.: project visibility)
-	ScopeProjectWrite = "project:write" // project-level write access (e.g., create resources in project, update project settings, add users, remove users, etc.: project changes)
-	ScopeProjectAdmin = "project:admin" // project-level admin access (e.g., delete project, perm giving at project level, etc.: project admin tasks)
-	ScopeUserRead     = "user:read"     // user-level read access (e.g., view own data, view what orgs that u are a member of, view user "event trail", view what wks u are a member of, own settings, etc.: personal visibility)
-	ScopeUserWrite    = "user:write"    // user-level write access (e.g., create orgs, update own profile, update own settings, leave orgs, leave wks, etc.: personal changes)
-	ScopeUserAdmin    = "user:admin"    // user-level admin access (e.g., delete own account, etc.: personal admin tasks)
-)
+
 const (
 	ActionListOrgs             = "list_orgs"               // list all organizations in the system
 	ActionListUsers            = "list_users"              // list all users in the system
@@ -54,12 +42,12 @@ const (
 	ActionDeleteOrg          = "delete_org"           // delete the organization
 
 	// workspace
-	ActionListProjects      = "list_projects"        // list all projects in a workspace
+	ActionListApps          = "list_apps"            // list all projects in a workspace
 	ActionReadWksSettings   = "read_wks_settings"    // view settings for a workspace
 	ActionReadWksEventTrail = "read_wks_event_trail" // read the workspace-level event trail
 
-	ActionCreateProject   = "create_project"    // create a new project in a workspace
-	ActionDeleteProject   = "delete_project"    // delete an existing project from a workspace
+	ActionCreateApp       = "create_app"        // create a new project in a workspace
+	ActionDeleteApp       = "delete_app"        // delete an existing project from a workspace
 	ActionAddWksUser      = "add_wks_user"      // add a user to a workspace
 	ActionRemoveWksUser   = "remove_wks_user"   // remove a user from a workspace
 	ActionEditWksSettings = "edit_wks_settings" // edit settings for a workspace
@@ -67,18 +55,18 @@ const (
 	ActionEditWksPermissions = "edit_wks_permissions" // edit permissions (wks-level r/w/a, but also project-level r/w/a)
 
 	// project
-	ActionReadProjectSettings   = "read_project_settings"    // view settings for a project
-	ActionReadProjectEventTrail = "read_project_event_trail" // read the project-level event trail
+	ActionReadAppSettings   = "read_app_settings"    // view settings for a project
+	ActionReadAppEventTrail = "read_app_event_trail" // read the project-level event trail
 
-	ActionCreateProjectResource = "create_project_resource" // create a new resource in a project
-	ActionDeleteProjectResource = "delete_project_resource" // delete an existing resource from a project
-	ActionProjectDeploy         = "deploy_project"          // deploy a resource
-	ActionProjectUndeploy       = "undeploy_project"        // undeploy a resource
-	ActionAddProjectUser        = "add_project_user"        // add a user to a project
-	ActionRemoveProjectUser     = "remove_project_user"     // remove a user from a project
-	ActionEditProjectSettings   = "edit_project_settings"   // edit settings for a project
+	ActionCreateAppResource = "create_app_resource" // create a new resource in a project
+	ActionDeleteAppResource = "delete_app_resource" // delete an existing resource from a project
+	ActionAppDeploy         = "deploy_app"          // deploy a resource
+	ActionAppUndeploy       = "undeploy_app"        // undeploy a resource
+	ActionAddAppUser        = "add_app_user"        // add a user to a project
+	ActionRemoveAppUser     = "remove_app_user"     // remove a user from a project
+	ActionEditAppSettings   = "edit_app_settings"   // edit settings for a project
 
-	ActionEditProjectPermissions = "edit_project_permissions" // edit permissions (project-level r/w/a)
+	ActionEditAppPermissions = "edit_app_permissions" // edit permissions (project-level r/w/a)
 
 	// user
 	ActionReadUserInfo       = "read_user_info"        // view user info
@@ -96,82 +84,135 @@ const (
 	ActionDeleteOwnAccount = "delete_own_account" // delete own account
 )
 
-// the actions that map to scopes that can perform the action
-// the list is an OR list - having any one of the scopes allows the action to be completed
-// in the future, if an AND list is needed, it could be a list of lists
-var actionScopes = map[string][]string{
-	ActionListOrgs:             {ScopeSysRead},
-	ActionListUsers:            {ScopeSysRead},
-	ActionListClusters:         {ScopeSysRead},
-	ActionReadSystemEventTrail: {ScopeSysRead},
+func Action(entity queries.Entity, action string) []queries.EntityScope {
+	scopes, ok := actionScopes[action]
+	if !ok {
+		return nil
+	}
 
-	ActionCreateUser:          {ScopeSysWrite},
-	ActionDeleteUser:          {ScopeSysWrite},
-	ActionCreateSystemCluster: {ScopeSysWrite},
-	ActionDeleteSystemCluster: {ScopeSysWrite},
-	ActionSystemMigrations:    {ScopeSysWrite},
+	entityScopes := make([]queries.EntityScope, 0, len(scopes))
+	for _, scope := range scopes {
+		entityScopes = append(entityScopes, scope.attachEntityID(entity.ID))
+	}
 
-	ActionEditSystemPermissions: {ScopeSysAdmin},
-	ActionSystemDatabase:        {ScopeSysAdmin},
+	return entityScopes
+}
+
+// entityTypeScope is a helper struct to represent a combination of entity type and scope.
+// e.g. org:read, wks:write, app:admin, etc. while not remaining specific to any specific entity ID.
+// this isn't represented in the db directly, but is useful for mapping actions to required scopes.
+type entityTypeScope struct {
+	EntityType queries.EntityType
+	Scope      queries.Scope
+}
+
+// attachEntityID attaches a specific entity ID to the entityTypeScope, returning a full EntityScope.
+// this is used when checking if a user has the required scopes for a given action on a specific entity.
+// since having org:read in one org doesn't let u read in another org.
+func (e entityTypeScope) attachEntityID(id int64) queries.EntityScope {
+	return queries.EntityScope{
+		Entity: queries.Entity{
+			Type: e.EntityType,
+			ID:   id,
+		},
+		Scope: e.Scope,
+	}
+}
+
+var scopeSysRead = entityTypeScope{EntityType: queries.EntityTypeSystem, Scope: queries.ScopeRead}
+var scopeSysWrite = entityTypeScope{EntityType: queries.EntityTypeSystem, Scope: queries.ScopeWrite}
+var scopeSysAdmin = entityTypeScope{EntityType: queries.EntityTypeSystem, Scope: queries.ScopeAdmin}
+
+var scopeOrgRead = entityTypeScope{EntityType: queries.EntityTypeOrganization, Scope: queries.ScopeRead}
+var scopeOrgWrite = entityTypeScope{EntityType: queries.EntityTypeOrganization, Scope: queries.ScopeWrite}
+var scopeOrgAdmin = entityTypeScope{EntityType: queries.EntityTypeOrganization, Scope: queries.ScopeAdmin}
+
+var scopeWksRead = entityTypeScope{EntityType: queries.EntityTypeWorkspace, Scope: queries.ScopeRead}
+var scopeWksWrite = entityTypeScope{EntityType: queries.EntityTypeWorkspace, Scope: queries.ScopeWrite}
+var scopeWksAdmin = entityTypeScope{EntityType: queries.EntityTypeWorkspace, Scope: queries.ScopeAdmin}
+
+var scopeAppRead = entityTypeScope{EntityType: queries.EntityTypeApp, Scope: queries.ScopeRead}
+var scopeAppWrite = entityTypeScope{EntityType: queries.EntityTypeApp, Scope: queries.ScopeWrite}
+var scopeAppAdmin = entityTypeScope{EntityType: queries.EntityTypeApp, Scope: queries.ScopeAdmin}
+
+var scopeUserRead = entityTypeScope{EntityType: queries.EntityTypeUser, Scope: queries.ScopeRead}
+var scopeUserWrite = entityTypeScope{EntityType: queries.EntityTypeUser, Scope: queries.ScopeWrite}
+var scopeUserAdmin = entityTypeScope{EntityType: queries.EntityTypeUser, Scope: queries.ScopeAdmin}
+
+var actionScopes = map[string][]entityTypeScope{
+	ActionListOrgs:             {scopeSysRead},
+	ActionListUsers:            {scopeSysRead},
+	ActionListClusters:         {scopeSysRead},
+	ActionReadSystemEventTrail: {scopeSysRead},
+	ActionReadSystemSettings:   {scopeSysRead},
+
+	ActionCreateUser:          {scopeSysWrite},
+	ActionDeleteUser:          {scopeSysWrite},
+	ActionCreateSystemCluster: {scopeSysWrite},
+	ActionDeleteSystemCluster: {scopeSysWrite},
+	ActionSystemMigrations:    {scopeSysWrite},
+	ActionEditSystemSettings:  {scopeSysWrite},
+
+	ActionEditSystemPermissions: {scopeSysAdmin},
+	ActionSystemDatabase:        {scopeSysAdmin},
 
 	// org
-	ActionListWorkspaces:    {ScopeOrgRead},
-	ActionListOrgUsers:      {ScopeOrgRead},
-	ActionReadOrgBilling:    {ScopeOrgRead},
-	ActionReadOrgEventTrail: {ScopeOrgRead},
+	ActionListWorkspaces:    {scopeOrgRead},
+	ActionListOrgUsers:      {scopeOrgRead},
+	ActionReadOrgBilling:    {scopeOrgRead},
+	ActionReadOrgEventTrail: {scopeOrgRead},
 
-	ActionCreateWorkspace: {ScopeOrgWrite},
-	ActionDeleteWorkspace: {ScopeOrgWrite, ScopeWksAdmin},
-	ActionInviteOrgUser:   {ScopeOrgWrite},
-	ActionRemoveOrgUser:   {ScopeOrgWrite},
-	ActionEditOrgSettings: {ScopeOrgWrite},
+	ActionCreateWorkspace: {scopeOrgWrite},
+	ActionDeleteWorkspace: {scopeOrgWrite, scopeWksAdmin},
+	ActionInviteOrgUser:   {scopeOrgWrite},
+	ActionRemoveOrgUser:   {scopeOrgWrite},
+	ActionEditOrgSettings: {scopeOrgWrite},
 
-	ActionEditOrgBilling:     {ScopeOrgAdmin},
-	ActionEditOrgPermissions: {ScopeOrgAdmin},
-	ActionDeleteOrg:          {ScopeOrgAdmin, ScopeSysWrite},
+	ActionEditOrgBilling:     {scopeOrgAdmin},
+	ActionEditOrgPermissions: {scopeOrgAdmin},
+	ActionDeleteOrg:          {scopeOrgAdmin, scopeSysWrite},
 
 	// workspace
-	ActionListProjects:      {ScopeWksRead},
-	ActionReadWksSettings:   {ScopeWksRead},
-	ActionReadWksEventTrail: {ScopeWksRead},
+	ActionListApps:          {scopeWksRead},
+	ActionReadWksSettings:   {scopeWksRead},
+	ActionReadWksEventTrail: {scopeWksRead},
 
-	ActionCreateProject:   {ScopeWksWrite},
-	ActionDeleteProject:   {ScopeWksWrite, ScopeProjectAdmin},
-	ActionAddWksUser:      {ScopeWksWrite},
-	ActionRemoveWksUser:   {ScopeWksWrite},
-	ActionEditWksSettings: {ScopeWksWrite},
+	ActionCreateApp:       {scopeWksWrite},
+	ActionDeleteApp:       {scopeWksWrite, scopeAppAdmin},
+	ActionAddWksUser:      {scopeWksWrite},
+	ActionRemoveWksUser:   {scopeWksWrite},
+	ActionEditWksSettings: {scopeWksWrite},
 
-	ActionEditWksPermissions: {ScopeWksAdmin},
-	// the workspace admin can also delete the workspace, as listed above
+	ActionEditWksPermissions: {scopeWksAdmin},
 
 	// project
-	ActionReadProjectSettings:   {ScopeProjectRead},
-	ActionReadProjectEventTrail: {ScopeProjectRead},
+	ActionReadAppSettings:   {scopeAppRead},
+	ActionReadAppEventTrail: {scopeAppRead},
 
-	ActionCreateProjectResource: {ScopeProjectWrite},
-	ActionDeleteProjectResource: {ScopeProjectWrite},
-	ActionProjectDeploy:         {ScopeProjectWrite},
-	ActionProjectUndeploy:       {ScopeProjectWrite},
-	ActionAddProjectUser:        {ScopeProjectWrite},
-	ActionRemoveProjectUser:     {ScopeProjectWrite},
-	ActionEditProjectSettings:   {ScopeProjectWrite},
+	ActionCreateAppResource: {scopeAppWrite},
+	ActionDeleteAppResource: {scopeAppWrite},
+	ActionAppDeploy:         {scopeAppWrite},
+	ActionAppUndeploy:       {scopeAppWrite},
+	ActionAddAppUser:        {scopeAppWrite},
+	ActionRemoveAppUser:     {scopeAppWrite},
+	ActionEditAppSettings:   {scopeAppWrite},
 
-	ActionEditProjectPermissions: {ScopeProjectAdmin},
-	// the project admin can also delete the project, as listed above
+	ActionEditAppPermissions: {scopeAppAdmin},
 
 	// user
-	ActionReadUserInfo:       {ScopeUserRead},
-	ActionReadUserOrgs:       {ScopeUserRead},
-	ActionReadUserWks:        {ScopeUserRead},
-	ActionReadUserEventTrail: {ScopeUserRead},
+	ActionReadUserInfo:       {scopeUserRead},
+	ActionReadUserOrgs:       {scopeUserRead},
+	ActionReadUserWks:        {scopeUserRead},
+	ActionReadUserEventTrail: {scopeUserRead},
+	ActionReadUserSettings:   {scopeUserRead},
 
-	ActionCreateOrg:        {ScopeUserWrite},
-	ActionEditUserInfo:     {ScopeUserWrite},
-	ActionEditUserSettings: {ScopeUserWrite},
-	ActionLeaveOrg:         {ScopeUserWrite},
-	ActionLeaveWks:         {ScopeUserWrite},
+	ActionEditUserInfo:     {scopeUserWrite},
+	ActionEditUserSettings: {scopeUserWrite},
+	ActionCreateOrg:        {scopeUserWrite},
+	ActionLeaveOrg:         {scopeUserWrite},
+	ActionLeaveWks:         {scopeUserWrite},
 
-	ActionDeleteOwnAccount: {ScopeUserAdmin},
+	ActionDeleteOwnAccount: {scopeUserAdmin},
 }
 
 // something like org read doesn't let you read workspaces in the org unless you also have workspace read
@@ -190,4 +231,8 @@ var actionScopes = map[string][]string{
 var (
 	ErrDurationExceedsMaxAllowed = errors.New("token duration exceeds maximum allowed")
 	ErrInsufficentPermissions    = errors.New("insufficient permissions to issue token with requested scopes")
+	ErrStoreToken                = errors.New("unable to store issued token")
+
+	ErrTokenExpired  = errors.New("token has expired")
+	ErrTokenNotFound = errors.New("token not found")
 )

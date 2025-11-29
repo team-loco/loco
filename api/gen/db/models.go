@@ -7,6 +7,7 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -58,9 +59,11 @@ func (ns NullDeploymentStatus) Value() (driver.Value, error) {
 type EntityType string
 
 const (
+	EntityTypeSystem       EntityType = "system"
 	EntityTypeOrganization EntityType = "organization"
 	EntityTypeWorkspace    EntityType = "workspace"
-	EntityTypeProject      EntityType = "project"
+	EntityTypeApp          EntityType = "app"
+	EntityTypeUser         EntityType = "user"
 )
 
 func (e *EntityType) Scan(src interface{}) error {
@@ -203,11 +206,11 @@ type OrganizationMember struct {
 }
 
 type Token struct {
-	Token      string             `json:"token"`
-	Scopes     []byte             `json:"scopes"`
-	EntityType EntityType         `json:"entityType"`
-	EntityID   int64              `json:"entityId"`
-	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	Token      string        `json:"token"`
+	Scopes     []EntityScope `json:"scopes"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   int64         `json:"entityId"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
 }
 
 type User struct {
