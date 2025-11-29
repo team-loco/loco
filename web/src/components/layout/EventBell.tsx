@@ -14,13 +14,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function EventBell() {
-	const [events, setEvents] = useState<WorkspaceEvent[]>([]);
+	const [events, setEvents] = useState<WorkspaceEvent[]>(() => getRecentEvents(10));
 	const [unreadCount, setUnreadCount] = useState(0);
 
 	useEffect(() => {
-		// Load initial events
-		setEvents(getRecentEvents(10));
-
 		// Subscribe to new events
 		const unsubscribe = subscribeToEvents("workspace", (event) => {
 			setEvents((prev) => [event, ...prev.slice(0, 9)]);

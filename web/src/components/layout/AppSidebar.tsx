@@ -47,7 +47,7 @@ export function AppSidebar() {
 	const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(
 		null
 	);
-	const [eventCount, setEventCount] = useState(0);
+	const [eventCount] = useState(0);
 
 	const { data: userRes } = useQuery(getCurrentUser, {});
 	const user = userRes?.user ?? null;

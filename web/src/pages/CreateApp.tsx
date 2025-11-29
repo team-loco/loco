@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createApp, AppType } from "@/gen/app/v1";
+import { AppType, createApp } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
@@ -32,7 +32,6 @@ export function CreateApp() {
 	const [appName, setAppName] = useState("");
 	const [appType, setAppType] = useState("SERVICE");
 	const [subdomain, setSubdomain] = useState("");
-	const [customDomain, setCustomDomain] = useState("");
 
 	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
 	const orgs = orgsRes?.orgs ?? [];
@@ -170,24 +169,6 @@ export function CreateApp() {
 								.deploy-app.com
 							</div>
 						</div>
-					</CardContent>
-				</Card>
-
-				{/* Custom Domain */}
-				<Card>
-					<CardHeader>
-						<CardTitle className="text-lg">Custom Domain</CardTitle>
-						<CardDescription>
-							Optional: Use your own domain (advanced)
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<Input
-							placeholder="api.example.com"
-							value={customDomain}
-							onChange={(e) => setCustomDomain(e.target.value)}
-							className="border-border"
-						/>
 					</CardContent>
 				</Card>
 

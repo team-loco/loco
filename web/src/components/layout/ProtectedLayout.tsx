@@ -2,7 +2,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { getCurrentUser } from "@/gen/user/v1";
-import { initializeMockEvents } from "@/lib/events";
+import { useHeader } from "@/context/HeaderContext";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -13,6 +13,7 @@ interface ProtectedLayoutProps {
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
+	const { header } = useHeader();
 	const navigate = useNavigate();
 	const { logout } = useAuth();
 	const { isLoading, error } = useQuery(getCurrentUser, {});
@@ -24,11 +25,6 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			navigate("/login", { replace: true });
 		}
 	}, [error, logout, navigate]);
-
-	// todo: remove this;Initialize mock event streaming once
-	useEffect(() => {
-		initializeMockEvents();
-	}, []);
 
 	// Loading user data
 	if (isLoading) {
@@ -47,8 +43,9 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			<div className="flex min-h-screen bg-background w-full">
 				<AppSidebar />
 				<div className="flex-1 flex flex-col">
-					<div className="p-4">
-						<SidebarTrigger className="-ml-2" />
+					<div className="flex items-center gap-4 px-6 py-4 border-b border-border">
+						<SidebarTrigger className="-ml-2 shrink-0" />
+						<div className="flex-1">{header}</div>
 					</div>
 					<main className="flex-1 w-full px-6 py-8">{children}</main>
 				</div>

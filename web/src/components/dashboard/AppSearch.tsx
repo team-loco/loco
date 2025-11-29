@@ -19,7 +19,7 @@ export function AppSearch({ searchTerm, onSearchChange }: AppSearchProps) {
 			/>
 			{searchTerm && (
 				<Button
-					variant="ghost"
+					variant="neutral"
 					size="sm"
 					onClick={() => onSearchChange("")}
 					className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"

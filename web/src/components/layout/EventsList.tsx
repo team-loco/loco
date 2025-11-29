@@ -9,12 +9,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function EventsList() {
-	const [events, setEvents] = useState<WorkspaceEvent[]>([]);
+	const [events, setEvents] = useState<WorkspaceEvent[]>(() => getRecentEvents(5));
 
 	useEffect(() => {
-		// Load initial events
-		setEvents(getRecentEvents(5));
-
 		// Subscribe to new events
 		const unsubscribe = subscribeToEvents("workspace", (event) => {
 			setEvents((prev) => [event, ...prev.slice(0, 4)]);
@@ -57,7 +54,7 @@ export function EventsList() {
 				>
 					<div className="flex-1 min-w-0">
 						<p className="font-medium text-foreground">{event.appName}</p>
-						<p className="text-foreground opacity-70 break-words">
+						<p className="text-foreground opacity-70 wrap-break-word">
 							{event.message}
 						</p>
 						<p className="text-foreground opacity-50 mt-0.5">

@@ -1,5 +1,5 @@
 import { Switch } from "@/components/ui/switch";
-import { useTheme } from "@/lib/theme-provider";
+import { useTheme } from "@/lib/use-theme";
 import { Moon, Sun } from "lucide-react";
 
 export function ThemeToggle() {
