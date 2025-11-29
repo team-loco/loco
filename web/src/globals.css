@@ -5,38 +5,22 @@
 
 :root {
 	/* Light Mode - Backgrounds */
-	--bg-default: #fdf6e3;
-	--bg-subtle: #eee8d5;
-	--bg-muted: #e5dcc7;
-	--bg-elevated: #fefaf2;
+	--background: oklch(95.38% 0.0357 72.89);
+	--secondary-background: oklch(100% 0 0);
+	--foreground: oklch(0% 0 0);
+	--main-foreground: oklch(0% 0 0);
+	--border: oklch(0% 0 0);
+	--ring: oklch(0% 0 0);
+	--overlay: oklch(0% 0 0 / 0.8);
 
-	/* Light Mode - Foregrounds */
-	--fg-default: #586e75;
-	--fg-bold: #073642;
-	--fg-muted: #657b83;
-	--fg-subtle: #93a1a1;
-	--fg-inverse: #fdf6e3;
-	--main-foreground: #ffffff;
-
-	/* Accents (Custom) */
+	/* Custom Accent Colors */
+	--main: #88ccca;
 	--teal: #88ccca;
-	--teal-mid: #5cb1af;
-	--teal-dark: #319795;
-	--blue: #1064a4;
-	--blue-light: #0768a4;
-	--accent-dark: #ff8ffd;
-	--green: #22543d;
-	--yellow: #b58900;
 	--orange: #cb4b16;
 	--red: #dc322f;
+	--green: #22543d;
 
-	/* Neutrals */
-	--border-default: #d8ccba;
-	--border-muted: #ccc2b5;
-	--border-strong: #b3a796;
-	--line-light: #f0e8dd;
-
-	/* Semantic - Light */
+	/* Semantic Colors - Light */
 	--success-bg: #c6f6d5;
 	--success-border: #88ccca;
 	--success-text: #22543d;
@@ -49,48 +33,28 @@
 	--error-border: #e5a09c;
 	--error-text: #9d1c1a;
 
-	--info-bg: #e1f4f1;
-	--info-border: #88ccca;
-	--info-text: #22543d;
-
-	/* Legacy compatibility */
-	--shadow: 0px 2px 0px 0px var(--border-default);
+	/* Shadow for neobrutalism */
+	--shadow: 0px 2px 0px 0px var(--border);
 }
 
 .dark {
 	/* Dark Mode - Backgrounds */
-	--bg-default: #202023;
-	--bg-subtle: #2a2a2d;
-	--bg-muted: #323236;
-	--bg-elevated: #303033;
+	--background: oklch(26.86% 0.0327 60.06);
+	--secondary-background: oklch(23.93% 0 0);
+	--foreground: oklch(92.49% 0 0);
+	--main-foreground: oklch(0% 0 0);
+	--border: oklch(0% 0 0);
+	--ring: oklch(100% 0 0);
+	--overlay: oklch(0% 0 0 / 0.8);
 
-	/* Dark Mode - Foregrounds */
-	--fg-default: #f0f0f0;
-	--fg-bold: #ffffff;
-	--fg-muted: #d0d0d0;
-	--fg-subtle: #a0a0a0;
-	--fg-inverse: #202023;
-	--main-foreground: #ffffff;
-
-	/* Accents (Custom) */
+	/* Custom Accent Colors */
+	--main: #88ccca;
 	--teal: #88ccca;
-	--teal-mid: #5cb1af;
-	--teal-dark: #319795;
-	--blue: #1064a4;
-	--blue-light: #0768a4;
-	--accent-dark: #ff8ffd;
-	--green: #22543d;
-	--yellow: #b58900;
 	--orange: #cb4b16;
 	--red: #dc322f;
+	--green: #22543d;
 
-	/* Neutrals - Dark (via opacity) */
-	--border-default: rgba(255, 255, 255, 0.15);
-	--border-muted: rgba(255, 255, 255, 0.08);
-	--border-strong: rgba(255, 255, 255, 0.25);
-	--line-light: rgba(255, 255, 255, 0.05);
-
-	/* Semantic - Dark */
+	/* Semantic Colors - Dark */
 	--success-bg: #1b2a00;
 	--success-border: #4f6300;
 	--success-text: #a9cf4f;
@@ -103,48 +67,27 @@
 	--error-border: #9d1c1a;
 	--error-text: #f5a4a0;
 
-	--info-bg: #00363a;
-	--info-border: #88ccca;
-	--info-text: #88ccca;
-
-	/* Legacy compatibility */
-	--shadow: 0px 2px 0px 0px var(--border-default);
+	/* Shadow for neobrutalism */
+	--shadow: 0px 2px 0px 0px var(--border);
 }
 
 @theme inline {
-	/* Backgrounds */
-	--color-bg-default: var(--bg-default);
-	--color-bg-subtle: var(--bg-subtle);
-	--color-bg-muted: var(--bg-muted);
-	--color-bg-elevated: var(--bg-elevated);
-
-	/* Foregrounds */
-	--color-fg-default: var(--fg-default);
-	--color-fg-bold: var(--fg-bold);
-	--color-fg-muted: var(--fg-muted);
-	--color-fg-subtle: var(--fg-subtle);
-	--color-fg-inverse: var(--fg-inverse);
+	--color-main: var(--main);
+	--color-background: var(--background);
+	--color-secondary-background: var(--secondary-background);
+	--color-foreground: var(--foreground);
 	--color-main-foreground: var(--main-foreground);
+	--color-border: var(--border);
+	--color-overlay: var(--overlay);
+	--color-ring: var(--ring);
 
-	/* Accents */
+	/* Accent Colors */
 	--color-teal: var(--teal);
-	--color-teal-mid: var(--teal-mid);
-	--color-teal-dark: var(--teal-dark);
-	--color-blue: var(--blue);
-	--color-blue-light: var(--blue-light);
-	--color-accent-dark: var(--accent-dark);
-	--color-green: var(--green);
-	--color-yellow: var(--yellow);
 	--color-orange: var(--orange);
 	--color-red: var(--red);
+	--color-green: var(--green);
 
-	/* Neutrals */
-	--color-border-default: var(--border-default);
-	--color-border-muted: var(--border-muted);
-	--color-border-strong: var(--border-strong);
-	--color-line-light: var(--line-light);
-
-	/* Semantic */
+	/* Semantic Colors */
 	--color-success-bg: var(--success-bg);
 	--color-success-border: var(--success-border);
 	--color-success-text: var(--success-text);
@@ -156,16 +99,6 @@
 	--color-error-bg: var(--error-bg);
 	--color-error-border: var(--error-border);
 	--color-error-text: var(--error-text);
-
-	--color-info-bg: var(--info-bg);
-	--color-info-border: var(--info-border);
-	--color-info-text: var(--info-text);
-
-	/* Legacy compatibility mapping */
-	--color-background: var(--bg-default);
-	--color-foreground: var(--fg-default);
-	--color-border: var(--border-default);
-	--color-main: var(--blue);
 
 	--spacing-boxShadowX: 0px;
 	--spacing-boxShadowY: 2px;
@@ -179,7 +112,7 @@
 
 @layer base {
 	body {
-		@apply text-fg-default font-base bg-bg-default;
+		@apply text-foreground font-base bg-background;
 	}
 
 	h1,

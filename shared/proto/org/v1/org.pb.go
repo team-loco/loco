@@ -838,94 +838,6 @@ func (x *IsUniqueOrgNameResponse) GetIsUnique() bool {
 	return false
 }
 
-type ListWorkspacesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListWorkspacesRequest) Reset() {
-	*x = ListWorkspacesRequest{}
-	mi := &file_org_v1_org_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListWorkspacesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListWorkspacesRequest) ProtoMessage() {}
-
-func (x *ListWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_org_v1_org_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListWorkspacesRequest.ProtoReflect.Descriptor instead.
-func (*ListWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_org_v1_org_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *ListWorkspacesRequest) GetOrgId() int64 {
-	if x != nil {
-		return x.OrgId
-	}
-	return 0
-}
-
-type ListWorkspacesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspaces    []*WorkspaceSummary    `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListWorkspacesResponse) Reset() {
-	*x = ListWorkspacesResponse{}
-	mi := &file_org_v1_org_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListWorkspacesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListWorkspacesResponse) ProtoMessage() {}
-
-func (x *ListWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_org_v1_org_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListWorkspacesResponse.ProtoReflect.Descriptor instead.
-func (*ListWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_org_v1_org_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *ListWorkspacesResponse) GetWorkspaces() []*WorkspaceSummary {
-	if x != nil {
-		return x.Workspaces
-	}
-	return nil
-}
-
 var File_org_v1_org_proto protoreflect.FileDescriptor
 
 const file_org_v1_org_proto_rawDesc = "" +
@@ -984,13 +896,7 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\x0eexclude_org_id\x18\x02 \x01(\x03H\x00R\fexcludeOrgId\x88\x01\x01B\x11\n" +
 	"\x0f_exclude_org_id\"6\n" +
 	"\x17IsUniqueOrgNameResponse\x12\x1b\n" +
-	"\tis_unique\x18\x01 \x01(\bR\bisUnique\".\n" +
-	"\x15ListWorkspacesRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\"W\n" +
-	"\x16ListWorkspacesResponse\x12=\n" +
-	"\n" +
-	"workspaces\x18\x01 \x03(\v2\x1d.loco.org.v1.WorkspaceSummaryR\n" +
-	"workspaces2\x9c\x05\n" +
+	"\tis_unique\x18\x01 \x01(\bR\bisUnique2\xc1\x04\n" +
 	"\n" +
 	"OrgService\x12J\n" +
 	"\tCreateOrg\x12\x1d.loco.org.v1.CreateOrgRequest\x1a\x1e.loco.org.v1.CreateOrgResponse\x12A\n" +
@@ -998,8 +904,7 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\x12GetCurrentUserOrgs\x12&.loco.org.v1.GetCurrentUserOrgsRequest\x1a'.loco.org.v1.GetCurrentUserOrgsResponse\x12G\n" +
 	"\bListOrgs\x12\x1c.loco.org.v1.ListOrgsRequest\x1a\x1d.loco.org.v1.ListOrgsResponse\x12J\n" +
 	"\tUpdateOrg\x12\x1d.loco.org.v1.UpdateOrgRequest\x1a\x1e.loco.org.v1.UpdateOrgResponse\x12J\n" +
-	"\tDeleteOrg\x12\x1d.loco.org.v1.DeleteOrgRequest\x1a\x1e.loco.org.v1.DeleteOrgResponse\x12Y\n" +
-	"\x0eListWorkspaces\x12\".loco.org.v1.ListWorkspacesRequest\x1a#.loco.org.v1.ListWorkspacesResponse\x12\\\n" +
+	"\tDeleteOrg\x12\x1d.loco.org.v1.DeleteOrgRequest\x1a\x1e.loco.org.v1.DeleteOrgResponse\x12\\\n" +
 	"\x0fIsUniqueOrgName\x12#.loco.org.v1.IsUniqueOrgNameRequest\x1a$.loco.org.v1.IsUniqueOrgNameResponseB5Z3github.com/loco-team/loco/shared/proto/org/v1;orgv1b\x06proto3"
 
 var (
@@ -1014,7 +919,7 @@ func file_org_v1_org_proto_rawDescGZIP() []byte {
 	return file_org_v1_org_proto_rawDescData
 }
 
-var file_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_org_v1_org_proto_goTypes = []any{
 	(*Organization)(nil),               // 0: loco.org.v1.Organization
 	(*WorkspaceSummary)(nil),           // 1: loco.org.v1.WorkspaceSummary
@@ -1032,42 +937,37 @@ var file_org_v1_org_proto_goTypes = []any{
 	(*DeleteOrgResponse)(nil),          // 13: loco.org.v1.DeleteOrgResponse
 	(*IsUniqueOrgNameRequest)(nil),     // 14: loco.org.v1.IsUniqueOrgNameRequest
 	(*IsUniqueOrgNameResponse)(nil),    // 15: loco.org.v1.IsUniqueOrgNameResponse
-	(*ListWorkspacesRequest)(nil),      // 16: loco.org.v1.ListWorkspacesRequest
-	(*ListWorkspacesResponse)(nil),     // 17: loco.org.v1.ListWorkspacesResponse
-	(*timestamppb.Timestamp)(nil),      // 18: google.protobuf.Timestamp
+	(*timestamppb.Timestamp)(nil),      // 16: google.protobuf.Timestamp
 }
 var file_org_v1_org_proto_depIdxs = []int32{
-	18, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	18, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
-	18, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
+	16, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	16, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
+	16, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: loco.org.v1.CreateOrgResponse.org:type_name -> loco.org.v1.Organization
 	0,  // 4: loco.org.v1.GetOrgResponse.org:type_name -> loco.org.v1.Organization
 	0,  // 5: loco.org.v1.GetCurrentUserOrgsResponse.orgs:type_name -> loco.org.v1.Organization
 	0,  // 6: loco.org.v1.ListOrgsResponse.orgs:type_name -> loco.org.v1.Organization
 	0,  // 7: loco.org.v1.UpdateOrgResponse.org:type_name -> loco.org.v1.Organization
 	0,  // 8: loco.org.v1.DeleteOrgResponse.org:type_name -> loco.org.v1.Organization
-	1,  // 9: loco.org.v1.ListWorkspacesResponse.workspaces:type_name -> loco.org.v1.WorkspaceSummary
-	2,  // 10: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	4,  // 11: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	6,  // 12: loco.org.v1.OrgService.GetCurrentUserOrgs:input_type -> loco.org.v1.GetCurrentUserOrgsRequest
-	8,  // 13: loco.org.v1.OrgService.ListOrgs:input_type -> loco.org.v1.ListOrgsRequest
-	10, // 14: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	12, // 15: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	16, // 16: loco.org.v1.OrgService.ListWorkspaces:input_type -> loco.org.v1.ListWorkspacesRequest
-	14, // 17: loco.org.v1.OrgService.IsUniqueOrgName:input_type -> loco.org.v1.IsUniqueOrgNameRequest
-	3,  // 18: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	5,  // 19: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	7,  // 20: loco.org.v1.OrgService.GetCurrentUserOrgs:output_type -> loco.org.v1.GetCurrentUserOrgsResponse
-	9,  // 21: loco.org.v1.OrgService.ListOrgs:output_type -> loco.org.v1.ListOrgsResponse
-	11, // 22: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	13, // 23: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	17, // 24: loco.org.v1.OrgService.ListWorkspaces:output_type -> loco.org.v1.ListWorkspacesResponse
-	15, // 25: loco.org.v1.OrgService.IsUniqueOrgName:output_type -> loco.org.v1.IsUniqueOrgNameResponse
-	18, // [18:26] is the sub-list for method output_type
-	10, // [10:18] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	2,  // 9: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
+	4,  // 10: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
+	6,  // 11: loco.org.v1.OrgService.GetCurrentUserOrgs:input_type -> loco.org.v1.GetCurrentUserOrgsRequest
+	8,  // 12: loco.org.v1.OrgService.ListOrgs:input_type -> loco.org.v1.ListOrgsRequest
+	10, // 13: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
+	12, // 14: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
+	14, // 15: loco.org.v1.OrgService.IsUniqueOrgName:input_type -> loco.org.v1.IsUniqueOrgNameRequest
+	3,  // 16: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
+	5,  // 17: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
+	7,  // 18: loco.org.v1.OrgService.GetCurrentUserOrgs:output_type -> loco.org.v1.GetCurrentUserOrgsResponse
+	9,  // 19: loco.org.v1.OrgService.ListOrgs:output_type -> loco.org.v1.ListOrgsResponse
+	11, // 20: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
+	13, // 21: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
+	15, // 22: loco.org.v1.OrgService.IsUniqueOrgName:output_type -> loco.org.v1.IsUniqueOrgNameResponse
+	16, // [16:23] is the sub-list for method output_type
+	9,  // [9:16] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_org_v1_org_proto_init() }
@@ -1083,7 +983,7 @@ func file_org_v1_org_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_org_v1_org_proto_rawDesc), len(file_org_v1_org_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

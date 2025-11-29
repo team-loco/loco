@@ -13,7 +13,6 @@ service OrgService {
   rpc ListOrgs(ListOrgsRequest) returns (ListOrgsResponse);
   rpc UpdateOrg(UpdateOrgRequest) returns (UpdateOrgResponse);
   rpc DeleteOrg(DeleteOrgRequest) returns (DeleteOrgResponse);
-  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
   rpc IsUniqueOrgName(IsUniqueOrgNameRequest) returns (IsUniqueOrgNameResponse);
 }
 
@@ -94,10 +93,3 @@ message IsUniqueOrgNameResponse {
   bool is_unique = 1;
 }
 
-message ListWorkspacesRequest {
-  int64 org_id = 1;
-}
-
-message ListWorkspacesResponse {
-  repeated WorkspaceSummary workspaces = 1;
-}

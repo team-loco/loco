@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/loco-team/loco/api/contextkeys"
 	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/timeutil"
 	workspacev1 "github.com/loco-team/loco/shared/proto/workspace/v1"
@@ -45,7 +46,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 ) (*connect.Response[workspacev1.CreateWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -127,7 +128,7 @@ func (s *WorkspaceServer) GetWorkspace(
 ) (*connect.Response[workspacev1.GetWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -171,7 +172,7 @@ func (s *WorkspaceServer) GetUserWorkspaces(
 	ctx context.Context,
 	req *connect.Request[workspacev1.GetUserWorkspacesRequest],
 ) (*connect.Response[workspacev1.GetUserWorkspacesResponse], error) {
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -207,8 +208,9 @@ func (s *WorkspaceServer) ListWorkspaces(
 	req *connect.Request[workspacev1.ListWorkspacesRequest],
 ) (*connect.Response[workspacev1.ListWorkspacesResponse], error) {
 	r := req.Msg
+	slog.InfoContext(ctx, "list workspaces req for org", "orgId", r.OrgId)
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -259,7 +261,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 ) (*connect.Response[workspacev1.UpdateWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -339,7 +341,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 ) (*connect.Response[workspacev1.DeleteWorkspaceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -383,7 +385,7 @@ func (s *WorkspaceServer) AddMember(
 ) (*connect.Response[workspacev1.AddMemberResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -443,7 +445,7 @@ func (s *WorkspaceServer) RemoveMember(
 ) (*connect.Response[workspacev1.RemoveMemberResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -488,7 +490,7 @@ func (s *WorkspaceServer) ListMembers(
 ) (*connect.Response[workspacev1.ListMembersResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value("userId").(int64)
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)

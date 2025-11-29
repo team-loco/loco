@@ -8,9 +8,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getOrg } from "@/gen/org/v1";
+import { getOrg, updateOrg } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
-import { useQuery } from "@connectrpc/connect-query";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ export function OrgSettings() {
 	const [isEditing, setIsEditing] = useState(false);
 	const [orgName, setOrgName] = useState("");
 
-	const { data: orgRes, isLoading: orgLoading } = useQuery(
+	const { data: orgRes, isLoading: orgLoading, refetch } = useQuery(
 		getOrg,
 		orgId ? { orgId: BigInt(orgId) } : undefined,
 		{ enabled: !!orgId }
@@ -35,14 +35,29 @@ export function OrgSettings() {
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 
+	const { mutate: mutateUpdateOrg, isPending } = useMutation(updateOrg);
+
 	// Update orgName when org data loads
 	if (org && !orgName && !isEditing) {
 		setOrgName(org.name);
 	}
 
 	const handleSave = () => {
-		toast.success("Organization updated");
-		setIsEditing(false);
+		if (!orgId) return;
+		mutateUpdateOrg({
+			orgId: BigInt(orgId),
+			newName: orgName,
+		}, {
+			onSuccess: () => {
+				refetch();
+				toast.success("Organization updated");
+				setIsEditing(false);
+			},
+			onError: (error) => {
+				toast.error("Failed to update organization");
+				console.error(error);
+			},
+		});
 	};
 
 	if (orgLoading || !org) {
@@ -112,10 +127,13 @@ export function OrgSettings() {
 										setIsEditing(false);
 										setOrgName(org.name);
 									}}
+									disabled={isPending}
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleSave}>Save Changes</Button>
+								<Button onClick={handleSave} disabled={isPending}>
+									{isPending ? "Saving..." : "Save Changes"}
+								</Button>
 							</>
 						)}
 					</div>

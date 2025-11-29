@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetCurrentUserOrgsRequest, GetCurrentUserOrgsResponse, GetOrgRequest, GetOrgResponse, IsUniqueOrgNameRequest, IsUniqueOrgNameResponse, ListOrgsRequest, ListOrgsResponse, ListWorkspacesRequest, ListWorkspacesResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
+import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetCurrentUserOrgsRequest, GetCurrentUserOrgsResponse, GetOrgRequest, GetOrgResponse, IsUniqueOrgNameRequest, IsUniqueOrgNameResponse, ListOrgsRequest, ListOrgsResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -64,15 +64,6 @@ export const OrgService = {
       name: "DeleteOrg",
       I: DeleteOrgRequest,
       O: DeleteOrgResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc loco.org.v1.OrgService.ListWorkspaces
-     */
-    listWorkspaces: {
-      name: "ListWorkspaces",
-      I: ListWorkspacesRequest,
-      O: ListWorkspacesResponse,
       kind: MethodKind.Unary,
     },
     /**

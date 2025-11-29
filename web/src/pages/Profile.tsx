@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -50,17 +51,15 @@ export function Profile() {
 					<CardTitle className="text-lg">Account Information</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-6">
-					{/* Avatar */}
 					<div>
 						<Label className="text-sm mb-3 block">Avatar</Label>
 						<div className="flex items-center gap-4">
-							<div className="w-16 h-16 bg-main rounded-neo flex items-center justify-center text-white font-heading text-2xl">
-								{user.name.charAt(0).toUpperCase()}
-							</div>
-							<Button variant="neutral" size="sm" disabled>
-								Upload Photo
-							</Button>
-							<p className="text-xs text-muted-foreground">Coming soon</p>
+							<Avatar>
+								<AvatarImage src={user.avatarUrl} alt="user avatar" />
+								<AvatarFallback>
+									{user.name.charAt(0).toUpperCase()}
+								</AvatarFallback>
+							</Avatar>
 						</div>
 					</div>
 

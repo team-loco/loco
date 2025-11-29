@@ -1,9 +1,8 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { useEffect, useMemo } from "react";
-import { useNavigate } from "react-router";
-import { useQuery } from "@connectrpc/connect-query";
 import { exchangeGithubCode } from "@/gen/oauth/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
+import { useQuery } from "@connectrpc/connect-query";
+import { useEffect, useMemo } from "react";
+import { useNavigate } from "react-router";
 
 export function OAuthCallback() {
 	const navigate = useNavigate();
@@ -15,14 +14,18 @@ export function OAuthCallback() {
 	const error = params.get("error");
 	const errorDescription = params.get("error_description");
 
-	const { data: exchangeRes, isLoading, error: queryError } = useQuery(
+	const {
+		data: exchangeRes,
+		isLoading,
+		error: queryError,
+	} = useQuery(
 		exchangeGithubCode,
 		code && state
 			? {
 					code,
 					state,
 					redirectUri: window.location.origin + "/oauth/callback",
-				}
+			  }
 			: undefined,
 		{ enabled: !!(code && state) }
 	);
@@ -49,7 +52,8 @@ export function OAuthCallback() {
 		}
 
 		if (queryError) {
-			const errorMsg = queryError.message || "Failed to exchange authorization code";
+			const errorMsg =
+				queryError.message || "Failed to exchange authorization code";
 			console.error("OAuthCallback: Exchange error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
 			navigate("/login");
@@ -67,27 +71,36 @@ export function OAuthCallback() {
 		// After orgs are loaded, check if user has any orgs
 		if (!orgsLoading && orgsRes) {
 			const hasOrgs = (orgsRes.orgs ?? []).length > 0;
-			
+
 			if (hasOrgs) {
 				console.log("OAuthCallback: User has orgs, navigating to dashboard");
 				navigate("/dashboard");
 			} else {
-				console.log("OAuthCallback: User has no orgs, navigating to onboarding");
+				console.log(
+					"OAuthCallback: User has no orgs, navigating to onboarding"
+				);
 				navigate("/onboarding");
 			}
 		}
-	}, [code, state, error, errorDescription, queryError, isLoading, exchangeRes, orgsLoading, orgsRes, navigate]);
+	}, [
+		code,
+		state,
+		error,
+		errorDescription,
+		queryError,
+		isLoading,
+		exchangeRes,
+		orgsLoading,
+		orgsRes,
+		navigate,
+	]);
 
 	return (
 		<div className="min-h-screen bg-background flex items-center justify-center px-6">
-			<Card className="max-w-md w-full">
-				<CardContent className="p-8 text-center">
-					<div className="inline-flex gap-2 items-center mb-4">
-						<div className="w-4 h-4 bg-main rounded-full animate-pulse"></div>
-						<p className="text-foreground font-base">Authenticating...</p>
-					</div>
-				</CardContent>
-			</Card>
+			<div className="inline-flex gap-2 items-center mb-4">
+				<div className="w-4 h-4 bg-main rounded-full animate-pulse"></div>
+				<p className="text-foreground font-base">Authenticating...</p>
+			</div>
 		</div>
 	);
 }

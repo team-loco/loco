@@ -54,18 +54,9 @@ export function Login() {
 							L
 						</div>
 						<h1 className="text-2xl font-heading text-foreground">Loco</h1>
-						<p className="text-sm text-foreground opacity-60 mt-2">
-							Deploy with confidence
-						</p>
 					</div>
 
 					<div className="space-y-4">
-						<div className="space-y-2">
-							<h2 className="text-sm font-base text-foreground">
-								Sign in to your account
-							</h2>
-						</div>
-
 						{error && (
 							<div className="bg-error-bg border border-error-border rounded px-3 py-2">
 								<p className="text-xs text-error-text">{error}</p>
@@ -80,11 +71,6 @@ export function Login() {
 							{isLoading ? "Redirecting..." : "Continue with GitHub"}
 						</Button>
 					</div>
-
-					<p className="text-xs text-foreground opacity-50 text-center mt-4">
-						We only support GitHub authentication. We'll never post to your
-						timeline.
-					</p>
 				</CardContent>
 			</Card>
 		</div>

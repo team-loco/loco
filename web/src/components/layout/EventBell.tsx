@@ -25,16 +25,7 @@ export function EventBell() {
 		const unsubscribe = subscribeToEvents("workspace", (event) => {
 			setEvents((prev) => [event, ...prev.slice(0, 9)]);
 			setUnreadCount((prev) => prev + 1);
-			toast("Event has been created", {
-				description: "Sunday, December 03, 2023 at 9:00 AM",
-				action: {
-					label: "Undo",
-					onClick: () => console.log("Undo"),
-				},
-			});
-			// Show toast notification
 			if (event.severity === "error") {
-				toast(event.message, {});
 				toast.error(event.message, {
 					description: `${event.appName} • ${formatTime(event.timestamp)}`,
 				});
@@ -68,19 +59,14 @@ export function EventBell() {
 	return (
 		<DropdownMenu onOpenChange={(open) => open && handleOpen()}>
 			<DropdownMenuTrigger asChild>
-				<Button
-					variant="noShadow"
-					size="icon"
-					className="border-2 relative"
-					aria-label="Notifications"
-				>
-					<Bell className="w-4 h-4" />
+				<span className="flex">
+					<Bell className="w-4 h-4" /> Recent Events
 					{unreadCount > 0 && (
 						<span className="absolute -top-2 -right-2 bg-destructive text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
 							{unreadCount > 9 ? "9+" : unreadCount}
 						</span>
 					)}
-				</Button>
+				</span>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-80">
 				{events.length === 0 ? (

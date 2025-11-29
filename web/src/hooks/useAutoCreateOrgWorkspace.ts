@@ -1,55 +1,121 @@
-import { useMutation } from "@connectrpc/connect-query";
-import { createOrg } from "@/gen/org/v1";
-import { createWorkspace } from "@/gen/workspace/v1";
-import { useState } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { createOrg, getCurrentUserOrgs } from "@/gen/org/v1";
+import { createWorkspace, listWorkspaces } from "@/gen/workspace/v1";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useCallback, useState } from "react";
 
 export function useAutoCreateOrgWorkspace() {
-	const [step, setStep] = useState<"idle" | "creating-org" | "creating-workspace" | "done" | "error">("idle");
+	const [step, setStep] = useState<
+		"idle" | "creating-org" | "creating-workspace" | "done" | "error"
+	>("idle");
 	const [error, setError] = useState<string | null>(null);
-	const [orgId, setOrgId] = useState<string | null>(null);
-	const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+	const [orgId, setOrgId] = useState<bigint | null>(null);
+	const [workspaceId, setWorkspaceId] = useState<bigint | null>(null);
 
 	const createOrgMutation = useMutation(createOrg);
 	const createWorkspaceMutation = useMutation(createWorkspace);
+	const { refetch: refetchOrgs } = useQuery(
+		getCurrentUserOrgs,
+		{},
+		{ enabled: false }
+	);
+	const [wsQueryOrgId, setWsQueryOrgId] = useState<bigint>(0n);
+	const { refetch: refetchWorkspaces } = useQuery(
+		listWorkspaces,
+		{ orgId: wsQueryOrgId },
+		{ enabled: false }
+	);
 
-	const autoCreate = async (userEmail: string, userName: string) => {
-		try {
-			setStep("creating-org");
-			setError(null);
+	const autoCreate = useCallback(
+		async (userEmail: string) => {
+			try {
+				setStep("creating-org");
+				setError(null);
 
-			// Create organization with user's email as name
-			const orgRes = await createOrgMutation.mutateAsync({
-				name: userEmail,
-			});
+				let createdOrgId: bigint;
 
-			if (!orgRes.org?.id) {
-				throw new Error("Failed to create organization");
+				// Try to create organization with user's email as name
+				try {
+					const orgRes = await createOrgMutation.mutateAsync({
+						name: userEmail,
+					});
+
+					if (!orgRes.org?.id) {
+						throw new Error("Failed to create organization");
+					}
+
+					createdOrgId = orgRes.org.id;
+				} catch (createErr) {
+					// If org already exists, fetch it instead
+					if (
+						createErr instanceof ConnectError &&
+						createErr.code === Code.AlreadyExists
+					) {
+						const orgsRes = await refetchOrgs();
+						const existingOrg = orgsRes.data?.orgs?.[0];
+						if (!existingOrg?.id) {
+							throw new Error(
+								"Organization already exists but could not be retrieved"
+							);
+						}
+						createdOrgId = existingOrg.id;
+					} else {
+						throw createErr;
+					}
+				}
+
+				setOrgId(createdOrgId);
+
+				// Create workspace with user's name
+				setStep("creating-workspace");
+				let createdWorkspaceId: bigint;
+
+				try {
+					const wsRes = await createWorkspaceMutation.mutateAsync({
+						orgId: createdOrgId,
+						name: "default",
+					});
+
+					if (!wsRes.workspace?.id) {
+						throw new Error("Failed to create workspace");
+					}
+
+					createdWorkspaceId = wsRes.workspace.id;
+				} catch (wsErr) {
+					// If workspace already exists, fetch it instead
+					if (
+						wsErr instanceof ConnectError &&
+						wsErr.code === Code.AlreadyExists
+					) {
+						setWsQueryOrgId(createdOrgId);
+						const wsRes = await refetchWorkspaces();
+						const existingWorkspace = wsRes.data?.workspaces?.[0];
+						if (!existingWorkspace?.id) {
+							throw new Error(
+								"Workspace already exists but could not be retrieved"
+							);
+						}
+						createdWorkspaceId = existingWorkspace.id;
+					} else {
+						throw wsErr;
+					}
+				}
+
+				setWorkspaceId(createdWorkspaceId);
+				setStep("done");
+				return { orgId: createdOrgId, workspaceId: createdWorkspaceId };
+			} catch (err) {
+				const message =
+					err instanceof Error
+						? err.message
+						: "Failed to auto-create organization and workspace";
+				setError(message);
+				setStep("error");
+				throw err;
 			}
-
-			const createdOrgId = orgRes.org.id;
-			setOrgId(createdOrgId);
-
-			// Create workspace with user's name
-			setStep("creating-workspace");
-			const wsRes = await createWorkspaceMutation.mutateAsync({
-				orgId: createdOrgId,
-				name: `${userName}'s workspace`,
-			});
-
-			if (!wsRes.workspace?.id) {
-				throw new Error("Failed to create workspace");
-			}
-
-			setWorkspaceId(wsRes.workspace.id);
-			setStep("done");
-			return { orgId: createdOrgId, workspaceId: wsRes.workspace.id };
-		} catch (err) {
-			const message = err instanceof Error ? err.message : "Failed to auto-create organization and workspace";
-			setError(message);
-			setStep("error");
-			throw err;
-		}
-	};
+		},
+		[createOrgMutation, createWorkspaceMutation, refetchOrgs, refetchWorkspaces]
+	);
 
 	return {
 		autoCreate,
