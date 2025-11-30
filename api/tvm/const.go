@@ -230,7 +230,7 @@ var actionScopes = map[string][]entityTypeScope{
 
 var (
 	ErrDurationExceedsMaxAllowed = errors.New("token duration exceeds maximum allowed")
-	ErrInsufficentPermissions    = errors.New("insufficient permissions to issue token with requested scopes")
+	ErrInsufficentPermissions    = errors.New("insufficient permissions")
 	ErrStoreToken                = errors.New("unable to store issued token")
 
 	ErrTokenExpired   = errors.New("token has expired")

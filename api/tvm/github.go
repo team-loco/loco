@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"time"
 
 	queries "github.com/loco-team/loco/api/gen/db"
 )
@@ -44,26 +43,20 @@ func (tvm *VendingMachine) ExchangeGithub(ctx context.Context, githubToken strin
 	}
 
 	// look up the user by email
-	user, err := tvm.queries.GetUserByEmail(ctx, guResp.Email)
+	userScopes, err := tvm.queries.GetUserScopesByEmail(ctx, guResp.Email)
 	if err != nil {
 		slog.Error("github token exchange: get user by email", "email", guResp.Email, "error", err)
 		return "", ErrUserNotFound
 	}
-
-	// issue a TVM token for the user
-	tvmToken, err := tvm.Issue(ctx, user.ID, queries.Entity{
-		Type: queries.EntityTypeUser,
-		ID:   user.ID,
-	}, []queries.EntityScope{
-		scopeUserRead.attachEntityID(user.ID),
-		scopeUserWrite.attachEntityID(user.ID),
-		scopeUserAdmin.attachEntityID(user.ID),
-	}, time.Hour*24*7)
-
-	if err != nil {
-		slog.Error("github token exchange: issue tvm token", "user_id", user.ID, "error", err)
-		return "", ErrIssueToken
+	if len(userScopes) == 0 { // either user not found or has no scopes
+		slog.Error("github token exchange: user not found or has no scopes", "email", guResp.Email)
+		return "", ErrUserNotFound
 	}
+	userID := userScopes[0].UserID
 
-	return tvmToken, nil
+	// issue the token
+	return tvm.issueNoCheck(ctx, queries.Entity{
+		Type: queries.EntityTypeUser,
+		ID:   userID,
+	}, queries.EntityScopesFromUserScopes(userScopes), tvm.cfg.LoginTokenDuration)
 }

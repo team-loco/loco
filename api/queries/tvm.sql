@@ -1,7 +1,12 @@
 -- what scopes does user x have?
 -- name: GetUserScopes :many
-SELECT scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1;
+SELECT user_id, scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1;
 
+-- name: GetUserScopesByEmail :many
+SELECT us.user_id, us.scope, us.entity_type, us.entity_id
+FROM user_scopes us
+JOIN users u ON us.user_id = u.id
+WHERE u.email = $1;
 
 -- what scopes does user x have on entity y?
 -- name: GetUserScopesOnEntity :many

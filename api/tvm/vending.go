@@ -7,24 +7,28 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/loco-team/loco/api/db"
 	queries "github.com/loco-team/loco/api/gen/db"
 )
 
 // todo config
 type VendingMachine struct {
-	db               *db.DB
-	queries          *queries.Queries
-	secret           []byte
-	maxTokenDuration time.Duration
+	queries *queries.Queries
+	secret  []byte
+	cfg     Config
 }
 
+type Config struct {
+	MaxTokenDuration   time.Duration
+	LoginTokenDuration time.Duration
+}
+
+// Issue issues a TVM token for the given entity with the given scopes and duration, after verifying
+// that the user has sufficient permissions.
 func (tvm *VendingMachine) Issue(ctx context.Context, userID int64, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	// gotta make sure the requested duration does not exceed the max allowed duration
-	if duration > tvm.maxTokenDuration {
+	if duration > tvm.cfg.MaxTokenDuration {
 		return "", ErrDurationExceedsMaxAllowed
 	}
-	expiresAt := time.Now().Add(duration)
 
 	// fetch the scopes associated with the user
 	userScopes, err := tvm.queries.GetUserScopes(ctx, userID)
@@ -32,33 +36,30 @@ func (tvm *VendingMachine) Issue(ctx context.Context, userID int64, entity queri
 		return "", err
 	}
 
+	userEntityScopes := queries.EntityScopesFromUserScopes(userScopes)
+
 	// verify that the user has sufficient permissions to issue a token with the requested scopes
 	for _, entityScope := range entityScopes {
-		if entityScope.Entity.Type == queries.EntityTypeUser {
-			if entityScope.Entity.ID == userID { // users can issue tokens on behalf of themselves
-				continue
-			}
-			return "", ErrInsufficentPermissions // users cannot have scopes on other users
-		}
-		if !slices.Contains(userScopes, queries.GetUserScopesRow{
-			Scope:      string(entityScope.Scope),
-			EntityType: entityScope.Entity.Type,
-			EntityID:   entityScope.Entity.ID,
-		}) {
+		if !slices.Contains(userEntityScopes, entityScope) {
 			return "", ErrInsufficentPermissions
 		}
 	}
 
+	return tvm.issueNoCheck(ctx, entity, entityScopes, duration)
+}
+
+// issueNoCheck issues a token without checking permissions.
+func (tvm *VendingMachine) issueNoCheck(ctx context.Context, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	tk := uuid.Must(uuid.NewV7())
 	tks := tk.String()
 
 	// issue the token
-	err = tvm.queries.StoreToken(ctx, queries.StoreTokenParams{
+	err := tvm.queries.StoreToken(ctx, queries.StoreTokenParams{
 		Token:      tks,
 		EntityType: queries.EntityType(entity.Type),
 		EntityID:   entity.ID,
 		Scopes:     entityScopes,
-		ExpiresAt:  expiresAt,
+		ExpiresAt:  time.Now().Add(duration),
 	})
 	if err != nil {
 		return "", ErrStoreToken
@@ -88,16 +89,14 @@ func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, scope
 	return ErrInsufficentPermissions
 }
 
-// validate
-// revoke
-
-func NewVendingMachine(db *db.DB) *VendingMachine {
+func NewVendingMachine(queries *queries.Queries, cfg Config) *VendingMachine {
 	secret := os.Getenv("JWT_SECRET")
 	if len(secret) == 0 {
 		panic("JWT_SECRET not set")
 	}
 	return &VendingMachine{
-		db:     db,
-		secret: []byte(secret),
+		queries: queries,
+		secret:  []byte(secret),
+		cfg:     cfg,
 	}
 }

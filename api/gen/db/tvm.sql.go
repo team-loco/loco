@@ -108,26 +108,57 @@ func (q *Queries) GetTokensForEntity(ctx context.Context, arg GetTokensForEntity
 }
 
 const getUserScopes = `-- name: GetUserScopes :many
-SELECT scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1
+SELECT user_id, scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1
 `
 
-type GetUserScopesRow struct {
-	Scope      string     `json:"scope"`
-	EntityType EntityType `json:"entityType"`
-	EntityID   int64      `json:"entityId"`
-}
-
 // what scopes does user x have?
-func (q *Queries) GetUserScopes(ctx context.Context, userID int64) ([]GetUserScopesRow, error) {
+func (q *Queries) GetUserScopes(ctx context.Context, userID int64) ([]UserScope, error) {
 	rows, err := q.db.Query(ctx, getUserScopes, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUserScopesRow
+	var items []UserScope
 	for rows.Next() {
-		var i GetUserScopesRow
-		if err := rows.Scan(&i.Scope, &i.EntityType, &i.EntityID); err != nil {
+		var i UserScope
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Scope,
+			&i.EntityType,
+			&i.EntityID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserScopesByEmail = `-- name: GetUserScopesByEmail :many
+SELECT us.user_id, us.scope, us.entity_type, us.entity_id
+FROM user_scopes us
+JOIN users u ON us.user_id = u.id
+WHERE u.email = $1
+`
+
+func (q *Queries) GetUserScopesByEmail(ctx context.Context, email string) ([]UserScope, error) {
+	rows, err := q.db.Query(ctx, getUserScopesByEmail, email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UserScope
+	for rows.Next() {
+		var i UserScope
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Scope,
+			&i.EntityType,
+			&i.EntityID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
