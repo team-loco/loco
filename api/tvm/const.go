@@ -233,6 +233,10 @@ var (
 	ErrInsufficentPermissions    = errors.New("insufficient permissions to issue token with requested scopes")
 	ErrStoreToken                = errors.New("unable to store issued token")
 
-	ErrTokenExpired  = errors.New("token has expired")
-	ErrTokenNotFound = errors.New("token not found")
+	ErrTokenExpired   = errors.New("token has expired")
+	ErrTokenNotFound  = errors.New("token not found")
+	ErrGithubExchange = errors.New("an issue occured while exchanging the github token")
+	ErrUserNotFound   = errors.New("user not found")
+
+	ErrIssueToken = errors.New("unable to issue token")
 )

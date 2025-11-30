@@ -11,6 +11,7 @@ import (
 	queries "github.com/loco-team/loco/api/gen/db"
 )
 
+// todo config
 type VendingMachine struct {
 	db               *db.DB
 	queries          *queries.Queries
@@ -49,10 +50,11 @@ func (tvm *VendingMachine) Issue(ctx context.Context, userID int64, entity queri
 	}
 
 	tk := uuid.Must(uuid.NewV7())
+	tks := tk.String()
 
 	// issue the token
 	err = tvm.queries.StoreToken(ctx, queries.StoreTokenParams{
-		Token:      tk.String(),
+		Token:      tks,
 		EntityType: queries.EntityType(entity.Type),
 		EntityID:   entity.ID,
 		Scopes:     entityScopes,
@@ -62,7 +64,7 @@ func (tvm *VendingMachine) Issue(ctx context.Context, userID int64, entity queri
 		return "", ErrStoreToken
 	}
 
-	return tk.String(), nil
+	return tks, nil
 }
 
 func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, scopesForAction []queries.EntityScope) error {
