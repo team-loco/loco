@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/loco-team/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/contextkeys"
 )
 
 type githubAuthInterceptor struct{}

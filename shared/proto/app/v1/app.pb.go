@@ -7,13 +7,14 @@
 package appv1
 
 import (
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
+
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	_ "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
 )
 
 const (
@@ -1875,7 +1876,7 @@ const file_app_v1_app_proto_rawDesc = "" +
 	"StreamLogs\x12\x1e.loco.app.v1.StreamLogsRequest\x1a\x15.loco.app.v1.LogEntry0\x01\x12J\n" +
 	"\tGetEvents\x12\x1d.loco.app.v1.GetEventsRequest\x1a\x1e.loco.app.v1.GetEventsResponse\x12G\n" +
 	"\bScaleApp\x12\x1c.loco.app.v1.ScaleAppRequest\x1a\x1d.loco.app.v1.ScaleAppResponse\x12S\n" +
-	"\fUpdateAppEnv\x12 .loco.app.v1.UpdateAppEnvRequest\x1a!.loco.app.v1.UpdateAppEnvResponseB5Z3github.com/loco-team/loco/shared/proto/app/v1;appv1b\x06proto3"
+	"\fUpdateAppEnv\x12 .loco.app.v1.UpdateAppEnvRequest\x1a!.loco.app.v1.UpdateAppEnvResponseB5Z3github.com/team-loco/loco/shared/proto/app/v1;appv1b\x06proto3"
 
 var (
 	file_app_v1_app_proto_rawDescOnce sync.Once

@@ -7,12 +7,13 @@
 package orgv1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -905,7 +906,7 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\bListOrgs\x12\x1c.loco.org.v1.ListOrgsRequest\x1a\x1d.loco.org.v1.ListOrgsResponse\x12J\n" +
 	"\tUpdateOrg\x12\x1d.loco.org.v1.UpdateOrgRequest\x1a\x1e.loco.org.v1.UpdateOrgResponse\x12J\n" +
 	"\tDeleteOrg\x12\x1d.loco.org.v1.DeleteOrgRequest\x1a\x1e.loco.org.v1.DeleteOrgResponse\x12\\\n" +
-	"\x0fIsUniqueOrgName\x12#.loco.org.v1.IsUniqueOrgNameRequest\x1a$.loco.org.v1.IsUniqueOrgNameResponseB5Z3github.com/loco-team/loco/shared/proto/org/v1;orgv1b\x06proto3"
+	"\x0fIsUniqueOrgName\x12#.loco.org.v1.IsUniqueOrgNameRequest\x1a$.loco.org.v1.IsUniqueOrgNameResponseB5Z3github.com/team-loco/loco/shared/proto/org/v1;orgv1b\x06proto3"
 
 var (
 	file_org_v1_org_proto_rawDescOnce sync.Once

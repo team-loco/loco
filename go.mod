@@ -14,9 +14,9 @@ require (
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/goccy/go-json v0.10.5
 	github.com/joho/godotenv v1.5.1
-	github.com/team-loco/loco/shared v0.0.0-20251123182415-9216adda056e
 	github.com/moby/go-archive v0.1.0
 	github.com/spf13/cobra v1.10.1
+	github.com/team-loco/loco/shared v0.0.0-20251123182415-9216adda056e
 	github.com/zalando/go-keyring v0.2.6
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )

@@ -7,11 +7,12 @@
 package registryv1
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -119,7 +120,7 @@ const file_registry_v1_registry_proto_rawDesc = "" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token2o\n" +
 	"\x0fRegistryService\x12\\\n" +
-	"\vGitlabToken\x12$.loco.registry.v1.GitlabTokenRequest\x1a%.loco.registry.v1.GitlabTokenResponse\"\x00B?Z=github.com/loco-team/loco/shared/proto/registry/v1;registryv1b\x06proto3"
+	"\vGitlabToken\x12$.loco.registry.v1.GitlabTokenRequest\x1a%.loco.registry.v1.GitlabTokenResponse\"\x00B?Z=github.com/team-loco/loco/shared/proto/registry/v1;registryv1b\x06proto3"
 
 var (
 	file_registry_v1_registry_proto_rawDescOnce sync.Once
