@@ -169,6 +169,25 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDe
 	return i, err
 }
 
+const getWorkspaceOrganizationIDByAppID = `-- name: GetWorkspaceOrganizationIDByAppID :one
+SELECT workspace_id, w.org_id
+FROM apps a
+JOIN workspaces w ON a.workspace_id = w.id
+WHERE a.id = $1
+`
+
+type GetWorkspaceOrganizationIDByAppIDRow struct {
+	WorkspaceID int64 `json:"workspaceId"`
+	OrgID       int64 `json:"orgId"`
+}
+
+func (q *Queries) GetWorkspaceOrganizationIDByAppID(ctx context.Context, id int64) (GetWorkspaceOrganizationIDByAppIDRow, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceOrganizationIDByAppID, id)
+	var i GetWorkspaceOrganizationIDByAppIDRow
+	err := row.Scan(&i.WorkspaceID, &i.OrgID)
+	return i, err
+}
+
 const listAppsForWorkspace = `-- name: ListAppsForWorkspace :many
 SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at FROM apps
 WHERE workspace_id = $1

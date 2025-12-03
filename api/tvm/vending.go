@@ -68,7 +68,7 @@ func (tvm *VendingMachine) issueNoCheck(ctx context.Context, entity queries.Enti
 	return tks, nil
 }
 
-func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, scopesForAction []queries.EntityScope) error {
+func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, entityScope queries.EntityScope) error {
 	tokenData, err := tvm.queries.GetToken(ctx, token)
 	if err != nil {
 		return ErrTokenNotFound
@@ -77,11 +77,69 @@ func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, scope
 		return ErrTokenExpired
 	}
 
-	// scopesForAction is an OR list - any one of the scopes is sufficient to perform the action
-	for _, scopeForAction := range scopesForAction {
-		if slices.Contains(tokenData.Scopes, scopeForAction) {
-			// the token has at least one of the entity scopes, therefore the token
-			// is sufficient to perform the action
+	// hot path: check if token has the entityScope required or has sys:scope
+	for _, scope := range tokenData.Scopes {
+		if scope == entityScope { // the token directly has the scope needed
+			return nil
+		}
+		// for example: if operation requires workspace:write and user has sys:write
+		// it should allow the operation. this function still does not allow access
+		// for someone with something like sys:read to workspace:write.
+		if scope.Entity.Type == queries.EntityTypeSystem && scope.Scope == entityScope.Scope {
+			return nil
+		}
+	}
+	// not so hot path: if the token has an entityScope that is *implied*
+	var otherEntityScopes []queries.EntityScope
+	switch entityScope.Entity.Type {
+	case queries.EntityTypeOrganization:
+		return ErrInsufficentPermissions // there is nothing higher to check. if doesn't have org or sys permissions for scope on an org, you don't have enough perms.
+	case queries.EntityTypeWorkspace:
+		// lookup workspace for its org id and check for org:scope
+		org_id, err := queries.GetOrganizationIDByWorkspaceID(ctx, entityScope.Entity.ID)
+		if err != nil {
+			// note: this could be another error
+			return ErrEntityNotFound
+		}
+		otherEntityScopes = []queries.EntityScope{
+			{
+				Entity: queries.Entity{
+					Type: queries.EntityTypeOrganization,
+					ID:   org_id,
+				},
+				Scope: entityScope.Scope,
+			},
+		}
+	case queries.EntityTypeApp:
+		wks_id, org_id, err := queries.GetWorkspaceOrganizationIDByAppID(ctx, entityScope.Entity.ID)
+		if err != nil {
+			// note: again this could be another eror
+			return ErrEntityNotFound
+		}
+		otherEntityScopes = []queries.EntityScope{
+			{
+				Entity: queries.Entity{
+					Type: queries.EntityTypeOrganization,
+					ID:   org_id,
+				},
+				Scope: entityScope.Scope,
+			},
+			{
+				Entity: queries.Entity{
+					Type: queries.EntityTypeWorkspace,
+					ID:   wks_id,
+				},
+				Scope: entityScope.Scope,
+			},
+		}
+	default:
+		return ErrEntityNotFound // unknown entity type
+	}
+
+	// check otherentityscopes. note: someone see if this can be optimized
+	for _, oes := range otherEntityScopes {
+		// if token has any of the implied scopes, allow
+		if slices.Contains(tokenData.Scopes, oes) {
 			return nil
 		}
 	}

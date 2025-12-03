@@ -26,6 +26,17 @@ func (q *Queries) DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspace
 	return err
 }
 
+const getOrganizationIDByWorkspaceID = `-- name: GetOrganizationIDByWorkspaceID :one
+SELECT org_id FROM workspaces WHERE id = $1
+`
+
+func (q *Queries) GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getOrganizationIDByWorkspaceID, id)
+	var org_id int64
+	err := row.Scan(&org_id)
+	return org_id, err
+}
+
 const getWorkspaceByIDQuery = `-- name: GetWorkspaceByIDQuery :one
 SELECT id, org_id, name, description, created_by, created_at, updated_at FROM workspaces WHERE id = $1
 `
