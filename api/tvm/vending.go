@@ -95,12 +95,14 @@ func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, entit
 	case queries.EntityTypeOrganization:
 		return ErrInsufficentPermissions // there is nothing higher to check. if doesn't have org or sys permissions for scope on an org, you don't have enough perms.
 	case queries.EntityTypeWorkspace:
-		// lookup workspace for its org id and check for org:scope
-		org_id, err := queries.GetOrganizationIDByWorkspaceID(ctx, entityScope.Entity.ID)
+		// lookup the org id for the workspace
+		org_id, err := tvm.queries.GetOrganizationIDByWorkspaceID(ctx, entityScope.Entity.ID)
 		if err != nil {
 			// note: this could be another error
 			return ErrEntityNotFound
 		}
+
+		// check for org:scope
 		otherEntityScopes = []queries.EntityScope{
 			{
 				Entity: queries.Entity{
@@ -111,11 +113,16 @@ func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, entit
 			},
 		}
 	case queries.EntityTypeApp:
-		wks_id, org_id, err := queries.GetWorkspaceOrganizationIDByAppID(ctx, entityScope.Entity.ID)
+		// lookup the workspace and org id for the app
+		ids, err := tvm.queries.GetWorkspaceOrganizationIDByAppID(ctx, entityScope.Entity.ID)
 		if err != nil {
 			// note: again this could be another eror
 			return ErrEntityNotFound
 		}
+		wks_id := ids.WorkspaceID
+		org_id := ids.OrgID
+
+		// check for org:scope and workspace:scope
 		otherEntityScopes = []queries.EntityScope{
 			{
 				Entity: queries.Entity{
