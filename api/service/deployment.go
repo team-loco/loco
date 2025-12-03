@@ -13,11 +13,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/contextkeys"
-	"github.com/loco-team/loco/api/pkg/kube"
-	timeutil "github.com/loco-team/loco/api/timeutil"
-	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
+	"github.com/team-loco/loco/api/contextkeys"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/kube"
+	timeutil "github.com/team-loco/loco/api/timeutil"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

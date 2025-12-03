@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/loco-team/loco/internal/client"
-	"github.com/loco-team/loco/internal/config"
-	"github.com/loco-team/loco/internal/keychain"
-	"github.com/loco-team/loco/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/internal/ui"
 )
 
 var useCmd = &cobra.Command{

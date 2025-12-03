@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/shared/config"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/shared/config"
 )
 
 // LocoDeploymentContext wraps App and Deployment for K8s operations

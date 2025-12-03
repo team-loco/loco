@@ -5,9 +5,9 @@ import (
 	"log/slog"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/loco-team/loco/internal/ui"
-	"github.com/loco-team/loco/shared/config"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/ui"
+	"github.com/team-loco/loco/shared/config"
 )
 
 var validateCmd = &cobra.Command{

@@ -8,17 +8,17 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/loco-team/loco/internal/client"
-	"github.com/loco-team/loco/internal/docker"
-	"github.com/loco-team/loco/internal/ui"
-	"github.com/loco-team/loco/shared"
-	"github.com/loco-team/loco/shared/config"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
-	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
-	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
-	registryv1 "github.com/loco-team/loco/shared/proto/registry/v1"
-	registryv1connect "github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/docker"
+	"github.com/team-loco/loco/internal/ui"
+	"github.com/team-loco/loco/shared"
+	"github.com/team-loco/loco/shared/config"
+	appv1 "github.com/team-loco/loco/shared/proto/app/v1"
+	"github.com/team-loco/loco/shared/proto/app/v1/appv1connect"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
+	registryv1 "github.com/team-loco/loco/shared/proto/registry/v1"
+	registryv1connect "github.com/team-loco/loco/shared/proto/registry/v1/registryv1connect"
 )
 
 var deployCmd = &cobra.Command{

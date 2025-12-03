@@ -11,10 +11,10 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/loco-team/loco/internal/client"
-	"github.com/loco-team/loco/internal/ui"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/ui"
+	appv1 "github.com/team-loco/loco/shared/proto/app/v1"
 )
 
 var logsCmd = &cobra.Command{
