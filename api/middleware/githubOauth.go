@@ -9,7 +9,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/loco-team/loco/api/contextkeys"
-	"github.com/loco-team/loco/api/jwtutil"
 )
 
 type githubAuthInterceptor struct{}

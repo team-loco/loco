@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	queries "github.com/loco-team/loco/api/gen/db"
+	queries "github.com/team-loco/loco/api/gen/db"
 )
 
 // todo config

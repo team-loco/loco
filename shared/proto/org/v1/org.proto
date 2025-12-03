@@ -4,7 +4,7 @@ package loco.org.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/loco-team/loco/shared/proto/org/v1;orgv1";
+option go_package = "github.com/team-loco/loco/shared/proto/org/v1;orgv1";
 
 service OrgService {
   rpc CreateOrg(CreateOrgRequest) returns (CreateOrgResponse);

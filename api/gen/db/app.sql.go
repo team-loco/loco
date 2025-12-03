@@ -170,10 +170,7 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDe
 }
 
 const getWorkspaceOrganizationIDByAppID = `-- name: GetWorkspaceOrganizationIDByAppID :one
-SELECT workspace_id, w.org_id
-FROM apps a
-JOIN workspaces w ON a.workspace_id = w.id
-WHERE a.id = $1
+SELECT workspace_id, w.org_id FROM apps a JOIN workspaces w ON a.workspace_id = w.id WHERE a.id = $1
 `
 
 type GetWorkspaceOrganizationIDByAppIDRow struct {

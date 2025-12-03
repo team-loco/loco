@@ -3,7 +3,7 @@ package tvm
 import (
 	"errors"
 
-	queries "github.com/loco-team/loco/api/gen/db"
+	queries "github.com/team-loco/loco/api/gen/db"
 )
 
 const issuer = "loco-api"

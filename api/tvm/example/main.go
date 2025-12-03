@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/loco-team/loco/api/db"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/tvm"
+	"github.com/team-loco/loco/api/db"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/tvm"
 )
 
 func main() {

@@ -17,7 +17,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/jwtutil"
 	oAuth "github.com/loco-team/loco/shared/proto/oauth/v1"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"

@@ -1,4 +1,4 @@
-module github.com/loco-team/loco/shared
+module github.com/team-loco/loco/shared
 
 go 1.25.0
 

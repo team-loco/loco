@@ -4,7 +4,7 @@ package loco.deployment.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/loco-team/loco/shared/proto/deployment/v1;deploymentv1";
+option go_package = "github.com/team-loco/loco/shared/proto/deployment/v1;deploymentv1";
 
 enum DeploymentPhase {
   DEPLOYMENT_PHASE_UNSPECIFIED = 0;

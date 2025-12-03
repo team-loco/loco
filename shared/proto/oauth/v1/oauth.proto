@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package loco.oauth.v1;
 
-option go_package = "github.com/loco-team/loco/shared/proto/oauth/v1;oauthv1";
+option go_package = "github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1";
 
 message GithubOAuthDetailsRequest {}
 message GithubOAuthDetailsResponse {

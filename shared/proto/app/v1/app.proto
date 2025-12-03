@@ -5,7 +5,7 @@ package loco.app.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/loco-team/loco/shared/proto/app/v1;appv1";
+option go_package = "github.com/team-loco/loco/shared/proto/app/v1;appv1";
 
 enum AppType {
   SERVICE = 0;

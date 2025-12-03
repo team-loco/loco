@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	queries "github.com/loco-team/loco/api/gen/db"
+	queries "github.com/team-loco/loco/api/gen/db"
 )
 
 // ExchangeGithub exchanges a GitHub token for a TVM token.
