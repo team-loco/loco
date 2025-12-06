@@ -75,7 +75,7 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 
 				{/* Type Badge and Status */}
 				<div className="flex items-center justify-between gap-2">
-					<Badge variant="neutral">{appTypeLabel}</Badge>
+					<Badge variant="secondary">{appTypeLabel}</Badge>
 					<StatusBadge status="running" />
 				</div>
 

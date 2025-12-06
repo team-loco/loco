@@ -225,7 +225,7 @@ export function AppSettings() {
 
 					<div className="flex gap-2 pt-4">
 						<Button
-							variant="noShadow"
+							variant="outline"
 							onClick={() => {
 								setName(app.name);
 							}}
@@ -256,7 +256,7 @@ export function AppSettings() {
 							<div className="text-sm font-medium text-foreground">
 								Current Domains
 							</div>
-							<div className="bg-background/50 rounded-neo p-3 space-y-2">
+							<div className="bg-background/50 rounded-lg p-3 space-y-2">
 								{app.domains.map((domain) => (
 									<div key={domain.id}>
 										{editingDomainId === domain.id ? (
@@ -276,7 +276,7 @@ export function AppSettings() {
 													Save
 												</Button>
 												<Button
-													variant="noShadow"
+													variant="outline"
 													size="sm"
 													className="text-xs border-2 shrink-0"
 													onClick={handleCancelEdit}
@@ -297,7 +297,7 @@ export function AppSettings() {
 													)}
 												</div>
 												<Button
-													variant="noShadow"
+													variant="outline"
 													size="sm"
 													className="text-xs border-2 shrink-0"
 													onClick={() => handleEditDomain(domain)}
@@ -306,7 +306,7 @@ export function AppSettings() {
 												</Button>
 												{!domain.isPrimary && (
 													<Button
-														variant="noShadow"
+														variant="outline"
 														size="sm"
 														className="text-xs border-2 shrink-0"
 														onClick={() =>
@@ -318,7 +318,7 @@ export function AppSettings() {
 													</Button>
 												)}
 												<Button
-													variant="noShadow"
+													variant="outline"
 													size="sm"
 													className="text-xs border-2 border-error-border text-error-text shrink-0"
 													onClick={() =>
@@ -358,7 +358,7 @@ export function AppSettings() {
 								onChange={(e) =>
 									setDomainSource(e.target.value as "platform" | "user")
 								}
-								className="w-full mt-1 px-3 py-2 rounded-neo border border-border bg-background text-sm"
+								className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm"
 							>
 								<option value="platform">Platform Domain</option>
 								<option value="user">User-Provided Domain</option>
@@ -373,7 +373,7 @@ export function AppSettings() {
 								<select
 									value={platformDomainId}
 									onChange={(e) => setPlatformDomainId(e.target.value)}
-									className="w-full mt-1 px-3 py-2 rounded-neo border border-border bg-background text-sm"
+									className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm"
 								>
 									<option value="">Choose a domain...</option>
 									{platformDomains.map((pd) => (
@@ -439,7 +439,7 @@ export function AppSettings() {
 
 						<Button
 							className="text-error-text border-error-border bg-error-bg hover:bg-error-bg/80"
-							variant="noShadow"
+							variant="outline"
 							onClick={() => setShowDeleteConfirm(true)}
 						>
 							Delete Application
@@ -450,7 +450,7 @@ export function AppSettings() {
 
 			{/* Delete Confirmation Dialog */}
 			{showDeleteConfirm && (
-				<div className="space-y-2 p-4 border-2 border-error-border rounded-neo bg-error-bg">
+				<div className="space-y-2 p-4 border-2 border-error-border rounded-lg bg-error-bg">
 					<p className="text-sm text-error-text font-medium">
 						Are you sure? This action cannot be undone.
 					</p>
@@ -459,7 +459,7 @@ export function AppSettings() {
 					</p>
 					<div className="flex gap-2 pt-2">
 						<Button
-							variant="neutral"
+							variant="secondary"
 							className="flex-1 text-sm"
 							onClick={() => setShowDeleteConfirm(false)}
 							disabled={deleteAppMutation.isPending}

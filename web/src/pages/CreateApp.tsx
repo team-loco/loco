@@ -218,7 +218,7 @@ export function CreateApp() {
 									key={type.value}
 									type="button"
 									onClick={() => setAppType(type.value)}
-									className={`p-4 rounded-neo border-2 text-left transition-all ${
+									className={`p-4 rounded-lg border-2 text-left transition-all ${
 										appType === type.value
 											? "border-main bg-main/5"
 											: "border-border hover:border-main/50"
@@ -280,7 +280,7 @@ export function CreateApp() {
 									}}
 									className="border-border flex-1"
 								/>
-								<div className="flex items-center px-3 bg-secondary rounded-neo border border-border text-sm text-muted-foreground shrink-0">
+								<div className="flex items-center px-3 bg-secondary rounded-lg border border-border text-sm text-muted-foreground shrink-0">
 									.{selectedPlatformDomain}
 								</div>
 								{subdomainAvailability && (
@@ -315,7 +315,7 @@ export function CreateApp() {
 				<div className="flex gap-3 justify-end">
 					<Button
 						type="button"
-						variant="neutral"
+						variant="secondary"
 						onClick={() => navigate("/dashboard")}
 					>
 						Cancel

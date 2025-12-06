@@ -90,10 +90,10 @@ export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
 
 					<div className="flex gap-2 w-full sm:w-auto">
 						<Button
-							variant="noShadow"
+							variant="outline"
 							size="sm"
 							onClick={() => setIsFollowing(!isFollowing)}
-							className="border-2 flex-1 sm:flex-none"
+							className="flex-1 sm:flex-none"
 							title={isFollowing ? "Stop following" : "Follow logs"}
 						>
 							{isFollowing ? (
@@ -103,17 +103,17 @@ export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
 							)}
 						</Button>
 						<Button
-							variant="noShadow"
+							variant="outline"
 							size="sm"
-							className="border-2 flex-1 sm:flex-none"
+							className="flex-1 sm:flex-none"
 						>
 							<RefreshCw className="w-4 h-4" />
 						</Button>
 						<Button
-							variant="noShadow"
+							variant="outline"
 							size="sm"
 							onClick={handleExport}
-							className="border-2 flex-1 sm:flex-none"
+							className="flex-1 sm:flex-none"
 						>
 							<Download className="w-4 h-4" />
 						</Button>
@@ -121,7 +121,7 @@ export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
 				</div>
 
 				{/* Logs Display */}
-				<div className="bg-foreground/5 border-2 border-border rounded-neo p-4 font-mono text-xs max-h-96 overflow-y-auto">
+				<div className="bg-foreground/5 border-2 border-border rounded-lg p-4 font-mono text-xs max-h-96 overflow-y-auto">
 					{filteredLogs.length > 0 ? (
 						<div className="space-y-1">
 							{filteredLogs.map((logEntry, index) => (

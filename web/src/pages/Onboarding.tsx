@@ -77,7 +77,7 @@ export function Onboarding() {
 			<Card className="max-w-md w-full">
 				<CardContent className="p-8">
 					<div className="text-center mb-8">
-						<div className="w-12 h-12 bg-main rounded-neo flex items-center justify-center text-white font-heading text-lg mx-auto mb-4">
+						<div className="w-12 h-12 bg-main rounded-lg flex items-center justify-center text-white font-heading text-lg mx-auto mb-4">
 							L
 						</div>
 						<h1 className="text-2xl font-heading text-foreground mb-2">

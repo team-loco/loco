@@ -95,7 +95,7 @@ export function Profile() {
 						<p className="text-sm text-muted-foreground italic">
 							API token management coming in Phase 6
 						</p>
-						<Button variant="neutral" disabled>
+						<Button variant="secondary" disabled>
 							Create New Token
 						</Button>
 					</div>
@@ -108,13 +108,13 @@ export function Profile() {
 					<CardTitle className="text-lg">Account</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					<Button variant="neutral" className="w-full" onClick={logout}>
+					<Button variant="secondary" className="w-full" onClick={logout}>
 						Logout
 					</Button>
 
 					{!showDeleteConfirm ? (
 						<Button
-							variant="neutral"
+							variant="secondary"
 							className="w-full text-error-text border-error-border bg-error-bg hover:bg-error-bg/80"
 							onClick={() => setShowDeleteConfirm(true)}
 							disabled={deleteUserMutation.isPending}
@@ -122,13 +122,13 @@ export function Profile() {
 							Delete Account
 						</Button>
 					) : (
-						<div className="space-y-2 p-4 border-2 border-error-border rounded-neo bg-error-bg">
+						<div className="space-y-2 p-4 border-2 border-error-border rounded-lg bg-error-bg">
 							<p className="text-sm text-error-text font-medium">
 								Are you sure? This action cannot be undone.
 							</p>
 							<div className="flex gap-2">
 								<Button
-									variant="neutral"
+									variant="secondary"
 									className="flex-1 text-sm"
 									onClick={() => setShowDeleteConfirm(false)}
 									disabled={deleteUserMutation.isPending}

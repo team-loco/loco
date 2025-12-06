@@ -50,7 +50,7 @@ export function EventsTimeline({ appId, isLoading = false }: EventsTimelineProps
 										{event.eventType}
 									</p>
 									<Badge
-										variant="neutral"
+										variant="secondary"
 										className="text-xs"
 									>
 										{new Date(event.timestamp).toLocaleTimeString()}

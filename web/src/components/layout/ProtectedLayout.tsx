@@ -31,7 +31,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		return (
 			<div className="flex items-center justify-center min-h-screen bg-background">
 				<div className="text-center">
-					<div className="w-8 h-8 bg-main rounded-neo mx-auto mb-4 animate-pulse"></div>
+					<div className="w-8 h-8 bg-main rounded-lg mx-auto mb-4 animate-pulse"></div>
 					<p className="text-foreground font-base">Loading Loco...</p>
 				</div>
 			</div>

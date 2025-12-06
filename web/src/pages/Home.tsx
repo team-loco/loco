@@ -3,6 +3,7 @@ import { AppCard } from "@/components/AppCard";
 import { EmptyState } from "@/components/EmptyState";
 import { AppSearch } from "@/components/dashboard/AppSearch";
 import { OrgFilter } from "@/components/dashboard/OrgFilter";
+import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useHeader } from "@/context/HeaderContext";
@@ -152,6 +153,16 @@ export function Home() {
 
 	return (
 		<div className="space-y-6">
+			{/* Workspace Dashboard Metrics - only show when workspace is selected */}
+			{currentWorkspaceId && (
+				<WorkspaceDashboardMetrics
+					workspaceId={currentWorkspaceId}
+					workspaceName={
+						workspaces.find((ws) => ws.id === currentWorkspaceId)?.name || ""
+					}
+				/>
+			)}
+
 			{/* Controls: Org Filter, Search, Create Button */}
 			{allApps.length > 0 && (
 				<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">

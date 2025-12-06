@@ -75,7 +75,7 @@ export function DeploymentStatusCard({
 					<span>Deployment Status</span>
 					{!isEditing && (
 						<Button
-							variant="noShadow"
+							variant="outline"
 							size="sm"
 							onClick={() => setIsEditing(true)}
 							className="border-2"
@@ -90,7 +90,7 @@ export function DeploymentStatusCard({
 				<div className="space-y-3">
 					<div className="flex items-center justify-between">
 						<span className="text-sm font-medium text-foreground">Status</span>
-						<Badge variant="neutral" className="bg-blue-100">
+						<Badge variant="secondary" className="bg-blue-100">
 							{status.status || "unknown"}
 						</Badge>
 					</div>
@@ -190,9 +190,9 @@ export function DeploymentStatusCard({
 
 						<div className="flex gap-2 pt-4">
 							<Button
-								variant="noShadow"
+								variant="outline"
 								onClick={() => setIsEditing(false)}
-								className="border-2 flex-1"
+								className="flex-1"
 							>
 								Cancel
 							</Button>

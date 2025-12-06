@@ -103,7 +103,7 @@ export function RecentDeployments({
 										{deployment.image?.split("/").pop() || "—"}
 									</TableCell>
 									<TableCell>
-										<Badge variant="neutral" className="text-xs">
+										<Badge variant="secondary" className="text-xs">
 											{deployment.status || "unknown"}
 										</Badge>
 									</TableCell>
@@ -112,7 +112,7 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell className="text-right">
 										<Button
-											variant="neutral"
+											variant="secondary"
 											size="sm"
 											className="h-8"
 											onClick={(e) => {
