@@ -102,63 +102,49 @@ export function Profile() {
 				</CardContent>
 			</Card>
 
-			{/* Sessions & Security */}
-			<Card>
+			{/* Logout & Account Management */}
+			<Card className="mb-6">
 				<CardHeader>
-					<CardTitle className="text-lg">Sessions & Security</CardTitle>
+					<CardTitle className="text-lg">Account</CardTitle>
 				</CardHeader>
-				<CardContent className="space-y-4">
-					<div>
-						<p className="text-sm text-foreground font-medium mb-2">
-							Current Session
-						</p>
-						<p className="text-sm text-muted-foreground">
-							Browser on {navigator.platform}
-						</p>
-					</div>
+				<CardContent className="space-y-3">
+					<Button variant="neutral" className="w-full" onClick={logout}>
+						Logout
+					</Button>
 
-					<div className="space-y-2 pt-4 border-t border-border">
-						<Button variant="neutral" className="w-full" disabled>
-							Logout All Sessions
+					{!showDeleteConfirm ? (
+						<Button
+							variant="neutral"
+							className="w-full text-error-text border-error-border bg-error-bg hover:bg-error-bg/80"
+							onClick={() => setShowDeleteConfirm(true)}
+							disabled={deleteUserMutation.isPending}
+						>
+							Delete Account
 						</Button>
-
-						{!showDeleteConfirm ? (
-							<Button
-								variant="neutral"
-								className="w-full text-error-text border-error-border bg-error-bg hover:bg-error-bg/80"
-								onClick={() => setShowDeleteConfirm(true)}
-								disabled={deleteUserMutation.isPending}
-							>
-								Delete Account
-							</Button>
-						) : (
-							<div className="space-y-2 p-4 border-2 border-error-border rounded-neo bg-error-bg">
-								<p className="text-sm text-error-text font-medium">
-									Are you sure? This action cannot be undone.
-								</p>
-								<div className="flex gap-2">
-									<Button
-										variant="neutral"
-										className="flex-1 text-sm"
-										onClick={() => setShowDeleteConfirm(false)}
-										disabled={deleteUserMutation.isPending}
-									>
-										Cancel
-									</Button>
-									<Button
-										className="flex-1 text-sm bg-error-bg text-error-text border-error-border hover:bg-error-bg/80"
-										onClick={handleDeleteAccount}
-										disabled={deleteUserMutation.isPending}
-									>
-										{deleteUserMutation.isPending ? "Deleting..." : "Delete"}
-									</Button>
-								</div>
+					) : (
+						<div className="space-y-2 p-4 border-2 border-error-border rounded-neo bg-error-bg">
+							<p className="text-sm text-error-text font-medium">
+								Are you sure? This action cannot be undone.
+							</p>
+							<div className="flex gap-2">
+								<Button
+									variant="neutral"
+									className="flex-1 text-sm"
+									onClick={() => setShowDeleteConfirm(false)}
+									disabled={deleteUserMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									className="flex-1 text-sm bg-error-bg text-error-text border-error-border hover:bg-error-bg/80"
+									onClick={handleDeleteAccount}
+									disabled={deleteUserMutation.isPending}
+								>
+									{deleteUserMutation.isPending ? "Deleting..." : "Delete"}
+								</Button>
 							</div>
-						)}
-						<p className="text-xs text-muted-foreground text-center">
-							Logout all sessions coming in Phase 6
-						</p>
-					</div>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 		</div>
