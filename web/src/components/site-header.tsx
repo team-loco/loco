@@ -40,7 +40,10 @@ export function SiteHeader() {
 	const appName = appsRes?.apps?.find((app) => app.id === activeAppId)?.name;
 
 	return (
-		<header className="bg-background sticky top-0 z-50 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700">
+		<header 
+			className="bg-background fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700"
+			style={{ "--header-height": "70px" } as React.CSSProperties}
+		>
 			<div className="flex h-14 w-full items-center gap-3 px-6">
 				<SidebarTrigger
 					className={`h-8 w-8 shrink-0 transition-colors ${
@@ -48,7 +51,7 @@ export function SiteHeader() {
 					}`}
 				/>
 				<Separator orientation="vertical" className="h-4" />
-				<nav className="hidden sm:flex items-center gap-3 text-sm">
+				<nav className="hidden sm:flex items-center gap-3 text-sm font-mono">
 					<Link
 						to="/dashboard"
 						className="hover:text-foreground text-muted-foreground transition-colors"

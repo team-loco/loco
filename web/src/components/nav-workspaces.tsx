@@ -57,6 +57,7 @@ export function NavWorkspaces({
 								}
 								tooltip={workspace.name}
 								isActive={workspace.isActive}
+								className={workspace.isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : ""}
 							>
 								<span>{workspace.name}</span>
 							</SidebarMenuButton>

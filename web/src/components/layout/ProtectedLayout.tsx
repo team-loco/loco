@@ -40,10 +40,10 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	return (
 		<SidebarProvider className="flex flex-col w-full min-h-screen">
 			<SiteHeader />
-			<div className="flex flex-1">
+			<div className="flex flex-1 pt-[70px]">
 				<AppSidebar />
-				<SidebarInset className="flex flex-col flex-1">
-					<main className="flex-1 w-full overflow-auto px-4 py-4 flex justify-center">
+				<SidebarInset className="flex flex-col flex-1 overflow-hidden">
+					<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center">
 						<div className="w-[85%] mx-auto">{children}</div>
 					</main>
 				</SidebarInset>

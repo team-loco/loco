@@ -146,14 +146,14 @@ export function AppSidebar() {
 
 	return (
 		<Sidebar>
-			<SidebarHeader>
+			<SidebarHeader className="pt-16">
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<SidebarMenuButton
 									size="lg"
-									className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+									className="bg-sidebar-accent text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
 								>
 									<div className="flex items-center gap-2 flex-1">
 										<span className="font-heading truncate">
