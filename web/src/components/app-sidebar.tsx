@@ -4,7 +4,6 @@ import {
   Bot,
   Command,
   Frame,
-  LifeBuoy,
   Map,
   PieChart,
   Send,
@@ -120,11 +119,6 @@ const data = {
     },
   ],
   navSecondary: [
-    {
-      title: "Support",
-      url: "#",
-      icon: LifeBuoy,
-    },
     {
       title: "Feedback",
       url: "#",

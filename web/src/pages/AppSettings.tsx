@@ -206,7 +206,7 @@ export function AppSettings() {
 	}
 
 	return (
-		<div className="space-y-6 max-w-2xl">
+		<div className="space-y-6">
 			<div className="space-y-1">
 				<h1 className="text-3xl font-heading text-foreground">Settings</h1>
 				<p className="text-sm text-foreground opacity-70">
@@ -391,10 +391,7 @@ export function AppSettings() {
 									</SelectTrigger>
 									<SelectContent>
 										{platformDomains.map((pd) => (
-											<SelectItem
-												key={pd.id}
-												value={pd.id.toString()}
-											>
+											<SelectItem key={pd.id} value={pd.id.toString()}>
 												{pd.domain}
 											</SelectItem>
 										))}
@@ -439,7 +436,9 @@ export function AppSettings() {
 			{/* Danger Zone */}
 			<Card className="border-2 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20">
 				<CardHeader>
-					<CardTitle className="text-red-700 dark:text-red-400">Danger Zone</CardTitle>
+					<CardTitle className="text-red-700 dark:text-red-400">
+						Danger Zone
+					</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-4">

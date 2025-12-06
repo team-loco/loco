@@ -16,7 +16,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { AppType, createApp } from "@/gen/app/v1";
-import { checkDomainAvailability, DomainType, listActivePlatformDomains } from "@/gen/domain/v1";
+import {
+	checkDomainAvailability,
+	DomainType,
+	listActivePlatformDomains,
+} from "@/gen/domain/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
@@ -43,7 +47,8 @@ export function CreateApp() {
 	const [appName, setAppName] = useState("");
 	const [appType, setAppType] = useState("SERVICE");
 	const [subdomain, setSubdomain] = useState("");
-	const [selectedPlatformDomain, setSelectedPlatformDomain] = useState<string>("");
+	const [selectedPlatformDomain, setSelectedPlatformDomain] =
+		useState<string>("");
 	const [subdomainAvailability, setSubdomainAvailability] = useState<
 		"available" | "unavailable" | "checking" | null
 	>(null);
@@ -173,7 +178,7 @@ export function CreateApp() {
 	};
 
 	return (
-		<div className="max-w-2xl mx-auto py-8">
+		<div className=" mx-auto py-8">
 			<div className="mb-8">
 				<h1 className="text-3xl font-heading text-foreground mb-2">
 					Create App
@@ -248,7 +253,10 @@ export function CreateApp() {
 							<Label htmlFor="platform-domain" className="text-sm">
 								Platform Domain
 							</Label>
-							<Select value={selectedPlatformDomain} onValueChange={setSelectedPlatformDomain}>
+							<Select
+								value={selectedPlatformDomain}
+								onValueChange={setSelectedPlatformDomain}
+							>
 								<SelectTrigger id="platform-domain" className="border-border">
 									<SelectValue placeholder="Select a platform domain" />
 								</SelectTrigger>

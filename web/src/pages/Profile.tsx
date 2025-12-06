@@ -9,10 +9,10 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { deleteUser, getCurrentUser } from "@/gen/user/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { toastConnectError } from "@/lib/error-handler";
 import { toast } from "sonner";
 
 export function Profile() {
@@ -45,7 +45,7 @@ export function Profile() {
 	};
 
 	return (
-		<div className="max-w-2xl mx-auto py-8">
+		<div className="mx-auto py-8">
 			<div className="mb-8">
 				<h1 className="text-3xl text-foreground mb-2">Profile Settings</h1>
 				<p className="text-muted-foreground">

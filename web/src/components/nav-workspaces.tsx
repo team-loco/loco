@@ -48,7 +48,7 @@ export function NavWorkspaces({
 					<Collapsible
 						key={workspace.id.toString()}
 						asChild
-						defaultOpen={workspace.isActive}
+						defaultOpen={true}
 					>
 						<SidebarMenuItem>
 							<SidebarMenuButton

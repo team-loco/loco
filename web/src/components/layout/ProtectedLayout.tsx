@@ -43,8 +43,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			<div className="flex flex-1">
 				<AppSidebar />
 				<SidebarInset className="flex flex-col flex-1">
-					<main className="flex-1 w-full overflow-auto px-6 py-4">
-						{children}
+					<main className="flex-1 w-full overflow-auto px-4 py-4 flex justify-center">
+						<div className="w-[85%] mx-auto">{children}</div>
 					</main>
 				</SidebarInset>
 			</div>

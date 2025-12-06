@@ -2,7 +2,6 @@ import { ChevronsUpDown, Home } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
-import { NavSecondary } from "@/components/nav-secondary";
 import { NavUser } from "@/components/nav-user";
 import { NavWorkspaces } from "@/components/nav-workspaces";
 import {
@@ -231,18 +230,6 @@ export function AppSidebar() {
 						}
 					/>
 				)}
-
-				{/* Secondary Nav */}
-				<NavSecondary
-					items={[
-						{
-							title: "Support",
-							url: "#",
-							icon: () => null,
-						},
-					]}
-					className="mt-auto"
-				/>
 			</SidebarContent>
 
 			<SidebarFooter className="border-t">
@@ -251,7 +238,7 @@ export function AppSidebar() {
 					user={{
 						name: user?.name || "User",
 						email: user?.email || "",
-						avatar: user?.avatarUrl,
+						avatar: user?.avatarUrl || "",
 					}}
 					onSettings={() => navigate("/profile")}
 					onLogout={handleLogout}
