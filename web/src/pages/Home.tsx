@@ -1,8 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { AppCard } from "@/components/AppCard";
 import { EmptyState } from "@/components/EmptyState";
-import { AppSearch } from "@/components/dashboard/AppSearch";
-import { OrgFilter } from "@/components/dashboard/OrgFilter";
 import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,9 +10,9 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { Plus } from "lucide-react";
 
 export function Home() {
 	const navigate = useNavigate();
@@ -22,11 +20,11 @@ export function Home() {
 	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
-	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
+	const [selectedOrgId] = useState<bigint | null>(null);
 	const selectedWorkspaceId = workspaceFromUrl
 		? BigInt(workspaceFromUrl)
 		: null;
-	const [searchTerm, setSearchTerm] = useState("");
+	const [searchTerm] = useState("");
 
 	// Fetch all organizations
 	const {
