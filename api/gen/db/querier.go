@@ -22,9 +22,6 @@ type Querier interface {
 	CountUsers(ctx context.Context) (int64, error)
 	// App queries
 	CreateApp(ctx context.Context, arg CreateAppParams) (App, error)
-	// ============================================================================
-	// PLATFORM DOMAIN QUERIES
-	// ============================================================================
 	CreateAppDomain(ctx context.Context, arg CreateAppDomainParams) (AppDomain, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (Deployment, error)

@@ -1,8 +1,8 @@
 -- App queries
 
 -- name: CreateApp :one
-INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, created_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, status, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at;
 
 -- name: GetAppByID :one

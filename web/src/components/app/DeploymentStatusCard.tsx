@@ -6,6 +6,7 @@ import { scaleApp } from "@/gen/app/v1";
 import type { AppStatus } from "@/gen/app/v1/app_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
+import { getStatusLabel } from "@/lib/app-status";
 
 interface DeploymentStatusCardProps {
 	appId: string;
@@ -61,10 +62,11 @@ export function DeploymentStatusCard({
 		return null;
 	}
 
+	const statusLabel = getStatusLabel(status.status);
 	const statusColor =
-		status.status === "running"
+		statusLabel === "running"
 			? "green"
-			: status.status === "building" || status.status === "deploying"
+			: statusLabel === "deploying"
 			? "blue"
 			: "red";
 

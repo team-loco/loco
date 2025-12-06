@@ -26,7 +26,6 @@ func (q *Queries) CheckDomainAvailability(ctx context.Context, domain string) (b
 }
 
 const createAppDomain = `-- name: CreateAppDomain :one
-
 INSERT INTO app_domains (
     app_id,
     domain,
@@ -48,9 +47,6 @@ type CreateAppDomainParams struct {
 	IsPrimary        bool         `json:"isPrimary"`
 }
 
-// ============================================================================
-// PLATFORM DOMAIN QUERIES
-// ============================================================================
 func (q *Queries) CreateAppDomain(ctx context.Context, arg CreateAppDomainParams) (AppDomain, error) {
 	row := q.db.QueryRow(ctx, createAppDomain,
 		arg.AppID,

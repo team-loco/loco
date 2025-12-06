@@ -1,8 +1,8 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { AppSidebar } from "@/components/layout/AppSidebar";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SiteHeader } from "@/components/site-header";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getCurrentUser } from "@/gen/user/v1";
-import { useHeader } from "@/context/HeaderContext";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -13,7 +13,6 @@ interface ProtectedLayoutProps {
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
-	const { header } = useHeader();
 	const navigate = useNavigate();
 	const { logout } = useAuth();
 	const { isLoading, error } = useQuery(getCurrentUser, {});
@@ -39,16 +38,15 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	}
 
 	return (
-		<SidebarProvider>
-			<div className="flex min-h-screen bg-background w-full">
+		<SidebarProvider className="flex flex-col w-full min-h-screen">
+			<SiteHeader />
+			<div className="flex flex-1">
 				<AppSidebar />
-				<div className="flex-1 flex flex-col">
-					<div className="flex items-center gap-4 px-6 py-4 border-b border-border">
-						<SidebarTrigger className="-ml-2 shrink-0" />
-						<div className="flex-1">{header}</div>
-					</div>
-					<main className="flex-1 w-full px-6 py-8">{children}</main>
-				</div>
+				<SidebarInset className="flex flex-col flex-1">
+					<main className="flex-1 w-full overflow-auto px-6 py-4">
+						{children}
+					</main>
+				</SidebarInset>
 			</div>
 		</SidebarProvider>
 	);

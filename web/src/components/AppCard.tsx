@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import type { App } from "@/gen/app/v1/app_pb";
+import type { App, AppDomain } from "@/gen/app/v1/app_pb";
+import { ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router";
+import { getStatusLabel } from "@/lib/app-status";
 import { StatusBadge } from "./StatusBadge";
 import { AppMenu } from "./dashboard/AppMenu";
 
@@ -9,6 +10,11 @@ interface AppCardProps {
 	app: App;
 	onAppDeleted?: () => void;
 	workspaceId?: bigint;
+}
+
+function getPrimaryDomain(domains?: AppDomain[]): AppDomain | null {
+	if (!domains || domains.length === 0) return null;
+	return domains.find((d) => d.isPrimary) || domains[0];
 }
 
 export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
@@ -53,42 +59,53 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 	};
 
 	return (
-		<Card
-			className="cursor-pointer hover:shadow-neo transition-shadow"
+		<div
 			onClick={handleCardClick}
+			className="group relative rounded-lg border border-neutral-200 dark:border-neutral-800 bg-background p-5 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-md transition-all cursor-pointer"
 		>
-			<CardContent className="p-6 space-y-4">
-				{/* Header: Name and Menu */}
-				<div className="flex items-start justify-between gap-2">
-					<div className="flex-1 min-w-0">
-						<h3 className="text-lg font-heading text-foreground truncate">
-							{app.name}
-						</h3>
-						<p className="text-sm text-foreground opacity-70 mt-1 truncate">
-							{app.domain?.domain || "no domain"}
-						</p>
-					</div>
-					<div onClick={(e) => e.stopPropagation()}>
-						<AppMenu app={app} onAppDeleted={onAppDeleted} />
-					</div>
+			{/* Top section: Name and Status */}
+			<div className="flex items-start justify-between gap-3 mb-4">
+				<div className="flex-1 min-w-0">
+					<h3 className="text-base font-semibold text-foreground truncate group-hover:text-accent transition-colors">
+						{app.name}
+					</h3>
 				</div>
-
-				{/* Type Badge and Status */}
-				<div className="flex items-center justify-between gap-2">
-					<Badge variant="secondary">{appTypeLabel}</Badge>
-					<StatusBadge status="running" />
+				<div onClick={(e) => e.stopPropagation()} className="shrink-0">
+					<AppMenu app={app} onAppDeleted={onAppDeleted} />
 				</div>
+			</div>
 
-				{/* Metadata */}
-				<div className="text-xs text-foreground opacity-60 space-y-1">
-					<p>Deployed {getLastDeployedText()}</p>
-				</div>
+			{/* Middle section: Type and Status badges */}
+			<div className="flex items-center gap-2 mb-4">
+				<Badge variant="secondary" className="text-xs">
+					{appTypeLabel}
+				</Badge>
+				<StatusBadge
+					status={getStatusLabel(app.status)}
+				/>
+			</div>
 
-				{/* Domain Info */}
-				<p className="text-xs text-foreground opacity-50 border-t border-border pt-3 mt-3 truncate">
-					{app.domain?.domain || "pending deployment"}
+			{/* Domain section */}
+			{(() => {
+				const primaryDomain = getPrimaryDomain(app.domains);
+				return (
+					primaryDomain && (
+						<div className="mb-4 flex items-center gap-2 group/link cursor-pointer hover:opacity-80 transition-opacity">
+							<p className="text-sm text-foreground/70 truncate font-mono">
+								{primaryDomain.domain}
+							</p>
+							<ExternalLink className="h-3.5 w-3.5 text-foreground/50 group-hover/link:text-foreground/70 shrink-0 transition-colors" />
+						</div>
+					)
+				);
+			})()}
+
+			{/* Footer: Deployment info */}
+			<div className="pt-3 border-t border-neutral-200 dark:border-neutral-800">
+				<p className="text-xs text-foreground/50">
+					Deployed {getLastDeployedText()}
 				</p>
-			</CardContent>
-		</Card>
+			</div>
+		</div>
 	);
 }

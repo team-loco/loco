@@ -13,18 +13,19 @@ import (
 
 const createApp = `-- name: CreateApp :one
 
-INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, created_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, status, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at
 `
 
 type CreateAppParams struct {
-	WorkspaceID int64  `json:"workspaceId"`
-	ClusterID   int64  `json:"clusterId"`
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace"`
-	Type        int32  `json:"type"`
-	CreatedBy   int64  `json:"createdBy"`
+	WorkspaceID int64         `json:"workspaceId"`
+	ClusterID   int64         `json:"clusterId"`
+	Name        string        `json:"name"`
+	Namespace   string        `json:"namespace"`
+	Type        int32         `json:"type"`
+	Status      NullAppStatus `json:"status"`
+	CreatedBy   int64         `json:"createdBy"`
 }
 
 // App queries
@@ -35,6 +36,7 @@ func (q *Queries) CreateApp(ctx context.Context, arg CreateAppParams) (App, erro
 		arg.Name,
 		arg.Namespace,
 		arg.Type,
+		arg.Status,
 		arg.CreatedBy,
 	)
 	var i App

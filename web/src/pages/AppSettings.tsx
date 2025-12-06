@@ -1,32 +1,41 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { deleteApp, getApp, updateApp } from "@/gen/app/v1";
 import {
 	addAppDomain,
-	setPrimaryAppDomain,
-	removeAppDomain,
-	listActivePlatformDomains,
 	checkDomainAvailability,
+	listActivePlatformDomains,
+	removeAppDomain,
+	setPrimaryAppDomain,
 	updateAppDomain,
 } from "@/gen/domain/v1";
 import type { AppDomain } from "@/gen/domain/v1/domain_pb";
+import { DomainType } from "@/gen/domain/v1/domain_pb";
+import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { toastConnectError } from "@/lib/error-handler";
 import { toast } from "sonner";
-import { DomainType } from "@/gen/domain/v1/domain_pb";
 
 export function AppSettings() {
 	const { appId } = useParams<{ appId: string }>();
 	const navigate = useNavigate();
 
-	const { data: appRes, isLoading, refetch } = useQuery(
-		getApp,
-		appId ? { appId: BigInt(appId) } : undefined,
-		{ enabled: !!appId }
-	);
+	const {
+		data: appRes,
+		isLoading,
+		refetch,
+	} = useQuery(getApp, appId ? { appId: BigInt(appId) } : undefined, {
+		enabled: !!appId,
+	});
 	const app = appRes?.app;
 
 	const [name, setName] = useState(app?.name || "");
@@ -50,8 +59,7 @@ export function AppSettings() {
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);
 	const updateDomainMutation = useMutation(updateAppDomain);
 
-	const hasChanges =
-		name !== app?.name;
+	const hasChanges = name !== app?.name;
 
 	const handleSave = async () => {
 		if (!appId) return;
@@ -152,12 +160,12 @@ export function AppSettings() {
 			}
 
 			// Update the domain
-			await updateDomainMutation.mutateAsync({
+			const resp = await updateDomainMutation.mutateAsync({
 				domainId: editingDomainId,
 				domain: editDomainValue,
 			});
 
-			toast.success("Domain updated successfully");
+			toast.success(resp.message);
 			setEditingDomainId(null);
 			setEditDomainValue("");
 			await refetch();
@@ -350,39 +358,49 @@ export function AppSettings() {
 						</div>
 
 						<div>
-							<label className="text-xs font-medium text-foreground">
+							<label className="text-xs font-medium text-foreground mb-2 block">
 								Domain Type
 							</label>
-							<select
+							<Select
 								value={domainSource}
-								onChange={(e) =>
-									setDomainSource(e.target.value as "platform" | "user")
+								onValueChange={(value) =>
+									setDomainSource(value as "platform" | "user")
 								}
-								className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm"
 							>
-								<option value="platform">Platform Domain</option>
-								<option value="user">User-Provided Domain</option>
-							</select>
+								<SelectTrigger>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="platform">Platform Domain</SelectItem>
+									<SelectItem value="user">User-Provided Domain</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 
 						{domainSource === "platform" && (
 							<div>
-								<label className="text-xs font-medium text-foreground">
+								<label className="text-xs font-medium text-foreground mb-2 block">
 									Select Base Domain
 								</label>
-								<select
+								<Select
 									value={platformDomainId}
-									onChange={(e) => setPlatformDomainId(e.target.value)}
-									className="w-full mt-1 px-3 py-2 rounded-lg border border-border bg-background text-sm"
+									onValueChange={setPlatformDomainId}
 								>
-									<option value="">Choose a domain...</option>
-									{platformDomains.map((pd) => (
-										<option key={pd.id} value={pd.id.toString()}>
-											{pd.domain}
-										</option>
-									))}
-								</select>
-								<p className="text-xs text-foreground/70 mt-1">
+									<SelectTrigger>
+										<SelectValue placeholder="Choose a domain..." />
+									</SelectTrigger>
+									<SelectContent>
+										{platformDomains.map((pd) => (
+											<SelectItem
+												key={pd.id}
+												value={pd.id.toString()}
+											>
+												{pd.domain}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-xs text-foreground/70 mt-2">
 									Enter subdomain prefix in the field below
 								</p>
 							</div>
@@ -398,9 +416,7 @@ export function AppSettings() {
 								value={newDomain}
 								onChange={(e) => setNewDomain(e.target.value)}
 								placeholder={
-									domainSource === "platform"
-										? "myapp.loco.dev"
-										: "example.com"
+									domainSource === "platform" ? "myapp.loco.dev" : "example.com"
 								}
 								className="mt-1"
 							/>
@@ -421,9 +437,9 @@ export function AppSettings() {
 			</Card>
 
 			{/* Danger Zone */}
-			<Card className="border-2 border-error-border bg-error-bg/10">
+			<Card className="border-2 border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20">
 				<CardHeader>
-					<CardTitle className="text-error-text">Danger Zone</CardTitle>
+					<CardTitle className="text-red-700 dark:text-red-400">Danger Zone</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-4">
@@ -438,7 +454,7 @@ export function AppSettings() {
 						</div>
 
 						<Button
-							className="text-error-text border-error-border bg-error-bg hover:bg-error-bg/80"
+							className="text-red-700 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-950"
 							variant="outline"
 							onClick={() => setShowDeleteConfirm(true)}
 						>
@@ -450,12 +466,13 @@ export function AppSettings() {
 
 			{/* Delete Confirmation Dialog */}
 			{showDeleteConfirm && (
-				<div className="space-y-2 p-4 border-2 border-error-border rounded-lg bg-error-bg">
-					<p className="text-sm text-error-text font-medium">
+				<div className="space-y-2 p-4 border-2 border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-950/20">
+					<p className="text-sm text-red-700 dark:text-red-400 font-medium">
 						Are you sure? This action cannot be undone.
 					</p>
-					<p className="text-xs text-error-text opacity-80">
-						Deleting <strong>{app.name}</strong> will permanently remove all data associated with this application.
+					<p className="text-xs text-red-600 dark:text-red-500 opacity-90">
+						Deleting <strong>{app.name}</strong> will permanently remove all
+						data associated with this application.
 					</p>
 					<div className="flex gap-2 pt-2">
 						<Button
@@ -467,7 +484,8 @@ export function AppSettings() {
 							Cancel
 						</Button>
 						<Button
-							className="flex-1 text-sm bg-error-bg text-error-text border-error-border hover:bg-error-bg/80"
+							className="flex-1 text-sm text-red-700 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-950"
+							variant="outline"
 							onClick={handleDelete}
 							disabled={deleteAppMutation.isPending}
 						>

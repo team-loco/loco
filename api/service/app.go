@@ -106,6 +106,7 @@ func (s *AppServer) CreateApp(
 		Name:        r.Name,
 		Type:        int32(r.Type.Number()),
 		CreatedBy:   userID,
+		Status:      genDb.NullAppStatus{AppStatus: genDb.AppStatusIdle, Valid: true},
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create app", "error", err)

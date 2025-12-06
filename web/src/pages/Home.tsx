@@ -14,6 +14,7 @@ import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { Plus } from "lucide-react";
 
 export function Home() {
 	const navigate = useNavigate();
@@ -85,8 +86,8 @@ export function Home() {
 		const workspaceName = currentWorkspace?.name || "Workspace";
 
 		setHeader(
-			<h2 className="text-3xl font-heading text-foreground">
-				Workspace: {workspaceName}
+			<h2 className="text-2xl font-mono text-foreground">
+				workspaces::{workspaceName}
 			</h2>
 		);
 	}, [setHeader, workspaces, currentWorkspaceId]);
@@ -152,7 +153,21 @@ export function Home() {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4">
+			{/* Create Button */}
+			{allApps.length > 0 && (
+				<div className="flex justify-end">
+					<Button
+						onClick={() => navigate("/create-app")}
+						size="sm"
+						className="gap-2"
+					>
+						<Plus className="h-4 w-4" />
+						Create App
+					</Button>
+				</div>
+			)}
+
 			{/* Workspace Dashboard Metrics - only show when workspace is selected */}
 			{currentWorkspaceId && (
 				<WorkspaceDashboardMetrics
@@ -161,23 +176,6 @@ export function Home() {
 						workspaces.find((ws) => ws.id === currentWorkspaceId)?.name || ""
 					}
 				/>
-			)}
-
-			{/* Controls: Org Filter, Search, Create Button */}
-			{allApps.length > 0 && (
-				<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-					<OrgFilter
-						selectedOrgId={currentOrgId}
-						onOrgChange={setSelectedOrgId}
-					/>
-					<AppSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
-					<Button
-						onClick={() => navigate("/create-app")}
-						className="w-full sm:w-auto"
-					>
-						+ Create App
-					</Button>
-				</div>
 			)}
 
 			{/* Apps Grid */}

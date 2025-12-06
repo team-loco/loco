@@ -396,3 +396,5 @@ Phase I ends Here
 - never return db errors directly to client, we need to clean that logic up and return a generic error message only for now.
 - missing concept of schema versioning for the app config that should be scoped inside DB
 - potentially setup umami for analytics on the frontend?
+- whereever we make these multi saves, we need to run as a transaction.
+- on the UI, if API returns a message, we need to read that.
