@@ -232,8 +232,10 @@ export function AppSidebar() {
 				)}
 			</SidebarContent>
 
-			<SidebarFooter className="border-t">
-				<ThemeToggle />
+			<SidebarFooter className="border-t flex flex-col gap-0">
+				<div className="border-b pb-2 mb-2">
+					<ThemeToggle />
+				</div>
 				<NavUser
 					user={{
 						name: user?.name || "User",

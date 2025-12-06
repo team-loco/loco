@@ -8,7 +8,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { deleteApp, getApp, updateApp } from "@/gen/app/v1";
+import { Slider } from "@/components/ui/slider";
+import { deleteApp, getApp, scaleApp, updateApp, AppStatus } from "@/gen/app/v1";
+import { Cpu, HardDrive } from "lucide-react";
 import {
 	addAppDomain,
 	checkDomainAvailability,
@@ -47,6 +49,8 @@ export function AppSettings() {
 	const [platformDomainId, setPlatformDomainId] = useState<string>("");
 	const [editingDomainId, setEditingDomainId] = useState<bigint | null>(null);
 	const [editDomainValue, setEditDomainValue] = useState("");
+	const [cpuValue, setCpuValue] = useState<number[]>([500]);
+	const [memoryValue, setMemoryValue] = useState<number[]>([512]);
 
 	const { data: platformDomainsRes } = useQuery(listActivePlatformDomains, {});
 	const platformDomains = platformDomainsRes?.platformDomains || [];
@@ -58,6 +62,7 @@ export function AppSettings() {
 	const setPrimaryMutation = useMutation(setPrimaryAppDomain);
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);
 	const updateDomainMutation = useMutation(updateAppDomain);
+	const scaleAppMutation = useMutation(scaleApp);
 
 	const hasChanges = name !== app?.name;
 
@@ -178,6 +183,22 @@ export function AppSettings() {
 	const handleCancelEdit = () => {
 		setEditingDomainId(null);
 		setEditDomainValue("");
+	};
+
+	const handleScale = async () => {
+		if (!appId) return;
+		try {
+			await scaleAppMutation.mutateAsync({
+				appId: BigInt(appId),
+				cpu: `${cpuValue[0]}m`,
+				memory: `${memoryValue[0]}Mi`,
+			});
+			toast.success("App scaling initiated");
+			await refetch();
+		} catch (error) {
+			toastConnectError(error);
+			console.error("Failed to scale app:", error);
+		}
 	};
 
 	if (isLoading) {
@@ -430,6 +451,83 @@ export function AppSettings() {
 							{addDomainMutation.isPending ? "Adding..." : "Add Domain"}
 						</Button>
 					</div>
+				</CardContent>
+			</Card>
+
+			{/* Scaling */}
+			<Card className={`border-2 ${app?.status === AppStatus.IDLE ? "opacity-50" : ""}`}>
+				<CardHeader>
+					<CardTitle>Application Scaling</CardTitle>
+				</CardHeader>
+				<CardContent className={`space-y-6 ${app?.status === AppStatus.IDLE ? "pointer-events-none" : ""}`}>
+					{app?.status === AppStatus.IDLE && (
+						<div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-lg p-3 mb-4">
+							<p className="text-sm text-yellow-700 dark:text-yellow-400">
+								Deploy your application before scaling
+							</p>
+						</div>
+					)}
+					{/* CPU */}
+					<div>
+						<div className="flex items-center gap-2 mb-3">
+							<Cpu className="h-5 w-5 text-blue-500" />
+							<div>
+								<label className="text-sm font-medium text-foreground">
+									CPU Resources
+								</label>
+								<p className="text-xs text-foreground/70">
+									{cpuValue[0]}m
+								</p>
+							</div>
+						</div>
+						<Slider
+							value={cpuValue}
+							onValueChange={setCpuValue}
+							min={100}
+							max={4000}
+							step={100}
+							className="w-full"
+							disabled={app?.status === AppStatus.IDLE}
+						/>
+						<p className="text-xs text-foreground/50 mt-2">
+							Range: 100m - 4000m
+						</p>
+					</div>
+
+					{/* Memory */}
+					<div>
+						<div className="flex items-center gap-2 mb-3">
+							<HardDrive className="h-5 w-5 text-amber-500" />
+							<div>
+								<label className="text-sm font-medium text-foreground">
+									Memory Resources
+								</label>
+								<p className="text-xs text-foreground/70">
+									{memoryValue[0]}Mi
+								</p>
+							</div>
+						</div>
+						<Slider
+							value={memoryValue}
+							onValueChange={setMemoryValue}
+							min={128}
+							max={8192}
+							step={128}
+							className="w-full"
+							disabled={app?.status === AppStatus.IDLE}
+						/>
+						<p className="text-xs text-foreground/50 mt-2">
+							Range: 128Mi - 8192Mi
+						</p>
+					</div>
+
+					<Button
+						onClick={handleScale}
+						disabled={scaleAppMutation.isPending || app?.status === AppStatus.IDLE}
+						className="w-full"
+					>
+						{scaleAppMutation.isPending ? "Scaling..." : "Apply Scaling"}
+					</Button>
 				</CardContent>
 			</Card>
 
