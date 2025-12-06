@@ -27,7 +27,8 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 		return null;
 	}
 
-	const appUrl = app.domain || `${app.subdomain}.deploy-app.com`;
+	const primaryDomain = app.domains?.[0]?.domain;
+	const appUrl = primaryDomain || "pending deployment";
 	const appTypeLabel = app.type || "SERVICE";
 
 	const handleCopyUrl = () => {

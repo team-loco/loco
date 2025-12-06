@@ -31,11 +31,11 @@ var workspaceNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 // WorkspaceServer implements the WorkspaceService gRPC server
 type WorkspaceServer struct {
 	db      *pgxpool.Pool
-	queries *genDb.Queries
+	queries genDb.Querier
 }
 
 // NewWorkspaceServer creates a new WorkspaceServer instance
-func NewWorkspaceServer(db *pgxpool.Pool, queries *genDb.Queries) *WorkspaceServer {
+func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier) *WorkspaceServer {
 	return &WorkspaceServer{db: db, queries: queries}
 }
 

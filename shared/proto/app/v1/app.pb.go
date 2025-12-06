@@ -7,6 +7,7 @@
 package appv1
 
 import (
+	v1 "github.com/loco-team/loco/shared/proto/domain/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	_ "google.golang.org/protobuf/types/known/structpb"
@@ -198,11 +199,11 @@ type App struct {
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	Namespace     string                 `protobuf:"bytes,5,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	Type          AppType                `protobuf:"varint,6,opt,name=type,proto3,enum=loco.app.v1.AppType" json:"type,omitempty"`
-	Subdomain     string                 `protobuf:"bytes,7,opt,name=subdomain,proto3" json:"subdomain,omitempty"`
-	Domain        string                 `protobuf:"bytes,8,opt,name=domain,proto3" json:"domain,omitempty"`
+	Domains       []*v1.AppDomain        `protobuf:"bytes,7,rep,name=domains,proto3" json:"domains,omitempty"`
 	CreatedBy     int64                  `protobuf:"varint,11,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Status        AppStatus              `protobuf:"varint,14,opt,name=status,proto3,enum=loco.app.v1.AppStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,18 +273,11 @@ func (x *App) GetType() AppType {
 	return AppType_SERVICE
 }
 
-func (x *App) GetSubdomain() string {
+func (x *App) GetDomains() []*v1.AppDomain {
 	if x != nil {
-		return x.Subdomain
+		return x.Domains
 	}
-	return ""
-}
-
-func (x *App) GetDomain() string {
-	if x != nil {
-		return x.Domain
-	}
-	return ""
+	return nil
 }
 
 func (x *App) GetCreatedBy() int64 {
@@ -307,13 +301,19 @@ func (x *App) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *App) GetStatus() AppStatus {
+	if x != nil {
+		return x.Status
+	}
+	return AppStatus_AVAILABLE
+}
+
 type CreateAppRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Type          AppType                `protobuf:"varint,4,opt,name=type,proto3,enum=loco.app.v1.AppType" json:"type,omitempty"`
-	Subdomain     string                 `protobuf:"bytes,5,opt,name=subdomain,proto3" json:"subdomain,omitempty"`
-	Domain        *string                `protobuf:"bytes,6,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
+	Domain        *v1.AppDomain          `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -369,18 +369,11 @@ func (x *CreateAppRequest) GetType() AppType {
 	return AppType_SERVICE
 }
 
-func (x *CreateAppRequest) GetSubdomain() string {
+func (x *CreateAppRequest) GetDomain() *v1.AppDomain {
 	if x != nil {
-		return x.Subdomain
+		return x.Domain
 	}
-	return ""
-}
-
-func (x *CreateAppRequest) GetDomain() string {
-	if x != nil && x.Domain != nil {
-		return *x.Domain
-	}
-	return ""
+	return nil
 }
 
 type CreateAppResponse struct {
@@ -923,103 +916,6 @@ func (x *DeleteAppResponse) GetMessage() string {
 	return ""
 }
 
-// --- Subdomain ---
-type CheckSubdomainAvailabilityRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Subdomain     string                 `protobuf:"bytes,1,opt,name=subdomain,proto3" json:"subdomain,omitempty"`
-	Domain        string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CheckSubdomainAvailabilityRequest) Reset() {
-	*x = CheckSubdomainAvailabilityRequest{}
-	mi := &file_app_v1_app_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CheckSubdomainAvailabilityRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CheckSubdomainAvailabilityRequest) ProtoMessage() {}
-
-func (x *CheckSubdomainAvailabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CheckSubdomainAvailabilityRequest.ProtoReflect.Descriptor instead.
-func (*CheckSubdomainAvailabilityRequest) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *CheckSubdomainAvailabilityRequest) GetSubdomain() string {
-	if x != nil {
-		return x.Subdomain
-	}
-	return ""
-}
-
-func (x *CheckSubdomainAvailabilityRequest) GetDomain() string {
-	if x != nil {
-		return x.Domain
-	}
-	return ""
-}
-
-type CheckSubdomainAvailabilityResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Available     bool                   `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CheckSubdomainAvailabilityResponse) Reset() {
-	*x = CheckSubdomainAvailabilityResponse{}
-	mi := &file_app_v1_app_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CheckSubdomainAvailabilityResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CheckSubdomainAvailabilityResponse) ProtoMessage() {}
-
-func (x *CheckSubdomainAvailabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CheckSubdomainAvailabilityResponse.ProtoReflect.Descriptor instead.
-func (*CheckSubdomainAvailabilityResponse) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *CheckSubdomainAvailabilityResponse) GetAvailable() bool {
-	if x != nil {
-		return x.Available
-	}
-	return false
-}
-
 type GetAppStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -1029,7 +925,7 @@ type GetAppStatusRequest struct {
 
 func (x *GetAppStatusRequest) Reset() {
 	*x = GetAppStatusRequest{}
-	mi := &file_app_v1_app_proto_msgTypes[15]
+	mi := &file_app_v1_app_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1041,7 +937,7 @@ func (x *GetAppStatusRequest) String() string {
 func (*GetAppStatusRequest) ProtoMessage() {}
 
 func (x *GetAppStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[15]
+	mi := &file_app_v1_app_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1054,7 +950,7 @@ func (x *GetAppStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetAppStatusRequest) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{15}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetAppStatusRequest) GetAppId() int64 {
@@ -1077,7 +973,7 @@ type DeploymentStatus struct {
 
 func (x *DeploymentStatus) Reset() {
 	*x = DeploymentStatus{}
-	mi := &file_app_v1_app_proto_msgTypes[16]
+	mi := &file_app_v1_app_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1089,7 +985,7 @@ func (x *DeploymentStatus) String() string {
 func (*DeploymentStatus) ProtoMessage() {}
 
 func (x *DeploymentStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[16]
+	mi := &file_app_v1_app_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1102,7 +998,7 @@ func (x *DeploymentStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeploymentStatus.ProtoReflect.Descriptor instead.
 func (*DeploymentStatus) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{16}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DeploymentStatus) GetId() int64 {
@@ -1150,7 +1046,7 @@ type GetAppStatusResponse struct {
 
 func (x *GetAppStatusResponse) Reset() {
 	*x = GetAppStatusResponse{}
-	mi := &file_app_v1_app_proto_msgTypes[17]
+	mi := &file_app_v1_app_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1162,7 +1058,7 @@ func (x *GetAppStatusResponse) String() string {
 func (*GetAppStatusResponse) ProtoMessage() {}
 
 func (x *GetAppStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[17]
+	mi := &file_app_v1_app_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1175,7 +1071,7 @@ func (x *GetAppStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetAppStatusResponse) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{17}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetAppStatusResponse) GetApp() *App {
@@ -1203,7 +1099,7 @@ type StreamLogsRequest struct {
 
 func (x *StreamLogsRequest) Reset() {
 	*x = StreamLogsRequest{}
-	mi := &file_app_v1_app_proto_msgTypes[18]
+	mi := &file_app_v1_app_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1215,7 +1111,7 @@ func (x *StreamLogsRequest) String() string {
 func (*StreamLogsRequest) ProtoMessage() {}
 
 func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[18]
+	mi := &file_app_v1_app_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1228,7 +1124,7 @@ func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamLogsRequest.ProtoReflect.Descriptor instead.
 func (*StreamLogsRequest) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{18}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *StreamLogsRequest) GetAppId() int64 {
@@ -1266,7 +1162,7 @@ type LogEntry struct {
 
 func (x *LogEntry) Reset() {
 	*x = LogEntry{}
-	mi := &file_app_v1_app_proto_msgTypes[19]
+	mi := &file_app_v1_app_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1278,7 +1174,7 @@ func (x *LogEntry) String() string {
 func (*LogEntry) ProtoMessage() {}
 
 func (x *LogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[19]
+	mi := &file_app_v1_app_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1291,7 +1187,7 @@ func (x *LogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogEntry.ProtoReflect.Descriptor instead.
 func (*LogEntry) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{19}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *LogEntry) GetPodName() string {
@@ -1349,7 +1245,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_app_v1_app_proto_msgTypes[20]
+	mi := &file_app_v1_app_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +1257,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[20]
+	mi := &file_app_v1_app_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +1270,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{20}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Event) GetTimestamp() *timestamppb.Timestamp {
@@ -1422,7 +1318,7 @@ type GetEventsRequest struct {
 
 func (x *GetEventsRequest) Reset() {
 	*x = GetEventsRequest{}
-	mi := &file_app_v1_app_proto_msgTypes[21]
+	mi := &file_app_v1_app_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1434,7 +1330,7 @@ func (x *GetEventsRequest) String() string {
 func (*GetEventsRequest) ProtoMessage() {}
 
 func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[21]
+	mi := &file_app_v1_app_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1447,7 +1343,7 @@ func (x *GetEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsRequest.ProtoReflect.Descriptor instead.
 func (*GetEventsRequest) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{21}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetEventsRequest) GetAppId() int64 {
@@ -1473,7 +1369,7 @@ type GetEventsResponse struct {
 
 func (x *GetEventsResponse) Reset() {
 	*x = GetEventsResponse{}
-	mi := &file_app_v1_app_proto_msgTypes[22]
+	mi := &file_app_v1_app_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1485,7 +1381,7 @@ func (x *GetEventsResponse) String() string {
 func (*GetEventsResponse) ProtoMessage() {}
 
 func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[22]
+	mi := &file_app_v1_app_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1498,7 +1394,7 @@ func (x *GetEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsResponse.ProtoReflect.Descriptor instead.
 func (*GetEventsResponse) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{22}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetEventsResponse) GetEvents() []*Event {
@@ -1520,7 +1416,7 @@ type ScaleAppRequest struct {
 
 func (x *ScaleAppRequest) Reset() {
 	*x = ScaleAppRequest{}
-	mi := &file_app_v1_app_proto_msgTypes[23]
+	mi := &file_app_v1_app_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1532,7 +1428,7 @@ func (x *ScaleAppRequest) String() string {
 func (*ScaleAppRequest) ProtoMessage() {}
 
 func (x *ScaleAppRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[23]
+	mi := &file_app_v1_app_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1545,7 +1441,7 @@ func (x *ScaleAppRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleAppRequest.ProtoReflect.Descriptor instead.
 func (*ScaleAppRequest) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{23}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ScaleAppRequest) GetAppId() int64 {
@@ -1585,7 +1481,7 @@ type ScaleAppResponse struct {
 
 func (x *ScaleAppResponse) Reset() {
 	*x = ScaleAppResponse{}
-	mi := &file_app_v1_app_proto_msgTypes[24]
+	mi := &file_app_v1_app_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1597,7 +1493,7 @@ func (x *ScaleAppResponse) String() string {
 func (*ScaleAppResponse) ProtoMessage() {}
 
 func (x *ScaleAppResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[24]
+	mi := &file_app_v1_app_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1610,7 +1506,7 @@ func (x *ScaleAppResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScaleAppResponse.ProtoReflect.Descriptor instead.
 func (*ScaleAppResponse) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{24}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ScaleAppResponse) GetDeployment() *DeploymentStatus {
@@ -1630,7 +1526,7 @@ type UpdateAppEnvRequest struct {
 
 func (x *UpdateAppEnvRequest) Reset() {
 	*x = UpdateAppEnvRequest{}
-	mi := &file_app_v1_app_proto_msgTypes[25]
+	mi := &file_app_v1_app_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1642,7 +1538,7 @@ func (x *UpdateAppEnvRequest) String() string {
 func (*UpdateAppEnvRequest) ProtoMessage() {}
 
 func (x *UpdateAppEnvRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[25]
+	mi := &file_app_v1_app_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1655,7 +1551,7 @@ func (x *UpdateAppEnvRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAppEnvRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAppEnvRequest) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{25}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UpdateAppEnvRequest) GetAppId() int64 {
@@ -1681,7 +1577,7 @@ type UpdateAppEnvResponse struct {
 
 func (x *UpdateAppEnvResponse) Reset() {
 	*x = UpdateAppEnvResponse{}
-	mi := &file_app_v1_app_proto_msgTypes[26]
+	mi := &file_app_v1_app_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1693,7 +1589,7 @@ func (x *UpdateAppEnvResponse) String() string {
 func (*UpdateAppEnvResponse) ProtoMessage() {}
 
 func (x *UpdateAppEnvResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_app_v1_app_proto_msgTypes[26]
+	mi := &file_app_v1_app_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1706,7 +1602,7 @@ func (x *UpdateAppEnvResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAppEnvResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAppEnvResponse) Descriptor() ([]byte, []int) {
-	return file_app_v1_app_proto_rawDescGZIP(), []int{26}
+	return file_app_v1_app_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *UpdateAppEnvResponse) GetDeployment() *DeploymentStatus {
@@ -1720,28 +1616,26 @@ var File_app_v1_app_proto protoreflect.FileDescriptor
 
 const file_app_v1_app_proto_rawDesc = "" +
 	"\n" +
-	"\x10app/v1/app.proto\x12\vloco.app.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x02\n" +
+	"\x10app/v1/app.proto\x12\vloco.app.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16domain/v1/domain.proto\"\x8e\x03\n" +
 	"\x03App\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\x03R\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12\x1c\n" +
 	"\tnamespace\x18\x05 \x01(\tR\tnamespace\x12(\n" +
-	"\x04type\x18\x06 \x01(\x0e2\x14.loco.app.v1.AppTypeR\x04type\x12\x1c\n" +
-	"\tsubdomain\x18\a \x01(\tR\tsubdomain\x12\x16\n" +
-	"\x06domain\x18\b \x01(\tR\x06domain\x12\x1d\n" +
+	"\x04type\x18\x06 \x01(\x0e2\x14.loco.app.v1.AppTypeR\x04type\x123\n" +
+	"\adomains\x18\a \x03(\v2\x19.loco.domain.v1.AppDomainR\adomains\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\v \x01(\x03R\tcreatedBy\x129\n" +
 	"\n" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb9\x01\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12.\n" +
+	"\x06status\x18\x0e \x01(\x0e2\x16.loco.app.v1.AppStatusR\x06status\"\xa6\x01\n" +
 	"\x10CreateAppRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12(\n" +
-	"\x04type\x18\x04 \x01(\x0e2\x14.loco.app.v1.AppTypeR\x04type\x12\x1c\n" +
-	"\tsubdomain\x18\x05 \x01(\tR\tsubdomain\x12\x1b\n" +
-	"\x06domain\x18\x06 \x01(\tH\x00R\x06domain\x88\x01\x01B\t\n" +
-	"\a_domain\"Q\n" +
+	"\x04type\x18\x04 \x01(\x0e2\x14.loco.app.v1.AppTypeR\x04type\x121\n" +
+	"\x06domain\x18\x05 \x01(\v2\x19.loco.domain.v1.AppDomainR\x06domain\"Q\n" +
 	"\x11CreateAppResponse\x12\"\n" +
 	"\x03app\x18\x01 \x01(\v2\x10.loco.app.v1.AppR\x03app\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"&\n" +
@@ -1774,12 +1668,7 @@ const file_app_v1_app_proto_rawDesc = "" +
 	"\x06app_id\x18\x01 \x01(\x03R\x05appId\"Q\n" +
 	"\x11DeleteAppResponse\x12\"\n" +
 	"\x03app\x18\x01 \x01(\v2\x10.loco.app.v1.AppR\x03app\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"Y\n" +
-	"!CheckSubdomainAvailabilityRequest\x12\x1c\n" +
-	"\tsubdomain\x18\x01 \x01(\tR\tsubdomain\x12\x16\n" +
-	"\x06domain\x18\x02 \x01(\tR\x06domain\"B\n" +
-	"\"CheckSubdomainAvailabilityResponse\x12\x1c\n" +
-	"\tavailable\x18\x01 \x01(\bR\tavailable\",\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\",\n" +
 	"\x13GetAppStatusRequest\x12\x15\n" +
 	"\x06app_id\x18\x01 \x01(\x03R\x05appId\"\xdb\x01\n" +
 	"\x10DeploymentStatus\x12\x0e\n" +
@@ -1860,7 +1749,7 @@ const file_app_v1_app_proto_rawDesc = "" +
 	"\vPROGRESSING\x10\x01\x12\f\n" +
 	"\bDEGRADED\x10\x02\x12\x0f\n" +
 	"\vUNAVAILABLE\x10\x03\x12\b\n" +
-	"\x04IDLE\x10\x042\xd6\a\n" +
+	"\x04IDLE\x10\x042\xd7\x06\n" +
 	"\n" +
 	"AppService\x12J\n" +
 	"\tCreateApp\x12\x1d.loco.app.v1.CreateAppRequest\x1a\x1e.loco.app.v1.CreateAppResponse\x12A\n" +
@@ -1869,8 +1758,7 @@ const file_app_v1_app_proto_rawDesc = "" +
 	"\bListApps\x12\x1c.loco.app.v1.ListAppsRequest\x1a\x1d.loco.app.v1.ListAppsResponse\x12J\n" +
 	"\tUpdateApp\x12\x1d.loco.app.v1.UpdateAppRequest\x1a\x1e.loco.app.v1.UpdateAppResponse\x12J\n" +
 	"\tDeleteApp\x12\x1d.loco.app.v1.DeleteAppRequest\x1a\x1e.loco.app.v1.DeleteAppResponse\x12S\n" +
-	"\fGetAppStatus\x12 .loco.app.v1.GetAppStatusRequest\x1a!.loco.app.v1.GetAppStatusResponse\x12}\n" +
-	"\x1aCheckSubdomainAvailability\x12..loco.app.v1.CheckSubdomainAvailabilityRequest\x1a/.loco.app.v1.CheckSubdomainAvailabilityResponse\x12E\n" +
+	"\fGetAppStatus\x12 .loco.app.v1.GetAppStatusRequest\x1a!.loco.app.v1.GetAppStatusResponse\x12E\n" +
 	"\n" +
 	"StreamLogs\x12\x1e.loco.app.v1.StreamLogsRequest\x1a\x15.loco.app.v1.LogEntry0\x01\x12J\n" +
 	"\tGetEvents\x12\x1d.loco.app.v1.GetEventsRequest\x1a\x1e.loco.app.v1.GetEventsResponse\x12G\n" +
@@ -1890,90 +1778,90 @@ func file_app_v1_app_proto_rawDescGZIP() []byte {
 }
 
 var file_app_v1_app_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_app_v1_app_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_app_v1_app_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_app_v1_app_proto_goTypes = []any{
-	(AppType)(0),                               // 0: loco.app.v1.AppType
-	(DeploymentPhase)(0),                       // 1: loco.app.v1.DeploymentPhase
-	(AppStatus)(0),                             // 2: loco.app.v1.AppStatus
-	(*App)(nil),                                // 3: loco.app.v1.App
-	(*CreateAppRequest)(nil),                   // 4: loco.app.v1.CreateAppRequest
-	(*CreateAppResponse)(nil),                  // 5: loco.app.v1.CreateAppResponse
-	(*GetAppRequest)(nil),                      // 6: loco.app.v1.GetAppRequest
-	(*GetAppResponse)(nil),                     // 7: loco.app.v1.GetAppResponse
-	(*GetAppByNameRequest)(nil),                // 8: loco.app.v1.GetAppByNameRequest
-	(*GetAppByNameResponse)(nil),               // 9: loco.app.v1.GetAppByNameResponse
-	(*ListAppsRequest)(nil),                    // 10: loco.app.v1.ListAppsRequest
-	(*ListAppsResponse)(nil),                   // 11: loco.app.v1.ListAppsResponse
-	(*UpdateAppRequest)(nil),                   // 12: loco.app.v1.UpdateAppRequest
-	(*UpdateAppResponse)(nil),                  // 13: loco.app.v1.UpdateAppResponse
-	(*DeleteAppRequest)(nil),                   // 14: loco.app.v1.DeleteAppRequest
-	(*DeleteAppResponse)(nil),                  // 15: loco.app.v1.DeleteAppResponse
-	(*CheckSubdomainAvailabilityRequest)(nil),  // 16: loco.app.v1.CheckSubdomainAvailabilityRequest
-	(*CheckSubdomainAvailabilityResponse)(nil), // 17: loco.app.v1.CheckSubdomainAvailabilityResponse
-	(*GetAppStatusRequest)(nil),                // 18: loco.app.v1.GetAppStatusRequest
-	(*DeploymentStatus)(nil),                   // 19: loco.app.v1.DeploymentStatus
-	(*GetAppStatusResponse)(nil),               // 20: loco.app.v1.GetAppStatusResponse
-	(*StreamLogsRequest)(nil),                  // 21: loco.app.v1.StreamLogsRequest
-	(*LogEntry)(nil),                           // 22: loco.app.v1.LogEntry
-	(*Event)(nil),                              // 23: loco.app.v1.Event
-	(*GetEventsRequest)(nil),                   // 24: loco.app.v1.GetEventsRequest
-	(*GetEventsResponse)(nil),                  // 25: loco.app.v1.GetEventsResponse
-	(*ScaleAppRequest)(nil),                    // 26: loco.app.v1.ScaleAppRequest
-	(*ScaleAppResponse)(nil),                   // 27: loco.app.v1.ScaleAppResponse
-	(*UpdateAppEnvRequest)(nil),                // 28: loco.app.v1.UpdateAppEnvRequest
-	(*UpdateAppEnvResponse)(nil),               // 29: loco.app.v1.UpdateAppEnvResponse
-	nil,                                        // 30: loco.app.v1.UpdateAppEnvRequest.EnvEntry
-	(*timestamppb.Timestamp)(nil),              // 31: google.protobuf.Timestamp
+	(AppType)(0),                  // 0: loco.app.v1.AppType
+	(DeploymentPhase)(0),          // 1: loco.app.v1.DeploymentPhase
+	(AppStatus)(0),                // 2: loco.app.v1.AppStatus
+	(*App)(nil),                   // 3: loco.app.v1.App
+	(*CreateAppRequest)(nil),      // 4: loco.app.v1.CreateAppRequest
+	(*CreateAppResponse)(nil),     // 5: loco.app.v1.CreateAppResponse
+	(*GetAppRequest)(nil),         // 6: loco.app.v1.GetAppRequest
+	(*GetAppResponse)(nil),        // 7: loco.app.v1.GetAppResponse
+	(*GetAppByNameRequest)(nil),   // 8: loco.app.v1.GetAppByNameRequest
+	(*GetAppByNameResponse)(nil),  // 9: loco.app.v1.GetAppByNameResponse
+	(*ListAppsRequest)(nil),       // 10: loco.app.v1.ListAppsRequest
+	(*ListAppsResponse)(nil),      // 11: loco.app.v1.ListAppsResponse
+	(*UpdateAppRequest)(nil),      // 12: loco.app.v1.UpdateAppRequest
+	(*UpdateAppResponse)(nil),     // 13: loco.app.v1.UpdateAppResponse
+	(*DeleteAppRequest)(nil),      // 14: loco.app.v1.DeleteAppRequest
+	(*DeleteAppResponse)(nil),     // 15: loco.app.v1.DeleteAppResponse
+	(*GetAppStatusRequest)(nil),   // 16: loco.app.v1.GetAppStatusRequest
+	(*DeploymentStatus)(nil),      // 17: loco.app.v1.DeploymentStatus
+	(*GetAppStatusResponse)(nil),  // 18: loco.app.v1.GetAppStatusResponse
+	(*StreamLogsRequest)(nil),     // 19: loco.app.v1.StreamLogsRequest
+	(*LogEntry)(nil),              // 20: loco.app.v1.LogEntry
+	(*Event)(nil),                 // 21: loco.app.v1.Event
+	(*GetEventsRequest)(nil),      // 22: loco.app.v1.GetEventsRequest
+	(*GetEventsResponse)(nil),     // 23: loco.app.v1.GetEventsResponse
+	(*ScaleAppRequest)(nil),       // 24: loco.app.v1.ScaleAppRequest
+	(*ScaleAppResponse)(nil),      // 25: loco.app.v1.ScaleAppResponse
+	(*UpdateAppEnvRequest)(nil),   // 26: loco.app.v1.UpdateAppEnvRequest
+	(*UpdateAppEnvResponse)(nil),  // 27: loco.app.v1.UpdateAppEnvResponse
+	nil,                           // 28: loco.app.v1.UpdateAppEnvRequest.EnvEntry
+	(*v1.AppDomain)(nil),          // 29: loco.domain.v1.AppDomain
+	(*timestamppb.Timestamp)(nil), // 30: google.protobuf.Timestamp
 }
 var file_app_v1_app_proto_depIdxs = []int32{
 	0,  // 0: loco.app.v1.App.type:type_name -> loco.app.v1.AppType
-	31, // 1: loco.app.v1.App.created_at:type_name -> google.protobuf.Timestamp
-	31, // 2: loco.app.v1.App.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: loco.app.v1.CreateAppRequest.type:type_name -> loco.app.v1.AppType
-	3,  // 4: loco.app.v1.CreateAppResponse.app:type_name -> loco.app.v1.App
-	3,  // 5: loco.app.v1.GetAppResponse.app:type_name -> loco.app.v1.App
-	3,  // 6: loco.app.v1.GetAppByNameResponse.app:type_name -> loco.app.v1.App
-	3,  // 7: loco.app.v1.ListAppsResponse.apps:type_name -> loco.app.v1.App
-	3,  // 8: loco.app.v1.UpdateAppResponse.app:type_name -> loco.app.v1.App
-	3,  // 9: loco.app.v1.DeleteAppResponse.app:type_name -> loco.app.v1.App
-	1,  // 10: loco.app.v1.DeploymentStatus.status:type_name -> loco.app.v1.DeploymentPhase
-	3,  // 11: loco.app.v1.GetAppStatusResponse.app:type_name -> loco.app.v1.App
-	19, // 12: loco.app.v1.GetAppStatusResponse.current_deployment:type_name -> loco.app.v1.DeploymentStatus
-	31, // 13: loco.app.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	31, // 14: loco.app.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	23, // 15: loco.app.v1.GetEventsResponse.events:type_name -> loco.app.v1.Event
-	19, // 16: loco.app.v1.ScaleAppResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
-	30, // 17: loco.app.v1.UpdateAppEnvRequest.env:type_name -> loco.app.v1.UpdateAppEnvRequest.EnvEntry
-	19, // 18: loco.app.v1.UpdateAppEnvResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
-	4,  // 19: loco.app.v1.AppService.CreateApp:input_type -> loco.app.v1.CreateAppRequest
-	6,  // 20: loco.app.v1.AppService.GetApp:input_type -> loco.app.v1.GetAppRequest
-	8,  // 21: loco.app.v1.AppService.GetAppByName:input_type -> loco.app.v1.GetAppByNameRequest
-	10, // 22: loco.app.v1.AppService.ListApps:input_type -> loco.app.v1.ListAppsRequest
-	12, // 23: loco.app.v1.AppService.UpdateApp:input_type -> loco.app.v1.UpdateAppRequest
-	14, // 24: loco.app.v1.AppService.DeleteApp:input_type -> loco.app.v1.DeleteAppRequest
-	18, // 25: loco.app.v1.AppService.GetAppStatus:input_type -> loco.app.v1.GetAppStatusRequest
-	16, // 26: loco.app.v1.AppService.CheckSubdomainAvailability:input_type -> loco.app.v1.CheckSubdomainAvailabilityRequest
-	21, // 27: loco.app.v1.AppService.StreamLogs:input_type -> loco.app.v1.StreamLogsRequest
-	24, // 28: loco.app.v1.AppService.GetEvents:input_type -> loco.app.v1.GetEventsRequest
-	26, // 29: loco.app.v1.AppService.ScaleApp:input_type -> loco.app.v1.ScaleAppRequest
-	28, // 30: loco.app.v1.AppService.UpdateAppEnv:input_type -> loco.app.v1.UpdateAppEnvRequest
-	5,  // 31: loco.app.v1.AppService.CreateApp:output_type -> loco.app.v1.CreateAppResponse
-	7,  // 32: loco.app.v1.AppService.GetApp:output_type -> loco.app.v1.GetAppResponse
-	9,  // 33: loco.app.v1.AppService.GetAppByName:output_type -> loco.app.v1.GetAppByNameResponse
-	11, // 34: loco.app.v1.AppService.ListApps:output_type -> loco.app.v1.ListAppsResponse
-	13, // 35: loco.app.v1.AppService.UpdateApp:output_type -> loco.app.v1.UpdateAppResponse
-	15, // 36: loco.app.v1.AppService.DeleteApp:output_type -> loco.app.v1.DeleteAppResponse
-	20, // 37: loco.app.v1.AppService.GetAppStatus:output_type -> loco.app.v1.GetAppStatusResponse
-	17, // 38: loco.app.v1.AppService.CheckSubdomainAvailability:output_type -> loco.app.v1.CheckSubdomainAvailabilityResponse
-	22, // 39: loco.app.v1.AppService.StreamLogs:output_type -> loco.app.v1.LogEntry
-	25, // 40: loco.app.v1.AppService.GetEvents:output_type -> loco.app.v1.GetEventsResponse
-	27, // 41: loco.app.v1.AppService.ScaleApp:output_type -> loco.app.v1.ScaleAppResponse
-	29, // 42: loco.app.v1.AppService.UpdateAppEnv:output_type -> loco.app.v1.UpdateAppEnvResponse
-	31, // [31:43] is the sub-list for method output_type
-	19, // [19:31] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	29, // 1: loco.app.v1.App.domains:type_name -> loco.domain.v1.AppDomain
+	30, // 2: loco.app.v1.App.created_at:type_name -> google.protobuf.Timestamp
+	30, // 3: loco.app.v1.App.updated_at:type_name -> google.protobuf.Timestamp
+	2,  // 4: loco.app.v1.App.status:type_name -> loco.app.v1.AppStatus
+	0,  // 5: loco.app.v1.CreateAppRequest.type:type_name -> loco.app.v1.AppType
+	29, // 6: loco.app.v1.CreateAppRequest.domain:type_name -> loco.domain.v1.AppDomain
+	3,  // 7: loco.app.v1.CreateAppResponse.app:type_name -> loco.app.v1.App
+	3,  // 8: loco.app.v1.GetAppResponse.app:type_name -> loco.app.v1.App
+	3,  // 9: loco.app.v1.GetAppByNameResponse.app:type_name -> loco.app.v1.App
+	3,  // 10: loco.app.v1.ListAppsResponse.apps:type_name -> loco.app.v1.App
+	3,  // 11: loco.app.v1.UpdateAppResponse.app:type_name -> loco.app.v1.App
+	3,  // 12: loco.app.v1.DeleteAppResponse.app:type_name -> loco.app.v1.App
+	1,  // 13: loco.app.v1.DeploymentStatus.status:type_name -> loco.app.v1.DeploymentPhase
+	3,  // 14: loco.app.v1.GetAppStatusResponse.app:type_name -> loco.app.v1.App
+	17, // 15: loco.app.v1.GetAppStatusResponse.current_deployment:type_name -> loco.app.v1.DeploymentStatus
+	30, // 16: loco.app.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	30, // 17: loco.app.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	21, // 18: loco.app.v1.GetEventsResponse.events:type_name -> loco.app.v1.Event
+	17, // 19: loco.app.v1.ScaleAppResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
+	28, // 20: loco.app.v1.UpdateAppEnvRequest.env:type_name -> loco.app.v1.UpdateAppEnvRequest.EnvEntry
+	17, // 21: loco.app.v1.UpdateAppEnvResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
+	4,  // 22: loco.app.v1.AppService.CreateApp:input_type -> loco.app.v1.CreateAppRequest
+	6,  // 23: loco.app.v1.AppService.GetApp:input_type -> loco.app.v1.GetAppRequest
+	8,  // 24: loco.app.v1.AppService.GetAppByName:input_type -> loco.app.v1.GetAppByNameRequest
+	10, // 25: loco.app.v1.AppService.ListApps:input_type -> loco.app.v1.ListAppsRequest
+	12, // 26: loco.app.v1.AppService.UpdateApp:input_type -> loco.app.v1.UpdateAppRequest
+	14, // 27: loco.app.v1.AppService.DeleteApp:input_type -> loco.app.v1.DeleteAppRequest
+	16, // 28: loco.app.v1.AppService.GetAppStatus:input_type -> loco.app.v1.GetAppStatusRequest
+	19, // 29: loco.app.v1.AppService.StreamLogs:input_type -> loco.app.v1.StreamLogsRequest
+	22, // 30: loco.app.v1.AppService.GetEvents:input_type -> loco.app.v1.GetEventsRequest
+	24, // 31: loco.app.v1.AppService.ScaleApp:input_type -> loco.app.v1.ScaleAppRequest
+	26, // 32: loco.app.v1.AppService.UpdateAppEnv:input_type -> loco.app.v1.UpdateAppEnvRequest
+	5,  // 33: loco.app.v1.AppService.CreateApp:output_type -> loco.app.v1.CreateAppResponse
+	7,  // 34: loco.app.v1.AppService.GetApp:output_type -> loco.app.v1.GetAppResponse
+	9,  // 35: loco.app.v1.AppService.GetAppByName:output_type -> loco.app.v1.GetAppByNameResponse
+	11, // 36: loco.app.v1.AppService.ListApps:output_type -> loco.app.v1.ListAppsResponse
+	13, // 37: loco.app.v1.AppService.UpdateApp:output_type -> loco.app.v1.UpdateAppResponse
+	15, // 38: loco.app.v1.AppService.DeleteApp:output_type -> loco.app.v1.DeleteAppResponse
+	18, // 39: loco.app.v1.AppService.GetAppStatus:output_type -> loco.app.v1.GetAppStatusResponse
+	20, // 40: loco.app.v1.AppService.StreamLogs:output_type -> loco.app.v1.LogEntry
+	23, // 41: loco.app.v1.AppService.GetEvents:output_type -> loco.app.v1.GetEventsResponse
+	25, // 42: loco.app.v1.AppService.ScaleApp:output_type -> loco.app.v1.ScaleAppResponse
+	27, // 43: loco.app.v1.AppService.UpdateAppEnv:output_type -> loco.app.v1.UpdateAppEnvResponse
+	33, // [33:44] is the sub-list for method output_type
+	22, // [22:33] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_app_v1_app_proto_init() }
@@ -1981,19 +1869,18 @@ func file_app_v1_app_proto_init() {
 	if File_app_v1_app_proto != nil {
 		return
 	}
-	file_app_v1_app_proto_msgTypes[1].OneofWrappers = []any{}
 	file_app_v1_app_proto_msgTypes[9].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[14].OneofWrappers = []any{}
 	file_app_v1_app_proto_msgTypes[16].OneofWrappers = []any{}
-	file_app_v1_app_proto_msgTypes[18].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[19].OneofWrappers = []any{}
 	file_app_v1_app_proto_msgTypes[21].OneofWrappers = []any{}
-	file_app_v1_app_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_app_v1_app_proto_rawDesc), len(file_app_v1_app_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   28,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

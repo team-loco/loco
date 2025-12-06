@@ -65,7 +65,7 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 							{app.name}
 						</h3>
 						<p className="text-sm text-foreground opacity-70 mt-1 truncate">
-							{app.subdomain || app.domain || "no domain"}
+							{app.domain?.domain || "no domain"}
 						</p>
 					</div>
 					<div onClick={(e) => e.stopPropagation()}>
@@ -86,10 +86,7 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 
 				{/* Domain Info */}
 				<p className="text-xs text-foreground opacity-50 border-t border-border pt-3 mt-3 truncate">
-					{app.domain ||
-						(app.subdomain
-							? `${app.subdomain}.deploy-app.com`
-							: "pending deployment")}
+					{app.domain?.domain || "pending deployment"}
 				</p>
 			</CardContent>
 		</Card>

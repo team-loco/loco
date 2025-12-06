@@ -388,4 +388,11 @@ Phase I ends Here
 - eventually use.go should be able to switch between different scopes.
 - we should have a way to list all the scopes and switch between them.
 
-- connect does not hve any out of the box validation for requests coming in. we need to manually all incoming params
+- connect does not have any out of the box validation for requests coming in. we need to manually all incoming params
+
+- create a logs service that can get logs from clickhouse or live tail the application.
+- need an invitations microservice alongside an emailing microservice.
+- helm chart for loco. and make loco deploy as the chart instead.
+- never return db errors directly to client, we need to clean that logic up and return a generic error message only for now.
+- missing concept of schema versioning for the app config that should be scoped inside DB
+- potentially setup umami for analytics on the frontend?

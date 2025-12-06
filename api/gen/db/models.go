@@ -101,6 +101,48 @@ func (ns NullDeploymentStatus) Value() (driver.Value, error) {
 	return string(ns.DeploymentStatus), nil
 }
 
+type DomainSource string
+
+const (
+	DomainSourcePlatformProvided DomainSource = "platform_provided"
+	DomainSourceUserProvided     DomainSource = "user_provided"
+)
+
+func (e *DomainSource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DomainSource(s)
+	case string:
+		*e = DomainSource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DomainSource: %T", src)
+	}
+	return nil
+}
+
+type NullDomainSource struct {
+	DomainSource DomainSource `json:"domainSource"`
+	Valid        bool         `json:"valid"` // Valid is true if DomainSource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDomainSource) Scan(value interface{}) error {
+	if value == nil {
+		ns.DomainSource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DomainSource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDomainSource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DomainSource), nil
+}
+
 type OrganizationRole string
 
 const (
@@ -193,12 +235,22 @@ type App struct {
 	Name        string             `json:"name"`
 	Namespace   string             `json:"namespace"`
 	Type        int32              `json:"type"`
-	Subdomain   string             `json:"subdomain"`
-	Domain      string             `json:"domain"`
 	Status      NullAppStatus      `json:"status"`
 	CreatedBy   int64              `json:"createdBy"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type AppDomain struct {
+	ID               int64              `json:"id"`
+	AppID            int64              `json:"appId"`
+	Domain           string             `json:"domain"`
+	DomainSource     DomainSource       `json:"domainSource"`
+	SubdomainLabel   pgtype.Text        `json:"subdomainLabel"`
+	PlatformDomainID pgtype.Int8        `json:"platformDomainId"`
+	IsPrimary        bool               `json:"isPrimary"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type Cluster struct {
@@ -247,6 +299,13 @@ type OrganizationMember struct {
 	UserID         int64              `json:"userId"`
 	Role           OrganizationRole   `json:"role"`
 	CreatedAt      pgtype.Timestamptz `json:"createdAt"`
+}
+
+type PlatformDomain struct {
+	ID        int64              `json:"id"`
+	Domain    string             `json:"domain"`
+	IsActive  bool               `json:"isActive"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
 }
 
 type User struct {

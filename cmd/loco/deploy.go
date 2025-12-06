@@ -133,8 +133,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			WorkspaceId: workspaceID,
 			Name:        loadedCfg.Config.Metadata.Name,
 			// todo: add to loco config. we need to grab app type from there.
-			Type:      appv1.AppType_SERVICE,
-			Subdomain: loadedCfg.Config.Routing.Subdomain,
+			Type: appv1.AppType_SERVICE,
 		})
 		createAppReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 

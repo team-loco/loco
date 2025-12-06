@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CheckSubdomainAvailabilityRequest, CheckSubdomainAvailabilityResponse, CreateAppRequest, CreateAppResponse, DeleteAppRequest, DeleteAppResponse, GetAppByNameRequest, GetAppByNameResponse, GetAppRequest, GetAppResponse, GetAppStatusRequest, GetAppStatusResponse, GetEventsRequest, GetEventsResponse, ListAppsRequest, ListAppsResponse, LogEntry, ScaleAppRequest, ScaleAppResponse, StreamLogsRequest, UpdateAppEnvRequest, UpdateAppEnvResponse, UpdateAppRequest, UpdateAppResponse } from "./app_pb";
+import { CreateAppRequest, CreateAppResponse, DeleteAppRequest, DeleteAppResponse, GetAppByNameRequest, GetAppByNameResponse, GetAppRequest, GetAppResponse, GetAppStatusRequest, GetAppStatusResponse, GetEventsRequest, GetEventsResponse, ListAppsRequest, ListAppsResponse, LogEntry, ScaleAppRequest, ScaleAppResponse, StreamLogsRequest, UpdateAppEnvRequest, UpdateAppEnvResponse, UpdateAppRequest, UpdateAppResponse } from "./app_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -75,15 +75,6 @@ export const AppService = {
       name: "GetAppStatus",
       I: GetAppStatusRequest,
       O: GetAppStatusResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc loco.app.v1.AppService.CheckSubdomainAvailability
-     */
-    checkSubdomainAvailability: {
-      name: "CheckSubdomainAvailability",
-      I: CheckSubdomainAvailabilityRequest,
-      O: CheckSubdomainAvailabilityResponse,
       kind: MethodKind.Unary,
     },
     /**

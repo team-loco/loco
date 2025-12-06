@@ -6,13 +6,15 @@ import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobu
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { AppDomain, AppDomainJson } from "../../domain/v1/domain_pb";
+import { file_domain_v1_domain } from "../../domain/v1/domain_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file app/v1/app.proto.
  */
 export const file_app_v1_app: GenFile = /*@__PURE__*/
-  fileDesc("ChBhcHAvdjEvYXBwLnByb3RvEgtsb2NvLmFwcC52MSKDAgoDQXBwEgoKAmlkGAEgASgDEhQKDHdvcmtzcGFjZV9pZBgCIAEoAxIMCgRuYW1lGAQgASgJEhEKCW5hbWVzcGFjZRgFIAEoCRIiCgR0eXBlGAYgASgOMhQubG9jby5hcHAudjEuQXBwVHlwZRIRCglzdWJkb21haW4YByABKAkSDgoGZG9tYWluGAggASgJEhIKCmNyZWF0ZWRfYnkYCyABKAMSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijQEKEENyZWF0ZUFwcFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAyABKAkSIgoEdHlwZRgEIAEoDjIULmxvY28uYXBwLnYxLkFwcFR5cGUSEQoJc3ViZG9tYWluGAUgASgJEhMKBmRvbWFpbhgGIAEoCUgAiAEBQgkKB19kb21haW4iQwoRQ3JlYXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiHwoNR2V0QXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMiLwoOR2V0QXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIjkKE0dldEFwcEJ5TmFtZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAiABKAkiNQoUR2V0QXBwQnlOYW1lUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwIicKD0xpc3RBcHBzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMiMgoQTGlzdEFwcHNSZXNwb25zZRIeCgRhcHBzGAEgAygLMhAubG9jby5hcHAudjEuQXBwIoQBChBVcGRhdGVBcHBSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxIRCgRuYW1lGAIgASgJSACIAQESFgoJc3ViZG9tYWluGAMgASgJSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCBwoFX25hbWVCDAoKX3N1YmRvbWFpbkIJCgdfZG9tYWluIkMKEVVwZGF0ZUFwcFJlc3BvbnNlEh0KA2FwcBgBIAEoCzIQLmxvY28uYXBwLnYxLkFwcBIPCgdtZXNzYWdlGAIgASgJIiIKEERlbGV0ZUFwcFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDIkMKEURlbGV0ZUFwcFJlc3BvbnNlEh0KA2FwcBgBIAEoCzIQLmxvY28uYXBwLnYxLkFwcBIPCgdtZXNzYWdlGAIgASgJIkYKIUNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBIRCglzdWJkb21haW4YASABKAkSDgoGZG9tYWluGAIgASgJIjcKIkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USEQoJYXZhaWxhYmxlGAEgASgIIiUKE0dldEFwcFN0YXR1c1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDIq4BChBEZXBsb3ltZW50U3RhdHVzEgoKAmlkGAEgASgDEiwKBnN0YXR1cxgCIAEoDjIcLmxvY28uYXBwLnYxLkRlcGxveW1lbnRQaGFzZRIQCghyZXBsaWNhcxgDIAEoBRIUCgdtZXNzYWdlGAQgASgJSACIAQESGgoNZXJyb3JfbWVzc2FnZRgFIAEoCUgBiAEBQgoKCF9tZXNzYWdlQhAKDl9lcnJvcl9tZXNzYWdlInAKFEdldEFwcFN0YXR1c1Jlc3BvbnNlEh0KA2FwcBgBIAEoCzIQLmxvY28uYXBwLnYxLkFwcBI5ChJjdXJyZW50X2RlcGxveW1lbnQYAiABKAsyHS5sb2NvLmFwcC52MS5EZXBsb3ltZW50U3RhdHVzImEKEVN0cmVhbUxvZ3NSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBEhMKBmZvbGxvdxgDIAEoCEgBiAEBQggKBl9saW1pdEIJCgdfZm9sbG93Io0BCghMb2dFbnRyeRIQCghwb2RfbmFtZRgBIAEoCRIRCgluYW1lc3BhY2UYAiABKAkSEQoJY29udGFpbmVyGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASCwoDbG9nGAUgASgJEg0KBWxldmVsGAYgASgJIncKBUV2ZW50Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSDAoEdHlwZRgEIAEoCRIQCghwb2RfbmFtZRgFIAEoCSJAChBHZXRFdmVudHNSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBQggKBl9saW1pdCI3ChFHZXRFdmVudHNSZXNwb25zZRIiCgZldmVudHMYASADKAsyEi5sb2NvLmFwcC52MS5FdmVudCJ/Cg9TY2FsZUFwcFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhUKCHJlcGxpY2FzGAIgASgFSACIAQESEAoDY3B1GAMgASgJSAGIAQESEwoGbWVtb3J5GAQgASgJSAKIAQFCCwoJX3JlcGxpY2FzQgYKBF9jcHVCCQoHX21lbW9yeSJFChBTY2FsZUFwcFJlc3BvbnNlEjEKCmRlcGxveW1lbnQYASABKAsyHS5sb2NvLmFwcC52MS5EZXBsb3ltZW50U3RhdHVzIokBChNVcGRhdGVBcHBFbnZSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAxI2CgNlbnYYAiADKAsyKS5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXF1ZXN0LkVudkVudHJ5GioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiSQoUVXBkYXRlQXBwRW52UmVzcG9uc2USMQoKZGVwbG95bWVudBgBIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMqUgoHQXBwVHlwZRILCgdTRVJWSUNFEAASDAoIREFUQUJBU0UQARIMCghGVU5DVElPThACEgkKBUNBQ0hFEAMSCQoFUVVFVUUQBBIICgRCTE9CEAUqVAoPRGVwbG95bWVudFBoYXNlEgsKB1BFTkRJTkcQABILCgdSVU5OSU5HEAESDQoJU1VDQ0VFREVEEAISCgoGRkFJTEVEEAMSDAoIQ0FOQ0VMRUQQBCpUCglBcHBTdGF0dXMSDQoJQVZBSUxBQkxFEAASDwoLUFJPR1JFU1NJTkcQARIMCghERUdSQURFRBACEg8KC1VOQVZBSUxBQkxFEAMSCAoESURMRRAEMtYHCgpBcHBTZXJ2aWNlEkoKCUNyZWF0ZUFwcBIdLmxvY28uYXBwLnYxLkNyZWF0ZUFwcFJlcXVlc3QaHi5sb2NvLmFwcC52MS5DcmVhdGVBcHBSZXNwb25zZRJBCgZHZXRBcHASGi5sb2NvLmFwcC52MS5HZXRBcHBSZXF1ZXN0GhsubG9jby5hcHAudjEuR2V0QXBwUmVzcG9uc2USUwoMR2V0QXBwQnlOYW1lEiAubG9jby5hcHAudjEuR2V0QXBwQnlOYW1lUmVxdWVzdBohLmxvY28uYXBwLnYxLkdldEFwcEJ5TmFtZVJlc3BvbnNlEkcKCExpc3RBcHBzEhwubG9jby5hcHAudjEuTGlzdEFwcHNSZXF1ZXN0Gh0ubG9jby5hcHAudjEuTGlzdEFwcHNSZXNwb25zZRJKCglVcGRhdGVBcHASHS5sb2NvLmFwcC52MS5VcGRhdGVBcHBSZXF1ZXN0Gh4ubG9jby5hcHAudjEuVXBkYXRlQXBwUmVzcG9uc2USSgoJRGVsZXRlQXBwEh0ubG9jby5hcHAudjEuRGVsZXRlQXBwUmVxdWVzdBoeLmxvY28uYXBwLnYxLkRlbGV0ZUFwcFJlc3BvbnNlElMKDEdldEFwcFN0YXR1cxIgLmxvY28uYXBwLnYxLkdldEFwcFN0YXR1c1JlcXVlc3QaIS5sb2NvLmFwcC52MS5HZXRBcHBTdGF0dXNSZXNwb25zZRJ9ChpDaGVja1N1YmRvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uYXBwLnYxLkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uYXBwLnYxLkNoZWNrU3ViZG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USRQoKU3RyZWFtTG9ncxIeLmxvY28uYXBwLnYxLlN0cmVhbUxvZ3NSZXF1ZXN0GhUubG9jby5hcHAudjEuTG9nRW50cnkwARJKCglHZXRFdmVudHMSHS5sb2NvLmFwcC52MS5HZXRFdmVudHNSZXF1ZXN0Gh4ubG9jby5hcHAudjEuR2V0RXZlbnRzUmVzcG9uc2USRwoIU2NhbGVBcHASHC5sb2NvLmFwcC52MS5TY2FsZUFwcFJlcXVlc3QaHS5sb2NvLmFwcC52MS5TY2FsZUFwcFJlc3BvbnNlElMKDFVwZGF0ZUFwcEVudhIgLmxvY28uYXBwLnYxLlVwZGF0ZUFwcEVudlJlcXVlc3QaIS5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXNwb25zZUI1WjNnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9hcHAvdjE7YXBwdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("ChBhcHAvdjEvYXBwLnByb3RvEgtsb2NvLmFwcC52MSK0AgoDQXBwEgoKAmlkGAEgASgDEhQKDHdvcmtzcGFjZV9pZBgCIAEoAxIMCgRuYW1lGAQgASgJEhEKCW5hbWVzcGFjZRgFIAEoCRIiCgR0eXBlGAYgASgOMhQubG9jby5hcHAudjEuQXBwVHlwZRIqCgdkb21haW5zGAcgAygLMhkubG9jby5kb21haW4udjEuQXBwRG9tYWluEhIKCmNyZWF0ZWRfYnkYCyABKAMSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoGc3RhdHVzGA4gASgOMhYubG9jby5hcHAudjEuQXBwU3RhdHVzIoUBChBDcmVhdGVBcHBSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIMCgRuYW1lGAMgASgJEiIKBHR5cGUYBCABKA4yFC5sb2NvLmFwcC52MS5BcHBUeXBlEikKBmRvbWFpbhgFIAEoCzIZLmxvY28uZG9tYWluLnYxLkFwcERvbWFpbiJDChFDcmVhdGVBcHBSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHASDwoHbWVzc2FnZRgCIAEoCSIfCg1HZXRBcHBSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAyIvCg5HZXRBcHBSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHAiOQoTR2V0QXBwQnlOYW1lUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDAoEbmFtZRgCIAEoCSI1ChRHZXRBcHBCeU5hbWVSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHAiJwoPTGlzdEFwcHNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAyIyChBMaXN0QXBwc1Jlc3BvbnNlEh4KBGFwcHMYASADKAsyEC5sb2NvLmFwcC52MS5BcHAihAEKEFVwZGF0ZUFwcFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhEKBG5hbWUYAiABKAlIAIgBARIWCglzdWJkb21haW4YAyABKAlIAYgBARITCgZkb21haW4YBCABKAlIAogBAUIHCgVfbmFtZUIMCgpfc3ViZG9tYWluQgkKB19kb21haW4iQwoRVXBkYXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiIgoQRGVsZXRlQXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMiQwoRRGVsZXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiJQoTR2V0QXBwU3RhdHVzUmVxdWVzdBIOCgZhcHBfaWQYASABKAMirgEKEERlcGxveW1lbnRTdGF0dXMSCgoCaWQYASABKAMSLAoGc3RhdHVzGAIgASgOMhwubG9jby5hcHAudjEuRGVwbG95bWVudFBoYXNlEhAKCHJlcGxpY2FzGAMgASgFEhQKB21lc3NhZ2UYBCABKAlIAIgBARIaCg1lcnJvcl9tZXNzYWdlGAUgASgJSAGIAQFCCgoIX21lc3NhZ2VCEAoOX2Vycm9yX21lc3NhZ2UicAoUR2V0QXBwU3RhdHVzUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEjkKEmN1cnJlbnRfZGVwbG95bWVudBgCIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMiYQoRU3RyZWFtTG9nc1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQESEwoGZm9sbG93GAMgASgISAGIAQFCCAoGX2xpbWl0QgkKB19mb2xsb3cijQEKCExvZ0VudHJ5EhAKCHBvZF9uYW1lGAEgASgJEhEKCW5hbWVzcGFjZRgCIAEoCRIRCgljb250YWluZXIYAyABKAkSLQoJdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBILCgNsb2cYBSABKAkSDQoFbGV2ZWwYBiABKAkidwoFRXZlbnQSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZyZWFzb24YAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIMCgR0eXBlGAQgASgJEhAKCHBvZF9uYW1lGAUgASgJIkAKEEdldEV2ZW50c1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQFCCAoGX2xpbWl0IjcKEUdldEV2ZW50c1Jlc3BvbnNlEiIKBmV2ZW50cxgBIAMoCzISLmxvY28uYXBwLnYxLkV2ZW50In8KD1NjYWxlQXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSFQoIcmVwbGljYXMYAiABKAVIAIgBARIQCgNjcHUYAyABKAlIAYgBARITCgZtZW1vcnkYBCABKAlIAogBAUILCglfcmVwbGljYXNCBgoEX2NwdUIJCgdfbWVtb3J5IkUKEFNjYWxlQXBwUmVzcG9uc2USMQoKZGVwbG95bWVudBgBIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMiiQEKE1VwZGF0ZUFwcEVudlJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEjYKA2VudhgCIAMoCzIpLmxvY28uYXBwLnYxLlVwZGF0ZUFwcEVudlJlcXVlc3QuRW52RW50cnkaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJJChRVcGRhdGVBcHBFbnZSZXNwb25zZRIxCgpkZXBsb3ltZW50GAEgASgLMh0ubG9jby5hcHAudjEuRGVwbG95bWVudFN0YXR1cypSCgdBcHBUeXBlEgsKB1NFUlZJQ0UQABIMCghEQVRBQkFTRRABEgwKCEZVTkNUSU9OEAISCQoFQ0FDSEUQAxIJCgVRVUVVRRAEEggKBEJMT0IQBSpUCg9EZXBsb3ltZW50UGhhc2USCwoHUEVORElORxAAEgsKB1JVTk5JTkcQARINCglTVUNDRUVERUQQAhIKCgZGQUlMRUQQAxIMCghDQU5DRUxFRBAEKlQKCUFwcFN0YXR1cxINCglBVkFJTEFCTEUQABIPCgtQUk9HUkVTU0lORxABEgwKCERFR1JBREVEEAISDwoLVU5BVkFJTEFCTEUQAxIICgRJRExFEAQy1wYKCkFwcFNlcnZpY2USSgoJQ3JlYXRlQXBwEh0ubG9jby5hcHAudjEuQ3JlYXRlQXBwUmVxdWVzdBoeLmxvY28uYXBwLnYxLkNyZWF0ZUFwcFJlc3BvbnNlEkEKBkdldEFwcBIaLmxvY28uYXBwLnYxLkdldEFwcFJlcXVlc3QaGy5sb2NvLmFwcC52MS5HZXRBcHBSZXNwb25zZRJTCgxHZXRBcHBCeU5hbWUSIC5sb2NvLmFwcC52MS5HZXRBcHBCeU5hbWVSZXF1ZXN0GiEubG9jby5hcHAudjEuR2V0QXBwQnlOYW1lUmVzcG9uc2USRwoITGlzdEFwcHMSHC5sb2NvLmFwcC52MS5MaXN0QXBwc1JlcXVlc3QaHS5sb2NvLmFwcC52MS5MaXN0QXBwc1Jlc3BvbnNlEkoKCVVwZGF0ZUFwcBIdLmxvY28uYXBwLnYxLlVwZGF0ZUFwcFJlcXVlc3QaHi5sb2NvLmFwcC52MS5VcGRhdGVBcHBSZXNwb25zZRJKCglEZWxldGVBcHASHS5sb2NvLmFwcC52MS5EZWxldGVBcHBSZXF1ZXN0Gh4ubG9jby5hcHAudjEuRGVsZXRlQXBwUmVzcG9uc2USUwoMR2V0QXBwU3RhdHVzEiAubG9jby5hcHAudjEuR2V0QXBwU3RhdHVzUmVxdWVzdBohLmxvY28uYXBwLnYxLkdldEFwcFN0YXR1c1Jlc3BvbnNlEkUKClN0cmVhbUxvZ3MSHi5sb2NvLmFwcC52MS5TdHJlYW1Mb2dzUmVxdWVzdBoVLmxvY28uYXBwLnYxLkxvZ0VudHJ5MAESSgoJR2V0RXZlbnRzEh0ubG9jby5hcHAudjEuR2V0RXZlbnRzUmVxdWVzdBoeLmxvY28uYXBwLnYxLkdldEV2ZW50c1Jlc3BvbnNlEkcKCFNjYWxlQXBwEhwubG9jby5hcHAudjEuU2NhbGVBcHBSZXF1ZXN0Gh0ubG9jby5hcHAudjEuU2NhbGVBcHBSZXNwb25zZRJTCgxVcGRhdGVBcHBFbnYSIC5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXF1ZXN0GiEubG9jby5hcHAudjEuVXBkYXRlQXBwRW52UmVzcG9uc2VCNVozZ2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vYXBwL3YxO2FwcHYxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_domain_v1_domain]);
 
 /**
  * @generated from message loco.app.v1.App
@@ -44,14 +46,9 @@ export type App = Message<"loco.app.v1.App"> & {
   type: AppType;
 
   /**
-   * @generated from field: string subdomain = 7;
+   * @generated from field: repeated loco.domain.v1.AppDomain domains = 7;
    */
-  subdomain: string;
-
-  /**
-   * @generated from field: string domain = 8;
-   */
-  domain: string;
+  domains: AppDomain[];
 
   /**
    * @generated from field: int64 created_by = 11;
@@ -67,6 +64,11 @@ export type App = Message<"loco.app.v1.App"> & {
    * @generated from field: google.protobuf.Timestamp updated_at = 13;
    */
   updatedAt?: Timestamp;
+
+  /**
+   * @generated from field: loco.app.v1.AppStatus status = 14;
+   */
+  status: AppStatus;
 };
 
 /**
@@ -99,14 +101,9 @@ export type AppJson = {
   type?: AppTypeJson;
 
   /**
-   * @generated from field: string subdomain = 7;
+   * @generated from field: repeated loco.domain.v1.AppDomain domains = 7;
    */
-  subdomain?: string;
-
-  /**
-   * @generated from field: string domain = 8;
-   */
-  domain?: string;
+  domains?: AppDomainJson[];
 
   /**
    * @generated from field: int64 created_by = 11;
@@ -122,6 +119,11 @@ export type AppJson = {
    * @generated from field: google.protobuf.Timestamp updated_at = 13;
    */
   updatedAt?: TimestampJson;
+
+  /**
+   * @generated from field: loco.app.v1.AppStatus status = 14;
+   */
+  status?: AppStatusJson;
 };
 
 /**
@@ -151,14 +153,9 @@ export type CreateAppRequest = Message<"loco.app.v1.CreateAppRequest"> & {
   type: AppType;
 
   /**
-   * @generated from field: string subdomain = 5;
+   * @generated from field: loco.domain.v1.AppDomain domain = 5;
    */
-  subdomain: string;
-
-  /**
-   * @generated from field: optional string domain = 6;
-   */
-  domain?: string;
+  domain?: AppDomain;
 };
 
 /**
@@ -181,14 +178,9 @@ export type CreateAppRequestJson = {
   type?: AppTypeJson;
 
   /**
-   * @generated from field: string subdomain = 5;
+   * @generated from field: loco.domain.v1.AppDomain domain = 5;
    */
-  subdomain?: string;
-
-  /**
-   * @generated from field: optional string domain = 6;
-   */
-  domain?: string;
+  domain?: AppDomainJson;
 };
 
 /**
@@ -566,74 +558,6 @@ export const DeleteAppResponseSchema: GenMessage<DeleteAppResponse, {jsonType: D
   messageDesc(file_app_v1_app, 12);
 
 /**
- * --- Subdomain ---
- *
- * @generated from message loco.app.v1.CheckSubdomainAvailabilityRequest
- */
-export type CheckSubdomainAvailabilityRequest = Message<"loco.app.v1.CheckSubdomainAvailabilityRequest"> & {
-  /**
-   * @generated from field: string subdomain = 1;
-   */
-  subdomain: string;
-
-  /**
-   * @generated from field: string domain = 2;
-   */
-  domain: string;
-};
-
-/**
- * --- Subdomain ---
- *
- * @generated from message loco.app.v1.CheckSubdomainAvailabilityRequest
- */
-export type CheckSubdomainAvailabilityRequestJson = {
-  /**
-   * @generated from field: string subdomain = 1;
-   */
-  subdomain?: string;
-
-  /**
-   * @generated from field: string domain = 2;
-   */
-  domain?: string;
-};
-
-/**
- * Describes the message loco.app.v1.CheckSubdomainAvailabilityRequest.
- * Use `create(CheckSubdomainAvailabilityRequestSchema)` to create a new message.
- */
-export const CheckSubdomainAvailabilityRequestSchema: GenMessage<CheckSubdomainAvailabilityRequest, {jsonType: CheckSubdomainAvailabilityRequestJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 13);
-
-/**
- * @generated from message loco.app.v1.CheckSubdomainAvailabilityResponse
- */
-export type CheckSubdomainAvailabilityResponse = Message<"loco.app.v1.CheckSubdomainAvailabilityResponse"> & {
-  /**
-   * @generated from field: bool available = 1;
-   */
-  available: boolean;
-};
-
-/**
- * @generated from message loco.app.v1.CheckSubdomainAvailabilityResponse
- */
-export type CheckSubdomainAvailabilityResponseJson = {
-  /**
-   * @generated from field: bool available = 1;
-   */
-  available?: boolean;
-};
-
-/**
- * Describes the message loco.app.v1.CheckSubdomainAvailabilityResponse.
- * Use `create(CheckSubdomainAvailabilityResponseSchema)` to create a new message.
- */
-export const CheckSubdomainAvailabilityResponseSchema: GenMessage<CheckSubdomainAvailabilityResponse, {jsonType: CheckSubdomainAvailabilityResponseJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 14);
-
-/**
  * @generated from message loco.app.v1.GetAppStatusRequest
  */
 export type GetAppStatusRequest = Message<"loco.app.v1.GetAppStatusRequest"> & {
@@ -658,7 +582,7 @@ export type GetAppStatusRequestJson = {
  * Use `create(GetAppStatusRequestSchema)` to create a new message.
  */
 export const GetAppStatusRequestSchema: GenMessage<GetAppStatusRequest, {jsonType: GetAppStatusRequestJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 15);
+  messageDesc(file_app_v1_app, 13);
 
 /**
  * @generated from message loco.app.v1.DeploymentStatus
@@ -725,7 +649,7 @@ export type DeploymentStatusJson = {
  * Use `create(DeploymentStatusSchema)` to create a new message.
  */
 export const DeploymentStatusSchema: GenMessage<DeploymentStatus, {jsonType: DeploymentStatusJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 16);
+  messageDesc(file_app_v1_app, 14);
 
 /**
  * @generated from message loco.app.v1.GetAppStatusResponse
@@ -762,7 +686,7 @@ export type GetAppStatusResponseJson = {
  * Use `create(GetAppStatusResponseSchema)` to create a new message.
  */
 export const GetAppStatusResponseSchema: GenMessage<GetAppStatusResponse, {jsonType: GetAppStatusResponseJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 17);
+  messageDesc(file_app_v1_app, 15);
 
 /**
  * @generated from message loco.app.v1.StreamLogsRequest
@@ -809,7 +733,7 @@ export type StreamLogsRequestJson = {
  * Use `create(StreamLogsRequestSchema)` to create a new message.
  */
 export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest, {jsonType: StreamLogsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 18);
+  messageDesc(file_app_v1_app, 16);
 
 /**
  * @generated from message loco.app.v1.LogEntry
@@ -886,7 +810,7 @@ export type LogEntryJson = {
  * Use `create(LogEntrySchema)` to create a new message.
  */
 export const LogEntrySchema: GenMessage<LogEntry, {jsonType: LogEntryJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 19);
+  messageDesc(file_app_v1_app, 17);
 
 /**
  * @generated from message loco.app.v1.Event
@@ -953,7 +877,7 @@ export type EventJson = {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event, {jsonType: EventJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 20);
+  messageDesc(file_app_v1_app, 18);
 
 /**
  * @generated from message loco.app.v1.GetEventsRequest
@@ -990,7 +914,7 @@ export type GetEventsRequestJson = {
  * Use `create(GetEventsRequestSchema)` to create a new message.
  */
 export const GetEventsRequestSchema: GenMessage<GetEventsRequest, {jsonType: GetEventsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 21);
+  messageDesc(file_app_v1_app, 19);
 
 /**
  * @generated from message loco.app.v1.GetEventsResponse
@@ -1017,7 +941,7 @@ export type GetEventsResponseJson = {
  * Use `create(GetEventsResponseSchema)` to create a new message.
  */
 export const GetEventsResponseSchema: GenMessage<GetEventsResponse, {jsonType: GetEventsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 22);
+  messageDesc(file_app_v1_app, 20);
 
 /**
  * @generated from message loco.app.v1.ScaleAppRequest
@@ -1074,7 +998,7 @@ export type ScaleAppRequestJson = {
  * Use `create(ScaleAppRequestSchema)` to create a new message.
  */
 export const ScaleAppRequestSchema: GenMessage<ScaleAppRequest, {jsonType: ScaleAppRequestJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 23);
+  messageDesc(file_app_v1_app, 21);
 
 /**
  * @generated from message loco.app.v1.ScaleAppResponse
@@ -1101,7 +1025,7 @@ export type ScaleAppResponseJson = {
  * Use `create(ScaleAppResponseSchema)` to create a new message.
  */
 export const ScaleAppResponseSchema: GenMessage<ScaleAppResponse, {jsonType: ScaleAppResponseJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 24);
+  messageDesc(file_app_v1_app, 22);
 
 /**
  * @generated from message loco.app.v1.UpdateAppEnvRequest
@@ -1138,7 +1062,7 @@ export type UpdateAppEnvRequestJson = {
  * Use `create(UpdateAppEnvRequestSchema)` to create a new message.
  */
 export const UpdateAppEnvRequestSchema: GenMessage<UpdateAppEnvRequest, {jsonType: UpdateAppEnvRequestJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 25);
+  messageDesc(file_app_v1_app, 23);
 
 /**
  * @generated from message loco.app.v1.UpdateAppEnvResponse
@@ -1165,7 +1089,7 @@ export type UpdateAppEnvResponseJson = {
  * Use `create(UpdateAppEnvResponseSchema)` to create a new message.
  */
 export const UpdateAppEnvResponseSchema: GenMessage<UpdateAppEnvResponse, {jsonType: UpdateAppEnvResponseJson}> = /*@__PURE__*/
-  messageDesc(file_app_v1_app, 26);
+  messageDesc(file_app_v1_app, 24);
 
 /**
  * @generated from enum loco.app.v1.AppType
@@ -1356,14 +1280,6 @@ export const AppService: GenService<{
     methodKind: "unary";
     input: typeof GetAppStatusRequestSchema;
     output: typeof GetAppStatusResponseSchema;
-  },
-  /**
-   * @generated from rpc loco.app.v1.AppService.CheckSubdomainAvailability
-   */
-  checkSubdomainAvailability: {
-    methodKind: "unary";
-    input: typeof CheckSubdomainAvailabilityRequestSchema;
-    output: typeof CheckSubdomainAvailabilityResponseSchema;
   },
   /**
    * Logs
