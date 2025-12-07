@@ -31,7 +31,13 @@ dependencies:
   - name: opentelemetry-collector
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
     version: 0.140.1
-    condition: opentelemetry-collector.enabled
+    alias: otel-col-daemon
+    condition: otel-col-daemon.enabled
+  - name: opentelemetry-collector
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: 0.140.1
+    alias: otel-col-deploy
+    condition: otel-col-deploy.enabled
   - name: grafana
     repository: https://grafana.github.io/helm-charts
     version: 10.3.0

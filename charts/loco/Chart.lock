@@ -1,0 +1,27 @@
+dependencies:
+- name: cilium
+  repository: https://helm.cilium.io/
+  version: 1.18.4
+- name: cert-manager
+  repository: https://charts.jetstack.io
+  version: v1.19.1
+- name: gateway-helm
+  repository: oci://docker.io/envoyproxy
+  version: 1.6.1
+- name: clickhouse
+  repository: https://helm.altinity.com
+  version: 0.3.6
+- name: opentelemetry-operator
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.99.2
+- name: opentelemetry-collector
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.140.1
+- name: opentelemetry-collector
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.140.1
+- name: grafana
+  repository: https://grafana.github.io/helm-charts
+  version: 10.3.0
+digest: sha256:c7671eef7d62ba8af260d155d1bea0aa7dca41321b18607535cab0bb352d2fd5
+generated: "2025-12-07T13:06:04.409203-05:00"

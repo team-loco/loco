@@ -30,17 +30,17 @@ if ! command -v helm &> /dev/null; then
 fi
 
 # Add helm repos
-echo "Adding helm repos..."
-helm repo add cilium https://helm.cilium.io/
-helm repo add jetstack https://charts.jetstack.io
-helm repo add altinity https://helm.altinity.com
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
+# echo "Adding helm repos..."
+# helm repo add cilium https://helm.cilium.io/
+# helm repo add jetstack https://charts.jetstack.io
+# helm repo add altinity https://helm.altinity.com
+# helm repo add grafana https://grafana.github.io/helm-charts
+# helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+# helm repo update
 
-# Install Cilium
-echo "Installing Cilium..."
-helm upgrade --install cilium cilium/cilium --namespace kube-system -f kube/values/cilium.yml
+# # Install Cilium
+# echo "Installing Cilium..."
+# helm upgrade --install cilium cilium/cilium --namespace kube-system -f kube/values/cilium.yml
 
 echo "Installing Envoy Gateway + Gateway Crds..."
 kubectl apply --server-side=true -f https://github.com/envoyproxy/gateway/releases/download/v1.6.0/envoy-gateway-crds.yaml
@@ -72,18 +72,18 @@ kubectl create secret generic cloudflare-api-token-secret \
 # kubectl create configmap otel-config-vars \
 #  --from-literal=OTEL_COLLECTOR_ENDPOINT="http://clickstack-hdx-oss-v2-otel-collector.observability.svc.cluster.local:4318" \
 #  -n observability --dry-run=client -o yaml | kubectl apply -f -
-echo "Creating clickhouse"
-helm upgrade --install clickhouse altinity/clickhouse --namespace observability --create-namespace --version 0.3.4 --set clickhouse.defaultUser.allowExternalAccess=true
+# echo "Creating clickhouse"
+# helm upgrade --install clickhouse altinity/clickhouse --namespace observability --create-namespace --version 0.3.4 --set clickhouse.defaultUser.allowExternalAccess=true
 
-echo "Installing OpenTelemetry Operator..."
-helm install opentelemetry-operator open-telemetry/opentelemetry-operator --create-namespace --namespace opentelemetry-operator-system
+# echo "Installing OpenTelemetry Operator..."
+# helm install opentelemetry-operator open-telemetry/opentelemetry-operator --create-namespace --namespace opentelemetry-operator-system
 
-echo "Installing OpenTelemetry collectors..."
-helm install clickhouse-otel-ds open-telemetry/opentelemetry-collector --values kube/values/otel-daemonset.yml --namespace observability
-helm install clickhouse-otel-deploy open-telemetry/opentelemetry-collector --values kube/values/otel-deployment.yml --namespace observability
+# echo "Installing OpenTelemetry collectors..."
+# helm install clickhouse-otel-ds open-telemetry/opentelemetry-collector --values kube/values/otel-daemonset.yml --namespace observability
+# helm install clickhouse-otel-deploy open-telemetry/opentelemetry-collector --values kube/values/otel-deployment.yml --namespace observability
 
-echo "Installing grafana"
-helm install grafana grafana/grafana --values kube/values/grafana.yml --namespace observability
+# echo "Installing grafana"
+# helm install grafana grafana/grafana --values kube/values/grafana.yml --namespace observability
 
 # create loco namespace
 kubectl apply -f kube/loco/namespace.yml
@@ -118,15 +118,15 @@ spec:
 EOF
 
 # Apply base resources
-echo "Applying base resources..."
-kubectl apply -f kube/gateway/gateway.yml
-kubectl apply -f kube/loco/routes.yml
-kubectl apply -f kube/loco/rbac.yml
+# echo "Applying base resources..."
+# kubectl apply -f kube/gateway/gateway.yml
+# kubectl apply -f kube/loco/routes.yml
+# kubectl apply -f kube/loco/rbac.yml
 
 # Build and load image
-echo "Building loco image..."
-docker build -t loco-api:latest -f api/Dockerfile .
-minikube image load loco-api:latest
+# echo "Building loco image..."
+# docker build -t loco-api:latest -f api/Dockerfile .
+# minikube image load loco-api:latest
 
 # Create secrets with dummy values for local dev
 echo "Creating secrets..."
@@ -146,17 +146,17 @@ kubectl create secret generic env-config \
   --from-literal=GH_OAUTH_STATE=dummy \
   -n loco-system --dry-run=client -o yaml | kubectl apply -f -
 
-# Update deployment to use local image
-kubectl apply -f kube/loco/service.yml
-echo "Updating deployment image..."
-kubectl set image -n loco-system deployment/loco-api loco-api=loco-api:latest
-kubectl patch deployment loco-api -n loco-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "Never"}]'
+# # Update deployment to use local image
+# kubectl apply -f kube/loco/service.yml
+# echo "Updating deployment image..."
+# kubectl set image -n loco-system deployment/loco-api loco-api=loco-api:latest
+# kubectl patch deployment loco-api -n loco-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "Never"}]'
 
 
-echo "\n\nSetup complete!"
-echo "Note: the secrets installed are just dummy."
-echo "To access the application:"
-echo "1. Run 'minikube tunnel' in a separate terminal to expose the LoadBalancer."
-echo "2. Access the app at http://localhost"
-echo "3. To check status: kubectl get pods -n loco-system"
-echo "4. To view logs: kubectl logs -n loco-system deployment/loco-api"
+# echo "\n\nSetup complete!"
+# echo "Note: the secrets installed are just dummy."
+# echo "To access the application:"
+# echo "1. Run 'minikube tunnel' in a separate terminal to expose the LoadBalancer."
+# echo "2. Access the app at http://localhost"
+# echo "3. To check status: kubectl get pods -n loco-system"
+# echo "4. To view logs: kubectl logs -n loco-system deployment/loco-api"

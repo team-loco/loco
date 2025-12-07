@@ -1,0 +1,356 @@
+# Secrets
+secrets:
+  cloudflareToken: ""
+  env:
+    GITLAB_PAT: dummy
+    GITLAB_PROJECT_ID: dummy
+    GITLAB_TOKEN_NAME: dummy
+    GH_OAUTH_CLIENT_ID: dummy
+    GITLAB_URL: dummy
+    GITLAB_REGISTRY_URL: dummy
+    GITLAB_DEPLOY_TOKEN_NAME: dummy
+    APP_ENV: DEVELOPMENT
+    LOG_LEVEL: "-4"
+    PORT: ":8000"
+    GH_OAUTH_CLIENT_SECRET: dummy
+    GH_OAUTH_REDIRECT_URL: "http://localhost:8000/api/v1/oauth/github/callback"
+    GH_OAUTH_STATE: dummy
+
+---
+# cilium-values.yaml
+cilium:
+  enabled: true
+  namespaceOverride: "kube-system"
+  k8sServiceHost: "192.168.49.2"
+  k8sServicePort: 8443
+  kubeProxyReplacement: true
+  hostServices:
+    enabled: true
+  externalIPs:
+    enabled: true
+  ipam:
+    mode: kubernetes
+  routingMode: tunnel
+  tunnelProtocol: vxlan
+  autoDirectNodeRoutes: false
+  enableIPv4Masquerade: true
+  enableIPv6Masquerade: false
+  policyEnforcementMode: default
+  hubble:
+    enabled: true
+    metrics:
+      enableOpenMetrics: true
+      enabled:
+        - "flow:sourceContext=identity;destinationContext=identity;trafficDirection"
+        - "drop:sourceContext=identity;destinationContext=identity;trafficDirection"
+        - "tcp:sourceContext=identity;destinationContext=identity;trafficDirection"
+        - "dns:sourceContext=identity;destinationContext=identity;trafficDirection"
+        - "icmp:sourceContext=identity;destinationContext=identity;trafficDirection"
+        - "httpV2:sourceContext=identity;destinationContext=identity;trafficDirection"
+    relay:
+      enabled: true
+    ui:
+      enabled: true
+  bpf:
+    masquerade: true
+    tproxy: true
+    hostRouting: true
+  enableNodePort: true
+  enableHostPort: true
+  nodePort:
+    enableHealthCheck: true
+  # eni:
+  #   enabled: true
+  # ipam:
+  #   mode: eni
+
+# clickhouse-values.yaml
+clickhouse:
+  enabled: true
+  clickhouse:
+    persistence:
+      enabled: true
+    defaultUser:
+      allowExternalAccess: true
+    
+# gateway-values.yaml
+gateway-helm:
+  enabled: true
+  createNamespace: true
+  config:
+    envoyGateway:
+      logging:
+        level: null
+        default: info
+      telemetry:
+        metrics:
+          prometheus:
+            disable: true
+          sinks:
+            - type: OpenTelemetry
+              openTelemetry:
+                host: clickhouse-otel-deploy-opentelemetry-collector.observability.svc.cluster.local
+                port: 4317
+                protocol: grpc
+
+# grafana-values.yaml
+grafana:
+  enabled: true
+  namespaceOverride: observability
+  adminUser: admin
+  adminPassword: supersecret
+  persistence:
+    enabled: true
+    type: pvc
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+  plugins:
+    - grafana-clickhouse-datasource
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: ClickHouse
+          type: grafana-clickhouse-datasource
+          jsonData:
+            port: 9000
+            host: clickhouse-clickhouse.observability.svc.cluster.local
+            defaultDatabase: default
+            username: default
+            tlsSkipVerify: true
+          secureJsonData:
+            password: ""
+  # Example: load default dashboards included in the Grafana chart
+  dashboards:
+    default:
+      general:
+        gnetId: 1860 # Node Exporter Full (general-purpose system dashboard)
+        revision: 29
+        datasource: ClickHouse
+  initChownData:
+    securityContext:
+      capabilities:
+        add:
+          - CHOWN
+          - DAC_OVERRIDE
+        drop:
+          - ALL
+
+cert-manager:
+  enabled: true
+  namespace: cert-manager
+  crds:
+    enabled: true
+
+opentelemetry-operator:
+  enabled: true
+  namespaceOverride: opentelemetry-operator-system
+
+otel-col-daemon:
+  enabled: true
+  mode: daemonset
+  namespaceOverride: observability
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "0.141.0"
+  # to resolve inside minikube; todo: can we remove this later?
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  # Required to use the kubeletstats cpu/memory utilization metrics
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - nodes/proxy
+          - nodes/stats
+          - endpoints
+          - services
+          - pods
+        verbs: ["get", "watch", "list"]
+  presets:
+    logsCollection:
+      enabled: true
+    hostMetrics:
+      enabled: true
+    # Configures the Kubernetes Processor to add Kubernetes metadata.
+    # Adds the k8sattributes processor to all the pipelines and adds the necessary rules to ClusterRole.
+    # More Info: https://opentelemetry.io/docs/kubernetes/collector/components/#kubernetes-attributes-processor
+    kubernetesAttributes:
+      enabled: true
+      # When enabled the processor will extra all labels for an associated pod and add them as resource attributes.
+      # The label's exact name will be the key.
+      extractAllPodLabels: true
+      # When enabled the processor will extra all annotations for an associated pod and add them as resource attributes.
+      # The annotation's exact name will be the key.
+      extractAllPodAnnotations: true
+    # Configures the collector to collect node, pod, and container metrics from the API server on a kubelet..
+    # Adds the kubeletstats receiver to the metrics pipeline and adds the necessary rules to ClusterRole.
+    # More Info: https://opentelemetry.io/docs/kubernetes/collector/components/#kubeletstats-receiver
+  config:
+    receivers:
+      # prometheus/hubble:
+      #     config:
+      #         scrape_configs:
+      #             - job_name: "hubble"
+      #               scrape_interval: 30s
+      #               kubernetes_sd_configs:
+      #                   - role: endpoints
+      #                     namespaces:
+      #                         names: ["kube-system"]
+      #               relabel_configs:
+      #                   - source_labels:
+      #                         [
+      #                             __meta_kubernetes_service_annotation_prometheus_io_scrape,
+      #                         ]
+      #                     action: keep
+      #                     regex: true
+      #                   - source_labels:
+      #                         [
+      #                             __address__,
+      #                             __meta_kubernetes_service_annotation_prometheus_io_port,
+      #                         ]
+      #                     action: replace
+      #                     target_label: __address__
+      #                     regex: (.+)(?::\d+);(\d+)
+      #                     replacement: $1:$2
+      kubeletstats:
+        collection_interval: 20s
+        auth_type: "serviceAccount"
+        endpoint: "https://${env:K8S_NODE_NAME}:10250"
+        insecure_skip_verify: true
+        node: "${env:K8S_NODE_NAME}"
+        k8s_api_config:
+          auth_type: serviceAccount
+        # todo: maybe remove this later each interface will increase cardinality.
+        collect_all_network_interfaces:
+          pod: true
+        metrics:
+          k8s.pod.cpu_limit_utilization:
+            enabled: true
+          k8s.pod.cpu_request_utilization:
+            enabled: true
+          k8s.pod.memory_limit_utilization:
+            enabled: true
+          k8s.pod.memory_request_utilization:
+            enabled: true
+          k8s.pod.uptime:
+            enabled: true
+          k8s.node.uptime:
+            enabled: true
+          k8s.container.cpu_limit_utilization:
+            enabled: true
+          k8s.container.cpu_request_utilization:
+            enabled: true
+          k8s.container.memory_limit_utilization:
+            enabled: true
+          k8s.container.memory_request_utilization:
+            enabled: true
+          container.uptime:
+            enabled: true
+          # todo: remove; below wont work w cilium. we can go back to kube-proxy
+          k8s.node.network.io:
+            enabled: true
+          k8s.pod.network.io:
+            enabled: true
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 100
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 2048
+    exporters:
+      clickhouse:
+        endpoint: tcp://clickhouse-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        # ttl: 72h
+        username: default
+        password: "" # todo: remove hardcoding.
+        traces_table_name: otel_traces
+        logs_table_name: otel_logs
+        create_schema: false
+        timeout: 5s
+        database: default
+    service:
+      pipelines:
+        logs:
+          exporters: [clickhouse]
+          processors: [batch, memory_limiter]
+        metrics:
+          receivers: [kubeletstats]
+          processors: [batch, memory_limiter]
+          exporters: [clickhouse]
+
+otel-col-deploy:
+  enabled: true
+  mode: deployment
+  namespaceOverride: observability
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "0.141.0"
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  # We only want one of these collectors - any more and we'd produce duplicate data
+  replicaCount: 1
+  presets:
+    kubernetesAttributes:
+      enabled: true
+      # When enabled the processor will extra all labels for an associated pod and add them as resource attributes.
+      # The label's exact name will be the key.
+      extractAllPodLabels: true
+      # When enabled the processor will extra all annotations for an associated pod and add them as resource attributes.
+      # The annotation's exact name will be the key.
+      extractAllPodAnnotations: true
+    # Configures the collector to collect kubernetes events.
+    # Adds the k8sobject receiver to the logs pipeline and collects kubernetes events by default.
+    # More Info: https://opentelemetry.io/docs/kubernetes/collector/components/#kubernetes-objects-receiver
+    kubernetesEvents:
+      enabled: true
+    # Configures the Kubernetes Cluster Receiver to collect cluster-level metrics.
+    # Adds the k8s_cluster receiver to the metrics pipeline and adds the necessary rules to ClusteRole.
+    # More Info: https://opentelemetry.io/docs/kubernetes/collector/components/#kubernetes-cluster-receiver
+    clusterMetrics:
+      enabled: true
+  config:
+    processors:
+      resource/set_service_name:
+        attributes:
+          - action: insert
+            key: service.name
+            from_attribute: app.kubernetes.io/name
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      clickhouse:
+        endpoint: tcp://clickhouse-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        # ttl: 72h
+        username: default
+        password: ""
+        traces_table_name: otel_traces
+        logs_table_name: otel_logs
+        create_schema: true
+        timeout: 5s
+        database: default
+    service:
+      pipelines:
+        logs:
+          exporters: [clickhouse]
+        metrics:
+          receivers: [otlp]
+          processors: [resource/set_service_name]
+          exporters: [clickhouse]
