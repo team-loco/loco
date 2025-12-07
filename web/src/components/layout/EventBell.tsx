@@ -79,7 +79,7 @@ export function EventBell() {
 							</p>
 							{events.length > 0 && (
 								<Button
-									variant="neutral"
+									variant="secondary"
 									size="sm"
 									onClick={handleClearAll}
 									className="h-6 text-xs"
@@ -109,7 +109,7 @@ export function EventBell() {
 											</p>
 										</div>
 										<Button
-											variant="neutral"
+											variant="secondary"
 											size="sm"
 											onClick={() => handleDismiss(event.id)}
 											className="h-5 w-5 p-0 shrink-0"

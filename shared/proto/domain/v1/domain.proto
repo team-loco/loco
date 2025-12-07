@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package loco.domain.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/loco-team/loco/shared/proto/domain/v1;domainv1";
+
+enum DomainType {
+  PLATFORM_PROVIDED = 0;
+  USER_PROVIDED = 1;
+}
+
+// --- Messages ---
+
+message PlatformDomain {
+  int64 id = 1;
+  string domain = 2;
+  bool is_active = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+message DomainInput {
+  DomainType domain_source = 1;
+  optional string subdomain = 2;         // for PLATFORM_PROVIDED: "myapp"
+  optional int64 platform_domain_id = 3; // for PLATFORM_PROVIDED: id of the platform domain
+  optional string domain = 4;            // for USER_PROVIDED: full custom domain
+}
+
+message AppDomain {
+  int64 id = 1;
+  int64 app_id = 2;
+  string domain = 3;
+  DomainType domain_source = 4;
+  optional string subdomain_label = 5;
+  optional int64 platform_domain_id = 6;
+  bool is_primary = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// --- Service ---
+
+service DomainService {
+  // Platform Domain CRUD
+  rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (CreatePlatformDomainResponse);
+  rpc GetPlatformDomain(GetPlatformDomainRequest) returns (GetPlatformDomainResponse);
+  rpc GetPlatformDomainByName(GetPlatformDomainByNameRequest) returns (GetPlatformDomainByNameResponse);
+  rpc ListActivePlatformDomains(ListActivePlatformDomainsRequest) returns (ListActivePlatformDomainsResponse);
+  rpc DeactivatePlatformDomain(DeactivatePlatformDomainRequest) returns (DeactivatePlatformDomainResponse);
+
+  // App Domain Management
+  rpc AddAppDomain(AddAppDomainRequest) returns (AddAppDomainResponse);
+  rpc UpdateAppDomain(UpdateAppDomainRequest) returns (UpdateAppDomainResponse);
+  rpc SetPrimaryAppDomain(SetPrimaryAppDomainRequest) returns (SetPrimaryAppDomainResponse);
+  rpc RemoveAppDomain(RemoveAppDomainRequest) returns (RemoveAppDomainResponse);
+
+  // Domain Availability
+  rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
+
+  // Queries
+  rpc ListAllLocoOwnedDomains(ListAllLocoOwnedDomainsRequest) returns (ListAllLocoOwnedDomainsResponse);
+}
+
+// --- Platform Domain Requests/Responses ---
+
+message CreatePlatformDomainRequest {
+  string domain = 1;
+  bool is_active = 2;
+}
+
+message CreatePlatformDomainResponse {
+  PlatformDomain platform_domain = 1;
+}
+
+message GetPlatformDomainRequest {
+  int64 id = 1;
+}
+
+message GetPlatformDomainResponse {
+  PlatformDomain platform_domain = 1;
+}
+
+message GetPlatformDomainByNameRequest {
+  string domain = 1;
+}
+
+message GetPlatformDomainByNameResponse {
+  PlatformDomain platform_domain = 1;
+}
+
+message ListActivePlatformDomainsRequest {}
+
+message ListActivePlatformDomainsResponse {
+  repeated PlatformDomain platform_domains = 1;
+}
+
+message DeactivatePlatformDomainRequest {
+  int64 id = 1;
+}
+
+message DeactivatePlatformDomainResponse {
+  PlatformDomain platform_domain = 1;
+}
+
+// --- Domain Availability ---
+
+message CheckDomainAvailabilityRequest {
+  string domain = 1;
+}
+
+message CheckDomainAvailabilityResponse {
+  bool is_available = 1;
+}
+
+// --- List Loco Owned Domains ---
+
+message LocoOwnedDomain {
+  int64 id = 1;
+  string domain = 2;
+  string app_name = 3;
+  int64 app_id = 4;
+  string platform_domain = 5;
+}
+
+message ListAllLocoOwnedDomainsRequest {}
+
+message ListAllLocoOwnedDomainsResponse {
+  repeated LocoOwnedDomain domains = 1;
+}
+
+// --- App Domain Management ---
+
+message AddAppDomainRequest {
+  int64 app_id = 1;
+  DomainInput domain = 2;
+}
+
+message AddAppDomainResponse {
+  AppDomain domain = 1;
+  string message = 2;
+}
+
+message UpdateAppDomainRequest {
+  int64 domain_id = 1;
+  string domain = 2;
+}
+
+message UpdateAppDomainResponse {
+  AppDomain domain = 1;
+  string message = 2;
+}
+
+message SetPrimaryAppDomainRequest {
+  int64 app_id = 1;
+  int64 domain_id = 2;
+}
+
+message SetPrimaryAppDomainResponse {
+  AppDomain domain = 1;
+  string message = 2;
+}
+
+message RemoveAppDomainRequest {
+  int64 domain_id = 1;
+}
+
+message RemoveAppDomainResponse {
+  string message = 1;
+}

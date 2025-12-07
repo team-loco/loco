@@ -15,7 +15,12 @@ import { OrgSettings } from "@/pages/OrgSettings";
 import { Profile } from "@/pages/Profile";
 import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
 import { TransportProvider } from "@connectrpc/connect-query";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	PersistQueryClientProvider,
+	type AsyncStorage,
+} from "@tanstack/react-query-persist-client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { createTransport } from "./auth/connect-transport";
 
@@ -24,11 +29,26 @@ const queryClient = new QueryClient({
 		queries: {
 			refetchOnWindowFocus: false,
 			retry: false,
+			staleTime: 1000 * 60 * 60, // 1 hour - data is fresh for 1 hour
+			gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep cached data for 24 hours
 		},
 		mutations: {
 			retry: false,
 		},
 	},
+});
+
+// Async wrapper around localStorage for the persister
+const asyncLocalStorage: AsyncStorage = {
+	getItem: (key: string) => Promise.resolve(localStorage.getItem(key)),
+	setItem: (key: string, value: string) =>
+		Promise.resolve(localStorage.setItem(key, value)),
+	removeItem: (key: string) => Promise.resolve(localStorage.removeItem(key)),
+};
+
+const persister = createAsyncStoragePersister({
+	storage: asyncLocalStorage,
+	key: "loco-cache",
 });
 
 export default function App() {
@@ -38,7 +58,10 @@ export default function App() {
 				<AuthProvider>
 					<HeaderProvider>
 						<TransportProvider transport={createTransport()}>
-							<QueryClientProvider client={queryClient}>
+							<PersistQueryClientProvider
+								client={queryClient}
+								persistOptions={{ persister }}
+							>
 								<Toaster />
 								<Routes>
 									{/* Public routes */}
@@ -71,7 +94,7 @@ export default function App() {
 									<Route path="/" element={<Navigate to="/dashboard" />} />
 									<Route path="*" element={<Navigate to="/dashboard" />} />
 								</Routes>
-							</QueryClientProvider>
+							</PersistQueryClientProvider>
 						</TransportProvider>
 					</HeaderProvider>
 				</AuthProvider>

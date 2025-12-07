@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { getEvents } from "@/gen/app/v1";
+import { useQuery } from "@connectrpc/connect-query";
 
 export interface KubernetesEvent {
 	timestamp: string;
@@ -9,38 +10,29 @@ export interface KubernetesEvent {
 }
 
 export function useStreamEvents(appId: string) {
-	const [events, setEvents] = useState<KubernetesEvent[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<Error | null>(null);
+	const {
+		data: eventsRes,
+		isLoading,
+		error,
+	} = useQuery(
+		getEvents,
+		appId ? { appId: BigInt(appId), limit: 50 } : undefined,
+		{ enabled: !!appId }
+	);
 
-	useEffect(() => {
-		if (!appId) {
-			setIsLoading(false);
-			return;
-		}
-
-		// TODO: In Phase 3, implement actual event streaming
-		// For now, return mock data to establish structure
-		const mockEvents: KubernetesEvent[] = [
-			{
-				timestamp: new Date().toISOString(),
-				severity: "Normal",
-				eventType: "Created",
-				pod: "pod-1",
-				message: "Pod created successfully",
-			},
-			{
-				timestamp: new Date(Date.now() - 2000).toISOString(),
-				severity: "Normal",
-				eventType: "Started",
-				pod: "pod-1",
-				message: "Pod started",
-			},
-		];
-
-		setEvents(mockEvents);
-		setIsLoading(false);
-	}, [appId]);
+	const events: KubernetesEvent[] = (eventsRes?.events ?? []).map((event) => ({
+		timestamp: event.timestamp
+			? new Date(
+					Number((event.timestamp as Record<string, unknown>).seconds) * 1000
+			  ).toISOString()
+			: new Date().toISOString(),
+		severity: (event.type === "Warning" ? "Warning" : "Normal") as
+			| "Normal"
+			| "Warning",
+		eventType: event.reason || event.type || "Event",
+		pod: event.podName,
+		message: event.message || "",
+	}));
 
 	return {
 		events,

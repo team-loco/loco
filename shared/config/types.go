@@ -46,6 +46,7 @@ type Routing struct {
 	Subdomain   string `json:"subdomain" toml:"Subdomain"`
 	PathPrefix  string `json:"pathPrefix,omitempty" toml:"PathPrefix"`
 	IdleTimeout int32  `json:"idleTimeout,omitempty" toml:"IdleTimeout"`
+	Domain      string `json:"domain" toml:"Domain"`
 }
 
 type Health struct {

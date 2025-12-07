@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -18,6 +19,7 @@ import (
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/timeutil"
 	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
+	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -34,12 +36,12 @@ var (
 
 type AppServer struct {
 	db         *pgxpool.Pool
-	queries    *genDb.Queries
+	queries    genDb.Querier
 	kubeClient *kube.Client
 }
 
 // NewAppServer creates a new AppServer instance
-func NewAppServer(db *pgxpool.Pool, queries *genDb.Queries, kubeClient *kube.Client) *AppServer {
+func NewAppServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client) *AppServer {
 	// todo: move this out.
 	return &AppServer{
 		db:         db,
@@ -61,7 +63,7 @@ func (s *AppServer) CreateApp(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	// todo: revisit validating roles
+	// todo: let tvm handle future validation.
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
 		WorkspaceID: r.WorkspaceId,
 		UserID:      userID,
@@ -76,56 +78,89 @@ func (s *AppServer) CreateApp(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	domain := r.GetDomain()
-	if domain == "" {
-		domain = "deploy-app.com"
+	// todo: implement cluster selection strategy and health validation
+	cluster, err := s.queries.GetFirstActiveCluster(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get active cluster", "error", err)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active cluster available: %w", err))
 	}
 
-	available, err := s.queries.CheckSubdomainAvailability(ctx, genDb.CheckSubdomainAvailabilityParams{
-		Subdomain: r.Subdomain,
-		Domain:    domain,
-	})
+	if r.Domain == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
+	}
+
+	domainSource := genDb.DomainSourceUserProvided
+	var fullDomain string
+	var subdomainLabel pgtype.Text
+	var platformDomainID pgtype.Int8
+
+	if r.Domain.DomainSource == domainv1.DomainType_PLATFORM_PROVIDED {
+		if r.Domain.Subdomain == nil || *r.Domain.Subdomain == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
+		}
+		if r.Domain.PlatformDomainId == nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform_domain_id required for platform-provided domains"))
+		}
+
+		domainSource = genDb.DomainSourcePlatformProvided
+		platformDomainID = pgtype.Int8{Int64: *r.Domain.PlatformDomainId, Valid: true}
+
+		platformDomain, err := s.queries.GetPlatformDomain(ctx, *r.Domain.PlatformDomainId)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform domain not found"))
+		}
+
+		fullDomain = *r.Domain.Subdomain + "." + platformDomain.Domain
+		subdomainLabel = pgtype.Text{String: *r.Domain.Subdomain, Valid: true}
+	} else {
+		if r.Domain.Domain == nil || *r.Domain.Domain == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain required for user-provided domains"))
+		}
+		fullDomain = *r.Domain.Domain
+	}
+
+	available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check subdomain availability", "error", err)
+		slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if !available {
-		slog.WarnContext(ctx, "subdomain not available", "subdomain", r.Subdomain, "domain", domain)
-		return nil, connect.NewError(connect.CodeAlreadyExists, ErrSubdomainNotAvailable)
+		slog.WarnContext(ctx, "domain already in use", "domain", fullDomain)
+		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
 	}
 
-	// todo: Get cluster details and validate health
-	// clusterDetails, err := s.queries.GetClusterDetails(ctx, r.ClusterId)
-	// if err != nil {
-	// 	slog.WarnContext(ctx, "cluster not found", "cluster_id", r.ClusterId)
-	// 	return nil, connect.NewError(connect.CodeNotFound, ErrClusterNotFound)
-	// }
-
-	// if !clusterDetails.IsActive.Bool || clusterDetails.HealthStatus.String != "healthy" {
-	// 	slog.WarnContext(ctx, "cluster is not healthy or active", "cluster_id", r.ClusterId, "is_active", clusterDetails.IsActive.Bool, "health_status", clusterDetails.HealthStatus.String)
-	// 	return nil, connect.NewError(connect.CodeFailedPrecondition, ErrClusterNotHealthy)
-	// }
-
-	// todo: set namepsace after creating and saving app. or perhaps its set after first deployment on the app.
 	app, err := s.queries.CreateApp(ctx, genDb.CreateAppParams{
 		WorkspaceID: r.WorkspaceId,
-		ClusterID:   2,
+		ClusterID:   cluster.ID,
 		Name:        r.Name,
 		Type:        int32(r.Type.Number()),
-		Subdomain:   r.Subdomain,
-		Domain:      domain,
 		CreatedBy:   userID,
-		// ns empty until first deployment occurs on the app.
-		// Namespace:   ns,
+		Status:      genDb.NullAppStatus{AppStatus: genDb.AppStatusIdle, Valid: true},
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create app", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	domainParams := genDb.CreateAppDomainParams{
+		AppID:            app.ID,
+		Domain:           fullDomain,
+		DomainSource:     domainSource,
+		SubdomainLabel:   subdomainLabel,
+		PlatformDomainID: platformDomainID,
+		IsPrimary:        true,
+	}
+
+	appDomain, err := s.queries.CreateAppDomain(ctx, domainParams)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create app domain", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&appv1.CreateAppResponse{
-		App:     dbAppToProto(app),
+		App:     dbAppToProto(app, []genDb.AppDomain{appDomain}),
 		Message: "App created successfully",
 	}), nil
 }
@@ -159,8 +194,14 @@ func (s *AppServer) GetApp(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
+	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&appv1.GetAppResponse{
-		App: dbAppToProto(app),
+		App: dbAppToProto(app, appDomains),
 	}), nil
 }
 
@@ -195,8 +236,14 @@ func (s *AppServer) GetAppByName(
 		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
 	}
 
+	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&appv1.GetAppByNameResponse{
-		App: dbAppToProto(app),
+		App: dbAppToProto(app, appDomains),
 	}), nil
 }
 
@@ -231,7 +278,12 @@ func (s *AppServer) ListApps(
 
 	var apps []*appv1.App
 	for _, dbApp := range dbApps {
-		apps = append(apps, dbAppToProto(dbApp))
+		appDomains, err := s.queries.ListAppDomains(ctx, dbApp.ID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to list app domains", "appId", dbApp.ID, "error", err)
+			continue
+		}
+		apps = append(apps, dbAppToProto(dbApp, appDomains))
 	}
 
 	return connect.NewResponse(&appv1.ListAppsResponse{
@@ -282,22 +334,20 @@ func (s *AppServer) UpdateApp(
 		updateParams.Name = pgtype.Text{String: r.GetName(), Valid: true}
 	}
 
-	if r.GetSubdomain() != "" {
-		updateParams.Subdomain = pgtype.Text{String: r.GetSubdomain(), Valid: true}
-	}
-
-	if r.GetDomain() != "" {
-		updateParams.Domain = pgtype.Text{String: r.GetDomain(), Valid: true}
-	}
-
 	app, err := s.queries.UpdateApp(ctx, updateParams)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update app", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&appv1.UpdateAppResponse{
-		App:     dbAppToProto(app),
+		App:     dbAppToProto(app, appDomains),
 		Message: "App updated successfully",
 	}), nil
 }
@@ -343,6 +393,12 @@ func (s *AppServer) DeleteApp(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	err = s.queries.DeleteApp(ctx, r.AppId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete app", "error", err)
@@ -350,29 +406,8 @@ func (s *AppServer) DeleteApp(
 	}
 
 	return connect.NewResponse(&appv1.DeleteAppResponse{
-		App:     dbAppToProto(app),
+		App:     dbAppToProto(app, appDomains),
 		Message: "App deleted successfully",
-	}), nil
-}
-
-// CheckSubdomainAvailability checks if a subdomain is available
-func (s *AppServer) CheckSubdomainAvailability(
-	ctx context.Context,
-	req *connect.Request[appv1.CheckSubdomainAvailabilityRequest],
-) (*connect.Response[appv1.CheckSubdomainAvailabilityResponse], error) {
-	r := req.Msg
-
-	available, err := s.queries.CheckSubdomainAvailability(ctx, genDb.CheckSubdomainAvailabilityParams{
-		Subdomain: r.Subdomain,
-		Domain:    r.Domain,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check subdomain availability", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	return connect.NewResponse(&appv1.CheckSubdomainAvailabilityResponse{
-		Available: available,
 	}), nil
 }
 
@@ -430,8 +465,14 @@ func (s *AppServer) GetAppStatus(
 		}
 	}
 
+	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&appv1.GetAppStatusResponse{
-		App:               dbAppToProto(app),
+		App:               dbAppToProto(app, appDomains),
 		CurrentDeployment: deploymentStatus,
 	}), nil
 }
@@ -975,20 +1016,94 @@ func deploymentStatusToProto(status genDb.DeploymentStatus) appv1.DeploymentPhas
 	}
 }
 
+// appDomainToListProto converts a slice of AppDomain to proto AppDomain list
+func appDomainToListProto(domains []genDb.AppDomain) []*domainv1.AppDomain {
+	var protoDomains []*domainv1.AppDomain
+	for _, d := range domains {
+		domainSource := domainv1.DomainType_USER_PROVIDED
+		if d.DomainSource == genDb.DomainSourcePlatformProvided {
+			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
+		}
+
+		domain := &domainv1.AppDomain{
+			Id:           d.ID,
+			AppId:        d.AppID,
+			Domain:       d.Domain,
+			DomainSource: domainSource,
+			IsPrimary:    d.IsPrimary,
+			CreatedAt:    timestamppb.New(d.CreatedAt.Time),
+			UpdatedAt:    timestamppb.New(d.UpdatedAt.Time),
+		}
+
+		if d.SubdomainLabel.Valid {
+			domain.SubdomainLabel = &d.SubdomainLabel.String
+		}
+		if d.PlatformDomainID.Valid {
+			domain.PlatformDomainId = &d.PlatformDomainID.Int64
+		}
+
+		protoDomains = append(protoDomains, domain)
+	}
+	return protoDomains
+}
+
+// appDomainToProto converts a database AppDomain to the proto AppDomain
+func appDomainToProto(ad any) *domainv1.AppDomain {
+	domain := &domainv1.AppDomain{}
+	switch v := ad.(type) {
+	case genDb.AppDomain:
+		domain.Id = v.ID
+		domain.Domain = v.Domain
+		domainSource := domainv1.DomainType_USER_PROVIDED
+		if v.DomainSource == genDb.DomainSourcePlatformProvided {
+			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
+		}
+		domain.DomainSource = domainSource
+		if v.SubdomainLabel.Valid {
+			domain.SubdomainLabel = &v.SubdomainLabel.String
+		}
+		if v.PlatformDomainID.Valid {
+			domain.PlatformDomainId = &v.PlatformDomainID.Int64
+		}
+		domain.IsPrimary = v.IsPrimary
+	case genDb.GetDomainByAppIdRow:
+		domain.Id = v.ID
+		domain.Domain = v.Domain
+		domainSource := domainv1.DomainType_USER_PROVIDED
+		if v.DomainSource == genDb.DomainSourcePlatformProvided {
+			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
+		}
+		domain.DomainSource = domainSource
+		if v.SubdomainLabel.Valid {
+			domain.SubdomainLabel = &v.SubdomainLabel.String
+		}
+		if v.PlatformDomainID.Valid {
+			domain.PlatformDomainId = &v.PlatformDomainID.Int64
+		}
+		domain.IsPrimary = v.IsPrimary
+	}
+	return domain
+}
+
 // dbAppToProto converts a database App to the proto App
-// to be returned to client.
-func dbAppToProto(app genDb.App) *appv1.App {
+// to be returned to client. Note: caller is responsible for fetching domain separately.
+func dbAppToProto(app genDb.App, domains []genDb.AppDomain) *appv1.App {
 	appType := appv1.AppType(app.Type)
+	appStatus := appv1.AppStatus_IDLE
+	if app.Status.Valid {
+		appStatus = appv1.AppStatus(appv1.AppStatus_value[strings.ToUpper(string(app.Status.AppStatus))])
+	}
+
 	return &appv1.App{
 		Id:          app.ID,
 		WorkspaceId: app.WorkspaceID,
 		Name:        app.Name,
 		Namespace:   app.Namespace,
 		Type:        appType,
-		Subdomain:   app.Subdomain,
-		Domain:      app.Domain,
+		Domains:     appDomainToListProto(domains),
 		CreatedBy:   app.CreatedBy,
 		CreatedAt:   timeutil.ParsePostgresTimestamp(app.CreatedAt.Time),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(app.UpdatedAt.Time),
+		Status:      appStatus,
 	}
 }

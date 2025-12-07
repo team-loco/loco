@@ -24,16 +24,14 @@ go.work.sum
 # env file
 .env
 
-bin/*
-loco-api
-
+# temp
 */tmp/*
 tmp/*
+**/bin/**
 
 # terraform
 *.tfstate
 terraform/.terraform/*
-
 
 # local certs and keys
 *.pem
@@ -41,20 +39,15 @@ terraform/.terraform/*
 # IDE specific files
 settings.json
 
-
+# scratch files
 *.log
-archive/**
 .archive/**
+scratch.txt
+secrets.md
+design/
 
-
+# Mac
 .DS_Store
 
-
-scratch*.txt
-secrets.md
-GEMINI.md
+# LLM Stuff
 AGENTS.md
-
-*.zip
-
-design/

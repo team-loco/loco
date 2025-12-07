@@ -11,40 +11,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const checkSubdomainAvailability = `-- name: CheckSubdomainAvailability :one
-SELECT COUNT(*) = 0 AS available
-FROM apps
-WHERE subdomain = $1 AND domain = $2
-`
-
-type CheckSubdomainAvailabilityParams struct {
-	Subdomain string `json:"subdomain"`
-	Domain    string `json:"domain"`
-}
-
-func (q *Queries) CheckSubdomainAvailability(ctx context.Context, arg CheckSubdomainAvailabilityParams) (bool, error) {
-	row := q.db.QueryRow(ctx, checkSubdomainAvailability, arg.Subdomain, arg.Domain)
-	var available bool
-	err := row.Scan(&available)
-	return available, err
-}
-
 const createApp = `-- name: CreateApp :one
 
-INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, subdomain, domain, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at
+INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, status, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at
 `
 
 type CreateAppParams struct {
-	WorkspaceID int64  `json:"workspaceId"`
-	ClusterID   int64  `json:"clusterId"`
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace"`
-	Type        int32  `json:"type"`
-	Subdomain   string `json:"subdomain"`
-	Domain      string `json:"domain"`
-	CreatedBy   int64  `json:"createdBy"`
+	WorkspaceID int64         `json:"workspaceId"`
+	ClusterID   int64         `json:"clusterId"`
+	Name        string        `json:"name"`
+	Namespace   string        `json:"namespace"`
+	Type        int32         `json:"type"`
+	Status      NullAppStatus `json:"status"`
+	CreatedBy   int64         `json:"createdBy"`
 }
 
 // App queries
@@ -55,8 +36,7 @@ func (q *Queries) CreateApp(ctx context.Context, arg CreateAppParams) (App, erro
 		arg.Name,
 		arg.Namespace,
 		arg.Type,
-		arg.Subdomain,
-		arg.Domain,
+		arg.Status,
 		arg.CreatedBy,
 	)
 	var i App
@@ -67,8 +47,6 @@ func (q *Queries) CreateApp(ctx context.Context, arg CreateAppParams) (App, erro
 		&i.Name,
 		&i.Namespace,
 		&i.Type,
-		&i.Subdomain,
-		&i.Domain,
 		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -87,7 +65,9 @@ func (q *Queries) DeleteApp(ctx context.Context, id int64) error {
 }
 
 const getAppByID = `-- name: GetAppByID :one
-SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at FROM apps WHERE id = $1
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+FROM apps a
+WHERE a.id = $1
 `
 
 func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
@@ -100,8 +80,6 @@ func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
 		&i.Name,
 		&i.Namespace,
 		&i.Type,
-		&i.Subdomain,
-		&i.Domain,
 		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -111,7 +89,9 @@ func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
 }
 
 const getAppByNameAndWorkspace = `-- name: GetAppByNameAndWorkspace :one
-SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at FROM apps WHERE workspace_id = $1 AND name = $2
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+FROM apps a
+WHERE a.workspace_id = $1 AND a.name = $2
 `
 
 type GetAppByNameAndWorkspaceParams struct {
@@ -129,8 +109,6 @@ func (q *Queries) GetAppByNameAndWorkspace(ctx context.Context, arg GetAppByName
 		&i.Name,
 		&i.Namespace,
 		&i.Type,
-		&i.Subdomain,
-		&i.Domain,
 		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -169,10 +147,39 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDe
 	return i, err
 }
 
+const getFirstActiveCluster = `-- name: GetFirstActiveCluster :one
+SELECT id, name, region, provider, is_active, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+FROM clusters
+WHERE is_active = true
+ORDER BY created_at ASC
+LIMIT 1
+`
+
+// todo: eventually remove
+func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
+	row := q.db.QueryRow(ctx, getFirstActiveCluster)
+	var i Cluster
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Region,
+		&i.Provider,
+		&i.IsActive,
+		&i.Endpoint,
+		&i.HealthStatus,
+		&i.LastHealthCheck,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
 const listAppsForWorkspace = `-- name: ListAppsForWorkspace :many
-SELECT id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at FROM apps
-WHERE workspace_id = $1
-ORDER BY created_at DESC
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+FROM apps a
+WHERE a.workspace_id = $1
+ORDER BY a.created_at DESC
 `
 
 func (q *Queries) ListAppsForWorkspace(ctx context.Context, workspaceID int64) ([]App, error) {
@@ -191,8 +198,6 @@ func (q *Queries) ListAppsForWorkspace(ctx context.Context, workspaceID int64) (
 			&i.Name,
 			&i.Namespace,
 			&i.Type,
-			&i.Subdomain,
-			&i.Domain,
 			&i.Status,
 			&i.CreatedBy,
 			&i.CreatedAt,
@@ -211,27 +216,18 @@ func (q *Queries) ListAppsForWorkspace(ctx context.Context, workspaceID int64) (
 const updateApp = `-- name: UpdateApp :one
 UPDATE apps
 SET name = COALESCE($2, name),
-    subdomain = COALESCE($3, subdomain),
-    domain = COALESCE($4, domain),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, cluster_id, name, namespace, type, subdomain, domain, status, created_by, created_at, updated_at
+RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at
 `
 
 type UpdateAppParams struct {
-	ID        int64       `json:"id"`
-	Name      pgtype.Text `json:"name"`
-	Subdomain pgtype.Text `json:"subdomain"`
-	Domain    pgtype.Text `json:"domain"`
+	ID   int64       `json:"id"`
+	Name pgtype.Text `json:"name"`
 }
 
 func (q *Queries) UpdateApp(ctx context.Context, arg UpdateAppParams) (App, error) {
-	row := q.db.QueryRow(ctx, updateApp,
-		arg.ID,
-		arg.Name,
-		arg.Subdomain,
-		arg.Domain,
-	)
+	row := q.db.QueryRow(ctx, updateApp, arg.ID, arg.Name)
 	var i App
 	err := row.Scan(
 		&i.ID,
@@ -240,8 +236,6 @@ func (q *Queries) UpdateApp(ctx context.Context, arg UpdateAppParams) (App, erro
 		&i.Name,
 		&i.Namespace,
 		&i.Type,
-		&i.Subdomain,
-		&i.Domain,
 		&i.Status,
 		&i.CreatedBy,
 		&i.CreatedAt,

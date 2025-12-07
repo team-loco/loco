@@ -47,9 +47,6 @@ const (
 	AppServiceDeleteAppProcedure = "/loco.app.v1.AppService/DeleteApp"
 	// AppServiceGetAppStatusProcedure is the fully-qualified name of the AppService's GetAppStatus RPC.
 	AppServiceGetAppStatusProcedure = "/loco.app.v1.AppService/GetAppStatus"
-	// AppServiceCheckSubdomainAvailabilityProcedure is the fully-qualified name of the AppService's
-	// CheckSubdomainAvailability RPC.
-	AppServiceCheckSubdomainAvailabilityProcedure = "/loco.app.v1.AppService/CheckSubdomainAvailability"
 	// AppServiceStreamLogsProcedure is the fully-qualified name of the AppService's StreamLogs RPC.
 	AppServiceStreamLogsProcedure = "/loco.app.v1.AppService/StreamLogs"
 	// AppServiceGetEventsProcedure is the fully-qualified name of the AppService's GetEvents RPC.
@@ -70,7 +67,6 @@ type AppServiceClient interface {
 	UpdateApp(context.Context, *connect.Request[v1.UpdateAppRequest]) (*connect.Response[v1.UpdateAppResponse], error)
 	DeleteApp(context.Context, *connect.Request[v1.DeleteAppRequest]) (*connect.Response[v1.DeleteAppResponse], error)
 	GetAppStatus(context.Context, *connect.Request[v1.GetAppStatusRequest]) (*connect.Response[v1.GetAppStatusResponse], error)
-	CheckSubdomainAvailability(context.Context, *connect.Request[v1.CheckSubdomainAvailabilityRequest]) (*connect.Response[v1.CheckSubdomainAvailabilityResponse], error)
 	// Logs
 	StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogEntry], error)
 	// Events
@@ -133,12 +129,6 @@ func NewAppServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(appServiceMethods.ByName("GetAppStatus")),
 			connect.WithClientOptions(opts...),
 		),
-		checkSubdomainAvailability: connect.NewClient[v1.CheckSubdomainAvailabilityRequest, v1.CheckSubdomainAvailabilityResponse](
-			httpClient,
-			baseURL+AppServiceCheckSubdomainAvailabilityProcedure,
-			connect.WithSchema(appServiceMethods.ByName("CheckSubdomainAvailability")),
-			connect.WithClientOptions(opts...),
-		),
 		streamLogs: connect.NewClient[v1.StreamLogsRequest, v1.LogEntry](
 			httpClient,
 			baseURL+AppServiceStreamLogsProcedure,
@@ -168,18 +158,17 @@ func NewAppServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // appServiceClient implements AppServiceClient.
 type appServiceClient struct {
-	createApp                  *connect.Client[v1.CreateAppRequest, v1.CreateAppResponse]
-	getApp                     *connect.Client[v1.GetAppRequest, v1.GetAppResponse]
-	getAppByName               *connect.Client[v1.GetAppByNameRequest, v1.GetAppByNameResponse]
-	listApps                   *connect.Client[v1.ListAppsRequest, v1.ListAppsResponse]
-	updateApp                  *connect.Client[v1.UpdateAppRequest, v1.UpdateAppResponse]
-	deleteApp                  *connect.Client[v1.DeleteAppRequest, v1.DeleteAppResponse]
-	getAppStatus               *connect.Client[v1.GetAppStatusRequest, v1.GetAppStatusResponse]
-	checkSubdomainAvailability *connect.Client[v1.CheckSubdomainAvailabilityRequest, v1.CheckSubdomainAvailabilityResponse]
-	streamLogs                 *connect.Client[v1.StreamLogsRequest, v1.LogEntry]
-	getEvents                  *connect.Client[v1.GetEventsRequest, v1.GetEventsResponse]
-	scaleApp                   *connect.Client[v1.ScaleAppRequest, v1.ScaleAppResponse]
-	updateAppEnv               *connect.Client[v1.UpdateAppEnvRequest, v1.UpdateAppEnvResponse]
+	createApp    *connect.Client[v1.CreateAppRequest, v1.CreateAppResponse]
+	getApp       *connect.Client[v1.GetAppRequest, v1.GetAppResponse]
+	getAppByName *connect.Client[v1.GetAppByNameRequest, v1.GetAppByNameResponse]
+	listApps     *connect.Client[v1.ListAppsRequest, v1.ListAppsResponse]
+	updateApp    *connect.Client[v1.UpdateAppRequest, v1.UpdateAppResponse]
+	deleteApp    *connect.Client[v1.DeleteAppRequest, v1.DeleteAppResponse]
+	getAppStatus *connect.Client[v1.GetAppStatusRequest, v1.GetAppStatusResponse]
+	streamLogs   *connect.Client[v1.StreamLogsRequest, v1.LogEntry]
+	getEvents    *connect.Client[v1.GetEventsRequest, v1.GetEventsResponse]
+	scaleApp     *connect.Client[v1.ScaleAppRequest, v1.ScaleAppResponse]
+	updateAppEnv *connect.Client[v1.UpdateAppEnvRequest, v1.UpdateAppEnvResponse]
 }
 
 // CreateApp calls loco.app.v1.AppService.CreateApp.
@@ -217,11 +206,6 @@ func (c *appServiceClient) GetAppStatus(ctx context.Context, req *connect.Reques
 	return c.getAppStatus.CallUnary(ctx, req)
 }
 
-// CheckSubdomainAvailability calls loco.app.v1.AppService.CheckSubdomainAvailability.
-func (c *appServiceClient) CheckSubdomainAvailability(ctx context.Context, req *connect.Request[v1.CheckSubdomainAvailabilityRequest]) (*connect.Response[v1.CheckSubdomainAvailabilityResponse], error) {
-	return c.checkSubdomainAvailability.CallUnary(ctx, req)
-}
-
 // StreamLogs calls loco.app.v1.AppService.StreamLogs.
 func (c *appServiceClient) StreamLogs(ctx context.Context, req *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogEntry], error) {
 	return c.streamLogs.CallServerStream(ctx, req)
@@ -252,7 +236,6 @@ type AppServiceHandler interface {
 	UpdateApp(context.Context, *connect.Request[v1.UpdateAppRequest]) (*connect.Response[v1.UpdateAppResponse], error)
 	DeleteApp(context.Context, *connect.Request[v1.DeleteAppRequest]) (*connect.Response[v1.DeleteAppResponse], error)
 	GetAppStatus(context.Context, *connect.Request[v1.GetAppStatusRequest]) (*connect.Response[v1.GetAppStatusResponse], error)
-	CheckSubdomainAvailability(context.Context, *connect.Request[v1.CheckSubdomainAvailabilityRequest]) (*connect.Response[v1.CheckSubdomainAvailabilityResponse], error)
 	// Logs
 	StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogEntry]) error
 	// Events
@@ -311,12 +294,6 @@ func NewAppServiceHandler(svc AppServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(appServiceMethods.ByName("GetAppStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
-	appServiceCheckSubdomainAvailabilityHandler := connect.NewUnaryHandler(
-		AppServiceCheckSubdomainAvailabilityProcedure,
-		svc.CheckSubdomainAvailability,
-		connect.WithSchema(appServiceMethods.ByName("CheckSubdomainAvailability")),
-		connect.WithHandlerOptions(opts...),
-	)
 	appServiceStreamLogsHandler := connect.NewServerStreamHandler(
 		AppServiceStreamLogsProcedure,
 		svc.StreamLogs,
@@ -357,8 +334,6 @@ func NewAppServiceHandler(svc AppServiceHandler, opts ...connect.HandlerOption) 
 			appServiceDeleteAppHandler.ServeHTTP(w, r)
 		case AppServiceGetAppStatusProcedure:
 			appServiceGetAppStatusHandler.ServeHTTP(w, r)
-		case AppServiceCheckSubdomainAvailabilityProcedure:
-			appServiceCheckSubdomainAvailabilityHandler.ServeHTTP(w, r)
 		case AppServiceStreamLogsProcedure:
 			appServiceStreamLogsHandler.ServeHTTP(w, r)
 		case AppServiceGetEventsProcedure:
@@ -402,10 +377,6 @@ func (UnimplementedAppServiceHandler) DeleteApp(context.Context, *connect.Reques
 
 func (UnimplementedAppServiceHandler) GetAppStatus(context.Context, *connect.Request[v1.GetAppStatusRequest]) (*connect.Response[v1.GetAppStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.app.v1.AppService.GetAppStatus is not implemented"))
-}
-
-func (UnimplementedAppServiceHandler) CheckSubdomainAvailability(context.Context, *connect.Request[v1.CheckSubdomainAvailabilityRequest]) (*connect.Response[v1.CheckSubdomainAvailabilityResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.app.v1.AppService.CheckSubdomainAvailability is not implemented"))
 }
 
 func (UnimplementedAppServiceHandler) StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogEntry]) error {

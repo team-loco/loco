@@ -91,7 +91,7 @@ func statusCmdFunc(cmd *cobra.Command) error {
 		return encoder.Encode(statusResp)
 	}
 
-	m := newStatusModel(statusResp)
+	m := newStatusModel(appName, statusResp)
 	fmt.Println(m.View())
 	return nil
 }
@@ -106,10 +106,11 @@ func init() {
 
 type statusModel struct {
 	response *appv1.GetAppStatusResponse
+	appName  string
 }
 
-func newStatusModel(resp *appv1.GetAppStatusResponse) statusModel {
-	return statusModel{response: resp}
+func newStatusModel(appName string, resp *appv1.GetAppStatusResponse) statusModel {
+	return statusModel{response: resp, appName: appName}
 }
 
 func (m statusModel) View() string {
@@ -132,29 +133,18 @@ func (m statusModel) View() string {
 		Padding(1, 2).
 		Margin(1, 2)
 
-	appName := m.response.App.Name
-	var status, replicas, subdomain, domain, deploymentID string
+	var status, replicas string
 
-	if m.response.CurrentDeployment != nil {
-		status = m.response.CurrentDeployment.Status.String()
-		replicas = fmt.Sprintf("%d", m.response.CurrentDeployment.Replicas)
-		deploymentID = fmt.Sprintf("%d", m.response.CurrentDeployment.Id)
-	} else {
-		status = "no deployment"
-		replicas = "0"
-		deploymentID = "N/A"
-	}
+	status = m.response.CurrentDeployment.Status.String()
+	replicas = fmt.Sprintf("%d", m.response.CurrentDeployment.Replicas)
 
-	subdomain = m.response.App.Subdomain
-	domain = m.response.App.Domain
-	url := fmt.Sprintf("%s.%s", subdomain, domain)
+	url := "hostname management pending"
 
 	content := fmt.Sprintf(
-		"%s %s\n%s %s\n%s %s\n%s %s\n%s %s",
-		labelStyle.Render("App:"), valueStyle.Render(appName),
+		"%s %s\n%s %s\n%s %s\n%s %s",
+		labelStyle.Render("App:"), valueStyle.Render(m.appName),
 		labelStyle.Render("Status:"), valueStyle.Render(status),
 		labelStyle.Render("Replicas:"), valueStyle.Render(replicas),
-		labelStyle.Render("Deployment ID:"), valueStyle.Render(deploymentID),
 		labelStyle.Render("URL:"), valueStyle.Render(url),
 	)
 

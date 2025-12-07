@@ -18,7 +18,7 @@ import (
 // RegistryServer implements the RegistryService
 type RegistryServer struct {
 	db                *pgxpool.Pool
-	queries           *db.Queries
+	queries           db.Querier
 	gitlabURL         string
 	gitlabPAT         string
 	gitlabProjectID   string
@@ -30,7 +30,7 @@ type RegistryServer struct {
 // NewRegistryServer creates a new RegistryServer instance
 func NewRegistryServer(
 	dbPool *pgxpool.Pool,
-	queries *db.Queries,
+	queries db.Querier,
 	gitlabURL string,
 	gitlabPAT string,
 	gitlabProjectID string,

@@ -1,17 +1,314 @@
-@import "./globals.css";
+@import url("https://rsms.me/inter/inter.css");
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+@custom-variant dark (&:is(.dark *));
 
-html {
-	-webkit-font-smoothing: antialiased;
-	-moz-osx-font-smoothing: grayscale;
-	background-color: white;
+/* ---------------------------
+   THEME CSS VARIABLES
+   Cloudflare Dashboard (Current)
+---------------------------- */
+
+@theme inline {
+	--radius-sm: 4px;
+	--radius-md: 6px;
+	--radius-lg: 8px;
+	--radius-xl: 12px;
+
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
 }
 
-body {
-	margin: 0;
-	padding: 0;
-	background-color: white;
+/* ---------------------------
+   LIGHT THEME
+---------------------------- */
+:root {
+	--radius: 6px;
+
+	/* Backgrounds - light and clean */
+	--background: #fafbfc;
+	--foreground: #151b26;
+
+	/* Cards and surfaces */
+	--card: #ffffff;
+	--card-foreground: #151b26;
+
+	/* Popovers */
+	--popover: #ffffff;
+	--popover-foreground: #151b26;
+
+	/* Cloudflare primary - signature orange */
+	--primary: #f48120;
+	--primary-foreground: #ffffff;
+
+	/* Secondary - light gray background */
+	--secondary: #f5f7fa;
+	--secondary-foreground: #151b26;
+
+	/* Muted - subtle gray for inactive states */
+	--muted: #f5f7fa;
+	--muted-foreground: #626d7d;
+
+	/* Accent - very subtle hover state */
+	--accent: #f0f2f5;
+	--accent-foreground: #151b26;
+
+	/* Status colors */
+	--destructive: #d1242f;
+	--success: #118122;
+	--warning: #c49617;
+
+	/* Borders - extremely subtle */
+	--border: #e8eaed;
+	--input: #e8eaed;
+
+	/* Focus ring */
+	--ring: #f48120;
+
+	/* Sidebar */
+	--sidebar: #ffffff;
+	--sidebar-foreground: #151b26;
+	--sidebar-accent: #f5f7fa;
+	--sidebar-border: #e8eaed;
 }
 
-#root {
-	background-color: white;
+/* ---------------------------
+   DARK THEME
+---------------------------- */
+.dark {
+	/* Dark backgrounds */
+	--background: #080d12;
+	--foreground: #e5eaef;
+
+	/* Cards darker */
+	--card: #0d1318;
+	--card-foreground: #e5eaef;
+
+	/* Popovers */
+	--popover: #0d1318;
+	--popover-foreground: #e5eaef;
+
+	/* Primary orange same in dark */
+	--primary: #f48120;
+	--primary-foreground: #ffffff;
+
+	/* Secondary */
+	--secondary: #1a202c;
+	--secondary-foreground: #e5eaef;
+
+	/* Muted */
+	--muted: #1a202c;
+	--muted-foreground: #999da3;
+
+	/* Accent */
+	--accent: #1a202c;
+	--accent-foreground: #e5eaef;
+
+	/* Status colors */
+	--destructive: #ff6b6b;
+	--success: #51cf66;
+	--warning: #ffd43b;
+
+	/* Borders in dark */
+	--border: #2a3139;
+	--input: #2a3139;
+
+	/* Ring */
+	--ring: #f48120;
+
+	/* Sidebar */
+	--sidebar: #0d1318;
+	--sidebar-foreground: #e5eaef;
+	--sidebar-accent: #1a202c;
+	--sidebar-border: #2a3139;
+}
+
+/* ---------------------------
+   BASE ELEMENT NORMALIZATION
+---------------------------- */
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+
+	*:focus-visible {
+		@apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+	}
+
+	html {
+		@apply scroll-smooth;
+	}
+
+	body {
+		@apply bg-background text-foreground antialiased;
+		font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+			"Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
+			"Helvetica Neue", sans-serif;
+	}
+
+	/* Typography - tight information-dense scale */
+	h1 {
+		@apply text-2xl font-semibold leading-tight;
+	}
+	h2 {
+		@apply text-xl font-semibold leading-tight;
+	}
+	h3 {
+		@apply text-lg font-semibold leading-snug;
+	}
+	h4 {
+		@apply text-base font-semibold leading-snug;
+	}
+
+	p,
+	span,
+	li {
+		@apply text-sm leading-6;
+	}
+
+	small {
+		@apply text-xs leading-5 text-muted-foreground;
+	}
+
+	label {
+		@apply text-sm font-medium text-foreground;
+	}
+
+	a {
+		@apply text-primary hover:opacity-80 transition-opacity;
+	}
+}
+
+/* ---------------------------
+   COMPONENT UTILITIES
+---------------------------- */
+
+@layer components {
+	/* Surface - base card/panel style */
+	.surface {
+		@apply bg-card text-card-foreground border border-border rounded-lg;
+	}
+
+	/* Interactive states */
+	.interactive {
+		@apply transition-all duration-75 cursor-pointer;
+	}
+
+	/* Menu item - for dropdowns, nav items, list items */
+	.menu-item {
+		@apply px-3 py-2 text-sm rounded-md transition-colors
+			hover:bg-accent hover:text-foreground
+			focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+			data-[active=true]:bg-accent data-[active=true]:font-medium
+			aria-selected:bg-accent aria-selected:font-medium;
+	}
+
+	/* Table row - consistent hover state */
+	.table-row {
+		@apply border-b border-border last:border-0
+			hover:bg-accent transition-colors duration-75;
+	}
+
+	/* Button base - consistent structure */
+	.btn-base {
+		@apply inline-flex items-center justify-center gap-2
+			rounded-md px-3 py-1.5 text-sm font-medium
+			transition-all duration-75
+			focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+	}
+
+	/* Button primary */
+	.btn-primary {
+		@apply bg-primary text-primary-foreground hover:opacity-90 active:opacity-75;
+	}
+
+	/* Button secondary */
+	.btn-secondary {
+		@apply bg-secondary text-secondary-foreground border border-border
+			hover:bg-accent active:bg-border;
+	}
+
+	/* Button ghost */
+	.btn-ghost {
+		@apply hover:bg-accent active:bg-border text-foreground;
+	}
+
+	/* Button destructive */
+	.btn-destructive {
+		@apply bg-destructive text-white hover:opacity-90 active:opacity-75;
+	}
+
+	/* Button disabled */
+	.btn-disabled {
+		@apply opacity-50 cursor-not-allowed pointer-events-none;
+	}
+
+	/* Input base */
+	.input-base {
+		@apply flex w-full rounded-md border border-input bg-background
+			px-3 py-2 text-sm
+			placeholder:text-muted-foreground
+			transition-colors duration-75
+			focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+			disabled:opacity-50 disabled:cursor-not-allowed;
+	}
+
+	/* Badge */
+	.badge {
+		@apply inline-flex items-center gap-1.5
+			rounded-full px-2 py-1
+			text-xs font-medium;
+	}
+
+	/* Badge default */
+	.badge-default {
+		@apply bg-secondary text-secondary-foreground;
+	}
+
+	/* Badge success */
+	.badge-success {
+		@apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200;
+	}
+
+	/* Badge warning */
+	.badge-warning {
+		@apply bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200;
+	}
+
+	/* Badge destructive */
+	.badge-destructive {
+		@apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+	}
+
+	/* Separator */
+	.separator {
+		@apply h-px w-full bg-border;
+	}
+
+	/* Disabled state utility */
+	.disabled {
+		@apply opacity-50 cursor-not-allowed pointer-events-none;
+	}
 }

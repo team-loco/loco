@@ -62,7 +62,7 @@ export function EventsList() {
 						</p>
 					</div>
 					<Button
-						variant="neutral"
+						variant="secondary"
 						size="sm"
 						onClick={() => handleDismiss(event.id)}
 						className="h-4 w-4 p-0 shrink-0"

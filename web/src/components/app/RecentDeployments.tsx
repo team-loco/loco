@@ -62,7 +62,16 @@ export function RecentDeployments({
 	}
 
 	if (deployments.length === 0) {
-		return null;
+		return (
+			<Card className="border-2">
+				<CardHeader>
+					<CardTitle>Recent Deployments</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<p className="text-sm text-foreground opacity-70">No deployments yet</p>
+				</CardContent>
+			</Card>
+		);
 	}
 
 	return (
@@ -103,7 +112,7 @@ export function RecentDeployments({
 										{deployment.image?.split("/").pop() || "—"}
 									</TableCell>
 									<TableCell>
-										<Badge variant="neutral" className="text-xs">
+										<Badge variant="secondary" className="text-xs">
 											{deployment.status || "unknown"}
 										</Badge>
 									</TableCell>
@@ -112,7 +121,7 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell className="text-right">
 										<Button
-											variant="neutral"
+											variant="secondary"
 											size="sm"
 											className="h-8"
 											onClick={(e) => {

@@ -71,14 +71,14 @@ export function AppMenu({ app, onAppDeleted }: AppMenuProps) {
 			{/* Delete Confirmation Dialog */}
 			{showDeleteConfirm && (
 				<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-					<div className="bg-background border-2 border-border rounded-neo p-6 max-w-sm">
+					<div className="bg-background border-2 border-border rounded-lg p-6 max-w-sm">
 						<h3 className="text-lg font-heading mb-2">Delete App</h3>
 						<p className="text-sm text-foreground opacity-70 mb-4">
 							Are you sure you want to delete <strong>{app.name}</strong>? This action cannot be undone.
 						</p>
 						<div className="flex gap-2 justify-end">
 							<Button
-								variant="noShadow"
+								variant="outline"
 								onClick={() => setShowDeleteConfirm(false)}
 								className="border-2"
 							>

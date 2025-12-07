@@ -42,11 +42,6 @@ export const deleteApp = AppService.method.deleteApp;
 export const getAppStatus = AppService.method.getAppStatus;
 
 /**
- * @generated from rpc loco.app.v1.AppService.CheckSubdomainAvailability
- */
-export const checkSubdomainAvailability = AppService.method.checkSubdomainAvailability;
-
-/**
  * Events
  *
  * @generated from rpc loco.app.v1.AppService.GetEvents
