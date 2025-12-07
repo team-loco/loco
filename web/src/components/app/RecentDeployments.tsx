@@ -62,7 +62,16 @@ export function RecentDeployments({
 	}
 
 	if (deployments.length === 0) {
-		return null;
+		return (
+			<Card className="border-2">
+				<CardHeader>
+					<CardTitle>Recent Deployments</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<p className="text-sm text-foreground opacity-70">No deployments yet</p>
+				</CardContent>
+			</Card>
+		);
 	}
 
 	return (

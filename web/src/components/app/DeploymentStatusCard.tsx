@@ -3,14 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { scaleApp } from "@/gen/app/v1";
-import type { AppStatus } from "@/gen/app/v1/app_pb";
+import type { DeploymentStatus } from "@/gen/app/v1/app_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { getStatusLabel } from "@/lib/app-status";
 
 interface DeploymentStatusCardProps {
 	appId: string;
-	status: AppStatus | null;
+	status: DeploymentStatus | null;
 	isLoading?: boolean;
 }
 
