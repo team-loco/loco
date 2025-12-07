@@ -189,6 +189,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 		Run: func(logf func(string)) error {
 			tokenReq := connect.NewRequest(&registryv1.GitlabTokenRequest{})
 			tokenReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
+			// todo: responsible for checking deploy permissions
 			tokenResp, err := registryClient.GitlabToken(ctx, tokenReq)
 			if err != nil {
 				logRequestID(ctx, err, "gitlab token request")

@@ -5,6 +5,7 @@ import type { App } from "@/gen/app/v1/app_pb";
 import { Copy, ExternalLink, Pencil } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { getStatusLabel } from "@/lib/app-status";
 
 interface AppHeaderProps {
 	app: App | null;
@@ -30,6 +31,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 	const primaryDomain = app.domains?.[0]?.domain;
 	const appUrl = primaryDomain || "pending deployment";
 	const appTypeLabel = app.type || "SERVICE";
+	const statusLabel = getStatusLabel(app.status);
 
 	const handleCopyUrl = () => {
 		navigator.clipboard.writeText(`https://${appUrl}`);
@@ -46,7 +48,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 							{app.name}
 						</h1>
 						<Badge variant="secondary">{appTypeLabel}</Badge>
-						<StatusBadge status="running" />
+						<StatusBadge status={statusLabel} />
 					</div>
 					<p className="text-sm text-foreground opacity-70">
 						{app.namespace || "default"}
