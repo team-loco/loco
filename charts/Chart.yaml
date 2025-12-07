@@ -1,0 +1,49 @@
+apiVersion: v2
+name: loco
+description: Helm chart for deploying Loco
+type: application
+
+version: 0.0.0
+appVersion: "latest"
+
+
+dependencies:
+  - name: cilium
+    version: 1.18.4
+    repository: https://helm.cilium.io/
+    condition: cilium.enabled
+  - name: cert-manager
+    version: 1.19.1
+    repository: https://charts.jetstack.io
+    condition: cert-manager.enabled
+  - name: gateway-helm
+    version: 1.6.1
+    repository: oci://docker.io/envoyproxy
+    condition: gateway-helm.enabled
+  - name: clickhouse
+    version: 0.3.6
+    repository: https://helm.altinity.com
+    condition: clickhouse.enabled
+  - name: opentelemetry-operator
+    version: 0.99.2
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    condition: opentelemetry-operator.enabled
+  - name: opentelemetry-collector
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: 0.140.1
+    condition: opentelemetry-collector.enabled
+  - name: grafana
+    repository: https://grafana.github.io/helm-charts
+    version: 10.3.0
+    condition: grafana.enabled
+
+
+maintainers:
+  - name: Nikhil
+
+sources:
+  - https://github.com/team-loco/loco
+
+keywords:
+  - loco
+  - kubernetes

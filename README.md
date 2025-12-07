@@ -9,7 +9,7 @@ Loco is a container orchestration platform that simplifies application deploymen
 - **Simple deployments** - Expose your app to the internet with just `loco deploy`!
 - **Simple Configuration** - Configure all app settings with a `loco.toml` file. A sample spec with sensible defaults can be generated via `loco init`.
 - **HTTPS by default** - Automatic SSL certificate management, powered by Let's Encrypt and Certificate Manager.
-- **Fast Reverse Proxy** - Envoy Gateway API serves HTTP3 traffic.
+- **Fast and Secure** - Envoy Gateway API serves HTTP3 traffic, handles TLS termination, and routing.
 
 ## Architecture Diagram
 
