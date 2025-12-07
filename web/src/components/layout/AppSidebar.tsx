@@ -126,6 +126,7 @@ export function AppSidebar() {
 		id: ws.id,
 		name: ws.name,
 		isActive: activeWorkspaceId === ws.id && !activeAppId,
+		hasApps: true,
 		apps:
 			activeWorkspaceId === ws.id && appsQuery.data?.apps
 				? appsQuery.data.apps.map((app) => ({

@@ -41,7 +41,7 @@ export function SiteHeader() {
 
 	return (
 		<header 
-			className="bg-background fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700"
+			className="bg-white dark:bg-[oklch(0.2553_0.0226_262.4337)] fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700 dark:text-white"
 			style={{ "--header-height": "70px" } as React.CSSProperties}
 		>
 			<div className="flex h-14 w-full items-center gap-3 px-6">
