@@ -1,16 +1,17 @@
 import { SearchForm } from "@/components/search-form";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
+import { PanelLeftIcon, PanelLeftCloseIcon } from "lucide-react";
 import { Link, useLocation, useSearchParams } from "react-router";
+import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
 	const location = useLocation();
 	const [searchParams] = useSearchParams();
-	const { open } = useSidebar();
+	const { open, toggleSidebar } = useSidebar();
 
 	const workspaceFromUrl = searchParams.get("workspace");
 	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
@@ -45,12 +46,21 @@ export function SiteHeader() {
 			style={{ "--header-height": "70px" } as React.CSSProperties}
 		>
 			<div className="flex h-14 w-full items-center gap-3 px-6">
-				<SidebarTrigger
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={toggleSidebar}
 					className={`h-8 w-8 shrink-0 transition-colors ${
 						open ? "bg-accent text-accent-foreground" : ""
 					}`}
-				/>
-				<Separator orientation="vertical" className="h-4" />
+					aria-label="Toggle Sidebar"
+				>
+					{open ? (
+						<PanelLeftCloseIcon className="h-4 w-4" />
+					) : (
+						<PanelLeftIcon className="h-4 w-4" />
+					)}
+				</Button>
 				<nav className="hidden sm:flex items-center gap-3 text-sm font-mono">
 					<Link
 						to="/dashboard"
