@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import type { App, AppDomain } from "@/gen/app/v1/app_pb";
+import type { App } from "@/gen/app/v1/app_pb";
+import type { AppDomain } from "@/gen/domain/v1/domain_pb";
+import { getStatusLabel } from "@/lib/app-status";
 import { ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router";
-import { getStatusLabel } from "@/lib/app-status";
 import { StatusBadge } from "./StatusBadge";
 import { AppMenu } from "./dashboard/AppMenu";
 
@@ -80,9 +81,7 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 				<Badge variant="secondary" className="text-xs">
 					{appTypeLabel}
 				</Badge>
-				<StatusBadge
-					status={getStatusLabel(app.status)}
-				/>
+				<StatusBadge status={getStatusLabel(app.status)} />
 			</div>
 
 			{/* Domain section */}
