@@ -17,7 +17,7 @@ import {
 	SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function NavWorkspaces({
 	workspaces,
@@ -41,6 +41,21 @@ export function NavWorkspaces({
 	activeAppId?: bigint;
 }) {
 	const [openWorkspaces, setOpenWorkspaces] = useState<Set<string>>(new Set());
+
+	// Auto-expand workspace that has an active app
+	useEffect(() => {
+		const activeWorkspaceWithApp = workspaces.find(
+			(ws) => ws.apps?.some((app) => app.id === activeAppId)
+		);
+
+		if (activeWorkspaceWithApp) {
+			setOpenWorkspaces((prev) => {
+				const newSet = new Set(prev);
+				newSet.add(activeWorkspaceWithApp.id.toString());
+				return newSet;
+			});
+		}
+	}, [activeAppId, workspaces]);
 
 	return (
 		<SidebarGroup className="group-data-[collapsible=icon]:hidden">
