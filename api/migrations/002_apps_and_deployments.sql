@@ -52,7 +52,6 @@ CREATE TABLE apps (
 CREATE INDEX idx_apps_workspace_id ON apps (workspace_id);
 CREATE INDEX idx_apps_cluster_id ON apps (cluster_id);
 
--- App domains (multiple domains per app)
 CREATE TABLE app_domains (
     id BIGSERIAL PRIMARY KEY,
     app_id BIGINT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
