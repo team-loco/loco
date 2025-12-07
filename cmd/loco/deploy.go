@@ -16,6 +16,7 @@ import (
 	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
 	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
+	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
 	registryv1 "github.com/loco-team/loco/shared/proto/registry/v1"
 	registryv1connect "github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
 	"github.com/spf13/cobra"
@@ -129,12 +130,19 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	}
 
 	if appID == 0 {
+		domainInput := &domainv1.DomainInput{
+			DomainSource: domainv1.DomainType_PLATFORM_PROVIDED,
+			Subdomain:    &loadedCfg.Config.Routing.Subdomain,
+		}
+
 		createAppReq := connect.NewRequest(&appv1.CreateAppRequest{
 			WorkspaceId: workspaceID,
 			Name:        loadedCfg.Config.Metadata.Name,
 			// todo: add to loco config. we need to grab app type from there.
-			Type: appv1.AppType_SERVICE,
+			Type:   appv1.AppType_SERVICE,
+			Domain: domainInput,
 		})
+
 		createAppReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
 		createAppResp, err := appClient.CreateApp(ctx, createAppReq)

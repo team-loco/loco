@@ -9,8 +9,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { deleteApp, getApp, scaleApp, updateApp, AppStatus } from "@/gen/app/v1";
-import { Cpu, HardDrive } from "lucide-react";
+import {
+	AppStatus,
+	deleteApp,
+	getApp,
+	scaleApp,
+	updateApp,
+} from "@/gen/app/v1";
 import {
 	addAppDomain,
 	checkDomainAvailability,
@@ -23,6 +28,7 @@ import type { AppDomain } from "@/gen/domain/v1/domain_pb";
 import { DomainType } from "@/gen/domain/v1/domain_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { Cpu, HardDrive } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
@@ -95,17 +101,22 @@ export function AppSettings() {
 	const handleAddDomain = async () => {
 		if (!appId || !newDomain) return;
 		try {
-			await addDomainMutation.mutateAsync({
-				appId: BigInt(appId),
-				domain: newDomain,
+			const domainInput = {
 				domainSource:
 					domainSource === "platform"
 						? DomainType.PLATFORM_PROVIDED
 						: DomainType.USER_PROVIDED,
+				subdomain: domainSource === "platform" ? newDomain : undefined,
 				platformDomainId:
 					domainSource === "platform" && platformDomainId
 						? BigInt(platformDomainId)
 						: undefined,
+				domain: domainSource === "user" ? newDomain : undefined,
+			};
+
+			await addDomainMutation.mutateAsync({
+				appId: BigInt(appId),
+				domain: domainInput,
 			});
 			toast.success("Domain added successfully");
 			setNewDomain("");
@@ -160,6 +171,7 @@ export function AppSettings() {
 			});
 
 			if (!res.isAvailable) {
+				console.log("hit this piece");
 				toast.error("This domain is already in use");
 				return;
 			}
@@ -455,11 +467,19 @@ export function AppSettings() {
 			</Card>
 
 			{/* Scaling */}
-			<Card className={`border-2 ${app?.status === AppStatus.IDLE ? "opacity-50" : ""}`}>
+			<Card
+				className={`border-2 ${
+					app?.status === AppStatus.IDLE ? "opacity-50" : ""
+				}`}
+			>
 				<CardHeader>
 					<CardTitle>Application Scaling</CardTitle>
 				</CardHeader>
-				<CardContent className={`space-y-6 ${app?.status === AppStatus.IDLE ? "pointer-events-none" : ""}`}>
+				<CardContent
+					className={`space-y-6 ${
+						app?.status === AppStatus.IDLE ? "pointer-events-none" : ""
+					}`}
+				>
 					{app?.status === AppStatus.IDLE && (
 						<div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-lg p-3 mb-4">
 							<p className="text-sm text-yellow-700 dark:text-yellow-400">
@@ -475,9 +495,7 @@ export function AppSettings() {
 								<label className="text-sm font-medium text-foreground">
 									CPU Resources
 								</label>
-								<p className="text-xs text-foreground/70">
-									{cpuValue[0]}m
-								</p>
+								<p className="text-xs text-foreground/70">{cpuValue[0]}m</p>
 							</div>
 						</div>
 						<Slider
@@ -502,9 +520,7 @@ export function AppSettings() {
 								<label className="text-sm font-medium text-foreground">
 									Memory Resources
 								</label>
-								<p className="text-xs text-foreground/70">
-									{memoryValue[0]}Mi
-								</p>
+								<p className="text-xs text-foreground/70">{memoryValue[0]}Mi</p>
 							</div>
 						</div>
 						<Slider
@@ -523,7 +539,9 @@ export function AppSettings() {
 
 					<Button
 						onClick={handleScale}
-						disabled={scaleAppMutation.isPending || app?.status === AppStatus.IDLE}
+						disabled={
+							scaleAppMutation.isPending || app?.status === AppStatus.IDLE
+						}
 						className="w-full"
 					>
 						{scaleAppMutation.isPending ? "Scaling..." : "Apply Scaling"}

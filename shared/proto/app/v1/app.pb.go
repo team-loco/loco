@@ -313,7 +313,7 @@ type CreateAppRequest struct {
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Type          AppType                `protobuf:"varint,4,opt,name=type,proto3,enum=loco.app.v1.AppType" json:"type,omitempty"`
-	Domain        *v1.AppDomain          `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	Domain        *v1.DomainInput        `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -369,7 +369,7 @@ func (x *CreateAppRequest) GetType() AppType {
 	return AppType_SERVICE
 }
 
-func (x *CreateAppRequest) GetDomain() *v1.AppDomain {
+func (x *CreateAppRequest) GetDomain() *v1.DomainInput {
 	if x != nil {
 		return x.Domain
 	}
@@ -1630,12 +1630,12 @@ const file_app_v1_app_proto_rawDesc = "" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12.\n" +
-	"\x06status\x18\x0e \x01(\x0e2\x16.loco.app.v1.AppStatusR\x06status\"\xa6\x01\n" +
+	"\x06status\x18\x0e \x01(\x0e2\x16.loco.app.v1.AppStatusR\x06status\"\xa8\x01\n" +
 	"\x10CreateAppRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12(\n" +
-	"\x04type\x18\x04 \x01(\x0e2\x14.loco.app.v1.AppTypeR\x04type\x121\n" +
-	"\x06domain\x18\x05 \x01(\v2\x19.loco.domain.v1.AppDomainR\x06domain\"Q\n" +
+	"\x04type\x18\x04 \x01(\x0e2\x14.loco.app.v1.AppTypeR\x04type\x123\n" +
+	"\x06domain\x18\x05 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\"Q\n" +
 	"\x11CreateAppResponse\x12\"\n" +
 	"\x03app\x18\x01 \x01(\v2\x10.loco.app.v1.AppR\x03app\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"&\n" +
@@ -1811,6 +1811,7 @@ var file_app_v1_app_proto_goTypes = []any{
 	nil,                           // 28: loco.app.v1.UpdateAppEnvRequest.EnvEntry
 	(*v1.AppDomain)(nil),          // 29: loco.domain.v1.AppDomain
 	(*timestamppb.Timestamp)(nil), // 30: google.protobuf.Timestamp
+	(*v1.DomainInput)(nil),        // 31: loco.domain.v1.DomainInput
 }
 var file_app_v1_app_proto_depIdxs = []int32{
 	0,  // 0: loco.app.v1.App.type:type_name -> loco.app.v1.AppType
@@ -1819,7 +1820,7 @@ var file_app_v1_app_proto_depIdxs = []int32{
 	30, // 3: loco.app.v1.App.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: loco.app.v1.App.status:type_name -> loco.app.v1.AppStatus
 	0,  // 5: loco.app.v1.CreateAppRequest.type:type_name -> loco.app.v1.AppType
-	29, // 6: loco.app.v1.CreateAppRequest.domain:type_name -> loco.domain.v1.AppDomain
+	31, // 6: loco.app.v1.CreateAppRequest.domain:type_name -> loco.domain.v1.DomainInput
 	3,  // 7: loco.app.v1.CreateAppResponse.app:type_name -> loco.app.v1.App
 	3,  // 8: loco.app.v1.GetAppResponse.app:type_name -> loco.app.v1.App
 	3,  // 9: loco.app.v1.GetAppByNameResponse.app:type_name -> loco.app.v1.App

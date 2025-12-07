@@ -21,6 +21,13 @@ message PlatformDomain {
   google.protobuf.Timestamp updated_at = 5;
 }
 
+message DomainInput {
+  DomainType domain_source = 1;
+  optional string subdomain = 2;         // for PLATFORM_PROVIDED: "myapp"
+  optional int64 platform_domain_id = 3; // for PLATFORM_PROVIDED: id of the platform domain
+  optional string domain = 4;            // for USER_PROVIDED: full custom domain
+}
+
 message AppDomain {
   int64 id = 1;
   int64 app_id = 2;
@@ -127,9 +134,7 @@ message ListAllLocoOwnedDomainsResponse {
 
 message AddAppDomainRequest {
   int64 app_id = 1;
-  string domain = 2;
-  DomainType domain_source = 3;
-  optional int64 platform_domain_id = 4;
+  DomainInput domain = 2;
 }
 
 message AddAppDomainResponse {

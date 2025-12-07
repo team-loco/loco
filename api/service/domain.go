@@ -272,35 +272,47 @@ func (s *DomainServer) AddAppDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
+	if r.Domain == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain input is required"))
+	}
+
+	// extract and validate domain information based on source
+	var fullDomain string
+	var subdomainLabel pgtype.Text
+	platformDomainID := pgtype.Int8{Valid: false}
+	domainSource := genDb.DomainSourceUserProvided
+
+	if r.Domain.DomainSource == domainv1.DomainType_PLATFORM_PROVIDED {
+		if r.Domain.Subdomain == nil || *r.Domain.Subdomain == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
+		}
+		if r.Domain.PlatformDomainId == nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform_domain_id required for platform_provided domains"))
+		}
+
+		platformDomainID = pgtype.Int8{Int64: *r.Domain.PlatformDomainId, Valid: true}
+		platformDomain, err := s.queries.GetPlatformDomain(ctx, *r.Domain.PlatformDomainId)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
+		}
+
+		fullDomain = *r.Domain.Subdomain + "." + platformDomain.Domain
+		subdomainLabel = pgtype.Text{String: *r.Domain.Subdomain, Valid: true}
+		domainSource = genDb.DomainSourcePlatformProvided
+	} else {
+		if r.Domain.Domain == nil || *r.Domain.Domain == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain required for user-provided domains"))
+		}
+		fullDomain = *r.Domain.Domain
+	}
+
 	// check domain availability
-	available, err := s.queries.CheckDomainAvailability(ctx, r.Domain)
+	available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 	if !available {
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
-	}
-
-	// extract subdomain label for platform-provided domains
-	var subdomainLabel pgtype.Text
-	platformDomainID := pgtype.Int8{Valid: false}
-
-	if r.DomainSource == domainv1.DomainType_PLATFORM_PROVIDED {
-		if r.PlatformDomainId == nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform_domain_id required for platform_provided domains"))
-		}
-		platformDomainID = pgtype.Int8{Int64: *r.PlatformDomainId, Valid: true}
-
-		platformDomain, err := s.queries.GetPlatformDomain(ctx, *r.PlatformDomainId)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
-		}
-
-		baseDomainLen := len(platformDomain.Domain)
-		domainLen := len(r.Domain)
-		if domainLen > baseDomainLen+1 {
-			subdomainLabel = pgtype.Text{String: r.Domain[:domainLen-baseDomainLen-1], Valid: true}
-		}
 	}
 
 	// check if this is the first domain for the app
@@ -309,14 +321,9 @@ func (s *DomainServer) AddAppDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	domainSource := genDb.DomainSourceUserProvided
-	if r.DomainSource == domainv1.DomainType_PLATFORM_PROVIDED {
-		domainSource = genDb.DomainSourcePlatformProvided
-	}
-
 	appDomain, err := s.queries.CreateAppDomain(ctx, genDb.CreateAppDomainParams{
 		AppID:            r.AppId,
-		Domain:           r.Domain,
+		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
 		PlatformDomainID: platformDomainID,

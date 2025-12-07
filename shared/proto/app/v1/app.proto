@@ -73,7 +73,7 @@ message CreateAppRequest {
   int64 workspace_id = 1;
   string name = 3;
   AppType type = 4;
-  loco.domain.v1.AppDomain domain = 5;
+  loco.domain.v1.DomainInput domain = 5;
 }
 
 message CreateAppResponse {

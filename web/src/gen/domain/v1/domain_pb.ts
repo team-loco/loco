@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file domain/v1/domain.proto.
  */
 export const file_domain_v1_domain: GenFile = /*@__PURE__*/
-  fileDesc("ChZkb21haW4vdjEvZG9tYWluLnByb3RvEg5sb2NvLmRvbWFpbi52MSKfAQoOUGxhdGZvcm1Eb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhEKCWlzX2FjdGl2ZRgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLIAgoJQXBwRG9tYWluEgoKAmlkGAEgASgDEg4KBmFwcF9pZBgCIAEoAxIOCgZkb21haW4YAyABKAkSMQoNZG9tYWluX3NvdXJjZRgEIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSHAoPc3ViZG9tYWluX2xhYmVsGAUgASgJSACIAQESHwoScGxhdGZvcm1fZG9tYWluX2lkGAYgASgDSAGIAQESEgoKaXNfcHJpbWFyeRgHIAEoCBIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEISChBfc3ViZG9tYWluX2xhYmVsQhUKE19wbGF0Zm9ybV9kb21haW5faWQiQAobQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0Eg4KBmRvbWFpbhgBIAEoCRIRCglpc19hY3RpdmUYAiABKAgiVwocQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRI3Cg9wbGF0Zm9ybV9kb21haW4YASABKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiImChhHZXRQbGF0Zm9ybURvbWFpblJlcXVlc3QSCgoCaWQYASABKAMiVAoZR2V0UGxhdGZvcm1Eb21haW5SZXNwb25zZRI3Cg9wbGF0Zm9ybV9kb21haW4YASABKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiIwCh5HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlcXVlc3QSDgoGZG9tYWluGAEgASgJIloKH0dldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iIgogTGlzdEFjdGl2ZVBsYXRmb3JtRG9tYWluc1JlcXVlc3QiXQohTGlzdEFjdGl2ZVBsYXRmb3JtRG9tYWluc1Jlc3BvbnNlEjgKEHBsYXRmb3JtX2RvbWFpbnMYASADKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiItCh9EZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0EgoKAmlkGAEgASgDIlsKIERlYWN0aXZhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIjAKHkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBIOCgZkb21haW4YASABKAkiNwofQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRIUCgxpc19hdmFpbGFibGUYASABKAgiaAoPTG9jb093bmVkRG9tYWluEgoKAmlkGAEgASgDEg4KBmRvbWFpbhgCIAEoCRIQCghhcHBfbmFtZRgDIAEoCRIOCgZhcHBfaWQYBCABKAMSFwoPcGxhdGZvcm1fZG9tYWluGAUgASgJIiAKHkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVxdWVzdCJTCh9MaXN0QWxsTG9jb093bmVkRG9tYWluc1Jlc3BvbnNlEjAKB2RvbWFpbnMYASADKAsyHy5sb2NvLmRvbWFpbi52MS5Mb2NvT3duZWREb21haW4ioAEKE0FkZEFwcERvbWFpblJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEg4KBmRvbWFpbhgCIAEoCRIxCg1kb21haW5fc291cmNlGAMgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZRIfChJwbGF0Zm9ybV9kb21haW5faWQYBCABKANIAIgBAUIVChNfcGxhdGZvcm1fZG9tYWluX2lkIlIKFEFkZEFwcERvbWFpblJlc3BvbnNlEikKBmRvbWFpbhgBIAEoCzIZLmxvY28uZG9tYWluLnYxLkFwcERvbWFpbhIPCgdtZXNzYWdlGAIgASgJIjsKFlVwZGF0ZUFwcERvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgDEg4KBmRvbWFpbhgCIAEoCSJVChdVcGRhdGVBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSI/ChpTZXRQcmltYXJ5QXBwRG9tYWluUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEQoJZG9tYWluX2lkGAIgASgDIlkKG1NldFByaW1hcnlBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSIrChZSZW1vdmVBcHBEb21haW5SZXF1ZXN0EhEKCWRvbWFpbl9pZBgBIAEoAyIqChdSZW1vdmVBcHBEb21haW5SZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJKjYKCkRvbWFpblR5cGUSFQoRUExBVEZPUk1fUFJPVklERUQQABIRCg1VU0VSX1BST1ZJREVEEAEy9QkKDURvbWFpblNlcnZpY2UScQoUQ3JlYXRlUGxhdGZvcm1Eb21haW4SKy5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEmgKEUdldFBsYXRmb3JtRG9tYWluEigubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0GikubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXNwb25zZRJ6ChdHZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZRIuLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVzcG9uc2USgAEKGUxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnMSMC5sb2NvLmRvbWFpbi52MS5MaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVxdWVzdBoxLmxvY28uZG9tYWluLnYxLkxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRJ9ChhEZWFjdGl2YXRlUGxhdGZvcm1Eb21haW4SLy5sb2NvLmRvbWFpbi52MS5EZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GjAubG9jby5kb21haW4udjEuRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USWQoMQWRkQXBwRG9tYWluEiMubG9jby5kb21haW4udjEuQWRkQXBwRG9tYWluUmVxdWVzdBokLmxvY28uZG9tYWluLnYxLkFkZEFwcERvbWFpblJlc3BvbnNlEmIKD1VwZGF0ZUFwcERvbWFpbhImLmxvY28uZG9tYWluLnYxLlVwZGF0ZUFwcERvbWFpblJlcXVlc3QaJy5sb2NvLmRvbWFpbi52MS5VcGRhdGVBcHBEb21haW5SZXNwb25zZRJuChNTZXRQcmltYXJ5QXBwRG9tYWluEioubG9jby5kb21haW4udjEuU2V0UHJpbWFyeUFwcERvbWFpblJlcXVlc3QaKy5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5QXBwRG9tYWluUmVzcG9uc2USYgoPUmVtb3ZlQXBwRG9tYWluEiYubG9jby5kb21haW4udjEuUmVtb3ZlQXBwRG9tYWluUmVxdWVzdBonLmxvY28uZG9tYWluLnYxLlJlbW92ZUFwcERvbWFpblJlc3BvbnNlEnoKF0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5Ei4ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Gi8ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRJ6ChdMaXN0QWxsTG9jb093bmVkRG9tYWlucxIuLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVzcG9uc2VCO1o5Z2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vZG9tYWluL3YxO2RvbWFpbnYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChZkb21haW4vdjEvZG9tYWluLnByb3RvEg5sb2NvLmRvbWFpbi52MSKfAQoOUGxhdGZvcm1Eb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhEKCWlzX2FjdGl2ZRgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoLRG9tYWluSW5wdXQSMQoNZG9tYWluX3NvdXJjZRgBIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSFgoJc3ViZG9tYWluGAIgASgJSACIAQESHwoScGxhdGZvcm1fZG9tYWluX2lkGAMgASgDSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCDAoKX3N1YmRvbWFpbkIVChNfcGxhdGZvcm1fZG9tYWluX2lkQgkKB19kb21haW4iyAIKCUFwcERvbWFpbhIKCgJpZBgBIAEoAxIOCgZhcHBfaWQYAiABKAMSDgoGZG9tYWluGAMgASgJEjEKDWRvbWFpbl9zb3VyY2UYBCABKA4yGi5sb2NvLmRvbWFpbi52MS5Eb21haW5UeXBlEhwKD3N1YmRvbWFpbl9sYWJlbBgFIAEoCUgAiAEBEh8KEnBsYXRmb3JtX2RvbWFpbl9pZBgGIAEoA0gBiAEBEhIKCmlzX3ByaW1hcnkYByABKAgSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCEgoQX3N1YmRvbWFpbl9sYWJlbEIVChNfcGxhdGZvcm1fZG9tYWluX2lkIkAKG0NyZWF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIOCgZkb21haW4YASABKAkSEQoJaXNfYWN0aXZlGAIgASgIIlcKHENyZWF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iJgoYR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0EgoKAmlkGAEgASgDIlQKGUdldFBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iMAoeR2V0UGxhdGZvcm1Eb21haW5CeU5hbWVSZXF1ZXN0Eg4KBmRvbWFpbhgBIAEoCSJaCh9HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIiIKIExpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0Il0KIUxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRI4ChBwbGF0Zm9ybV9kb21haW5zGAEgAygLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iLQofRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIKCgJpZBgBIAEoAyJbCiBEZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRI3Cg9wbGF0Zm9ybV9kb21haW4YASABKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiIwCh5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QSDgoGZG9tYWluGAEgASgJIjcKH0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USFAoMaXNfYXZhaWxhYmxlGAEgASgIImgKD0xvY29Pd25lZERvbWFpbhIKCgJpZBgBIAEoAxIOCgZkb21haW4YAiABKAkSEAoIYXBwX25hbWUYAyABKAkSDgoGYXBwX2lkGAQgASgDEhcKD3BsYXRmb3JtX2RvbWFpbhgFIAEoCSIgCh5MaXN0QWxsTG9jb093bmVkRG9tYWluc1JlcXVlc3QiUwofTGlzdEFsbExvY29Pd25lZERvbWFpbnNSZXNwb25zZRIwCgdkb21haW5zGAEgAygLMh8ubG9jby5kb21haW4udjEuTG9jb093bmVkRG9tYWluIlIKE0FkZEFwcERvbWFpblJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEisKBmRvbWFpbhgCIAEoCzIbLmxvY28uZG9tYWluLnYxLkRvbWFpbklucHV0IlIKFEFkZEFwcERvbWFpblJlc3BvbnNlEikKBmRvbWFpbhgBIAEoCzIZLmxvY28uZG9tYWluLnYxLkFwcERvbWFpbhIPCgdtZXNzYWdlGAIgASgJIjsKFlVwZGF0ZUFwcERvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgDEg4KBmRvbWFpbhgCIAEoCSJVChdVcGRhdGVBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSI/ChpTZXRQcmltYXJ5QXBwRG9tYWluUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEQoJZG9tYWluX2lkGAIgASgDIlkKG1NldFByaW1hcnlBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSIrChZSZW1vdmVBcHBEb21haW5SZXF1ZXN0EhEKCWRvbWFpbl9pZBgBIAEoAyIqChdSZW1vdmVBcHBEb21haW5SZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJKjYKCkRvbWFpblR5cGUSFQoRUExBVEZPUk1fUFJPVklERUQQABIRCg1VU0VSX1BST1ZJREVEEAEy9QkKDURvbWFpblNlcnZpY2UScQoUQ3JlYXRlUGxhdGZvcm1Eb21haW4SKy5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEmgKEUdldFBsYXRmb3JtRG9tYWluEigubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0GikubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXNwb25zZRJ6ChdHZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZRIuLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVzcG9uc2USgAEKGUxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnMSMC5sb2NvLmRvbWFpbi52MS5MaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVxdWVzdBoxLmxvY28uZG9tYWluLnYxLkxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRJ9ChhEZWFjdGl2YXRlUGxhdGZvcm1Eb21haW4SLy5sb2NvLmRvbWFpbi52MS5EZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GjAubG9jby5kb21haW4udjEuRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USWQoMQWRkQXBwRG9tYWluEiMubG9jby5kb21haW4udjEuQWRkQXBwRG9tYWluUmVxdWVzdBokLmxvY28uZG9tYWluLnYxLkFkZEFwcERvbWFpblJlc3BvbnNlEmIKD1VwZGF0ZUFwcERvbWFpbhImLmxvY28uZG9tYWluLnYxLlVwZGF0ZUFwcERvbWFpblJlcXVlc3QaJy5sb2NvLmRvbWFpbi52MS5VcGRhdGVBcHBEb21haW5SZXNwb25zZRJuChNTZXRQcmltYXJ5QXBwRG9tYWluEioubG9jby5kb21haW4udjEuU2V0UHJpbWFyeUFwcERvbWFpblJlcXVlc3QaKy5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5QXBwRG9tYWluUmVzcG9uc2USYgoPUmVtb3ZlQXBwRG9tYWluEiYubG9jby5kb21haW4udjEuUmVtb3ZlQXBwRG9tYWluUmVxdWVzdBonLmxvY28uZG9tYWluLnYxLlJlbW92ZUFwcERvbWFpblJlc3BvbnNlEnoKF0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5Ei4ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Gi8ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRJ6ChdMaXN0QWxsTG9jb093bmVkRG9tYWlucxIuLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVzcG9uc2VCO1o5Z2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vZG9tYWluL3YxO2RvbWFpbnYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.domain.v1.PlatformDomain
@@ -80,6 +80,75 @@ export type PlatformDomainJson = {
  */
 export const PlatformDomainSchema: GenMessage<PlatformDomain, {jsonType: PlatformDomainJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 0);
+
+/**
+ * @generated from message loco.domain.v1.DomainInput
+ */
+export type DomainInput = Message<"loco.domain.v1.DomainInput"> & {
+  /**
+   * @generated from field: loco.domain.v1.DomainType domain_source = 1;
+   */
+  domainSource: DomainType;
+
+  /**
+   * for PLATFORM_PROVIDED: "myapp"
+   *
+   * @generated from field: optional string subdomain = 2;
+   */
+  subdomain?: string;
+
+  /**
+   * for PLATFORM_PROVIDED: id of the platform domain
+   *
+   * @generated from field: optional int64 platform_domain_id = 3;
+   */
+  platformDomainId?: bigint;
+
+  /**
+   * for USER_PROVIDED: full custom domain
+   *
+   * @generated from field: optional string domain = 4;
+   */
+  domain?: string;
+};
+
+/**
+ * @generated from message loco.domain.v1.DomainInput
+ */
+export type DomainInputJson = {
+  /**
+   * @generated from field: loco.domain.v1.DomainType domain_source = 1;
+   */
+  domainSource?: DomainTypeJson;
+
+  /**
+   * for PLATFORM_PROVIDED: "myapp"
+   *
+   * @generated from field: optional string subdomain = 2;
+   */
+  subdomain?: string;
+
+  /**
+   * for PLATFORM_PROVIDED: id of the platform domain
+   *
+   * @generated from field: optional int64 platform_domain_id = 3;
+   */
+  platformDomainId?: string;
+
+  /**
+   * for USER_PROVIDED: full custom domain
+   *
+   * @generated from field: optional string domain = 4;
+   */
+  domain?: string;
+};
+
+/**
+ * Describes the message loco.domain.v1.DomainInput.
+ * Use `create(DomainInputSchema)` to create a new message.
+ */
+export const DomainInputSchema: GenMessage<DomainInput, {jsonType: DomainInputJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 1);
 
 /**
  * @generated from message loco.domain.v1.AppDomain
@@ -186,7 +255,7 @@ export type AppDomainJson = {
  * Use `create(AppDomainSchema)` to create a new message.
  */
 export const AppDomainSchema: GenMessage<AppDomain, {jsonType: AppDomainJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 1);
+  messageDesc(file_domain_v1_domain, 2);
 
 /**
  * @generated from message loco.domain.v1.CreatePlatformDomainRequest
@@ -223,7 +292,7 @@ export type CreatePlatformDomainRequestJson = {
  * Use `create(CreatePlatformDomainRequestSchema)` to create a new message.
  */
 export const CreatePlatformDomainRequestSchema: GenMessage<CreatePlatformDomainRequest, {jsonType: CreatePlatformDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 2);
+  messageDesc(file_domain_v1_domain, 3);
 
 /**
  * @generated from message loco.domain.v1.CreatePlatformDomainResponse
@@ -250,7 +319,7 @@ export type CreatePlatformDomainResponseJson = {
  * Use `create(CreatePlatformDomainResponseSchema)` to create a new message.
  */
 export const CreatePlatformDomainResponseSchema: GenMessage<CreatePlatformDomainResponse, {jsonType: CreatePlatformDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 3);
+  messageDesc(file_domain_v1_domain, 4);
 
 /**
  * @generated from message loco.domain.v1.GetPlatformDomainRequest
@@ -277,7 +346,7 @@ export type GetPlatformDomainRequestJson = {
  * Use `create(GetPlatformDomainRequestSchema)` to create a new message.
  */
 export const GetPlatformDomainRequestSchema: GenMessage<GetPlatformDomainRequest, {jsonType: GetPlatformDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 4);
+  messageDesc(file_domain_v1_domain, 5);
 
 /**
  * @generated from message loco.domain.v1.GetPlatformDomainResponse
@@ -304,7 +373,7 @@ export type GetPlatformDomainResponseJson = {
  * Use `create(GetPlatformDomainResponseSchema)` to create a new message.
  */
 export const GetPlatformDomainResponseSchema: GenMessage<GetPlatformDomainResponse, {jsonType: GetPlatformDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 5);
+  messageDesc(file_domain_v1_domain, 6);
 
 /**
  * @generated from message loco.domain.v1.GetPlatformDomainByNameRequest
@@ -331,7 +400,7 @@ export type GetPlatformDomainByNameRequestJson = {
  * Use `create(GetPlatformDomainByNameRequestSchema)` to create a new message.
  */
 export const GetPlatformDomainByNameRequestSchema: GenMessage<GetPlatformDomainByNameRequest, {jsonType: GetPlatformDomainByNameRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 6);
+  messageDesc(file_domain_v1_domain, 7);
 
 /**
  * @generated from message loco.domain.v1.GetPlatformDomainByNameResponse
@@ -358,7 +427,7 @@ export type GetPlatformDomainByNameResponseJson = {
  * Use `create(GetPlatformDomainByNameResponseSchema)` to create a new message.
  */
 export const GetPlatformDomainByNameResponseSchema: GenMessage<GetPlatformDomainByNameResponse, {jsonType: GetPlatformDomainByNameResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 7);
+  messageDesc(file_domain_v1_domain, 8);
 
 /**
  * @generated from message loco.domain.v1.ListActivePlatformDomainsRequest
@@ -377,7 +446,7 @@ export type ListActivePlatformDomainsRequestJson = {
  * Use `create(ListActivePlatformDomainsRequestSchema)` to create a new message.
  */
 export const ListActivePlatformDomainsRequestSchema: GenMessage<ListActivePlatformDomainsRequest, {jsonType: ListActivePlatformDomainsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 8);
+  messageDesc(file_domain_v1_domain, 9);
 
 /**
  * @generated from message loco.domain.v1.ListActivePlatformDomainsResponse
@@ -404,7 +473,7 @@ export type ListActivePlatformDomainsResponseJson = {
  * Use `create(ListActivePlatformDomainsResponseSchema)` to create a new message.
  */
 export const ListActivePlatformDomainsResponseSchema: GenMessage<ListActivePlatformDomainsResponse, {jsonType: ListActivePlatformDomainsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 9);
+  messageDesc(file_domain_v1_domain, 10);
 
 /**
  * @generated from message loco.domain.v1.DeactivatePlatformDomainRequest
@@ -431,7 +500,7 @@ export type DeactivatePlatformDomainRequestJson = {
  * Use `create(DeactivatePlatformDomainRequestSchema)` to create a new message.
  */
 export const DeactivatePlatformDomainRequestSchema: GenMessage<DeactivatePlatformDomainRequest, {jsonType: DeactivatePlatformDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 10);
+  messageDesc(file_domain_v1_domain, 11);
 
 /**
  * @generated from message loco.domain.v1.DeactivatePlatformDomainResponse
@@ -458,7 +527,7 @@ export type DeactivatePlatformDomainResponseJson = {
  * Use `create(DeactivatePlatformDomainResponseSchema)` to create a new message.
  */
 export const DeactivatePlatformDomainResponseSchema: GenMessage<DeactivatePlatformDomainResponse, {jsonType: DeactivatePlatformDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 11);
+  messageDesc(file_domain_v1_domain, 12);
 
 /**
  * @generated from message loco.domain.v1.CheckDomainAvailabilityRequest
@@ -485,7 +554,7 @@ export type CheckDomainAvailabilityRequestJson = {
  * Use `create(CheckDomainAvailabilityRequestSchema)` to create a new message.
  */
 export const CheckDomainAvailabilityRequestSchema: GenMessage<CheckDomainAvailabilityRequest, {jsonType: CheckDomainAvailabilityRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 12);
+  messageDesc(file_domain_v1_domain, 13);
 
 /**
  * @generated from message loco.domain.v1.CheckDomainAvailabilityResponse
@@ -512,7 +581,7 @@ export type CheckDomainAvailabilityResponseJson = {
  * Use `create(CheckDomainAvailabilityResponseSchema)` to create a new message.
  */
 export const CheckDomainAvailabilityResponseSchema: GenMessage<CheckDomainAvailabilityResponse, {jsonType: CheckDomainAvailabilityResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 13);
+  messageDesc(file_domain_v1_domain, 14);
 
 /**
  * @generated from message loco.domain.v1.LocoOwnedDomain
@@ -579,7 +648,7 @@ export type LocoOwnedDomainJson = {
  * Use `create(LocoOwnedDomainSchema)` to create a new message.
  */
 export const LocoOwnedDomainSchema: GenMessage<LocoOwnedDomain, {jsonType: LocoOwnedDomainJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 14);
+  messageDesc(file_domain_v1_domain, 15);
 
 /**
  * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsRequest
@@ -598,7 +667,7 @@ export type ListAllLocoOwnedDomainsRequestJson = {
  * Use `create(ListAllLocoOwnedDomainsRequestSchema)` to create a new message.
  */
 export const ListAllLocoOwnedDomainsRequestSchema: GenMessage<ListAllLocoOwnedDomainsRequest, {jsonType: ListAllLocoOwnedDomainsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 15);
+  messageDesc(file_domain_v1_domain, 16);
 
 /**
  * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsResponse
@@ -625,7 +694,7 @@ export type ListAllLocoOwnedDomainsResponseJson = {
  * Use `create(ListAllLocoOwnedDomainsResponseSchema)` to create a new message.
  */
 export const ListAllLocoOwnedDomainsResponseSchema: GenMessage<ListAllLocoOwnedDomainsResponse, {jsonType: ListAllLocoOwnedDomainsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 16);
+  messageDesc(file_domain_v1_domain, 17);
 
 /**
  * @generated from message loco.domain.v1.AddAppDomainRequest
@@ -637,19 +706,9 @@ export type AddAppDomainRequest = Message<"loco.domain.v1.AddAppDomainRequest"> 
   appId: bigint;
 
   /**
-   * @generated from field: string domain = 2;
+   * @generated from field: loco.domain.v1.DomainInput domain = 2;
    */
-  domain: string;
-
-  /**
-   * @generated from field: loco.domain.v1.DomainType domain_source = 3;
-   */
-  domainSource: DomainType;
-
-  /**
-   * @generated from field: optional int64 platform_domain_id = 4;
-   */
-  platformDomainId?: bigint;
+  domain?: DomainInput;
 };
 
 /**
@@ -662,19 +721,9 @@ export type AddAppDomainRequestJson = {
   appId?: string;
 
   /**
-   * @generated from field: string domain = 2;
+   * @generated from field: loco.domain.v1.DomainInput domain = 2;
    */
-  domain?: string;
-
-  /**
-   * @generated from field: loco.domain.v1.DomainType domain_source = 3;
-   */
-  domainSource?: DomainTypeJson;
-
-  /**
-   * @generated from field: optional int64 platform_domain_id = 4;
-   */
-  platformDomainId?: string;
+  domain?: DomainInputJson;
 };
 
 /**
@@ -682,7 +731,7 @@ export type AddAppDomainRequestJson = {
  * Use `create(AddAppDomainRequestSchema)` to create a new message.
  */
 export const AddAppDomainRequestSchema: GenMessage<AddAppDomainRequest, {jsonType: AddAppDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 17);
+  messageDesc(file_domain_v1_domain, 18);
 
 /**
  * @generated from message loco.domain.v1.AddAppDomainResponse
@@ -719,7 +768,7 @@ export type AddAppDomainResponseJson = {
  * Use `create(AddAppDomainResponseSchema)` to create a new message.
  */
 export const AddAppDomainResponseSchema: GenMessage<AddAppDomainResponse, {jsonType: AddAppDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 18);
+  messageDesc(file_domain_v1_domain, 19);
 
 /**
  * @generated from message loco.domain.v1.UpdateAppDomainRequest
@@ -756,7 +805,7 @@ export type UpdateAppDomainRequestJson = {
  * Use `create(UpdateAppDomainRequestSchema)` to create a new message.
  */
 export const UpdateAppDomainRequestSchema: GenMessage<UpdateAppDomainRequest, {jsonType: UpdateAppDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 19);
+  messageDesc(file_domain_v1_domain, 20);
 
 /**
  * @generated from message loco.domain.v1.UpdateAppDomainResponse
@@ -793,7 +842,7 @@ export type UpdateAppDomainResponseJson = {
  * Use `create(UpdateAppDomainResponseSchema)` to create a new message.
  */
 export const UpdateAppDomainResponseSchema: GenMessage<UpdateAppDomainResponse, {jsonType: UpdateAppDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 20);
+  messageDesc(file_domain_v1_domain, 21);
 
 /**
  * @generated from message loco.domain.v1.SetPrimaryAppDomainRequest
@@ -830,7 +879,7 @@ export type SetPrimaryAppDomainRequestJson = {
  * Use `create(SetPrimaryAppDomainRequestSchema)` to create a new message.
  */
 export const SetPrimaryAppDomainRequestSchema: GenMessage<SetPrimaryAppDomainRequest, {jsonType: SetPrimaryAppDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 21);
+  messageDesc(file_domain_v1_domain, 22);
 
 /**
  * @generated from message loco.domain.v1.SetPrimaryAppDomainResponse
@@ -867,7 +916,7 @@ export type SetPrimaryAppDomainResponseJson = {
  * Use `create(SetPrimaryAppDomainResponseSchema)` to create a new message.
  */
 export const SetPrimaryAppDomainResponseSchema: GenMessage<SetPrimaryAppDomainResponse, {jsonType: SetPrimaryAppDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 22);
+  messageDesc(file_domain_v1_domain, 23);
 
 /**
  * @generated from message loco.domain.v1.RemoveAppDomainRequest
@@ -894,7 +943,7 @@ export type RemoveAppDomainRequestJson = {
  * Use `create(RemoveAppDomainRequestSchema)` to create a new message.
  */
 export const RemoveAppDomainRequestSchema: GenMessage<RemoveAppDomainRequest, {jsonType: RemoveAppDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 23);
+  messageDesc(file_domain_v1_domain, 24);
 
 /**
  * @generated from message loco.domain.v1.RemoveAppDomainResponse
@@ -921,7 +970,7 @@ export type RemoveAppDomainResponseJson = {
  * Use `create(RemoveAppDomainResponseSchema)` to create a new message.
  */
 export const RemoveAppDomainResponseSchema: GenMessage<RemoveAppDomainResponse, {jsonType: RemoveAppDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 24);
+  messageDesc(file_domain_v1_domain, 25);
 
 /**
  * @generated from enum loco.domain.v1.DomainType

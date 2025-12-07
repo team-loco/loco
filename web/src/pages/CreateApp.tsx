@@ -146,7 +146,6 @@ export function CreateApp() {
 			const platformDomain = platformDomains.find(
 				(d) => d.domain === selectedPlatformDomain
 			);
-			const fullDomain = `${subdomain}.${selectedPlatformDomain}`;
 
 			const res = await createAppMutation.mutateAsync({
 				name: appName,
@@ -154,8 +153,8 @@ export function CreateApp() {
 					typeof workspaceId === "string" ? BigInt(workspaceId) : workspaceId,
 				type: AppType[appType as keyof typeof AppType],
 				domain: {
-					domain: fullDomain,
 					domainSource: DomainType.PLATFORM_PROVIDED,
+					subdomain: subdomain,
 					platformDomainId: platformDomain?.id || BigInt(0),
 				},
 			});
