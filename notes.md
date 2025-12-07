@@ -1,9 +1,3 @@
-- Make loco multi-tenant, multi-app setup thats backed by a database.
-
-  - currently everything is stored in k8s; this needs to be moved to a Postgres or similar.
-  - db will source of truth, instead of checking whats deployed on the cluster every single time.
-  - will reduce load on etcd and the kube api-server, which is not designed for repititive abuse from APIs
-
 - Make loco work multi-cluster
 
   - currently loco-api gets deployed into a cluster and manipulates kubernetes thru there
@@ -14,6 +8,7 @@
 
 - should certficates be created and managed in the region they are deployed?
 - this should technically also be a 1-time process as well; how do we manage that.
+- potential fix for this is to maybe have a designated cluster/ perhaps per region that manages stuff like this. aka the 'leader'
 
 - Metrics/Logging/Tracing
 
@@ -24,9 +19,7 @@
   - accuracy of dashboards is not clear.
   - need to create a separate admin dashboard, or use something out of the box?
   - metrics need multi-tenant support.
-
-    - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
-
+  - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
   - can potentially create dashboards dynamically, or atleast pull the data down.
   - deploy a self-hosted instance on monitoring.loco.deploy-app.com
   - tracing will be a to-do
@@ -52,7 +45,7 @@
 
 - Health Checks
 
-  - support non http health checks?
+  - should eventually support non-http health checks.
 
 - GRPC Support
 
