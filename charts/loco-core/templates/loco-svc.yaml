@@ -19,10 +19,6 @@ spec:
         metadata:
             labels:
                 app: loco-api
-            # todo: cleanup
-            # annotations:
-            #     instrumentation.opentelemetry.io/inject-go: "openobserve-collector/openobserve-go"
-            #     instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/loco-api"
         spec:
             shareProcessNamespace: true
             serviceAccountName: loco-api

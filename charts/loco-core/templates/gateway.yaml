@@ -13,7 +13,6 @@ metadata:
 spec:
     infrastructure:
         annotations:
-            # necessary for network load balancer on DO
             service.beta.kubernetes.io/do-loadbalancer-type: "REGIONAL_NETWORK"
         parametersRef:
             group: gateway.envoyproxy.io

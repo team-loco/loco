@@ -52,5 +52,9 @@ design/
 # LLM Stuff
 AGENTS.md
 
+# local helm charts and values
+**/values/local.yaml
+charts/loco-*/charts/
 
-charts/loco/charts/
+# full helm chart references.
+references/

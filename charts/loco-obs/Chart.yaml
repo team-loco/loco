@@ -1,27 +1,14 @@
 apiVersion: v2
-name: loco
-description: Helm chart for deploying Loco
+name: loco-obs
+description: Helm chart for deploying Loco observability stack
 type: application
 
 version: 0.0.0
 appVersion: "latest"
 
-
 dependencies:
-  - name: cilium
-    version: 1.18.4
-    repository: https://helm.cilium.io/
-    condition: cilium.enabled
-  - name: cert-manager
-    version: 1.19.1
-    repository: https://charts.jetstack.io
-    condition: cert-manager.enabled
-  - name: gateway-helm
-    version: 1.6.1
-    repository: oci://docker.io/envoyproxy
-    condition: gateway-helm.enabled
   - name: clickhouse
-    version: 0.3.6
+    version: 0.3.4
     repository: https://helm.altinity.com
     condition: clickhouse.enabled
   - name: opentelemetry-operator
@@ -43,7 +30,6 @@ dependencies:
     version: 10.3.0
     condition: grafana.enabled
 
-
 maintainers:
   - name: Nikhil
 
@@ -53,3 +39,4 @@ sources:
 keywords:
   - loco
   - kubernetes
+  - observability

@@ -1,0 +1,73 @@
+---
+environments:
+  local:
+    values:
+      - environment: local
+
+---
+helmDefaults:
+  wait: false
+  timeout: 600
+  cleanupOnFail: true
+
+repositories:
+  - name: jetstack
+    url: https://charts.jetstack.io
+  - name: cilium
+    url: https://helm.cilium.io
+  - name: altinity
+    url: https://helm.altinity.com
+  - name: grafana
+    url: https://grafana.github.io/helm-charts
+  - name: open-telemetry
+    url: https://open-telemetry.github.io/opentelemetry-helm-charts
+
+releases:
+  # phase 1: networking
+  - name: loco-networking
+    chart: ./charts/loco-networking
+    namespace: kube-system
+    createNamespace: true
+    labels:
+      phase: "1-networking"
+    values:
+      - ./charts/loco-networking/values.yaml
+
+  # phase 2: core
+  - name: cert-manager
+    chart: jetstack/cert-manager
+    version: v1.19.1
+    namespace: cert-manager
+    createNamespace: true
+    needs:
+      - kube-system/loco-networking
+    labels:
+      phase: "2-core"
+    set:
+      - name: crds.enabled
+        value: true
+
+  - name: loco-core
+    chart: ./charts/loco-core
+    namespace: loco-system
+    createNamespace: true
+    needs:
+      - cert-manager/cert-manager
+    labels:
+      phase: "2-core"
+      component: "app"
+    values:
+      - ./charts/loco-core/values.yaml
+      - ./charts/loco-core/values/{{ .Environment.Values.environment }}.yaml
+
+  # phase 3: observability
+  - name: loco-obs
+    chart: ./charts/loco-obs
+    namespace: observability
+    createNamespace: true
+    needs:
+      - loco-system/loco-core
+    labels:
+      phase: "3-observability"
+    values:
+      - ./charts/loco-obs/values.yaml
