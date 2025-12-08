@@ -11,7 +11,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/loco-team/loco/shared v0.0.0-20251123182415-9216adda056e
-	golang.org/x/oauth2 v0.33.0
+	golang.org/x/oauth2 v0.34.0
 	k8s.io/api v0.34.2
 	// cannot upgrade: https://github.com/kubernetes-sigs/gateway-api/issues/4055
 	k8s.io/apimachinery v0.34.2
