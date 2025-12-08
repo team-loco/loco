@@ -34,6 +34,6 @@ gateway-helm:
           sinks:
             - type: OpenTelemetry
               openTelemetry:
-                host: clickhouse-otel-deploy-opentelemetry-collector.observability.svc.cluster.local
+                host: otel-col-deploy.observability.svc.cluster.local
                 port: 4317
                 protocol: grpc
