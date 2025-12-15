@@ -65,6 +65,7 @@ message App {
   google.protobuf.Timestamp created_at = 12;
   google.protobuf.Timestamp updated_at = 13;
   AppStatus status = 14;
+  optional google.protobuf.Struct spec = 15;
 }
 
 // --- CRUD ---
@@ -74,6 +75,7 @@ message CreateAppRequest {
   string name = 3;
   AppType type = 4;
   loco.domain.v1.DomainInput domain = 5;
+  optional google.protobuf.Struct spec = 6;
 }
 
 message CreateAppResponse {

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.deployment.v1;
 
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/deployment/v1;deploymentv1";
@@ -32,6 +33,32 @@ message ResourceSpec {
   optional string memory = 2;
 }
 
+message HealthCheckConfig {
+  optional string path = 1;
+  optional int32 interval = 2;
+  optional int32 timeout = 3;
+  optional int32 fail_threshold = 4;
+  optional int32 startup_grace_period = 5;
+}
+
+message DeploymentMetricsConfig {
+  optional bool enabled = 1;
+  optional string path = 2;
+  optional int32 port = 3;
+}
+
+message DeploymentSpec {
+  optional string image = 1;
+  optional string dockerfile_path = 2;
+  optional string build_type = 3;
+  optional string cpu = 4;
+  optional string memory = 5;
+  optional int32 initial_replicas = 6;
+  optional HealthCheckConfig health_check = 7;
+  map<string, string> env = 8;
+  optional DeploymentMetricsConfig metrics = 9;
+}
+
 message Deployment {
    int64 id = 1;
    int64 app_id = 2;
@@ -47,16 +74,12 @@ message Deployment {
    optional google.protobuf.Timestamp completed_at = 15;
    google.protobuf.Timestamp updated_at = 16;
    int32 schema_version = 17;
-   optional string config = 18;
+   optional google.protobuf.Struct spec = 18;
 }
 
 message CreateDeploymentRequest {
   int64 app_id = 1;
-  string image = 3;
-  optional int32 replicas = 4;
-  map<string, string> env = 6;
-  repeated Port ports = 7;
-  optional ResourceSpec resources = 8;
+  DeploymentSpec spec = 2;
 }
 
 message CreateDeploymentResponse {

@@ -60,18 +60,18 @@ const (
 	DefaultTimeFormat = "2006-01-02T15:04:05-0700"
 )
 
-// UnmarshalConfig unmarshals AppRevision.Config JSON into AppConfig
-func UnmarshalConfig(configBytes []byte) (*config.AppConfig, error) {
+// UnmarshalConfig unmarshals AppRevision.Spec JSON into AppConfig
+func UnmarshalConfig(specBytes []byte) (*config.AppConfig, error) {
 	var cfg config.AppConfig
-	if err := json.Unmarshal(configBytes, &cfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal app config: %w", err)
+	if err := json.Unmarshal(specBytes, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal app spec: %w", err)
 	}
 	return &cfg, nil
 }
 
 // NewLocoDeploymentContext creates a context from DB models
 func NewLocoDeploymentContext(app *genDb.App, deployment *genDb.Deployment) (*LocoDeploymentContext, error) {
-	cfg, err := UnmarshalConfig(deployment.Config)
+	cfg, err := UnmarshalConfig(deployment.Spec)
 	if err != nil {
 		return nil, err
 	}

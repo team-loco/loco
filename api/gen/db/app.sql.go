@@ -13,9 +13,9 @@ import (
 
 const createApp = `-- name: CreateApp :one
 
-INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, status, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at
+INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, status, spec, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, workspace_id, cluster_id, name, namespace, type, status, spec, created_by, created_at, updated_at
 `
 
 type CreateAppParams struct {
@@ -25,6 +25,7 @@ type CreateAppParams struct {
 	Namespace   string        `json:"namespace"`
 	Type        int32         `json:"type"`
 	Status      NullAppStatus `json:"status"`
+	Spec        []byte        `json:"spec"`
 	CreatedBy   int64         `json:"createdBy"`
 }
 
@@ -37,6 +38,7 @@ func (q *Queries) CreateApp(ctx context.Context, arg CreateAppParams) (App, erro
 		arg.Namespace,
 		arg.Type,
 		arg.Status,
+		arg.Spec,
 		arg.CreatedBy,
 	)
 	var i App
@@ -48,6 +50,7 @@ func (q *Queries) CreateApp(ctx context.Context, arg CreateAppParams) (App, erro
 		&i.Namespace,
 		&i.Type,
 		&i.Status,
+		&i.Spec,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -65,7 +68,7 @@ func (q *Queries) DeleteApp(ctx context.Context, id int64) error {
 }
 
 const getAppByID = `-- name: GetAppByID :one
-SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.spec, a.created_by, a.created_at, a.updated_at
 FROM apps a
 WHERE a.id = $1
 `
@@ -81,6 +84,7 @@ func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
 		&i.Namespace,
 		&i.Type,
 		&i.Status,
+		&i.Spec,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -89,7 +93,7 @@ func (q *Queries) GetAppByID(ctx context.Context, id int64) (App, error) {
 }
 
 const getAppByNameAndWorkspace = `-- name: GetAppByNameAndWorkspace :one
-SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.spec, a.created_by, a.created_at, a.updated_at
 FROM apps a
 WHERE a.workspace_id = $1 AND a.name = $2
 `
@@ -110,11 +114,23 @@ func (q *Queries) GetAppByNameAndWorkspace(ctx context.Context, arg GetAppByName
 		&i.Namespace,
 		&i.Type,
 		&i.Status,
+		&i.Spec,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getAppSpec = `-- name: GetAppSpec :one
+SELECT spec FROM apps WHERE id = $1
+`
+
+func (q *Queries) GetAppSpec(ctx context.Context, id int64) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getAppSpec, id)
+	var spec []byte
+	err := row.Scan(&spec)
+	return spec, err
 }
 
 const getAppWorkspaceID = `-- name: GetAppWorkspaceID :one
@@ -176,7 +192,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 }
 
 const listAppsForWorkspace = `-- name: ListAppsForWorkspace :many
-SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.spec, a.created_by, a.created_at, a.updated_at
 FROM apps a
 WHERE a.workspace_id = $1
 ORDER BY a.created_at DESC
@@ -199,6 +215,7 @@ func (q *Queries) ListAppsForWorkspace(ctx context.Context, workspaceID int64) (
 			&i.Namespace,
 			&i.Type,
 			&i.Status,
+			&i.Spec,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -218,7 +235,7 @@ UPDATE apps
 SET name = COALESCE($2, name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at
+RETURNING id, workspace_id, cluster_id, name, namespace, type, status, spec, created_by, created_at, updated_at
 `
 
 type UpdateAppParams struct {
@@ -237,9 +254,24 @@ func (q *Queries) UpdateApp(ctx context.Context, arg UpdateAppParams) (App, erro
 		&i.Namespace,
 		&i.Type,
 		&i.Status,
+		&i.Spec,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const updateAppSpec = `-- name: UpdateAppSpec :exec
+UPDATE apps SET spec = $2, updated_at = NOW() WHERE id = $1
+`
+
+type UpdateAppSpecParams struct {
+	ID   int64  `json:"id"`
+	Spec []byte `json:"spec"`
+}
+
+func (q *Queries) UpdateAppSpec(ctx context.Context, arg UpdateAppSpecParams) error {
+	_, err := q.db.Exec(ctx, updateAppSpec, arg.ID, arg.Spec)
+	return err
 }

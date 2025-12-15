@@ -24,9 +24,9 @@ func (q *Queries) CountDeploymentsForApp(ctx context.Context, appID int64) (int6
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (app_id, cluster_id, image, replicas, status, is_current, message, created_by, config, schema_version)
+INSERT INTO deployments (app_id, cluster_id, image, replicas, status, is_current, message, created_by, spec, schema_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, config, schema_version, created_by, created_at, started_at, completed_at, updated_at
+RETURNING id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, schema_version, created_by, created_at, started_at, completed_at, updated_at
 `
 
 type CreateDeploymentParams struct {
@@ -38,7 +38,7 @@ type CreateDeploymentParams struct {
 	IsCurrent     bool             `json:"isCurrent"`
 	Message       pgtype.Text      `json:"message"`
 	CreatedBy     int64            `json:"createdBy"`
-	Config        []byte           `json:"config"`
+	Spec          []byte           `json:"spec"`
 	SchemaVersion pgtype.Int4      `json:"schemaVersion"`
 }
 
@@ -53,7 +53,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.IsCurrent,
 		arg.Message,
 		arg.CreatedBy,
-		arg.Config,
+		arg.Spec,
 		arg.SchemaVersion,
 	)
 	var i Deployment
@@ -67,7 +67,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		&i.IsCurrent,
 		&i.ErrorMessage,
 		&i.Message,
-		&i.Config,
+		&i.Spec,
 		&i.SchemaVersion,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -90,7 +90,7 @@ func (q *Queries) GetDeploymentAppID(ctx context.Context, id int64) (int64, erro
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, config, schema_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, schema_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, error) {
@@ -106,7 +106,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 		&i.IsCurrent,
 		&i.ErrorMessage,
 		&i.Message,
-		&i.Config,
+		&i.Spec,
 		&i.SchemaVersion,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -118,7 +118,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 }
 
 const listDeploymentsForApp = `-- name: ListDeploymentsForApp :many
-SELECT id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, config, schema_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, schema_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE app_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -149,7 +149,7 @@ func (q *Queries) ListDeploymentsForApp(ctx context.Context, arg ListDeployments
 			&i.IsCurrent,
 			&i.ErrorMessage,
 			&i.Message,
-			&i.Config,
+			&i.Spec,
 			&i.SchemaVersion,
 			&i.CreatedBy,
 			&i.CreatedAt,

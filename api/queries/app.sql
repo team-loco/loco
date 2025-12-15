@@ -1,22 +1,22 @@
 -- App queries
 
 -- name: CreateApp :one
-INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, status, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at;
+INSERT INTO apps (workspace_id, cluster_id, name, namespace, type, status, spec, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, workspace_id, cluster_id, name, namespace, type, status, spec, created_by, created_at, updated_at;
 
 -- name: GetAppByID :one
-SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.spec, a.created_by, a.created_at, a.updated_at
 FROM apps a
 WHERE a.id = $1;
 
 -- name: GetAppByNameAndWorkspace :one
-SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.spec, a.created_by, a.created_at, a.updated_at
 FROM apps a
 WHERE a.workspace_id = $1 AND a.name = $2;
 
 -- name: ListAppsForWorkspace :many
-SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.created_by, a.created_at, a.updated_at
+SELECT a.id, a.workspace_id, a.cluster_id, a.name, a.namespace, a.type, a.status, a.spec, a.created_by, a.created_at, a.updated_at
 FROM apps a
 WHERE a.workspace_id = $1
 ORDER BY a.created_at DESC;
@@ -26,7 +26,7 @@ UPDATE apps
 SET name = COALESCE(sqlc.narg('name'), name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, cluster_id, name, namespace, type, status, created_by, created_at, updated_at;
+RETURNING id, workspace_id, cluster_id, name, namespace, type, status, spec, created_by, created_at, updated_at;
 
 -- name: DeleteApp :exec
 DELETE FROM apps WHERE id = $1;

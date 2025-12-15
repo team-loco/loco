@@ -4,6 +4,8 @@ Phase I
 
 [ ] Add network policies restricting cross-workspace traffic / intro in-cluster communication.
 
+[ ] Add network policies restricting cross-workspace traffic / intro in-cluster communication.
+
 [ ] OpenTelemetry Optimization
 
 [ ] Create metric processor to drop unnecessary/high-cardinality metrics.
@@ -21,6 +23,7 @@ Phase I
 [ ] Inject important env variables into the app.
 
 [ ] Add support for non-interactive deploy.
+    Dependant on tvm
 
 [ ] Cleanup partial resources on failure.
 
@@ -30,7 +33,7 @@ Phase I
 
 [ ] Reduce GitHub OAuth token longevity.
 
-[ ] Actual unit tests in critical parts of the application.
+[ ] Actual unit tests in critical parts of the codebase.
 
 [ ] Initial load testing / benchmarking.
 
@@ -50,7 +53,9 @@ Phase I
 
 [ ] Build logs microservice.
 
-[ ] Package loco as a Helm chart.
+[✅] Package loco as a Helm chart.
+    - initial implementation done.
+    - need something to manage crd lifecycle.
 
 [ ] Deploy app entirely without loco.toml.
 

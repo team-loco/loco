@@ -1,120 +1,102 @@
 name: Deploy and Update Infra
 
 on:
-    push:
-        branches:
-            - main
+  push:
+    branches:
+      - main
 
 env:
-    TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
-    DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_PAT }}
-    REGISTRY: ghcr.io
-    IMAGE_NAME: ${{ github.repository }}
+  TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+  DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_PAT }}
+
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-    infra:
-        name: Provision Infrastructure
-        runs-on: ubuntu-latest
-        permissions:
-            id-token: write
-            contents: read
+  infra:
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-            - name: Terraform Init
-              run: cd terraform && terraform init
+      - name: Terraform Init
+        run: cd terraform && terraform init
 
-            - name: Terraform Plan
-              run: cd terraform && terraform plan -out=tfplan
+      - name: Terraform Plan
+        run: cd terraform && terraform plan -out=tfplan
 
-            - name: Terraform Apply
-              run: cd terraform && terraform apply -auto-approve "tfplan"
+      - name: Terraform Apply
+        run: cd terraform && terraform apply -auto-approve "tfplan"
 
-    build-and-push:
-        name: GCR Build and Push Image
-        uses: ./.github/workflows/build-push.yml
-        permissions:
-            contents: read
-            packages: write
+  build-and-push:
+    name: Build and Push Image
+    uses: ./.github/workflows/build-push.yml
+    permissions:
+      contents: read
+      packages: write
 
-    deploy:
-        name: Deploy Manifests to Cluster
-        runs-on: ubuntu-latest
-        needs: [infra, build-and-push]
-        environment: production
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+  deploy:
+    name: Deploy Helm Charts
+    runs-on: ubuntu-latest
+    needs:
+      - infra
+      - build-and-push
+    environment: production
 
-            - name: Install doctl
-              uses: digitalocean/action-doctl@v2
-              with:
-                  token: ${{ secrets.DIGITALOCEAN_PAT }}
+    env:
+      # ---- secrets consumed by helmfile via requiredEnv ----
+      CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
 
-            - name: Get kubeconfig
-              run: doctl kubernetes cluster kubeconfig save loco-cluster
+      GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+      GITLAB_PROJECT_ID: ${{ secrets.GITLAB_PROJECT_ID }}
+      GITLAB_TOKEN_NAME: ${{ secrets.GITLAB_TOKEN_NAME }}
+      GITLAB_URL: ${{ secrets.GITLAB_URL }}
+      GITLAB_REGISTRY_URL: ${{ secrets.GITLAB_REGISTRY_URL }}
+      GITLAB_DEPLOY_TOKEN_NAME: ${{ secrets.GITLAB_DEPLOY_TOKEN_NAME }}
 
-            - name: Verify cluster access
-              run: kubectl get nodes
+      GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+      GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+      GH_OAUTH_REDIRECT_URL: ${{ secrets.GH_OAUTH_REDIRECT_URL }}
+      GH_OAUTH_STATE: ${{ secrets.GH_OAUTH_STATE }}
 
-            - name: Wait for nodes to be ready
-              run: kubectl wait --for=condition=Ready node --all --timeout=180s
+      APP_ENV: ${{ secrets.APP_ENV }}
+      LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+      PORT: ${{ secrets.PORT }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
-            - name: Install helm
-              uses: azure/setup-helm@v4.3.0
-              id: install
+      REGISTRY_TAG: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
 
-            # can comment back in if needed, but no reason to re-apply CRDs
-            # - name: Apply app manifests
-            #   run: |
-            #       kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.3.0/standard-install.yaml || true
-            #       kubectl apply -f ./kube/crds/cert_manager_install.yaml || true
-            #       kubectl apply -f ./kube/crds/envoy_install.yaml || true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            # can comment back if needed, but no reason to re-apply one time resources
-            # - name: Apply base resources
-            #   run: |
-                  # kubectl apply -f ./kube/loco/namespace.yml
-                  # kubectl apply -f ./kube/gateway/gateway.yml
-                  # kubectl apply -f ./kube/loco/routes.yml
-                  # kubectl apply -f ./kube/cert-manager/issuer.yml
-                  # kubectl apply -f ./kube/cert-manager/certificate.yml
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_PAT }}
 
-            # can comment back in if needed
-            # - name: Enable Observability
-            #   run: |
-            #       kubectl create namespace monitoring || true
+      - name: Get kubeconfig
+        run: doctl kubernetes cluster kubeconfig save loco-cluster
 
-            #       helm install eg-addons oci://docker.io/envoyproxy/gateway-addons-helm \
-            #         --version v1.4.1 \
-            #         -n monitoring \
-            #         --set tempo.enabled=false \
-            #         --set loki.enabled=false \
-            #         --set fluent-bit.enabled=false \
-            #         --set grafana.adminPassword="${{ secrets.GRAFANA_PASSWORD }}" || true
+      - name: Verify cluster access
+        run: kubectl get nodes
 
-            #       kubectl apply -f ./kube/monitoring/route.yml
+      - name: Wait for nodes to be ready
+        run: kubectl wait --for=condition=Ready node --all --timeout=180s
 
-            - name: Apply resources
-              run: |
-                  kubectl create secret generic env-config \
-                    --from-literal=GITLAB_PAT=${{ secrets.GITLAB_PAT }} \
-                    --from-literal=GITLAB_PROJECT_ID=${{ secrets.GITLAB_PROJECT_ID }} \
-                    --from-literal=GITLAB_TOKEN_NAME=${{ secrets.GITLAB_TOKEN_NAME }} \
-                    --from-literal=GH_OAUTH_CLIENT_ID=${{ secrets.GH_OAUTH_CLIENT_ID }} \
-                    --from-literal=GITLAB_URL=${{ secrets.GITLAB_URL }} \
-                    --from-literal=GITLAB_REGISTRY_URL=${{ secrets.GITLAB_REGISTRY_URL }} \
-                    --from-literal=GITLAB_DEPLOY_TOKEN_NAME=${{ secrets.GITLAB_DEPLOY_TOKEN_NAME }} \
-                    --from-literal=APP_ENV=${{ secrets.APP_ENV }} \
-                    --from-literal=LOG_LEVEL=${{ secrets.LOG_LEVEL }} \
-                    --from-literal=PORT=${{ secrets.PORT }} \
-                    -n loco-system \
-                    --dry-run=client -o yaml | kubectl apply -f - || true
-                  kubectl apply -f ./kube/loco/rbac.yml
-                  kubectl apply -f ./kube/loco/service.yml
-                  kubectl set image -n loco-system deployment/loco-api loco-api=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+      - name: Setup Helm
+        uses: azure/setup-helm@v4.3.0
+
+      - name: Deploy with Helmfile
+        uses: helmfile/helmfile-action@v2.0.4
+        with:
+          helmfile-args: sync --environment prod

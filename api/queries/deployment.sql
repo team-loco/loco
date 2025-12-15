@@ -1,7 +1,7 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (app_id, cluster_id, image, replicas, status, is_current, message, created_by, config, schema_version)
+INSERT INTO deployments (app_id, cluster_id, image, replicas, status, is_current, message, created_by, spec, schema_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 

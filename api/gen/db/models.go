@@ -236,6 +236,7 @@ type App struct {
 	Namespace   string             `json:"namespace"`
 	Type        int32              `json:"type"`
 	Status      NullAppStatus      `json:"status"`
+	Spec        []byte             `json:"spec"`
 	CreatedBy   int64              `json:"createdBy"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
@@ -277,7 +278,7 @@ type Deployment struct {
 	IsCurrent     bool               `json:"isCurrent"`
 	ErrorMessage  pgtype.Text        `json:"errorMessage"`
 	Message       pgtype.Text        `json:"message"`
-	Config        []byte             `json:"config"`
+	Spec          []byte             `json:"spec"`
 	SchemaVersion pgtype.Int4        `json:"schemaVersion"`
 	CreatedBy     int64              `json:"createdBy"`
 	CreatedAt     pgtype.Timestamptz `json:"createdAt"`

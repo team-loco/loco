@@ -10,7 +10,7 @@ import (
 	v1 "github.com/loco-team/loco/shared/proto/domain/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/structpb"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -204,6 +204,7 @@ type App struct {
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	Status        AppStatus              `protobuf:"varint,14,opt,name=status,proto3,enum=loco.app.v1.AppStatus" json:"status,omitempty"`
+	Spec          *structpb.Struct       `protobuf:"bytes,15,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -308,12 +309,20 @@ func (x *App) GetStatus() AppStatus {
 	return AppStatus_AVAILABLE
 }
 
+func (x *App) GetSpec() *structpb.Struct {
+	if x != nil {
+		return x.Spec
+	}
+	return nil
+}
+
 type CreateAppRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Type          AppType                `protobuf:"varint,4,opt,name=type,proto3,enum=loco.app.v1.AppType" json:"type,omitempty"`
 	Domain        *v1.DomainInput        `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	Spec          *structpb.Struct       `protobuf:"bytes,6,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -372,6 +381,13 @@ func (x *CreateAppRequest) GetType() AppType {
 func (x *CreateAppRequest) GetDomain() *v1.DomainInput {
 	if x != nil {
 		return x.Domain
+	}
+	return nil
+}
+
+func (x *CreateAppRequest) GetSpec() *structpb.Struct {
+	if x != nil {
+		return x.Spec
 	}
 	return nil
 }
@@ -1616,7 +1632,7 @@ var File_app_v1_app_proto protoreflect.FileDescriptor
 
 const file_app_v1_app_proto_rawDesc = "" +
 	"\n" +
-	"\x10app/v1/app.proto\x12\vloco.app.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16domain/v1/domain.proto\"\x8e\x03\n" +
+	"\x10app/v1/app.proto\x12\vloco.app.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16domain/v1/domain.proto\"\xc9\x03\n" +
 	"\x03App\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\x03R\vworkspaceId\x12\x12\n" +
@@ -1630,12 +1646,16 @@ const file_app_v1_app_proto_rawDesc = "" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12.\n" +
-	"\x06status\x18\x0e \x01(\x0e2\x16.loco.app.v1.AppStatusR\x06status\"\xa8\x01\n" +
+	"\x06status\x18\x0e \x01(\x0e2\x16.loco.app.v1.AppStatusR\x06status\x120\n" +
+	"\x04spec\x18\x0f \x01(\v2\x17.google.protobuf.StructH\x00R\x04spec\x88\x01\x01B\a\n" +
+	"\x05_spec\"\xe3\x01\n" +
 	"\x10CreateAppRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12(\n" +
 	"\x04type\x18\x04 \x01(\x0e2\x14.loco.app.v1.AppTypeR\x04type\x123\n" +
-	"\x06domain\x18\x05 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\"Q\n" +
+	"\x06domain\x18\x05 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\x120\n" +
+	"\x04spec\x18\x06 \x01(\v2\x17.google.protobuf.StructH\x00R\x04spec\x88\x01\x01B\a\n" +
+	"\x05_spec\"Q\n" +
 	"\x11CreateAppResponse\x12\"\n" +
 	"\x03app\x18\x01 \x01(\v2\x10.loco.app.v1.AppR\x03app\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"&\n" +
@@ -1811,7 +1831,8 @@ var file_app_v1_app_proto_goTypes = []any{
 	nil,                           // 28: loco.app.v1.UpdateAppEnvRequest.EnvEntry
 	(*v1.AppDomain)(nil),          // 29: loco.domain.v1.AppDomain
 	(*timestamppb.Timestamp)(nil), // 30: google.protobuf.Timestamp
-	(*v1.DomainInput)(nil),        // 31: loco.domain.v1.DomainInput
+	(*structpb.Struct)(nil),       // 31: google.protobuf.Struct
+	(*v1.DomainInput)(nil),        // 32: loco.domain.v1.DomainInput
 }
 var file_app_v1_app_proto_depIdxs = []int32{
 	0,  // 0: loco.app.v1.App.type:type_name -> loco.app.v1.AppType
@@ -1819,50 +1840,52 @@ var file_app_v1_app_proto_depIdxs = []int32{
 	30, // 2: loco.app.v1.App.created_at:type_name -> google.protobuf.Timestamp
 	30, // 3: loco.app.v1.App.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: loco.app.v1.App.status:type_name -> loco.app.v1.AppStatus
-	0,  // 5: loco.app.v1.CreateAppRequest.type:type_name -> loco.app.v1.AppType
-	31, // 6: loco.app.v1.CreateAppRequest.domain:type_name -> loco.domain.v1.DomainInput
-	3,  // 7: loco.app.v1.CreateAppResponse.app:type_name -> loco.app.v1.App
-	3,  // 8: loco.app.v1.GetAppResponse.app:type_name -> loco.app.v1.App
-	3,  // 9: loco.app.v1.GetAppByNameResponse.app:type_name -> loco.app.v1.App
-	3,  // 10: loco.app.v1.ListAppsResponse.apps:type_name -> loco.app.v1.App
-	3,  // 11: loco.app.v1.UpdateAppResponse.app:type_name -> loco.app.v1.App
-	3,  // 12: loco.app.v1.DeleteAppResponse.app:type_name -> loco.app.v1.App
-	1,  // 13: loco.app.v1.DeploymentStatus.status:type_name -> loco.app.v1.DeploymentPhase
-	3,  // 14: loco.app.v1.GetAppStatusResponse.app:type_name -> loco.app.v1.App
-	17, // 15: loco.app.v1.GetAppStatusResponse.current_deployment:type_name -> loco.app.v1.DeploymentStatus
-	30, // 16: loco.app.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
-	30, // 17: loco.app.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	21, // 18: loco.app.v1.GetEventsResponse.events:type_name -> loco.app.v1.Event
-	17, // 19: loco.app.v1.ScaleAppResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
-	28, // 20: loco.app.v1.UpdateAppEnvRequest.env:type_name -> loco.app.v1.UpdateAppEnvRequest.EnvEntry
-	17, // 21: loco.app.v1.UpdateAppEnvResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
-	4,  // 22: loco.app.v1.AppService.CreateApp:input_type -> loco.app.v1.CreateAppRequest
-	6,  // 23: loco.app.v1.AppService.GetApp:input_type -> loco.app.v1.GetAppRequest
-	8,  // 24: loco.app.v1.AppService.GetAppByName:input_type -> loco.app.v1.GetAppByNameRequest
-	10, // 25: loco.app.v1.AppService.ListApps:input_type -> loco.app.v1.ListAppsRequest
-	12, // 26: loco.app.v1.AppService.UpdateApp:input_type -> loco.app.v1.UpdateAppRequest
-	14, // 27: loco.app.v1.AppService.DeleteApp:input_type -> loco.app.v1.DeleteAppRequest
-	16, // 28: loco.app.v1.AppService.GetAppStatus:input_type -> loco.app.v1.GetAppStatusRequest
-	19, // 29: loco.app.v1.AppService.StreamLogs:input_type -> loco.app.v1.StreamLogsRequest
-	22, // 30: loco.app.v1.AppService.GetEvents:input_type -> loco.app.v1.GetEventsRequest
-	24, // 31: loco.app.v1.AppService.ScaleApp:input_type -> loco.app.v1.ScaleAppRequest
-	26, // 32: loco.app.v1.AppService.UpdateAppEnv:input_type -> loco.app.v1.UpdateAppEnvRequest
-	5,  // 33: loco.app.v1.AppService.CreateApp:output_type -> loco.app.v1.CreateAppResponse
-	7,  // 34: loco.app.v1.AppService.GetApp:output_type -> loco.app.v1.GetAppResponse
-	9,  // 35: loco.app.v1.AppService.GetAppByName:output_type -> loco.app.v1.GetAppByNameResponse
-	11, // 36: loco.app.v1.AppService.ListApps:output_type -> loco.app.v1.ListAppsResponse
-	13, // 37: loco.app.v1.AppService.UpdateApp:output_type -> loco.app.v1.UpdateAppResponse
-	15, // 38: loco.app.v1.AppService.DeleteApp:output_type -> loco.app.v1.DeleteAppResponse
-	18, // 39: loco.app.v1.AppService.GetAppStatus:output_type -> loco.app.v1.GetAppStatusResponse
-	20, // 40: loco.app.v1.AppService.StreamLogs:output_type -> loco.app.v1.LogEntry
-	23, // 41: loco.app.v1.AppService.GetEvents:output_type -> loco.app.v1.GetEventsResponse
-	25, // 42: loco.app.v1.AppService.ScaleApp:output_type -> loco.app.v1.ScaleAppResponse
-	27, // 43: loco.app.v1.AppService.UpdateAppEnv:output_type -> loco.app.v1.UpdateAppEnvResponse
-	33, // [33:44] is the sub-list for method output_type
-	22, // [22:33] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	31, // 5: loco.app.v1.App.spec:type_name -> google.protobuf.Struct
+	0,  // 6: loco.app.v1.CreateAppRequest.type:type_name -> loco.app.v1.AppType
+	32, // 7: loco.app.v1.CreateAppRequest.domain:type_name -> loco.domain.v1.DomainInput
+	31, // 8: loco.app.v1.CreateAppRequest.spec:type_name -> google.protobuf.Struct
+	3,  // 9: loco.app.v1.CreateAppResponse.app:type_name -> loco.app.v1.App
+	3,  // 10: loco.app.v1.GetAppResponse.app:type_name -> loco.app.v1.App
+	3,  // 11: loco.app.v1.GetAppByNameResponse.app:type_name -> loco.app.v1.App
+	3,  // 12: loco.app.v1.ListAppsResponse.apps:type_name -> loco.app.v1.App
+	3,  // 13: loco.app.v1.UpdateAppResponse.app:type_name -> loco.app.v1.App
+	3,  // 14: loco.app.v1.DeleteAppResponse.app:type_name -> loco.app.v1.App
+	1,  // 15: loco.app.v1.DeploymentStatus.status:type_name -> loco.app.v1.DeploymentPhase
+	3,  // 16: loco.app.v1.GetAppStatusResponse.app:type_name -> loco.app.v1.App
+	17, // 17: loco.app.v1.GetAppStatusResponse.current_deployment:type_name -> loco.app.v1.DeploymentStatus
+	30, // 18: loco.app.v1.LogEntry.timestamp:type_name -> google.protobuf.Timestamp
+	30, // 19: loco.app.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	21, // 20: loco.app.v1.GetEventsResponse.events:type_name -> loco.app.v1.Event
+	17, // 21: loco.app.v1.ScaleAppResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
+	28, // 22: loco.app.v1.UpdateAppEnvRequest.env:type_name -> loco.app.v1.UpdateAppEnvRequest.EnvEntry
+	17, // 23: loco.app.v1.UpdateAppEnvResponse.deployment:type_name -> loco.app.v1.DeploymentStatus
+	4,  // 24: loco.app.v1.AppService.CreateApp:input_type -> loco.app.v1.CreateAppRequest
+	6,  // 25: loco.app.v1.AppService.GetApp:input_type -> loco.app.v1.GetAppRequest
+	8,  // 26: loco.app.v1.AppService.GetAppByName:input_type -> loco.app.v1.GetAppByNameRequest
+	10, // 27: loco.app.v1.AppService.ListApps:input_type -> loco.app.v1.ListAppsRequest
+	12, // 28: loco.app.v1.AppService.UpdateApp:input_type -> loco.app.v1.UpdateAppRequest
+	14, // 29: loco.app.v1.AppService.DeleteApp:input_type -> loco.app.v1.DeleteAppRequest
+	16, // 30: loco.app.v1.AppService.GetAppStatus:input_type -> loco.app.v1.GetAppStatusRequest
+	19, // 31: loco.app.v1.AppService.StreamLogs:input_type -> loco.app.v1.StreamLogsRequest
+	22, // 32: loco.app.v1.AppService.GetEvents:input_type -> loco.app.v1.GetEventsRequest
+	24, // 33: loco.app.v1.AppService.ScaleApp:input_type -> loco.app.v1.ScaleAppRequest
+	26, // 34: loco.app.v1.AppService.UpdateAppEnv:input_type -> loco.app.v1.UpdateAppEnvRequest
+	5,  // 35: loco.app.v1.AppService.CreateApp:output_type -> loco.app.v1.CreateAppResponse
+	7,  // 36: loco.app.v1.AppService.GetApp:output_type -> loco.app.v1.GetAppResponse
+	9,  // 37: loco.app.v1.AppService.GetAppByName:output_type -> loco.app.v1.GetAppByNameResponse
+	11, // 38: loco.app.v1.AppService.ListApps:output_type -> loco.app.v1.ListAppsResponse
+	13, // 39: loco.app.v1.AppService.UpdateApp:output_type -> loco.app.v1.UpdateAppResponse
+	15, // 40: loco.app.v1.AppService.DeleteApp:output_type -> loco.app.v1.DeleteAppResponse
+	18, // 41: loco.app.v1.AppService.GetAppStatus:output_type -> loco.app.v1.GetAppStatusResponse
+	20, // 42: loco.app.v1.AppService.StreamLogs:output_type -> loco.app.v1.LogEntry
+	23, // 43: loco.app.v1.AppService.GetEvents:output_type -> loco.app.v1.GetEventsResponse
+	25, // 44: loco.app.v1.AppService.ScaleApp:output_type -> loco.app.v1.ScaleAppResponse
+	27, // 45: loco.app.v1.AppService.UpdateAppEnv:output_type -> loco.app.v1.UpdateAppEnvResponse
+	35, // [35:46] is the sub-list for method output_type
+	24, // [24:35] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_app_v1_app_proto_init() }
@@ -1870,6 +1893,8 @@ func file_app_v1_app_proto_init() {
 	if File_app_v1_app_proto != nil {
 		return
 	}
+	file_app_v1_app_proto_msgTypes[0].OneofWrappers = []any{}
+	file_app_v1_app_proto_msgTypes[1].OneofWrappers = []any{}
 	file_app_v1_app_proto_msgTypes[9].OneofWrappers = []any{}
 	file_app_v1_app_proto_msgTypes[14].OneofWrappers = []any{}
 	file_app_v1_app_proto_msgTypes[16].OneofWrappers = []any{}

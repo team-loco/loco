@@ -391,3 +391,11 @@ Phase I ends Here
 - potentially setup umami for analytics on the frontend?
 - whereever we make these multi saves, we need to run as a transaction.
 - on the UI, if API returns a message, we need to read that.
+
+missing a proper deployment interface as in whats happening inside allocateResources. we need a simple way to start, execute, and watch these changes.
+
+potentially loco-api chats with loco-controller eventually.
+controller-runtime would be cool.
+
+next major todos:
+lets actually finish the allocate. so the api needs to take in config of map[string][any] and we use it upstream to build the app as is.
