@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package loco.app.v1;
 
+import "domain/v1/domain.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
-import "domain/v1/domain.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/app/v1;appv1";
 
@@ -33,27 +33,40 @@ enum AppStatus {
   IDLE = 4;
 }
 
+// AppService manages application lifecycle and operations.
 service AppService {
   // App CRUD
+  // CreateApp creates a new application.
   rpc CreateApp(CreateAppRequest) returns (CreateAppResponse);
+  // GetApp retrieves an application by ID.
   rpc GetApp(GetAppRequest) returns (GetAppResponse);
+  // GetAppByName retrieves an application by name within a workspace.
   rpc GetAppByName(GetAppByNameRequest) returns (GetAppByNameResponse);
+  // ListApps lists all applications in a workspace.
   rpc ListApps(ListAppsRequest) returns (ListAppsResponse);
+  // UpdateApp updates an application configuration.
   rpc UpdateApp(UpdateAppRequest) returns (UpdateAppResponse);
+  // DeleteApp deletes an application.
   rpc DeleteApp(DeleteAppRequest) returns (DeleteAppResponse);
+  // GetAppStatus retrieves the current status and deployment information of an application.
   rpc GetAppStatus(GetAppStatusRequest) returns (GetAppStatusResponse);
 
   // Logs
+  // StreamLogs streams application logs in real-time.
   rpc StreamLogs(StreamLogsRequest) returns (stream LogEntry);
 
   // Events
+  // GetEvents retrieves events for an application.
   rpc GetEvents(GetEventsRequest) returns (GetEventsResponse);
 
   // App Operations
+  // ScaleApp adjusts application replicas and resource allocation.
   rpc ScaleApp(ScaleAppRequest) returns (ScaleAppResponse);
+  // UpdateAppEnv updates environment variables for an application.
   rpc UpdateAppEnv(UpdateAppEnvRequest) returns (UpdateAppEnvResponse);
 }
 
+// App represents an application in a workspace.
 message App {
   int64 id = 1;
   int64 workspace_id = 2;
@@ -70,6 +83,7 @@ message App {
 
 // --- CRUD ---
 
+// CreateAppRequest is the request to create a new application.
 message CreateAppRequest {
   int64 workspace_id = 1;
   string name = 3;
@@ -78,36 +92,44 @@ message CreateAppRequest {
   optional google.protobuf.Struct spec = 6;
 }
 
+// CreateAppResponse is the response from creating an application.
 message CreateAppResponse {
   App app = 1;
   string message = 2;
 }
 
+// GetAppRequest is the request to retrieve an application.
 message GetAppRequest {
   int64 app_id = 1;
 }
 
+// GetAppResponse is the response containing application information.
 message GetAppResponse {
   App app = 1;
 }
 
+// GetAppByNameRequest is the request to retrieve an application by name.
 message GetAppByNameRequest {
   int64 workspace_id = 1;
   string name = 2;
 }
 
+// GetAppByNameResponse is the response containing the application.
 message GetAppByNameResponse {
   App app = 1;
 }
 
+// ListAppsRequest is the request to list applications.
 message ListAppsRequest {
   int64 workspace_id = 1;
 }
 
+// ListAppsResponse is the response containing the list of applications.
 message ListAppsResponse {
   repeated App apps = 1;
 }
 
+// UpdateAppRequest is the request to update an application.
 message UpdateAppRequest {
   int64 app_id = 1;
   optional string name = 2;
@@ -115,24 +137,29 @@ message UpdateAppRequest {
   optional string domain = 4;
 }
 
+// UpdateAppResponse is the response from updating an application.
 message UpdateAppResponse {
   App app = 1;
   string message = 2;
 }
 
+// DeleteAppRequest is the request to delete an application.
 message DeleteAppRequest {
   int64 app_id = 1;
 }
 
+// DeleteAppResponse is the response from deleting an application.
 message DeleteAppResponse {
   App app = 1;
   string message = 2;
 }
 
+// GetAppStatusRequest is the request to retrieve application status.
 message GetAppStatusRequest {
   int64 app_id = 1;
 }
 
+// DeploymentStatus represents the status of an application deployment.
 message DeploymentStatus {
   int64 id = 1;
   DeploymentPhase status = 2;
@@ -141,6 +168,7 @@ message DeploymentStatus {
   optional string error_message = 5;
 }
 
+// GetAppStatusResponse is the response containing application status information.
 message GetAppStatusResponse {
   App app = 1;
   DeploymentStatus current_deployment = 2;
@@ -148,12 +176,14 @@ message GetAppStatusResponse {
 
 // --- Logs ---
 
+// StreamLogsRequest is the request to stream application logs.
 message StreamLogsRequest {
   int64 app_id = 1;
   optional int32 limit = 2;
   optional bool follow = 3;
 }
 
+// LogEntry represents a single log line from an application.
 message LogEntry {
   string pod_name = 1;
   string namespace = 2;
@@ -165,6 +195,7 @@ message LogEntry {
 
 // --- Events ---
 
+// Event represents an event related to an application.
 message Event {
   google.protobuf.Timestamp timestamp = 1;
   string reason = 2;
@@ -173,17 +204,20 @@ message Event {
   string pod_name = 5;
 }
 
+// GetEventsRequest is the request to retrieve application events.
 message GetEventsRequest {
   int64 app_id = 1;
   optional int32 limit = 2;
 }
 
+// GetEventsResponse is the response containing application events.
 message GetEventsResponse {
   repeated Event events = 1;
 }
 
 // --- App Operations ---
 
+// ScaleAppRequest is the request to scale an application.
 message ScaleAppRequest {
   int64 app_id = 1;
   optional int32 replicas = 2;
@@ -191,15 +225,18 @@ message ScaleAppRequest {
   optional string memory = 4;
 }
 
+// ScaleAppResponse is the response from scaling an application.
 message ScaleAppResponse {
   DeploymentStatus deployment = 1;
 }
 
+// UpdateAppEnvRequest is the request to update application environment variables.
 message UpdateAppEnvRequest {
   int64 app_id = 1;
   map<string, string> env = 2;
 }
 
+// UpdateAppEnvResponse is the response from updating environment variables.
 message UpdateAppEnvResponse {
   DeploymentStatus deployment = 1;
 }

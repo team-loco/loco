@@ -4,12 +4,17 @@ package loco.registry.v1;
 
 option go_package = "github.com/loco-team/loco/shared/proto/registry/v1;registryv1";
 
+// GitlabTokenRequest is the request to get a GitLab token.
 message GitlabTokenRequest {}
+
+// GitlabTokenResponse contains GitLab credentials.
 message GitlabTokenResponse {
   string username = 1;
   string token = 2;
 }
 
+// RegistryService manages container registry access.
 service RegistryService {
+  // GitlabToken retrieves GitLab registry credentials.
   rpc GitlabToken(GitlabTokenRequest) returns (GitlabTokenResponse) {}
 }

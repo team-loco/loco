@@ -179,6 +179,61 @@ func (q *Queries) IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspac
 	return is_unique, err
 }
 
+const listWorkspaceMembersWithUserDetails = `-- name: ListWorkspaceMembersWithUserDetails :many
+SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
+       u.name, u.email, u.avatar_url
+FROM workspace_members wm
+JOIN users u ON wm.user_id = u.id
+WHERE wm.workspace_id = $1
+  AND ($3 IS NULL OR wm.user_id > $3)
+ORDER BY wm.user_id ASC
+LIMIT $2
+`
+
+type ListWorkspaceMembersWithUserDetailsParams struct {
+	WorkspaceID int64       `json:"workspaceId"`
+	Limit       int32       `json:"limit"`
+	AfterCursor interface{} `json:"afterCursor"`
+}
+
+type ListWorkspaceMembersWithUserDetailsRow struct {
+	WorkspaceID int64              `json:"workspaceId"`
+	UserID      int64              `json:"userId"`
+	Role        WorkspaceRole      `json:"role"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	Name        pgtype.Text        `json:"name"`
+	Email       string             `json:"email"`
+	AvatarUrl   pgtype.Text        `json:"avatarUrl"`
+}
+
+func (q *Queries) ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceMembersWithUserDetails, arg.WorkspaceID, arg.Limit, arg.AfterCursor)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkspaceMembersWithUserDetailsRow
+	for rows.Next() {
+		var i ListWorkspaceMembersWithUserDetailsRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.UserID,
+			&i.Role,
+			&i.CreatedAt,
+			&i.Name,
+			&i.Email,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkspacesForUser = `-- name: ListWorkspacesForUser :many
 SELECT DISTINCT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
 FROM workspaces w

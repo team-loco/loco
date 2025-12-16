@@ -46,7 +46,6 @@ type Querier interface {
 	GetAppByNameAndWorkspace(ctx context.Context, arg GetAppByNameAndWorkspaceParams) (App, error)
 	GetAppDomainByID(ctx context.Context, id int64) (AppDomain, error)
 	GetAppDomainCount(ctx context.Context, appID int64) (int64, error)
-	GetAppSpec(ctx context.Context, id int64) ([]byte, error)
 	GetAppWorkspaceID(ctx context.Context, id int64) (int64, error)
 	GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error)
 	GetDeploymentAppID(ctx context.Context, id int64) (int64, error)
@@ -91,6 +90,7 @@ type Querier interface {
 	ListUserWorkspaces(ctx context.Context, userID int64) ([]Workspace, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWorkspaceMembers(ctx context.Context, workspaceID int64) ([]ListWorkspaceMembersRow, error)
+	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspacesForOrg(ctx context.Context, orgID int64) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, userID int64) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, orgID int64) ([]Workspace, error)
@@ -103,7 +103,6 @@ type Querier interface {
 	UpdateApp(ctx context.Context, arg UpdateAppParams) (App, error)
 	UpdateAppDomain(ctx context.Context, arg UpdateAppDomainParams) (AppDomain, error)
 	UpdateAppDomainPrimary(ctx context.Context, appID int64) error
-	UpdateAppSpec(ctx context.Context, arg UpdateAppSpecParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)

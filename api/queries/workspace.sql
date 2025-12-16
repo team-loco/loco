@@ -61,6 +61,16 @@ SELECT workspace_id, user_id, role, created_at
 FROM workspace_members
 WHERE workspace_id = $1;
 
+-- name: ListWorkspaceMembersWithUserDetails :many
+SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
+       u.name, u.email, u.avatar_url
+FROM workspace_members wm
+JOIN users u ON wm.user_id = u.id
+WHERE wm.workspace_id = $1
+  AND (sqlc.narg('after_cursor') IS NULL OR wm.user_id > sqlc.narg('after_cursor'))
+ORDER BY wm.user_id ASC
+LIMIT $2;
+
 -- TODO: Uncomment when apps table exists
 -- -- name: CountAppsInWorkspace :one
 -- SELECT COUNT(*) FROM apps WHERE workspace_id = $1;

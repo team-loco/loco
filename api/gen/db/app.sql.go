@@ -122,17 +122,6 @@ func (q *Queries) GetAppByNameAndWorkspace(ctx context.Context, arg GetAppByName
 	return i, err
 }
 
-const getAppSpec = `-- name: GetAppSpec :one
-SELECT spec FROM apps WHERE id = $1
-`
-
-func (q *Queries) GetAppSpec(ctx context.Context, id int64) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getAppSpec, id)
-	var spec []byte
-	err := row.Scan(&spec)
-	return spec, err
-}
-
 const getAppWorkspaceID = `-- name: GetAppWorkspaceID :one
 SELECT workspace_id FROM apps WHERE id = $1
 `
@@ -260,18 +249,4 @@ func (q *Queries) UpdateApp(ctx context.Context, arg UpdateAppParams) (App, erro
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const updateAppSpec = `-- name: UpdateAppSpec :exec
-UPDATE apps SET spec = $2, updated_at = NOW() WHERE id = $1
-`
-
-type UpdateAppSpecParams struct {
-	ID   int64  `json:"id"`
-	Spec []byte `json:"spec"`
-}
-
-func (q *Queries) UpdateAppSpec(ctx context.Context, arg UpdateAppSpecParams) error {
-	_, err := q.db.Exec(ctx, updateAppSpec, arg.ID, arg.Spec)
-	return err
 }

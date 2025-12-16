@@ -13,6 +13,7 @@ enum DomainType {
 
 // --- Messages ---
 
+// PlatformDomain represents a platform-provided domain.
 message PlatformDomain {
   int64 id = 1;
   string domain = 2;
@@ -21,13 +22,15 @@ message PlatformDomain {
   google.protobuf.Timestamp updated_at = 5;
 }
 
+// DomainInput specifies domain configuration for an application.
 message DomainInput {
   DomainType domain_source = 1;
-  optional string subdomain = 2;         // for PLATFORM_PROVIDED: "myapp"
+  optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
   optional int64 platform_domain_id = 3; // for PLATFORM_PROVIDED: id of the platform domain
-  optional string domain = 4;            // for USER_PROVIDED: full custom domain
+  optional string domain = 4; // for USER_PROVIDED: full custom domain
 }
 
+// AppDomain represents a domain assigned to an application.
 message AppDomain {
   int64 id = 1;
   int64 app_id = 2;
@@ -42,80 +45,105 @@ message AppDomain {
 
 // --- Service ---
 
+// DomainService manages domains for applications.
 service DomainService {
   // Platform Domain CRUD
+  // CreatePlatformDomain creates a new platform-provided domain.
   rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (CreatePlatformDomainResponse);
+  // GetPlatformDomain retrieves a platform domain by ID.
   rpc GetPlatformDomain(GetPlatformDomainRequest) returns (GetPlatformDomainResponse);
+  // GetPlatformDomainByName retrieves a platform domain by name.
   rpc GetPlatformDomainByName(GetPlatformDomainByNameRequest) returns (GetPlatformDomainByNameResponse);
+  // ListActivePlatformDomains lists all active platform domains.
   rpc ListActivePlatformDomains(ListActivePlatformDomainsRequest) returns (ListActivePlatformDomainsResponse);
+  // DeactivatePlatformDomain deactivates a platform domain.
   rpc DeactivatePlatformDomain(DeactivatePlatformDomainRequest) returns (DeactivatePlatformDomainResponse);
 
   // App Domain Management
+  // AddAppDomain assigns a domain to an application.
   rpc AddAppDomain(AddAppDomainRequest) returns (AddAppDomainResponse);
+  // UpdateAppDomain updates an application's domain configuration.
   rpc UpdateAppDomain(UpdateAppDomainRequest) returns (UpdateAppDomainResponse);
+  // SetPrimaryAppDomain sets the primary domain for an application.
   rpc SetPrimaryAppDomain(SetPrimaryAppDomainRequest) returns (SetPrimaryAppDomainResponse);
+  // RemoveAppDomain removes a domain from an application.
   rpc RemoveAppDomain(RemoveAppDomainRequest) returns (RemoveAppDomainResponse);
 
   // Domain Availability
+  // CheckDomainAvailability checks if a domain is available.
   rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
 
   // Queries
+  // ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
   rpc ListAllLocoOwnedDomains(ListAllLocoOwnedDomainsRequest) returns (ListAllLocoOwnedDomainsResponse);
 }
 
 // --- Platform Domain Requests/Responses ---
 
+// CreatePlatformDomainRequest is the request to create a platform domain.
 message CreatePlatformDomainRequest {
   string domain = 1;
   bool is_active = 2;
 }
 
+// CreatePlatformDomainResponse is the response from creating a platform domain.
 message CreatePlatformDomainResponse {
   PlatformDomain platform_domain = 1;
 }
 
+// GetPlatformDomainRequest is the request to retrieve a platform domain.
 message GetPlatformDomainRequest {
   int64 id = 1;
 }
 
+// GetPlatformDomainResponse is the response containing platform domain information.
 message GetPlatformDomainResponse {
   PlatformDomain platform_domain = 1;
 }
 
+// GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
 message GetPlatformDomainByNameRequest {
   string domain = 1;
 }
 
+// GetPlatformDomainByNameResponse is the response containing the platform domain.
 message GetPlatformDomainByNameResponse {
   PlatformDomain platform_domain = 1;
 }
 
+// ListActivePlatformDomainsRequest is the request to list active platform domains.
 message ListActivePlatformDomainsRequest {}
 
+// ListActivePlatformDomainsResponse contains the list of active platform domains.
 message ListActivePlatformDomainsResponse {
   repeated PlatformDomain platform_domains = 1;
 }
 
+// DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
 message DeactivatePlatformDomainRequest {
   int64 id = 1;
 }
 
+// DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
 message DeactivatePlatformDomainResponse {
   PlatformDomain platform_domain = 1;
 }
 
 // --- Domain Availability ---
 
+// CheckDomainAvailabilityRequest is the request to check domain availability.
 message CheckDomainAvailabilityRequest {
   string domain = 1;
 }
 
+// CheckDomainAvailabilityResponse indicates if a domain is available.
 message CheckDomainAvailabilityResponse {
   bool is_available = 1;
 }
 
 // --- List Loco Owned Domains ---
 
+// LocoOwnedDomain represents a domain with an associated application.
 message LocoOwnedDomain {
   int64 id = 1;
   string domain = 2;
@@ -124,48 +152,58 @@ message LocoOwnedDomain {
   string platform_domain = 5;
 }
 
+// ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
 message ListAllLocoOwnedDomainsRequest {}
 
+// ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
 message ListAllLocoOwnedDomainsResponse {
   repeated LocoOwnedDomain domains = 1;
 }
 
 // --- App Domain Management ---
 
+// AddAppDomainRequest is the request to add a domain to an application.
 message AddAppDomainRequest {
   int64 app_id = 1;
   DomainInput domain = 2;
 }
 
+// AddAppDomainResponse is the response from adding a domain to an application.
 message AddAppDomainResponse {
   AppDomain domain = 1;
   string message = 2;
 }
 
+// UpdateAppDomainRequest is the request to update an application's domain.
 message UpdateAppDomainRequest {
   int64 domain_id = 1;
   string domain = 2;
 }
 
+// UpdateAppDomainResponse is the response from updating an application's domain.
 message UpdateAppDomainResponse {
   AppDomain domain = 1;
   string message = 2;
 }
 
+// SetPrimaryAppDomainRequest is the request to set the primary domain for an application.
 message SetPrimaryAppDomainRequest {
   int64 app_id = 1;
   int64 domain_id = 2;
 }
 
+// SetPrimaryAppDomainResponse is the response from setting the primary domain.
 message SetPrimaryAppDomainResponse {
   AppDomain domain = 1;
   string message = 2;
 }
 
+// RemoveAppDomainRequest is the request to remove a domain from an application.
 message RemoveAppDomainRequest {
   int64 domain_id = 1;
 }
 
+// RemoveAppDomainResponse is the response from removing a domain.
 message RemoveAppDomainResponse {
   string message = 1;
 }

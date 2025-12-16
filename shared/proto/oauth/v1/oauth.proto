@@ -4,17 +4,22 @@ package loco.oauth.v1;
 
 option go_package = "github.com/loco-team/loco/shared/proto/oauth/v1;oauthv1";
 
+// GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration.
 message GithubOAuthDetailsRequest {}
+
+// GithubOAuthDetailsResponse contains GitHub OAuth configuration details.
 message GithubOAuthDetailsResponse {
   string client_id = 1;
   double token_ttl = 2;
 }
 
+// ExchangeGithubTokenRequest is the request to exchange a GitHub token for a Loco token.
 message ExchangeGithubTokenRequest {
   string github_access_token = 1;
   bool create_user_if_not_exists = 2;
 }
 
+// ExchangeGithubTokenResponse contains the Loco token from GitHub token exchange.
 message ExchangeGithubTokenResponse {
   string loco_token = 1;
   int64 expires_in = 2; // seconds
@@ -22,22 +27,26 @@ message ExchangeGithubTokenResponse {
   string username = 4;
 }
 
+// GetGithubAuthorizationURLRequest is the request to get GitHub authorization URL.
 message GetGithubAuthorizationURLRequest {
   string state = 1;
   string redirect_uri = 2;
 }
 
+// GetGithubAuthorizationURLResponse contains the GitHub authorization URL.
 message GetGithubAuthorizationURLResponse {
   string authorization_url = 1;
   string state = 2;
 }
 
+// ExchangeGithubCodeRequest is the request to exchange GitHub authorization code.
 message ExchangeGithubCodeRequest {
   string code = 1;
   string state = 2;
   string redirect_uri = 3;
 }
 
+// ExchangeGithubCodeResponse contains the Loco token from GitHub code exchange.
 message ExchangeGithubCodeResponse {
   string loco_token = 1;
   int64 expires_in = 2;
@@ -45,9 +54,14 @@ message ExchangeGithubCodeResponse {
   string username = 6;
 }
 
+// OAuthService handles OAuth authentication flows.
 service OAuthService {
+  // GithubOAuthDetails retrieves GitHub OAuth configuration.
   rpc GithubOAuthDetails(GithubOAuthDetailsRequest) returns (GithubOAuthDetailsResponse) {}
+  // ExchangeGithubToken exchanges a GitHub token for a Loco token.
   rpc ExchangeGithubToken(ExchangeGithubTokenRequest) returns (ExchangeGithubTokenResponse);
+  // GetGithubAuthorizationURL generates a GitHub authorization URL.
   rpc GetGithubAuthorizationURL(GetGithubAuthorizationURLRequest) returns (GetGithubAuthorizationURLResponse) {}
+  // ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
   rpc ExchangeGithubCode(ExchangeGithubCodeRequest) returns (ExchangeGithubCodeResponse) {}
 }

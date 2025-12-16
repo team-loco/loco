@@ -16,9 +16,9 @@ CREATE TABLE clusters (
     is_active BOOLEAN DEFAULT true,
     endpoint TEXT,
     health_status TEXT DEFAULT 'healthy' CHECK (health_status IN ('healthy', 'unhealthy', 'degraded')),
-    last_health_check TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_health_check TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT
 );
 
@@ -31,7 +31,7 @@ CREATE TABLE platform_domains (
     id BIGSERIAL PRIMARY KEY,
     domain TEXT NOT NULL UNIQUE,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Apps table
@@ -45,8 +45,8 @@ CREATE TABLE apps (
     status app_status DEFAULT 'idle',
     spec JSONB DEFAULT '{}'::jsonb,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (workspace_id, name)
 );
 
@@ -62,8 +62,8 @@ CREATE TABLE app_domains (
     platform_domain_id BIGINT REFERENCES platform_domains(id),
     is_primary BOOLEAN NOT NULL DEFAULT false,
     
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     
     CONSTRAINT domain_source_check CHECK (
         (domain_source = 'platform_provided' AND subdomain_label IS NOT NULL AND platform_domain_id IS NOT NULL)
@@ -101,10 +101,10 @@ CREATE TABLE deployments (
     spec JSONB DEFAULT '{}'::jsonb,
     schema_version INT DEFAULT 1,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    started_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_deployments_app_id ON deployments (app_id);
