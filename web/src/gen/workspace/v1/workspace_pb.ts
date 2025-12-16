@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file workspace/v1/workspace.proto.
  */
 export const file_workspace_v1_workspace: GenFile = /*@__PURE__*/
-  fileDesc("Chx3b3Jrc3BhY2UvdjEvd29ya3NwYWNlLnByb3RvEhFsb2NvLndvcmtzcGFjZS52MSK+AQoJV29ya3NwYWNlEgoKAmlkGAEgASgDEg4KBm9yZ19pZBgCIAEoAxIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAMSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidgoPV29ya3NwYWNlTWVtYmVyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiYAoWQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSDAoEbmFtZRgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBQg4KDF9kZXNjcmlwdGlvbiJbChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USDwoHbWVzc2FnZRgCIAEoCSIrChNHZXRXb3Jrc3BhY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAyJHChRHZXRXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiGgoYR2V0VXNlcldvcmtzcGFjZXNSZXF1ZXN0Ik0KGUdldFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSInChVMaXN0V29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDIkoKFkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSJ0ChZVcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIRCgRuYW1lGAIgASgJSACIAQESGAoLZGVzY3JpcHRpb24YAyABKAlIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb24iWwoXVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEg8KB21lc3NhZ2UYAiABKAkiSwoWRGVsZXRlV29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSGwoTY29uZmlybV9kZWxldGVfYXBwcxgCIAEoCCJbChdEZWxldGVXb3Jrc3BhY2VSZXNwb25zZRIvCgl3b3Jrc3BhY2UYASABKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USDwoHbWVzc2FnZRgCIAEoCSJHChBBZGRNZW1iZXJSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkiRwoRQWRkTWVtYmVyUmVzcG9uc2USMgoGbWVtYmVyGAEgASgLMiIubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlTWVtYmVyIjwKE1JlbW92ZU1lbWJlclJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEg8KB3VzZXJfaWQYAiABKAMiJwoUUmVtb3ZlTWVtYmVyUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCIqChJMaXN0TWVtYmVyc1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDIkoKE0xpc3RNZW1iZXJzUmVzcG9uc2USMwoHbWVtYmVycxgBIAMoCzIiLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZU1lbWJlcjKfBwoQV29ya3NwYWNlU2VydmljZRJoCg9DcmVhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USXwoMR2V0V29ya3NwYWNlEiYubG9jby53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlc3BvbnNlEm4KEUdldFVzZXJXb3Jrc3BhY2VzEisubG9jby53b3Jrc3BhY2UudjEuR2V0VXNlcldvcmtzcGFjZXNSZXF1ZXN0GiwubG9jby53b3Jrc3BhY2UudjEuR2V0VXNlcldvcmtzcGFjZXNSZXNwb25zZRJlCg5MaXN0V29ya3NwYWNlcxIoLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVxdWVzdBopLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USaAoPVXBkYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLlVwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlEmgKD0RlbGV0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVXb3Jrc3BhY2VSZXNwb25zZRJWCglBZGRNZW1iZXISIy5sb2NvLndvcmtzcGFjZS52MS5BZGRNZW1iZXJSZXF1ZXN0GiQubG9jby53b3Jrc3BhY2UudjEuQWRkTWVtYmVyUmVzcG9uc2USXwoMUmVtb3ZlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuUmVtb3ZlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLlJlbW92ZU1lbWJlclJlc3BvbnNlElwKC0xpc3RNZW1iZXJzEiUubG9jby53b3Jrc3BhY2UudjEuTGlzdE1lbWJlcnNSZXF1ZXN0GiYubG9jby53b3Jrc3BhY2UudjEuTGlzdE1lbWJlcnNSZXNwb25zZUJBWj9naXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by93b3Jrc3BhY2UvdjE7d29ya3NwYWNldjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Chx3b3Jrc3BhY2UvdjEvd29ya3NwYWNlLnByb3RvEhFsb2NvLndvcmtzcGFjZS52MSK+AQoJV29ya3NwYWNlEgoKAmlkGAEgASgDEg4KBm9yZ19pZBgCIAEoAxIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAMSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidgoPV29ya3NwYWNlTWVtYmVyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAivgEKF1dvcmtzcGFjZU1lbWJlcldpdGhVc2VyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdXNlcl9uYW1lGAUgASgJEhIKCnVzZXJfZW1haWwYBiABKAkSFwoPdXNlcl9hdmF0YXJfdXJsGAcgASgJImAKFkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QSDgoGb3JnX2lkGAEgASgDEgwKBG5hbWUYAiABKAkSGAoLZGVzY3JpcHRpb24YAyABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24iWwoXQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEg8KB21lc3NhZ2UYAiABKAkiKwoTR2V0V29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMiRwoUR2V0V29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlIhoKGEdldFVzZXJXb3Jrc3BhY2VzUmVxdWVzdCJNChlHZXRVc2VyV29ya3NwYWNlc1Jlc3BvbnNlEjAKCndvcmtzcGFjZXMYASADKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiJwoVTGlzdFdvcmtzcGFjZXNSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAyJKChZMaXN0V29ya3NwYWNlc1Jlc3BvbnNlEjAKCndvcmtzcGFjZXMYASADKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UidAoWVXBkYXRlV29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSEQoEbmFtZRgCIAEoCUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAMgASgJSAGIAQFCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uIlsKF1VwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlEi8KCXdvcmtzcGFjZRgBIAEoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRIPCgdtZXNzYWdlGAIgASgJIksKFkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiWwoXRGVsZXRlV29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEg8KB21lc3NhZ2UYAiABKAkiRwoQQWRkTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDwoHdXNlcl9pZBgCIAEoAxIMCgRyb2xlGAMgASgJIkcKEUFkZE1lbWJlclJlc3BvbnNlEjIKBm1lbWJlchgBIAEoCzIiLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZU1lbWJlciI8ChNSZW1vdmVNZW1iZXJSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDIicKFFJlbW92ZU1lbWJlclJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiSQoSTGlzdE1lbWJlcnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxINCgVsaW1pdBgCIAEoBRIOCgZvZmZzZXQYAyABKAUibwoTTGlzdE1lbWJlcnNSZXNwb25zZRI7CgdtZW1iZXJzGAEgAygLMioubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlTWVtYmVyV2l0aFVzZXISDQoFdG90YWwYAiABKAUSDAoEcGFnZRgDIAEoBTKfBwoQV29ya3NwYWNlU2VydmljZRJoCg9DcmVhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USXwoMR2V0V29ya3NwYWNlEiYubG9jby53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlc3BvbnNlEm4KEUdldFVzZXJXb3Jrc3BhY2VzEisubG9jby53b3Jrc3BhY2UudjEuR2V0VXNlcldvcmtzcGFjZXNSZXF1ZXN0GiwubG9jby53b3Jrc3BhY2UudjEuR2V0VXNlcldvcmtzcGFjZXNSZXNwb25zZRJlCg5MaXN0V29ya3NwYWNlcxIoLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVxdWVzdBopLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VzUmVzcG9uc2USaAoPVXBkYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLlVwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlEmgKD0RlbGV0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVXb3Jrc3BhY2VSZXNwb25zZRJWCglBZGRNZW1iZXISIy5sb2NvLndvcmtzcGFjZS52MS5BZGRNZW1iZXJSZXF1ZXN0GiQubG9jby53b3Jrc3BhY2UudjEuQWRkTWVtYmVyUmVzcG9uc2USXwoMUmVtb3ZlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuUmVtb3ZlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLlJlbW92ZU1lbWJlclJlc3BvbnNlElwKC0xpc3RNZW1iZXJzEiUubG9jby53b3Jrc3BhY2UudjEuTGlzdE1lbWJlcnNSZXF1ZXN0GiYubG9jby53b3Jrc3BhY2UudjEuTGlzdE1lbWJlcnNSZXNwb25zZUJBWj9naXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by93b3Jrc3BhY2UvdjE7d29ya3NwYWNldjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.workspace.v1.Workspace
@@ -159,6 +159,93 @@ export const WorkspaceMemberSchema: GenMessage<WorkspaceMember, {jsonType: Works
   messageDesc(file_workspace_v1_workspace, 1);
 
 /**
+ * @generated from message loco.workspace.v1.WorkspaceMemberWithUser
+ */
+export type WorkspaceMemberWithUser = Message<"loco.workspace.v1.WorkspaceMemberWithUser"> & {
+  /**
+   * @generated from field: int64 workspace_id = 1;
+   */
+  workspaceId: bigint;
+
+  /**
+   * @generated from field: int64 user_id = 2;
+   */
+  userId: bigint;
+
+  /**
+   * @generated from field: string role = 3;
+   */
+  role: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 4;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * @generated from field: string user_name = 5;
+   */
+  userName: string;
+
+  /**
+   * @generated from field: string user_email = 6;
+   */
+  userEmail: string;
+
+  /**
+   * @generated from field: string user_avatar_url = 7;
+   */
+  userAvatarUrl: string;
+};
+
+/**
+ * @generated from message loco.workspace.v1.WorkspaceMemberWithUser
+ */
+export type WorkspaceMemberWithUserJson = {
+  /**
+   * @generated from field: int64 workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: int64 user_id = 2;
+   */
+  userId?: string;
+
+  /**
+   * @generated from field: string role = 3;
+   */
+  role?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 4;
+   */
+  createdAt?: TimestampJson;
+
+  /**
+   * @generated from field: string user_name = 5;
+   */
+  userName?: string;
+
+  /**
+   * @generated from field: string user_email = 6;
+   */
+  userEmail?: string;
+
+  /**
+   * @generated from field: string user_avatar_url = 7;
+   */
+  userAvatarUrl?: string;
+};
+
+/**
+ * Describes the message loco.workspace.v1.WorkspaceMemberWithUser.
+ * Use `create(WorkspaceMemberWithUserSchema)` to create a new message.
+ */
+export const WorkspaceMemberWithUserSchema: GenMessage<WorkspaceMemberWithUser, {jsonType: WorkspaceMemberWithUserJson}> = /*@__PURE__*/
+  messageDesc(file_workspace_v1_workspace, 2);
+
+/**
  * @generated from message loco.workspace.v1.CreateWorkspaceRequest
  */
 export type CreateWorkspaceRequest = Message<"loco.workspace.v1.CreateWorkspaceRequest"> & {
@@ -203,7 +290,7 @@ export type CreateWorkspaceRequestJson = {
  * Use `create(CreateWorkspaceRequestSchema)` to create a new message.
  */
 export const CreateWorkspaceRequestSchema: GenMessage<CreateWorkspaceRequest, {jsonType: CreateWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 2);
+  messageDesc(file_workspace_v1_workspace, 3);
 
 /**
  * @generated from message loco.workspace.v1.CreateWorkspaceResponse
@@ -240,7 +327,7 @@ export type CreateWorkspaceResponseJson = {
  * Use `create(CreateWorkspaceResponseSchema)` to create a new message.
  */
 export const CreateWorkspaceResponseSchema: GenMessage<CreateWorkspaceResponse, {jsonType: CreateWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 3);
+  messageDesc(file_workspace_v1_workspace, 4);
 
 /**
  * @generated from message loco.workspace.v1.GetWorkspaceRequest
@@ -267,7 +354,7 @@ export type GetWorkspaceRequestJson = {
  * Use `create(GetWorkspaceRequestSchema)` to create a new message.
  */
 export const GetWorkspaceRequestSchema: GenMessage<GetWorkspaceRequest, {jsonType: GetWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 4);
+  messageDesc(file_workspace_v1_workspace, 5);
 
 /**
  * @generated from message loco.workspace.v1.GetWorkspaceResponse
@@ -294,7 +381,7 @@ export type GetWorkspaceResponseJson = {
  * Use `create(GetWorkspaceResponseSchema)` to create a new message.
  */
 export const GetWorkspaceResponseSchema: GenMessage<GetWorkspaceResponse, {jsonType: GetWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 5);
+  messageDesc(file_workspace_v1_workspace, 6);
 
 /**
  * @generated from message loco.workspace.v1.GetUserWorkspacesRequest
@@ -313,7 +400,7 @@ export type GetUserWorkspacesRequestJson = {
  * Use `create(GetUserWorkspacesRequestSchema)` to create a new message.
  */
 export const GetUserWorkspacesRequestSchema: GenMessage<GetUserWorkspacesRequest, {jsonType: GetUserWorkspacesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 6);
+  messageDesc(file_workspace_v1_workspace, 7);
 
 /**
  * @generated from message loco.workspace.v1.GetUserWorkspacesResponse
@@ -340,7 +427,7 @@ export type GetUserWorkspacesResponseJson = {
  * Use `create(GetUserWorkspacesResponseSchema)` to create a new message.
  */
 export const GetUserWorkspacesResponseSchema: GenMessage<GetUserWorkspacesResponse, {jsonType: GetUserWorkspacesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 7);
+  messageDesc(file_workspace_v1_workspace, 8);
 
 /**
  * @generated from message loco.workspace.v1.ListWorkspacesRequest
@@ -367,7 +454,7 @@ export type ListWorkspacesRequestJson = {
  * Use `create(ListWorkspacesRequestSchema)` to create a new message.
  */
 export const ListWorkspacesRequestSchema: GenMessage<ListWorkspacesRequest, {jsonType: ListWorkspacesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 8);
+  messageDesc(file_workspace_v1_workspace, 9);
 
 /**
  * @generated from message loco.workspace.v1.ListWorkspacesResponse
@@ -394,7 +481,7 @@ export type ListWorkspacesResponseJson = {
  * Use `create(ListWorkspacesResponseSchema)` to create a new message.
  */
 export const ListWorkspacesResponseSchema: GenMessage<ListWorkspacesResponse, {jsonType: ListWorkspacesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 9);
+  messageDesc(file_workspace_v1_workspace, 10);
 
 /**
  * @generated from message loco.workspace.v1.UpdateWorkspaceRequest
@@ -441,7 +528,7 @@ export type UpdateWorkspaceRequestJson = {
  * Use `create(UpdateWorkspaceRequestSchema)` to create a new message.
  */
 export const UpdateWorkspaceRequestSchema: GenMessage<UpdateWorkspaceRequest, {jsonType: UpdateWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 10);
+  messageDesc(file_workspace_v1_workspace, 11);
 
 /**
  * @generated from message loco.workspace.v1.UpdateWorkspaceResponse
@@ -478,7 +565,7 @@ export type UpdateWorkspaceResponseJson = {
  * Use `create(UpdateWorkspaceResponseSchema)` to create a new message.
  */
 export const UpdateWorkspaceResponseSchema: GenMessage<UpdateWorkspaceResponse, {jsonType: UpdateWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 11);
+  messageDesc(file_workspace_v1_workspace, 12);
 
 /**
  * @generated from message loco.workspace.v1.DeleteWorkspaceRequest
@@ -515,7 +602,7 @@ export type DeleteWorkspaceRequestJson = {
  * Use `create(DeleteWorkspaceRequestSchema)` to create a new message.
  */
 export const DeleteWorkspaceRequestSchema: GenMessage<DeleteWorkspaceRequest, {jsonType: DeleteWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 12);
+  messageDesc(file_workspace_v1_workspace, 13);
 
 /**
  * @generated from message loco.workspace.v1.DeleteWorkspaceResponse
@@ -552,7 +639,7 @@ export type DeleteWorkspaceResponseJson = {
  * Use `create(DeleteWorkspaceResponseSchema)` to create a new message.
  */
 export const DeleteWorkspaceResponseSchema: GenMessage<DeleteWorkspaceResponse, {jsonType: DeleteWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 13);
+  messageDesc(file_workspace_v1_workspace, 14);
 
 /**
  * @generated from message loco.workspace.v1.AddMemberRequest
@@ -599,7 +686,7 @@ export type AddMemberRequestJson = {
  * Use `create(AddMemberRequestSchema)` to create a new message.
  */
 export const AddMemberRequestSchema: GenMessage<AddMemberRequest, {jsonType: AddMemberRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 14);
+  messageDesc(file_workspace_v1_workspace, 15);
 
 /**
  * @generated from message loco.workspace.v1.AddMemberResponse
@@ -626,7 +713,7 @@ export type AddMemberResponseJson = {
  * Use `create(AddMemberResponseSchema)` to create a new message.
  */
 export const AddMemberResponseSchema: GenMessage<AddMemberResponse, {jsonType: AddMemberResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 15);
+  messageDesc(file_workspace_v1_workspace, 16);
 
 /**
  * @generated from message loco.workspace.v1.RemoveMemberRequest
@@ -663,7 +750,7 @@ export type RemoveMemberRequestJson = {
  * Use `create(RemoveMemberRequestSchema)` to create a new message.
  */
 export const RemoveMemberRequestSchema: GenMessage<RemoveMemberRequest, {jsonType: RemoveMemberRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 16);
+  messageDesc(file_workspace_v1_workspace, 17);
 
 /**
  * @generated from message loco.workspace.v1.RemoveMemberResponse
@@ -690,7 +777,7 @@ export type RemoveMemberResponseJson = {
  * Use `create(RemoveMemberResponseSchema)` to create a new message.
  */
 export const RemoveMemberResponseSchema: GenMessage<RemoveMemberResponse, {jsonType: RemoveMemberResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 17);
+  messageDesc(file_workspace_v1_workspace, 18);
 
 /**
  * @generated from message loco.workspace.v1.ListMembersRequest
@@ -700,6 +787,16 @@ export type ListMembersRequest = Message<"loco.workspace.v1.ListMembersRequest">
    * @generated from field: int64 workspace_id = 1;
    */
   workspaceId: bigint;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: int32 offset = 3;
+   */
+  offset: number;
 };
 
 /**
@@ -710,6 +807,16 @@ export type ListMembersRequestJson = {
    * @generated from field: int64 workspace_id = 1;
    */
   workspaceId?: string;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit?: number;
+
+  /**
+   * @generated from field: int32 offset = 3;
+   */
+  offset?: number;
 };
 
 /**
@@ -717,16 +824,26 @@ export type ListMembersRequestJson = {
  * Use `create(ListMembersRequestSchema)` to create a new message.
  */
 export const ListMembersRequestSchema: GenMessage<ListMembersRequest, {jsonType: ListMembersRequestJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 18);
+  messageDesc(file_workspace_v1_workspace, 19);
 
 /**
  * @generated from message loco.workspace.v1.ListMembersResponse
  */
 export type ListMembersResponse = Message<"loco.workspace.v1.ListMembersResponse"> & {
   /**
-   * @generated from field: repeated loco.workspace.v1.WorkspaceMember members = 1;
+   * @generated from field: repeated loco.workspace.v1.WorkspaceMemberWithUser members = 1;
    */
-  members: WorkspaceMember[];
+  members: WorkspaceMemberWithUser[];
+
+  /**
+   * @generated from field: int32 total = 2;
+   */
+  total: number;
+
+  /**
+   * @generated from field: int32 page = 3;
+   */
+  page: number;
 };
 
 /**
@@ -734,9 +851,19 @@ export type ListMembersResponse = Message<"loco.workspace.v1.ListMembersResponse
  */
 export type ListMembersResponseJson = {
   /**
-   * @generated from field: repeated loco.workspace.v1.WorkspaceMember members = 1;
+   * @generated from field: repeated loco.workspace.v1.WorkspaceMemberWithUser members = 1;
    */
-  members?: WorkspaceMemberJson[];
+  members?: WorkspaceMemberWithUserJson[];
+
+  /**
+   * @generated from field: int32 total = 2;
+   */
+  total?: number;
+
+  /**
+   * @generated from field: int32 page = 3;
+   */
+  page?: number;
 };
 
 /**
@@ -744,7 +871,7 @@ export type ListMembersResponseJson = {
  * Use `create(ListMembersResponseSchema)` to create a new message.
  */
 export const ListMembersResponseSchema: GenMessage<ListMembersResponse, {jsonType: ListMembersResponseJson}> = /*@__PURE__*/
-  messageDesc(file_workspace_v1_workspace, 19);
+  messageDesc(file_workspace_v1_workspace, 20);
 
 /**
  * @generated from service loco.workspace.v1.WorkspaceService

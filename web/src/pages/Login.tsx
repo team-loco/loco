@@ -2,9 +2,42 @@ import { transport } from "@/auth/connect-transport";
 import { Button } from "@/components/ui/button";
 import { OAuthService } from "@/gen/oauth/v1";
 import { createClient } from "@connectrpc/connect";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 export function Login() {
+	const navigate = useNavigate();
+	const [isChecking, setIsChecking] = useState(true);
+
+	useEffect(() => {
+		// Check if user is already authenticated by calling a protected endpoint
+		const checkAuth = async () => {
+			try {
+				const client = createClient(OAuthService, transport);
+				// Try to get authorization URL (this will work if user is authenticated)
+				// Actually, let's use a protected endpoint to verify auth
+				// Since we don't have a simple auth check endpoint, we'll just try to access the user context
+				// The browser will automatically send the loco_token cookie with this request
+				const response = await fetch("/api/user", {
+					method: "GET",
+					credentials: "include", // Include cookies
+				});
+
+				if (response.ok) {
+					// User is authenticated, redirect to dashboard
+					navigate("/dashboard", { replace: true });
+				} else {
+					// User is not authenticated
+					setIsChecking(false);
+				}
+			} catch (error) {
+				// Error checking auth, let user try to login
+				setIsChecking(false);
+			}
+		};
+
+		checkAuth();
+	}, [navigate]);
 	const [error, setError] = useState<string | null>(() => {
 		// Check if there's an error from OAuth callback
 		const oauthError = sessionStorage.getItem("oauth_error");

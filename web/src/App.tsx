@@ -13,6 +13,7 @@ import { OAuthCallback } from "@/pages/OAuthCallback";
 import { Onboarding } from "@/pages/Onboarding";
 import { OrgSettings } from "@/pages/OrgSettings";
 import { Profile } from "@/pages/Profile";
+import { Team } from "@/pages/Team";
 import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -79,6 +80,7 @@ export default function App() {
 										/>
 										<Route path="/create-app" element={<CreateApp />} />
 										<Route path="/events" element={<Events />} />
+										<Route path="/team" element={<Team />} />
 										<Route path="/profile" element={<Profile />} />
 										<Route
 											path="/org/:orgId/settings"
