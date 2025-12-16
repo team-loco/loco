@@ -6,16 +6,25 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/user/v1;userv1";
 
+// UserService manages user accounts and operations.
 service UserService {
+  // CreateUser creates a new user account.
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  // GetUser retrieves a user by ID or email.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  // GetCurrentUser retrieves the current authenticated user.
   rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+  // UpdateUser updates user information.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  // ListUsers lists users with pagination.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // DeleteUser deletes a user account.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  // Logout logs out the current user.
   rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
+// User represents a user account.
 message User {
   int64 id = 1;
   string external_id = 2;
@@ -26,6 +35,7 @@ message User {
   google.protobuf.Timestamp updated_at = 7;
 }
 
+// CreateUserRequest is the request to create a new user.
 message CreateUserRequest {
   string external_id = 1;
   string email = 2;
@@ -33,57 +43,70 @@ message CreateUserRequest {
   optional string avatar_url = 4;
 }
 
+// CreateUserResponse is the response from creating a user.
 message CreateUserResponse {
   User user = 1;
   string message = 2;
 }
 
+// GetUserRequest is the request to retrieve a user.
 message GetUserRequest {
   optional int64 user_id = 1;
   optional string email = 2;
 }
 
+// GetUserResponse is the response containing user information.
 message GetUserResponse {
   User user = 1;
 }
 
+// GetCurrentUserRequest is the request to retrieve the current user.
 message GetCurrentUserRequest {}
 
+// GetCurrentUserResponse is the response containing current user information.
 message GetCurrentUserResponse {
   User user = 1;
 }
 
+// UpdateUserRequest is the request to update user information.
 message UpdateUserRequest {
   int64 user_id = 1;
   optional string avatar_url = 2;
 }
 
+// UpdateUserResponse is the response from updating a user.
 message UpdateUserResponse {
   User user = 1;
   string message = 2;
 }
 
+// ListUsersRequest is the request to list users.
 message ListUsersRequest {
   int32 limit = 1;
   int32 offset = 2;
 }
 
+// ListUsersResponse is the response containing user list.
 message ListUsersResponse {
   repeated User users = 1;
   int64 total_count = 2;
 }
 
+// DeleteUserRequest is the request to delete a user.
 message DeleteUserRequest {
   int64 user_id = 1;
 }
 
+// DeleteUserResponse is the response from deleting a user.
 message DeleteUserResponse {
   User user = 1;
   string message = 2;
 }
 
+// LogoutRequest is the request to logout.
 message LogoutRequest {}
 
+// LogoutResponse is the response from logging out.
 message LogoutResponse {
   string message = 1;
 }

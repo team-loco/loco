@@ -6,18 +6,29 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/workspace/v1;workspacev1";
 
+// WorkspaceService manages workspaces and their members.
 service WorkspaceService {
+  // CreateWorkspace creates a new workspace.
   rpc CreateWorkspace(CreateWorkspaceRequest) returns (CreateWorkspaceResponse);
+  // GetWorkspace retrieves a workspace by ID.
   rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
+  // GetUserWorkspaces retrieves all workspaces for the current user.
   rpc GetUserWorkspaces(GetUserWorkspacesRequest) returns (GetUserWorkspacesResponse);
+  // ListWorkspaces lists all workspaces in an organization.
   rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
+  // UpdateWorkspace updates workspace information.
   rpc UpdateWorkspace(UpdateWorkspaceRequest) returns (UpdateWorkspaceResponse);
+  // DeleteWorkspace deletes a workspace and optionally its applications.
   rpc DeleteWorkspace(DeleteWorkspaceRequest) returns (DeleteWorkspaceResponse);
+  // AddMember adds a user to a workspace with a specified role.
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
+  // RemoveMember removes a user from a workspace.
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
+  // ListMembers lists all members of a workspace with pagination.
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
 }
 
+// Workspace represents a workspace within an organization.
 message Workspace {
   int64 id = 1;
   int64 org_id = 2;
@@ -28,6 +39,7 @@ message Workspace {
   google.protobuf.Timestamp updated_at = 7;
 }
 
+// WorkspaceMember represents a user's membership in a workspace.
 message WorkspaceMember {
   int64 workspace_id = 1;
   int64 user_id = 2;
@@ -35,83 +47,115 @@ message WorkspaceMember {
   google.protobuf.Timestamp created_at = 4;
 }
 
+// WorkspaceMemberWithUser includes user details along with membership information.
+message WorkspaceMemberWithUser {
+  int64 workspace_id = 1;
+  int64 user_id = 2;
+  string role = 3;
+  google.protobuf.Timestamp created_at = 4;
+  string user_name = 5;
+  string user_email = 6;
+  string user_avatar_url = 7;
+}
+
+// CreateWorkspaceRequest is the request to create a new workspace.
 message CreateWorkspaceRequest {
   int64 org_id = 1;
   string name = 2;
   optional string description = 3;
 }
 
+// CreateWorkspaceResponse is the response from creating a workspace.
 message CreateWorkspaceResponse {
   Workspace workspace = 1;
   string message = 2;
 }
 
+// GetWorkspaceRequest is the request to retrieve a workspace.
 message GetWorkspaceRequest {
   int64 workspace_id = 1;
 }
 
+// GetWorkspaceResponse is the response containing workspace information.
 message GetWorkspaceResponse {
   Workspace workspace = 1;
 }
 
+// GetUserWorkspacesRequest is the request to retrieve user's workspaces.
 message GetUserWorkspacesRequest {}
 
+// GetUserWorkspacesResponse contains the list of user's workspaces.
 message GetUserWorkspacesResponse {
   repeated Workspace workspaces = 1;
 }
 
+// ListWorkspacesRequest is the request to list workspaces in an organization.
 message ListWorkspacesRequest {
   int64 org_id = 1;
 }
 
+// ListWorkspacesResponse contains the list of workspaces.
 message ListWorkspacesResponse {
   repeated Workspace workspaces = 1;
 }
 
+// UpdateWorkspaceRequest is the request to update a workspace.
 message UpdateWorkspaceRequest {
   int64 workspace_id = 1;
   optional string name = 2;
   optional string description = 3;
 }
 
+// UpdateWorkspaceResponse is the response from updating a workspace.
 message UpdateWorkspaceResponse {
   Workspace workspace = 1;
   string message = 2;
 }
 
+// DeleteWorkspaceRequest is the request to delete a workspace.
 message DeleteWorkspaceRequest {
   int64 workspace_id = 1;
   bool confirm_delete_apps = 2;
 }
 
+// DeleteWorkspaceResponse is the response from deleting a workspace.
 message DeleteWorkspaceResponse {
   Workspace workspace = 1;
   string message = 2;
 }
 
+// AddMemberRequest is the request to add a member to a workspace.
 message AddMemberRequest {
   int64 workspace_id = 1;
   int64 user_id = 2;
   string role = 3;
 }
 
+// AddMemberResponse is the response from adding a member to a workspace.
 message AddMemberResponse {
   WorkspaceMember member = 1;
 }
 
+// RemoveMemberRequest is the request to remove a member from a workspace.
 message RemoveMemberRequest {
   int64 workspace_id = 1;
   int64 user_id = 2;
 }
 
+// RemoveMemberResponse is the response from removing a member from a workspace.
 message RemoveMemberResponse {
   bool success = 1;
 }
 
+// ListMembersRequest is the request to list members of a workspace.
 message ListMembersRequest {
   int64 workspace_id = 1;
+  int32 limit = 2;
+  optional int64 after_cursor = 3;
 }
 
+// ListMembersResponse contains the list of workspace members.
 message ListMembersResponse {
-  repeated WorkspaceMember members = 1;
+  repeated WorkspaceMemberWithUser members = 1;
+  optional int64 next_cursor = 2;
 }
