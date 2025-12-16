@@ -7,13 +7,11 @@ import { useNavigate } from "react-router";
 
 export function Login() {
 	const navigate = useNavigate();
-	const [isChecking, setIsChecking] = useState(true);
 
 	useEffect(() => {
 		// Check if user is already authenticated by calling a protected endpoint
 		const checkAuth = async () => {
 			try {
-				const client = createClient(OAuthService, transport);
 				// Try to get authorization URL (this will work if user is authenticated)
 				// Actually, let's use a protected endpoint to verify auth
 				// Since we don't have a simple auth check endpoint, we'll just try to access the user context
@@ -28,11 +26,10 @@ export function Login() {
 					navigate("/dashboard", { replace: true });
 				} else {
 					// User is not authenticated
-					setIsChecking(false);
 				}
 			} catch (error) {
 				// Error checking auth, let user try to login
-				setIsChecking(false);
+				console.error(error);
 			}
 		};
 
