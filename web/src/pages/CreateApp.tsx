@@ -177,7 +177,7 @@ export function CreateApp() {
 	};
 
 	return (
-		<div className=" mx-auto py-8">
+		<div className=" mx-auto">
 			<div className="mb-8">
 				<h1 className="text-3xl font-heading text-foreground mb-2">
 					Create App

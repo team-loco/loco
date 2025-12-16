@@ -141,9 +141,6 @@ export function Home() {
 						<p className="text-sm text-foreground opacity-70 mb-4">
 							{error instanceof Error ? error.message : "Unknown error"}
 						</p>
-						<p className="text-xs text-foreground opacity-50">
-							Make sure the backend is running on http://localhost:8000
-						</p>
 					</CardContent>
 				</Card>
 			</div>

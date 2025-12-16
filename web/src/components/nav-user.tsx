@@ -4,8 +4,10 @@ import {
 	ChevronsUpDown,
 	CreditCard,
 	LogOut,
+	Check,
+	HelpCircle,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -24,17 +26,27 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 
+export interface Workspace {
+	id: bigint;
+	name: string;
+}
+
 export function NavUser({
 	user,
+	workspaces = [],
+	activeWorkspaceId,
 }: {
 	user: {
 		name: string;
 		email: string;
 		avatar: string;
 	};
+	workspaces?: Workspace[];
+	activeWorkspaceId?: bigint | null;
 }) {
 	const { isMobile } = useSidebar();
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 
 	return (
 		<SidebarMenu>
@@ -68,6 +80,34 @@ export function NavUser({
 							</div>
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
+
+						{workspaces.length > 0 && (
+							<>
+								<DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+									Workspaces
+								</DropdownMenuLabel>
+								<DropdownMenuGroup>
+									{workspaces.map((workspace) => (
+										<DropdownMenuItem
+											key={workspace.id.toString()}
+											onClick={() =>
+												navigate(
+													`/dashboard?workspace=${workspace.id}`
+												)
+											}
+											className="flex items-center justify-between"
+										>
+											<span>{workspace.name}</span>
+											{activeWorkspaceId === workspace.id && (
+												<Check className="h-4 w-4" />
+											)}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuGroup>
+								<DropdownMenuSeparator />
+							</>
+						)}
+
 						<DropdownMenuGroup>
 							<DropdownMenuItem onClick={() => navigate("/profile")}>
 								<BadgeCheck />
@@ -80,6 +120,10 @@ export function NavUser({
 							<DropdownMenuItem>
 								<Bell />
 								Notifications
+							</DropdownMenuItem>
+							<DropdownMenuItem>
+								<HelpCircle />
+								Support
 							</DropdownMenuItem>
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />

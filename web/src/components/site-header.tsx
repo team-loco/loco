@@ -1,16 +1,16 @@
-import { SearchForm } from "@/components/search-form";
+import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
-import { PanelLeftIcon, PanelLeftCloseIcon } from "lucide-react";
-import { Link, useLocation, useSearchParams } from "react-router";
-import { Button } from "@/components/ui/button";
+import { PanelLeftCloseIcon, PanelLeftIcon, Plus } from "lucide-react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
 export function SiteHeader() {
 	const location = useLocation();
 	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
 	const { open, toggleSidebar } = useSidebar();
 
 	const workspaceFromUrl = searchParams.get("workspace");
@@ -41,11 +41,8 @@ export function SiteHeader() {
 	const appName = appsRes?.apps?.find((app) => app.id === activeAppId)?.name;
 
 	return (
-		<header 
-			className="bg-white dark:bg-[oklch(0.2553_0.0226_262.4337)] fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700 dark:text-white"
-			style={{ "--header-height": "70px" } as React.CSSProperties}
-		>
-			<div className="flex h-14 w-full items-center gap-3 px-6">
+		<header className="bg-white dark:bg-[oklch(0.2553_0.0226_262.4337)] fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700 dark:text-white">
+			<div className="flex h-12 w-full items-center gap-3 px-6">
 				<Button
 					variant="ghost"
 					size="icon"
@@ -86,7 +83,15 @@ export function SiteHeader() {
 						</>
 					)}
 				</nav>
-				<SearchForm className="w-full sm:ml-auto sm:w-auto" />
+				<Button
+					onClick={() => navigate("/create-app")}
+					className="ml-auto"
+					size="sm"
+					variant="default"
+				>
+					<Plus className="h-4 w-4 mr-2" />
+					New App
+				</Button>
 			</div>
 		</header>
 	);

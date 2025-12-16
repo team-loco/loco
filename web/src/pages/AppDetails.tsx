@@ -4,6 +4,7 @@ import { EnvironmentVariables } from "@/components/app/EnvironmentVariables";
 import { EventsTimeline } from "@/components/app/EventsTimeline";
 import { LogsViewer } from "@/components/app/LogsViewer";
 import { RecentDeployments } from "@/components/app/RecentDeployments";
+import { ScaleCard } from "@/components/app/ScaleCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppDetails } from "@/hooks/useAppDetails";
 import { subscribeToEvents } from "@/lib/events";
@@ -106,6 +107,9 @@ export function AppDetails() {
 				appId={appId}
 				isLoading={isLoading}
 			/>
+
+			{/* Scale Card */}
+			<ScaleCard appId={appId} currentReplicas={status?.replicas} isLoading={isLoading} />
 
 			{/* Environment Variables */}
 			<EnvironmentVariables
