@@ -89,6 +89,10 @@ spec:
                               type: string
                             type: object
                         type: object
+                    required:
+                    - logging
+                    - metrics
+                    - tracing
                     type: object
                   routing:
                     description: RoutingSpec contains subdomain, path prefix, port,
@@ -132,6 +136,7 @@ spec:
                     type: integer
                 required:
                 - name
+                - observability
                 - routing
                 type: object
               deployment:

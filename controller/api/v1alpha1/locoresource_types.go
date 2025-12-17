@@ -61,9 +61,9 @@ type MetricsSpec struct {
 
 // ObsSpec contains logging, metrics, tracing
 type ObsSpec struct {
-	Logging LoggingSpec `json:"logging,omitempty"`
-	Metrics MetricsSpec `json:"metrics,omitempty"`
-	Tracing TracingSpec `json:"tracing,omitempty"`
+	Logging LoggingSpec `json:"logging,omitzero"`
+	Metrics MetricsSpec `json:"metrics,omitzero"`
+	Tracing TracingSpec `json:"tracing,omitzero"`
 }
 
 type LoggingSpec struct {
@@ -123,7 +123,7 @@ type AppSpec struct {
 	Labels      map[string]string `json:"labels,omitempty"`      // e.g. app-id, workspace-id
 
 	Routing       RoutingSpec `json:"routing"`
-	Observability ObsSpec     `json:"observability,omitempty"`
+	Observability ObsSpec     `json:"observability,omitzero"`
 }
 
 // LocoResourceSpec defines the desired state of LocoResource
