@@ -185,7 +185,7 @@ SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
 FROM workspace_members wm
 JOIN users u ON wm.user_id = u.id
 WHERE wm.workspace_id = $1
-  AND ($3 IS NULL OR wm.user_id > $3)
+  AND ($3::bigint IS NULL OR wm.user_id > $3::bigint)
 ORDER BY wm.user_id ASC
 LIMIT $2
 `
@@ -193,7 +193,7 @@ LIMIT $2
 type ListWorkspaceMembersWithUserDetailsParams struct {
 	WorkspaceID int64       `json:"workspaceId"`
 	Limit       int32       `json:"limit"`
-	AfterCursor interface{} `json:"afterCursor"`
+	AfterCursor pgtype.Int8 `json:"afterCursor"`
 }
 
 type ListWorkspaceMembersWithUserDetailsRow struct {

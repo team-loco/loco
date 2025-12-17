@@ -67,7 +67,7 @@ SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
 FROM workspace_members wm
 JOIN users u ON wm.user_id = u.id
 WHERE wm.workspace_id = $1
-  AND (sqlc.narg('after_cursor') IS NULL OR wm.user_id > sqlc.narg('after_cursor'))
+  AND (sqlc.narg('after_cursor')::bigint IS NULL OR wm.user_id > sqlc.narg('after_cursor')::bigint)
 ORDER BY wm.user_id ASC
 LIMIT $2;
 
