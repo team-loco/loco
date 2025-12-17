@@ -219,6 +219,8 @@ spec:
                   schemaVersion:
                     format: int32
                     type: integer
+                required:
+                - resources
                 type: object
             type: object
           status:

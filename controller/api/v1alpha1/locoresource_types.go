@@ -84,7 +84,7 @@ type DeploymentSpec struct {
 	DockerfilePath string `json:"dockerfilePath,omitempty"`
 	BuildType      string `json:"buildType,omitempty"` // docker, buildpack, etc
 
-	Resources       ResourcesSpec `json:"resources,omitempty"`
+	Resources       ResourcesSpec `json:"resources,omitzero"`
 	InitialReplicas int32         `json:"initialReplicas,omitempty"`
 
 	HealthCheck *HealthCheckSpec  `json:"healthCheck,omitempty"`
