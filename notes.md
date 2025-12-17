@@ -399,3 +399,8 @@ controller-runtime would be cool.
 
 next major todos:
 lets actually finish the allocate. so the api needs to take in config of map[string][any] and we use it upstream to build the app as is.
+
+things that are fully growing and will need a ttl:
+the configmaps for apps/deployments
+the data in clickhouse
+the audit events.

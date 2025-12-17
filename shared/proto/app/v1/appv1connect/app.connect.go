@@ -59,20 +59,30 @@ const (
 
 // AppServiceClient is a client for the loco.app.v1.AppService service.
 type AppServiceClient interface {
-	// App CRUD
+	// CreateApp creates a new application.
 	CreateApp(context.Context, *connect.Request[v1.CreateAppRequest]) (*connect.Response[v1.CreateAppResponse], error)
+	// GetApp retrieves an application by ID.
 	GetApp(context.Context, *connect.Request[v1.GetAppRequest]) (*connect.Response[v1.GetAppResponse], error)
+	// GetAppByName retrieves an application by name within a workspace.
 	GetAppByName(context.Context, *connect.Request[v1.GetAppByNameRequest]) (*connect.Response[v1.GetAppByNameResponse], error)
+	// ListApps lists all applications in a workspace.
 	ListApps(context.Context, *connect.Request[v1.ListAppsRequest]) (*connect.Response[v1.ListAppsResponse], error)
+	// UpdateApp updates an application configuration.
 	UpdateApp(context.Context, *connect.Request[v1.UpdateAppRequest]) (*connect.Response[v1.UpdateAppResponse], error)
+	// DeleteApp deletes an application.
 	DeleteApp(context.Context, *connect.Request[v1.DeleteAppRequest]) (*connect.Response[v1.DeleteAppResponse], error)
+	// GetAppStatus retrieves the current status and deployment information of an application.
 	GetAppStatus(context.Context, *connect.Request[v1.GetAppStatusRequest]) (*connect.Response[v1.GetAppStatusResponse], error)
 	// Logs
+	// StreamLogs streams application logs in real-time.
 	StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogEntry], error)
 	// Events
+	// GetEvents retrieves events for an application.
 	GetEvents(context.Context, *connect.Request[v1.GetEventsRequest]) (*connect.Response[v1.GetEventsResponse], error)
 	// App Operations
+	// ScaleApp adjusts application replicas and resource allocation.
 	ScaleApp(context.Context, *connect.Request[v1.ScaleAppRequest]) (*connect.Response[v1.ScaleAppResponse], error)
+	// UpdateAppEnv updates environment variables for an application.
 	UpdateAppEnv(context.Context, *connect.Request[v1.UpdateAppEnvRequest]) (*connect.Response[v1.UpdateAppEnvResponse], error)
 }
 
@@ -228,20 +238,30 @@ func (c *appServiceClient) UpdateAppEnv(ctx context.Context, req *connect.Reques
 
 // AppServiceHandler is an implementation of the loco.app.v1.AppService service.
 type AppServiceHandler interface {
-	// App CRUD
+	// CreateApp creates a new application.
 	CreateApp(context.Context, *connect.Request[v1.CreateAppRequest]) (*connect.Response[v1.CreateAppResponse], error)
+	// GetApp retrieves an application by ID.
 	GetApp(context.Context, *connect.Request[v1.GetAppRequest]) (*connect.Response[v1.GetAppResponse], error)
+	// GetAppByName retrieves an application by name within a workspace.
 	GetAppByName(context.Context, *connect.Request[v1.GetAppByNameRequest]) (*connect.Response[v1.GetAppByNameResponse], error)
+	// ListApps lists all applications in a workspace.
 	ListApps(context.Context, *connect.Request[v1.ListAppsRequest]) (*connect.Response[v1.ListAppsResponse], error)
+	// UpdateApp updates an application configuration.
 	UpdateApp(context.Context, *connect.Request[v1.UpdateAppRequest]) (*connect.Response[v1.UpdateAppResponse], error)
+	// DeleteApp deletes an application.
 	DeleteApp(context.Context, *connect.Request[v1.DeleteAppRequest]) (*connect.Response[v1.DeleteAppResponse], error)
+	// GetAppStatus retrieves the current status and deployment information of an application.
 	GetAppStatus(context.Context, *connect.Request[v1.GetAppStatusRequest]) (*connect.Response[v1.GetAppStatusResponse], error)
 	// Logs
+	// StreamLogs streams application logs in real-time.
 	StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogEntry]) error
 	// Events
+	// GetEvents retrieves events for an application.
 	GetEvents(context.Context, *connect.Request[v1.GetEventsRequest]) (*connect.Response[v1.GetEventsResponse], error)
 	// App Operations
+	// ScaleApp adjusts application replicas and resource allocation.
 	ScaleApp(context.Context, *connect.Request[v1.ScaleAppRequest]) (*connect.Response[v1.ScaleAppResponse], error)
+	// UpdateAppEnv updates environment variables for an application.
 	UpdateAppEnv(context.Context, *connect.Request[v1.UpdateAppEnvRequest]) (*connect.Response[v1.UpdateAppEnvResponse], error)
 }
 

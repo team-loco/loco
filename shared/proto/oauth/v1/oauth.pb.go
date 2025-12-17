@@ -21,6 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration.
 type GithubOAuthDetailsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -57,6 +58,7 @@ func (*GithubOAuthDetailsRequest) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{0}
 }
 
+// GithubOAuthDetailsResponse contains GitHub OAuth configuration details.
 type GithubOAuthDetailsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
@@ -109,6 +111,7 @@ func (x *GithubOAuthDetailsResponse) GetTokenTtl() float64 {
 	return 0
 }
 
+// ExchangeGithubTokenRequest is the request to exchange a GitHub token for a Loco token.
 type ExchangeGithubTokenRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	GithubAccessToken     string                 `protobuf:"bytes,1,opt,name=github_access_token,json=githubAccessToken,proto3" json:"github_access_token,omitempty"`
@@ -161,6 +164,7 @@ func (x *ExchangeGithubTokenRequest) GetCreateUserIfNotExists() bool {
 	return false
 }
 
+// ExchangeGithubTokenResponse contains the Loco token from GitHub token exchange.
 type ExchangeGithubTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LocoToken     string                 `protobuf:"bytes,1,opt,name=loco_token,json=locoToken,proto3" json:"loco_token,omitempty"`
@@ -229,6 +233,7 @@ func (x *ExchangeGithubTokenResponse) GetUsername() string {
 	return ""
 }
 
+// GetGithubAuthorizationURLRequest is the request to get GitHub authorization URL.
 type GetGithubAuthorizationURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
@@ -281,6 +286,7 @@ func (x *GetGithubAuthorizationURLRequest) GetRedirectUri() string {
 	return ""
 }
 
+// GetGithubAuthorizationURLResponse contains the GitHub authorization URL.
 type GetGithubAuthorizationURLResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	AuthorizationUrl string                 `protobuf:"bytes,1,opt,name=authorization_url,json=authorizationUrl,proto3" json:"authorization_url,omitempty"`
@@ -333,6 +339,7 @@ func (x *GetGithubAuthorizationURLResponse) GetState() string {
 	return ""
 }
 
+// ExchangeGithubCodeRequest is the request to exchange GitHub authorization code.
 type ExchangeGithubCodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -393,6 +400,7 @@ func (x *ExchangeGithubCodeRequest) GetRedirectUri() string {
 	return ""
 }
 
+// ExchangeGithubCodeResponse contains the Loco token from GitHub code exchange.
 type ExchangeGithubCodeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LocoToken     string                 `protobuf:"bytes,1,opt,name=loco_token,json=locoToken,proto3" json:"loco_token,omitempty"`

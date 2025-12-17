@@ -81,6 +81,7 @@ func (DeploymentPhase) EnumDescriptor() ([]byte, []int) {
 	return file_deployment_v1_deployment_proto_rawDescGZIP(), []int{0}
 }
 
+// Port defines a network port configuration.
 type Port struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Port          int32                  `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
@@ -133,6 +134,7 @@ func (x *Port) GetProtocol() string {
 	return ""
 }
 
+// ResourceSpec defines CPU and memory resource constraints.
 type ResourceSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cpu           *string                `protobuf:"bytes,1,opt,name=cpu,proto3,oneof" json:"cpu,omitempty"`
@@ -185,6 +187,7 @@ func (x *ResourceSpec) GetMemory() string {
 	return ""
 }
 
+// HealthCheckConfig defines health check parameters.
 type HealthCheckConfig struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Path               *string                `protobuf:"bytes,1,opt,name=path,proto3,oneof" json:"path,omitempty"`
@@ -261,6 +264,7 @@ func (x *HealthCheckConfig) GetStartupGracePeriod() int32 {
 	return 0
 }
 
+// DeploymentMetricsConfig defines metrics collection settings.
 type DeploymentMetricsConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       *bool                  `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
@@ -321,6 +325,7 @@ func (x *DeploymentMetricsConfig) GetPort() int32 {
 	return 0
 }
 
+// DeploymentSpec defines deployment configuration.
 type DeploymentSpec struct {
 	state           protoimpl.MessageState   `protogen:"open.v1"`
 	Image           *string                  `protobuf:"bytes,1,opt,name=image,proto3,oneof" json:"image,omitempty"`
@@ -429,11 +434,12 @@ func (x *DeploymentSpec) GetMetrics() *DeploymentMetricsConfig {
 	return nil
 }
 
+// Deployment represents an application deployment.
 type Deployment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	AppId         int64                  `protobuf:"varint,2,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
-	Image         string                 `protobuf:"bytes,6,opt,name=image,proto3" json:"image,omitempty"`
+	Image         string                 `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
 	Replicas      int32                  `protobuf:"varint,7,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Status        DeploymentPhase        `protobuf:"varint,8,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	IsCurrent     bool                   `protobuf:"varint,9,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
@@ -585,6 +591,7 @@ func (x *Deployment) GetSpec() *structpb.Struct {
 	return nil
 }
 
+// CreateDeploymentRequest is the request to create a new deployment.
 type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -637,9 +644,10 @@ func (x *CreateDeploymentRequest) GetSpec() *DeploymentSpec {
 	return nil
 }
 
+// CreateDeploymentResponse is the response from creating a deployment.
 type CreateDeploymentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Deployment    *Deployment            `protobuf:"bytes,1,opt,name=deployment,proto3" json:"deployment,omitempty"`
+	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -675,11 +683,11 @@ func (*CreateDeploymentResponse) Descriptor() ([]byte, []int) {
 	return file_deployment_v1_deployment_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *CreateDeploymentResponse) GetDeployment() *Deployment {
+func (x *CreateDeploymentResponse) GetDeploymentId() int64 {
 	if x != nil {
-		return x.Deployment
+		return x.DeploymentId
 	}
-	return nil
+	return 0
 }
 
 func (x *CreateDeploymentResponse) GetMessage() string {
@@ -689,6 +697,7 @@ func (x *CreateDeploymentResponse) GetMessage() string {
 	return ""
 }
 
+// GetDeploymentRequest is the request to retrieve a deployment.
 type GetDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
@@ -733,6 +742,7 @@ func (x *GetDeploymentRequest) GetDeploymentId() int64 {
 	return 0
 }
 
+// GetDeploymentResponse is the response containing deployment information.
 type GetDeploymentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deployment    *Deployment            `protobuf:"bytes,1,opt,name=deployment,proto3" json:"deployment,omitempty"`
@@ -777,6 +787,7 @@ func (x *GetDeploymentResponse) GetDeployment() *Deployment {
 	return nil
 }
 
+// ListDeploymentsRequest is the request to list deployments.
 type ListDeploymentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -837,6 +848,7 @@ func (x *ListDeploymentsRequest) GetOffset() int32 {
 	return 0
 }
 
+// ListDeploymentsResponse is the response containing deployment list.
 type ListDeploymentsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deployments   []*Deployment          `protobuf:"bytes,1,rep,name=deployments,proto3" json:"deployments,omitempty"`
@@ -889,6 +901,7 @@ func (x *ListDeploymentsResponse) GetTotal() int64 {
 	return 0
 }
 
+// StreamDeploymentRequest is the request to stream deployment events.
 type StreamDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
@@ -933,6 +946,7 @@ func (x *StreamDeploymentRequest) GetDeploymentId() int64 {
 	return 0
 }
 
+// DeploymentEvent represents a deployment event.
 type DeploymentEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
@@ -1069,7 +1083,7 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x15\n" +
 	"\x06app_id\x18\x02 \x01(\x03R\x05appId\x12\x14\n" +
-	"\x05image\x18\x06 \x01(\tR\x05image\x12\x1a\n" +
+	"\x05image\x18\x03 \x01(\tR\x05image\x12\x1a\n" +
 	"\breplicas\x18\a \x01(\x05R\breplicas\x12;\n" +
 	"\x06status\x18\b \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1d\n" +
 	"\n" +
@@ -1096,11 +1110,9 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x05_spec\"h\n" +
 	"\x17CreateDeploymentRequest\x12\x15\n" +
 	"\x06app_id\x18\x01 \x01(\x03R\x05appId\x126\n" +
-	"\x04spec\x18\x02 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"t\n" +
-	"\x18CreateDeploymentResponse\x12>\n" +
-	"\n" +
-	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\x12\x18\n" +
+	"\x04spec\x18\x02 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"Y\n" +
+	"\x18CreateDeploymentResponse\x12#\n" +
+	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\";\n" +
 	"\x14GetDeploymentRequest\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"W\n" +
@@ -1184,24 +1196,23 @@ var file_deployment_v1_deployment_proto_depIdxs = []int32{
 	16, // 7: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
 	17, // 8: loco.deployment.v1.Deployment.spec:type_name -> google.protobuf.Struct
 	5,  // 9: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	6,  // 10: loco.deployment.v1.CreateDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	6,  // 11: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	6,  // 12: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	0,  // 13: loco.deployment.v1.DeploymentEvent.status:type_name -> loco.deployment.v1.DeploymentPhase
-	16, // 14: loco.deployment.v1.DeploymentEvent.timestamp:type_name -> google.protobuf.Timestamp
-	7,  // 15: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
-	9,  // 16: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
-	11, // 17: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
-	13, // 18: loco.deployment.v1.DeploymentService.StreamDeployment:input_type -> loco.deployment.v1.StreamDeploymentRequest
-	8,  // 19: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
-	10, // 20: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
-	12, // 21: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
-	14, // 22: loco.deployment.v1.DeploymentService.StreamDeployment:output_type -> loco.deployment.v1.DeploymentEvent
-	19, // [19:23] is the sub-list for method output_type
-	15, // [15:19] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	6,  // 10: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	6,  // 11: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
+	0,  // 12: loco.deployment.v1.DeploymentEvent.status:type_name -> loco.deployment.v1.DeploymentPhase
+	16, // 13: loco.deployment.v1.DeploymentEvent.timestamp:type_name -> google.protobuf.Timestamp
+	7,  // 14: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
+	9,  // 15: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
+	11, // 16: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
+	13, // 17: loco.deployment.v1.DeploymentService.StreamDeployment:input_type -> loco.deployment.v1.StreamDeploymentRequest
+	8,  // 18: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
+	10, // 19: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
+	12, // 20: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
+	14, // 21: loco.deployment.v1.DeploymentService.StreamDeployment:output_type -> loco.deployment.v1.DeploymentEvent
+	18, // [18:22] is the sub-list for method output_type
+	14, // [14:18] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_deployment_v1_deployment_proto_init() }

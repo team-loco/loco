@@ -96,8 +96,8 @@ message CreateDeploymentRequest {
 
 // CreateDeploymentResponse is the response from creating a deployment.
 message CreateDeploymentResponse {
-  Deployment deployment = 1;
-  string     message    = 2;
+  int64  deployment_id = 1;
+  string message       = 2;
 }
 
 // GetDeploymentRequest is the request to retrieve a deployment.

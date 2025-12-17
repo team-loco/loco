@@ -192,6 +192,7 @@ func (AppStatus) EnumDescriptor() ([]byte, []int) {
 	return file_app_v1_app_proto_rawDescGZIP(), []int{2}
 }
 
+// App represents an application in a workspace.
 type App struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -316,6 +317,7 @@ func (x *App) GetSpec() *structpb.Struct {
 	return nil
 }
 
+// CreateAppRequest is the request to create a new application.
 type CreateAppRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -392,6 +394,7 @@ func (x *CreateAppRequest) GetSpec() *structpb.Struct {
 	return nil
 }
 
+// CreateAppResponse is the response from creating an application.
 type CreateAppResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	App           *App                   `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
@@ -444,6 +447,7 @@ func (x *CreateAppResponse) GetMessage() string {
 	return ""
 }
 
+// GetAppRequest is the request to retrieve an application.
 type GetAppRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -488,6 +492,7 @@ func (x *GetAppRequest) GetAppId() int64 {
 	return 0
 }
 
+// GetAppResponse is the response containing application information.
 type GetAppResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	App           *App                   `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
@@ -532,6 +537,7 @@ func (x *GetAppResponse) GetApp() *App {
 	return nil
 }
 
+// GetAppByNameRequest is the request to retrieve an application by name.
 type GetAppByNameRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -584,6 +590,7 @@ func (x *GetAppByNameRequest) GetName() string {
 	return ""
 }
 
+// GetAppByNameResponse is the response containing the application.
 type GetAppByNameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	App           *App                   `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
@@ -628,6 +635,7 @@ func (x *GetAppByNameResponse) GetApp() *App {
 	return nil
 }
 
+// ListAppsRequest is the request to list applications.
 type ListAppsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -672,6 +680,7 @@ func (x *ListAppsRequest) GetWorkspaceId() int64 {
 	return 0
 }
 
+// ListAppsResponse is the response containing the list of applications.
 type ListAppsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Apps          []*App                 `protobuf:"bytes,1,rep,name=apps,proto3" json:"apps,omitempty"`
@@ -716,6 +725,7 @@ func (x *ListAppsResponse) GetApps() []*App {
 	return nil
 }
 
+// UpdateAppRequest is the request to update an application.
 type UpdateAppRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -784,6 +794,7 @@ func (x *UpdateAppRequest) GetDomain() string {
 	return ""
 }
 
+// UpdateAppResponse is the response from updating an application.
 type UpdateAppResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	App           *App                   `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
@@ -836,6 +847,7 @@ func (x *UpdateAppResponse) GetMessage() string {
 	return ""
 }
 
+// DeleteAppRequest is the request to delete an application.
 type DeleteAppRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -880,6 +892,7 @@ func (x *DeleteAppRequest) GetAppId() int64 {
 	return 0
 }
 
+// DeleteAppResponse is the response from deleting an application.
 type DeleteAppResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	App           *App                   `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
@@ -932,6 +945,7 @@ func (x *DeleteAppResponse) GetMessage() string {
 	return ""
 }
 
+// GetAppStatusRequest is the request to retrieve application status.
 type GetAppStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -976,6 +990,7 @@ func (x *GetAppStatusRequest) GetAppId() int64 {
 	return 0
 }
 
+// DeploymentStatus represents the status of an application deployment.
 type DeploymentStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1052,6 +1067,7 @@ func (x *DeploymentStatus) GetErrorMessage() string {
 	return ""
 }
 
+// GetAppStatusResponse is the response containing application status information.
 type GetAppStatusResponse struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	App               *App                   `protobuf:"bytes,1,opt,name=app,proto3" json:"app,omitempty"`
@@ -1104,6 +1120,7 @@ func (x *GetAppStatusResponse) GetCurrentDeployment() *DeploymentStatus {
 	return nil
 }
 
+// StreamLogsRequest is the request to stream application logs.
 type StreamLogsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -1164,6 +1181,7 @@ func (x *StreamLogsRequest) GetFollow() bool {
 	return false
 }
 
+// LogEntry represents a single log line from an application.
 type LogEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PodName       string                 `protobuf:"bytes,1,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
@@ -1248,6 +1266,7 @@ func (x *LogEntry) GetLevel() string {
 	return ""
 }
 
+// Event represents an event related to an application.
 type Event struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
@@ -1324,6 +1343,7 @@ func (x *Event) GetPodName() string {
 	return ""
 }
 
+// GetEventsRequest is the request to retrieve application events.
 type GetEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -1376,6 +1396,7 @@ func (x *GetEventsRequest) GetLimit() int32 {
 	return 0
 }
 
+// GetEventsResponse is the response containing application events.
 type GetEventsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
@@ -1420,6 +1441,7 @@ func (x *GetEventsResponse) GetEvents() []*Event {
 	return nil
 }
 
+// ScaleAppRequest is the request to scale an application.
 type ScaleAppRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -1488,6 +1510,7 @@ func (x *ScaleAppRequest) GetMemory() string {
 	return ""
 }
 
+// ScaleAppResponse is the response from scaling an application.
 type ScaleAppResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deployment    *DeploymentStatus      `protobuf:"bytes,1,opt,name=deployment,proto3" json:"deployment,omitempty"`
@@ -1532,6 +1555,7 @@ func (x *ScaleAppResponse) GetDeployment() *DeploymentStatus {
 	return nil
 }
 
+// UpdateAppEnvRequest is the request to update application environment variables.
 type UpdateAppEnvRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -1584,6 +1608,7 @@ func (x *UpdateAppEnvRequest) GetEnv() map[string]string {
 	return nil
 }
 
+// UpdateAppEnvResponse is the response from updating environment variables.
 type UpdateAppEnvResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deployment    *DeploymentStatus      `protobuf:"bytes,1,opt,name=deployment,proto3" json:"deployment,omitempty"`
@@ -1632,7 +1657,7 @@ var File_app_v1_app_proto protoreflect.FileDescriptor
 
 const file_app_v1_app_proto_rawDesc = "" +
 	"\n" +
-	"\x10app/v1/app.proto\x12\vloco.app.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16domain/v1/domain.proto\"\xc9\x03\n" +
+	"\x10app/v1/app.proto\x12\vloco.app.v1\x1a\x16domain/v1/domain.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc9\x03\n" +
 	"\x03App\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\x03R\vworkspaceId\x12\x12\n" +

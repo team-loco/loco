@@ -71,19 +71,30 @@ const (
 // DomainServiceClient is a client for the loco.domain.v1.DomainService service.
 type DomainServiceClient interface {
 	// Platform Domain CRUD
+	// CreatePlatformDomain creates a new platform-provided domain.
 	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
+	// GetPlatformDomain retrieves a platform domain by ID.
 	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error)
+	// GetPlatformDomainByName retrieves a platform domain by name.
 	GetPlatformDomainByName(context.Context, *connect.Request[v1.GetPlatformDomainByNameRequest]) (*connect.Response[v1.GetPlatformDomainByNameResponse], error)
+	// ListActivePlatformDomains lists all active platform domains.
 	ListActivePlatformDomains(context.Context, *connect.Request[v1.ListActivePlatformDomainsRequest]) (*connect.Response[v1.ListActivePlatformDomainsResponse], error)
+	// DeactivatePlatformDomain deactivates a platform domain.
 	DeactivatePlatformDomain(context.Context, *connect.Request[v1.DeactivatePlatformDomainRequest]) (*connect.Response[v1.DeactivatePlatformDomainResponse], error)
 	// App Domain Management
+	// AddAppDomain assigns a domain to an application.
 	AddAppDomain(context.Context, *connect.Request[v1.AddAppDomainRequest]) (*connect.Response[v1.AddAppDomainResponse], error)
+	// UpdateAppDomain updates an application's domain configuration.
 	UpdateAppDomain(context.Context, *connect.Request[v1.UpdateAppDomainRequest]) (*connect.Response[v1.UpdateAppDomainResponse], error)
+	// SetPrimaryAppDomain sets the primary domain for an application.
 	SetPrimaryAppDomain(context.Context, *connect.Request[v1.SetPrimaryAppDomainRequest]) (*connect.Response[v1.SetPrimaryAppDomainResponse], error)
+	// RemoveAppDomain removes a domain from an application.
 	RemoveAppDomain(context.Context, *connect.Request[v1.RemoveAppDomainRequest]) (*connect.Response[v1.RemoveAppDomainResponse], error)
 	// Domain Availability
+	// CheckDomainAvailability checks if a domain is available.
 	CheckDomainAvailability(context.Context, *connect.Request[v1.CheckDomainAvailabilityRequest]) (*connect.Response[v1.CheckDomainAvailabilityResponse], error)
 	// Queries
+	// ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
 	ListAllLocoOwnedDomains(context.Context, *connect.Request[v1.ListAllLocoOwnedDomainsRequest]) (*connect.Response[v1.ListAllLocoOwnedDomainsResponse], error)
 }
 
@@ -240,19 +251,30 @@ func (c *domainServiceClient) ListAllLocoOwnedDomains(ctx context.Context, req *
 // DomainServiceHandler is an implementation of the loco.domain.v1.DomainService service.
 type DomainServiceHandler interface {
 	// Platform Domain CRUD
+	// CreatePlatformDomain creates a new platform-provided domain.
 	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
+	// GetPlatformDomain retrieves a platform domain by ID.
 	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error)
+	// GetPlatformDomainByName retrieves a platform domain by name.
 	GetPlatformDomainByName(context.Context, *connect.Request[v1.GetPlatformDomainByNameRequest]) (*connect.Response[v1.GetPlatformDomainByNameResponse], error)
+	// ListActivePlatformDomains lists all active platform domains.
 	ListActivePlatformDomains(context.Context, *connect.Request[v1.ListActivePlatformDomainsRequest]) (*connect.Response[v1.ListActivePlatformDomainsResponse], error)
+	// DeactivatePlatformDomain deactivates a platform domain.
 	DeactivatePlatformDomain(context.Context, *connect.Request[v1.DeactivatePlatformDomainRequest]) (*connect.Response[v1.DeactivatePlatformDomainResponse], error)
 	// App Domain Management
+	// AddAppDomain assigns a domain to an application.
 	AddAppDomain(context.Context, *connect.Request[v1.AddAppDomainRequest]) (*connect.Response[v1.AddAppDomainResponse], error)
+	// UpdateAppDomain updates an application's domain configuration.
 	UpdateAppDomain(context.Context, *connect.Request[v1.UpdateAppDomainRequest]) (*connect.Response[v1.UpdateAppDomainResponse], error)
+	// SetPrimaryAppDomain sets the primary domain for an application.
 	SetPrimaryAppDomain(context.Context, *connect.Request[v1.SetPrimaryAppDomainRequest]) (*connect.Response[v1.SetPrimaryAppDomainResponse], error)
+	// RemoveAppDomain removes a domain from an application.
 	RemoveAppDomain(context.Context, *connect.Request[v1.RemoveAppDomainRequest]) (*connect.Response[v1.RemoveAppDomainResponse], error)
 	// Domain Availability
+	// CheckDomainAvailability checks if a domain is available.
 	CheckDomainAvailability(context.Context, *connect.Request[v1.CheckDomainAvailabilityRequest]) (*connect.Response[v1.CheckDomainAvailabilityResponse], error)
 	// Queries
+	// ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
 	ListAllLocoOwnedDomains(context.Context, *connect.Request[v1.ListAllLocoOwnedDomainsRequest]) (*connect.Response[v1.ListAllLocoOwnedDomainsResponse], error)
 }
 

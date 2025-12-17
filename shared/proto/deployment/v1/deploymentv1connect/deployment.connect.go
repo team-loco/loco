@@ -49,9 +49,13 @@ const (
 
 // DeploymentServiceClient is a client for the loco.deployment.v1.DeploymentService service.
 type DeploymentServiceClient interface {
+	// CreateDeployment creates a new deployment for an application.
 	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error)
+	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *connect.Request[v1.GetDeploymentRequest]) (*connect.Response[v1.GetDeploymentResponse], error)
+	// ListDeployments lists deployments for an application.
 	ListDeployments(context.Context, *connect.Request[v1.ListDeploymentsRequest]) (*connect.Response[v1.ListDeploymentsResponse], error)
+	// StreamDeployment streams deployment events in real-time.
 	StreamDeployment(context.Context, *connect.Request[v1.StreamDeploymentRequest]) (*connect.ServerStreamForClient[v1.DeploymentEvent], error)
 }
 
@@ -124,9 +128,13 @@ func (c *deploymentServiceClient) StreamDeployment(ctx context.Context, req *con
 // DeploymentServiceHandler is an implementation of the loco.deployment.v1.DeploymentService
 // service.
 type DeploymentServiceHandler interface {
+	// CreateDeployment creates a new deployment for an application.
 	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error)
+	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *connect.Request[v1.GetDeploymentRequest]) (*connect.Response[v1.GetDeploymentResponse], error)
+	// ListDeployments lists deployments for an application.
 	ListDeployments(context.Context, *connect.Request[v1.ListDeploymentsRequest]) (*connect.Response[v1.ListDeploymentsResponse], error)
+	// StreamDeployment streams deployment events in real-time.
 	StreamDeployment(context.Context, *connect.Request[v1.StreamDeploymentRequest], *connect.ServerStream[v1.DeploymentEvent]) error
 }
 

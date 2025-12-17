@@ -22,6 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Workspace represents a workspace within an organization.
 type Workspace struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -114,6 +115,7 @@ func (x *Workspace) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// WorkspaceMember represents a user's membership in a workspace.
 type WorkspaceMember struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -182,6 +184,7 @@ func (x *WorkspaceMember) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// WorkspaceMemberWithUser includes user details along with membership information.
 type WorkspaceMemberWithUser struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -274,6 +277,7 @@ func (x *WorkspaceMemberWithUser) GetUserAvatarUrl() string {
 	return ""
 }
 
+// CreateWorkspaceRequest is the request to create a new workspace.
 type CreateWorkspaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -334,6 +338,7 @@ func (x *CreateWorkspaceRequest) GetDescription() string {
 	return ""
 }
 
+// CreateWorkspaceResponse is the response from creating a workspace.
 type CreateWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
@@ -386,6 +391,7 @@ func (x *CreateWorkspaceResponse) GetMessage() string {
 	return ""
 }
 
+// GetWorkspaceRequest is the request to retrieve a workspace.
 type GetWorkspaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -430,6 +436,7 @@ func (x *GetWorkspaceRequest) GetWorkspaceId() int64 {
 	return 0
 }
 
+// GetWorkspaceResponse is the response containing workspace information.
 type GetWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
@@ -474,6 +481,7 @@ func (x *GetWorkspaceResponse) GetWorkspace() *Workspace {
 	return nil
 }
 
+// GetUserWorkspacesRequest is the request to retrieve user's workspaces.
 type GetUserWorkspacesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -510,6 +518,7 @@ func (*GetUserWorkspacesRequest) Descriptor() ([]byte, []int) {
 	return file_workspace_v1_workspace_proto_rawDescGZIP(), []int{7}
 }
 
+// GetUserWorkspacesResponse contains the list of user's workspaces.
 type GetUserWorkspacesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspaces    []*Workspace           `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
@@ -554,6 +563,7 @@ func (x *GetUserWorkspacesResponse) GetWorkspaces() []*Workspace {
 	return nil
 }
 
+// ListWorkspacesRequest is the request to list workspaces in an organization.
 type ListWorkspacesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
@@ -598,6 +608,7 @@ func (x *ListWorkspacesRequest) GetOrgId() int64 {
 	return 0
 }
 
+// ListWorkspacesResponse contains the list of workspaces.
 type ListWorkspacesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspaces    []*Workspace           `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
@@ -642,6 +653,7 @@ func (x *ListWorkspacesResponse) GetWorkspaces() []*Workspace {
 	return nil
 }
 
+// UpdateWorkspaceRequest is the request to update a workspace.
 type UpdateWorkspaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -702,6 +714,7 @@ func (x *UpdateWorkspaceRequest) GetDescription() string {
 	return ""
 }
 
+// UpdateWorkspaceResponse is the response from updating a workspace.
 type UpdateWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
@@ -754,6 +767,7 @@ func (x *UpdateWorkspaceResponse) GetMessage() string {
 	return ""
 }
 
+// DeleteWorkspaceRequest is the request to delete a workspace.
 type DeleteWorkspaceRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId       int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -806,6 +820,7 @@ func (x *DeleteWorkspaceRequest) GetConfirmDeleteApps() bool {
 	return false
 }
 
+// DeleteWorkspaceResponse is the response from deleting a workspace.
 type DeleteWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
@@ -858,6 +873,7 @@ func (x *DeleteWorkspaceResponse) GetMessage() string {
 	return ""
 }
 
+// AddMemberRequest is the request to add a member to a workspace.
 type AddMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -918,6 +934,7 @@ func (x *AddMemberRequest) GetRole() string {
 	return ""
 }
 
+// AddMemberResponse is the response from adding a member to a workspace.
 type AddMemberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Member        *WorkspaceMember       `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
@@ -962,6 +979,7 @@ func (x *AddMemberResponse) GetMember() *WorkspaceMember {
 	return nil
 }
 
+// RemoveMemberRequest is the request to remove a member from a workspace.
 type RemoveMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -1014,6 +1032,7 @@ func (x *RemoveMemberRequest) GetUserId() int64 {
 	return 0
 }
 
+// RemoveMemberResponse is the response from removing a member from a workspace.
 type RemoveMemberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -1058,6 +1077,7 @@ func (x *RemoveMemberResponse) GetSuccess() bool {
 	return false
 }
 
+// ListMembersRequest is the request to list members of a workspace.
 type ListMembersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -1118,6 +1138,7 @@ func (x *ListMembersRequest) GetAfterCursor() int64 {
 	return 0
 }
 
+// ListMembersResponse contains the list of workspace members.
 type ListMembersResponse struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Members       []*WorkspaceMemberWithUser `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`

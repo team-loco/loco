@@ -68,6 +68,7 @@ func (DomainType) EnumDescriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{0}
 }
 
+// PlatformDomain represents a platform-provided domain.
 type PlatformDomain struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -144,6 +145,7 @@ func (x *PlatformDomain) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// DomainInput specifies domain configuration for an application.
 type DomainInput struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	DomainSource     DomainType             `protobuf:"varint,1,opt,name=domain_source,json=domainSource,proto3,enum=loco.domain.v1.DomainType" json:"domain_source,omitempty"`
@@ -212,6 +214,7 @@ func (x *DomainInput) GetDomain() string {
 	return ""
 }
 
+// AppDomain represents a domain assigned to an application.
 type AppDomain struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -320,6 +323,7 @@ func (x *AppDomain) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// CreatePlatformDomainRequest is the request to create a platform domain.
 type CreatePlatformDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
@@ -372,6 +376,7 @@ func (x *CreatePlatformDomainRequest) GetIsActive() bool {
 	return false
 }
 
+// CreatePlatformDomainResponse is the response from creating a platform domain.
 type CreatePlatformDomainResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	PlatformDomain *PlatformDomain        `protobuf:"bytes,1,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
@@ -416,6 +421,7 @@ func (x *CreatePlatformDomainResponse) GetPlatformDomain() *PlatformDomain {
 	return nil
 }
 
+// GetPlatformDomainRequest is the request to retrieve a platform domain.
 type GetPlatformDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -460,6 +466,7 @@ func (x *GetPlatformDomainRequest) GetId() int64 {
 	return 0
 }
 
+// GetPlatformDomainResponse is the response containing platform domain information.
 type GetPlatformDomainResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	PlatformDomain *PlatformDomain        `protobuf:"bytes,1,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
@@ -504,6 +511,7 @@ func (x *GetPlatformDomainResponse) GetPlatformDomain() *PlatformDomain {
 	return nil
 }
 
+// GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
 type GetPlatformDomainByNameRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
@@ -548,6 +556,7 @@ func (x *GetPlatformDomainByNameRequest) GetDomain() string {
 	return ""
 }
 
+// GetPlatformDomainByNameResponse is the response containing the platform domain.
 type GetPlatformDomainByNameResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	PlatformDomain *PlatformDomain        `protobuf:"bytes,1,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
@@ -592,6 +601,7 @@ func (x *GetPlatformDomainByNameResponse) GetPlatformDomain() *PlatformDomain {
 	return nil
 }
 
+// ListActivePlatformDomainsRequest is the request to list active platform domains.
 type ListActivePlatformDomainsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -628,6 +638,7 @@ func (*ListActivePlatformDomainsRequest) Descriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{9}
 }
 
+// ListActivePlatformDomainsResponse contains the list of active platform domains.
 type ListActivePlatformDomainsResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	PlatformDomains []*PlatformDomain      `protobuf:"bytes,1,rep,name=platform_domains,json=platformDomains,proto3" json:"platform_domains,omitempty"`
@@ -672,6 +683,7 @@ func (x *ListActivePlatformDomainsResponse) GetPlatformDomains() []*PlatformDoma
 	return nil
 }
 
+// DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
 type DeactivatePlatformDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -716,6 +728,7 @@ func (x *DeactivatePlatformDomainRequest) GetId() int64 {
 	return 0
 }
 
+// DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
 type DeactivatePlatformDomainResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	PlatformDomain *PlatformDomain        `protobuf:"bytes,1,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
@@ -760,6 +773,7 @@ func (x *DeactivatePlatformDomainResponse) GetPlatformDomain() *PlatformDomain {
 	return nil
 }
 
+// CheckDomainAvailabilityRequest is the request to check domain availability.
 type CheckDomainAvailabilityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
@@ -804,6 +818,7 @@ func (x *CheckDomainAvailabilityRequest) GetDomain() string {
 	return ""
 }
 
+// CheckDomainAvailabilityResponse indicates if a domain is available.
 type CheckDomainAvailabilityResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	IsAvailable   bool                   `protobuf:"varint,1,opt,name=is_available,json=isAvailable,proto3" json:"is_available,omitempty"`
@@ -848,6 +863,7 @@ func (x *CheckDomainAvailabilityResponse) GetIsAvailable() bool {
 	return false
 }
 
+// LocoOwnedDomain represents a domain with an associated application.
 type LocoOwnedDomain struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -924,6 +940,7 @@ func (x *LocoOwnedDomain) GetPlatformDomain() string {
 	return ""
 }
 
+// ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
 type ListAllLocoOwnedDomainsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -960,6 +977,7 @@ func (*ListAllLocoOwnedDomainsRequest) Descriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{16}
 }
 
+// ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
 type ListAllLocoOwnedDomainsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domains       []*LocoOwnedDomain     `protobuf:"bytes,1,rep,name=domains,proto3" json:"domains,omitempty"`
@@ -1004,6 +1022,7 @@ func (x *ListAllLocoOwnedDomainsResponse) GetDomains() []*LocoOwnedDomain {
 	return nil
 }
 
+// AddAppDomainRequest is the request to add a domain to an application.
 type AddAppDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -1056,6 +1075,7 @@ func (x *AddAppDomainRequest) GetDomain() *DomainInput {
 	return nil
 }
 
+// AddAppDomainResponse is the response from adding a domain to an application.
 type AddAppDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domain        *AppDomain             `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
@@ -1108,6 +1128,7 @@ func (x *AddAppDomainResponse) GetMessage() string {
 	return ""
 }
 
+// UpdateAppDomainRequest is the request to update an application's domain.
 type UpdateAppDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
@@ -1160,6 +1181,7 @@ func (x *UpdateAppDomainRequest) GetDomain() string {
 	return ""
 }
 
+// UpdateAppDomainResponse is the response from updating an application's domain.
 type UpdateAppDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domain        *AppDomain             `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
@@ -1212,6 +1234,7 @@ func (x *UpdateAppDomainResponse) GetMessage() string {
 	return ""
 }
 
+// SetPrimaryAppDomainRequest is the request to set the primary domain for an application.
 type SetPrimaryAppDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
@@ -1264,6 +1287,7 @@ func (x *SetPrimaryAppDomainRequest) GetDomainId() int64 {
 	return 0
 }
 
+// SetPrimaryAppDomainResponse is the response from setting the primary domain.
 type SetPrimaryAppDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domain        *AppDomain             `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
@@ -1316,6 +1340,7 @@ func (x *SetPrimaryAppDomainResponse) GetMessage() string {
 	return ""
 }
 
+// RemoveAppDomainRequest is the request to remove a domain from an application.
 type RemoveAppDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
@@ -1360,6 +1385,7 @@ func (x *RemoveAppDomainRequest) GetDomainId() int64 {
 	return 0
 }
 
+// RemoveAppDomainResponse is the response from removing a domain.
 type RemoveAppDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Message       string                 `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
