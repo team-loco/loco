@@ -34,7 +34,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
-	locov1alpha1 "github.com/team-loco/loco/api/v1alpha1"
+	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
 )
 
 // LocoResourceReconciler reconciles a LocoResource object
