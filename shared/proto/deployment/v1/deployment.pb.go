@@ -23,6 +23,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// DeploymentPhase indicates the current state of a deployment lifecycle.
 type DeploymentPhase int32
 
 const (
@@ -440,18 +441,18 @@ type Deployment struct {
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	AppId         int64                  `protobuf:"varint,2,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
 	Image         string                 `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
-	Replicas      int32                  `protobuf:"varint,7,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	Status        DeploymentPhase        `protobuf:"varint,8,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
-	IsCurrent     bool                   `protobuf:"varint,9,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
-	Message       *string                `protobuf:"bytes,10,opt,name=message,proto3,oneof" json:"message,omitempty"`
-	ErrorMessage  *string                `protobuf:"bytes,11,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
-	CreatedBy     int64                  `protobuf:"varint,12,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
-	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	SchemaVersion int32                  `protobuf:"varint,17,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	Spec          *structpb.Struct       `protobuf:"bytes,18,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
+	Replicas      int32                  `protobuf:"varint,4,opt,name=replicas,proto3" json:"replicas,omitempty"`
+	Status        DeploymentPhase        `protobuf:"varint,5,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
+	IsCurrent     bool                   `protobuf:"varint,6,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
+	Message       *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	ErrorMessage  *string                `protobuf:"bytes,8,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
+	CreatedBy     int64                  `protobuf:"varint,9,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SchemaVersion int32                  `protobuf:"varint,14,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Spec          *structpb.Struct       `protobuf:"bytes,15,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1084,24 +1085,24 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x15\n" +
 	"\x06app_id\x18\x02 \x01(\x03R\x05appId\x12\x14\n" +
 	"\x05image\x18\x03 \x01(\tR\x05image\x12\x1a\n" +
-	"\breplicas\x18\a \x01(\x05R\breplicas\x12;\n" +
-	"\x06status\x18\b \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1d\n" +
+	"\breplicas\x18\x04 \x01(\x05R\breplicas\x12;\n" +
+	"\x06status\x18\x05 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1d\n" +
 	"\n" +
-	"is_current\x18\t \x01(\bR\tisCurrent\x12\x1d\n" +
-	"\amessage\x18\n" +
-	" \x01(\tH\x00R\amessage\x88\x01\x01\x12(\n" +
-	"\rerror_message\x18\v \x01(\tH\x01R\ferrorMessage\x88\x01\x01\x12\x1d\n" +
+	"is_current\x18\x06 \x01(\bR\tisCurrent\x12\x1d\n" +
+	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12(\n" +
+	"\rerror_message\x18\b \x01(\tH\x01R\ferrorMessage\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\f \x01(\x03R\tcreatedBy\x129\n" +
+	"created_by\x18\t \x01(\x03R\tcreatedBy\x129\n" +
 	"\n" +
-	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
+	"created_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
-	"started_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartedAt\x88\x01\x01\x12B\n" +
-	"\fcompleted_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vcompletedAt\x88\x01\x01\x129\n" +
+	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartedAt\x88\x01\x01\x12B\n" +
+	"\fcompleted_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vcompletedAt\x88\x01\x01\x129\n" +
 	"\n" +
-	"updated_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
-	"\x0eschema_version\x18\x11 \x01(\x05R\rschemaVersion\x120\n" +
-	"\x04spec\x18\x12 \x01(\v2\x17.google.protobuf.StructH\x04R\x04spec\x88\x01\x01B\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
+	"\x0eschema_version\x18\x0e \x01(\x05R\rschemaVersion\x120\n" +
+	"\x04spec\x18\x0f \x01(\v2\x17.google.protobuf.StructH\x04R\x04spec\x88\x01\x01B\n" +
 	"\n" +
 	"\b_messageB\x10\n" +
 	"\x0e_error_messageB\r\n" +

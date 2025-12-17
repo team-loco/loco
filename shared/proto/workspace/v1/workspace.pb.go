@@ -22,7 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Workspace represents a workspace within an organization.
+// Workspace represents a project container within an organization where applications are deployed and managed.
 type Workspace struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -115,7 +115,7 @@ func (x *Workspace) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// WorkspaceMember represents a user's membership in a workspace.
+// WorkspaceMember represents a user's membership and role assignment in a workspace.
 type WorkspaceMember struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
@@ -184,7 +184,7 @@ func (x *WorkspaceMember) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// WorkspaceMemberWithUser includes user details along with membership information.
+// WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
 type WorkspaceMemberWithUser struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`

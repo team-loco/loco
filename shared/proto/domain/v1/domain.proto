@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/domain/v1;domainv1";
 
+// DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {
   PLATFORM_PROVIDED = 0;
   USER_PROVIDED = 1;
@@ -143,7 +144,7 @@ message CheckDomainAvailabilityResponse {
 
 // --- List Loco Owned Domains ---
 
-// LocoOwnedDomain represents a domain with an associated application.
+// LocoOwnedDomain represents a platform-managed domain paired with an application deployment.
 message LocoOwnedDomain {
   int64 id = 1;
   string domain = 2;

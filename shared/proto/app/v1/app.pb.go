@@ -24,6 +24,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// AppType categorizes the type of application being deployed.
 type AppType int32
 
 const (
@@ -82,6 +83,7 @@ func (AppType) EnumDescriptor() ([]byte, []int) {
 	return file_app_v1_app_proto_rawDescGZIP(), []int{0}
 }
 
+// DeploymentPhase indicates the current state of a deployment.
 type DeploymentPhase int32
 
 const (
@@ -137,6 +139,7 @@ func (DeploymentPhase) EnumDescriptor() ([]byte, []int) {
 	return file_app_v1_app_proto_rawDescGZIP(), []int{1}
 }
 
+// AppStatus represents the operational status of an application based on current deployment and health checks.
 type AppStatus int32
 
 const (
@@ -990,7 +993,7 @@ func (x *GetAppStatusRequest) GetAppId() int64 {
 	return 0
 }
 
-// DeploymentStatus represents the status of an application deployment.
+// DeploymentStatus represents the status of an application deployment, including phase, replica count, and messages.
 type DeploymentStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1181,7 +1184,7 @@ func (x *StreamLogsRequest) GetFollow() bool {
 	return false
 }
 
-// LogEntry represents a single log line from an application.
+// LogEntry represents a single log line from a pod container within an application.
 type LogEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	PodName       string                 `protobuf:"bytes,1,opt,name=pod_name,json=podName,proto3" json:"pod_name,omitempty"`
@@ -1266,7 +1269,7 @@ func (x *LogEntry) GetLevel() string {
 	return ""
 }
 
-// Event represents an event related to an application.
+// Event represents a Kubernetes event related to an application (e.g., pod created, failed, crash loop).
 type Event struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`

@@ -28,7 +28,7 @@ service WorkspaceService {
   rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
 }
 
-// Workspace represents a workspace within an organization.
+// Workspace represents a project container within an organization where applications are deployed and managed.
 message Workspace {
   int64 id = 1;
   int64 org_id = 2;
@@ -39,7 +39,7 @@ message Workspace {
   google.protobuf.Timestamp updated_at = 7;
 }
 
-// WorkspaceMember represents a user's membership in a workspace.
+// WorkspaceMember represents a user's membership and role assignment in a workspace.
 message WorkspaceMember {
   int64 workspace_id = 1;
   int64 user_id = 2;
@@ -47,7 +47,7 @@ message WorkspaceMember {
   google.protobuf.Timestamp created_at = 4;
 }
 
-// WorkspaceMemberWithUser includes user details along with membership information.
+// WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
 message WorkspaceMemberWithUser {
   int64 workspace_id = 1;
   int64 user_id = 2;

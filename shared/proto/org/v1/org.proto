@@ -24,7 +24,7 @@ service OrgService {
   rpc IsUniqueOrgName(IsUniqueOrgNameRequest) returns (IsUniqueOrgNameResponse);
 }
 
-// Organization represents an organization.
+// Organization represents a top-level organization container for users, workspaces, and applications.
 message Organization {
   int64 id = 1;
   string name = 2;
@@ -33,7 +33,7 @@ message Organization {
   google.protobuf.Timestamp updated_at = 5;
 }
 
-// WorkspaceSummary provides a summary of a workspace.
+// WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
 message WorkspaceSummary {
   int64 id = 1;
   string name = 2;

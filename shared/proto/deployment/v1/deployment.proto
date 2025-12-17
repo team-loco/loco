@@ -7,6 +7,7 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/deployment/v1;deploymentv1";
 
+// DeploymentPhase indicates the current state of a deployment lifecycle.
 enum DeploymentPhase {
   DEPLOYMENT_PHASE_UNSPECIFIED = 0;
   DEPLOYMENT_PHASE_PENDING     = 1;
@@ -74,18 +75,18 @@ message Deployment {
   int64                              id             = 1;
   int64                              app_id         = 2;
   string                             image          = 3;
-  int32                              replicas       = 7;
-  DeploymentPhase                    status         = 8;
-  bool                               is_current     = 9;
-  optional string                    message        = 10;
-  optional string                    error_message  = 11;
-  int64                              created_by     = 12;
-  google.protobuf.Timestamp          created_at     = 13;
-  optional google.protobuf.Timestamp started_at     = 14;
-  optional google.protobuf.Timestamp completed_at   = 15;
-  google.protobuf.Timestamp          updated_at     = 16;
-  int32                              schema_version = 17;
-  optional google.protobuf.Struct    spec           = 18;
+  int32                              replicas       = 4;
+  DeploymentPhase                    status         = 5;
+  bool                               is_current     = 6;
+  optional string                    message        = 7;
+  optional string                    error_message  = 8;
+  int64                              created_by     = 9;
+  google.protobuf.Timestamp          created_at     = 10;
+  optional google.protobuf.Timestamp started_at     = 11;
+  optional google.protobuf.Timestamp completed_at   = 12;
+  google.protobuf.Timestamp          updated_at     = 13;
+  int32                              schema_version = 14;
+  optional google.protobuf.Struct    spec           = 15;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.

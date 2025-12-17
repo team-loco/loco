@@ -661,7 +661,7 @@ export const GetAppStatusRequestSchema: GenMessage<GetAppStatusRequest, {jsonTyp
   messageDesc(file_app_v1_app, 13);
 
 /**
- * DeploymentStatus represents the status of an application deployment.
+ * DeploymentStatus represents the status of an application deployment, including phase, replica count, and messages.
  *
  * @generated from message loco.app.v1.DeploymentStatus
  */
@@ -693,7 +693,7 @@ export type DeploymentStatus = Message<"loco.app.v1.DeploymentStatus"> & {
 };
 
 /**
- * DeploymentStatus represents the status of an application deployment.
+ * DeploymentStatus represents the status of an application deployment, including phase, replica count, and messages.
  *
  * @generated from message loco.app.v1.DeploymentStatus
  */
@@ -824,7 +824,7 @@ export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest, {jsonType: S
   messageDesc(file_app_v1_app, 16);
 
 /**
- * LogEntry represents a single log line from an application.
+ * LogEntry represents a single log line from a pod container within an application.
  *
  * @generated from message loco.app.v1.LogEntry
  */
@@ -861,7 +861,7 @@ export type LogEntry = Message<"loco.app.v1.LogEntry"> & {
 };
 
 /**
- * LogEntry represents a single log line from an application.
+ * LogEntry represents a single log line from a pod container within an application.
  *
  * @generated from message loco.app.v1.LogEntry
  */
@@ -905,7 +905,7 @@ export const LogEntrySchema: GenMessage<LogEntry, {jsonType: LogEntryJson}> = /*
   messageDesc(file_app_v1_app, 17);
 
 /**
- * Event represents an event related to an application.
+ * Event represents a Kubernetes event related to an application (e.g., pod created, failed, crash loop).
  *
  * @generated from message loco.app.v1.Event
  */
@@ -937,7 +937,7 @@ export type Event = Message<"loco.app.v1.Event"> & {
 };
 
 /**
- * Event represents an event related to an application.
+ * Event represents a Kubernetes event related to an application (e.g., pod created, failed, crash loop).
  *
  * @generated from message loco.app.v1.Event
  */
@@ -1212,6 +1212,8 @@ export const UpdateAppEnvResponseSchema: GenMessage<UpdateAppEnvResponse, {jsonT
   messageDesc(file_app_v1_app, 24);
 
 /**
+ * AppType categorizes the type of application being deployed.
+ *
  * @generated from enum loco.app.v1.AppType
  */
 export enum AppType {
@@ -1247,6 +1249,8 @@ export enum AppType {
 }
 
 /**
+ * AppType categorizes the type of application being deployed.
+ *
  * @generated from enum loco.app.v1.AppType
  */
 export type AppTypeJson = "SERVICE" | "DATABASE" | "FUNCTION" | "CACHE" | "QUEUE" | "BLOB";
@@ -1258,6 +1262,8 @@ export const AppTypeSchema: GenEnum<AppType, AppTypeJson> = /*@__PURE__*/
   enumDesc(file_app_v1_app, 0);
 
 /**
+ * DeploymentPhase indicates the current state of a deployment.
+ *
  * @generated from enum loco.app.v1.DeploymentPhase
  */
 export enum DeploymentPhase {
@@ -1288,6 +1294,8 @@ export enum DeploymentPhase {
 }
 
 /**
+ * DeploymentPhase indicates the current state of a deployment.
+ *
  * @generated from enum loco.app.v1.DeploymentPhase
  */
 export type DeploymentPhaseJson = "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELED";
@@ -1299,6 +1307,8 @@ export const DeploymentPhaseSchema: GenEnum<DeploymentPhase, DeploymentPhaseJson
   enumDesc(file_app_v1_app, 1);
 
 /**
+ * AppStatus represents the operational status of an application based on current deployment and health checks.
+ *
  * @generated from enum loco.app.v1.AppStatus
  */
 export enum AppStatus {
@@ -1329,6 +1339,8 @@ export enum AppStatus {
 }
 
 /**
+ * AppStatus represents the operational status of an application based on current deployment and health checks.
+ *
  * @generated from enum loco.app.v1.AppStatus
  */
 export type AppStatusJson = "AVAILABLE" | "PROGRESSING" | "DEGRADED" | "UNAVAILABLE" | "IDLE";

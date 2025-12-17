@@ -24,7 +24,7 @@ service UserService {
   rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
-// User represents a user account.
+// User represents a user account with OAuth identity and profile information.
 message User {
   int64 id = 1;
   string external_id = 2;

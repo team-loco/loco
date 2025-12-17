@@ -644,7 +644,7 @@ export const CheckDomainAvailabilityResponseSchema: GenMessage<CheckDomainAvaila
   messageDesc(file_domain_v1_domain, 14);
 
 /**
- * LocoOwnedDomain represents a domain with an associated application.
+ * LocoOwnedDomain represents a platform-managed domain paired with an application deployment.
  *
  * @generated from message loco.domain.v1.LocoOwnedDomain
  */
@@ -676,7 +676,7 @@ export type LocoOwnedDomain = Message<"loco.domain.v1.LocoOwnedDomain"> & {
 };
 
 /**
- * LocoOwnedDomain represents a domain with an associated application.
+ * LocoOwnedDomain represents a platform-managed domain paired with an application deployment.
  *
  * @generated from message loco.domain.v1.LocoOwnedDomain
  */
@@ -1077,6 +1077,8 @@ export const RemoveAppDomainResponseSchema: GenMessage<RemoveAppDomainResponse, 
   messageDesc(file_domain_v1_domain, 25);
 
 /**
+ * DomainType indicates the source of a domain: platform-provided or user-provided.
+ *
  * @generated from enum loco.domain.v1.DomainType
  */
 export enum DomainType {
@@ -1092,6 +1094,8 @@ export enum DomainType {
 }
 
 /**
+ * DomainType indicates the source of a domain: platform-provided or user-provided.
+ *
  * @generated from enum loco.domain.v1.DomainType
  */
 export type DomainTypeJson = "PLATFORM_PROVIDED" | "USER_PROVIDED";

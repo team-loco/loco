@@ -22,6 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// DomainType indicates the source of a domain: platform-provided or user-provided.
 type DomainType int32
 
 const (
@@ -863,7 +864,7 @@ func (x *CheckDomainAvailabilityResponse) GetIsAvailable() bool {
 	return false
 }
 
-// LocoOwnedDomain represents a domain with an associated application.
+// LocoOwnedDomain represents a platform-managed domain paired with an application deployment.
 type LocoOwnedDomain struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`

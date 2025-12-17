@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GitlabTokenRequest is the request to get a GitLab token.
+// GitlabTokenRequest is the request to get a GitLab token for pulling container images.
 type GitlabTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -58,7 +58,7 @@ func (*GitlabTokenRequest) Descriptor() ([]byte, []int) {
 	return file_registry_v1_registry_proto_rawDescGZIP(), []int{0}
 }
 
-// GitlabTokenResponse contains GitLab credentials.
+// GitlabTokenResponse contains GitLab registry credentials for container image authentication.
 type GitlabTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`

@@ -13,7 +13,7 @@ export const file_registry_v1_registry: GenFile = /*@__PURE__*/
   fileDesc("ChpyZWdpc3RyeS92MS9yZWdpc3RyeS5wcm90bxIQbG9jby5yZWdpc3RyeS52MSIUChJHaXRsYWJUb2tlblJlcXVlc3QiNgoTR2l0bGFiVG9rZW5SZXNwb25zZRIQCgh1c2VybmFtZRgBIAEoCRINCgV0b2tlbhgCIAEoCTJvCg9SZWdpc3RyeVNlcnZpY2USXAoLR2l0bGFiVG9rZW4SJC5sb2NvLnJlZ2lzdHJ5LnYxLkdpdGxhYlRva2VuUmVxdWVzdBolLmxvY28ucmVnaXN0cnkudjEuR2l0bGFiVG9rZW5SZXNwb25zZSIAQj9aPWdpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL3JlZ2lzdHJ5L3YxO3JlZ2lzdHJ5djFiBnByb3RvMw");
 
 /**
- * GitlabTokenRequest is the request to get a GitLab token.
+ * GitlabTokenRequest is the request to get a GitLab token for pulling container images.
  *
  * @generated from message loco.registry.v1.GitlabTokenRequest
  */
@@ -21,7 +21,7 @@ export type GitlabTokenRequest = Message<"loco.registry.v1.GitlabTokenRequest"> 
 };
 
 /**
- * GitlabTokenRequest is the request to get a GitLab token.
+ * GitlabTokenRequest is the request to get a GitLab token for pulling container images.
  *
  * @generated from message loco.registry.v1.GitlabTokenRequest
  */
@@ -36,7 +36,7 @@ export const GitlabTokenRequestSchema: GenMessage<GitlabTokenRequest, {jsonType:
   messageDesc(file_registry_v1_registry, 0);
 
 /**
- * GitlabTokenResponse contains GitLab credentials.
+ * GitlabTokenResponse contains GitLab registry credentials for container image authentication.
  *
  * @generated from message loco.registry.v1.GitlabTokenResponse
  */
@@ -53,7 +53,7 @@ export type GitlabTokenResponse = Message<"loco.registry.v1.GitlabTokenResponse"
 };
 
 /**
- * GitlabTokenResponse contains GitLab credentials.
+ * GitlabTokenResponse contains GitLab registry credentials for container image authentication.
  *
  * @generated from message loco.registry.v1.GitlabTokenResponse
  */

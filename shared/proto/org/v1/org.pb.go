@@ -22,7 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Organization represents an organization.
+// Organization represents a top-level organization container for users, workspaces, and applications.
 type Organization struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -99,7 +99,7 @@ func (x *Organization) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// WorkspaceSummary provides a summary of a workspace.
+// WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
 type WorkspaceSummary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
