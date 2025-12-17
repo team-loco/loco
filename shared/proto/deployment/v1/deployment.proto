@@ -9,12 +9,12 @@ option go_package = "github.com/loco-team/loco/shared/proto/deployment/v1;deploy
 
 // DeploymentPhase indicates the current state of a deployment lifecycle.
 enum DeploymentPhase {
-  DEPLOYMENT_PHASE_UNSPECIFIED = 0;
-  DEPLOYMENT_PHASE_PENDING     = 1;
-  DEPLOYMENT_PHASE_RUNNING     = 2;
-  DEPLOYMENT_PHASE_SUCCEEDED   = 3;
-  DEPLOYMENT_PHASE_FAILED      = 4;
-  DEPLOYMENT_PHASE_CANCELED    = 5;
+  UNSPECIFIED = 0;
+  PENDING     = 1;
+  RUNNING     = 2;
+  SUCCEEDED   = 3;
+  FAILED      = 4;
+  CANCELED    = 5;
 }
 
 // DeploymentService manages application deployments.

@@ -27,31 +27,31 @@ const (
 type DeploymentPhase int32
 
 const (
-	DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED DeploymentPhase = 0
-	DeploymentPhase_DEPLOYMENT_PHASE_PENDING     DeploymentPhase = 1
-	DeploymentPhase_DEPLOYMENT_PHASE_RUNNING     DeploymentPhase = 2
-	DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED   DeploymentPhase = 3
-	DeploymentPhase_DEPLOYMENT_PHASE_FAILED      DeploymentPhase = 4
-	DeploymentPhase_DEPLOYMENT_PHASE_CANCELED    DeploymentPhase = 5
+	DeploymentPhase_UNSPECIFIED DeploymentPhase = 0
+	DeploymentPhase_PENDING     DeploymentPhase = 1
+	DeploymentPhase_RUNNING     DeploymentPhase = 2
+	DeploymentPhase_SUCCEEDED   DeploymentPhase = 3
+	DeploymentPhase_FAILED      DeploymentPhase = 4
+	DeploymentPhase_CANCELED    DeploymentPhase = 5
 )
 
 // Enum value maps for DeploymentPhase.
 var (
 	DeploymentPhase_name = map[int32]string{
-		0: "DEPLOYMENT_PHASE_UNSPECIFIED",
-		1: "DEPLOYMENT_PHASE_PENDING",
-		2: "DEPLOYMENT_PHASE_RUNNING",
-		3: "DEPLOYMENT_PHASE_SUCCEEDED",
-		4: "DEPLOYMENT_PHASE_FAILED",
-		5: "DEPLOYMENT_PHASE_CANCELED",
+		0: "UNSPECIFIED",
+		1: "PENDING",
+		2: "RUNNING",
+		3: "SUCCEEDED",
+		4: "FAILED",
+		5: "CANCELED",
 	}
 	DeploymentPhase_value = map[string]int32{
-		"DEPLOYMENT_PHASE_UNSPECIFIED": 0,
-		"DEPLOYMENT_PHASE_PENDING":     1,
-		"DEPLOYMENT_PHASE_RUNNING":     2,
-		"DEPLOYMENT_PHASE_SUCCEEDED":   3,
-		"DEPLOYMENT_PHASE_FAILED":      4,
-		"DEPLOYMENT_PHASE_CANCELED":    5,
+		"UNSPECIFIED": 0,
+		"PENDING":     1,
+		"RUNNING":     2,
+		"SUCCEEDED":   3,
+		"FAILED":      4,
+		"CANCELED":    5,
 	}
 )
 
@@ -519,7 +519,7 @@ func (x *Deployment) GetStatus() DeploymentPhase {
 	if x != nil {
 		return x.Status
 	}
-	return DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
+	return DeploymentPhase_UNSPECIFIED
 }
 
 func (x *Deployment) GetIsCurrent() bool {
@@ -1000,7 +1000,7 @@ func (x *DeploymentEvent) GetStatus() DeploymentPhase {
 	if x != nil {
 		return x.Status
 	}
-	return DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
+	return DeploymentPhase_UNSPECIFIED
 }
 
 func (x *DeploymentEvent) GetMessage() string {
@@ -1138,14 +1138,15 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x128\n" +
 	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12(\n" +
 	"\rerror_message\x18\x05 \x01(\tH\x00R\ferrorMessage\x88\x01\x01B\x10\n" +
-	"\x0e_error_message*\xcb\x01\n" +
-	"\x0fDeploymentPhase\x12 \n" +
-	"\x1cDEPLOYMENT_PHASE_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18DEPLOYMENT_PHASE_PENDING\x10\x01\x12\x1c\n" +
-	"\x18DEPLOYMENT_PHASE_RUNNING\x10\x02\x12\x1e\n" +
-	"\x1aDEPLOYMENT_PHASE_SUCCEEDED\x10\x03\x12\x1b\n" +
-	"\x17DEPLOYMENT_PHASE_FAILED\x10\x04\x12\x1d\n" +
-	"\x19DEPLOYMENT_PHASE_CANCELED\x10\x052\xbc\x03\n" +
+	"\x0e_error_message*e\n" +
+	"\x0fDeploymentPhase\x12\x0f\n" +
+	"\vUNSPECIFIED\x10\x00\x12\v\n" +
+	"\aPENDING\x10\x01\x12\v\n" +
+	"\aRUNNING\x10\x02\x12\r\n" +
+	"\tSUCCEEDED\x10\x03\x12\n" +
+	"\n" +
+	"\x06FAILED\x10\x04\x12\f\n" +
+	"\bCANCELED\x10\x052\xbc\x03\n" +
 	"\x11DeploymentService\x12m\n" +
 	"\x10CreateDeployment\x12+.loco.deployment.v1.CreateDeploymentRequest\x1a,.loco.deployment.v1.CreateDeploymentResponse\x12d\n" +
 	"\rGetDeployment\x12(.loco.deployment.v1.GetDeploymentRequest\x1a).loco.deployment.v1.GetDeploymentResponse\x12j\n" +

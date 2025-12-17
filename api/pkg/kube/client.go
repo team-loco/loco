@@ -6,13 +6,13 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	gatewayCs "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
+	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Client implements Kubernetes operations for deployments
 type Client struct {
-	ClientSet  kubernetes.Interface
-	GatewaySet gatewayCs.Interface
+	ClientSet        kubernetes.Interface
+	ControllerClient crClient.Client
 }
 
 // NewClient initializes a new Kubernetes client based on the application environment.
@@ -23,11 +23,10 @@ func NewClient(appEnv string) *Client {
 	config := buildConfig(appEnv)
 
 	clientSet := buildKubeClientSet(config)
-	gatewaySet := buildGatewayClient(config)
-
+	controllerRuntimeClient := buildControllerRuntimeClient(config)
 	return &Client{
-		ClientSet:  clientSet,
-		GatewaySet: gatewaySet,
+		ClientSet:        clientSet,
+		ControllerClient: controllerRuntimeClient,
 	}
 }
 
@@ -65,13 +64,14 @@ func buildKubeClientSet(config *rest.Config) kubernetes.Interface {
 	return clientSet
 }
 
-func buildGatewayClient(config *rest.Config) gatewayCs.Interface {
-	gwcs, err := gatewayCs.NewForConfig(config)
+// ControllerRuntimeClient returns a lazy-initialized controller-runtime client.
+// Used for creating custom resources like LocoResource.
+func buildControllerRuntimeClient(config *rest.Config) crClient.Client {
+	crClient, err := crClient.New(config, crClient.Options{})
 	if err != nil {
-		slog.Error("Failed to create gateway client", "error", err)
+		slog.Error("failed to create controller-runtime client", "error", err)
 		panic(err)
 	}
-
-	slog.Info("Gateway client initialized")
-	return gwcs
+	slog.Info("controller-runtime client initialized")
+	return crClient
 }

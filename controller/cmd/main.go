@@ -35,8 +35,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	locov1alpha1 "github.com/team-loco/loco/api/v1alpha1"
-	"github.com/team-loco/loco/internal/controller"
+	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
+	"github.com/team-loco/loco/controller/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
 
