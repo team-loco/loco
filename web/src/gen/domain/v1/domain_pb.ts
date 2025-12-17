@@ -15,6 +15,8 @@ export const file_domain_v1_domain: GenFile = /*@__PURE__*/
   fileDesc("ChZkb21haW4vdjEvZG9tYWluLnByb3RvEg5sb2NvLmRvbWFpbi52MSKfAQoOUGxhdGZvcm1Eb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhEKCWlzX2FjdGl2ZRgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoLRG9tYWluSW5wdXQSMQoNZG9tYWluX3NvdXJjZRgBIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSFgoJc3ViZG9tYWluGAIgASgJSACIAQESHwoScGxhdGZvcm1fZG9tYWluX2lkGAMgASgDSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCDAoKX3N1YmRvbWFpbkIVChNfcGxhdGZvcm1fZG9tYWluX2lkQgkKB19kb21haW4iyAIKCUFwcERvbWFpbhIKCgJpZBgBIAEoAxIOCgZhcHBfaWQYAiABKAMSDgoGZG9tYWluGAMgASgJEjEKDWRvbWFpbl9zb3VyY2UYBCABKA4yGi5sb2NvLmRvbWFpbi52MS5Eb21haW5UeXBlEhwKD3N1YmRvbWFpbl9sYWJlbBgFIAEoCUgAiAEBEh8KEnBsYXRmb3JtX2RvbWFpbl9pZBgGIAEoA0gBiAEBEhIKCmlzX3ByaW1hcnkYByABKAgSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCEgoQX3N1YmRvbWFpbl9sYWJlbEIVChNfcGxhdGZvcm1fZG9tYWluX2lkIkAKG0NyZWF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIOCgZkb21haW4YASABKAkSEQoJaXNfYWN0aXZlGAIgASgIIlcKHENyZWF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iJgoYR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0EgoKAmlkGAEgASgDIlQKGUdldFBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iMAoeR2V0UGxhdGZvcm1Eb21haW5CeU5hbWVSZXF1ZXN0Eg4KBmRvbWFpbhgBIAEoCSJaCh9HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIiIKIExpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0Il0KIUxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRI4ChBwbGF0Zm9ybV9kb21haW5zGAEgAygLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iLQofRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIKCgJpZBgBIAEoAyJbCiBEZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRI3Cg9wbGF0Zm9ybV9kb21haW4YASABKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiIwCh5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QSDgoGZG9tYWluGAEgASgJIjcKH0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USFAoMaXNfYXZhaWxhYmxlGAEgASgIImgKD0xvY29Pd25lZERvbWFpbhIKCgJpZBgBIAEoAxIOCgZkb21haW4YAiABKAkSEAoIYXBwX25hbWUYAyABKAkSDgoGYXBwX2lkGAQgASgDEhcKD3BsYXRmb3JtX2RvbWFpbhgFIAEoCSIgCh5MaXN0QWxsTG9jb093bmVkRG9tYWluc1JlcXVlc3QiUwofTGlzdEFsbExvY29Pd25lZERvbWFpbnNSZXNwb25zZRIwCgdkb21haW5zGAEgAygLMh8ubG9jby5kb21haW4udjEuTG9jb093bmVkRG9tYWluIlIKE0FkZEFwcERvbWFpblJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEisKBmRvbWFpbhgCIAEoCzIbLmxvY28uZG9tYWluLnYxLkRvbWFpbklucHV0IlIKFEFkZEFwcERvbWFpblJlc3BvbnNlEikKBmRvbWFpbhgBIAEoCzIZLmxvY28uZG9tYWluLnYxLkFwcERvbWFpbhIPCgdtZXNzYWdlGAIgASgJIjsKFlVwZGF0ZUFwcERvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgDEg4KBmRvbWFpbhgCIAEoCSJVChdVcGRhdGVBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSI/ChpTZXRQcmltYXJ5QXBwRG9tYWluUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEQoJZG9tYWluX2lkGAIgASgDIlkKG1NldFByaW1hcnlBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSIrChZSZW1vdmVBcHBEb21haW5SZXF1ZXN0EhEKCWRvbWFpbl9pZBgBIAEoAyIqChdSZW1vdmVBcHBEb21haW5SZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJKjYKCkRvbWFpblR5cGUSFQoRUExBVEZPUk1fUFJPVklERUQQABIRCg1VU0VSX1BST1ZJREVEEAEy9QkKDURvbWFpblNlcnZpY2UScQoUQ3JlYXRlUGxhdGZvcm1Eb21haW4SKy5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEmgKEUdldFBsYXRmb3JtRG9tYWluEigubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0GikubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXNwb25zZRJ6ChdHZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZRIuLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVzcG9uc2USgAEKGUxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnMSMC5sb2NvLmRvbWFpbi52MS5MaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVxdWVzdBoxLmxvY28uZG9tYWluLnYxLkxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRJ9ChhEZWFjdGl2YXRlUGxhdGZvcm1Eb21haW4SLy5sb2NvLmRvbWFpbi52MS5EZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GjAubG9jby5kb21haW4udjEuRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USWQoMQWRkQXBwRG9tYWluEiMubG9jby5kb21haW4udjEuQWRkQXBwRG9tYWluUmVxdWVzdBokLmxvY28uZG9tYWluLnYxLkFkZEFwcERvbWFpblJlc3BvbnNlEmIKD1VwZGF0ZUFwcERvbWFpbhImLmxvY28uZG9tYWluLnYxLlVwZGF0ZUFwcERvbWFpblJlcXVlc3QaJy5sb2NvLmRvbWFpbi52MS5VcGRhdGVBcHBEb21haW5SZXNwb25zZRJuChNTZXRQcmltYXJ5QXBwRG9tYWluEioubG9jby5kb21haW4udjEuU2V0UHJpbWFyeUFwcERvbWFpblJlcXVlc3QaKy5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5QXBwRG9tYWluUmVzcG9uc2USYgoPUmVtb3ZlQXBwRG9tYWluEiYubG9jby5kb21haW4udjEuUmVtb3ZlQXBwRG9tYWluUmVxdWVzdBonLmxvY28uZG9tYWluLnYxLlJlbW92ZUFwcERvbWFpblJlc3BvbnNlEnoKF0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5Ei4ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Gi8ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRJ6ChdMaXN0QWxsTG9jb093bmVkRG9tYWlucxIuLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVzcG9uc2VCO1o5Z2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vZG9tYWluL3YxO2RvbWFpbnYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
+ * PlatformDomain represents a platform-provided domain.
+ *
  * @generated from message loco.domain.v1.PlatformDomain
  */
 export type PlatformDomain = Message<"loco.domain.v1.PlatformDomain"> & {
@@ -45,6 +47,8 @@ export type PlatformDomain = Message<"loco.domain.v1.PlatformDomain"> & {
 };
 
 /**
+ * PlatformDomain represents a platform-provided domain.
+ *
  * @generated from message loco.domain.v1.PlatformDomain
  */
 export type PlatformDomainJson = {
@@ -82,6 +86,8 @@ export const PlatformDomainSchema: GenMessage<PlatformDomain, {jsonType: Platfor
   messageDesc(file_domain_v1_domain, 0);
 
 /**
+ * DomainInput specifies domain configuration for an application.
+ *
  * @generated from message loco.domain.v1.DomainInput
  */
 export type DomainInput = Message<"loco.domain.v1.DomainInput"> & {
@@ -113,6 +119,8 @@ export type DomainInput = Message<"loco.domain.v1.DomainInput"> & {
 };
 
 /**
+ * DomainInput specifies domain configuration for an application.
+ *
  * @generated from message loco.domain.v1.DomainInput
  */
 export type DomainInputJson = {
@@ -151,6 +159,8 @@ export const DomainInputSchema: GenMessage<DomainInput, {jsonType: DomainInputJs
   messageDesc(file_domain_v1_domain, 1);
 
 /**
+ * AppDomain represents a domain assigned to an application.
+ *
  * @generated from message loco.domain.v1.AppDomain
  */
 export type AppDomain = Message<"loco.domain.v1.AppDomain"> & {
@@ -201,6 +211,8 @@ export type AppDomain = Message<"loco.domain.v1.AppDomain"> & {
 };
 
 /**
+ * AppDomain represents a domain assigned to an application.
+ *
  * @generated from message loco.domain.v1.AppDomain
  */
 export type AppDomainJson = {
@@ -258,6 +270,8 @@ export const AppDomainSchema: GenMessage<AppDomain, {jsonType: AppDomainJson}> =
   messageDesc(file_domain_v1_domain, 2);
 
 /**
+ * CreatePlatformDomainRequest is the request to create a platform domain.
+ *
  * @generated from message loco.domain.v1.CreatePlatformDomainRequest
  */
 export type CreatePlatformDomainRequest = Message<"loco.domain.v1.CreatePlatformDomainRequest"> & {
@@ -273,6 +287,8 @@ export type CreatePlatformDomainRequest = Message<"loco.domain.v1.CreatePlatform
 };
 
 /**
+ * CreatePlatformDomainRequest is the request to create a platform domain.
+ *
  * @generated from message loco.domain.v1.CreatePlatformDomainRequest
  */
 export type CreatePlatformDomainRequestJson = {
@@ -295,6 +311,8 @@ export const CreatePlatformDomainRequestSchema: GenMessage<CreatePlatformDomainR
   messageDesc(file_domain_v1_domain, 3);
 
 /**
+ * CreatePlatformDomainResponse is the response from creating a platform domain.
+ *
  * @generated from message loco.domain.v1.CreatePlatformDomainResponse
  */
 export type CreatePlatformDomainResponse = Message<"loco.domain.v1.CreatePlatformDomainResponse"> & {
@@ -305,6 +323,8 @@ export type CreatePlatformDomainResponse = Message<"loco.domain.v1.CreatePlatfor
 };
 
 /**
+ * CreatePlatformDomainResponse is the response from creating a platform domain.
+ *
  * @generated from message loco.domain.v1.CreatePlatformDomainResponse
  */
 export type CreatePlatformDomainResponseJson = {
@@ -322,6 +342,8 @@ export const CreatePlatformDomainResponseSchema: GenMessage<CreatePlatformDomain
   messageDesc(file_domain_v1_domain, 4);
 
 /**
+ * GetPlatformDomainRequest is the request to retrieve a platform domain.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainRequest
  */
 export type GetPlatformDomainRequest = Message<"loco.domain.v1.GetPlatformDomainRequest"> & {
@@ -332,6 +354,8 @@ export type GetPlatformDomainRequest = Message<"loco.domain.v1.GetPlatformDomain
 };
 
 /**
+ * GetPlatformDomainRequest is the request to retrieve a platform domain.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainRequest
  */
 export type GetPlatformDomainRequestJson = {
@@ -349,6 +373,8 @@ export const GetPlatformDomainRequestSchema: GenMessage<GetPlatformDomainRequest
   messageDesc(file_domain_v1_domain, 5);
 
 /**
+ * GetPlatformDomainResponse is the response containing platform domain information.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainResponse
  */
 export type GetPlatformDomainResponse = Message<"loco.domain.v1.GetPlatformDomainResponse"> & {
@@ -359,6 +385,8 @@ export type GetPlatformDomainResponse = Message<"loco.domain.v1.GetPlatformDomai
 };
 
 /**
+ * GetPlatformDomainResponse is the response containing platform domain information.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainResponse
  */
 export type GetPlatformDomainResponseJson = {
@@ -376,6 +404,8 @@ export const GetPlatformDomainResponseSchema: GenMessage<GetPlatformDomainRespon
   messageDesc(file_domain_v1_domain, 6);
 
 /**
+ * GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainByNameRequest
  */
 export type GetPlatformDomainByNameRequest = Message<"loco.domain.v1.GetPlatformDomainByNameRequest"> & {
@@ -386,6 +416,8 @@ export type GetPlatformDomainByNameRequest = Message<"loco.domain.v1.GetPlatform
 };
 
 /**
+ * GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainByNameRequest
  */
 export type GetPlatformDomainByNameRequestJson = {
@@ -403,6 +435,8 @@ export const GetPlatformDomainByNameRequestSchema: GenMessage<GetPlatformDomainB
   messageDesc(file_domain_v1_domain, 7);
 
 /**
+ * GetPlatformDomainByNameResponse is the response containing the platform domain.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainByNameResponse
  */
 export type GetPlatformDomainByNameResponse = Message<"loco.domain.v1.GetPlatformDomainByNameResponse"> & {
@@ -413,6 +447,8 @@ export type GetPlatformDomainByNameResponse = Message<"loco.domain.v1.GetPlatfor
 };
 
 /**
+ * GetPlatformDomainByNameResponse is the response containing the platform domain.
+ *
  * @generated from message loco.domain.v1.GetPlatformDomainByNameResponse
  */
 export type GetPlatformDomainByNameResponseJson = {
@@ -430,12 +466,16 @@ export const GetPlatformDomainByNameResponseSchema: GenMessage<GetPlatformDomain
   messageDesc(file_domain_v1_domain, 8);
 
 /**
+ * ListActivePlatformDomainsRequest is the request to list active platform domains.
+ *
  * @generated from message loco.domain.v1.ListActivePlatformDomainsRequest
  */
 export type ListActivePlatformDomainsRequest = Message<"loco.domain.v1.ListActivePlatformDomainsRequest"> & {
 };
 
 /**
+ * ListActivePlatformDomainsRequest is the request to list active platform domains.
+ *
  * @generated from message loco.domain.v1.ListActivePlatformDomainsRequest
  */
 export type ListActivePlatformDomainsRequestJson = {
@@ -449,6 +489,8 @@ export const ListActivePlatformDomainsRequestSchema: GenMessage<ListActivePlatfo
   messageDesc(file_domain_v1_domain, 9);
 
 /**
+ * ListActivePlatformDomainsResponse contains the list of active platform domains.
+ *
  * @generated from message loco.domain.v1.ListActivePlatformDomainsResponse
  */
 export type ListActivePlatformDomainsResponse = Message<"loco.domain.v1.ListActivePlatformDomainsResponse"> & {
@@ -459,6 +501,8 @@ export type ListActivePlatformDomainsResponse = Message<"loco.domain.v1.ListActi
 };
 
 /**
+ * ListActivePlatformDomainsResponse contains the list of active platform domains.
+ *
  * @generated from message loco.domain.v1.ListActivePlatformDomainsResponse
  */
 export type ListActivePlatformDomainsResponseJson = {
@@ -476,6 +520,8 @@ export const ListActivePlatformDomainsResponseSchema: GenMessage<ListActivePlatf
   messageDesc(file_domain_v1_domain, 10);
 
 /**
+ * DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
+ *
  * @generated from message loco.domain.v1.DeactivatePlatformDomainRequest
  */
 export type DeactivatePlatformDomainRequest = Message<"loco.domain.v1.DeactivatePlatformDomainRequest"> & {
@@ -486,6 +532,8 @@ export type DeactivatePlatformDomainRequest = Message<"loco.domain.v1.Deactivate
 };
 
 /**
+ * DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
+ *
  * @generated from message loco.domain.v1.DeactivatePlatformDomainRequest
  */
 export type DeactivatePlatformDomainRequestJson = {
@@ -503,6 +551,8 @@ export const DeactivatePlatformDomainRequestSchema: GenMessage<DeactivatePlatfor
   messageDesc(file_domain_v1_domain, 11);
 
 /**
+ * DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
+ *
  * @generated from message loco.domain.v1.DeactivatePlatformDomainResponse
  */
 export type DeactivatePlatformDomainResponse = Message<"loco.domain.v1.DeactivatePlatformDomainResponse"> & {
@@ -513,6 +563,8 @@ export type DeactivatePlatformDomainResponse = Message<"loco.domain.v1.Deactivat
 };
 
 /**
+ * DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
+ *
  * @generated from message loco.domain.v1.DeactivatePlatformDomainResponse
  */
 export type DeactivatePlatformDomainResponseJson = {
@@ -530,6 +582,8 @@ export const DeactivatePlatformDomainResponseSchema: GenMessage<DeactivatePlatfo
   messageDesc(file_domain_v1_domain, 12);
 
 /**
+ * CheckDomainAvailabilityRequest is the request to check domain availability.
+ *
  * @generated from message loco.domain.v1.CheckDomainAvailabilityRequest
  */
 export type CheckDomainAvailabilityRequest = Message<"loco.domain.v1.CheckDomainAvailabilityRequest"> & {
@@ -540,6 +594,8 @@ export type CheckDomainAvailabilityRequest = Message<"loco.domain.v1.CheckDomain
 };
 
 /**
+ * CheckDomainAvailabilityRequest is the request to check domain availability.
+ *
  * @generated from message loco.domain.v1.CheckDomainAvailabilityRequest
  */
 export type CheckDomainAvailabilityRequestJson = {
@@ -557,6 +613,8 @@ export const CheckDomainAvailabilityRequestSchema: GenMessage<CheckDomainAvailab
   messageDesc(file_domain_v1_domain, 13);
 
 /**
+ * CheckDomainAvailabilityResponse indicates if a domain is available.
+ *
  * @generated from message loco.domain.v1.CheckDomainAvailabilityResponse
  */
 export type CheckDomainAvailabilityResponse = Message<"loco.domain.v1.CheckDomainAvailabilityResponse"> & {
@@ -567,6 +625,8 @@ export type CheckDomainAvailabilityResponse = Message<"loco.domain.v1.CheckDomai
 };
 
 /**
+ * CheckDomainAvailabilityResponse indicates if a domain is available.
+ *
  * @generated from message loco.domain.v1.CheckDomainAvailabilityResponse
  */
 export type CheckDomainAvailabilityResponseJson = {
@@ -584,6 +644,8 @@ export const CheckDomainAvailabilityResponseSchema: GenMessage<CheckDomainAvaila
   messageDesc(file_domain_v1_domain, 14);
 
 /**
+ * LocoOwnedDomain represents a domain with an associated application.
+ *
  * @generated from message loco.domain.v1.LocoOwnedDomain
  */
 export type LocoOwnedDomain = Message<"loco.domain.v1.LocoOwnedDomain"> & {
@@ -614,6 +676,8 @@ export type LocoOwnedDomain = Message<"loco.domain.v1.LocoOwnedDomain"> & {
 };
 
 /**
+ * LocoOwnedDomain represents a domain with an associated application.
+ *
  * @generated from message loco.domain.v1.LocoOwnedDomain
  */
 export type LocoOwnedDomainJson = {
@@ -651,12 +715,16 @@ export const LocoOwnedDomainSchema: GenMessage<LocoOwnedDomain, {jsonType: LocoO
   messageDesc(file_domain_v1_domain, 15);
 
 /**
+ * ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
+ *
  * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsRequest
  */
 export type ListAllLocoOwnedDomainsRequest = Message<"loco.domain.v1.ListAllLocoOwnedDomainsRequest"> & {
 };
 
 /**
+ * ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
+ *
  * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsRequest
  */
 export type ListAllLocoOwnedDomainsRequestJson = {
@@ -670,6 +738,8 @@ export const ListAllLocoOwnedDomainsRequestSchema: GenMessage<ListAllLocoOwnedDo
   messageDesc(file_domain_v1_domain, 16);
 
 /**
+ * ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
+ *
  * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsResponse
  */
 export type ListAllLocoOwnedDomainsResponse = Message<"loco.domain.v1.ListAllLocoOwnedDomainsResponse"> & {
@@ -680,6 +750,8 @@ export type ListAllLocoOwnedDomainsResponse = Message<"loco.domain.v1.ListAllLoc
 };
 
 /**
+ * ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
+ *
  * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsResponse
  */
 export type ListAllLocoOwnedDomainsResponseJson = {
@@ -697,6 +769,8 @@ export const ListAllLocoOwnedDomainsResponseSchema: GenMessage<ListAllLocoOwnedD
   messageDesc(file_domain_v1_domain, 17);
 
 /**
+ * AddAppDomainRequest is the request to add a domain to an application.
+ *
  * @generated from message loco.domain.v1.AddAppDomainRequest
  */
 export type AddAppDomainRequest = Message<"loco.domain.v1.AddAppDomainRequest"> & {
@@ -712,6 +786,8 @@ export type AddAppDomainRequest = Message<"loco.domain.v1.AddAppDomainRequest"> 
 };
 
 /**
+ * AddAppDomainRequest is the request to add a domain to an application.
+ *
  * @generated from message loco.domain.v1.AddAppDomainRequest
  */
 export type AddAppDomainRequestJson = {
@@ -734,6 +810,8 @@ export const AddAppDomainRequestSchema: GenMessage<AddAppDomainRequest, {jsonTyp
   messageDesc(file_domain_v1_domain, 18);
 
 /**
+ * AddAppDomainResponse is the response from adding a domain to an application.
+ *
  * @generated from message loco.domain.v1.AddAppDomainResponse
  */
 export type AddAppDomainResponse = Message<"loco.domain.v1.AddAppDomainResponse"> & {
@@ -749,6 +827,8 @@ export type AddAppDomainResponse = Message<"loco.domain.v1.AddAppDomainResponse"
 };
 
 /**
+ * AddAppDomainResponse is the response from adding a domain to an application.
+ *
  * @generated from message loco.domain.v1.AddAppDomainResponse
  */
 export type AddAppDomainResponseJson = {
@@ -771,6 +851,8 @@ export const AddAppDomainResponseSchema: GenMessage<AddAppDomainResponse, {jsonT
   messageDesc(file_domain_v1_domain, 19);
 
 /**
+ * UpdateAppDomainRequest is the request to update an application's domain.
+ *
  * @generated from message loco.domain.v1.UpdateAppDomainRequest
  */
 export type UpdateAppDomainRequest = Message<"loco.domain.v1.UpdateAppDomainRequest"> & {
@@ -786,6 +868,8 @@ export type UpdateAppDomainRequest = Message<"loco.domain.v1.UpdateAppDomainRequ
 };
 
 /**
+ * UpdateAppDomainRequest is the request to update an application's domain.
+ *
  * @generated from message loco.domain.v1.UpdateAppDomainRequest
  */
 export type UpdateAppDomainRequestJson = {
@@ -808,6 +892,8 @@ export const UpdateAppDomainRequestSchema: GenMessage<UpdateAppDomainRequest, {j
   messageDesc(file_domain_v1_domain, 20);
 
 /**
+ * UpdateAppDomainResponse is the response from updating an application's domain.
+ *
  * @generated from message loco.domain.v1.UpdateAppDomainResponse
  */
 export type UpdateAppDomainResponse = Message<"loco.domain.v1.UpdateAppDomainResponse"> & {
@@ -823,6 +909,8 @@ export type UpdateAppDomainResponse = Message<"loco.domain.v1.UpdateAppDomainRes
 };
 
 /**
+ * UpdateAppDomainResponse is the response from updating an application's domain.
+ *
  * @generated from message loco.domain.v1.UpdateAppDomainResponse
  */
 export type UpdateAppDomainResponseJson = {
@@ -845,6 +933,8 @@ export const UpdateAppDomainResponseSchema: GenMessage<UpdateAppDomainResponse, 
   messageDesc(file_domain_v1_domain, 21);
 
 /**
+ * SetPrimaryAppDomainRequest is the request to set the primary domain for an application.
+ *
  * @generated from message loco.domain.v1.SetPrimaryAppDomainRequest
  */
 export type SetPrimaryAppDomainRequest = Message<"loco.domain.v1.SetPrimaryAppDomainRequest"> & {
@@ -860,6 +950,8 @@ export type SetPrimaryAppDomainRequest = Message<"loco.domain.v1.SetPrimaryAppDo
 };
 
 /**
+ * SetPrimaryAppDomainRequest is the request to set the primary domain for an application.
+ *
  * @generated from message loco.domain.v1.SetPrimaryAppDomainRequest
  */
 export type SetPrimaryAppDomainRequestJson = {
@@ -882,6 +974,8 @@ export const SetPrimaryAppDomainRequestSchema: GenMessage<SetPrimaryAppDomainReq
   messageDesc(file_domain_v1_domain, 22);
 
 /**
+ * SetPrimaryAppDomainResponse is the response from setting the primary domain.
+ *
  * @generated from message loco.domain.v1.SetPrimaryAppDomainResponse
  */
 export type SetPrimaryAppDomainResponse = Message<"loco.domain.v1.SetPrimaryAppDomainResponse"> & {
@@ -897,6 +991,8 @@ export type SetPrimaryAppDomainResponse = Message<"loco.domain.v1.SetPrimaryAppD
 };
 
 /**
+ * SetPrimaryAppDomainResponse is the response from setting the primary domain.
+ *
  * @generated from message loco.domain.v1.SetPrimaryAppDomainResponse
  */
 export type SetPrimaryAppDomainResponseJson = {
@@ -919,6 +1015,8 @@ export const SetPrimaryAppDomainResponseSchema: GenMessage<SetPrimaryAppDomainRe
   messageDesc(file_domain_v1_domain, 23);
 
 /**
+ * RemoveAppDomainRequest is the request to remove a domain from an application.
+ *
  * @generated from message loco.domain.v1.RemoveAppDomainRequest
  */
 export type RemoveAppDomainRequest = Message<"loco.domain.v1.RemoveAppDomainRequest"> & {
@@ -929,6 +1027,8 @@ export type RemoveAppDomainRequest = Message<"loco.domain.v1.RemoveAppDomainRequ
 };
 
 /**
+ * RemoveAppDomainRequest is the request to remove a domain from an application.
+ *
  * @generated from message loco.domain.v1.RemoveAppDomainRequest
  */
 export type RemoveAppDomainRequestJson = {
@@ -946,6 +1046,8 @@ export const RemoveAppDomainRequestSchema: GenMessage<RemoveAppDomainRequest, {j
   messageDesc(file_domain_v1_domain, 24);
 
 /**
+ * RemoveAppDomainResponse is the response from removing a domain.
+ *
  * @generated from message loco.domain.v1.RemoveAppDomainResponse
  */
 export type RemoveAppDomainResponse = Message<"loco.domain.v1.RemoveAppDomainResponse"> & {
@@ -956,6 +1058,8 @@ export type RemoveAppDomainResponse = Message<"loco.domain.v1.RemoveAppDomainRes
 };
 
 /**
+ * RemoveAppDomainResponse is the response from removing a domain.
+ *
  * @generated from message loco.domain.v1.RemoveAppDomainResponse
  */
 export type RemoveAppDomainResponseJson = {
@@ -999,11 +1103,14 @@ export const DomainTypeSchema: GenEnum<DomainType, DomainTypeJson> = /*@__PURE__
   enumDesc(file_domain_v1_domain, 0);
 
 /**
+ * DomainService manages domains for applications.
+ *
  * @generated from service loco.domain.v1.DomainService
  */
 export const DomainService: GenService<{
   /**
    * Platform Domain CRUD
+   * CreatePlatformDomain creates a new platform-provided domain.
    *
    * @generated from rpc loco.domain.v1.DomainService.CreatePlatformDomain
    */
@@ -1013,6 +1120,8 @@ export const DomainService: GenService<{
     output: typeof CreatePlatformDomainResponseSchema;
   },
   /**
+   * GetPlatformDomain retrieves a platform domain by ID.
+   *
    * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
    */
   getPlatformDomain: {
@@ -1021,6 +1130,8 @@ export const DomainService: GenService<{
     output: typeof GetPlatformDomainResponseSchema;
   },
   /**
+   * GetPlatformDomainByName retrieves a platform domain by name.
+   *
    * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomainByName
    */
   getPlatformDomainByName: {
@@ -1029,6 +1140,8 @@ export const DomainService: GenService<{
     output: typeof GetPlatformDomainByNameResponseSchema;
   },
   /**
+   * ListActivePlatformDomains lists all active platform domains.
+   *
    * @generated from rpc loco.domain.v1.DomainService.ListActivePlatformDomains
    */
   listActivePlatformDomains: {
@@ -1037,6 +1150,8 @@ export const DomainService: GenService<{
     output: typeof ListActivePlatformDomainsResponseSchema;
   },
   /**
+   * DeactivatePlatformDomain deactivates a platform domain.
+   *
    * @generated from rpc loco.domain.v1.DomainService.DeactivatePlatformDomain
    */
   deactivatePlatformDomain: {
@@ -1046,6 +1161,7 @@ export const DomainService: GenService<{
   },
   /**
    * App Domain Management
+   * AddAppDomain assigns a domain to an application.
    *
    * @generated from rpc loco.domain.v1.DomainService.AddAppDomain
    */
@@ -1055,6 +1171,8 @@ export const DomainService: GenService<{
     output: typeof AddAppDomainResponseSchema;
   },
   /**
+   * UpdateAppDomain updates an application's domain configuration.
+   *
    * @generated from rpc loco.domain.v1.DomainService.UpdateAppDomain
    */
   updateAppDomain: {
@@ -1063,6 +1181,8 @@ export const DomainService: GenService<{
     output: typeof UpdateAppDomainResponseSchema;
   },
   /**
+   * SetPrimaryAppDomain sets the primary domain for an application.
+   *
    * @generated from rpc loco.domain.v1.DomainService.SetPrimaryAppDomain
    */
   setPrimaryAppDomain: {
@@ -1071,6 +1191,8 @@ export const DomainService: GenService<{
     output: typeof SetPrimaryAppDomainResponseSchema;
   },
   /**
+   * RemoveAppDomain removes a domain from an application.
+   *
    * @generated from rpc loco.domain.v1.DomainService.RemoveAppDomain
    */
   removeAppDomain: {
@@ -1080,6 +1202,7 @@ export const DomainService: GenService<{
   },
   /**
    * Domain Availability
+   * CheckDomainAvailability checks if a domain is available.
    *
    * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
    */
@@ -1090,6 +1213,7 @@ export const DomainService: GenService<{
   },
   /**
    * Queries
+   * ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
    *
    * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
    */

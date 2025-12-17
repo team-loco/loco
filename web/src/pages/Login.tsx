@@ -1,40 +1,21 @@
 import { transport } from "@/auth/connect-transport";
 import { Button } from "@/components/ui/button";
 import { OAuthService } from "@/gen/oauth/v1";
+import { getCurrentUser } from "@/gen/user/v1";
 import { createClient } from "@connectrpc/connect";
+import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
 export function Login() {
 	const navigate = useNavigate();
+	const { isLoading, error: authError } = useQuery(getCurrentUser, {});
 
 	useEffect(() => {
-		// Check if user is already authenticated by calling a protected endpoint
-		const checkAuth = async () => {
-			try {
-				// Try to get authorization URL (this will work if user is authenticated)
-				// Actually, let's use a protected endpoint to verify auth
-				// Since we don't have a simple auth check endpoint, we'll just try to access the user context
-				// The browser will automatically send the loco_token cookie with this request
-				const response = await fetch("/api/user", {
-					method: "GET",
-					credentials: "include", // Include cookies
-				});
-
-				if (response.ok) {
-					// User is authenticated, redirect to dashboard
-					navigate("/dashboard", { replace: true });
-				} else {
-					// User is not authenticated
-				}
-			} catch (error) {
-				// Error checking auth, let user try to login
-				console.error(error);
-			}
-		};
-
-		checkAuth();
-	}, [navigate]);
+		if (!isLoading && !authError) {
+			navigate("/dashboard", { replace: true });
+		}
+	}, [isLoading, authError, navigate]);
 	const [error, setError] = useState<string | null>(() => {
 		// Check if there's an error from OAuth callback
 		const oauthError = sessionStorage.getItem("oauth_error");
@@ -44,40 +25,32 @@ export function Login() {
 		}
 		return null;
 	});
-	const [isLoading, setIsLoading] = useState(false);
+	const [isGithubLoading, setIsGithubLoading] = useState(false);
 
 	const handleGithubLogin = async () => {
 		try {
-			setIsLoading(true);
+			setIsGithubLoading(true);
 			setError(null);
 
-			// Call backend to get GitHub authorization URL
 			const client = createClient(OAuthService, transport);
 			const data = await client.getGithubAuthorizationURL({});
-
 			const authUrl = data.authorizationUrl;
 
 			if (!authUrl) {
 				throw new Error("No authorization URL returned");
 			}
 
-			console.log("Opening GitHub OAuth URL:", authUrl);
-			console.log(
-				"Note: GitHub will echo back the state parameter in the callback URL"
-			);
-
-			// Redirect to GitHub in same window
 			window.location.href = authUrl;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Authentication failed");
-			setIsLoading(false);
+			setIsGithubLoading(false);
 		}
 	};
 
 	return (
 		<div className="min-h-screen bg-background flex">
 			{/* Left Side - Branding & Marketing */}
-			<div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 bg-gradient-to-br from-background to-muted">
+			<div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 bg-linear-to-br from-background to-muted">
 				<div className="max-w-sm">
 					<div className="mb-8">
 						<div className="w-16 h-16 bg-destructive rounded-lg flex items-center justify-center text-white font-heading text-2xl mb-4">
@@ -100,7 +73,7 @@ export function Login() {
 
 						<div className="space-y-3">
 							<div className="flex items-start gap-3">
-								<div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 flex-shrink-0">
+								<div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 shrink-0">
 									<div className="w-2 h-2 rounded-full bg-primary" />
 								</div>
 								<span className="text-sm text-foreground">
@@ -108,7 +81,7 @@ export function Login() {
 								</span>
 							</div>
 							<div className="flex items-start gap-3">
-								<div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 flex-shrink-0">
+								<div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 shrink-0">
 									<div className="w-2 h-2 rounded-full bg-primary" />
 								</div>
 								<span className="text-sm text-foreground">
@@ -116,7 +89,7 @@ export function Login() {
 								</span>
 							</div>
 							<div className="flex items-start gap-3">
-								<div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 flex-shrink-0">
+								<div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 shrink-0">
 									<div className="w-2 h-2 rounded-full bg-primary" />
 								</div>
 								<span className="text-sm text-foreground">
@@ -155,7 +128,7 @@ export function Login() {
 
 					<Button
 						onClick={handleGithubLogin}
-						disabled={isLoading}
+						disabled={isGithubLoading}
 						variant="default"
 						className="w-[70%] h-11 flex items-center justify-center gap-2 mb-4 bg-amber-600"
 					>
@@ -168,7 +141,7 @@ export function Login() {
 								fill="currentColor"
 							/>
 						</svg>
-						{isLoading ? "Redirecting..." : "Continue with GitHub"}
+						{isGithubLoading ? "Redirecting..." : "Continue with GitHub"}
 					</Button>
 				</div>
 			</div>

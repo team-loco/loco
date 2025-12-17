@@ -6,55 +6,72 @@ import { DomainService } from "./domain_pb";
 
 /**
  * Platform Domain CRUD
+ * CreatePlatformDomain creates a new platform-provided domain.
  *
  * @generated from rpc loco.domain.v1.DomainService.CreatePlatformDomain
  */
 export const createPlatformDomain = DomainService.method.createPlatformDomain;
 
 /**
+ * GetPlatformDomain retrieves a platform domain by ID.
+ *
  * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
  */
 export const getPlatformDomain = DomainService.method.getPlatformDomain;
 
 /**
+ * GetPlatformDomainByName retrieves a platform domain by name.
+ *
  * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomainByName
  */
 export const getPlatformDomainByName = DomainService.method.getPlatformDomainByName;
 
 /**
+ * ListActivePlatformDomains lists all active platform domains.
+ *
  * @generated from rpc loco.domain.v1.DomainService.ListActivePlatformDomains
  */
 export const listActivePlatformDomains = DomainService.method.listActivePlatformDomains;
 
 /**
+ * DeactivatePlatformDomain deactivates a platform domain.
+ *
  * @generated from rpc loco.domain.v1.DomainService.DeactivatePlatformDomain
  */
 export const deactivatePlatformDomain = DomainService.method.deactivatePlatformDomain;
 
 /**
  * App Domain Management
+ * AddAppDomain assigns a domain to an application.
  *
  * @generated from rpc loco.domain.v1.DomainService.AddAppDomain
  */
 export const addAppDomain = DomainService.method.addAppDomain;
 
 /**
+ * UpdateAppDomain updates an application's domain configuration.
+ *
  * @generated from rpc loco.domain.v1.DomainService.UpdateAppDomain
  */
 export const updateAppDomain = DomainService.method.updateAppDomain;
 
 /**
+ * SetPrimaryAppDomain sets the primary domain for an application.
+ *
  * @generated from rpc loco.domain.v1.DomainService.SetPrimaryAppDomain
  */
 export const setPrimaryAppDomain = DomainService.method.setPrimaryAppDomain;
 
 /**
+ * RemoveAppDomain removes a domain from an application.
+ *
  * @generated from rpc loco.domain.v1.DomainService.RemoveAppDomain
  */
 export const removeAppDomain = DomainService.method.removeAppDomain;
 
 /**
  * Domain Availability
+ * CheckDomainAvailability checks if a domain is available.
  *
  * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
  */
@@ -62,6 +79,7 @@ export const checkDomainAvailability = DomainService.method.checkDomainAvailabil
 
 /**
  * Queries
+ * ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
  *
  * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
  */

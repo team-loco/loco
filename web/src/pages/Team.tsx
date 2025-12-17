@@ -3,7 +3,13 @@ import { useQuery, useMutation } from "@connectrpc/connect-query";
 import { listMembers, listWorkspaces, removeMember } from "@/gen/workspace/v1";
 import { getCurrentUser } from "@/gen/user/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,7 +20,8 @@ export function Team() {
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 	const queryClient = useQueryClient();
-	const [page, setPage] = useState(0);
+	const [cursors, setCursors] = useState<Array<bigint | null>>([null]);
+	const [currentPage, setCurrentPage] = useState(0);
 	const ITEMS_PER_PAGE = 10;
 
 	const { data: userRes } = useQuery(getCurrentUser, {});
@@ -29,7 +36,10 @@ export function Team() {
 		firstOrgId ? { orgId: firstOrgId } : undefined,
 		{ enabled: !!firstOrgId }
 	);
-	const workspaces = useMemo(() => workspacesRes?.workspaces ?? [], [workspacesRes]);
+	const workspaces = useMemo(
+		() => workspacesRes?.workspaces ?? [],
+		[workspacesRes]
+	);
 
 	const firstWorkspaceId = useMemo(() => {
 		if (workspaceFromUrl) return BigInt(workspaceFromUrl);
@@ -45,27 +55,36 @@ export function Team() {
 			? {
 					workspaceId: firstWorkspaceId,
 					limit: ITEMS_PER_PAGE,
-					offset: page * ITEMS_PER_PAGE,
+					afterCursor: cursors[currentPage],
 			  }
 			: undefined,
 		{ enabled: !!firstWorkspaceId }
 	);
 	const members = membersRes?.members ?? [];
-	const totalMembers = membersRes?.total ?? 0;
-	const totalPages = Math.ceil(totalMembers / ITEMS_PER_PAGE);
+	const nextCursor = membersRes?.nextCursor ?? null;
+	const hasNextPage = nextCursor !== null;
 
 	// TODO: Get user info for each member (name, email, avatar)
-	const isAdmin = currentUser?.role === "admin" || currentUser?.role === "workspace_admin";
+	const isAdmin =
+		currentUser?.role === "admin" || currentUser?.role === "workspace_admin";
 
-	const { mutate: removeMemberMutation, isPending: isRemoving } = useMutation(removeMember, {
-		onSuccess: () => {
-			if (firstWorkspaceId) {
-				queryClient.invalidateQueries({
-					queryKey: [{ service: "loco.workspace.v1.WorkspaceService", method: "ListMembers" }],
-				});
-			}
-		},
-	});
+	const { mutate: removeMemberMutation, isPending: isRemoving } = useMutation(
+		removeMember,
+		{
+			onSuccess: () => {
+				if (firstWorkspaceId) {
+					queryClient.invalidateQueries({
+						queryKey: [
+							{
+								service: "loco.workspace.v1.WorkspaceService",
+								method: "ListMembers",
+							},
+						],
+					});
+				}
+			},
+		}
+	);
 
 	const handleRemoveMember = async (userId: bigint) => {
 		if (!firstWorkspaceId) return;
@@ -96,31 +115,34 @@ export function Team() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Workspace Members</CardTitle>
-					<CardDescription>
-						{totalMembers} total member{totalMembers !== 1 ? "s" : ""} in this workspace
-					</CardDescription>
+					<CardDescription>Manage members in this workspace</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
 					<DataTable columns={columns} data={members} isLoading={isLoading} />
 
 					<div className="flex items-center justify-between">
 						<div className="text-sm text-muted-foreground">
-							Page {page + 1} of {totalPages || 1} • Showing {members.length} of {totalMembers}
+							Showing {members.length} member{members.length !== 1 ? "s" : ""}
 						</div>
 						<div className="flex gap-2">
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => setPage((p) => Math.max(0, p - 1))}
-								disabled={page === 0 || isLoading}
+								onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+								disabled={currentPage === 0 || isLoading}
 							>
 								Previous
 							</Button>
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => setPage((p) => p + 1)}
-								disabled={page >= totalPages - 1 || isLoading}
+								onClick={() => {
+									if (hasNextPage) {
+										setCursors((prev) => [...prev, nextCursor]);
+										setCurrentPage((p) => p + 1);
+									}
+								}}
+								disabled={!hasNextPage || isLoading}
 							>
 								Next
 							</Button>

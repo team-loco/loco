@@ -5,36 +5,50 @@
 import { OrgService } from "./org_pb";
 
 /**
+ * CreateOrg creates a new organization.
+ *
  * @generated from rpc loco.org.v1.OrgService.CreateOrg
  */
 export const createOrg = OrgService.method.createOrg;
 
 /**
+ * GetOrg retrieves an organization by ID.
+ *
  * @generated from rpc loco.org.v1.OrgService.GetOrg
  */
 export const getOrg = OrgService.method.getOrg;
 
 /**
+ * GetCurrentUserOrgs retrieves all organizations for the current user.
+ *
  * @generated from rpc loco.org.v1.OrgService.GetCurrentUserOrgs
  */
 export const getCurrentUserOrgs = OrgService.method.getCurrentUserOrgs;
 
 /**
+ * ListOrgs lists organizations for a user.
+ *
  * @generated from rpc loco.org.v1.OrgService.ListOrgs
  */
 export const listOrgs = OrgService.method.listOrgs;
 
 /**
+ * UpdateOrg updates organization information.
+ *
  * @generated from rpc loco.org.v1.OrgService.UpdateOrg
  */
 export const updateOrg = OrgService.method.updateOrg;
 
 /**
+ * DeleteOrg deletes an organization.
+ *
  * @generated from rpc loco.org.v1.OrgService.DeleteOrg
  */
 export const deleteOrg = OrgService.method.deleteOrg;
 
 /**
+ * IsUniqueOrgName checks if an organization name is unique.
+ *
  * @generated from rpc loco.org.v1.OrgService.IsUniqueOrgName
  */
 export const isUniqueOrgName = OrgService.method.isUniqueOrgName;

@@ -5,36 +5,50 @@
 import { UserService } from "./user_pb";
 
 /**
+ * CreateUser creates a new user account.
+ *
  * @generated from rpc loco.user.v1.UserService.CreateUser
  */
 export const createUser = UserService.method.createUser;
 
 /**
+ * GetUser retrieves a user by ID or email.
+ *
  * @generated from rpc loco.user.v1.UserService.GetUser
  */
 export const getUser = UserService.method.getUser;
 
 /**
+ * GetCurrentUser retrieves the current authenticated user.
+ *
  * @generated from rpc loco.user.v1.UserService.GetCurrentUser
  */
 export const getCurrentUser = UserService.method.getCurrentUser;
 
 /**
+ * UpdateUser updates user information.
+ *
  * @generated from rpc loco.user.v1.UserService.UpdateUser
  */
 export const updateUser = UserService.method.updateUser;
 
 /**
+ * ListUsers lists users with pagination.
+ *
  * @generated from rpc loco.user.v1.UserService.ListUsers
  */
 export const listUsers = UserService.method.listUsers;
 
 /**
+ * DeleteUser deletes a user account.
+ *
  * @generated from rpc loco.user.v1.UserService.DeleteUser
  */
 export const deleteUser = UserService.method.deleteUser;
 
 /**
+ * Logout logs out the current user.
+ *
  * @generated from rpc loco.user.v1.UserService.Logout
  */
 export const logout = UserService.method.logout;

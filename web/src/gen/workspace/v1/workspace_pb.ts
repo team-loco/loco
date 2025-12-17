@@ -15,6 +15,8 @@ export const file_workspace_v1_workspace: GenFile = /*@__PURE__*/
   fileDesc("Chx3b3Jrc3BhY2UvdjEvd29ya3NwYWNlLnByb3RvEhFsb2NvLndvcmtzcGFjZS52MSK+AQoJV29ya3NwYWNlEgoKAmlkGAEgASgDEg4KBm9yZ19pZBgCIAEoAxIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAMSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidgoPV29ya3NwYWNlTWVtYmVyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAivgEKF1dvcmtzcGFjZU1lbWJlcldpdGhVc2VyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdXNlcl9uYW1lGAUgASgJEhIKCnVzZXJfZW1haWwYBiABKAkSFwoPdXNlcl9hdmF0YXJfdXJsGAcgASgJImAKFkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QSDgoGb3JnX2lkGAEgASgDEgwKBG5hbWUYAiABKAkSGAoLZGVzY3JpcHRpb24YAyABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24iWwoXQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEg8KB21lc3NhZ2UYAiABKAkiKwoTR2V0V29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMiRwoUR2V0V29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlIhoKGEdldFVzZXJXb3Jrc3BhY2VzUmVxdWVzdCJNChlHZXRVc2VyV29ya3NwYWNlc1Jlc3BvbnNlEjAKCndvcmtzcGFjZXMYASADKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UiJwoVTGlzdFdvcmtzcGFjZXNSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAyJKChZMaXN0V29ya3NwYWNlc1Jlc3BvbnNlEjAKCndvcmtzcGFjZXMYASADKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2UidAoWVXBkYXRlV29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSEQoEbmFtZRgCIAEoCUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAMgASgJSAGIAQFCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uIlsKF1VwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlEi8KCXdvcmtzcGFjZRgBIAEoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRIPCgdtZXNzYWdlGAIgASgJIksKFkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiWwoXRGVsZXRlV29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEg8KB21lc3NhZ2UYAiABKAkiRwoQQWRkTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDwoHdXNlcl9pZBgCIAEoAxIMCgRyb2xlGAMgASgJIkcKEUFkZE1lbWJlclJlc3BvbnNlEjIKBm1lbWJlchgBIAEoCzIiLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZU1lbWJlciI8ChNSZW1vdmVNZW1iZXJSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDIicKFFJlbW92ZU1lbWJlclJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiZQoSTGlzdE1lbWJlcnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxINCgVsaW1pdBgCIAEoBRIZCgxhZnRlcl9jdXJzb3IYAyABKANIAIgBAUIPCg1fYWZ0ZXJfY3Vyc29yInwKE0xpc3RNZW1iZXJzUmVzcG9uc2USOwoHbWVtYmVycxgBIAMoCzIqLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZU1lbWJlcldpdGhVc2VyEhgKC25leHRfY3Vyc29yGAIgASgDSACIAQFCDgoMX25leHRfY3Vyc29yMp8HChBXb3Jrc3BhY2VTZXJ2aWNlEmgKD0NyZWF0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRJfCgxHZXRXb3Jrc3BhY2USJi5sb2NvLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXF1ZXN0GicubG9jby53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVzcG9uc2USbgoRR2V0VXNlcldvcmtzcGFjZXMSKy5sb2NvLndvcmtzcGFjZS52MS5HZXRVc2VyV29ya3NwYWNlc1JlcXVlc3QaLC5sb2NvLndvcmtzcGFjZS52MS5HZXRVc2VyV29ya3NwYWNlc1Jlc3BvbnNlEmUKDkxpc3RXb3Jrc3BhY2VzEigubG9jby53b3Jrc3BhY2UudjEuTGlzdFdvcmtzcGFjZXNSZXF1ZXN0GikubG9jby53b3Jrc3BhY2UudjEuTGlzdFdvcmtzcGFjZXNSZXNwb25zZRJoCg9VcGRhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USaAoPRGVsZXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlElYKCUFkZE1lbWJlchIjLmxvY28ud29ya3NwYWNlLnYxLkFkZE1lbWJlclJlcXVlc3QaJC5sb2NvLndvcmtzcGFjZS52MS5BZGRNZW1iZXJSZXNwb25zZRJfCgxSZW1vdmVNZW1iZXISJi5sb2NvLndvcmtzcGFjZS52MS5SZW1vdmVNZW1iZXJSZXF1ZXN0GicubG9jby53b3Jrc3BhY2UudjEuUmVtb3ZlTWVtYmVyUmVzcG9uc2USXAoLTGlzdE1lbWJlcnMSJS5sb2NvLndvcmtzcGFjZS52MS5MaXN0TWVtYmVyc1JlcXVlc3QaJi5sb2NvLndvcmtzcGFjZS52MS5MaXN0TWVtYmVyc1Jlc3BvbnNlQkFaP2dpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL3dvcmtzcGFjZS92MTt3b3Jrc3BhY2V2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
+ * Workspace represents a workspace within an organization.
+ *
  * @generated from message loco.workspace.v1.Workspace
  */
 export type Workspace = Message<"loco.workspace.v1.Workspace"> & {
@@ -55,6 +57,8 @@ export type Workspace = Message<"loco.workspace.v1.Workspace"> & {
 };
 
 /**
+ * Workspace represents a workspace within an organization.
+ *
  * @generated from message loco.workspace.v1.Workspace
  */
 export type WorkspaceJson = {
@@ -102,6 +106,8 @@ export const WorkspaceSchema: GenMessage<Workspace, {jsonType: WorkspaceJson}> =
   messageDesc(file_workspace_v1_workspace, 0);
 
 /**
+ * WorkspaceMember represents a user's membership in a workspace.
+ *
  * @generated from message loco.workspace.v1.WorkspaceMember
  */
 export type WorkspaceMember = Message<"loco.workspace.v1.WorkspaceMember"> & {
@@ -127,6 +133,8 @@ export type WorkspaceMember = Message<"loco.workspace.v1.WorkspaceMember"> & {
 };
 
 /**
+ * WorkspaceMember represents a user's membership in a workspace.
+ *
  * @generated from message loco.workspace.v1.WorkspaceMember
  */
 export type WorkspaceMemberJson = {
@@ -159,6 +167,8 @@ export const WorkspaceMemberSchema: GenMessage<WorkspaceMember, {jsonType: Works
   messageDesc(file_workspace_v1_workspace, 1);
 
 /**
+ * WorkspaceMemberWithUser includes user details along with membership information.
+ *
  * @generated from message loco.workspace.v1.WorkspaceMemberWithUser
  */
 export type WorkspaceMemberWithUser = Message<"loco.workspace.v1.WorkspaceMemberWithUser"> & {
@@ -199,6 +209,8 @@ export type WorkspaceMemberWithUser = Message<"loco.workspace.v1.WorkspaceMember
 };
 
 /**
+ * WorkspaceMemberWithUser includes user details along with membership information.
+ *
  * @generated from message loco.workspace.v1.WorkspaceMemberWithUser
  */
 export type WorkspaceMemberWithUserJson = {
@@ -246,6 +258,8 @@ export const WorkspaceMemberWithUserSchema: GenMessage<WorkspaceMemberWithUser, 
   messageDesc(file_workspace_v1_workspace, 2);
 
 /**
+ * CreateWorkspaceRequest is the request to create a new workspace.
+ *
  * @generated from message loco.workspace.v1.CreateWorkspaceRequest
  */
 export type CreateWorkspaceRequest = Message<"loco.workspace.v1.CreateWorkspaceRequest"> & {
@@ -266,6 +280,8 @@ export type CreateWorkspaceRequest = Message<"loco.workspace.v1.CreateWorkspaceR
 };
 
 /**
+ * CreateWorkspaceRequest is the request to create a new workspace.
+ *
  * @generated from message loco.workspace.v1.CreateWorkspaceRequest
  */
 export type CreateWorkspaceRequestJson = {
@@ -293,6 +309,8 @@ export const CreateWorkspaceRequestSchema: GenMessage<CreateWorkspaceRequest, {j
   messageDesc(file_workspace_v1_workspace, 3);
 
 /**
+ * CreateWorkspaceResponse is the response from creating a workspace.
+ *
  * @generated from message loco.workspace.v1.CreateWorkspaceResponse
  */
 export type CreateWorkspaceResponse = Message<"loco.workspace.v1.CreateWorkspaceResponse"> & {
@@ -308,6 +326,8 @@ export type CreateWorkspaceResponse = Message<"loco.workspace.v1.CreateWorkspace
 };
 
 /**
+ * CreateWorkspaceResponse is the response from creating a workspace.
+ *
  * @generated from message loco.workspace.v1.CreateWorkspaceResponse
  */
 export type CreateWorkspaceResponseJson = {
@@ -330,6 +350,8 @@ export const CreateWorkspaceResponseSchema: GenMessage<CreateWorkspaceResponse, 
   messageDesc(file_workspace_v1_workspace, 4);
 
 /**
+ * GetWorkspaceRequest is the request to retrieve a workspace.
+ *
  * @generated from message loco.workspace.v1.GetWorkspaceRequest
  */
 export type GetWorkspaceRequest = Message<"loco.workspace.v1.GetWorkspaceRequest"> & {
@@ -340,6 +362,8 @@ export type GetWorkspaceRequest = Message<"loco.workspace.v1.GetWorkspaceRequest
 };
 
 /**
+ * GetWorkspaceRequest is the request to retrieve a workspace.
+ *
  * @generated from message loco.workspace.v1.GetWorkspaceRequest
  */
 export type GetWorkspaceRequestJson = {
@@ -357,6 +381,8 @@ export const GetWorkspaceRequestSchema: GenMessage<GetWorkspaceRequest, {jsonTyp
   messageDesc(file_workspace_v1_workspace, 5);
 
 /**
+ * GetWorkspaceResponse is the response containing workspace information.
+ *
  * @generated from message loco.workspace.v1.GetWorkspaceResponse
  */
 export type GetWorkspaceResponse = Message<"loco.workspace.v1.GetWorkspaceResponse"> & {
@@ -367,6 +393,8 @@ export type GetWorkspaceResponse = Message<"loco.workspace.v1.GetWorkspaceRespon
 };
 
 /**
+ * GetWorkspaceResponse is the response containing workspace information.
+ *
  * @generated from message loco.workspace.v1.GetWorkspaceResponse
  */
 export type GetWorkspaceResponseJson = {
@@ -384,12 +412,16 @@ export const GetWorkspaceResponseSchema: GenMessage<GetWorkspaceResponse, {jsonT
   messageDesc(file_workspace_v1_workspace, 6);
 
 /**
+ * GetUserWorkspacesRequest is the request to retrieve user's workspaces.
+ *
  * @generated from message loco.workspace.v1.GetUserWorkspacesRequest
  */
 export type GetUserWorkspacesRequest = Message<"loco.workspace.v1.GetUserWorkspacesRequest"> & {
 };
 
 /**
+ * GetUserWorkspacesRequest is the request to retrieve user's workspaces.
+ *
  * @generated from message loco.workspace.v1.GetUserWorkspacesRequest
  */
 export type GetUserWorkspacesRequestJson = {
@@ -403,6 +435,8 @@ export const GetUserWorkspacesRequestSchema: GenMessage<GetUserWorkspacesRequest
   messageDesc(file_workspace_v1_workspace, 7);
 
 /**
+ * GetUserWorkspacesResponse contains the list of user's workspaces.
+ *
  * @generated from message loco.workspace.v1.GetUserWorkspacesResponse
  */
 export type GetUserWorkspacesResponse = Message<"loco.workspace.v1.GetUserWorkspacesResponse"> & {
@@ -413,6 +447,8 @@ export type GetUserWorkspacesResponse = Message<"loco.workspace.v1.GetUserWorksp
 };
 
 /**
+ * GetUserWorkspacesResponse contains the list of user's workspaces.
+ *
  * @generated from message loco.workspace.v1.GetUserWorkspacesResponse
  */
 export type GetUserWorkspacesResponseJson = {
@@ -430,6 +466,8 @@ export const GetUserWorkspacesResponseSchema: GenMessage<GetUserWorkspacesRespon
   messageDesc(file_workspace_v1_workspace, 8);
 
 /**
+ * ListWorkspacesRequest is the request to list workspaces in an organization.
+ *
  * @generated from message loco.workspace.v1.ListWorkspacesRequest
  */
 export type ListWorkspacesRequest = Message<"loco.workspace.v1.ListWorkspacesRequest"> & {
@@ -440,6 +478,8 @@ export type ListWorkspacesRequest = Message<"loco.workspace.v1.ListWorkspacesReq
 };
 
 /**
+ * ListWorkspacesRequest is the request to list workspaces in an organization.
+ *
  * @generated from message loco.workspace.v1.ListWorkspacesRequest
  */
 export type ListWorkspacesRequestJson = {
@@ -457,6 +497,8 @@ export const ListWorkspacesRequestSchema: GenMessage<ListWorkspacesRequest, {jso
   messageDesc(file_workspace_v1_workspace, 9);
 
 /**
+ * ListWorkspacesResponse contains the list of workspaces.
+ *
  * @generated from message loco.workspace.v1.ListWorkspacesResponse
  */
 export type ListWorkspacesResponse = Message<"loco.workspace.v1.ListWorkspacesResponse"> & {
@@ -467,6 +509,8 @@ export type ListWorkspacesResponse = Message<"loco.workspace.v1.ListWorkspacesRe
 };
 
 /**
+ * ListWorkspacesResponse contains the list of workspaces.
+ *
  * @generated from message loco.workspace.v1.ListWorkspacesResponse
  */
 export type ListWorkspacesResponseJson = {
@@ -484,6 +528,8 @@ export const ListWorkspacesResponseSchema: GenMessage<ListWorkspacesResponse, {j
   messageDesc(file_workspace_v1_workspace, 10);
 
 /**
+ * UpdateWorkspaceRequest is the request to update a workspace.
+ *
  * @generated from message loco.workspace.v1.UpdateWorkspaceRequest
  */
 export type UpdateWorkspaceRequest = Message<"loco.workspace.v1.UpdateWorkspaceRequest"> & {
@@ -504,6 +550,8 @@ export type UpdateWorkspaceRequest = Message<"loco.workspace.v1.UpdateWorkspaceR
 };
 
 /**
+ * UpdateWorkspaceRequest is the request to update a workspace.
+ *
  * @generated from message loco.workspace.v1.UpdateWorkspaceRequest
  */
 export type UpdateWorkspaceRequestJson = {
@@ -531,6 +579,8 @@ export const UpdateWorkspaceRequestSchema: GenMessage<UpdateWorkspaceRequest, {j
   messageDesc(file_workspace_v1_workspace, 11);
 
 /**
+ * UpdateWorkspaceResponse is the response from updating a workspace.
+ *
  * @generated from message loco.workspace.v1.UpdateWorkspaceResponse
  */
 export type UpdateWorkspaceResponse = Message<"loco.workspace.v1.UpdateWorkspaceResponse"> & {
@@ -546,6 +596,8 @@ export type UpdateWorkspaceResponse = Message<"loco.workspace.v1.UpdateWorkspace
 };
 
 /**
+ * UpdateWorkspaceResponse is the response from updating a workspace.
+ *
  * @generated from message loco.workspace.v1.UpdateWorkspaceResponse
  */
 export type UpdateWorkspaceResponseJson = {
@@ -568,6 +620,8 @@ export const UpdateWorkspaceResponseSchema: GenMessage<UpdateWorkspaceResponse, 
   messageDesc(file_workspace_v1_workspace, 12);
 
 /**
+ * DeleteWorkspaceRequest is the request to delete a workspace.
+ *
  * @generated from message loco.workspace.v1.DeleteWorkspaceRequest
  */
 export type DeleteWorkspaceRequest = Message<"loco.workspace.v1.DeleteWorkspaceRequest"> & {
@@ -583,6 +637,8 @@ export type DeleteWorkspaceRequest = Message<"loco.workspace.v1.DeleteWorkspaceR
 };
 
 /**
+ * DeleteWorkspaceRequest is the request to delete a workspace.
+ *
  * @generated from message loco.workspace.v1.DeleteWorkspaceRequest
  */
 export type DeleteWorkspaceRequestJson = {
@@ -605,6 +661,8 @@ export const DeleteWorkspaceRequestSchema: GenMessage<DeleteWorkspaceRequest, {j
   messageDesc(file_workspace_v1_workspace, 13);
 
 /**
+ * DeleteWorkspaceResponse is the response from deleting a workspace.
+ *
  * @generated from message loco.workspace.v1.DeleteWorkspaceResponse
  */
 export type DeleteWorkspaceResponse = Message<"loco.workspace.v1.DeleteWorkspaceResponse"> & {
@@ -620,6 +678,8 @@ export type DeleteWorkspaceResponse = Message<"loco.workspace.v1.DeleteWorkspace
 };
 
 /**
+ * DeleteWorkspaceResponse is the response from deleting a workspace.
+ *
  * @generated from message loco.workspace.v1.DeleteWorkspaceResponse
  */
 export type DeleteWorkspaceResponseJson = {
@@ -642,6 +702,8 @@ export const DeleteWorkspaceResponseSchema: GenMessage<DeleteWorkspaceResponse, 
   messageDesc(file_workspace_v1_workspace, 14);
 
 /**
+ * AddMemberRequest is the request to add a member to a workspace.
+ *
  * @generated from message loco.workspace.v1.AddMemberRequest
  */
 export type AddMemberRequest = Message<"loco.workspace.v1.AddMemberRequest"> & {
@@ -662,6 +724,8 @@ export type AddMemberRequest = Message<"loco.workspace.v1.AddMemberRequest"> & {
 };
 
 /**
+ * AddMemberRequest is the request to add a member to a workspace.
+ *
  * @generated from message loco.workspace.v1.AddMemberRequest
  */
 export type AddMemberRequestJson = {
@@ -689,6 +753,8 @@ export const AddMemberRequestSchema: GenMessage<AddMemberRequest, {jsonType: Add
   messageDesc(file_workspace_v1_workspace, 15);
 
 /**
+ * AddMemberResponse is the response from adding a member to a workspace.
+ *
  * @generated from message loco.workspace.v1.AddMemberResponse
  */
 export type AddMemberResponse = Message<"loco.workspace.v1.AddMemberResponse"> & {
@@ -699,6 +765,8 @@ export type AddMemberResponse = Message<"loco.workspace.v1.AddMemberResponse"> &
 };
 
 /**
+ * AddMemberResponse is the response from adding a member to a workspace.
+ *
  * @generated from message loco.workspace.v1.AddMemberResponse
  */
 export type AddMemberResponseJson = {
@@ -716,6 +784,8 @@ export const AddMemberResponseSchema: GenMessage<AddMemberResponse, {jsonType: A
   messageDesc(file_workspace_v1_workspace, 16);
 
 /**
+ * RemoveMemberRequest is the request to remove a member from a workspace.
+ *
  * @generated from message loco.workspace.v1.RemoveMemberRequest
  */
 export type RemoveMemberRequest = Message<"loco.workspace.v1.RemoveMemberRequest"> & {
@@ -731,6 +801,8 @@ export type RemoveMemberRequest = Message<"loco.workspace.v1.RemoveMemberRequest
 };
 
 /**
+ * RemoveMemberRequest is the request to remove a member from a workspace.
+ *
  * @generated from message loco.workspace.v1.RemoveMemberRequest
  */
 export type RemoveMemberRequestJson = {
@@ -753,6 +825,8 @@ export const RemoveMemberRequestSchema: GenMessage<RemoveMemberRequest, {jsonTyp
   messageDesc(file_workspace_v1_workspace, 17);
 
 /**
+ * RemoveMemberResponse is the response from removing a member from a workspace.
+ *
  * @generated from message loco.workspace.v1.RemoveMemberResponse
  */
 export type RemoveMemberResponse = Message<"loco.workspace.v1.RemoveMemberResponse"> & {
@@ -763,6 +837,8 @@ export type RemoveMemberResponse = Message<"loco.workspace.v1.RemoveMemberRespon
 };
 
 /**
+ * RemoveMemberResponse is the response from removing a member from a workspace.
+ *
  * @generated from message loco.workspace.v1.RemoveMemberResponse
  */
 export type RemoveMemberResponseJson = {
@@ -780,6 +856,8 @@ export const RemoveMemberResponseSchema: GenMessage<RemoveMemberResponse, {jsonT
   messageDesc(file_workspace_v1_workspace, 18);
 
 /**
+ * ListMembersRequest is the request to list members of a workspace.
+ *
  * @generated from message loco.workspace.v1.ListMembersRequest
  */
 export type ListMembersRequest = Message<"loco.workspace.v1.ListMembersRequest"> & {
@@ -800,6 +878,8 @@ export type ListMembersRequest = Message<"loco.workspace.v1.ListMembersRequest">
 };
 
 /**
+ * ListMembersRequest is the request to list members of a workspace.
+ *
  * @generated from message loco.workspace.v1.ListMembersRequest
  */
 export type ListMembersRequestJson = {
@@ -827,6 +907,8 @@ export const ListMembersRequestSchema: GenMessage<ListMembersRequest, {jsonType:
   messageDesc(file_workspace_v1_workspace, 19);
 
 /**
+ * ListMembersResponse contains the list of workspace members.
+ *
  * @generated from message loco.workspace.v1.ListMembersResponse
  */
 export type ListMembersResponse = Message<"loco.workspace.v1.ListMembersResponse"> & {
@@ -842,6 +924,8 @@ export type ListMembersResponse = Message<"loco.workspace.v1.ListMembersResponse
 };
 
 /**
+ * ListMembersResponse contains the list of workspace members.
+ *
  * @generated from message loco.workspace.v1.ListMembersResponse
  */
 export type ListMembersResponseJson = {
@@ -864,10 +948,14 @@ export const ListMembersResponseSchema: GenMessage<ListMembersResponse, {jsonTyp
   messageDesc(file_workspace_v1_workspace, 20);
 
 /**
+ * WorkspaceService manages workspaces and their members.
+ *
  * @generated from service loco.workspace.v1.WorkspaceService
  */
 export const WorkspaceService: GenService<{
   /**
+   * CreateWorkspace creates a new workspace.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.CreateWorkspace
    */
   createWorkspace: {
@@ -876,6 +964,8 @@ export const WorkspaceService: GenService<{
     output: typeof CreateWorkspaceResponseSchema;
   },
   /**
+   * GetWorkspace retrieves a workspace by ID.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.GetWorkspace
    */
   getWorkspace: {
@@ -884,6 +974,8 @@ export const WorkspaceService: GenService<{
     output: typeof GetWorkspaceResponseSchema;
   },
   /**
+   * GetUserWorkspaces retrieves all workspaces for the current user.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.GetUserWorkspaces
    */
   getUserWorkspaces: {
@@ -892,6 +984,8 @@ export const WorkspaceService: GenService<{
     output: typeof GetUserWorkspacesResponseSchema;
   },
   /**
+   * ListWorkspaces lists all workspaces in an organization.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.ListWorkspaces
    */
   listWorkspaces: {
@@ -900,6 +994,8 @@ export const WorkspaceService: GenService<{
     output: typeof ListWorkspacesResponseSchema;
   },
   /**
+   * UpdateWorkspace updates workspace information.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.UpdateWorkspace
    */
   updateWorkspace: {
@@ -908,6 +1004,8 @@ export const WorkspaceService: GenService<{
     output: typeof UpdateWorkspaceResponseSchema;
   },
   /**
+   * DeleteWorkspace deletes a workspace and optionally its applications.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.DeleteWorkspace
    */
   deleteWorkspace: {
@@ -916,6 +1014,8 @@ export const WorkspaceService: GenService<{
     output: typeof DeleteWorkspaceResponseSchema;
   },
   /**
+   * AddMember adds a user to a workspace with a specified role.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.AddMember
    */
   addMember: {
@@ -924,6 +1024,8 @@ export const WorkspaceService: GenService<{
     output: typeof AddMemberResponseSchema;
   },
   /**
+   * RemoveMember removes a user from a workspace.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.RemoveMember
    */
   removeMember: {
@@ -932,6 +1034,8 @@ export const WorkspaceService: GenService<{
     output: typeof RemoveMemberResponseSchema;
   },
   /**
+   * ListMembers lists all members of a workspace with pagination.
+   *
    * @generated from rpc loco.workspace.v1.WorkspaceService.ListMembers
    */
   listMembers: {

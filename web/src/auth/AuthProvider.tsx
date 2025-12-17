@@ -5,6 +5,7 @@ interface AuthContextType {
 	login: () => void;
 	logout: () => void;
 	isAuthenticated: boolean;
+	setQueryClientCallback?: (callback: () => void) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -14,6 +15,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	// The backend will verify the cookie when we make requests
 	// A non-empty token indicates successful login
 	const [token, setTokenState] = useState<string | null>("cookie-based");
+	const [clearCacheCallback, setClearCacheCallback] = useState<
+		(() => void) | null
+	>(null);
 
 	const login = () => {
 		// Token is stored in HTTP-only cookie, not in state
@@ -25,6 +29,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		// Clear the cookie by calling logout endpoint
 		fetch("http://localhost:8000/logout", { method: "POST" }).catch(() => {});
 		setTokenState(null);
+		// Clear query cache to prevent stale data from causing redirects
+		clearCacheCallback?.();
 		console.log("AuthProvider: logout");
 	};
 
@@ -35,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				login,
 				logout,
 				isAuthenticated: !!token,
+				setQueryClientCallback: setClearCacheCallback,
 			}}
 		>
 			{children}

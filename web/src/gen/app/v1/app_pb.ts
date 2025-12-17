@@ -4,19 +4,21 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { StructJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { AppDomain, AppDomainJson, DomainInput, DomainInputJson } from "../../domain/v1/domain_pb";
 import { file_domain_v1_domain } from "../../domain/v1/domain_pb";
+import type { StructJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file app/v1/app.proto.
  */
 export const file_app_v1_app: GenFile = /*@__PURE__*/
-  fileDesc("ChBhcHAvdjEvYXBwLnByb3RvEgtsb2NvLmFwcC52MSLpAgoDQXBwEgoKAmlkGAEgASgDEhQKDHdvcmtzcGFjZV9pZBgCIAEoAxIMCgRuYW1lGAQgASgJEhEKCW5hbWVzcGFjZRgFIAEoCRIiCgR0eXBlGAYgASgOMhQubG9jby5hcHAudjEuQXBwVHlwZRIqCgdkb21haW5zGAcgAygLMhkubG9jby5kb21haW4udjEuQXBwRG9tYWluEhIKCmNyZWF0ZWRfYnkYCyABKAMSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoGc3RhdHVzGA4gASgOMhYubG9jby5hcHAudjEuQXBwU3RhdHVzEioKBHNwZWMYDyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0SACIAQFCBwoFX3NwZWMivAEKEENyZWF0ZUFwcFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAyABKAkSIgoEdHlwZRgEIAEoDjIULmxvY28uYXBwLnYxLkFwcFR5cGUSKwoGZG9tYWluGAUgASgLMhsubG9jby5kb21haW4udjEuRG9tYWluSW5wdXQSKgoEc3BlYxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RIAIgBAUIHCgVfc3BlYyJDChFDcmVhdGVBcHBSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHASDwoHbWVzc2FnZRgCIAEoCSIfCg1HZXRBcHBSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAyIvCg5HZXRBcHBSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHAiOQoTR2V0QXBwQnlOYW1lUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDAoEbmFtZRgCIAEoCSI1ChRHZXRBcHBCeU5hbWVSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHAiJwoPTGlzdEFwcHNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAyIyChBMaXN0QXBwc1Jlc3BvbnNlEh4KBGFwcHMYASADKAsyEC5sb2NvLmFwcC52MS5BcHAihAEKEFVwZGF0ZUFwcFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhEKBG5hbWUYAiABKAlIAIgBARIWCglzdWJkb21haW4YAyABKAlIAYgBARITCgZkb21haW4YBCABKAlIAogBAUIHCgVfbmFtZUIMCgpfc3ViZG9tYWluQgkKB19kb21haW4iQwoRVXBkYXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiIgoQRGVsZXRlQXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMiQwoRRGVsZXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiJQoTR2V0QXBwU3RhdHVzUmVxdWVzdBIOCgZhcHBfaWQYASABKAMirgEKEERlcGxveW1lbnRTdGF0dXMSCgoCaWQYASABKAMSLAoGc3RhdHVzGAIgASgOMhwubG9jby5hcHAudjEuRGVwbG95bWVudFBoYXNlEhAKCHJlcGxpY2FzGAMgASgFEhQKB21lc3NhZ2UYBCABKAlIAIgBARIaCg1lcnJvcl9tZXNzYWdlGAUgASgJSAGIAQFCCgoIX21lc3NhZ2VCEAoOX2Vycm9yX21lc3NhZ2UicAoUR2V0QXBwU3RhdHVzUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEjkKEmN1cnJlbnRfZGVwbG95bWVudBgCIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMiYQoRU3RyZWFtTG9nc1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQESEwoGZm9sbG93GAMgASgISAGIAQFCCAoGX2xpbWl0QgkKB19mb2xsb3cijQEKCExvZ0VudHJ5EhAKCHBvZF9uYW1lGAEgASgJEhEKCW5hbWVzcGFjZRgCIAEoCRIRCgljb250YWluZXIYAyABKAkSLQoJdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBILCgNsb2cYBSABKAkSDQoFbGV2ZWwYBiABKAkidwoFRXZlbnQSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZyZWFzb24YAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIMCgR0eXBlGAQgASgJEhAKCHBvZF9uYW1lGAUgASgJIkAKEEdldEV2ZW50c1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQFCCAoGX2xpbWl0IjcKEUdldEV2ZW50c1Jlc3BvbnNlEiIKBmV2ZW50cxgBIAMoCzISLmxvY28uYXBwLnYxLkV2ZW50In8KD1NjYWxlQXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSFQoIcmVwbGljYXMYAiABKAVIAIgBARIQCgNjcHUYAyABKAlIAYgBARITCgZtZW1vcnkYBCABKAlIAogBAUILCglfcmVwbGljYXNCBgoEX2NwdUIJCgdfbWVtb3J5IkUKEFNjYWxlQXBwUmVzcG9uc2USMQoKZGVwbG95bWVudBgBIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMiiQEKE1VwZGF0ZUFwcEVudlJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEjYKA2VudhgCIAMoCzIpLmxvY28uYXBwLnYxLlVwZGF0ZUFwcEVudlJlcXVlc3QuRW52RW50cnkaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJJChRVcGRhdGVBcHBFbnZSZXNwb25zZRIxCgpkZXBsb3ltZW50GAEgASgLMh0ubG9jby5hcHAudjEuRGVwbG95bWVudFN0YXR1cypSCgdBcHBUeXBlEgsKB1NFUlZJQ0UQABIMCghEQVRBQkFTRRABEgwKCEZVTkNUSU9OEAISCQoFQ0FDSEUQAxIJCgVRVUVVRRAEEggKBEJMT0IQBSpUCg9EZXBsb3ltZW50UGhhc2USCwoHUEVORElORxAAEgsKB1JVTk5JTkcQARINCglTVUNDRUVERUQQAhIKCgZGQUlMRUQQAxIMCghDQU5DRUxFRBAEKlQKCUFwcFN0YXR1cxINCglBVkFJTEFCTEUQABIPCgtQUk9HUkVTU0lORxABEgwKCERFR1JBREVEEAISDwoLVU5BVkFJTEFCTEUQAxIICgRJRExFEAQy1wYKCkFwcFNlcnZpY2USSgoJQ3JlYXRlQXBwEh0ubG9jby5hcHAudjEuQ3JlYXRlQXBwUmVxdWVzdBoeLmxvY28uYXBwLnYxLkNyZWF0ZUFwcFJlc3BvbnNlEkEKBkdldEFwcBIaLmxvY28uYXBwLnYxLkdldEFwcFJlcXVlc3QaGy5sb2NvLmFwcC52MS5HZXRBcHBSZXNwb25zZRJTCgxHZXRBcHBCeU5hbWUSIC5sb2NvLmFwcC52MS5HZXRBcHBCeU5hbWVSZXF1ZXN0GiEubG9jby5hcHAudjEuR2V0QXBwQnlOYW1lUmVzcG9uc2USRwoITGlzdEFwcHMSHC5sb2NvLmFwcC52MS5MaXN0QXBwc1JlcXVlc3QaHS5sb2NvLmFwcC52MS5MaXN0QXBwc1Jlc3BvbnNlEkoKCVVwZGF0ZUFwcBIdLmxvY28uYXBwLnYxLlVwZGF0ZUFwcFJlcXVlc3QaHi5sb2NvLmFwcC52MS5VcGRhdGVBcHBSZXNwb25zZRJKCglEZWxldGVBcHASHS5sb2NvLmFwcC52MS5EZWxldGVBcHBSZXF1ZXN0Gh4ubG9jby5hcHAudjEuRGVsZXRlQXBwUmVzcG9uc2USUwoMR2V0QXBwU3RhdHVzEiAubG9jby5hcHAudjEuR2V0QXBwU3RhdHVzUmVxdWVzdBohLmxvY28uYXBwLnYxLkdldEFwcFN0YXR1c1Jlc3BvbnNlEkUKClN0cmVhbUxvZ3MSHi5sb2NvLmFwcC52MS5TdHJlYW1Mb2dzUmVxdWVzdBoVLmxvY28uYXBwLnYxLkxvZ0VudHJ5MAESSgoJR2V0RXZlbnRzEh0ubG9jby5hcHAudjEuR2V0RXZlbnRzUmVxdWVzdBoeLmxvY28uYXBwLnYxLkdldEV2ZW50c1Jlc3BvbnNlEkcKCFNjYWxlQXBwEhwubG9jby5hcHAudjEuU2NhbGVBcHBSZXF1ZXN0Gh0ubG9jby5hcHAudjEuU2NhbGVBcHBSZXNwb25zZRJTCgxVcGRhdGVBcHBFbnYSIC5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXF1ZXN0GiEubG9jby5hcHAudjEuVXBkYXRlQXBwRW52UmVzcG9uc2VCNVozZ2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vYXBwL3YxO2FwcHYxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_domain_v1_domain]);
+  fileDesc("ChBhcHAvdjEvYXBwLnByb3RvEgtsb2NvLmFwcC52MSLpAgoDQXBwEgoKAmlkGAEgASgDEhQKDHdvcmtzcGFjZV9pZBgCIAEoAxIMCgRuYW1lGAQgASgJEhEKCW5hbWVzcGFjZRgFIAEoCRIiCgR0eXBlGAYgASgOMhQubG9jby5hcHAudjEuQXBwVHlwZRIqCgdkb21haW5zGAcgAygLMhkubG9jby5kb21haW4udjEuQXBwRG9tYWluEhIKCmNyZWF0ZWRfYnkYCyABKAMSLgoKY3JlYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoGc3RhdHVzGA4gASgOMhYubG9jby5hcHAudjEuQXBwU3RhdHVzEioKBHNwZWMYDyABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0SACIAQFCBwoFX3NwZWMivAEKEENyZWF0ZUFwcFJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEgwKBG5hbWUYAyABKAkSIgoEdHlwZRgEIAEoDjIULmxvY28uYXBwLnYxLkFwcFR5cGUSKwoGZG9tYWluGAUgASgLMhsubG9jby5kb21haW4udjEuRG9tYWluSW5wdXQSKgoEc3BlYxgGIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3RIAIgBAUIHCgVfc3BlYyJDChFDcmVhdGVBcHBSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHASDwoHbWVzc2FnZRgCIAEoCSIfCg1HZXRBcHBSZXF1ZXN0Eg4KBmFwcF9pZBgBIAEoAyIvCg5HZXRBcHBSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHAiOQoTR2V0QXBwQnlOYW1lUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDAoEbmFtZRgCIAEoCSI1ChRHZXRBcHBCeU5hbWVSZXNwb25zZRIdCgNhcHAYASABKAsyEC5sb2NvLmFwcC52MS5BcHAiJwoPTGlzdEFwcHNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAyIyChBMaXN0QXBwc1Jlc3BvbnNlEh4KBGFwcHMYASADKAsyEC5sb2NvLmFwcC52MS5BcHAihAEKEFVwZGF0ZUFwcFJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhEKBG5hbWUYAiABKAlIAIgBARIWCglzdWJkb21haW4YAyABKAlIAYgBARITCgZkb21haW4YBCABKAlIAogBAUIHCgVfbmFtZUIMCgpfc3ViZG9tYWluQgkKB19kb21haW4iQwoRVXBkYXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiIgoQRGVsZXRlQXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMiQwoRRGVsZXRlQXBwUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEg8KB21lc3NhZ2UYAiABKAkiJQoTR2V0QXBwU3RhdHVzUmVxdWVzdBIOCgZhcHBfaWQYASABKAMirgEKEERlcGxveW1lbnRTdGF0dXMSCgoCaWQYASABKAMSLAoGc3RhdHVzGAIgASgOMhwubG9jby5hcHAudjEuRGVwbG95bWVudFBoYXNlEhAKCHJlcGxpY2FzGAMgASgFEhQKB21lc3NhZ2UYBCABKAlIAIgBARIaCg1lcnJvcl9tZXNzYWdlGAUgASgJSAGIAQFCCgoIX21lc3NhZ2VCEAoOX2Vycm9yX21lc3NhZ2UicAoUR2V0QXBwU3RhdHVzUmVzcG9uc2USHQoDYXBwGAEgASgLMhAubG9jby5hcHAudjEuQXBwEjkKEmN1cnJlbnRfZGVwbG95bWVudBgCIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMiYQoRU3RyZWFtTG9nc1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQESEwoGZm9sbG93GAMgASgISAGIAQFCCAoGX2xpbWl0QgkKB19mb2xsb3cijQEKCExvZ0VudHJ5EhAKCHBvZF9uYW1lGAEgASgJEhEKCW5hbWVzcGFjZRgCIAEoCRIRCgljb250YWluZXIYAyABKAkSLQoJdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBILCgNsb2cYBSABKAkSDQoFbGV2ZWwYBiABKAkidwoFRXZlbnQSLQoJdGltZXN0YW1wGAEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZyZWFzb24YAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIMCgR0eXBlGAQgASgJEhAKCHBvZF9uYW1lGAUgASgJIkAKEEdldEV2ZW50c1JlcXVlc3QSDgoGYXBwX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQFCCAoGX2xpbWl0IjcKEUdldEV2ZW50c1Jlc3BvbnNlEiIKBmV2ZW50cxgBIAMoCzISLmxvY28uYXBwLnYxLkV2ZW50In8KD1NjYWxlQXBwUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSFQoIcmVwbGljYXMYAiABKAVIAIgBARIQCgNjcHUYAyABKAlIAYgBARITCgZtZW1vcnkYBCABKAlIAogBAUILCglfcmVwbGljYXNCBgoEX2NwdUIJCgdfbWVtb3J5IkUKEFNjYWxlQXBwUmVzcG9uc2USMQoKZGVwbG95bWVudBgBIAEoCzIdLmxvY28uYXBwLnYxLkRlcGxveW1lbnRTdGF0dXMiiQEKE1VwZGF0ZUFwcEVudlJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEjYKA2VudhgCIAMoCzIpLmxvY28uYXBwLnYxLlVwZGF0ZUFwcEVudlJlcXVlc3QuRW52RW50cnkaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJJChRVcGRhdGVBcHBFbnZSZXNwb25zZRIxCgpkZXBsb3ltZW50GAEgASgLMh0ubG9jby5hcHAudjEuRGVwbG95bWVudFN0YXR1cypSCgdBcHBUeXBlEgsKB1NFUlZJQ0UQABIMCghEQVRBQkFTRRABEgwKCEZVTkNUSU9OEAISCQoFQ0FDSEUQAxIJCgVRVUVVRRAEEggKBEJMT0IQBSpUCg9EZXBsb3ltZW50UGhhc2USCwoHUEVORElORxAAEgsKB1JVTk5JTkcQARINCglTVUNDRUVERUQQAhIKCgZGQUlMRUQQAxIMCghDQU5DRUxFRBAEKlQKCUFwcFN0YXR1cxINCglBVkFJTEFCTEUQABIPCgtQUk9HUkVTU0lORxABEgwKCERFR1JBREVEEAISDwoLVU5BVkFJTEFCTEUQAxIICgRJRExFEAQy1wYKCkFwcFNlcnZpY2USSgoJQ3JlYXRlQXBwEh0ubG9jby5hcHAudjEuQ3JlYXRlQXBwUmVxdWVzdBoeLmxvY28uYXBwLnYxLkNyZWF0ZUFwcFJlc3BvbnNlEkEKBkdldEFwcBIaLmxvY28uYXBwLnYxLkdldEFwcFJlcXVlc3QaGy5sb2NvLmFwcC52MS5HZXRBcHBSZXNwb25zZRJTCgxHZXRBcHBCeU5hbWUSIC5sb2NvLmFwcC52MS5HZXRBcHBCeU5hbWVSZXF1ZXN0GiEubG9jby5hcHAudjEuR2V0QXBwQnlOYW1lUmVzcG9uc2USRwoITGlzdEFwcHMSHC5sb2NvLmFwcC52MS5MaXN0QXBwc1JlcXVlc3QaHS5sb2NvLmFwcC52MS5MaXN0QXBwc1Jlc3BvbnNlEkoKCVVwZGF0ZUFwcBIdLmxvY28uYXBwLnYxLlVwZGF0ZUFwcFJlcXVlc3QaHi5sb2NvLmFwcC52MS5VcGRhdGVBcHBSZXNwb25zZRJKCglEZWxldGVBcHASHS5sb2NvLmFwcC52MS5EZWxldGVBcHBSZXF1ZXN0Gh4ubG9jby5hcHAudjEuRGVsZXRlQXBwUmVzcG9uc2USUwoMR2V0QXBwU3RhdHVzEiAubG9jby5hcHAudjEuR2V0QXBwU3RhdHVzUmVxdWVzdBohLmxvY28uYXBwLnYxLkdldEFwcFN0YXR1c1Jlc3BvbnNlEkUKClN0cmVhbUxvZ3MSHi5sb2NvLmFwcC52MS5TdHJlYW1Mb2dzUmVxdWVzdBoVLmxvY28uYXBwLnYxLkxvZ0VudHJ5MAESSgoJR2V0RXZlbnRzEh0ubG9jby5hcHAudjEuR2V0RXZlbnRzUmVxdWVzdBoeLmxvY28uYXBwLnYxLkdldEV2ZW50c1Jlc3BvbnNlEkcKCFNjYWxlQXBwEhwubG9jby5hcHAudjEuU2NhbGVBcHBSZXF1ZXN0Gh0ubG9jby5hcHAudjEuU2NhbGVBcHBSZXNwb25zZRJTCgxVcGRhdGVBcHBFbnYSIC5sb2NvLmFwcC52MS5VcGRhdGVBcHBFbnZSZXF1ZXN0GiEubG9jby5hcHAudjEuVXBkYXRlQXBwRW52UmVzcG9uc2VCNVozZ2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vYXBwL3YxO2FwcHYxYgZwcm90bzM", [file_domain_v1_domain, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
+ * App represents an application in a workspace.
+ *
  * @generated from message loco.app.v1.App
  */
 export type App = Message<"loco.app.v1.App"> & {
@@ -77,6 +79,8 @@ export type App = Message<"loco.app.v1.App"> & {
 };
 
 /**
+ * App represents an application in a workspace.
+ *
  * @generated from message loco.app.v1.App
  */
 export type AppJson = {
@@ -144,6 +148,8 @@ export const AppSchema: GenMessage<App, {jsonType: AppJson}> = /*@__PURE__*/
   messageDesc(file_app_v1_app, 0);
 
 /**
+ * CreateAppRequest is the request to create a new application.
+ *
  * @generated from message loco.app.v1.CreateAppRequest
  */
 export type CreateAppRequest = Message<"loco.app.v1.CreateAppRequest"> & {
@@ -174,6 +180,8 @@ export type CreateAppRequest = Message<"loco.app.v1.CreateAppRequest"> & {
 };
 
 /**
+ * CreateAppRequest is the request to create a new application.
+ *
  * @generated from message loco.app.v1.CreateAppRequest
  */
 export type CreateAppRequestJson = {
@@ -211,6 +219,8 @@ export const CreateAppRequestSchema: GenMessage<CreateAppRequest, {jsonType: Cre
   messageDesc(file_app_v1_app, 1);
 
 /**
+ * CreateAppResponse is the response from creating an application.
+ *
  * @generated from message loco.app.v1.CreateAppResponse
  */
 export type CreateAppResponse = Message<"loco.app.v1.CreateAppResponse"> & {
@@ -226,6 +236,8 @@ export type CreateAppResponse = Message<"loco.app.v1.CreateAppResponse"> & {
 };
 
 /**
+ * CreateAppResponse is the response from creating an application.
+ *
  * @generated from message loco.app.v1.CreateAppResponse
  */
 export type CreateAppResponseJson = {
@@ -248,6 +260,8 @@ export const CreateAppResponseSchema: GenMessage<CreateAppResponse, {jsonType: C
   messageDesc(file_app_v1_app, 2);
 
 /**
+ * GetAppRequest is the request to retrieve an application.
+ *
  * @generated from message loco.app.v1.GetAppRequest
  */
 export type GetAppRequest = Message<"loco.app.v1.GetAppRequest"> & {
@@ -258,6 +272,8 @@ export type GetAppRequest = Message<"loco.app.v1.GetAppRequest"> & {
 };
 
 /**
+ * GetAppRequest is the request to retrieve an application.
+ *
  * @generated from message loco.app.v1.GetAppRequest
  */
 export type GetAppRequestJson = {
@@ -275,6 +291,8 @@ export const GetAppRequestSchema: GenMessage<GetAppRequest, {jsonType: GetAppReq
   messageDesc(file_app_v1_app, 3);
 
 /**
+ * GetAppResponse is the response containing application information.
+ *
  * @generated from message loco.app.v1.GetAppResponse
  */
 export type GetAppResponse = Message<"loco.app.v1.GetAppResponse"> & {
@@ -285,6 +303,8 @@ export type GetAppResponse = Message<"loco.app.v1.GetAppResponse"> & {
 };
 
 /**
+ * GetAppResponse is the response containing application information.
+ *
  * @generated from message loco.app.v1.GetAppResponse
  */
 export type GetAppResponseJson = {
@@ -302,6 +322,8 @@ export const GetAppResponseSchema: GenMessage<GetAppResponse, {jsonType: GetAppR
   messageDesc(file_app_v1_app, 4);
 
 /**
+ * GetAppByNameRequest is the request to retrieve an application by name.
+ *
  * @generated from message loco.app.v1.GetAppByNameRequest
  */
 export type GetAppByNameRequest = Message<"loco.app.v1.GetAppByNameRequest"> & {
@@ -317,6 +339,8 @@ export type GetAppByNameRequest = Message<"loco.app.v1.GetAppByNameRequest"> & {
 };
 
 /**
+ * GetAppByNameRequest is the request to retrieve an application by name.
+ *
  * @generated from message loco.app.v1.GetAppByNameRequest
  */
 export type GetAppByNameRequestJson = {
@@ -339,6 +363,8 @@ export const GetAppByNameRequestSchema: GenMessage<GetAppByNameRequest, {jsonTyp
   messageDesc(file_app_v1_app, 5);
 
 /**
+ * GetAppByNameResponse is the response containing the application.
+ *
  * @generated from message loco.app.v1.GetAppByNameResponse
  */
 export type GetAppByNameResponse = Message<"loco.app.v1.GetAppByNameResponse"> & {
@@ -349,6 +375,8 @@ export type GetAppByNameResponse = Message<"loco.app.v1.GetAppByNameResponse"> &
 };
 
 /**
+ * GetAppByNameResponse is the response containing the application.
+ *
  * @generated from message loco.app.v1.GetAppByNameResponse
  */
 export type GetAppByNameResponseJson = {
@@ -366,6 +394,8 @@ export const GetAppByNameResponseSchema: GenMessage<GetAppByNameResponse, {jsonT
   messageDesc(file_app_v1_app, 6);
 
 /**
+ * ListAppsRequest is the request to list applications.
+ *
  * @generated from message loco.app.v1.ListAppsRequest
  */
 export type ListAppsRequest = Message<"loco.app.v1.ListAppsRequest"> & {
@@ -376,6 +406,8 @@ export type ListAppsRequest = Message<"loco.app.v1.ListAppsRequest"> & {
 };
 
 /**
+ * ListAppsRequest is the request to list applications.
+ *
  * @generated from message loco.app.v1.ListAppsRequest
  */
 export type ListAppsRequestJson = {
@@ -393,6 +425,8 @@ export const ListAppsRequestSchema: GenMessage<ListAppsRequest, {jsonType: ListA
   messageDesc(file_app_v1_app, 7);
 
 /**
+ * ListAppsResponse is the response containing the list of applications.
+ *
  * @generated from message loco.app.v1.ListAppsResponse
  */
 export type ListAppsResponse = Message<"loco.app.v1.ListAppsResponse"> & {
@@ -403,6 +437,8 @@ export type ListAppsResponse = Message<"loco.app.v1.ListAppsResponse"> & {
 };
 
 /**
+ * ListAppsResponse is the response containing the list of applications.
+ *
  * @generated from message loco.app.v1.ListAppsResponse
  */
 export type ListAppsResponseJson = {
@@ -420,6 +456,8 @@ export const ListAppsResponseSchema: GenMessage<ListAppsResponse, {jsonType: Lis
   messageDesc(file_app_v1_app, 8);
 
 /**
+ * UpdateAppRequest is the request to update an application.
+ *
  * @generated from message loco.app.v1.UpdateAppRequest
  */
 export type UpdateAppRequest = Message<"loco.app.v1.UpdateAppRequest"> & {
@@ -445,6 +483,8 @@ export type UpdateAppRequest = Message<"loco.app.v1.UpdateAppRequest"> & {
 };
 
 /**
+ * UpdateAppRequest is the request to update an application.
+ *
  * @generated from message loco.app.v1.UpdateAppRequest
  */
 export type UpdateAppRequestJson = {
@@ -477,6 +517,8 @@ export const UpdateAppRequestSchema: GenMessage<UpdateAppRequest, {jsonType: Upd
   messageDesc(file_app_v1_app, 9);
 
 /**
+ * UpdateAppResponse is the response from updating an application.
+ *
  * @generated from message loco.app.v1.UpdateAppResponse
  */
 export type UpdateAppResponse = Message<"loco.app.v1.UpdateAppResponse"> & {
@@ -492,6 +534,8 @@ export type UpdateAppResponse = Message<"loco.app.v1.UpdateAppResponse"> & {
 };
 
 /**
+ * UpdateAppResponse is the response from updating an application.
+ *
  * @generated from message loco.app.v1.UpdateAppResponse
  */
 export type UpdateAppResponseJson = {
@@ -514,6 +558,8 @@ export const UpdateAppResponseSchema: GenMessage<UpdateAppResponse, {jsonType: U
   messageDesc(file_app_v1_app, 10);
 
 /**
+ * DeleteAppRequest is the request to delete an application.
+ *
  * @generated from message loco.app.v1.DeleteAppRequest
  */
 export type DeleteAppRequest = Message<"loco.app.v1.DeleteAppRequest"> & {
@@ -524,6 +570,8 @@ export type DeleteAppRequest = Message<"loco.app.v1.DeleteAppRequest"> & {
 };
 
 /**
+ * DeleteAppRequest is the request to delete an application.
+ *
  * @generated from message loco.app.v1.DeleteAppRequest
  */
 export type DeleteAppRequestJson = {
@@ -541,6 +589,8 @@ export const DeleteAppRequestSchema: GenMessage<DeleteAppRequest, {jsonType: Del
   messageDesc(file_app_v1_app, 11);
 
 /**
+ * DeleteAppResponse is the response from deleting an application.
+ *
  * @generated from message loco.app.v1.DeleteAppResponse
  */
 export type DeleteAppResponse = Message<"loco.app.v1.DeleteAppResponse"> & {
@@ -556,6 +606,8 @@ export type DeleteAppResponse = Message<"loco.app.v1.DeleteAppResponse"> & {
 };
 
 /**
+ * DeleteAppResponse is the response from deleting an application.
+ *
  * @generated from message loco.app.v1.DeleteAppResponse
  */
 export type DeleteAppResponseJson = {
@@ -578,6 +630,8 @@ export const DeleteAppResponseSchema: GenMessage<DeleteAppResponse, {jsonType: D
   messageDesc(file_app_v1_app, 12);
 
 /**
+ * GetAppStatusRequest is the request to retrieve application status.
+ *
  * @generated from message loco.app.v1.GetAppStatusRequest
  */
 export type GetAppStatusRequest = Message<"loco.app.v1.GetAppStatusRequest"> & {
@@ -588,6 +642,8 @@ export type GetAppStatusRequest = Message<"loco.app.v1.GetAppStatusRequest"> & {
 };
 
 /**
+ * GetAppStatusRequest is the request to retrieve application status.
+ *
  * @generated from message loco.app.v1.GetAppStatusRequest
  */
 export type GetAppStatusRequestJson = {
@@ -605,6 +661,8 @@ export const GetAppStatusRequestSchema: GenMessage<GetAppStatusRequest, {jsonTyp
   messageDesc(file_app_v1_app, 13);
 
 /**
+ * DeploymentStatus represents the status of an application deployment.
+ *
  * @generated from message loco.app.v1.DeploymentStatus
  */
 export type DeploymentStatus = Message<"loco.app.v1.DeploymentStatus"> & {
@@ -635,6 +693,8 @@ export type DeploymentStatus = Message<"loco.app.v1.DeploymentStatus"> & {
 };
 
 /**
+ * DeploymentStatus represents the status of an application deployment.
+ *
  * @generated from message loco.app.v1.DeploymentStatus
  */
 export type DeploymentStatusJson = {
@@ -672,6 +732,8 @@ export const DeploymentStatusSchema: GenMessage<DeploymentStatus, {jsonType: Dep
   messageDesc(file_app_v1_app, 14);
 
 /**
+ * GetAppStatusResponse is the response containing application status information.
+ *
  * @generated from message loco.app.v1.GetAppStatusResponse
  */
 export type GetAppStatusResponse = Message<"loco.app.v1.GetAppStatusResponse"> & {
@@ -687,6 +749,8 @@ export type GetAppStatusResponse = Message<"loco.app.v1.GetAppStatusResponse"> &
 };
 
 /**
+ * GetAppStatusResponse is the response containing application status information.
+ *
  * @generated from message loco.app.v1.GetAppStatusResponse
  */
 export type GetAppStatusResponseJson = {
@@ -709,6 +773,8 @@ export const GetAppStatusResponseSchema: GenMessage<GetAppStatusResponse, {jsonT
   messageDesc(file_app_v1_app, 15);
 
 /**
+ * StreamLogsRequest is the request to stream application logs.
+ *
  * @generated from message loco.app.v1.StreamLogsRequest
  */
 export type StreamLogsRequest = Message<"loco.app.v1.StreamLogsRequest"> & {
@@ -729,6 +795,8 @@ export type StreamLogsRequest = Message<"loco.app.v1.StreamLogsRequest"> & {
 };
 
 /**
+ * StreamLogsRequest is the request to stream application logs.
+ *
  * @generated from message loco.app.v1.StreamLogsRequest
  */
 export type StreamLogsRequestJson = {
@@ -756,6 +824,8 @@ export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest, {jsonType: S
   messageDesc(file_app_v1_app, 16);
 
 /**
+ * LogEntry represents a single log line from an application.
+ *
  * @generated from message loco.app.v1.LogEntry
  */
 export type LogEntry = Message<"loco.app.v1.LogEntry"> & {
@@ -791,6 +861,8 @@ export type LogEntry = Message<"loco.app.v1.LogEntry"> & {
 };
 
 /**
+ * LogEntry represents a single log line from an application.
+ *
  * @generated from message loco.app.v1.LogEntry
  */
 export type LogEntryJson = {
@@ -833,6 +905,8 @@ export const LogEntrySchema: GenMessage<LogEntry, {jsonType: LogEntryJson}> = /*
   messageDesc(file_app_v1_app, 17);
 
 /**
+ * Event represents an event related to an application.
+ *
  * @generated from message loco.app.v1.Event
  */
 export type Event = Message<"loco.app.v1.Event"> & {
@@ -863,6 +937,8 @@ export type Event = Message<"loco.app.v1.Event"> & {
 };
 
 /**
+ * Event represents an event related to an application.
+ *
  * @generated from message loco.app.v1.Event
  */
 export type EventJson = {
@@ -900,6 +976,8 @@ export const EventSchema: GenMessage<Event, {jsonType: EventJson}> = /*@__PURE__
   messageDesc(file_app_v1_app, 18);
 
 /**
+ * GetEventsRequest is the request to retrieve application events.
+ *
  * @generated from message loco.app.v1.GetEventsRequest
  */
 export type GetEventsRequest = Message<"loco.app.v1.GetEventsRequest"> & {
@@ -915,6 +993,8 @@ export type GetEventsRequest = Message<"loco.app.v1.GetEventsRequest"> & {
 };
 
 /**
+ * GetEventsRequest is the request to retrieve application events.
+ *
  * @generated from message loco.app.v1.GetEventsRequest
  */
 export type GetEventsRequestJson = {
@@ -937,6 +1017,8 @@ export const GetEventsRequestSchema: GenMessage<GetEventsRequest, {jsonType: Get
   messageDesc(file_app_v1_app, 19);
 
 /**
+ * GetEventsResponse is the response containing application events.
+ *
  * @generated from message loco.app.v1.GetEventsResponse
  */
 export type GetEventsResponse = Message<"loco.app.v1.GetEventsResponse"> & {
@@ -947,6 +1029,8 @@ export type GetEventsResponse = Message<"loco.app.v1.GetEventsResponse"> & {
 };
 
 /**
+ * GetEventsResponse is the response containing application events.
+ *
  * @generated from message loco.app.v1.GetEventsResponse
  */
 export type GetEventsResponseJson = {
@@ -964,6 +1048,8 @@ export const GetEventsResponseSchema: GenMessage<GetEventsResponse, {jsonType: G
   messageDesc(file_app_v1_app, 20);
 
 /**
+ * ScaleAppRequest is the request to scale an application.
+ *
  * @generated from message loco.app.v1.ScaleAppRequest
  */
 export type ScaleAppRequest = Message<"loco.app.v1.ScaleAppRequest"> & {
@@ -989,6 +1075,8 @@ export type ScaleAppRequest = Message<"loco.app.v1.ScaleAppRequest"> & {
 };
 
 /**
+ * ScaleAppRequest is the request to scale an application.
+ *
  * @generated from message loco.app.v1.ScaleAppRequest
  */
 export type ScaleAppRequestJson = {
@@ -1021,6 +1109,8 @@ export const ScaleAppRequestSchema: GenMessage<ScaleAppRequest, {jsonType: Scale
   messageDesc(file_app_v1_app, 21);
 
 /**
+ * ScaleAppResponse is the response from scaling an application.
+ *
  * @generated from message loco.app.v1.ScaleAppResponse
  */
 export type ScaleAppResponse = Message<"loco.app.v1.ScaleAppResponse"> & {
@@ -1031,6 +1121,8 @@ export type ScaleAppResponse = Message<"loco.app.v1.ScaleAppResponse"> & {
 };
 
 /**
+ * ScaleAppResponse is the response from scaling an application.
+ *
  * @generated from message loco.app.v1.ScaleAppResponse
  */
 export type ScaleAppResponseJson = {
@@ -1048,6 +1140,8 @@ export const ScaleAppResponseSchema: GenMessage<ScaleAppResponse, {jsonType: Sca
   messageDesc(file_app_v1_app, 22);
 
 /**
+ * UpdateAppEnvRequest is the request to update application environment variables.
+ *
  * @generated from message loco.app.v1.UpdateAppEnvRequest
  */
 export type UpdateAppEnvRequest = Message<"loco.app.v1.UpdateAppEnvRequest"> & {
@@ -1063,6 +1157,8 @@ export type UpdateAppEnvRequest = Message<"loco.app.v1.UpdateAppEnvRequest"> & {
 };
 
 /**
+ * UpdateAppEnvRequest is the request to update application environment variables.
+ *
  * @generated from message loco.app.v1.UpdateAppEnvRequest
  */
 export type UpdateAppEnvRequestJson = {
@@ -1085,6 +1181,8 @@ export const UpdateAppEnvRequestSchema: GenMessage<UpdateAppEnvRequest, {jsonTyp
   messageDesc(file_app_v1_app, 23);
 
 /**
+ * UpdateAppEnvResponse is the response from updating environment variables.
+ *
  * @generated from message loco.app.v1.UpdateAppEnvResponse
  */
 export type UpdateAppEnvResponse = Message<"loco.app.v1.UpdateAppEnvResponse"> & {
@@ -1095,6 +1193,8 @@ export type UpdateAppEnvResponse = Message<"loco.app.v1.UpdateAppEnvResponse"> &
 };
 
 /**
+ * UpdateAppEnvResponse is the response from updating environment variables.
+ *
  * @generated from message loco.app.v1.UpdateAppEnvResponse
  */
 export type UpdateAppEnvResponseJson = {
@@ -1240,11 +1340,13 @@ export const AppStatusSchema: GenEnum<AppStatus, AppStatusJson> = /*@__PURE__*/
   enumDesc(file_app_v1_app, 2);
 
 /**
+ * AppService manages application lifecycle and operations.
+ *
  * @generated from service loco.app.v1.AppService
  */
 export const AppService: GenService<{
   /**
-   * App CRUD
+   * CreateApp creates a new application.
    *
    * @generated from rpc loco.app.v1.AppService.CreateApp
    */
@@ -1254,6 +1356,8 @@ export const AppService: GenService<{
     output: typeof CreateAppResponseSchema;
   },
   /**
+   * GetApp retrieves an application by ID.
+   *
    * @generated from rpc loco.app.v1.AppService.GetApp
    */
   getApp: {
@@ -1262,6 +1366,8 @@ export const AppService: GenService<{
     output: typeof GetAppResponseSchema;
   },
   /**
+   * GetAppByName retrieves an application by name within a workspace.
+   *
    * @generated from rpc loco.app.v1.AppService.GetAppByName
    */
   getAppByName: {
@@ -1270,6 +1376,8 @@ export const AppService: GenService<{
     output: typeof GetAppByNameResponseSchema;
   },
   /**
+   * ListApps lists all applications in a workspace.
+   *
    * @generated from rpc loco.app.v1.AppService.ListApps
    */
   listApps: {
@@ -1278,6 +1386,8 @@ export const AppService: GenService<{
     output: typeof ListAppsResponseSchema;
   },
   /**
+   * UpdateApp updates an application configuration.
+   *
    * @generated from rpc loco.app.v1.AppService.UpdateApp
    */
   updateApp: {
@@ -1286,6 +1396,8 @@ export const AppService: GenService<{
     output: typeof UpdateAppResponseSchema;
   },
   /**
+   * DeleteApp deletes an application.
+   *
    * @generated from rpc loco.app.v1.AppService.DeleteApp
    */
   deleteApp: {
@@ -1294,6 +1406,8 @@ export const AppService: GenService<{
     output: typeof DeleteAppResponseSchema;
   },
   /**
+   * GetAppStatus retrieves the current status and deployment information of an application.
+   *
    * @generated from rpc loco.app.v1.AppService.GetAppStatus
    */
   getAppStatus: {
@@ -1303,6 +1417,7 @@ export const AppService: GenService<{
   },
   /**
    * Logs
+   * StreamLogs streams application logs in real-time.
    *
    * @generated from rpc loco.app.v1.AppService.StreamLogs
    */
@@ -1313,6 +1428,7 @@ export const AppService: GenService<{
   },
   /**
    * Events
+   * GetEvents retrieves events for an application.
    *
    * @generated from rpc loco.app.v1.AppService.GetEvents
    */
@@ -1323,6 +1439,7 @@ export const AppService: GenService<{
   },
   /**
    * App Operations
+   * ScaleApp adjusts application replicas and resource allocation.
    *
    * @generated from rpc loco.app.v1.AppService.ScaleApp
    */
@@ -1332,6 +1449,8 @@ export const AppService: GenService<{
     output: typeof ScaleAppResponseSchema;
   },
   /**
+   * UpdateAppEnv updates environment variables for an application.
+   *
    * @generated from rpc loco.app.v1.AppService.UpdateAppEnv
    */
   updateAppEnv: {

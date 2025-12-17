@@ -7,13 +7,15 @@ import { CreateAppRequest, CreateAppResponse, DeleteAppRequest, DeleteAppRespons
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * AppService manages application lifecycle and operations.
+ *
  * @generated from service loco.app.v1.AppService
  */
 export const AppService = {
   typeName: "loco.app.v1.AppService",
   methods: {
     /**
-     * App CRUD
+     * CreateApp creates a new application.
      *
      * @generated from rpc loco.app.v1.AppService.CreateApp
      */
@@ -24,6 +26,8 @@ export const AppService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetApp retrieves an application by ID.
+     *
      * @generated from rpc loco.app.v1.AppService.GetApp
      */
     getApp: {
@@ -33,6 +37,8 @@ export const AppService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetAppByName retrieves an application by name within a workspace.
+     *
      * @generated from rpc loco.app.v1.AppService.GetAppByName
      */
     getAppByName: {
@@ -42,6 +48,8 @@ export const AppService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListApps lists all applications in a workspace.
+     *
      * @generated from rpc loco.app.v1.AppService.ListApps
      */
     listApps: {
@@ -51,6 +59,8 @@ export const AppService = {
       kind: MethodKind.Unary,
     },
     /**
+     * UpdateApp updates an application configuration.
+     *
      * @generated from rpc loco.app.v1.AppService.UpdateApp
      */
     updateApp: {
@@ -60,6 +70,8 @@ export const AppService = {
       kind: MethodKind.Unary,
     },
     /**
+     * DeleteApp deletes an application.
+     *
      * @generated from rpc loco.app.v1.AppService.DeleteApp
      */
     deleteApp: {
@@ -69,6 +81,8 @@ export const AppService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetAppStatus retrieves the current status and deployment information of an application.
+     *
      * @generated from rpc loco.app.v1.AppService.GetAppStatus
      */
     getAppStatus: {
@@ -79,6 +93,7 @@ export const AppService = {
     },
     /**
      * Logs
+     * StreamLogs streams application logs in real-time.
      *
      * @generated from rpc loco.app.v1.AppService.StreamLogs
      */
@@ -90,6 +105,7 @@ export const AppService = {
     },
     /**
      * Events
+     * GetEvents retrieves events for an application.
      *
      * @generated from rpc loco.app.v1.AppService.GetEvents
      */
@@ -101,6 +117,7 @@ export const AppService = {
     },
     /**
      * App Operations
+     * ScaleApp adjusts application replicas and resource allocation.
      *
      * @generated from rpc loco.app.v1.AppService.ScaleApp
      */
@@ -111,6 +128,8 @@ export const AppService = {
       kind: MethodKind.Unary,
     },
     /**
+     * UpdateAppEnv updates environment variables for an application.
+     *
      * @generated from rpc loco.app.v1.AppService.UpdateAppEnv
      */
     updateAppEnv: {

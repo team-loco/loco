@@ -7,6 +7,8 @@ import { AddAppDomainRequest, AddAppDomainResponse, CheckDomainAvailabilityReque
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * DomainService manages domains for applications.
+ *
  * @generated from service loco.domain.v1.DomainService
  */
 export const DomainService = {
@@ -14,6 +16,7 @@ export const DomainService = {
   methods: {
     /**
      * Platform Domain CRUD
+     * CreatePlatformDomain creates a new platform-provided domain.
      *
      * @generated from rpc loco.domain.v1.DomainService.CreatePlatformDomain
      */
@@ -24,6 +27,8 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetPlatformDomain retrieves a platform domain by ID.
+     *
      * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
      */
     getPlatformDomain: {
@@ -33,6 +38,8 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetPlatformDomainByName retrieves a platform domain by name.
+     *
      * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomainByName
      */
     getPlatformDomainByName: {
@@ -42,6 +49,8 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListActivePlatformDomains lists all active platform domains.
+     *
      * @generated from rpc loco.domain.v1.DomainService.ListActivePlatformDomains
      */
     listActivePlatformDomains: {
@@ -51,6 +60,8 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
+     * DeactivatePlatformDomain deactivates a platform domain.
+     *
      * @generated from rpc loco.domain.v1.DomainService.DeactivatePlatformDomain
      */
     deactivatePlatformDomain: {
@@ -61,6 +72,7 @@ export const DomainService = {
     },
     /**
      * App Domain Management
+     * AddAppDomain assigns a domain to an application.
      *
      * @generated from rpc loco.domain.v1.DomainService.AddAppDomain
      */
@@ -71,6 +83,8 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
+     * UpdateAppDomain updates an application's domain configuration.
+     *
      * @generated from rpc loco.domain.v1.DomainService.UpdateAppDomain
      */
     updateAppDomain: {
@@ -80,6 +94,8 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
+     * SetPrimaryAppDomain sets the primary domain for an application.
+     *
      * @generated from rpc loco.domain.v1.DomainService.SetPrimaryAppDomain
      */
     setPrimaryAppDomain: {
@@ -89,6 +105,8 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
+     * RemoveAppDomain removes a domain from an application.
+     *
      * @generated from rpc loco.domain.v1.DomainService.RemoveAppDomain
      */
     removeAppDomain: {
@@ -99,6 +117,7 @@ export const DomainService = {
     },
     /**
      * Domain Availability
+     * CheckDomainAvailability checks if a domain is available.
      *
      * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
      */
@@ -110,6 +129,7 @@ export const DomainService = {
     },
     /**
      * Queries
+     * ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
      *
      * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
      */

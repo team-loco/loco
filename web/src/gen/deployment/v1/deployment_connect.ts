@@ -7,12 +7,16 @@ import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentEvent, Get
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * DeploymentService manages application deployments.
+ *
  * @generated from service loco.deployment.v1.DeploymentService
  */
 export const DeploymentService = {
   typeName: "loco.deployment.v1.DeploymentService",
   methods: {
     /**
+     * CreateDeployment creates a new deployment for an application.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.CreateDeployment
      */
     createDeployment: {
@@ -22,6 +26,8 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetDeployment retrieves a deployment by ID.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.GetDeployment
      */
     getDeployment: {
@@ -31,6 +37,8 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListDeployments lists deployments for an application.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.ListDeployments
      */
     listDeployments: {
@@ -40,6 +48,8 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
+     * StreamDeployment streams deployment events in real-time.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.StreamDeployment
      */
     streamDeployment: {
