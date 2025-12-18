@@ -11,51 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type AppStatus string
-
-const (
-	AppStatusAvailable   AppStatus = "available"
-	AppStatusProgressing AppStatus = "progressing"
-	AppStatusDegraded    AppStatus = "degraded"
-	AppStatusUnavailable AppStatus = "unavailable"
-	AppStatusIdle        AppStatus = "idle"
-)
-
-func (e *AppStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = AppStatus(s)
-	case string:
-		*e = AppStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for AppStatus: %T", src)
-	}
-	return nil
-}
-
-type NullAppStatus struct {
-	AppStatus AppStatus `json:"appStatus"`
-	Valid     bool      `json:"valid"` // Valid is true if AppStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullAppStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.AppStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.AppStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullAppStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.AppStatus), nil
-}
-
 type DeploymentStatus string
 
 const (
@@ -185,6 +140,51 @@ func (ns NullOrganizationRole) Value() (driver.Value, error) {
 	return string(ns.OrganizationRole), nil
 }
 
+type ResourceStatus string
+
+const (
+	ResourceStatusAvailable   ResourceStatus = "available"
+	ResourceStatusProgressing ResourceStatus = "progressing"
+	ResourceStatusDegraded    ResourceStatus = "degraded"
+	ResourceStatusUnavailable ResourceStatus = "unavailable"
+	ResourceStatusIdle        ResourceStatus = "idle"
+)
+
+func (e *ResourceStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ResourceStatus(s)
+	case string:
+		*e = ResourceStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ResourceStatus: %T", src)
+	}
+	return nil
+}
+
+type NullResourceStatus struct {
+	ResourceStatus ResourceStatus `json:"resourceStatus"`
+	Valid          bool           `json:"valid"` // Valid is true if ResourceStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullResourceStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ResourceStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ResourceStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullResourceStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ResourceStatus), nil
+}
+
 type WorkspaceRole string
 
 const (
@@ -228,32 +228,6 @@ func (ns NullWorkspaceRole) Value() (driver.Value, error) {
 	return string(ns.WorkspaceRole), nil
 }
 
-type App struct {
-	ID          int64              `json:"id"`
-	WorkspaceID int64              `json:"workspaceId"`
-	ClusterID   int64              `json:"clusterId"`
-	Name        string             `json:"name"`
-	Namespace   string             `json:"namespace"`
-	Type        int32              `json:"type"`
-	Status      NullAppStatus      `json:"status"`
-	Spec        []byte             `json:"spec"`
-	CreatedBy   int64              `json:"createdBy"`
-	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
-}
-
-type AppDomain struct {
-	ID               int64              `json:"id"`
-	AppID            int64              `json:"appId"`
-	Domain           string             `json:"domain"`
-	DomainSource     DomainSource       `json:"domainSource"`
-	SubdomainLabel   pgtype.Text        `json:"subdomainLabel"`
-	PlatformDomainID pgtype.Int8        `json:"platformDomainId"`
-	IsPrimary        bool               `json:"isPrimary"`
-	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
-}
-
 type Cluster struct {
 	ID              int64              `json:"id"`
 	Name            string             `json:"name"`
@@ -270,7 +244,7 @@ type Cluster struct {
 
 type Deployment struct {
 	ID            int64              `json:"id"`
-	AppID         int64              `json:"appId"`
+	ResourceID    int64              `json:"resourceId"`
 	ClusterID     int64              `json:"clusterId"`
 	Image         string             `json:"image"`
 	Replicas      int32              `json:"replicas"`
@@ -307,6 +281,32 @@ type PlatformDomain struct {
 	Domain    string             `json:"domain"`
 	IsActive  bool               `json:"isActive"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+}
+
+type Resource struct {
+	ID          int64              `json:"id"`
+	WorkspaceID int64              `json:"workspaceId"`
+	ClusterID   int64              `json:"clusterId"`
+	Name        string             `json:"name"`
+	Namespace   string             `json:"namespace"`
+	Type        int32              `json:"type"`
+	Status      NullResourceStatus `json:"status"`
+	Spec        []byte             `json:"spec"`
+	CreatedBy   int64              `json:"createdBy"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type ResourceDomain struct {
+	ID               int64              `json:"id"`
+	ResourceID       int64              `json:"resourceId"`
+	Domain           string             `json:"domain"`
+	DomainSource     DomainSource       `json:"domainSource"`
+	SubdomainLabel   pgtype.Text        `json:"subdomainLabel"`
+	PlatformDomainID pgtype.Int8        `json:"platformDomainId"`
+	IsPrimary        bool               `json:"isPrimary"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type User struct {

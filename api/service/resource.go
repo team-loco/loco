@@ -18,43 +18,42 @@ import (
 	"github.com/loco-team/loco/api/pkg/klogmux"
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/timeutil"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
 	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
 
 var (
-	ErrAppNotFound           = errors.New("app not found")
-	ErrAppNameNotUnique      = errors.New("app name already exists in this workspace")
+	ErrResourceNotFound      = errors.New("resource not found")
+	ErrResourceNameNotUnique = errors.New("resource name already exists in this workspace")
 	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
 	ErrClusterNotFound       = errors.New("cluster not found")
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
-	ErrInvalidAppType        = errors.New("invalid app type")
+	ErrInvalidResourceType   = errors.New("invalid resource type")
 )
 
-type AppServer struct {
+type ResourceServer struct {
 	db         *pgxpool.Pool
 	queries    genDb.Querier
 	kubeClient *kube.Client
 }
 
-// NewAppServer creates a new AppServer instance
-func NewAppServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client) *AppServer {
+// NewResourceServer creates a new ResourceServer instance
+func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client) *ResourceServer {
 	// todo: move this out.
-	return &AppServer{
+	return &ResourceServer{
 		db:         db,
 		queries:    queries,
 		kubeClient: kubeClient,
 	}
 }
 
-// CreateApp creates a new app
-func (s *AppServer) CreateApp(
+// CreateResource creates a new resource
+func (s *ResourceServer) CreateResource(
 	ctx context.Context,
-	req *connect.Request[appv1.CreateAppRequest],
-) (*connect.Response[appv1.CreateAppResponse], error) {
+	req *connect.Request[resourcev1.CreateResourceRequest],
+) (*connect.Response[resourcev1.CreateResourceResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -74,7 +73,7 @@ func (s *AppServer) CreateApp(
 	}
 
 	if role != "admin" && role != "deploy" {
-		slog.WarnContext(ctx, "user does not have permission to create app", "workspaceId", r.WorkspaceId, "userId", userID, "role", role)
+		slog.WarnContext(ctx, "user does not have permission to create resource", "workspaceId", r.WorkspaceId, "userId", userID, "role", role)
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
@@ -131,21 +130,32 @@ func (s *AppServer) CreateApp(
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
 	}
 
-	app, err := s.queries.CreateApp(ctx, genDb.CreateAppParams{
+	var specBytes []byte
+	if r.Spec != nil {
+		var err error
+		specBytes, err = json.Marshal(r.Spec)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+		}
+	}
+
+	resource, err := s.queries.CreateResource(ctx, genDb.CreateResourceParams{
 		WorkspaceID: r.WorkspaceId,
 		ClusterID:   cluster.ID,
 		Name:        r.Name,
 		Type:        int32(r.Type.Number()),
+		Status:      genDb.NullResourceStatus{ResourceStatus: genDb.ResourceStatusIdle, Valid: true},
+		Spec:        specBytes,
 		CreatedBy:   userID,
-		Status:      genDb.NullAppStatus{AppStatus: genDb.AppStatusIdle, Valid: true},
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create app", "error", err)
+		slog.ErrorContext(ctx, "failed to create resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	domainParams := genDb.CreateAppDomainParams{
-		AppID:            app.ID,
+	domainParams := genDb.CreateResourceDomainParams{
+		ResourceID:       resource.ID,
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
@@ -153,23 +163,23 @@ func (s *AppServer) CreateApp(
 		IsPrimary:        true,
 	}
 
-	appDomain, err := s.queries.CreateAppDomain(ctx, domainParams)
+	resourceDomain, err := s.queries.CreateResourceDomain(ctx, domainParams)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create app domain", "error", err)
+		slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&appv1.CreateAppResponse{
-		App:     dbAppToProto(app, []genDb.AppDomain{appDomain}),
-		Message: "App created successfully",
+	return connect.NewResponse(&resourcev1.CreateResourceResponse{
+		Resource: dbResourceToProto(resource, []genDb.ResourceDomain{resourceDomain}),
+		Message:  "Resource created successfully",
 	}), nil
 }
 
-// GetApp retrieves an app by ID
-func (s *AppServer) GetApp(
+// GetResource retrieves a resource by ID
+func (s *ResourceServer) GetResource(
 	ctx context.Context,
-	req *connect.Request[appv1.GetAppRequest],
-) (*connect.Response[appv1.GetAppResponse], error) {
+	req *connect.Request[resourcev1.GetResourceRequest],
+) (*connect.Response[resourcev1.GetResourceResponse], error) {
 	r := req.Msg
 
 	// todo: role checks should actually be done first.
@@ -179,37 +189,37 @@ func (s *AppServer) GetApp(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "id", r.AppId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
 	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: app.WorkspaceID,
+		WorkspaceID: resource.WorkspaceID,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of app's workspace", "workspaceId", app.WorkspaceID, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&appv1.GetAppResponse{
-		App: dbAppToProto(app, appDomains),
+	return connect.NewResponse(&resourcev1.GetResourceResponse{
+		Resource: dbResourceToProto(resource, resourceDomains),
 	}), nil
 }
 
-// GetAppByName retrieves an app by workspace and name
-func (s *AppServer) GetAppByName(
+// GetResourceByName retrieves a resource by workspace and name
+func (s *ResourceServer) GetResourceByName(
 	ctx context.Context,
-	req *connect.Request[appv1.GetAppByNameRequest],
-) (*connect.Response[appv1.GetAppByNameResponse], error) {
+	req *connect.Request[resourcev1.GetResourceByNameRequest],
+) (*connect.Response[resourcev1.GetResourceByNameResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -227,34 +237,34 @@ func (s *AppServer) GetAppByName(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	app, err := s.queries.GetAppByNameAndWorkspace(ctx, genDb.GetAppByNameAndWorkspaceParams{
+	resource, err := s.queries.GetResourceByNameAndWorkspace(ctx, genDb.GetResourceByNameAndWorkspaceParams{
 		WorkspaceID: r.WorkspaceId,
 		Name:        r.Name,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "workspaceId", r.WorkspaceId, "app_name", r.Name)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "workspaceId", r.WorkspaceId, "resource_name", r.Name)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&appv1.GetAppByNameResponse{
-		App: dbAppToProto(app, appDomains),
+	return connect.NewResponse(&resourcev1.GetResourceByNameResponse{
+		Resource: dbResourceToProto(resource, resourceDomains),
 	}), nil
 }
 
-// ListApps lists all apps in a workspace
-func (s *AppServer) ListApps(
+// ListResources lists all resources in a workspace
+func (s *ResourceServer) ListResources(
 	ctx context.Context,
-	req *connect.Request[appv1.ListAppsRequest],
-) (*connect.Response[appv1.ListAppsResponse], error) {
+	req *connect.Request[resourcev1.ListResourcesRequest],
+) (*connect.Response[resourcev1.ListResourcesResponse], error) {
 	r := req.Msg
 
-	slog.InfoContext(ctx, "received req to list apps", "workspaceId", r.WorkspaceId)
+	slog.InfoContext(ctx, "received req to list resources", "workspaceId", r.WorkspaceId)
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
@@ -270,32 +280,32 @@ func (s *AppServer) ListApps(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	dbApps, err := s.queries.ListAppsForWorkspace(ctx, r.WorkspaceId)
+	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, r.WorkspaceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list apps", "error", err)
+		slog.ErrorContext(ctx, "failed to list resources", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	var apps []*appv1.App
-	for _, dbApp := range dbApps {
-		appDomains, err := s.queries.ListAppDomains(ctx, dbApp.ID)
+	var resources []*resourcev1.Resource
+	for _, dbResource := range dbResources {
+		resourceDomains, err := s.queries.ListResourceDomains(ctx, dbResource.ID)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to list app domains", "appId", dbApp.ID, "error", err)
+			slog.ErrorContext(ctx, "failed to list resource domains", "resourceId", dbResource.ID, "error", err)
 			continue
 		}
-		apps = append(apps, dbAppToProto(dbApp, appDomains))
+		resources = append(resources, dbResourceToProto(dbResource, resourceDomains))
 	}
 
-	return connect.NewResponse(&appv1.ListAppsResponse{
-		Apps: apps,
+	return connect.NewResponse(&resourcev1.ListResourcesResponse{
+		Resources: resources,
 	}), nil
 }
 
-// UpdateApp updates an app
-func (s *AppServer) UpdateApp(
+// UpdateResource updates a resource
+func (s *ResourceServer) UpdateResource(
 	ctx context.Context,
-	req *connect.Request[appv1.UpdateAppRequest],
-) (*connect.Response[appv1.UpdateAppResponse], error) {
+	req *connect.Request[resourcev1.UpdateResourceRequest],
+) (*connect.Response[resourcev1.UpdateResourceResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -304,10 +314,10 @@ func (s *AppServer) UpdateApp(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
+	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+			return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
@@ -322,41 +332,41 @@ func (s *AppServer) UpdateApp(
 	}
 
 	if role != genDb.WorkspaceRoleAdmin && role != genDb.WorkspaceRoleDeploy {
-		slog.WarnContext(ctx, "user does not have permission to update app", "workspaceId", fmt.Sprintf("%d", workspaceID), "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or deploy role to update app"))
+		slog.WarnContext(ctx, "user does not have permission to update resource", "workspaceId", fmt.Sprintf("%d", workspaceID), "userId", userID, "role", string(role))
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or deploy role to update resource"))
 	}
 
-	updateParams := genDb.UpdateAppParams{
-		ID: r.AppId,
+	updateParams := genDb.UpdateResourceParams{
+		ID: r.ResourceId,
 	}
 
 	if r.GetName() != "" {
 		updateParams.Name = pgtype.Text{String: r.GetName(), Valid: true}
 	}
 
-	app, err := s.queries.UpdateApp(ctx, updateParams)
+	resource, err := s.queries.UpdateResource(ctx, updateParams)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update app", "error", err)
+		slog.ErrorContext(ctx, "failed to update resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&appv1.UpdateAppResponse{
-		App:     dbAppToProto(app, appDomains),
-		Message: "App updated successfully",
+	return connect.NewResponse(&resourcev1.UpdateResourceResponse{
+		Resource: dbResourceToProto(resource, resourceDomains),
+		Message:  "Resource updated successfully",
 	}), nil
 }
 
-// DeleteApp deletes an app
-func (s *AppServer) DeleteApp(
+// DeleteResource deletes a resource
+func (s *ResourceServer) DeleteResource(
 	ctx context.Context,
-	req *connect.Request[appv1.DeleteAppRequest],
-) (*connect.Response[appv1.DeleteAppResponse], error) {
+	req *connect.Request[resourcev1.DeleteResourceRequest],
+) (*connect.Response[resourcev1.DeleteResourceResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -365,10 +375,10 @@ func (s *AppServer) DeleteApp(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
+	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+			return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
@@ -384,38 +394,38 @@ func (s *AppServer) DeleteApp(
 
 	if role != genDb.WorkspaceRoleAdmin {
 		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", fmt.Sprintf("%d", workspaceID), "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin to delete app"))
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin to delete resource"))
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get app", "error", err)
+		slog.ErrorContext(ctx, "failed to get resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	err = s.queries.DeleteApp(ctx, r.AppId)
+	err = s.queries.DeleteResource(ctx, r.ResourceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete app", "error", err)
+		slog.ErrorContext(ctx, "failed to delete resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&appv1.DeleteAppResponse{
-		App:     dbAppToProto(app, appDomains),
-		Message: "App deleted successfully",
+	return connect.NewResponse(&resourcev1.DeleteResourceResponse{
+		Resource: dbResourceToProto(resource, resourceDomains),
+		Message:  "Resource deleted successfully",
 	}), nil
 }
 
-// GetAppStatus retrieves an app and its current deployment status
-func (s *AppServer) GetAppStatus(
+// GetResourceStatus retrieves a resource and its current deployment status
+func (s *ResourceServer) GetResourceStatus(
 	ctx context.Context,
-	req *connect.Request[appv1.GetAppStatusRequest],
-) (*connect.Response[appv1.GetAppStatusResponse], error) {
+	req *connect.Request[resourcev1.GetResourceStatusRequest],
+) (*connect.Response[resourcev1.GetResourceStatusResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -424,35 +434,35 @@ func (s *AppServer) GetAppStatus(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "app_id", r.AppId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
 	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: app.WorkspaceID,
+		WorkspaceID: resource.WorkspaceID,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of app's workspace", "workspaceId", app.WorkspaceID, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	deploymentList, err := s.queries.ListDeploymentsForApp(ctx, genDb.ListDeploymentsForAppParams{
-		AppID:  r.AppId,
-		Limit:  1,
-		Offset: 0,
+	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
+		ResourceID: r.ResourceId,
+		Limit:      1,
+		Offset:     0,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	var deploymentStatus *appv1.DeploymentStatus
+	var deploymentStatus *resourcev1.DeploymentStatus
 	if len(deploymentList) > 0 {
 		deployment := deploymentList[0]
-		deploymentStatus = &appv1.DeploymentStatus{
+		deploymentStatus = &resourcev1.DeploymentStatus{
 			Id:       deployment.ID,
 			Status:   deploymentStatusToProto(deployment.Status),
 			Replicas: deployment.Replicas,
@@ -465,23 +475,23 @@ func (s *AppServer) GetAppStatus(
 		}
 	}
 
-	appDomains, err := s.queries.ListAppDomains(ctx, app.ID)
+	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list app domains", "error", err)
+		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&appv1.GetAppStatusResponse{
-		App:               dbAppToProto(app, appDomains),
+	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
+		Resource:          dbResourceToProto(resource, resourceDomains),
 		CurrentDeployment: deploymentStatus,
 	}), nil
 }
 
-// StreamLogs streams logs for an app
-func (s *AppServer) StreamLogs(
+// StreamLogs streams logs for a resource
+func (s *ResourceServer) StreamLogs(
 	ctx context.Context,
-	req *connect.Request[appv1.StreamLogsRequest],
-	stream *connect.ServerStream[appv1.LogEntry],
+	req *connect.Request[resourcev1.StreamLogsRequest],
+	stream *connect.ServerStream[resourcev1.LogEntry],
 ) error {
 	r := req.Msg
 
@@ -491,88 +501,84 @@ func (s *AppServer) StreamLogs(
 		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "app_id", r.AppId)
-		return connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
 	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: app.WorkspaceID,
+		WorkspaceID: resource.WorkspaceID,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of app's workspace", "workspaceId", app.WorkspaceID, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
 		return connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	if app.Namespace == "" {
-		slog.WarnContext(ctx, "app has no namespace assigned", "app_id", r.AppId)
-		return connect.NewError(connect.CodeFailedPrecondition, errors.New("app has not been deployed yet"))
+	if resource.Namespace == "" {
+		slog.WarnContext(ctx, "resource has no namespace assigned", "resource_id", r.ResourceId)
+		return connect.NewError(connect.CodeFailedPrecondition, errors.New("resource has not been deployed yet"))
 	}
 
-	slog.InfoContext(ctx, "streaming logs for app", "app_id", r.AppId, "app_namespace", app.Namespace)
+	slog.InfoContext(ctx, "fetching logs for resource", "resource_id", r.ResourceId, "resource_namespace", resource.Namespace)
 
-	// build label selector to find pods for this app
-	selector := labels.SelectorFromSet(labels.Set{"app": app.Name})
+	follow := false
+	if r.Follow != nil {
+		follow = *r.Follow
+	}
 
-	// build the log stream
-	builder := klogmux.NewBuilder(s.kubeClient.ClientSet).
-		Namespace(app.Namespace).
-		LabelSelector(selector.String()).
-		Follow(r.GetFollow())
-
+	tailLines := int64(100)
 	if r.Limit != nil {
-		builder.TailLines(int64(*r.Limit))
+		tailLines = int64(*r.Limit)
 	}
 
-	logStream := builder.Build()
+	logStream := klogmux.NewBuilder(s.kubeClient.ClientSet).
+		Namespace(resource.Namespace).
+		Follow(follow).
+		TailLines(tailLines).
+		Build()
 
-	// start the log stream
-	logStream.Start(ctx)
+	if err := logStream.Start(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to start log stream", "error", err)
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to start log stream: %w", err))
+	}
 	defer logStream.Stop()
 
-	slog.DebugContext(ctx, "log stream started", "app_id", r.AppId, "namespace", app.Namespace)
-
-	// stream log entries to client
-	for entry := range logStream.Entries() {
-		logProto := &appv1.LogEntry{
-			PodName:   entry.PodName,
-			Namespace: entry.Namespace,
-			Container: entry.Container,
-			Timestamp: timestamppb.New(entry.Timestamp),
-			Log:       entry.Message,
-		}
-
-		if entry.IsError {
-			logProto.Level = "ERROR"
-		} else {
-			logProto.Level = "INFO"
-		}
-
-		if err := stream.Send(logProto); err != nil {
-			slog.ErrorContext(ctx, "failed to send log entry", "error", err)
-			return err
-		}
-	}
-
-	// check for stream errors
-	for err := range logStream.Errors() {
-		if err != nil {
-			slog.ErrorContext(ctx, "log stream error", "error", err)
-			return connect.NewError(connect.CodeInternal, fmt.Errorf("log stream error: %w", err))
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case entry := <-logStream.Entries():
+			protoLog := &resourcev1.LogEntry{
+				PodName:   entry.PodName,
+				Namespace: entry.Namespace,
+				Container: entry.Container,
+				Timestamp: timestamppb.New(entry.Timestamp),
+				Log:       entry.Message,
+				Level:     "",
+			}
+			if entry.IsError {
+				protoLog.Level = "error"
+			}
+			if err := stream.Send(protoLog); err != nil {
+				slog.ErrorContext(ctx, "failed to send log to client", "error", err)
+				return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to send logs: %w", err))
+			}
+		case err := <-logStream.Errors():
+			if err != nil {
+				slog.ErrorContext(ctx, "log stream error", "error", err)
+				return connect.NewError(connect.CodeInternal, fmt.Errorf("log stream error: %w", err))
+			}
 		}
 	}
-
-	slog.DebugContext(ctx, "log stream completed", "app_id", r.AppId)
-	return nil
 }
 
-// GetEvents retrieves Kubernetes events for an app
-func (s *AppServer) GetEvents(
+// GetEvents retrieves Kubernetes events for a resource
+func (s *ResourceServer) GetEvents(
 	ctx context.Context,
-	req *connect.Request[appv1.GetEventsRequest],
-) (*connect.Response[appv1.GetEventsResponse], error) {
+	req *connect.Request[resourcev1.GetEventsRequest],
+) (*connect.Response[resourcev1.GetEventsResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -581,42 +587,42 @@ func (s *AppServer) GetEvents(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "app_id", r.AppId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
 	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: app.WorkspaceID,
+		WorkspaceID: resource.WorkspaceID,
 		UserID:      userID,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of app's workspace", "workspaceId", app.WorkspaceID, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	if app.Namespace == "" {
-		slog.WarnContext(ctx, "app has no namespace assigned", "app_id", r.AppId)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("app has not been deployed yet"))
+	if resource.Namespace == "" {
+		slog.WarnContext(ctx, "resource has no namespace assigned", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("resource has not been deployed yet"))
 	}
 
-	slog.InfoContext(ctx, "fetching events for app", "app_id", r.AppId, "app_namespace", app.Namespace)
+	slog.InfoContext(ctx, "fetching events for resource", "resource_id", r.ResourceId, "resource_namespace", resource.Namespace)
 
-	eventList, err := s.kubeClient.ClientSet.CoreV1().Events(app.Namespace).List(ctx, metav1.ListOptions{})
+	eventList, err := s.kubeClient.ClientSet.CoreV1().Events(resource.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list events from kubernetes", "error", err, "namespace", app.Namespace)
+		slog.ErrorContext(ctx, "failed to list events from kubernetes", "error", err, "namespace", resource.Namespace)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch events: %w", err))
 	}
 
-	var protoEvents []*appv1.Event
+	var protoEvents []*resourcev1.Event
 	for _, k8sEvent := range eventList.Items {
-		// filter events to those related to this app's pods
+		// filter events to those related to this resource's pods
 		if k8sEvent.InvolvedObject.Kind != "Pod" {
 			continue
 		}
 
-		protoEvent := &appv1.Event{
+		protoEvent := &resourcev1.Event{
 			Timestamp: timestamppb.New(k8sEvent.FirstTimestamp.Time),
 			Reason:    k8sEvent.Reason,
 			Message:   k8sEvent.Message,
@@ -636,18 +642,18 @@ func (s *AppServer) GetEvents(
 		protoEvents = protoEvents[:*r.Limit]
 	}
 
-	slog.DebugContext(ctx, "fetched events for app", "app_id", r.AppId, "event_count", len(protoEvents))
+	slog.DebugContext(ctx, "fetched events for resource", "resource_id", r.ResourceId, "event_count", len(protoEvents))
 
-	return connect.NewResponse(&appv1.GetEventsResponse{
+	return connect.NewResponse(&resourcev1.GetEventsResponse{
 		Events: protoEvents,
 	}), nil
 }
 
-// ScaleApp scales an application by creating a new deployment with updated resources
-func (s *AppServer) ScaleApp(
+// ScaleResource scales a resource by creating a new deployment with updated resources
+func (s *ResourceServer) ScaleResource(
 	ctx context.Context,
-	req *connect.Request[appv1.ScaleAppRequest],
-) (*connect.Response[appv1.ScaleAppResponse], error) {
+	req *connect.Request[resourcev1.ScaleResourceRequest],
+) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -664,12 +670,12 @@ func (s *AppServer) ScaleApp(
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidReplicas)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "app_id", r.AppId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
-	workspaceID := app.WorkspaceID
+	workspaceID := resource.WorkspaceID
 
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
 		WorkspaceID: workspaceID,
@@ -684,10 +690,10 @@ func (s *AppServer) ScaleApp(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	deploymentList, err := s.queries.ListDeploymentsForApp(ctx, genDb.ListDeploymentsForAppParams{
-		AppID:  r.AppId,
-		Limit:  1,
-		Offset: 0,
+	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
+		ResourceID: r.ResourceId,
+		Limit:      1,
+		Offset:     0,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -695,16 +701,16 @@ func (s *AppServer) ScaleApp(
 	}
 
 	if len(deploymentList) == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no existing deployment found for app"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no existing deployment found for resource"))
 	}
 
 	currentDeployment := deploymentList[0]
 
 	var config map[string]any
-	if len(currentDeployment.Config) > 0 {
-		if err := json.Unmarshal(currentDeployment.Config, &config); err != nil {
-			slog.ErrorContext(ctx, "failed to parse deployment config", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
+	if len(currentDeployment.Spec) > 0 {
+		if err := json.Unmarshal(currentDeployment.Spec, &config); err != nil {
+			slog.ErrorContext(ctx, "failed to parse deployment spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 		}
 	} else {
 		config = make(map[string]any)
@@ -761,27 +767,27 @@ func (s *AppServer) ScaleApp(
 		"ports":     ports,
 		"resources": resources,
 	}
-	configJSON, err := json.Marshal(updatedConfig)
+	specJson, err := json.Marshal(updatedConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal config", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.AppId)
+	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to mark previous deployments not current", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		AppID:         r.AppId,
+		ResourceID:    r.ResourceId,
 		ClusterID:     1,
 		Image:         currentDeployment.Image,
 		Replicas:      replicas,
 		Status:        genDb.DeploymentStatusPending,
 		IsCurrent:     true,
 		CreatedBy:     userID,
-		Config:        configJSON,
+		Spec:          specJson,
 		SchemaVersion: pgtype.Int4{Int32: 1, Valid: true},
 	})
 	if err != nil {
@@ -789,9 +795,7 @@ func (s *AppServer) ScaleApp(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	go s.allocateDeployment(context.Background(), &app, &deployment, env)
-
-	deploymentStatus := &appv1.DeploymentStatus{
+	deploymentStatus := &resourcev1.DeploymentStatus{
 		Id:       deployment.ID,
 		Status:   deploymentStatusToProto(deployment.Status),
 		Replicas: deployment.Replicas,
@@ -805,16 +809,16 @@ func (s *AppServer) ScaleApp(
 		deploymentStatus.ErrorMessage = &deployment.ErrorMessage.String
 	}
 
-	return connect.NewResponse(&appv1.ScaleAppResponse{
+	return connect.NewResponse(&resourcev1.ScaleResourceResponse{
 		Deployment: deploymentStatus,
 	}), nil
 }
 
-// UpdateAppEnv updates environment variables for an application
-func (s *AppServer) UpdateAppEnv(
+// UpdateResourceEnv updates environment variables for a resource
+func (s *ResourceServer) UpdateResourceEnv(
 	ctx context.Context,
-	req *connect.Request[appv1.UpdateAppEnvRequest],
-) (*connect.Response[appv1.UpdateAppEnvResponse], error) {
+	req *connect.Request[resourcev1.UpdateResourceEnvRequest],
+) (*connect.Response[resourcev1.UpdateResourceEnvResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -827,12 +831,12 @@ func (s *AppServer) UpdateAppEnv(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one environment variable must be provided"))
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "app_id", r.AppId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
-	workspaceID := app.WorkspaceID
+	workspaceID := resource.WorkspaceID
 
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
 		WorkspaceID: workspaceID,
@@ -847,10 +851,10 @@ func (s *AppServer) UpdateAppEnv(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	deploymentList, err := s.queries.ListDeploymentsForApp(ctx, genDb.ListDeploymentsForAppParams{
-		AppID:  r.AppId,
-		Limit:  1,
-		Offset: 0,
+	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
+		ResourceID: r.ResourceId,
+		Limit:      1,
+		Offset:     0,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -858,16 +862,16 @@ func (s *AppServer) UpdateAppEnv(
 	}
 
 	if len(deploymentList) == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no existing deployment found for app"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no existing deployment found for resource"))
 	}
 
 	currentDeployment := deploymentList[0]
 
 	var config map[string]any
-	if len(currentDeployment.Config) > 0 {
-		if err := json.Unmarshal(currentDeployment.Config, &config); err != nil {
-			slog.ErrorContext(ctx, "failed to parse deployment config", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
+	if len(currentDeployment.Spec) > 0 {
+		if err := json.Unmarshal(currentDeployment.Spec, &config); err != nil {
+			slog.ErrorContext(ctx, "failed to parse deployment spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 		}
 	} else {
 		config = make(map[string]any)
@@ -901,27 +905,27 @@ func (s *AppServer) UpdateAppEnv(
 		"ports":     ports,
 		"resources": resources,
 	}
-	configJSON, err := json.Marshal(updatedConfig)
+	specJson, err := json.Marshal(updatedConfig)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal config", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.AppId)
+	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to mark previous deployments not current", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		AppID:         r.AppId,
+		ResourceID:    r.ResourceId,
 		ClusterID:     1,
 		Image:         currentDeployment.Image,
 		Replicas:      currentDeployment.Replicas,
 		Status:        genDb.DeploymentStatusPending,
 		IsCurrent:     true,
 		CreatedBy:     userID,
-		Config:        configJSON,
+		Spec:          specJson,
 		SchemaVersion: pgtype.Int4{Int32: 1, Valid: true},
 	})
 	if err != nil {
@@ -929,9 +933,7 @@ func (s *AppServer) UpdateAppEnv(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	go s.allocateDeployment(context.Background(), &app, &deployment, r.Env)
-
-	deploymentStatus := &appv1.DeploymentStatus{
+	deploymentStatus := &resourcev1.DeploymentStatus{
 		Id:       deployment.ID,
 		Status:   deploymentStatusToProto(deployment.Status),
 		Replicas: deployment.Replicas,
@@ -945,89 +947,39 @@ func (s *AppServer) UpdateAppEnv(
 		deploymentStatus.ErrorMessage = &deployment.ErrorMessage.String
 	}
 
-	return connect.NewResponse(&appv1.UpdateAppEnvResponse{
+	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{
 		Deployment: deploymentStatus,
 	}), nil
 }
 
-// allocateDeployment runs as a background goroutine that allocates Kubernetes resources
-func (s *AppServer) allocateDeployment(
-	ctx context.Context,
-	app *genDb.App,
-	deployment *genDb.Deployment,
-	envVars map[string]string,
-) {
-	slog.InfoContext(ctx, "Starting deployment allocation", "deployment_id", deployment.ID, "app_id", app.ID)
-
-	var config map[string]any
-	if len(deployment.Config) > 0 {
-		if err := json.Unmarshal(deployment.Config, &config); err != nil {
-			slog.ErrorContext(ctx, "Failed to parse deployment config", "deployment_id", deployment.ID, "error", err)
-			s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusFailed, fmt.Sprintf("Failed to parse config: %v", err))
-			return
-		}
-	}
-
-	ldc, err := kube.NewLocoDeploymentContext(app, deployment)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to create deployment context", "deployment_id", deployment.ID, "error", err)
-		s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusFailed, fmt.Sprintf("Failed to create deployment context: %v", err))
-		return
-	}
-
-	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusRunning, "Allocating Kubernetes resources...")
-
-	if err := s.kubeClient.AllocateResources(ctx, ldc, envVars, nil); err != nil {
-		slog.ErrorContext(ctx, "Failed to allocate Kubernetes resources", "deployment_id", deployment.ID, "error", err)
-		s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusFailed, fmt.Sprintf("Failed to allocate resources: %v", err))
-		return
-	}
-
-	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusSucceeded, "Deployment successful")
-	slog.InfoContext(ctx, "Deployment allocation completed", "deployment_id", deployment.ID)
-}
-
-// updateDeploymentStatus updates the deployment status in the database
-func (s *AppServer) updateDeploymentStatus(ctx context.Context, deploymentID int64, status genDb.DeploymentStatus, message string) {
-	messageParam := pgtype.Text{String: message, Valid: message != ""}
-	err := s.queries.UpdateDeploymentStatusWithMessage(ctx, genDb.UpdateDeploymentStatusWithMessageParams{
-		ID:      deploymentID,
-		Status:  status,
-		Message: messageParam,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to update deployment status", "deployment_id", deploymentID, "error", err)
-	}
-}
-
 // deploymentStatusToProto converts database deployment status to proto enum
-func deploymentStatusToProto(status genDb.DeploymentStatus) appv1.DeploymentPhase {
+func deploymentStatusToProto(status genDb.DeploymentStatus) resourcev1.DeploymentPhase {
 	switch status {
 	case genDb.DeploymentStatusPending:
-		return appv1.DeploymentPhase_PENDING
+		return resourcev1.DeploymentPhase_PENDING
 	case genDb.DeploymentStatusRunning:
-		return appv1.DeploymentPhase_RUNNING
+		return resourcev1.DeploymentPhase_RUNNING
 	case genDb.DeploymentStatusSucceeded:
-		return appv1.DeploymentPhase_SUCCEEDED
+		return resourcev1.DeploymentPhase_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
-		return appv1.DeploymentPhase_FAILED
+		return resourcev1.DeploymentPhase_FAILED
 	default:
-		return appv1.DeploymentPhase_PENDING
+		return resourcev1.DeploymentPhase_PENDING
 	}
 }
 
-// appDomainToListProto converts a slice of AppDomain to proto AppDomain list
-func appDomainToListProto(domains []genDb.AppDomain) []*domainv1.AppDomain {
-	var protoDomains []*domainv1.AppDomain
+// resourceDomainToListProto converts a slice of ResourceDomain to proto ResourceDomain list
+func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.ResourceDomain {
+	var protoDomains []*domainv1.ResourceDomain
 	for _, d := range domains {
 		domainSource := domainv1.DomainType_USER_PROVIDED
 		if d.DomainSource == genDb.DomainSourcePlatformProvided {
 			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
 		}
 
-		domain := &domainv1.AppDomain{
+		domain := &domainv1.ResourceDomain{
 			Id:           d.ID,
-			AppId:        d.AppID,
+			ResourceId:   d.ResourceID,
 			Domain:       d.Domain,
 			DomainSource: domainSource,
 			IsPrimary:    d.IsPrimary,
@@ -1047,11 +999,11 @@ func appDomainToListProto(domains []genDb.AppDomain) []*domainv1.AppDomain {
 	return protoDomains
 }
 
-// appDomainToProto converts a database AppDomain to the proto AppDomain
-func appDomainToProto(ad any) *domainv1.AppDomain {
-	domain := &domainv1.AppDomain{}
-	switch v := ad.(type) {
-	case genDb.AppDomain:
+// resourceDomainToProto converts a database ResourceDomain to the proto ResourceDomain
+func resourceDomainToProto(rd any) *domainv1.ResourceDomain {
+	domain := &domainv1.ResourceDomain{}
+	switch v := rd.(type) {
+	case genDb.ResourceDomain:
 		domain.Id = v.ID
 		domain.Domain = v.Domain
 		domainSource := domainv1.DomainType_USER_PROVIDED
@@ -1066,7 +1018,7 @@ func appDomainToProto(ad any) *domainv1.AppDomain {
 			domain.PlatformDomainId = &v.PlatformDomainID.Int64
 		}
 		domain.IsPrimary = v.IsPrimary
-	case genDb.GetDomainByAppIdRow:
+	case genDb.GetDomainByResourceIdRow:
 		domain.Id = v.ID
 		domain.Domain = v.Domain
 		domainSource := domainv1.DomainType_USER_PROVIDED
@@ -1085,25 +1037,25 @@ func appDomainToProto(ad any) *domainv1.AppDomain {
 	return domain
 }
 
-// dbAppToProto converts a database App to the proto App
+// dbResourceToProto converts a database Resource to the proto Resource
 // to be returned to client. Note: caller is responsible for fetching domain separately.
-func dbAppToProto(app genDb.App, domains []genDb.AppDomain) *appv1.App {
-	appType := appv1.AppType(app.Type)
-	appStatus := appv1.AppStatus_IDLE
-	if app.Status.Valid {
-		appStatus = appv1.AppStatus(appv1.AppStatus_value[strings.ToUpper(string(app.Status.AppStatus))])
+func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain) *resourcev1.Resource {
+	resourceType := resourcev1.ResourceType(resource.Type)
+	resourceStatus := resourcev1.ResourceStatus_IDLE
+	if resource.Status.Valid {
+		resourceStatus = resourcev1.ResourceStatus(resourcev1.ResourceStatus_value[strings.ToUpper(string(resource.Status.ResourceStatus))])
 	}
 
-	return &appv1.App{
-		Id:          app.ID,
-		WorkspaceId: app.WorkspaceID,
-		Name:        app.Name,
-		Namespace:   app.Namespace,
-		Type:        appType,
-		Domains:     appDomainToListProto(domains),
-		CreatedBy:   app.CreatedBy,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(app.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(app.UpdatedAt.Time),
-		Status:      appStatus,
+	return &resourcev1.Resource{
+		Id:          resource.ID,
+		WorkspaceId: resource.WorkspaceID,
+		Name:        resource.Name,
+		Namespace:   resource.Namespace,
+		Type:        resourceType,
+		Domains:     resourceDomainToListProto(domains),
+		CreatedBy:   resource.CreatedBy,
+		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
+		Status:      resourceStatus,
 	}
 }

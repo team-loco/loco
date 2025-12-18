@@ -13,10 +13,11 @@ import (
 	"github.com/loco-team/loco/internal/ui"
 	"github.com/loco-team/loco/shared"
 	"github.com/loco-team/loco/shared/config"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
-	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
+	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
 	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
+	"github.com/loco-team/loco/shared/proto/domain/v1/domainv1connect"
 	registryv1 "github.com/loco-team/loco/shared/proto/registry/v1"
 	registryv1connect "github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
 	"github.com/spf13/cobra"
@@ -107,51 +108,86 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	apiClient := client.NewClient(host, locoToken.Token)
 
 	httpClient := shared.NewHTTPClient()
-	appClient := appv1connect.NewAppServiceClient(httpClient, host)
+	resourceClient := resourcev1connect.NewResourceServiceClient(httpClient, host)
 	registryClient := registryv1connect.NewRegistryServiceClient(httpClient, host)
+	domainClient := domainv1connect.NewDomainServiceClient(httpClient, host)
 
 	var appID int64
 
-	getAppByNameReq := connect.NewRequest(&appv1.GetAppByNameRequest{
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
 		WorkspaceId: workspaceID,
 		Name:        loadedCfg.Config.Metadata.Name,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := appClient.GetAppByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
 	if err != nil {
 		if connect.CodeOf(err) != connect.CodeNotFound {
 			logRequestID(ctx, err, "get app by name")
 			return fmt.Errorf("failed to get app '%s': %w", loadedCfg.Config.Metadata.Name, err)
 		}
 	} else {
-		appID = getAppByNameResp.Msg.App.Id
-		slog.Debug("found existing app", "app_id", appID, "name", getAppByNameResp.Msg.App.Name)
+		appID = getAppByNameResp.Msg.Resource.Id
+		slog.Debug("found existing app", "app_id", appID, "name", getAppByNameResp.Msg.Resource.Name)
 	}
 
 	if appID == 0 {
-		domainInput := &domainv1.DomainInput{
-			DomainSource: domainv1.DomainType_PLATFORM_PROVIDED,
-			Subdomain:    &loadedCfg.Config.Routing.Subdomain,
+		slog.Info("no existing app found, need to create a new one.")
+
+		// Fetch active platform domains
+		listDomainsReq := connect.NewRequest(&domainv1.ListActivePlatformDomainsRequest{})
+		listDomainsReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
+
+		listDomainsResp, err := domainClient.ListActivePlatformDomains(ctx, listDomainsReq)
+		if err != nil {
+			logRequestID(ctx, err, "list platform domains")
+			return fmt.Errorf("failed to fetch platform domains: %w", err)
 		}
 
-		createAppReq := connect.NewRequest(&appv1.CreateAppRequest{
+		if len(listDomainsResp.Msg.PlatformDomains) == 0 {
+			return errors.New("no available platform domains found")
+		}
+
+		// Create selection options
+		options := make([]ui.SelectOption, len(listDomainsResp.Msg.PlatformDomains))
+		for i, domain := range listDomainsResp.Msg.PlatformDomains {
+			options[i] = ui.SelectOption{
+				Label:       domain.Domain,
+				Description: fmt.Sprintf("ID: %d", domain.Id),
+				Value:       domain.Id,
+			}
+		}
+
+		// Let user select domain
+		selectedDomainID, err := ui.SelectFromList("Select a domain for your app", options)
+		if err != nil {
+			return fmt.Errorf("domain selection cancelled: %w", err)
+		}
+
+		domainID := selectedDomainID.(int64)
+		domainInput := &domainv1.DomainInput{
+			DomainSource:     domainv1.DomainType_PLATFORM_PROVIDED,
+			Subdomain:        &loadedCfg.Config.Routing.Subdomain,
+			PlatformDomainId: &domainID,
+		}
+
+		createAppReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
 			WorkspaceId: workspaceID,
 			Name:        loadedCfg.Config.Metadata.Name,
 			// todo: add to loco config. we need to grab app type from there.
-			Type:   appv1.AppType_SERVICE,
+			Type:   resourcev1.ResourceType_SERVICE,
 			Domain: domainInput,
 		})
 
 		createAppReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-		createAppResp, err := appClient.CreateApp(ctx, createAppReq)
+		createAppResp, err := resourceClient.CreateResource(ctx, createAppReq)
 		if err != nil {
 			logRequestID(ctx, err, "create app")
 			return fmt.Errorf("failed to create app: %w", err)
 		}
 
-		appID = createAppResp.Msg.App.Id
+		appID = createAppResp.Msg.Resource.Id
 		slog.Debug("created app", "app_id", appID)
 	}
 
@@ -259,19 +295,29 @@ func deployApp(ctx context.Context,
 ) error {
 	replicas := cfg.Resources.Replicas.Min
 
-	ports := []*deploymentv1.Port{
-		{
-			Port:     int32(cfg.Routing.Port),
-			Protocol: "TCP",
-		},
-	}
-
 	createDeploymentReq := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{
-		AppId:    appID,
-		Image:    imageName,
-		Replicas: &replicas,
-		Env:      cfg.Env.Variables,
-		Ports:    ports,
+		ResourceId: appID,
+		Spec: &deploymentv1.DeploymentSpec{
+			Image:           &imageName,
+			InitialReplicas: &replicas,
+			Env:             cfg.Env.Variables,
+			Cpu:             &cfg.Resources.CPU,
+			Memory:          &cfg.Resources.Memory,
+			DockerfilePath:  &cfg.Build.DockerfilePath,
+			BuildType:       &cfg.Build.Type,
+			HealthCheck: &deploymentv1.HealthCheckConfig{
+				Path:               &cfg.Health.Path,
+				Interval:           &cfg.Health.Interval,
+				Timeout:            &cfg.Health.Timeout,
+				FailThreshold:      &cfg.Health.FailThreshold,
+				StartupGracePeriod: &cfg.Health.StartupGracePeriod,
+			},
+			Metrics: &deploymentv1.DeploymentMetricsConfig{
+				Enabled: &cfg.Obs.Metrics.Enabled,
+				Path:    &cfg.Obs.Metrics.Path,
+				Port:    &cfg.Obs.Metrics.Port,
+			},
+		},
 	})
 	createDeploymentReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
@@ -281,7 +327,7 @@ func deployApp(ctx context.Context,
 		return err
 	}
 
-	deploymentID := deploymentResp.Msg.Deployment.Id
+	deploymentID := deploymentResp.Msg.DeploymentId
 	logf(fmt.Sprintf("Created deployment with version: %d", deploymentID))
 
 	if wait {

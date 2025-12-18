@@ -20,7 +20,7 @@ var (
 	ErrPlatformDomainNotFound = errors.New("platform domain not found")
 	ErrDomainAlreadyExists    = errors.New("domain already exists")
 	ErrCannotRemovePrimary    = errors.New("cannot remove primary domain")
-	ErrCannotRemoveOnly       = errors.New("cannot remove app's only domain")
+	ErrCannotRemoveOnly       = errors.New("cannot remove resource's only domain")
 )
 
 type DomainServer struct {
@@ -229,8 +229,8 @@ func (s *DomainServer) ListAllLocoOwnedDomains(
 		domains[i] = &domainv1.LocoOwnedDomain{
 			Id:             result.ID,
 			Domain:         result.Domain,
-			AppName:        result.AppName,
-			AppId:          result.AppID,
+			ResourceName:        result.ResourceName,
+			ResourceId:          result.ResourceID,
 			PlatformDomain: result.PlatformDomain,
 		}
 	}
@@ -242,11 +242,11 @@ func (s *DomainServer) ListAllLocoOwnedDomains(
 	}, nil
 }
 
-// AddAppDomain adds a new domain to an app
-func (s *DomainServer) AddAppDomain(
+// AddResourceDomain adds a new domain to an app
+func (s *DomainServer) AddResourceDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.AddAppDomainRequest],
-) (*connect.Response[domainv1.AddAppDomainResponse], error) {
+	req *connect.Request[domainv1.AddResourceDomainRequest],
+) (*connect.Response[domainv1.AddResourceDomainResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -256,7 +256,7 @@ func (s *DomainServer) AddAppDomain(
 	}
 
 	// verify app exists and user has access
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
+	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("app not found"))
@@ -316,13 +316,13 @@ func (s *DomainServer) AddAppDomain(
 	}
 
 	// check if this is the first domain for the app
-	count, err := s.queries.GetAppDomainCount(ctx, r.AppId)
+	count, err := s.queries.GetResourceDomainCount(ctx, r.ResourceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	appDomain, err := s.queries.CreateAppDomain(ctx, genDb.CreateAppDomainParams{
-		AppID:            r.AppId,
+	resourceDomain, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+		ResourceID:            r.ResourceId,
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
@@ -333,19 +333,19 @@ func (s *DomainServer) AddAppDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return &connect.Response[domainv1.AddAppDomainResponse]{
-		Msg: &domainv1.AddAppDomainResponse{
-			Domain:  appDomainToProto(appDomain),
+	return &connect.Response[domainv1.AddResourceDomainResponse]{
+		Msg: &domainv1.AddResourceDomainResponse{
+			Domain:  resourceDomainToProto(resourceDomain),
 			Message: "Domain added successfully",
 		},
 	}, nil
 }
 
-// UpdateAppDomain updates a domain for an app
-func (s *DomainServer) UpdateAppDomain(
+// UpdateResourceDomain updates a domain for an app
+func (s *DomainServer) UpdateResourceDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.UpdateAppDomainRequest],
-) (*connect.Response[domainv1.UpdateAppDomainResponse], error) {
+	req *connect.Request[domainv1.UpdateResourceDomainRequest],
+) (*connect.Response[domainv1.UpdateResourceDomainResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -355,13 +355,13 @@ func (s *DomainServer) UpdateAppDomain(
 	}
 
 	// get the domain to check its app
-	domainRow, err := s.queries.GetAppDomainByID(ctx, r.DomainId)
+	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.DomainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
 
 	// verify user has access to this app
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, domainRow.AppID)
+	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, domainRow.ResourceID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
@@ -386,7 +386,7 @@ func (s *DomainServer) UpdateAppDomain(
 	}
 
 	// update the domain
-	appDomain, err := s.queries.UpdateAppDomain(ctx, genDb.UpdateAppDomainParams{
+	resourceDomain, err := s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
 		ID:     r.DomainId,
 		Domain: r.Domain,
 	})
@@ -395,19 +395,19 @@ func (s *DomainServer) UpdateAppDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return &connect.Response[domainv1.UpdateAppDomainResponse]{
-		Msg: &domainv1.UpdateAppDomainResponse{
-			Domain:  appDomainToProto(appDomain),
+	return &connect.Response[domainv1.UpdateResourceDomainResponse]{
+		Msg: &domainv1.UpdateResourceDomainResponse{
+			Domain:  resourceDomainToProto(resourceDomain),
 			Message: "Domain updated successfully",
 		},
 	}, nil
 }
 
-// SetPrimaryAppDomain sets which domain is primary for an app
-func (s *DomainServer) SetPrimaryAppDomain(
+// SetPrimaryResourceDomain sets which domain is primary for an app
+func (s *DomainServer) SetPrimaryResourceDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.SetPrimaryAppDomainRequest],
-) (*connect.Response[domainv1.SetPrimaryAppDomainResponse], error) {
+	req *connect.Request[domainv1.SetPrimaryResourceDomainRequest],
+) (*connect.Response[domainv1.SetPrimaryResourceDomainResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -417,7 +417,7 @@ func (s *DomainServer) SetPrimaryAppDomain(
 	}
 
 	// verify app exists and user has access
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, r.AppId)
+	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, connect.NewError(connect.CodeNotFound, errors.New("app not found"))
@@ -434,33 +434,33 @@ func (s *DomainServer) SetPrimaryAppDomain(
 	}
 
 	// unset primary on all other domains
-	err = s.queries.UpdateAppDomainPrimary(ctx, r.AppId)
+	err = s.queries.UpdateResourceDomainPrimary(ctx, r.ResourceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	// set this domain as primary
-	appDomain, err := s.queries.SetAppDomainPrimary(ctx, genDb.SetAppDomainPrimaryParams{
+	resourceDomain, err := s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
 		ID:    r.DomainId,
-		AppID: r.AppId,
+		ResourceID: r.ResourceId,
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found or does not belong to app"))
 	}
 
-	return &connect.Response[domainv1.SetPrimaryAppDomainResponse]{
-		Msg: &domainv1.SetPrimaryAppDomainResponse{
-			Domain:  appDomainToProto(appDomain),
+	return &connect.Response[domainv1.SetPrimaryResourceDomainResponse]{
+		Msg: &domainv1.SetPrimaryResourceDomainResponse{
+			Domain:  resourceDomainToProto(resourceDomain),
 			Message: "Primary domain updated successfully",
 		},
 	}, nil
 }
 
-// RemoveAppDomain removes a domain from an app
-func (s *DomainServer) RemoveAppDomain(
+// RemoveResourceDomain removes a domain from an app
+func (s *DomainServer) RemoveResourceDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.RemoveAppDomainRequest],
-) (*connect.Response[domainv1.RemoveAppDomainResponse], error) {
+	req *connect.Request[domainv1.RemoveResourceDomainRequest],
+) (*connect.Response[domainv1.RemoveResourceDomainResponse], error) {
 	r := req.Msg
 
 	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
@@ -470,13 +470,13 @@ func (s *DomainServer) RemoveAppDomain(
 	}
 
 	// get the domain to check its app and whether it's primary
-	domainRow, err := s.queries.GetAppDomainByID(ctx, r.DomainId)
+	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.DomainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
 
 	// verify user has access to this app
-	workspaceID, err := s.queries.GetAppWorkspaceID(ctx, domainRow.AppID)
+	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, domainRow.ResourceID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
@@ -495,7 +495,7 @@ func (s *DomainServer) RemoveAppDomain(
 	}
 
 	// cannot remove if it's the only domain
-	count, err := s.queries.GetAppDomainCount(ctx, domainRow.AppID)
+	count, err := s.queries.GetResourceDomainCount(ctx, domainRow.ResourceID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
@@ -504,13 +504,13 @@ func (s *DomainServer) RemoveAppDomain(
 	}
 
 	// delete the domain
-	err = s.queries.DeleteAppDomain(ctx, r.DomainId)
+	err = s.queries.DeleteResourceDomain(ctx, r.DomainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return &connect.Response[domainv1.RemoveAppDomainResponse]{
-		Msg: &domainv1.RemoveAppDomainResponse{
+	return &connect.Response[domainv1.RemoveResourceDomainResponse]{
+		Msg: &domainv1.RemoveResourceDomainResponse{
 			Message: "Domain removed successfully",
 		},
 	}, nil

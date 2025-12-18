@@ -5,7 +5,7 @@
 import { DeploymentService } from "./deployment_pb";
 
 /**
- * CreateDeployment creates a new deployment for an application.
+ * CreateDeployment creates a new deployment for a resource.
  *
  * @generated from rpc loco.deployment.v1.DeploymentService.CreateDeployment
  */
@@ -19,7 +19,7 @@ export const createDeployment = DeploymentService.method.createDeployment;
 export const getDeployment = DeploymentService.method.getDeployment;
 
 /**
- * ListDeployments lists deployments for an application.
+ * ListDeployments lists deployments for a resource.
  *
  * @generated from rpc loco.deployment.v1.DeploymentService.ListDeployments
  */

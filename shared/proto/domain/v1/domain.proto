@@ -23,7 +23,7 @@ message PlatformDomain {
   google.protobuf.Timestamp updated_at = 5;
 }
 
-// DomainInput specifies domain configuration for an application.
+// DomainInput specifies domain configuration for a resource.
 message DomainInput {
   DomainType domain_source = 1;
   optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
@@ -31,10 +31,10 @@ message DomainInput {
   optional string domain = 4; // for USER_PROVIDED: full custom domain
 }
 
-// AppDomain represents a domain assigned to an application.
-message AppDomain {
+// ResourceDomain represents a domain assigned to a resource.
+message ResourceDomain {
   int64 id = 1;
-  int64 app_id = 2;
+  int64 resource_id = 2;
   string domain = 3;
   DomainType domain_source = 4;
   optional string subdomain_label = 5;
@@ -46,7 +46,7 @@ message AppDomain {
 
 // --- Service ---
 
-// DomainService manages domains for applications.
+// DomainService manages domains for resources.
 service DomainService {
   // Platform Domain CRUD
   // CreatePlatformDomain creates a new platform-provided domain.
@@ -60,22 +60,22 @@ service DomainService {
   // DeactivatePlatformDomain deactivates a platform domain.
   rpc DeactivatePlatformDomain(DeactivatePlatformDomainRequest) returns (DeactivatePlatformDomainResponse);
 
-  // App Domain Management
-  // AddAppDomain assigns a domain to an application.
-  rpc AddAppDomain(AddAppDomainRequest) returns (AddAppDomainResponse);
-  // UpdateAppDomain updates an application's domain configuration.
-  rpc UpdateAppDomain(UpdateAppDomainRequest) returns (UpdateAppDomainResponse);
-  // SetPrimaryAppDomain sets the primary domain for an application.
-  rpc SetPrimaryAppDomain(SetPrimaryAppDomainRequest) returns (SetPrimaryAppDomainResponse);
-  // RemoveAppDomain removes a domain from an application.
-  rpc RemoveAppDomain(RemoveAppDomainRequest) returns (RemoveAppDomainResponse);
+  // Resource Domain Management
+  // AddResourceDomain assigns a domain to a resource.
+  rpc AddResourceDomain(AddResourceDomainRequest) returns (AddResourceDomainResponse);
+  // UpdateResourceDomain updates a resource's domain configuration.
+  rpc UpdateResourceDomain(UpdateResourceDomainRequest) returns (UpdateResourceDomainResponse);
+  // SetPrimaryResourceDomain sets the primary domain for a resource.
+  rpc SetPrimaryResourceDomain(SetPrimaryResourceDomainRequest) returns (SetPrimaryResourceDomainResponse);
+  // RemoveResourceDomain removes a domain from a resource.
+  rpc RemoveResourceDomain(RemoveResourceDomainRequest) returns (RemoveResourceDomainResponse);
 
   // Domain Availability
   // CheckDomainAvailability checks if a domain is available.
   rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
 
   // Queries
-  // ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
+  // ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
   rpc ListAllLocoOwnedDomains(ListAllLocoOwnedDomainsRequest) returns (ListAllLocoOwnedDomainsResponse);
 }
 
@@ -144,12 +144,12 @@ message CheckDomainAvailabilityResponse {
 
 // --- List Loco Owned Domains ---
 
-// LocoOwnedDomain represents a platform-managed domain paired with an application deployment.
+// LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
 message LocoOwnedDomain {
   int64 id = 1;
   string domain = 2;
-  string app_name = 3;
-  int64 app_id = 4;
+  string resource_name = 3;
+  int64 resource_id = 4;
   string platform_domain = 5;
 }
 
@@ -161,50 +161,50 @@ message ListAllLocoOwnedDomainsResponse {
   repeated LocoOwnedDomain domains = 1;
 }
 
-// --- App Domain Management ---
+// --- Resource Domain Management ---
 
-// AddAppDomainRequest is the request to add a domain to an application.
-message AddAppDomainRequest {
-  int64 app_id = 1;
+// AddResourceDomainRequest is the request to add a domain to a resource.
+message AddResourceDomainRequest {
+  int64 resource_id = 1;
   DomainInput domain = 2;
 }
 
-// AddAppDomainResponse is the response from adding a domain to an application.
-message AddAppDomainResponse {
-  AppDomain domain = 1;
+// AddResourceDomainResponse is the response from adding a domain to a resource.
+message AddResourceDomainResponse {
+  ResourceDomain domain = 1;
   string message = 2;
 }
 
-// UpdateAppDomainRequest is the request to update an application's domain.
-message UpdateAppDomainRequest {
+// UpdateResourceDomainRequest is the request to update a resource's domain.
+message UpdateResourceDomainRequest {
   int64 domain_id = 1;
   string domain = 2;
 }
 
-// UpdateAppDomainResponse is the response from updating an application's domain.
-message UpdateAppDomainResponse {
-  AppDomain domain = 1;
+// UpdateResourceDomainResponse is the response from updating a resource's domain.
+message UpdateResourceDomainResponse {
+  ResourceDomain domain = 1;
   string message = 2;
 }
 
-// SetPrimaryAppDomainRequest is the request to set the primary domain for an application.
-message SetPrimaryAppDomainRequest {
-  int64 app_id = 1;
+// SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
+message SetPrimaryResourceDomainRequest {
+  int64 resource_id = 1;
   int64 domain_id = 2;
 }
 
-// SetPrimaryAppDomainResponse is the response from setting the primary domain.
-message SetPrimaryAppDomainResponse {
-  AppDomain domain = 1;
+// SetPrimaryResourceDomainResponse is the response from setting the primary domain.
+message SetPrimaryResourceDomainResponse {
+  ResourceDomain domain = 1;
   string message = 2;
 }
 
-// RemoveAppDomainRequest is the request to remove a domain from an application.
-message RemoveAppDomainRequest {
+// RemoveResourceDomainRequest is the request to remove a domain from a resource.
+message RemoveResourceDomainRequest {
   int64 domain_id = 1;
 }
 
-// RemoveAppDomainResponse is the response from removing a domain.
-message RemoveAppDomainResponse {
+// RemoveResourceDomainResponse is the response from removing a domain.
+message RemoveResourceDomainResponse {
   string message = 1;
 }

@@ -7,7 +7,7 @@ import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentEvent, Get
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * DeploymentService manages application deployments.
+ * DeploymentService manages resource deployments.
  *
  * @generated from service loco.deployment.v1.DeploymentService
  */
@@ -15,7 +15,7 @@ export const DeploymentService = {
   typeName: "loco.deployment.v1.DeploymentService",
   methods: {
     /**
-     * CreateDeployment creates a new deployment for an application.
+     * CreateDeployment creates a new deployment for a resource.
      *
      * @generated from rpc loco.deployment.v1.DeploymentService.CreateDeployment
      */
@@ -37,7 +37,7 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
-     * ListDeployments lists deployments for an application.
+     * ListDeployments lists deployments for a resource.
      *
      * @generated from rpc loco.deployment.v1.DeploymentService.ListDeployments
      */

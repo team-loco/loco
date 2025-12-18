@@ -1,8 +1,8 @@
 -- Deployment status enum
 CREATE TYPE deployment_status AS ENUM ('pending', 'running', 'succeeded', 'failed', 'canceled');
 
--- App status enum
-CREATE TYPE app_status AS ENUM ('available', 'progressing', 'degraded', 'unavailable', 'idle');
+-- Resource status enum
+CREATE TYPE resource_status AS ENUM ('available', 'progressing', 'degraded', 'unavailable', 'idle');
 
 -- Domain source enum (who manages the domain)
 CREATE TYPE domain_source AS ENUM ('platform_provided', 'user_provided');
@@ -34,15 +34,15 @@ CREATE TABLE platform_domains (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Apps table
-CREATE TABLE apps (
+-- Resources table
+CREATE TABLE resources (
     id BIGSERIAL PRIMARY KEY,
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE RESTRICT,
     name TEXT NOT NULL,
     namespace TEXT NOT NULL,
     type INT NOT NULL,
-    status app_status DEFAULT 'idle',
+    status resource_status DEFAULT 'idle',
     spec JSONB DEFAULT '{}'::jsonb,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -50,12 +50,12 @@ CREATE TABLE apps (
     UNIQUE (workspace_id, name)
 );
 
-CREATE INDEX idx_apps_workspace_id ON apps (workspace_id);
-CREATE INDEX idx_apps_cluster_id ON apps (cluster_id);
+CREATE INDEX idx_resources_workspace_id ON resources (workspace_id);
+CREATE INDEX idx_resources_cluster_id ON resources (cluster_id);
 
-CREATE TABLE app_domains (
+CREATE TABLE resource_domains (
     id BIGSERIAL PRIMARY KEY,
-    app_id BIGINT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+    resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     domain TEXT NOT NULL UNIQUE,
     domain_source domain_source NOT NULL,
     subdomain_label TEXT,
@@ -72,17 +72,17 @@ CREATE TABLE app_domains (
     )
 );
 
-CREATE INDEX idx_app_domains_app_id ON app_domains(app_id);
-CREATE INDEX idx_app_domains_domain ON app_domains(domain);
+CREATE INDEX idx_resource_domains_resource_id ON resource_domains(resource_id);
+CREATE INDEX idx_resource_domains_domain ON resource_domains(domain);
 
--- Enforce max 1 primary domain per app
-CREATE UNIQUE INDEX uniq_app_primary_domain
-  ON app_domains(app_id)
+-- Enforce max 1 primary domain per resource
+CREATE UNIQUE INDEX uniq_resource_primary_domain
+  ON resource_domains(resource_id)
   WHERE is_primary = true;
 
 -- Ensure platform subdomain uniqueness
 CREATE UNIQUE INDEX uniq_platform_subdomain
-  ON app_domains(platform_domain_id, subdomain_label)
+  ON resource_domains(platform_domain_id, subdomain_label)
   WHERE domain_source = 'platform_provided';
 
 
@@ -90,7 +90,7 @@ CREATE UNIQUE INDEX uniq_platform_subdomain
 -- Deployments table
 CREATE TABLE deployments (
     id BIGSERIAL PRIMARY KEY,
-    app_id BIGINT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+    resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE RESTRICT,
     image TEXT NOT NULL,
     replicas INT NOT NULL DEFAULT 1,
@@ -107,6 +107,6 @@ CREATE TABLE deployments (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_deployments_app_id ON deployments (app_id);
+CREATE INDEX idx_deployments_resource_id ON deployments (resource_id);
 CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
-CREATE INDEX idx_deployments_is_current ON deployments (app_id, is_current) WHERE is_current = true;
+CREATE INDEX idx_deployments_is_current ON deployments (resource_id, is_current) WHERE is_current = true;

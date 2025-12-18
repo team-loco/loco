@@ -41,33 +41,33 @@ export const listActivePlatformDomains = DomainService.method.listActivePlatform
 export const deactivatePlatformDomain = DomainService.method.deactivatePlatformDomain;
 
 /**
- * App Domain Management
- * AddAppDomain assigns a domain to an application.
+ * Resource Domain Management
+ * AddResourceDomain assigns a domain to a resource.
  *
- * @generated from rpc loco.domain.v1.DomainService.AddAppDomain
+ * @generated from rpc loco.domain.v1.DomainService.AddResourceDomain
  */
-export const addAppDomain = DomainService.method.addAppDomain;
+export const addResourceDomain = DomainService.method.addResourceDomain;
 
 /**
- * UpdateAppDomain updates an application's domain configuration.
+ * UpdateResourceDomain updates a resource's domain configuration.
  *
- * @generated from rpc loco.domain.v1.DomainService.UpdateAppDomain
+ * @generated from rpc loco.domain.v1.DomainService.UpdateResourceDomain
  */
-export const updateAppDomain = DomainService.method.updateAppDomain;
+export const updateResourceDomain = DomainService.method.updateResourceDomain;
 
 /**
- * SetPrimaryAppDomain sets the primary domain for an application.
+ * SetPrimaryResourceDomain sets the primary domain for a resource.
  *
- * @generated from rpc loco.domain.v1.DomainService.SetPrimaryAppDomain
+ * @generated from rpc loco.domain.v1.DomainService.SetPrimaryResourceDomain
  */
-export const setPrimaryAppDomain = DomainService.method.setPrimaryAppDomain;
+export const setPrimaryResourceDomain = DomainService.method.setPrimaryResourceDomain;
 
 /**
- * RemoveAppDomain removes a domain from an application.
+ * RemoveResourceDomain removes a domain from a resource.
  *
- * @generated from rpc loco.domain.v1.DomainService.RemoveAppDomain
+ * @generated from rpc loco.domain.v1.DomainService.RemoveResourceDomain
  */
-export const removeAppDomain = DomainService.method.removeAppDomain;
+export const removeResourceDomain = DomainService.method.removeResourceDomain;
 
 /**
  * Domain Availability
@@ -79,7 +79,7 @@ export const checkDomainAvailability = DomainService.method.checkDomainAvailabil
 
 /**
  * Queries
- * ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
+ * ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
  *
  * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
  */

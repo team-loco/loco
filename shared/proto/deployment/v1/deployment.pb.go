@@ -435,11 +435,11 @@ func (x *DeploymentSpec) GetMetrics() *DeploymentMetricsConfig {
 	return nil
 }
 
-// Deployment represents an application deployment.
+// Deployment represents a resource deployment.
 type Deployment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	AppId         int64                  `protobuf:"varint,2,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	ResourceId    int64                  `protobuf:"varint,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Image         string                 `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
 	Replicas      int32                  `protobuf:"varint,4,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Status        DeploymentPhase        `protobuf:"varint,5,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
@@ -494,9 +494,9 @@ func (x *Deployment) GetId() int64 {
 	return 0
 }
 
-func (x *Deployment) GetAppId() int64 {
+func (x *Deployment) GetResourceId() int64 {
 	if x != nil {
-		return x.AppId
+		return x.ResourceId
 	}
 	return 0
 }
@@ -595,7 +595,7 @@ func (x *Deployment) GetSpec() *structpb.Struct {
 // CreateDeploymentRequest is the request to create a new deployment.
 type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Spec          *DeploymentSpec        `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -631,9 +631,9 @@ func (*CreateDeploymentRequest) Descriptor() ([]byte, []int) {
 	return file_deployment_v1_deployment_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *CreateDeploymentRequest) GetAppId() int64 {
+func (x *CreateDeploymentRequest) GetResourceId() int64 {
 	if x != nil {
-		return x.AppId
+		return x.ResourceId
 	}
 	return 0
 }
@@ -791,7 +791,7 @@ func (x *GetDeploymentResponse) GetDeployment() *Deployment {
 // ListDeploymentsRequest is the request to list deployments.
 type ListDeploymentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	AppId         int64                  `protobuf:"varint,1,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
 	Offset        *int32                 `protobuf:"varint,3,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -828,9 +828,9 @@ func (*ListDeploymentsRequest) Descriptor() ([]byte, []int) {
 	return file_deployment_v1_deployment_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *ListDeploymentsRequest) GetAppId() int64 {
+func (x *ListDeploymentsRequest) GetResourceId() int64 {
 	if x != nil {
-		return x.AppId
+		return x.ResourceId
 	}
 	return 0
 }
@@ -1079,11 +1079,12 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x11_initial_replicasB\x0f\n" +
 	"\r_health_checkB\n" +
 	"\n" +
-	"\b_metrics\"\xc3\x05\n" +
+	"\b_metrics\"\xcd\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x15\n" +
-	"\x06app_id\x18\x02 \x01(\x03R\x05appId\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\vresource_id\x18\x02 \x01(\x03R\n" +
+	"resourceId\x12\x14\n" +
 	"\x05image\x18\x03 \x01(\tR\x05image\x12\x1a\n" +
 	"\breplicas\x18\x04 \x01(\x05R\breplicas\x12;\n" +
 	"\x06status\x18\x05 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1d\n" +
@@ -1108,9 +1109,10 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x0e_error_messageB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atB\a\n" +
-	"\x05_spec\"h\n" +
-	"\x17CreateDeploymentRequest\x12\x15\n" +
-	"\x06app_id\x18\x01 \x01(\x03R\x05appId\x126\n" +
+	"\x05_spec\"r\n" +
+	"\x17CreateDeploymentRequest\x12\x1f\n" +
+	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"resourceId\x126\n" +
 	"\x04spec\x18\x02 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"Y\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12\x18\n" +
@@ -1120,9 +1122,10 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\"|\n" +
-	"\x16ListDeploymentsRequest\x12\x15\n" +
-	"\x06app_id\x18\x01 \x01(\x03R\x05appId\x12\x19\n" +
+	"deployment\"\x86\x01\n" +
+	"\x16ListDeploymentsRequest\x12\x1f\n" +
+	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"resourceId\x12\x19\n" +
 	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01\x12\x1b\n" +
 	"\x06offset\x18\x03 \x01(\x05H\x01R\x06offset\x88\x01\x01B\b\n" +
 	"\x06_limitB\t\n" +

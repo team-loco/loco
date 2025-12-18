@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddAppDomainRequest, AddAppDomainResponse, CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreatePlatformDomainResponse, DeactivatePlatformDomainRequest, DeactivatePlatformDomainResponse, GetPlatformDomainByNameRequest, GetPlatformDomainByNameResponse, GetPlatformDomainRequest, GetPlatformDomainResponse, ListActivePlatformDomainsRequest, ListActivePlatformDomainsResponse, ListAllLocoOwnedDomainsRequest, ListAllLocoOwnedDomainsResponse, RemoveAppDomainRequest, RemoveAppDomainResponse, SetPrimaryAppDomainRequest, SetPrimaryAppDomainResponse, UpdateAppDomainRequest, UpdateAppDomainResponse } from "./domain_pb";
+import { AddResourceDomainRequest, AddResourceDomainResponse, CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreatePlatformDomainResponse, DeactivatePlatformDomainRequest, DeactivatePlatformDomainResponse, GetPlatformDomainByNameRequest, GetPlatformDomainByNameResponse, GetPlatformDomainRequest, GetPlatformDomainResponse, ListActivePlatformDomainsRequest, ListActivePlatformDomainsResponse, ListAllLocoOwnedDomainsRequest, ListAllLocoOwnedDomainsResponse, RemoveResourceDomainRequest, RemoveResourceDomainResponse, SetPrimaryResourceDomainRequest, SetPrimaryResourceDomainResponse, UpdateResourceDomainRequest, UpdateResourceDomainResponse } from "./domain_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * DomainService manages domains for applications.
+ * DomainService manages domains for resources.
  *
  * @generated from service loco.domain.v1.DomainService
  */
@@ -71,48 +71,48 @@ export const DomainService = {
       kind: MethodKind.Unary,
     },
     /**
-     * App Domain Management
-     * AddAppDomain assigns a domain to an application.
+     * Resource Domain Management
+     * AddResourceDomain assigns a domain to a resource.
      *
-     * @generated from rpc loco.domain.v1.DomainService.AddAppDomain
+     * @generated from rpc loco.domain.v1.DomainService.AddResourceDomain
      */
-    addAppDomain: {
-      name: "AddAppDomain",
-      I: AddAppDomainRequest,
-      O: AddAppDomainResponse,
+    addResourceDomain: {
+      name: "AddResourceDomain",
+      I: AddResourceDomainRequest,
+      O: AddResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * UpdateAppDomain updates an application's domain configuration.
+     * UpdateResourceDomain updates a resource's domain configuration.
      *
-     * @generated from rpc loco.domain.v1.DomainService.UpdateAppDomain
+     * @generated from rpc loco.domain.v1.DomainService.UpdateResourceDomain
      */
-    updateAppDomain: {
-      name: "UpdateAppDomain",
-      I: UpdateAppDomainRequest,
-      O: UpdateAppDomainResponse,
+    updateResourceDomain: {
+      name: "UpdateResourceDomain",
+      I: UpdateResourceDomainRequest,
+      O: UpdateResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * SetPrimaryAppDomain sets the primary domain for an application.
+     * SetPrimaryResourceDomain sets the primary domain for a resource.
      *
-     * @generated from rpc loco.domain.v1.DomainService.SetPrimaryAppDomain
+     * @generated from rpc loco.domain.v1.DomainService.SetPrimaryResourceDomain
      */
-    setPrimaryAppDomain: {
-      name: "SetPrimaryAppDomain",
-      I: SetPrimaryAppDomainRequest,
-      O: SetPrimaryAppDomainResponse,
+    setPrimaryResourceDomain: {
+      name: "SetPrimaryResourceDomain",
+      I: SetPrimaryResourceDomainRequest,
+      O: SetPrimaryResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * RemoveAppDomain removes a domain from an application.
+     * RemoveResourceDomain removes a domain from a resource.
      *
-     * @generated from rpc loco.domain.v1.DomainService.RemoveAppDomain
+     * @generated from rpc loco.domain.v1.DomainService.RemoveResourceDomain
      */
-    removeAppDomain: {
-      name: "RemoveAppDomain",
-      I: RemoveAppDomainRequest,
-      O: RemoveAppDomainResponse,
+    removeResourceDomain: {
+      name: "RemoveResourceDomain",
+      I: RemoveResourceDomainRequest,
+      O: RemoveResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -129,7 +129,7 @@ export const DomainService = {
     },
     /**
      * Queries
-     * ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
+     * ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
      *
      * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
      */

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file domain/v1/domain.proto.
  */
 export const file_domain_v1_domain: GenFile = /*@__PURE__*/
-  fileDesc("ChZkb21haW4vdjEvZG9tYWluLnByb3RvEg5sb2NvLmRvbWFpbi52MSKfAQoOUGxhdGZvcm1Eb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhEKCWlzX2FjdGl2ZRgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoLRG9tYWluSW5wdXQSMQoNZG9tYWluX3NvdXJjZRgBIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSFgoJc3ViZG9tYWluGAIgASgJSACIAQESHwoScGxhdGZvcm1fZG9tYWluX2lkGAMgASgDSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCDAoKX3N1YmRvbWFpbkIVChNfcGxhdGZvcm1fZG9tYWluX2lkQgkKB19kb21haW4iyAIKCUFwcERvbWFpbhIKCgJpZBgBIAEoAxIOCgZhcHBfaWQYAiABKAMSDgoGZG9tYWluGAMgASgJEjEKDWRvbWFpbl9zb3VyY2UYBCABKA4yGi5sb2NvLmRvbWFpbi52MS5Eb21haW5UeXBlEhwKD3N1YmRvbWFpbl9sYWJlbBgFIAEoCUgAiAEBEh8KEnBsYXRmb3JtX2RvbWFpbl9pZBgGIAEoA0gBiAEBEhIKCmlzX3ByaW1hcnkYByABKAgSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCEgoQX3N1YmRvbWFpbl9sYWJlbEIVChNfcGxhdGZvcm1fZG9tYWluX2lkIkAKG0NyZWF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIOCgZkb21haW4YASABKAkSEQoJaXNfYWN0aXZlGAIgASgIIlcKHENyZWF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iJgoYR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0EgoKAmlkGAEgASgDIlQKGUdldFBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iMAoeR2V0UGxhdGZvcm1Eb21haW5CeU5hbWVSZXF1ZXN0Eg4KBmRvbWFpbhgBIAEoCSJaCh9HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIiIKIExpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0Il0KIUxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRI4ChBwbGF0Zm9ybV9kb21haW5zGAEgAygLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iLQofRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIKCgJpZBgBIAEoAyJbCiBEZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRI3Cg9wbGF0Zm9ybV9kb21haW4YASABKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiIwCh5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QSDgoGZG9tYWluGAEgASgJIjcKH0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USFAoMaXNfYXZhaWxhYmxlGAEgASgIImgKD0xvY29Pd25lZERvbWFpbhIKCgJpZBgBIAEoAxIOCgZkb21haW4YAiABKAkSEAoIYXBwX25hbWUYAyABKAkSDgoGYXBwX2lkGAQgASgDEhcKD3BsYXRmb3JtX2RvbWFpbhgFIAEoCSIgCh5MaXN0QWxsTG9jb093bmVkRG9tYWluc1JlcXVlc3QiUwofTGlzdEFsbExvY29Pd25lZERvbWFpbnNSZXNwb25zZRIwCgdkb21haW5zGAEgAygLMh8ubG9jby5kb21haW4udjEuTG9jb093bmVkRG9tYWluIlIKE0FkZEFwcERvbWFpblJlcXVlc3QSDgoGYXBwX2lkGAEgASgDEisKBmRvbWFpbhgCIAEoCzIbLmxvY28uZG9tYWluLnYxLkRvbWFpbklucHV0IlIKFEFkZEFwcERvbWFpblJlc3BvbnNlEikKBmRvbWFpbhgBIAEoCzIZLmxvY28uZG9tYWluLnYxLkFwcERvbWFpbhIPCgdtZXNzYWdlGAIgASgJIjsKFlVwZGF0ZUFwcERvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgDEg4KBmRvbWFpbhgCIAEoCSJVChdVcGRhdGVBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSI/ChpTZXRQcmltYXJ5QXBwRG9tYWluUmVxdWVzdBIOCgZhcHBfaWQYASABKAMSEQoJZG9tYWluX2lkGAIgASgDIlkKG1NldFByaW1hcnlBcHBEb21haW5SZXNwb25zZRIpCgZkb21haW4YASABKAsyGS5sb2NvLmRvbWFpbi52MS5BcHBEb21haW4SDwoHbWVzc2FnZRgCIAEoCSIrChZSZW1vdmVBcHBEb21haW5SZXF1ZXN0EhEKCWRvbWFpbl9pZBgBIAEoAyIqChdSZW1vdmVBcHBEb21haW5SZXNwb25zZRIPCgdtZXNzYWdlGAEgASgJKjYKCkRvbWFpblR5cGUSFQoRUExBVEZPUk1fUFJPVklERUQQABIRCg1VU0VSX1BST1ZJREVEEAEy9QkKDURvbWFpblNlcnZpY2UScQoUQ3JlYXRlUGxhdGZvcm1Eb21haW4SKy5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEmgKEUdldFBsYXRmb3JtRG9tYWluEigubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0GikubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXNwb25zZRJ6ChdHZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZRIuLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVzcG9uc2USgAEKGUxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnMSMC5sb2NvLmRvbWFpbi52MS5MaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVxdWVzdBoxLmxvY28uZG9tYWluLnYxLkxpc3RBY3RpdmVQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRJ9ChhEZWFjdGl2YXRlUGxhdGZvcm1Eb21haW4SLy5sb2NvLmRvbWFpbi52MS5EZWFjdGl2YXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GjAubG9jby5kb21haW4udjEuRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USWQoMQWRkQXBwRG9tYWluEiMubG9jby5kb21haW4udjEuQWRkQXBwRG9tYWluUmVxdWVzdBokLmxvY28uZG9tYWluLnYxLkFkZEFwcERvbWFpblJlc3BvbnNlEmIKD1VwZGF0ZUFwcERvbWFpbhImLmxvY28uZG9tYWluLnYxLlVwZGF0ZUFwcERvbWFpblJlcXVlc3QaJy5sb2NvLmRvbWFpbi52MS5VcGRhdGVBcHBEb21haW5SZXNwb25zZRJuChNTZXRQcmltYXJ5QXBwRG9tYWluEioubG9jby5kb21haW4udjEuU2V0UHJpbWFyeUFwcERvbWFpblJlcXVlc3QaKy5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5QXBwRG9tYWluUmVzcG9uc2USYgoPUmVtb3ZlQXBwRG9tYWluEiYubG9jby5kb21haW4udjEuUmVtb3ZlQXBwRG9tYWluUmVxdWVzdBonLmxvY28uZG9tYWluLnYxLlJlbW92ZUFwcERvbWFpblJlc3BvbnNlEnoKF0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5Ei4ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Gi8ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRJ6ChdMaXN0QWxsTG9jb093bmVkRG9tYWlucxIuLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVzcG9uc2VCO1o5Z2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vZG9tYWluL3YxO2RvbWFpbnYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChZkb21haW4vdjEvZG9tYWluLnByb3RvEg5sb2NvLmRvbWFpbi52MSKfAQoOUGxhdGZvcm1Eb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhEKCWlzX2FjdGl2ZRgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoLRG9tYWluSW5wdXQSMQoNZG9tYWluX3NvdXJjZRgBIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSFgoJc3ViZG9tYWluGAIgASgJSACIAQESHwoScGxhdGZvcm1fZG9tYWluX2lkGAMgASgDSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCDAoKX3N1YmRvbWFpbkIVChNfcGxhdGZvcm1fZG9tYWluX2lkQgkKB19kb21haW4i0gIKDlJlc291cmNlRG9tYWluEgoKAmlkGAEgASgDEhMKC3Jlc291cmNlX2lkGAIgASgDEg4KBmRvbWFpbhgDIAEoCRIxCg1kb21haW5fc291cmNlGAQgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZRIcCg9zdWJkb21haW5fbGFiZWwYBSABKAlIAIgBARIfChJwbGF0Zm9ybV9kb21haW5faWQYBiABKANIAYgBARISCgppc19wcmltYXJ5GAcgASgIEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhIKEF9zdWJkb21haW5fbGFiZWxCFQoTX3BsYXRmb3JtX2RvbWFpbl9pZCJAChtDcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QSDgoGZG9tYWluGAEgASgJEhEKCWlzX2FjdGl2ZRgCIAEoCCJXChxDcmVhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIiYKGEdldFBsYXRmb3JtRG9tYWluUmVxdWVzdBIKCgJpZBgBIAEoAyJUChlHZXRQbGF0Zm9ybURvbWFpblJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIjAKHkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVxdWVzdBIOCgZkb21haW4YASABKAkiWgofR2V0UGxhdGZvcm1Eb21haW5CeU5hbWVSZXNwb25zZRI3Cg9wbGF0Zm9ybV9kb21haW4YASABKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiIiCiBMaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVxdWVzdCJdCiFMaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVzcG9uc2USOAoQcGxhdGZvcm1fZG9tYWlucxgBIAMoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIi0KH0RlYWN0aXZhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QSCgoCaWQYASABKAMiWwogRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iMAoeQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Eg4KBmRvbWFpbhgBIAEoCSI3Ch9DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlc3BvbnNlEhQKDGlzX2F2YWlsYWJsZRgBIAEoCCJyCg9Mb2NvT3duZWREb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhUKDXJlc291cmNlX25hbWUYAyABKAkSEwoLcmVzb3VyY2VfaWQYBCABKAMSFwoPcGxhdGZvcm1fZG9tYWluGAUgASgJIiAKHkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVxdWVzdCJTCh9MaXN0QWxsTG9jb093bmVkRG9tYWluc1Jlc3BvbnNlEjAKB2RvbWFpbnMYASADKAsyHy5sb2NvLmRvbWFpbi52MS5Mb2NvT3duZWREb21haW4iXAoYQWRkUmVzb3VyY2VEb21haW5SZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDEisKBmRvbWFpbhgCIAEoCzIbLmxvY28uZG9tYWluLnYxLkRvbWFpbklucHV0IlwKGUFkZFJlc291cmNlRG9tYWluUmVzcG9uc2USLgoGZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUmVzb3VyY2VEb21haW4SDwoHbWVzc2FnZRgCIAEoCSJAChtVcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgDEg4KBmRvbWFpbhgCIAEoCSJfChxVcGRhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEi4KBmRvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlJlc291cmNlRG9tYWluEg8KB21lc3NhZ2UYAiABKAkiSQofU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxIRCglkb21haW5faWQYAiABKAMiYwogU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVzcG9uc2USLgoGZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUmVzb3VyY2VEb21haW4SDwoHbWVzc2FnZRgCIAEoCSIwChtSZW1vdmVSZXNvdXJjZURvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgDIi8KHFJlbW92ZVJlc291cmNlRG9tYWluUmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSo2CgpEb21haW5UeXBlEhUKEVBMQVRGT1JNX1BST1ZJREVEEAASEQoNVVNFUl9QUk9WSURFRBABMrEKCg1Eb21haW5TZXJ2aWNlEnEKFENyZWF0ZVBsYXRmb3JtRG9tYWluEisubG9jby5kb21haW4udjEuQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRJoChFHZXRQbGF0Zm9ybURvbWFpbhIoLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluUmVxdWVzdBopLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluUmVzcG9uc2USegoXR2V0UGxhdGZvcm1Eb21haW5CeU5hbWUSLi5sb2NvLmRvbWFpbi52MS5HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlcXVlc3QaLy5sb2NvLmRvbWFpbi52MS5HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlc3BvbnNlEoABChlMaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zEjAubG9jby5kb21haW4udjEuTGlzdEFjdGl2ZVBsYXRmb3JtRG9tYWluc1JlcXVlc3QaMS5sb2NvLmRvbWFpbi52MS5MaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVzcG9uc2USfQoYRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluEi8ubG9jby5kb21haW4udjEuRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBowLmxvY28uZG9tYWluLnYxLkRlYWN0aXZhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEmgKEUFkZFJlc291cmNlRG9tYWluEigubG9jby5kb21haW4udjEuQWRkUmVzb3VyY2VEb21haW5SZXF1ZXN0GikubG9jby5kb21haW4udjEuQWRkUmVzb3VyY2VEb21haW5SZXNwb25zZRJxChRVcGRhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USfQoYU2V0UHJpbWFyeVJlc291cmNlRG9tYWluEi8ubG9jby5kb21haW4udjEuU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBowLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEnEKFFJlbW92ZVJlc291cmNlRG9tYWluEisubG9jby5kb21haW4udjEuUmVtb3ZlUmVzb3VyY2VEb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuUmVtb3ZlUmVzb3VyY2VEb21haW5SZXNwb25zZRJ6ChdDaGVja0RvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USegoXTGlzdEFsbExvY29Pd25lZERvbWFpbnMSLi5sb2NvLmRvbWFpbi52MS5MaXN0QWxsTG9jb093bmVkRG9tYWluc1JlcXVlc3QaLy5sb2NvLmRvbWFpbi52MS5MaXN0QWxsTG9jb093bmVkRG9tYWluc1Jlc3BvbnNlQjtaOWdpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL2RvbWFpbi92MTtkb21haW52MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * PlatformDomain represents a platform-provided domain.
@@ -86,7 +86,7 @@ export const PlatformDomainSchema: GenMessage<PlatformDomain, {jsonType: Platfor
   messageDesc(file_domain_v1_domain, 0);
 
 /**
- * DomainInput specifies domain configuration for an application.
+ * DomainInput specifies domain configuration for a resource.
  *
  * @generated from message loco.domain.v1.DomainInput
  */
@@ -119,7 +119,7 @@ export type DomainInput = Message<"loco.domain.v1.DomainInput"> & {
 };
 
 /**
- * DomainInput specifies domain configuration for an application.
+ * DomainInput specifies domain configuration for a resource.
  *
  * @generated from message loco.domain.v1.DomainInput
  */
@@ -159,20 +159,20 @@ export const DomainInputSchema: GenMessage<DomainInput, {jsonType: DomainInputJs
   messageDesc(file_domain_v1_domain, 1);
 
 /**
- * AppDomain represents a domain assigned to an application.
+ * ResourceDomain represents a domain assigned to a resource.
  *
- * @generated from message loco.domain.v1.AppDomain
+ * @generated from message loco.domain.v1.ResourceDomain
  */
-export type AppDomain = Message<"loco.domain.v1.AppDomain"> & {
+export type ResourceDomain = Message<"loco.domain.v1.ResourceDomain"> & {
   /**
    * @generated from field: int64 id = 1;
    */
   id: bigint;
 
   /**
-   * @generated from field: int64 app_id = 2;
+   * @generated from field: int64 resource_id = 2;
    */
-  appId: bigint;
+  resourceId: bigint;
 
   /**
    * @generated from field: string domain = 3;
@@ -211,20 +211,20 @@ export type AppDomain = Message<"loco.domain.v1.AppDomain"> & {
 };
 
 /**
- * AppDomain represents a domain assigned to an application.
+ * ResourceDomain represents a domain assigned to a resource.
  *
- * @generated from message loco.domain.v1.AppDomain
+ * @generated from message loco.domain.v1.ResourceDomain
  */
-export type AppDomainJson = {
+export type ResourceDomainJson = {
   /**
    * @generated from field: int64 id = 1;
    */
   id?: string;
 
   /**
-   * @generated from field: int64 app_id = 2;
+   * @generated from field: int64 resource_id = 2;
    */
-  appId?: string;
+  resourceId?: string;
 
   /**
    * @generated from field: string domain = 3;
@@ -263,10 +263,10 @@ export type AppDomainJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.AppDomain.
- * Use `create(AppDomainSchema)` to create a new message.
+ * Describes the message loco.domain.v1.ResourceDomain.
+ * Use `create(ResourceDomainSchema)` to create a new message.
  */
-export const AppDomainSchema: GenMessage<AppDomain, {jsonType: AppDomainJson}> = /*@__PURE__*/
+export const ResourceDomainSchema: GenMessage<ResourceDomain, {jsonType: ResourceDomainJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 2);
 
 /**
@@ -644,7 +644,7 @@ export const CheckDomainAvailabilityResponseSchema: GenMessage<CheckDomainAvaila
   messageDesc(file_domain_v1_domain, 14);
 
 /**
- * LocoOwnedDomain represents a platform-managed domain paired with an application deployment.
+ * LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
  *
  * @generated from message loco.domain.v1.LocoOwnedDomain
  */
@@ -660,14 +660,14 @@ export type LocoOwnedDomain = Message<"loco.domain.v1.LocoOwnedDomain"> & {
   domain: string;
 
   /**
-   * @generated from field: string app_name = 3;
+   * @generated from field: string resource_name = 3;
    */
-  appName: string;
+  resourceName: string;
 
   /**
-   * @generated from field: int64 app_id = 4;
+   * @generated from field: int64 resource_id = 4;
    */
-  appId: bigint;
+  resourceId: bigint;
 
   /**
    * @generated from field: string platform_domain = 5;
@@ -676,7 +676,7 @@ export type LocoOwnedDomain = Message<"loco.domain.v1.LocoOwnedDomain"> & {
 };
 
 /**
- * LocoOwnedDomain represents a platform-managed domain paired with an application deployment.
+ * LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
  *
  * @generated from message loco.domain.v1.LocoOwnedDomain
  */
@@ -692,14 +692,14 @@ export type LocoOwnedDomainJson = {
   domain?: string;
 
   /**
-   * @generated from field: string app_name = 3;
+   * @generated from field: string resource_name = 3;
    */
-  appName?: string;
+  resourceName?: string;
 
   /**
-   * @generated from field: int64 app_id = 4;
+   * @generated from field: int64 resource_id = 4;
    */
-  appId?: string;
+  resourceId?: string;
 
   /**
    * @generated from field: string platform_domain = 5;
@@ -769,15 +769,15 @@ export const ListAllLocoOwnedDomainsResponseSchema: GenMessage<ListAllLocoOwnedD
   messageDesc(file_domain_v1_domain, 17);
 
 /**
- * AddAppDomainRequest is the request to add a domain to an application.
+ * AddResourceDomainRequest is the request to add a domain to a resource.
  *
- * @generated from message loco.domain.v1.AddAppDomainRequest
+ * @generated from message loco.domain.v1.AddResourceDomainRequest
  */
-export type AddAppDomainRequest = Message<"loco.domain.v1.AddAppDomainRequest"> & {
+export type AddResourceDomainRequest = Message<"loco.domain.v1.AddResourceDomainRequest"> & {
   /**
-   * @generated from field: int64 app_id = 1;
+   * @generated from field: int64 resource_id = 1;
    */
-  appId: bigint;
+  resourceId: bigint;
 
   /**
    * @generated from field: loco.domain.v1.DomainInput domain = 2;
@@ -786,15 +786,15 @@ export type AddAppDomainRequest = Message<"loco.domain.v1.AddAppDomainRequest"> 
 };
 
 /**
- * AddAppDomainRequest is the request to add a domain to an application.
+ * AddResourceDomainRequest is the request to add a domain to a resource.
  *
- * @generated from message loco.domain.v1.AddAppDomainRequest
+ * @generated from message loco.domain.v1.AddResourceDomainRequest
  */
-export type AddAppDomainRequestJson = {
+export type AddResourceDomainRequestJson = {
   /**
-   * @generated from field: int64 app_id = 1;
+   * @generated from field: int64 resource_id = 1;
    */
-  appId?: string;
+  resourceId?: string;
 
   /**
    * @generated from field: loco.domain.v1.DomainInput domain = 2;
@@ -803,22 +803,22 @@ export type AddAppDomainRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.AddAppDomainRequest.
- * Use `create(AddAppDomainRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.AddResourceDomainRequest.
+ * Use `create(AddResourceDomainRequestSchema)` to create a new message.
  */
-export const AddAppDomainRequestSchema: GenMessage<AddAppDomainRequest, {jsonType: AddAppDomainRequestJson}> = /*@__PURE__*/
+export const AddResourceDomainRequestSchema: GenMessage<AddResourceDomainRequest, {jsonType: AddResourceDomainRequestJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 18);
 
 /**
- * AddAppDomainResponse is the response from adding a domain to an application.
+ * AddResourceDomainResponse is the response from adding a domain to a resource.
  *
- * @generated from message loco.domain.v1.AddAppDomainResponse
+ * @generated from message loco.domain.v1.AddResourceDomainResponse
  */
-export type AddAppDomainResponse = Message<"loco.domain.v1.AddAppDomainResponse"> & {
+export type AddResourceDomainResponse = Message<"loco.domain.v1.AddResourceDomainResponse"> & {
   /**
-   * @generated from field: loco.domain.v1.AppDomain domain = 1;
+   * @generated from field: loco.domain.v1.ResourceDomain domain = 1;
    */
-  domain?: AppDomain;
+  domain?: ResourceDomain;
 
   /**
    * @generated from field: string message = 2;
@@ -827,15 +827,15 @@ export type AddAppDomainResponse = Message<"loco.domain.v1.AddAppDomainResponse"
 };
 
 /**
- * AddAppDomainResponse is the response from adding a domain to an application.
+ * AddResourceDomainResponse is the response from adding a domain to a resource.
  *
- * @generated from message loco.domain.v1.AddAppDomainResponse
+ * @generated from message loco.domain.v1.AddResourceDomainResponse
  */
-export type AddAppDomainResponseJson = {
+export type AddResourceDomainResponseJson = {
   /**
-   * @generated from field: loco.domain.v1.AppDomain domain = 1;
+   * @generated from field: loco.domain.v1.ResourceDomain domain = 1;
    */
-  domain?: AppDomainJson;
+  domain?: ResourceDomainJson;
 
   /**
    * @generated from field: string message = 2;
@@ -844,18 +844,18 @@ export type AddAppDomainResponseJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.AddAppDomainResponse.
- * Use `create(AddAppDomainResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.AddResourceDomainResponse.
+ * Use `create(AddResourceDomainResponseSchema)` to create a new message.
  */
-export const AddAppDomainResponseSchema: GenMessage<AddAppDomainResponse, {jsonType: AddAppDomainResponseJson}> = /*@__PURE__*/
+export const AddResourceDomainResponseSchema: GenMessage<AddResourceDomainResponse, {jsonType: AddResourceDomainResponseJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 19);
 
 /**
- * UpdateAppDomainRequest is the request to update an application's domain.
+ * UpdateResourceDomainRequest is the request to update a resource's domain.
  *
- * @generated from message loco.domain.v1.UpdateAppDomainRequest
+ * @generated from message loco.domain.v1.UpdateResourceDomainRequest
  */
-export type UpdateAppDomainRequest = Message<"loco.domain.v1.UpdateAppDomainRequest"> & {
+export type UpdateResourceDomainRequest = Message<"loco.domain.v1.UpdateResourceDomainRequest"> & {
   /**
    * @generated from field: int64 domain_id = 1;
    */
@@ -868,11 +868,11 @@ export type UpdateAppDomainRequest = Message<"loco.domain.v1.UpdateAppDomainRequ
 };
 
 /**
- * UpdateAppDomainRequest is the request to update an application's domain.
+ * UpdateResourceDomainRequest is the request to update a resource's domain.
  *
- * @generated from message loco.domain.v1.UpdateAppDomainRequest
+ * @generated from message loco.domain.v1.UpdateResourceDomainRequest
  */
-export type UpdateAppDomainRequestJson = {
+export type UpdateResourceDomainRequestJson = {
   /**
    * @generated from field: int64 domain_id = 1;
    */
@@ -885,22 +885,22 @@ export type UpdateAppDomainRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.UpdateAppDomainRequest.
- * Use `create(UpdateAppDomainRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.UpdateResourceDomainRequest.
+ * Use `create(UpdateResourceDomainRequestSchema)` to create a new message.
  */
-export const UpdateAppDomainRequestSchema: GenMessage<UpdateAppDomainRequest, {jsonType: UpdateAppDomainRequestJson}> = /*@__PURE__*/
+export const UpdateResourceDomainRequestSchema: GenMessage<UpdateResourceDomainRequest, {jsonType: UpdateResourceDomainRequestJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 20);
 
 /**
- * UpdateAppDomainResponse is the response from updating an application's domain.
+ * UpdateResourceDomainResponse is the response from updating a resource's domain.
  *
- * @generated from message loco.domain.v1.UpdateAppDomainResponse
+ * @generated from message loco.domain.v1.UpdateResourceDomainResponse
  */
-export type UpdateAppDomainResponse = Message<"loco.domain.v1.UpdateAppDomainResponse"> & {
+export type UpdateResourceDomainResponse = Message<"loco.domain.v1.UpdateResourceDomainResponse"> & {
   /**
-   * @generated from field: loco.domain.v1.AppDomain domain = 1;
+   * @generated from field: loco.domain.v1.ResourceDomain domain = 1;
    */
-  domain?: AppDomain;
+  domain?: ResourceDomain;
 
   /**
    * @generated from field: string message = 2;
@@ -909,15 +909,15 @@ export type UpdateAppDomainResponse = Message<"loco.domain.v1.UpdateAppDomainRes
 };
 
 /**
- * UpdateAppDomainResponse is the response from updating an application's domain.
+ * UpdateResourceDomainResponse is the response from updating a resource's domain.
  *
- * @generated from message loco.domain.v1.UpdateAppDomainResponse
+ * @generated from message loco.domain.v1.UpdateResourceDomainResponse
  */
-export type UpdateAppDomainResponseJson = {
+export type UpdateResourceDomainResponseJson = {
   /**
-   * @generated from field: loco.domain.v1.AppDomain domain = 1;
+   * @generated from field: loco.domain.v1.ResourceDomain domain = 1;
    */
-  domain?: AppDomainJson;
+  domain?: ResourceDomainJson;
 
   /**
    * @generated from field: string message = 2;
@@ -926,22 +926,22 @@ export type UpdateAppDomainResponseJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.UpdateAppDomainResponse.
- * Use `create(UpdateAppDomainResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.UpdateResourceDomainResponse.
+ * Use `create(UpdateResourceDomainResponseSchema)` to create a new message.
  */
-export const UpdateAppDomainResponseSchema: GenMessage<UpdateAppDomainResponse, {jsonType: UpdateAppDomainResponseJson}> = /*@__PURE__*/
+export const UpdateResourceDomainResponseSchema: GenMessage<UpdateResourceDomainResponse, {jsonType: UpdateResourceDomainResponseJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 21);
 
 /**
- * SetPrimaryAppDomainRequest is the request to set the primary domain for an application.
+ * SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
  *
- * @generated from message loco.domain.v1.SetPrimaryAppDomainRequest
+ * @generated from message loco.domain.v1.SetPrimaryResourceDomainRequest
  */
-export type SetPrimaryAppDomainRequest = Message<"loco.domain.v1.SetPrimaryAppDomainRequest"> & {
+export type SetPrimaryResourceDomainRequest = Message<"loco.domain.v1.SetPrimaryResourceDomainRequest"> & {
   /**
-   * @generated from field: int64 app_id = 1;
+   * @generated from field: int64 resource_id = 1;
    */
-  appId: bigint;
+  resourceId: bigint;
 
   /**
    * @generated from field: int64 domain_id = 2;
@@ -950,15 +950,15 @@ export type SetPrimaryAppDomainRequest = Message<"loco.domain.v1.SetPrimaryAppDo
 };
 
 /**
- * SetPrimaryAppDomainRequest is the request to set the primary domain for an application.
+ * SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
  *
- * @generated from message loco.domain.v1.SetPrimaryAppDomainRequest
+ * @generated from message loco.domain.v1.SetPrimaryResourceDomainRequest
  */
-export type SetPrimaryAppDomainRequestJson = {
+export type SetPrimaryResourceDomainRequestJson = {
   /**
-   * @generated from field: int64 app_id = 1;
+   * @generated from field: int64 resource_id = 1;
    */
-  appId?: string;
+  resourceId?: string;
 
   /**
    * @generated from field: int64 domain_id = 2;
@@ -967,22 +967,22 @@ export type SetPrimaryAppDomainRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.SetPrimaryAppDomainRequest.
- * Use `create(SetPrimaryAppDomainRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.SetPrimaryResourceDomainRequest.
+ * Use `create(SetPrimaryResourceDomainRequestSchema)` to create a new message.
  */
-export const SetPrimaryAppDomainRequestSchema: GenMessage<SetPrimaryAppDomainRequest, {jsonType: SetPrimaryAppDomainRequestJson}> = /*@__PURE__*/
+export const SetPrimaryResourceDomainRequestSchema: GenMessage<SetPrimaryResourceDomainRequest, {jsonType: SetPrimaryResourceDomainRequestJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 22);
 
 /**
- * SetPrimaryAppDomainResponse is the response from setting the primary domain.
+ * SetPrimaryResourceDomainResponse is the response from setting the primary domain.
  *
- * @generated from message loco.domain.v1.SetPrimaryAppDomainResponse
+ * @generated from message loco.domain.v1.SetPrimaryResourceDomainResponse
  */
-export type SetPrimaryAppDomainResponse = Message<"loco.domain.v1.SetPrimaryAppDomainResponse"> & {
+export type SetPrimaryResourceDomainResponse = Message<"loco.domain.v1.SetPrimaryResourceDomainResponse"> & {
   /**
-   * @generated from field: loco.domain.v1.AppDomain domain = 1;
+   * @generated from field: loco.domain.v1.ResourceDomain domain = 1;
    */
-  domain?: AppDomain;
+  domain?: ResourceDomain;
 
   /**
    * @generated from field: string message = 2;
@@ -991,15 +991,15 @@ export type SetPrimaryAppDomainResponse = Message<"loco.domain.v1.SetPrimaryAppD
 };
 
 /**
- * SetPrimaryAppDomainResponse is the response from setting the primary domain.
+ * SetPrimaryResourceDomainResponse is the response from setting the primary domain.
  *
- * @generated from message loco.domain.v1.SetPrimaryAppDomainResponse
+ * @generated from message loco.domain.v1.SetPrimaryResourceDomainResponse
  */
-export type SetPrimaryAppDomainResponseJson = {
+export type SetPrimaryResourceDomainResponseJson = {
   /**
-   * @generated from field: loco.domain.v1.AppDomain domain = 1;
+   * @generated from field: loco.domain.v1.ResourceDomain domain = 1;
    */
-  domain?: AppDomainJson;
+  domain?: ResourceDomainJson;
 
   /**
    * @generated from field: string message = 2;
@@ -1008,18 +1008,18 @@ export type SetPrimaryAppDomainResponseJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.SetPrimaryAppDomainResponse.
- * Use `create(SetPrimaryAppDomainResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.SetPrimaryResourceDomainResponse.
+ * Use `create(SetPrimaryResourceDomainResponseSchema)` to create a new message.
  */
-export const SetPrimaryAppDomainResponseSchema: GenMessage<SetPrimaryAppDomainResponse, {jsonType: SetPrimaryAppDomainResponseJson}> = /*@__PURE__*/
+export const SetPrimaryResourceDomainResponseSchema: GenMessage<SetPrimaryResourceDomainResponse, {jsonType: SetPrimaryResourceDomainResponseJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 23);
 
 /**
- * RemoveAppDomainRequest is the request to remove a domain from an application.
+ * RemoveResourceDomainRequest is the request to remove a domain from a resource.
  *
- * @generated from message loco.domain.v1.RemoveAppDomainRequest
+ * @generated from message loco.domain.v1.RemoveResourceDomainRequest
  */
-export type RemoveAppDomainRequest = Message<"loco.domain.v1.RemoveAppDomainRequest"> & {
+export type RemoveResourceDomainRequest = Message<"loco.domain.v1.RemoveResourceDomainRequest"> & {
   /**
    * @generated from field: int64 domain_id = 1;
    */
@@ -1027,11 +1027,11 @@ export type RemoveAppDomainRequest = Message<"loco.domain.v1.RemoveAppDomainRequ
 };
 
 /**
- * RemoveAppDomainRequest is the request to remove a domain from an application.
+ * RemoveResourceDomainRequest is the request to remove a domain from a resource.
  *
- * @generated from message loco.domain.v1.RemoveAppDomainRequest
+ * @generated from message loco.domain.v1.RemoveResourceDomainRequest
  */
-export type RemoveAppDomainRequestJson = {
+export type RemoveResourceDomainRequestJson = {
   /**
    * @generated from field: int64 domain_id = 1;
    */
@@ -1039,18 +1039,18 @@ export type RemoveAppDomainRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.RemoveAppDomainRequest.
- * Use `create(RemoveAppDomainRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.RemoveResourceDomainRequest.
+ * Use `create(RemoveResourceDomainRequestSchema)` to create a new message.
  */
-export const RemoveAppDomainRequestSchema: GenMessage<RemoveAppDomainRequest, {jsonType: RemoveAppDomainRequestJson}> = /*@__PURE__*/
+export const RemoveResourceDomainRequestSchema: GenMessage<RemoveResourceDomainRequest, {jsonType: RemoveResourceDomainRequestJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 24);
 
 /**
- * RemoveAppDomainResponse is the response from removing a domain.
+ * RemoveResourceDomainResponse is the response from removing a domain.
  *
- * @generated from message loco.domain.v1.RemoveAppDomainResponse
+ * @generated from message loco.domain.v1.RemoveResourceDomainResponse
  */
-export type RemoveAppDomainResponse = Message<"loco.domain.v1.RemoveAppDomainResponse"> & {
+export type RemoveResourceDomainResponse = Message<"loco.domain.v1.RemoveResourceDomainResponse"> & {
   /**
    * @generated from field: string message = 1;
    */
@@ -1058,11 +1058,11 @@ export type RemoveAppDomainResponse = Message<"loco.domain.v1.RemoveAppDomainRes
 };
 
 /**
- * RemoveAppDomainResponse is the response from removing a domain.
+ * RemoveResourceDomainResponse is the response from removing a domain.
  *
- * @generated from message loco.domain.v1.RemoveAppDomainResponse
+ * @generated from message loco.domain.v1.RemoveResourceDomainResponse
  */
-export type RemoveAppDomainResponseJson = {
+export type RemoveResourceDomainResponseJson = {
   /**
    * @generated from field: string message = 1;
    */
@@ -1070,10 +1070,10 @@ export type RemoveAppDomainResponseJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.RemoveAppDomainResponse.
- * Use `create(RemoveAppDomainResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.RemoveResourceDomainResponse.
+ * Use `create(RemoveResourceDomainResponseSchema)` to create a new message.
  */
-export const RemoveAppDomainResponseSchema: GenMessage<RemoveAppDomainResponse, {jsonType: RemoveAppDomainResponseJson}> = /*@__PURE__*/
+export const RemoveResourceDomainResponseSchema: GenMessage<RemoveResourceDomainResponse, {jsonType: RemoveResourceDomainResponseJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 25);
 
 /**
@@ -1107,7 +1107,7 @@ export const DomainTypeSchema: GenEnum<DomainType, DomainTypeJson> = /*@__PURE__
   enumDesc(file_domain_v1_domain, 0);
 
 /**
- * DomainService manages domains for applications.
+ * DomainService manages domains for resources.
  *
  * @generated from service loco.domain.v1.DomainService
  */
@@ -1164,45 +1164,45 @@ export const DomainService: GenService<{
     output: typeof DeactivatePlatformDomainResponseSchema;
   },
   /**
-   * App Domain Management
-   * AddAppDomain assigns a domain to an application.
+   * Resource Domain Management
+   * AddResourceDomain assigns a domain to a resource.
    *
-   * @generated from rpc loco.domain.v1.DomainService.AddAppDomain
+   * @generated from rpc loco.domain.v1.DomainService.AddResourceDomain
    */
-  addAppDomain: {
+  addResourceDomain: {
     methodKind: "unary";
-    input: typeof AddAppDomainRequestSchema;
-    output: typeof AddAppDomainResponseSchema;
+    input: typeof AddResourceDomainRequestSchema;
+    output: typeof AddResourceDomainResponseSchema;
   },
   /**
-   * UpdateAppDomain updates an application's domain configuration.
+   * UpdateResourceDomain updates a resource's domain configuration.
    *
-   * @generated from rpc loco.domain.v1.DomainService.UpdateAppDomain
+   * @generated from rpc loco.domain.v1.DomainService.UpdateResourceDomain
    */
-  updateAppDomain: {
+  updateResourceDomain: {
     methodKind: "unary";
-    input: typeof UpdateAppDomainRequestSchema;
-    output: typeof UpdateAppDomainResponseSchema;
+    input: typeof UpdateResourceDomainRequestSchema;
+    output: typeof UpdateResourceDomainResponseSchema;
   },
   /**
-   * SetPrimaryAppDomain sets the primary domain for an application.
+   * SetPrimaryResourceDomain sets the primary domain for a resource.
    *
-   * @generated from rpc loco.domain.v1.DomainService.SetPrimaryAppDomain
+   * @generated from rpc loco.domain.v1.DomainService.SetPrimaryResourceDomain
    */
-  setPrimaryAppDomain: {
+  setPrimaryResourceDomain: {
     methodKind: "unary";
-    input: typeof SetPrimaryAppDomainRequestSchema;
-    output: typeof SetPrimaryAppDomainResponseSchema;
+    input: typeof SetPrimaryResourceDomainRequestSchema;
+    output: typeof SetPrimaryResourceDomainResponseSchema;
   },
   /**
-   * RemoveAppDomain removes a domain from an application.
+   * RemoveResourceDomain removes a domain from a resource.
    *
-   * @generated from rpc loco.domain.v1.DomainService.RemoveAppDomain
+   * @generated from rpc loco.domain.v1.DomainService.RemoveResourceDomain
    */
-  removeAppDomain: {
+  removeResourceDomain: {
     methodKind: "unary";
-    input: typeof RemoveAppDomainRequestSchema;
-    output: typeof RemoveAppDomainResponseSchema;
+    input: typeof RemoveResourceDomainRequestSchema;
+    output: typeof RemoveResourceDomainResponseSchema;
   },
   /**
    * Domain Availability
@@ -1217,7 +1217,7 @@ export const DomainService: GenService<{
   },
   /**
    * Queries
-   * ListAllLocoOwnedDomains lists all domains owned by Loco with applications.
+   * ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
    *
    * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
    */
