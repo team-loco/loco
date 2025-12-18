@@ -13,13 +13,13 @@ import (
 	"github.com/loco-team/loco/internal/ui"
 	"github.com/loco-team/loco/shared"
 	"github.com/loco-team/loco/shared/config"
-	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
-	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
 	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
 	"github.com/loco-team/loco/shared/proto/domain/v1/domainv1connect"
 	registryv1 "github.com/loco-team/loco/shared/proto/registry/v1"
 	registryv1connect "github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
+	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/spf13/cobra"
 )
 
@@ -112,7 +112,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	registryClient := registryv1connect.NewRegistryServiceClient(httpClient, host)
 	domainClient := domainv1connect.NewDomainServiceClient(httpClient, host)
 
-	var appID int64
+	var resourceID int64
 
 	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
 		WorkspaceId: workspaceID,
@@ -127,11 +127,11 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to get app '%s': %w", loadedCfg.Config.Metadata.Name, err)
 		}
 	} else {
-		appID = getAppByNameResp.Msg.Resource.Id
-		slog.Debug("found existing app", "app_id", appID, "name", getAppByNameResp.Msg.Resource.Name)
+		resourceID = getAppByNameResp.Msg.Resource.Id
+		slog.Debug("found existing app", "app_id", resourceID, "name", getAppByNameResp.Msg.Resource.Name)
 	}
 
-	if appID == 0 {
+	if resourceID == 0 {
 		slog.Info("no existing app found, need to create a new one.")
 
 		// Fetch active platform domains
@@ -171,7 +171,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			PlatformDomainId: &domainID,
 		}
 
-		createAppReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
+		createResourceReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
 			WorkspaceId: workspaceID,
 			Name:        loadedCfg.Config.Metadata.Name,
 			// todo: add to loco config. we need to grab app type from there.
@@ -179,20 +179,20 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			Domain: domainInput,
 		})
 
-		createAppReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
+		createResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-		createAppResp, err := resourceClient.CreateResource(ctx, createAppReq)
+		createResourceResp, err := resourceClient.CreateResource(ctx, createResourceReq)
 		if err != nil {
-			logRequestID(ctx, err, "create app")
-			return fmt.Errorf("failed to create app: %w", err)
+			logRequestID(ctx, err, "create resource")
+			return fmt.Errorf("failed to create resource: %w", err)
 		}
 
-		appID = createAppResp.Msg.Resource.Id
-		slog.Debug("created app", "app_id", appID)
+		resourceID = createResourceResp.Msg.Resource.Id
+		slog.Debug("created resource", "resource_id", resourceID)
 	}
 
 	imageBase := "registry.gitlab.com/locomotive-group/loco-ecr"
-	imageName := dockerClient.GenerateImageTag(imageBase, orgID, workspaceID, appID)
+	imageName := dockerClient.GenerateImageTag(imageBase, orgID, workspaceID, resourceID)
 
 	dockerClient.ImageName = imageName
 	slog.Debug("generated image name for build", "imageBase", imageBase, "imageName", imageName)
@@ -256,7 +256,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	steps = append(steps, ui.Step{
 		Title: "Create revision and deployment",
 		Run: func(logf func(string)) error {
-			return deployApp(ctx, apiClient, appID, dockerClient.ImageName, loadedCfg.Config, locoToken.Token, logf, wait)
+			return deployApp(ctx, apiClient, resourceID, dockerClient.ImageName, loadedCfg.Config, locoToken.Token, logf, wait)
 		},
 	})
 
@@ -286,7 +286,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 
 func deployApp(ctx context.Context,
 	apiClient *client.Client,
-	appID int64,
+	resourceID int64,
 	imageName string,
 	cfg *config.AppConfig,
 	token string,
@@ -296,7 +296,7 @@ func deployApp(ctx context.Context,
 	replicas := cfg.Resources.Replicas.Min
 
 	createDeploymentReq := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{
-		ResourceId: appID,
+		ResourceId: resourceID,
 		Spec: &deploymentv1.DeploymentSpec{
 			Image:           &imageName,
 			InitialReplicas: &replicas,

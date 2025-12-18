@@ -5,7 +5,7 @@ import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashb
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useHeader } from "@/context/HeaderContext";
-import { listApps } from "@/gen/app/v1";
+import { listResources } from "@/gen/resource/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { subscribeToEvents } from "@/lib/events";
@@ -52,19 +52,19 @@ export function Home() {
 	const currentWorkspaceId =
 		selectedWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
-	// Fetch all apps for selected workspace (only if workspace is selected)
+	// Fetch all resources for selected workspace (only if workspace is selected)
 	const {
-		data: listAppsRes,
+		data: listResourcesRes,
 		isLoading: appsLoading,
 		error: appsError,
 		refetch: refetchApps,
 	} = useQuery(
-		listApps,
+		listResources,
 		{ workspaceId: currentWorkspaceId ?? 0n },
 		{ enabled: !!currentWorkspaceId }
 	);
 
-	const allApps = useMemo(() => listAppsRes?.apps ?? [], [listAppsRes?.apps]);
+	const allApps = useMemo(() => listResourcesRes?.resources ?? [], [listResourcesRes?.resources]);
 
 	// Filter apps by search term
 	const filteredApps = useMemo(() => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@connectrpc/connect";
-import { AppService } from "@/gen/app/v1/app_pb";
-import type { LogEntry } from "@/gen/app/v1/app_pb";
+import { ResourceService } from "@/gen/resource/v1/resource_pb";
+import type { LogEntry } from "@/gen/resource/v1/resource_pb";
 import { createTransport } from "@/auth/connect-transport";
 
 export function useStreamLogs(appId: string) {
@@ -20,12 +20,12 @@ export function useStreamLogs(appId: string) {
 
 		const streamLogs = async () => {
 			try {
-				const client = createClient(AppService, createTransport());
+				const client = createClient(ResourceService, createTransport());
 				const logsList: LogEntry[] = [];
 
 				// Stream logs from the server
 				for await (const logEntry of client.streamLogs(
-					{ appId: BigInt(appId) },
+					{ resourceId: BigInt(appId) },
 					{ signal: abortController.signal }
 				)) {
 					if (!isMounted) break;

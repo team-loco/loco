@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { scaleApp } from "@/gen/app/v1";
+import { scaleResource } from "@/gen/resource/v1";
 import { useMutation } from "@connectrpc/connect-query";
 import { Loader2 } from "lucide-react";
 
@@ -19,25 +19,25 @@ export function ScaleCard({ appId, currentReplicas = 1, isLoading = false }: Sca
 	const [cpu, setCpu] = useState<string>("250m");
 	const [memory, setMemory] = useState<string>("512Mi");
 
-	const { mutate: scale, isPending } = useMutation(scaleApp);
+	const { mutate: scale, isPending } = useMutation(scaleResource);
 
 	const handleScale = async () => {
 		try {
 			await scale({
-				appId: BigInt(appId),
+				resourceId: BigInt(appId),
 				replicas,
 				cpu,
 				memory,
 			});
 		} catch (error) {
-			console.error("Failed to scale app:", error);
+			console.error("Failed to scale resource:", error);
 		}
 	};
 
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Scale App</CardTitle>
+				<CardTitle>Scale Resource</CardTitle>
 				<CardDescription>Adjust replicas and resource allocation</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-6">

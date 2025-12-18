@@ -1,14 +1,14 @@
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { App } from "@/gen/app/v1/app_pb";
+import type { Resource } from "@/gen/resource/v1/resource_pb";
 import { Copy, ExternalLink, Pencil } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { getStatusLabel } from "@/lib/app-status";
 
 interface AppHeaderProps {
-	app: App | null;
+	app: Resource | null;
 	isLoading?: boolean;
 }
 
@@ -83,7 +83,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => navigate(`/app/${app.id}/settings`)}
+						onClick={() => navigate(`/resource/${app.id}/settings`)}
 						className="flex-1 sm:flex-none"
 					>
 						<Pencil className="w-4 h-4 mr-2" />

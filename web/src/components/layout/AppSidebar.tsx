@@ -266,7 +266,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarContent>
 
 			<SidebarGroup className="mt-auto border-t ">
-				<div className="border-b pb-2 mb-2">
+				<div className="border-b pb-1 pt-1">
 					<ThemeToggle />
 				</div>
 				<NavUser

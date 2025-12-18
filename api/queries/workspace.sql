@@ -71,9 +71,6 @@ WHERE wm.workspace_id = $1
 ORDER BY wm.user_id ASC
 LIMIT $2;
 
--- TODO: Uncomment when apps table exists
--- -- name: CountAppsInWorkspace :one
--- SELECT COUNT(*) FROM apps WHERE workspace_id = $1;
 
 -- name: GetWorkspaceOrgID :one
 SELECT org_id FROM workspaces WHERE id = $1;

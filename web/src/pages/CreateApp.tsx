@@ -15,7 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { AppType, createApp } from "@/gen/app/v1";
+import { ResourceType, createResource } from "@/gen/resource/v1";
 import {
 	checkDomainAvailability,
 	DomainType,
@@ -71,7 +71,7 @@ export function CreateApp() {
 	const { data: platformDomainsRes } = useQuery(listActivePlatformDomains, {});
 	const platformDomains = platformDomainsRes?.platformDomains ?? [];
 
-	const createAppMutation = useMutation(createApp);
+	const createResourceMutation = useMutation(createResource);
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);
 
 	// Set default platform domain on load
@@ -147,11 +147,11 @@ export function CreateApp() {
 				(d) => d.domain === selectedPlatformDomain
 			);
 
-			const res = await createAppMutation.mutateAsync({
+			const res = await createResourceMutation.mutateAsync({
 				name: appName,
 				workspaceId:
 					typeof workspaceId === "string" ? BigInt(workspaceId) : workspaceId,
-				type: AppType[appType as keyof typeof AppType],
+				type: ResourceType[appType as keyof typeof ResourceType],
 				domain: {
 					domainSource: DomainType.PLATFORM_PROVIDED,
 					subdomain: subdomain,
@@ -159,19 +159,19 @@ export function CreateApp() {
 				},
 			});
 
-			if (res.app?.id) {
-				toast.success("App created successfully");
+			if (res.resource?.id) {
+				toast.success("Resource created successfully");
 				navigate(
-					`/app/${res.app.id}${
+					`/resource/${res.resource.id}${
 						workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""
 					}`
 				);
 			} else {
-				toast.error("Failed to create app");
+				toast.error("Failed to create resource");
 			}
 		} catch (error) {
 			const message =
-				error instanceof Error ? error.message : "Failed to create app";
+				error instanceof Error ? error.message : "Failed to create resource";
 			toast.error(message);
 		}
 	};
@@ -180,18 +180,18 @@ export function CreateApp() {
 		<div className=" mx-auto">
 			<div className="mb-8">
 				<h1 className="text-3xl font-heading text-foreground mb-2">
-					Create App
+					Create Resource
 				</h1>
 				<p className="text-muted-foreground">
-					Set up a new application or service
+					Set up a new resource or service
 				</p>
 			</div>
 
 			<form onSubmit={handleSubmit} className="space-y-6">
-				{/* App Name */}
+				{/* Resource Name */}
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-lg">App Name</CardTitle>
+						<CardTitle className="text-lg">Resource Name</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<Label htmlFor="app-name" className="text-sm mb-2 block">
@@ -207,12 +207,12 @@ export function CreateApp() {
 					</CardContent>
 				</Card>
 
-				{/* App Type */}
+				{/* Resource Type */}
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-lg">App Type</CardTitle>
+						<CardTitle className="text-lg">Resource Type</CardTitle>
 						<CardDescription>
-							Choose what kind of app you're deploying
+							Choose what kind of resource you're deploying
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -244,7 +244,7 @@ export function CreateApp() {
 				<Card>
 					<CardHeader>
 						<CardTitle className="text-lg">Domain</CardTitle>
-						<CardDescription>Your app's URL</CardDescription>
+						<CardDescription>Your resource's URL</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-4">
 						{/* Platform Domain Selection */}
@@ -331,7 +331,7 @@ export function CreateApp() {
 						type="submit"
 						disabled={
 							!!(
-								createAppMutation.isPending ||
+								createResourceMutation.isPending ||
 								!appName.trim() ||
 								(subdomain.trim() !== "" &&
 									(subdomainAvailability === "unavailable" ||
@@ -339,7 +339,7 @@ export function CreateApp() {
 							)
 						}
 					>
-						{createAppMutation.isPending ? "Creating..." : "Create App"}
+						{createResourceMutation.isPending ? "Creating..." : "Create Resource"}
 					</Button>
 				</div>
 			</form>

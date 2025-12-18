@@ -10,7 +10,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useMutation } from "@connectrpc/connect-query";
-import { updateAppEnv } from "@/gen/app/v1";
+import { updateResourceEnv } from "@/gen/resource/v1";
 import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
 
@@ -32,7 +32,7 @@ export function EnvironmentVariables({
 }: EnvironmentVariablesProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [vars, setVars] = useState<EnvVar[]>(envVars);
-	const updateEnvMutation = useMutation(updateAppEnv);
+	const updateEnvMutation = useMutation(updateResourceEnv);
 
 	const handleAdd = () => {
 		setVars([...vars, { key: "", value: "" }]);
@@ -60,7 +60,7 @@ export function EnvironmentVariables({
 				{} as { [key: string]: string }
 			);
 			await updateEnvMutation.mutateAsync({
-				appId: BigInt(appId),
+				resourceId: BigInt(appId),
 				env: envMap,
 			});
 			setIsEditing(false);

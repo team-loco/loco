@@ -10,21 +10,21 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import {
-	AppStatus,
-	deleteApp,
-	getApp,
-	scaleApp,
-	updateApp,
-} from "@/gen/app/v1";
+	ResourceStatus,
+	deleteResource,
+	getResource,
+	scaleResource,
+	updateResource,
+} from "@/gen/resource/v1";
 import {
-	addAppDomain,
+	addResourceDomain,
 	checkDomainAvailability,
 	listActivePlatformDomains,
-	removeAppDomain,
-	setPrimaryAppDomain,
-	updateAppDomain,
+	removeResourceDomain,
+	setPrimaryResourceDomain,
+	updateResourceDomain,
 } from "@/gen/domain/v1";
-import type { AppDomain } from "@/gen/domain/v1/domain_pb";
+import type { ResourceDomain } from "@/gen/domain/v1/domain_pb";
 import { DomainType } from "@/gen/domain/v1/domain_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
@@ -41,10 +41,10 @@ export function AppSettings() {
 		data: appRes,
 		isLoading,
 		refetch,
-	} = useQuery(getApp, appId ? { appId: BigInt(appId) } : undefined, {
+	} = useQuery(getResource, appId ? { resourceId: BigInt(appId) } : undefined, {
 		enabled: !!appId,
 	});
-	const app = appRes?.app;
+	const app = appRes?.resource;
 
 	const [name, setName] = useState(app?.name || "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -61,40 +61,40 @@ export function AppSettings() {
 	const { data: platformDomainsRes } = useQuery(listActivePlatformDomains, {});
 	const platformDomains = platformDomainsRes?.platformDomains || [];
 
-	const updateAppMutation = useMutation(updateApp);
-	const deleteAppMutation = useMutation(deleteApp);
-	const addDomainMutation = useMutation(addAppDomain);
-	const removeDomainMutation = useMutation(removeAppDomain);
-	const setPrimaryMutation = useMutation(setPrimaryAppDomain);
+	const updateResourceMutation = useMutation(updateResource);
+	const deleteResourceMutation = useMutation(deleteResource);
+	const addDomainMutation = useMutation(addResourceDomain);
+	const removeDomainMutation = useMutation(removeResourceDomain);
+	const setPrimaryMutation = useMutation(setPrimaryResourceDomain);
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);
-	const updateDomainMutation = useMutation(updateAppDomain);
-	const scaleAppMutation = useMutation(scaleApp);
+	const updateDomainMutation = useMutation(updateResourceDomain);
+	const scaleResourceMutation = useMutation(scaleResource);
 
 	const hasChanges = name !== app?.name;
 
 	const handleSave = async () => {
 		if (!appId) return;
 		try {
-			await updateAppMutation.mutateAsync({
-				appId: BigInt(appId),
+			await updateResourceMutation.mutateAsync({
+				resourceId: BigInt(appId),
 				name: name || app?.name || "",
 			});
-			toast.success("App updated successfully");
+			toast.success("Resource updated successfully");
 		} catch (error) {
 			toastConnectError(error);
-			console.error("Failed to update app:", error);
+			console.error("Failed to update resource:", error);
 		}
 	};
 
 	const handleDelete = async () => {
 		if (!appId) return;
 		try {
-			await deleteAppMutation.mutateAsync({ appId: BigInt(appId) });
-			toast.success("App deleted successfully");
+			await deleteResourceMutation.mutateAsync({ resourceId: BigInt(appId) });
+			toast.success("Resource deleted successfully");
 			navigate("/dashboard");
 		} catch (error) {
 			toastConnectError(error);
-			console.error("Failed to delete app:", error);
+			console.error("Failed to delete resource:", error);
 		}
 	};
 
@@ -115,7 +115,7 @@ export function AppSettings() {
 			};
 
 			await addDomainMutation.mutateAsync({
-				appId: BigInt(appId),
+				resourceId: BigInt(appId),
 				domain: domainInput,
 			});
 			toast.success("Domain added successfully");
@@ -132,7 +132,7 @@ export function AppSettings() {
 		if (!appId) return;
 		try {
 			await setPrimaryMutation.mutateAsync({
-				appId: BigInt(appId),
+				resourceId: BigInt(appId),
 				domainId,
 			});
 			toast.success("Primary domain updated");
@@ -154,7 +154,7 @@ export function AppSettings() {
 		}
 	};
 
-	const handleEditDomain = (domain: AppDomain) => {
+	const handleEditDomain = (domain: ResourceDomain) => {
 		setEditingDomainId(domain.id);
 		setEditDomainValue(domain.domain);
 	};
@@ -200,16 +200,16 @@ export function AppSettings() {
 	const handleScale = async () => {
 		if (!appId) return;
 		try {
-			await scaleAppMutation.mutateAsync({
-				appId: BigInt(appId),
+			await scaleResourceMutation.mutateAsync({
+				resourceId: BigInt(appId),
 				cpu: `${cpuValue[0]}m`,
 				memory: `${memoryValue[0]}Mi`,
 			});
-			toast.success("App scaling initiated");
+			toast.success("Resource scaling initiated");
 			await refetch();
 		} catch (error) {
 			toastConnectError(error);
-			console.error("Failed to scale app:", error);
+			console.error("Failed to scale resource:", error);
 		}
 	};
 
@@ -231,11 +231,11 @@ export function AppSettings() {
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-2">App Not Found</p>
+						<p className="text-destructive font-heading mb-2">Resource Not Found</p>
 					</CardContent>
 				</Card>
 			</div>
-		);
+			);
 	}
 
 	return (
@@ -243,19 +243,19 @@ export function AppSettings() {
 			<div className="space-y-1">
 				<h1 className="text-3xl font-heading text-foreground">Settings</h1>
 				<p className="text-sm text-foreground opacity-70">
-					Manage your application settings
+					Manage your resource settings
 				</p>
 			</div>
 
-			{/* App Info */}
+			{/* Resource Info */}
 			<Card className="border-2">
 				<CardHeader>
-					<CardTitle>App Information</CardTitle>
+					<CardTitle>Resource Information</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
 						<label className="text-sm font-medium text-foreground">
-							App Name
+							Resource Name
 						</label>
 						<Input
 							value={name}
@@ -277,9 +277,9 @@ export function AppSettings() {
 						</Button>
 						<Button
 							onClick={handleSave}
-							disabled={!hasChanges || updateAppMutation.isPending}
-						>
-							{updateAppMutation.isPending ? "Saving..." : "Save Changes"}
+							disabled={!hasChanges || updateResourceMutation.isPending}
+							>
+							{updateResourceMutation.isPending ? "Saving..." : "Save Changes"}
 						</Button>
 					</div>
 				</CardContent>
@@ -469,21 +469,21 @@ export function AppSettings() {
 			{/* Scaling */}
 			<Card
 				className={`border-2 ${
-					app?.status === AppStatus.IDLE ? "opacity-50" : ""
+					app?.status === ResourceStatus.UNAVAILABLE ? "opacity-50" : ""
 				}`}
 			>
 				<CardHeader>
-					<CardTitle>Application Scaling</CardTitle>
+					<CardTitle>Resource Scaling</CardTitle>
 				</CardHeader>
 				<CardContent
 					className={`space-y-6 ${
-						app?.status === AppStatus.IDLE ? "pointer-events-none" : ""
+						app?.status === ResourceStatus.UNAVAILABLE ? "pointer-events-none" : ""
 					}`}
 				>
-					{app?.status === AppStatus.IDLE && (
+					{app?.status === ResourceStatus.UNAVAILABLE && (
 						<div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-lg p-3 mb-4">
 							<p className="text-sm text-yellow-700 dark:text-yellow-400">
-								Deploy your application before scaling
+								Deploy your resource before scaling
 							</p>
 						</div>
 					)}
@@ -505,16 +505,16 @@ export function AppSettings() {
 							max={4000}
 							step={100}
 							className="w-full"
-							disabled={app?.status === AppStatus.IDLE}
-						/>
-						<p className="text-xs text-foreground/50 mt-2">
+							disabled={app?.status === ResourceStatus.UNAVAILABLE}
+							/>
+							<p className="text-xs text-foreground/50 mt-2">
 							Range: 100m - 4000m
-						</p>
-					</div>
+							</p>
+							</div>
 
-					{/* Memory */}
-					<div>
-						<div className="flex items-center gap-2 mb-3">
+							{/* Memory */}
+							<div>
+							<div className="flex items-center gap-2 mb-3">
 							<HardDrive className="h-5 w-5 text-amber-500" />
 							<div>
 								<label className="text-sm font-medium text-foreground">
@@ -522,15 +522,15 @@ export function AppSettings() {
 								</label>
 								<p className="text-xs text-foreground/70">{memoryValue[0]}Mi</p>
 							</div>
-						</div>
-						<Slider
+							</div>
+							<Slider
 							value={memoryValue}
 							onValueChange={setMemoryValue}
 							min={128}
 							max={8192}
 							step={128}
 							className="w-full"
-							disabled={app?.status === AppStatus.IDLE}
+							disabled={app?.status === ResourceStatus.UNAVAILABLE}
 						/>
 						<p className="text-xs text-foreground/50 mt-2">
 							Range: 128Mi - 8192Mi
@@ -540,11 +540,11 @@ export function AppSettings() {
 					<Button
 						onClick={handleScale}
 						disabled={
-							scaleAppMutation.isPending || app?.status === AppStatus.IDLE
+							scaleResourceMutation.isPending || app?.status === ResourceStatus.UNAVAILABLE
 						}
 						className="w-full"
 					>
-						{scaleAppMutation.isPending ? "Scaling..." : "Apply Scaling"}
+						{scaleResourceMutation.isPending ? "Scaling..." : "Apply Scaling"}
 					</Button>
 				</CardContent>
 			</Card>
@@ -560,10 +560,10 @@ export function AppSettings() {
 					<div className="space-y-4">
 						<div>
 							<h3 className="font-medium text-foreground mb-2">
-								Delete Application
+								Delete Resource
 							</h3>
 							<p className="text-sm text-foreground opacity-70 mb-4">
-								This action cannot be undone. All data associated with this app
+								This action cannot be undone. All data associated with this resource
 								will be permanently deleted.
 							</p>
 						</div>
@@ -573,7 +573,7 @@ export function AppSettings() {
 							variant="outline"
 							onClick={() => setShowDeleteConfirm(true)}
 						>
-							Delete Application
+							Delete Resource
 						</Button>
 					</div>
 				</CardContent>
@@ -587,14 +587,14 @@ export function AppSettings() {
 					</p>
 					<p className="text-xs text-red-600 dark:text-red-500 opacity-90">
 						Deleting <strong>{app.name}</strong> will permanently remove all
-						data associated with this application.
+						data associated with this resource.
 					</p>
 					<div className="flex gap-2 pt-2">
 						<Button
 							variant="secondary"
 							className="flex-1 text-sm"
 							onClick={() => setShowDeleteConfirm(false)}
-							disabled={deleteAppMutation.isPending}
+							disabled={deleteResourceMutation.isPending}
 						>
 							Cancel
 						</Button>
@@ -602,9 +602,9 @@ export function AppSettings() {
 							className="flex-1 text-sm text-red-700 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-950"
 							variant="outline"
 							onClick={handleDelete}
-							disabled={deleteAppMutation.isPending}
+							disabled={deleteResourceMutation.isPending}
 						>
-							{deleteAppMutation.isPending ? "Deleting..." : "Delete"}
+							{deleteResourceMutation.isPending ? "Deleting..." : "Delete"}
 						</Button>
 					</div>
 				</div>

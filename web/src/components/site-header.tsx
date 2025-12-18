@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import { listApps } from "@/gen/app/v1";
+import { listResources } from "@/gen/resource/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
@@ -16,7 +16,7 @@ export function SiteHeader() {
 	const workspaceFromUrl = searchParams.get("workspace");
 	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
 
-	const appIdMatch = location.pathname.match(/\/app\/(\d+)/);
+	const appIdMatch = location.pathname.match(/\/resource\/(\d+)/);
 	const activeAppId = appIdMatch ? BigInt(appIdMatch[1]) : null;
 
 	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
@@ -28,8 +28,8 @@ export function SiteHeader() {
 		{ enabled: !!firstOrgId }
 	);
 
-	const { data: appsRes } = useQuery(
-		listApps,
+	const { data: resourcesRes } = useQuery(
+		listResources,
 		{ workspaceId: activeWorkspaceId ?? 0n },
 		{ enabled: !!activeWorkspaceId }
 	);
@@ -38,7 +38,7 @@ export function SiteHeader() {
 	const workspaceName = workspacesRes?.workspaces?.find(
 		(ws) => ws.id === activeWorkspaceId
 	)?.name;
-	const appName = appsRes?.apps?.find((app) => app.id === activeAppId)?.name;
+	const appName = resourcesRes?.resources?.find((app) => app.id === activeAppId)?.name;
 
 	return (
 		<header className="bg-white dark:bg-[oklch(0.2553_0.0226_262.4337)] fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700 dark:text-white">
