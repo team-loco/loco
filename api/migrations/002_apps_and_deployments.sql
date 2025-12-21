@@ -25,8 +25,7 @@ CREATE TABLE clusters (
     health_status TEXT DEFAULT 'healthy' CHECK (health_status IN ('healthy', 'unhealthy', 'degraded')),
     last_health_check TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_clusters_region ON clusters (region);

@@ -54,7 +54,7 @@ jobs:
       contents: read
       packages: write
     with:
-      image_name: ${{ github.repository }}
+      image_name: ${{ github.repository }}-api
       context: .
       dockerfile: ./api/Dockerfile
 

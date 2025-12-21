@@ -25,7 +25,6 @@ gateway-helm:
   config:
     envoyGateway:
       logging:
-        level: null
         default: info
       telemetry:
         metrics:
