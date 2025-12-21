@@ -55,7 +55,7 @@ jobs:
       packages: write
     with:
       image_name: ${{ github.repository }}
-      context: ./api
+      context: .
       dockerfile: ./api/Dockerfile
 
   deploy:
