@@ -12,8 +12,8 @@ import (
 	"github.com/loco-team/loco/internal/client"
 	"github.com/loco-team/loco/internal/ui"
 	"github.com/loco-team/loco/shared"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
-	appv1connect "github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
+	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/spf13/cobra"
 )
 
@@ -56,23 +56,23 @@ func statusCmdFunc(cmd *cobra.Command) error {
 		return ErrLoginRequired
 	}
 
-	appClient := appv1connect.NewAppServiceClient(shared.NewHTTPClient(), host)
+	resourceClient := resourcev1connect.NewResourceServiceClient(shared.NewHTTPClient(), host)
 
 	slog.Debug("fetching app by name", "workspaceId", workspaceID, "app_name", appName)
 
-	getAppByNameReq := connect.NewRequest(&appv1.GetAppByNameRequest{
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
 		WorkspaceId: workspaceID,
 		Name:        appName,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := appClient.GetAppByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
 	if err != nil {
 		logRequestID(ctx, err, "get app by name")
 		return fmt.Errorf("failed to get app '%s': %w", appName, err)
 	}
 
-	appID := getAppByNameResp.Msg.App.Id
+	appID := getAppByNameResp.Msg.Resource.Id
 	slog.Debug("found app by name", "app_name", appName, "app_id", appID)
 
 	apiClient := client.NewClient(host, locoToken.Token)
@@ -105,11 +105,11 @@ func init() {
 }
 
 type statusModel struct {
-	response *appv1.GetAppStatusResponse
+	response *resourcev1.GetResourceStatusResponse
 	appName  string
 }
 
-func newStatusModel(appName string, resp *appv1.GetAppStatusResponse) statusModel {
+func newStatusModel(appName string, resp *resourcev1.GetResourceStatusResponse) statusModel {
 	return statusModel{response: resp, appName: appName}
 }
 

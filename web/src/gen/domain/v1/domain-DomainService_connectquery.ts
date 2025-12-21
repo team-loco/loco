@@ -6,55 +6,72 @@ import { DomainService } from "./domain_pb";
 
 /**
  * Platform Domain CRUD
+ * CreatePlatformDomain creates a new platform-provided domain.
  *
  * @generated from rpc loco.domain.v1.DomainService.CreatePlatformDomain
  */
 export const createPlatformDomain = DomainService.method.createPlatformDomain;
 
 /**
+ * GetPlatformDomain retrieves a platform domain by ID.
+ *
  * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
  */
 export const getPlatformDomain = DomainService.method.getPlatformDomain;
 
 /**
+ * GetPlatformDomainByName retrieves a platform domain by name.
+ *
  * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomainByName
  */
 export const getPlatformDomainByName = DomainService.method.getPlatformDomainByName;
 
 /**
+ * ListActivePlatformDomains lists all active platform domains.
+ *
  * @generated from rpc loco.domain.v1.DomainService.ListActivePlatformDomains
  */
 export const listActivePlatformDomains = DomainService.method.listActivePlatformDomains;
 
 /**
+ * DeactivatePlatformDomain deactivates a platform domain.
+ *
  * @generated from rpc loco.domain.v1.DomainService.DeactivatePlatformDomain
  */
 export const deactivatePlatformDomain = DomainService.method.deactivatePlatformDomain;
 
 /**
- * App Domain Management
+ * Resource Domain Management
+ * AddResourceDomain assigns a domain to a resource.
  *
- * @generated from rpc loco.domain.v1.DomainService.AddAppDomain
+ * @generated from rpc loco.domain.v1.DomainService.AddResourceDomain
  */
-export const addAppDomain = DomainService.method.addAppDomain;
+export const addResourceDomain = DomainService.method.addResourceDomain;
 
 /**
- * @generated from rpc loco.domain.v1.DomainService.UpdateAppDomain
+ * UpdateResourceDomain updates a resource's domain configuration.
+ *
+ * @generated from rpc loco.domain.v1.DomainService.UpdateResourceDomain
  */
-export const updateAppDomain = DomainService.method.updateAppDomain;
+export const updateResourceDomain = DomainService.method.updateResourceDomain;
 
 /**
- * @generated from rpc loco.domain.v1.DomainService.SetPrimaryAppDomain
+ * SetPrimaryResourceDomain sets the primary domain for a resource.
+ *
+ * @generated from rpc loco.domain.v1.DomainService.SetPrimaryResourceDomain
  */
-export const setPrimaryAppDomain = DomainService.method.setPrimaryAppDomain;
+export const setPrimaryResourceDomain = DomainService.method.setPrimaryResourceDomain;
 
 /**
- * @generated from rpc loco.domain.v1.DomainService.RemoveAppDomain
+ * RemoveResourceDomain removes a domain from a resource.
+ *
+ * @generated from rpc loco.domain.v1.DomainService.RemoveResourceDomain
  */
-export const removeAppDomain = DomainService.method.removeAppDomain;
+export const removeResourceDomain = DomainService.method.removeResourceDomain;
 
 /**
  * Domain Availability
+ * CheckDomainAvailability checks if a domain is available.
  *
  * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
  */
@@ -62,6 +79,7 @@ export const checkDomainAvailability = DomainService.method.checkDomainAvailabil
 
 /**
  * Queries
+ * ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
  *
  * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
  */

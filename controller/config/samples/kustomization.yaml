@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- loco_v1alpha1_locoresource.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

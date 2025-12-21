@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/lipgloss"
@@ -13,12 +14,13 @@ import (
 	"github.com/loco-team/loco/internal/ui"
 	"github.com/loco-team/loco/shared"
 	"github.com/loco-team/loco/shared/config"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
-	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
 	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
+	"github.com/loco-team/loco/shared/proto/domain/v1/domainv1connect"
 	registryv1 "github.com/loco-team/loco/shared/proto/registry/v1"
 	registryv1connect "github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
+	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/spf13/cobra"
 )
 
@@ -107,56 +109,172 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	apiClient := client.NewClient(host, locoToken.Token)
 
 	httpClient := shared.NewHTTPClient()
-	appClient := appv1connect.NewAppServiceClient(httpClient, host)
+	resourceClient := resourcev1connect.NewResourceServiceClient(httpClient, host)
 	registryClient := registryv1connect.NewRegistryServiceClient(httpClient, host)
+	domainClient := domainv1connect.NewDomainServiceClient(httpClient, host)
 
-	var appID int64
+	var resourceID int64
 
-	getAppByNameReq := connect.NewRequest(&appv1.GetAppByNameRequest{
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
 		WorkspaceId: workspaceID,
 		Name:        loadedCfg.Config.Metadata.Name,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := appClient.GetAppByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
 	if err != nil {
 		if connect.CodeOf(err) != connect.CodeNotFound {
 			logRequestID(ctx, err, "get app by name")
 			return fmt.Errorf("failed to get app '%s': %w", loadedCfg.Config.Metadata.Name, err)
 		}
 	} else {
-		appID = getAppByNameResp.Msg.App.Id
-		slog.Debug("found existing app", "app_id", appID, "name", getAppByNameResp.Msg.App.Name)
+		resourceID = getAppByNameResp.Msg.Resource.Id
+		slog.Debug("found existing app", "app_id", resourceID, "name", getAppByNameResp.Msg.Resource.Name)
 	}
 
-	if appID == 0 {
-		domainInput := &domainv1.DomainInput{
-			DomainSource: domainv1.DomainType_PLATFORM_PROVIDED,
-			Subdomain:    &loadedCfg.Config.Routing.Subdomain,
+	if resourceID == 0 {
+		slog.Info("no existing app found, need to create a new one.")
+
+		// Determine regions from config or use all available regions
+		var regions []string
+		if len(loadedCfg.Config.RegionConfig) > 0 {
+			for region := range loadedCfg.Config.RegionConfig {
+				regions = append(regions, region)
+			}
+			slog.Info("using regions from config", "regions", regions)
+		} else {
+			// If no regional config, prompt for at least one region
+			listRegionsReq := connect.NewRequest(&resourcev1.ListRegionsRequest{})
+			listRegionsReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
+
+			listRegionsResp, err := resourceClient.ListRegions(ctx, listRegionsReq)
+			if err != nil {
+				logRequestID(ctx, err, "list regions")
+				return fmt.Errorf("failed to fetch regions: %w", err)
+			}
+
+			if len(listRegionsResp.Msg.Regions) == 0 {
+				return errors.New("no available regions found")
+			}
+
+			// Create selection options
+			regionOptions := make([]ui.SelectOption, len(listRegionsResp.Msg.Regions))
+			for i, r := range listRegionsResp.Msg.Regions {
+				label := r.Region
+				if r.IsDefault {
+					label += " (default)"
+				}
+				regionOptions[i] = ui.SelectOption{
+					Label:       label,
+					Description: fmt.Sprintf("Health: %s", r.HealthStatus),
+					Value:       r.Region,
+				}
+			}
+
+			// Let user select region
+			selectedRegion, err := ui.SelectFromList("Select a region for your app", regionOptions)
+			if err != nil {
+				return fmt.Errorf("region selection cancelled: %w", err)
+			}
+
+			regions = []string{selectedRegion.(string)}
 		}
 
-		createAppReq := connect.NewRequest(&appv1.CreateAppRequest{
+		// Extract subdomain from hostname
+		subdomain := config.ExtractSubdomainFromHostname(loadedCfg.Config.DomainConfig.Hostname)
+		if subdomain == "" {
+			return errors.New("failed to extract subdomain from hostname")
+		}
+
+		// Determine domain input based on type
+		var domainInput *domainv1.DomainInput
+
+		if loadedCfg.Config.DomainConfig.Type == "custom" {
+			// Custom domain - use the full hostname as-is
+			domainInput = &domainv1.DomainInput{
+				DomainSource: domainv1.DomainType_USER_PROVIDED,
+				Domain:       &loadedCfg.Config.DomainConfig.Hostname,
+			}
+			slog.Info("using custom domain from config", "domain", loadedCfg.Config.DomainConfig.Hostname)
+		} else {
+			// Platform domain - need to resolve the base domain and use subdomain
+			listDomainsReq := connect.NewRequest(&domainv1.ListActivePlatformDomainsRequest{})
+			listDomainsReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
+
+			listDomainsResp, err := domainClient.ListActivePlatformDomains(ctx, listDomainsReq)
+			if err != nil {
+				logRequestID(ctx, err, "list platform domains")
+				return fmt.Errorf("failed to fetch platform domains: %w", err)
+			}
+
+			if len(listDomainsResp.Msg.PlatformDomains) == 0 {
+				return errors.New("no available platform domains found")
+			}
+
+			// Find matching platform domain by extracting base from hostname
+			// hostname format: "subdomain.base-domain.com" -> need to find "base-domain.com" in available domains
+			var foundDomainID int64
+			for _, pd := range listDomainsResp.Msg.PlatformDomains {
+				if strings.HasSuffix(loadedCfg.Config.DomainConfig.Hostname, pd.Domain) {
+					foundDomainID = pd.Id
+					slog.Info("matched platform domain", "hostname", loadedCfg.Config.DomainConfig.Hostname, "platform_domain", pd.Domain, "id", pd.Id)
+					break
+				}
+			}
+
+			if foundDomainID == 0 {
+				// If exact match not found, show interactive selection
+				options := make([]ui.SelectOption, len(listDomainsResp.Msg.PlatformDomains))
+				for i, domain := range listDomainsResp.Msg.PlatformDomains {
+					options[i] = ui.SelectOption{
+						Label:       domain.Domain,
+						Description: fmt.Sprintf("ID: %d", domain.Id),
+						Value:       domain.Id,
+					}
+				}
+
+				selectedDomainID, err := ui.SelectFromList("Select platform domain for your app", options)
+				if err != nil {
+					return fmt.Errorf("domain selection cancelled: %w", err)
+				}
+
+				foundDomainID = selectedDomainID.(int64)
+			}
+
+			domainInput = &domainv1.DomainInput{
+				DomainSource:     domainv1.DomainType_PLATFORM_PROVIDED,
+				Subdomain:        &subdomain,
+				PlatformDomainId: &foundDomainID,
+			}
+		}
+
+		if domainInput == nil {
+			return errors.New("failed to determine domain configuration")
+		}
+
+		createResourceReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
 			WorkspaceId: workspaceID,
 			Name:        loadedCfg.Config.Metadata.Name,
 			// todo: add to loco config. we need to grab app type from there.
-			Type:   appv1.AppType_SERVICE,
-			Domain: domainInput,
+			Type:    resourcev1.ResourceType_SERVICE,
+			Domain:  domainInput,
+			Regions: regions,
 		})
 
-		createAppReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
+		createResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-		createAppResp, err := appClient.CreateApp(ctx, createAppReq)
+		createResourceResp, err := resourceClient.CreateResource(ctx, createResourceReq)
 		if err != nil {
-			logRequestID(ctx, err, "create app")
-			return fmt.Errorf("failed to create app: %w", err)
+			logRequestID(ctx, err, "create resource")
+			return fmt.Errorf("failed to create resource: %w", err)
 		}
 
-		appID = createAppResp.Msg.App.Id
-		slog.Debug("created app", "app_id", appID)
+		resourceID = createResourceResp.Msg.Resource.Id
+		slog.Debug("created resource", "resource_id", resourceID)
 	}
 
 	imageBase := "registry.gitlab.com/locomotive-group/loco-ecr"
-	imageName := dockerClient.GenerateImageTag(imageBase, orgID, workspaceID, appID)
+	imageName := dockerClient.GenerateImageTag(imageBase, orgID, workspaceID, resourceID)
 
 	dockerClient.ImageName = imageName
 	slog.Debug("generated image name for build", "imageBase", imageBase, "imageName", imageName)
@@ -217,10 +335,33 @@ func deployCmdFunc(cmd *cobra.Command) error {
 		},
 	})
 
+	// Fetch resource to get primary region
+	getResourceReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+		ResourceId: resourceID,
+	})
+	getResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
+
+	getResourceResp, err := resourceClient.GetResource(ctx, getResourceReq)
+	if err != nil {
+		return fmt.Errorf("failed to fetch resource: %w", err)
+	}
+
+	var primaryRegion string
+	for _, r := range getResourceResp.Msg.Resource.Regions {
+		if r.IsPrimary {
+			primaryRegion = r.Region
+			break
+		}
+	}
+
+	if primaryRegion == "" && len(getResourceResp.Msg.Resource.Regions) > 0 {
+		primaryRegion = getResourceResp.Msg.Resource.Regions[0].Region
+	}
+
 	steps = append(steps, ui.Step{
 		Title: "Create revision and deployment",
 		Run: func(logf func(string)) error {
-			return deployApp(ctx, apiClient, appID, dockerClient.ImageName, loadedCfg.Config, locoToken.Token, logf, wait)
+			return deployApp(ctx, apiClient, resourceID, dockerClient.ImageName, loadedCfg.Config, locoToken.Token, logf, wait)
 		},
 	})
 
@@ -250,28 +391,49 @@ func deployCmdFunc(cmd *cobra.Command) error {
 
 func deployApp(ctx context.Context,
 	apiClient *client.Client,
-	appID int64,
+	resourceID int64,
 	imageName string,
 	cfg *config.AppConfig,
 	token string,
 	logf func(string),
 	wait bool,
 ) error {
-	replicas := cfg.Resources.Replicas.Min
-
-	ports := []*deploymentv1.Port{
-		{
-			Port:     int32(cfg.Routing.Port),
-			Protocol: "TCP",
-		},
+	// Get resources from primary region (first region in config)
+	var primaryResources *config.Resources
+	for _, resources := range cfg.RegionConfig {
+		primaryResources = &resources
+		break
 	}
 
+	if primaryResources == nil {
+		return errors.New("no regions configured for deployment")
+	}
+
+	replicas := primaryResources.ReplicasMin
+
 	createDeploymentReq := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{
-		AppId:    appID,
-		Image:    imageName,
-		Replicas: &replicas,
-		Env:      cfg.Env.Variables,
-		Ports:    ports,
+		ResourceId: resourceID,
+		Spec: &deploymentv1.DeploymentSpec{
+			Image:           &imageName,
+			InitialReplicas: &replicas,
+			Env:             cfg.Env.Variables,
+			Cpu:             &primaryResources.CPU,
+			Memory:          &primaryResources.Memory,
+			DockerfilePath:  &cfg.Build.DockerfilePath,
+			BuildType:       &cfg.Build.Type,
+			HealthCheck: &deploymentv1.HealthCheckConfig{
+				Path:               &cfg.Health.Path,
+				Interval:           &cfg.Health.Interval,
+				Timeout:            &cfg.Health.Timeout,
+				FailThreshold:      &cfg.Health.FailThreshold,
+				StartupGracePeriod: &cfg.Health.StartupGracePeriod,
+			},
+			Metrics: &deploymentv1.DeploymentMetricsConfig{
+				Enabled: &cfg.Obs.Metrics.Enabled,
+				Path:    &cfg.Obs.Metrics.Path,
+				Port:    &cfg.Obs.Metrics.Port,
+			},
+		},
 	})
 	createDeploymentReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
@@ -281,7 +443,7 @@ func deployApp(ctx context.Context,
 		return err
 	}
 
-	deploymentID := deploymentResp.Msg.Deployment.Id
+	deploymentID := deploymentResp.Msg.DeploymentId
 	logf(fmt.Sprintf("Created deployment with version: %d", deploymentID))
 
 	if wait {

@@ -2,8 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { scaleApp } from "@/gen/app/v1";
-import type { DeploymentStatus } from "@/gen/app/v1/app_pb";
+import { scaleResource } from "@/gen/resource/v1";
+import type { DeploymentStatus } from "@/gen/resource/v1/resource_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { getDeploymentPhaseLabel } from "@/lib/app-status";
@@ -26,7 +26,7 @@ export function DeploymentStatusCard({
 		status?.resources?.limits?.memory || "512Mi"
 	);
 
-	const scaleAppMutation = useMutation(scaleApp);
+	const scaleResourceMutation = useMutation(scaleResource);
 
 	const hasChanges =
 		replicas !== status?.replicas ||
@@ -35,15 +35,15 @@ export function DeploymentStatusCard({
 
 	const handleApply = async () => {
 		try {
-			await scaleAppMutation.mutateAsync({
-				appId,
+			await scaleResourceMutation.mutateAsync({
+				resourceId: appId,
 				replicas,
 				cpu,
 				memory,
 			});
 			setIsEditing(false);
 		} catch (error) {
-			console.error("Failed to scale app:", error);
+			console.error("Failed to scale resource:", error);
 		}
 	};
 
@@ -204,10 +204,10 @@ export function DeploymentStatusCard({
 							</Button>
 							<Button
 								onClick={handleApply}
-								disabled={!hasChanges || scaleAppMutation.isPending}
+								disabled={!hasChanges || scaleResourceMutation.isPending}
 								className="flex-1"
 							>
-								{scaleAppMutation.isPending ? "Applying..." : "Apply"}
+								{scaleResourceMutation.isPending ? "Applying..." : "Apply"}
 							</Button>
 						</div>
 					</div>

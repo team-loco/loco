@@ -6,6 +6,7 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/domain/v1;domainv1";
 
+// DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {
   PLATFORM_PROVIDED = 0;
   USER_PROVIDED = 1;
@@ -13,6 +14,7 @@ enum DomainType {
 
 // --- Messages ---
 
+// PlatformDomain represents a platform-provided domain.
 message PlatformDomain {
   int64 id = 1;
   string domain = 2;
@@ -21,16 +23,18 @@ message PlatformDomain {
   google.protobuf.Timestamp updated_at = 5;
 }
 
+// DomainInput specifies domain configuration for a resource.
 message DomainInput {
   DomainType domain_source = 1;
-  optional string subdomain = 2;         // for PLATFORM_PROVIDED: "myapp"
+  optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
   optional int64 platform_domain_id = 3; // for PLATFORM_PROVIDED: id of the platform domain
-  optional string domain = 4;            // for USER_PROVIDED: full custom domain
+  optional string domain = 4; // for USER_PROVIDED: full custom domain
 }
 
-message AppDomain {
+// ResourceDomain represents a domain assigned to a resource.
+message ResourceDomain {
   int64 id = 1;
-  int64 app_id = 2;
+  int64 resource_id = 2;
   string domain = 3;
   DomainType domain_source = 4;
   optional string subdomain_label = 5;
@@ -42,130 +46,165 @@ message AppDomain {
 
 // --- Service ---
 
+// DomainService manages domains for resources.
 service DomainService {
   // Platform Domain CRUD
+  // CreatePlatformDomain creates a new platform-provided domain.
   rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (CreatePlatformDomainResponse);
+  // GetPlatformDomain retrieves a platform domain by ID.
   rpc GetPlatformDomain(GetPlatformDomainRequest) returns (GetPlatformDomainResponse);
+  // GetPlatformDomainByName retrieves a platform domain by name.
   rpc GetPlatformDomainByName(GetPlatformDomainByNameRequest) returns (GetPlatformDomainByNameResponse);
+  // ListActivePlatformDomains lists all active platform domains.
   rpc ListActivePlatformDomains(ListActivePlatformDomainsRequest) returns (ListActivePlatformDomainsResponse);
+  // DeactivatePlatformDomain deactivates a platform domain.
   rpc DeactivatePlatformDomain(DeactivatePlatformDomainRequest) returns (DeactivatePlatformDomainResponse);
 
-  // App Domain Management
-  rpc AddAppDomain(AddAppDomainRequest) returns (AddAppDomainResponse);
-  rpc UpdateAppDomain(UpdateAppDomainRequest) returns (UpdateAppDomainResponse);
-  rpc SetPrimaryAppDomain(SetPrimaryAppDomainRequest) returns (SetPrimaryAppDomainResponse);
-  rpc RemoveAppDomain(RemoveAppDomainRequest) returns (RemoveAppDomainResponse);
+  // Resource Domain Management
+  // AddResourceDomain assigns a domain to a resource.
+  rpc AddResourceDomain(AddResourceDomainRequest) returns (AddResourceDomainResponse);
+  // UpdateResourceDomain updates a resource's domain configuration.
+  rpc UpdateResourceDomain(UpdateResourceDomainRequest) returns (UpdateResourceDomainResponse);
+  // SetPrimaryResourceDomain sets the primary domain for a resource.
+  rpc SetPrimaryResourceDomain(SetPrimaryResourceDomainRequest) returns (SetPrimaryResourceDomainResponse);
+  // RemoveResourceDomain removes a domain from a resource.
+  rpc RemoveResourceDomain(RemoveResourceDomainRequest) returns (RemoveResourceDomainResponse);
 
   // Domain Availability
+  // CheckDomainAvailability checks if a domain is available.
   rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
 
   // Queries
+  // ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
   rpc ListAllLocoOwnedDomains(ListAllLocoOwnedDomainsRequest) returns (ListAllLocoOwnedDomainsResponse);
 }
 
 // --- Platform Domain Requests/Responses ---
 
+// CreatePlatformDomainRequest is the request to create a platform domain.
 message CreatePlatformDomainRequest {
   string domain = 1;
   bool is_active = 2;
 }
 
+// CreatePlatformDomainResponse is the response from creating a platform domain.
 message CreatePlatformDomainResponse {
   PlatformDomain platform_domain = 1;
 }
 
+// GetPlatformDomainRequest is the request to retrieve a platform domain.
 message GetPlatformDomainRequest {
   int64 id = 1;
 }
 
+// GetPlatformDomainResponse is the response containing platform domain information.
 message GetPlatformDomainResponse {
   PlatformDomain platform_domain = 1;
 }
 
+// GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
 message GetPlatformDomainByNameRequest {
   string domain = 1;
 }
 
+// GetPlatformDomainByNameResponse is the response containing the platform domain.
 message GetPlatformDomainByNameResponse {
   PlatformDomain platform_domain = 1;
 }
 
+// ListActivePlatformDomainsRequest is the request to list active platform domains.
 message ListActivePlatformDomainsRequest {}
 
+// ListActivePlatformDomainsResponse contains the list of active platform domains.
 message ListActivePlatformDomainsResponse {
   repeated PlatformDomain platform_domains = 1;
 }
 
+// DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
 message DeactivatePlatformDomainRequest {
   int64 id = 1;
 }
 
+// DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
 message DeactivatePlatformDomainResponse {
   PlatformDomain platform_domain = 1;
 }
 
 // --- Domain Availability ---
 
+// CheckDomainAvailabilityRequest is the request to check domain availability.
 message CheckDomainAvailabilityRequest {
   string domain = 1;
 }
 
+// CheckDomainAvailabilityResponse indicates if a domain is available.
 message CheckDomainAvailabilityResponse {
   bool is_available = 1;
 }
 
 // --- List Loco Owned Domains ---
 
+// LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
 message LocoOwnedDomain {
   int64 id = 1;
   string domain = 2;
-  string app_name = 3;
-  int64 app_id = 4;
+  string resource_name = 3;
+  int64 resource_id = 4;
   string platform_domain = 5;
 }
 
+// ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
 message ListAllLocoOwnedDomainsRequest {}
 
+// ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
 message ListAllLocoOwnedDomainsResponse {
   repeated LocoOwnedDomain domains = 1;
 }
 
-// --- App Domain Management ---
+// --- Resource Domain Management ---
 
-message AddAppDomainRequest {
-  int64 app_id = 1;
+// AddResourceDomainRequest is the request to add a domain to a resource.
+message AddResourceDomainRequest {
+  int64 resource_id = 1;
   DomainInput domain = 2;
 }
 
-message AddAppDomainResponse {
-  AppDomain domain = 1;
+// AddResourceDomainResponse is the response from adding a domain to a resource.
+message AddResourceDomainResponse {
+  ResourceDomain domain = 1;
   string message = 2;
 }
 
-message UpdateAppDomainRequest {
+// UpdateResourceDomainRequest is the request to update a resource's domain.
+message UpdateResourceDomainRequest {
   int64 domain_id = 1;
   string domain = 2;
 }
 
-message UpdateAppDomainResponse {
-  AppDomain domain = 1;
+// UpdateResourceDomainResponse is the response from updating a resource's domain.
+message UpdateResourceDomainResponse {
+  ResourceDomain domain = 1;
   string message = 2;
 }
 
-message SetPrimaryAppDomainRequest {
-  int64 app_id = 1;
+// SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
+message SetPrimaryResourceDomainRequest {
+  int64 resource_id = 1;
   int64 domain_id = 2;
 }
 
-message SetPrimaryAppDomainResponse {
-  AppDomain domain = 1;
+// SetPrimaryResourceDomainResponse is the response from setting the primary domain.
+message SetPrimaryResourceDomainResponse {
+  ResourceDomain domain = 1;
   string message = 2;
 }
 
-message RemoveAppDomainRequest {
+// RemoveResourceDomainRequest is the request to remove a domain from a resource.
+message RemoveResourceDomainRequest {
   int64 domain_id = 1;
 }
 
-message RemoveAppDomainResponse {
+// RemoveResourceDomainResponse is the response from removing a domain.
+message RemoveResourceDomainResponse {
   string message = 1;
 }

@@ -7,12 +7,16 @@ import { GitlabTokenRequest, GitlabTokenResponse } from "./registry_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * RegistryService manages container registry access.
+ *
  * @generated from service loco.registry.v1.RegistryService
  */
 export const RegistryService = {
   typeName: "loco.registry.v1.RegistryService",
   methods: {
     /**
+     * GitlabToken retrieves GitLab registry credentials.
+     *
      * @generated from rpc loco.registry.v1.RegistryService.GitlabToken
      */
     gitlabToken: {

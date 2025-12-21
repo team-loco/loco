@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import type { App } from "@/gen/app/v1/app_pb";
-import type { AppDomain } from "@/gen/domain/v1/domain_pb";
+import type { Resource } from "@/gen/resource/v1/resource_pb";
+import type { ResourceDomain } from "@/gen/domain/v1/domain_pb";
 import { getStatusLabel } from "@/lib/app-status";
 import { ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -8,12 +8,12 @@ import { StatusBadge } from "./StatusBadge";
 import { AppMenu } from "./dashboard/AppMenu";
 
 interface AppCardProps {
-	app: App;
+	app: Resource;
 	onAppDeleted?: () => void;
 	workspaceId?: bigint;
 }
 
-function getPrimaryDomain(domains?: AppDomain[]): AppDomain | null {
+function getPrimaryDomain(domains?: ResourceDomain[]): ResourceDomain | null {
 	if (!domains || domains.length === 0) return null;
 	return domains.find((d) => d.isPrimary) || domains[0];
 }
@@ -22,7 +22,7 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 	const navigate = useNavigate();
 
 	const handleCardClick = () => {
-		navigate(`/app/${app.id}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
+		navigate(`/resource/${app.id}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
 	};
 
 	// Format app type for display

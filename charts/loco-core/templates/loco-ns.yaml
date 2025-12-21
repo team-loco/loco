@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: loco-system
+    labels:
+        app.loco.io/name: loco
+        expose-via-gw: "true"

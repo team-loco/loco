@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 
-import { listApps } from "@/gen/app/v1";
+import { listResources } from "@/gen/resource/v1";
 import { listDeployments } from "@/gen/deployment/v1";
 import { listMembers } from "@/gen/workspace/v1";
 import {
@@ -30,13 +30,13 @@ interface WorkspaceDashboardMetricsProps {
 export function WorkspaceDashboardMetrics({
 	workspaceId,
 }: WorkspaceDashboardMetricsProps) {
-	// Fetch apps
-	const { data: appsRes } = useQuery(
-		listApps,
+	// Fetch resources
+	const { data: resourcesRes } = useQuery(
+		listResources,
 		{ workspaceId },
 		{ enabled: !!workspaceId }
 	);
-	const apps = useMemo(() => appsRes?.apps ?? [], [appsRes?.apps]);
+	const apps = useMemo(() => resourcesRes?.resources ?? [], [resourcesRes?.resources]);
 
 	// Fetch members
 	const { data: membersRes } = useQuery(

@@ -1,49 +1,114 @@
-import { ChevronsUpDown, Home } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
+import {
+	Activity,
+	BookOpen,
+	Calendar,
+	CheckCircle,
+	Home,
+	Key,
+	Package,
+	TrendingUp,
+	Users,
+	Zap,
+} from "lucide-react";
+import * as React from "react";
 
 import { NavUser } from "@/components/nav-user";
-import { NavWorkspaces } from "@/components/nav-workspaces";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 import {
 	Sidebar,
 	SidebarContent,
-	SidebarFooter,
 	SidebarGroup,
+	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarMenuSub,
+	SidebarMenuSubButton,
+	SidebarMenuSubItem,
+	SidebarRail,
+	useSidebar,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useHeader } from "@/context/HeaderContext";
-import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
-import { getCurrentUser, logout } from "@/gen/user/v1";
+import { getCurrentUser } from "@/gen/user/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { toast } from "sonner";
+import { useQuery } from "@connectrpc/connect-query";
+import { useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "./ThemeToggle";
 
-export function AppSidebar() {
+const data = {
+	navMain: [
+		{
+			title: "Dashboard",
+			url: "/dashboard",
+			icon: Home,
+			items: [],
+		},
+		{
+			title: "Apps",
+			url: "/apps",
+			icon: Package,
+			items: [],
+		},
+		{
+			title: "Observability",
+			url: "/observability",
+			icon: Activity,
+			items: [],
+		},
+		{
+			title: "Events",
+			url: "/events",
+			icon: Calendar,
+			items: [],
+		},
+		{
+			title: "Usage",
+			url: "/usage",
+			icon: TrendingUp,
+			items: [],
+		},
+		{
+			title: "Tokens",
+			url: "/tokens",
+			icon: Key,
+			items: [],
+		},
+		{
+			title: "Team",
+			url: "/team",
+			icon: Users,
+			items: [],
+		},
+		{
+			section: "Resources",
+			items: [
+				{
+					title: "Docs",
+					url: "/docs",
+					icon: BookOpen,
+				},
+				{
+					title: "Packages",
+					url: "/packages",
+					icon: Package,
+					badge: "Coming Soon",
+				},
+				{
+					title: "Status Page",
+					url: "#",
+					icon: CheckCircle,
+					badge: "Coming Soon",
+				},
+			],
+		},
+	],
+};
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { setHeader } = useHeader();
-	const [searchParams] = useSearchParams();
-	const workspaceFromUrl = searchParams.get("workspace");
-	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
-
-	const appIdMatch = location.pathname.match(/\/app\/(\d+)/);
-	const activeAppId = appIdMatch ? BigInt(appIdMatch[1]) : null;
-	const { mutate: logoutMutation } = useMutation(logout);
-	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
-
+	const { toggleSidebar } = useSidebar();
 	const { data: userRes } = useQuery(getCurrentUser, {});
 	const user = userRes?.user ?? null;
 
@@ -56,185 +121,152 @@ export function AppSidebar() {
 		firstOrgId ? { orgId: firstOrgId } : undefined,
 		{ enabled: !!firstOrgId }
 	);
-
 	const workspaces = workspacesRes?.workspaces ?? [];
 
-	const appsQuery = useQuery(
-		listApps,
-		{ workspaceId: activeWorkspaceId ?? 0n },
-		{ enabled: !!activeWorkspaceId }
-	);
+	const activeWorkspaceId = new URLSearchParams(location.search).get(
+		"workspace"
+	)
+		? BigInt(new URLSearchParams(location.search).get("workspace") || "0")
+		: null;
 
-	useEffect(() => {
-		const appName = appsQuery.data?.apps?.find(
-			(app) => app.id === activeAppId
-		)?.name;
-		const workspaceName = workspaces.find(
-			(ws) => ws.id === activeWorkspaceId
-		)?.name;
-
-		if (activeAppId && appName && workspaceName) {
-			setHeader(
-				<div className="flex flex-col">
-					<h1 className="text-2xl font-mono">
-						workspaces::{workspaceName}::app::{appName}
-					</h1>
-				</div>
-			);
-		} else if (activeWorkspaceId && workspaceName) {
-			setHeader(
-				<div className="flex flex-col">
-					<h1 className="text-2xl font-mono">workspaces::{workspaceName}</h1>
-				</div>
-			);
-		} else {
-			setHeader(
-				<div className="flex flex-col">
-					<h1 className="text-2xl font-mono">Dashboard</h1>
-				</div>
-			);
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [
-		activeAppId,
-		activeWorkspaceId,
-		appsQuery.data,
-		setHeader,
-		workspacesRes,
-	]);
-
-	const handleLogout = () => {
-		logoutMutation(
-			{},
-			{
-				onSuccess: () => {
-					toast.success("Logged out successfully");
-					navigate("/login");
-				},
-				onError: () => {
-					toast.error("Failed to logout");
-				},
-			}
-		);
+	const isActive = (url: string) => {
+		if (url === "#") return false;
+		return location.pathname === url || location.pathname.startsWith(url + "/");
 	};
 
-	const activeOrg = orgs.find(
-		(org) => org.id === (selectedOrgId || orgs[0]?.id)
-	);
+	React.useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+			const isToggleKey = e.key === "b" || e.key === "B";
+			const isCorrectModifier = isMac ? e.metaKey : e.ctrlKey;
 
-	const workspacesData = workspaces.map((ws) => ({
-		id: ws.id,
-		name: ws.name,
-		isActive: activeWorkspaceId === ws.id && !activeAppId,
-		hasApps: true,
-		apps:
-			activeWorkspaceId === ws.id && appsQuery.data?.apps
-				? appsQuery.data.apps.map((app) => ({
-						id: app.id,
-						name: app.name,
-				  }))
-				: undefined,
-	}));
+			if (isToggleKey && isCorrectModifier && !e.shiftKey && !e.altKey) {
+				e.preventDefault();
+				toggleSidebar();
+			}
+		};
 
-	const navigationItems = [
-		{
-			title: "Dashboard",
-			url: "/dashboard",
-			icon: Home,
-			isActive: !activeAppId && !activeWorkspaceId,
-		},
-	];
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [toggleSidebar]);
 
 	return (
-		<Sidebar>
-			<SidebarHeader className="pt-16">
+		<Sidebar {...props}>
+			<SidebarHeader className="pt-14">
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<DropdownMenu>
-							<DropdownMenuTrigger asChild>
-								<SidebarMenuButton
-									size="lg"
-									className="bg-sidebar-accent text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-								>
-									<div className="flex items-center gap-2 flex-1">
-										<span className="font-heading truncate">
-											{activeOrg?.name}
-										</span>
-									</div>
-									<ChevronsUpDown className="ml-auto h-4 w-4" />
-								</SidebarMenuButton>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent
-								className="w-[--radix-dropdown-menu-trigger-width] min-w-56"
-								align="start"
-								side="right"
-								sideOffset={4}
+						<SidebarMenuButton
+							size="lg"
+							asChild
+							className="hover:bg-transparent active:bg-transparent focus-visible:bg-transparent data-[state=open]:bg-transparent"
+						>
+							<a
+								href="/dashboard"
+								onClick={(e) => e.preventDefault()}
+								className="cursor-default"
 							>
-								<DropdownMenuLabel className="text-sm font-heading">
-									Organizations
-								</DropdownMenuLabel>
-								{orgs.map((org) => (
-									<DropdownMenuItem
-										key={org.id.toString()}
-										onClick={() => setSelectedOrgId(org.id)}
-										className="gap-2"
-										isActive={org.id === (selectedOrgId || orgs[0]?.id)}
-									>
-										<span>{org.name}</span>
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
+								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+									<Zap className="size-4" />
+								</div>
+								<div className="flex flex-col gap-0.5 leading-none">
+									<span className="font-medium">Loco</span>
+									<span className="text-xs">Deploy & Scale</span>
+								</div>
+							</a>
+						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarHeader>
 
-			<SidebarContent className="space-y-0">
-				{/* Dashboard */}
-				<SidebarGroup>
-					<SidebarMenu>
-						{navigationItems.map((item) => (
-							<SidebarMenuItem key={item.title}>
-								<SidebarMenuButton
-									onClick={() => navigate(item.url)}
-									isActive={item.isActive}
-									tooltip={item.title}
-								>
-									<item.icon className="h-4 w-4" />
-									<span>{item.title}</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						))}
-					</SidebarMenu>
-				</SidebarGroup>
+			<SidebarContent>
+				{data.navMain.map((item, idx) => {
+					if ("section" in item) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const sectionItem = item as any;
+						return (
+							<SidebarGroup key={sectionItem.section}>
+								<SidebarGroupLabel>{sectionItem.section}</SidebarGroupLabel>
+								<SidebarMenu>
+									{sectionItem.items.map(
+										(subItem: (typeof sectionItem.items)[0]) => (
+											<SidebarMenuItem key={subItem.title}>
+												<SidebarMenuButton
+													onClick={() => {
+														// eslint-disable-next-line @typescript-eslint/no-explicit-any
+														if (!(subItem as any).badge) {
+															navigate(subItem.url);
+														}
+													}}
+													isActive={isActive(subItem.url)}
+													className={`flex items-center justify-between ${
+														// eslint-disable-next-line @typescript-eslint/no-explicit-any
+														(subItem as any).badge
+															? "cursor-not-allowed opacity-60 hover:bg-transparent"
+															: ""
+													}`}
+												>
+													<div className="flex items-center gap-2">
+														<subItem.icon className="size-4" />
+														<span>{subItem.title}</span>
+													</div>
+													{/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+													{(subItem as any).badge && (
+														<Badge className="bg-yellow-500 border-0 text-xs font-mono">
+															{(subItem as unknown).badge}
+														</Badge>
+													)}
+												</SidebarMenuButton>
+											</SidebarMenuItem>
+										)
+									)}
+								</SidebarMenu>
+							</SidebarGroup>
+						);
+					}
 
-				{/* Workspaces */}
-				{workspaces.length === 0 ? (
-					<SidebarGroup>
-						<Skeleton className="h-8 w-full rounded-lg" />
-						<Skeleton className="h-8 w-full rounded-lg" />
-					</SidebarGroup>
-				) : (
-					<NavWorkspaces
-						workspaces={workspacesData}
-						activeAppId={activeAppId}
-						onWorkspaceClick={(workspaceId) =>
-							navigate(`/dashboard?workspace=${workspaceId}`)
-						}
-						onAppClick={(appId, workspaceId) =>
-							navigate(`/app/${appId}?workspace=${workspaceId}`)
-						}
-						onCreateApp={(workspaceId) =>
-							navigate("/create-app", {
-								state: { workspaceId },
-							})
-						}
-					/>
-				)}
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const navItem = item as any;
+					return (
+						<SidebarGroup key={navItem.title || idx}>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										onClick={() => navigate(navItem.url)}
+										isActive={isActive(navItem.url)}
+										className={
+											(navItem.items ?? []).length ? "" : "font-medium"
+										}
+										tooltip={navItem.title}
+									>
+										<navItem.icon className="size-4" />
+										<span>{navItem.title}</span>
+									</SidebarMenuButton>
+
+									{(navItem.items ?? []).length > 0 ? (
+										<SidebarMenuSub>
+											{navItem.items?.map(
+												(navSubItem: (typeof navItem.items)[0]) => (
+													<SidebarMenuSubItem key={navSubItem.title}>
+														<SidebarMenuSubButton
+															onClick={() => navigate(navSubItem.url)}
+															isActive={isActive(navSubItem.url)}
+														>
+															<span>{navSubItem.title}</span>
+														</SidebarMenuSubButton>
+													</SidebarMenuSubItem>
+												)
+											)}
+										</SidebarMenuSub>
+									) : null}
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroup>
+					);
+				})}
 			</SidebarContent>
 
-			<SidebarFooter className="border-t flex flex-col gap-0">
-				<div className="border-b pb-2 mb-2">
+			<SidebarGroup className="mt-auto border-t ">
+				<div className="border-b pb-1 pt-1">
 					<ThemeToggle />
 				</div>
 				<NavUser
@@ -243,10 +275,15 @@ export function AppSidebar() {
 						email: user?.email || "",
 						avatar: user?.avatarUrl || "",
 					}}
-					onSettings={() => navigate("/profile")}
-					onLogout={handleLogout}
+					workspaces={workspaces.map((ws) => ({
+						id: ws.id,
+						name: ws.name,
+					}))}
+					activeWorkspaceId={activeWorkspaceId}
 				/>
-			</SidebarFooter>
+			</SidebarGroup>
+
+			<SidebarRail />
 		</Sidebar>
 	);
 }

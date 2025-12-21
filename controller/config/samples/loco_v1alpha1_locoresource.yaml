@@ -1,0 +1,9 @@
+apiVersion: loco.loco.deploy-app.com/v1alpha1
+kind: LocoResource
+metadata:
+  labels:
+    app.kubernetes.io/name: controller
+    app.kubernetes.io/managed-by: kustomize
+  name: locoresource-sample
+spec:
+  # TODO(user): Add fields here

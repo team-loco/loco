@@ -49,9 +49,13 @@ const (
 
 // OAuthServiceClient is a client for the loco.oauth.v1.OAuthService service.
 type OAuthServiceClient interface {
+	// GithubOAuthDetails retrieves GitHub OAuth configuration.
 	GithubOAuthDetails(context.Context, *connect.Request[v1.GithubOAuthDetailsRequest]) (*connect.Response[v1.GithubOAuthDetailsResponse], error)
+	// ExchangeGithubToken exchanges a GitHub token for a Loco token.
 	ExchangeGithubToken(context.Context, *connect.Request[v1.ExchangeGithubTokenRequest]) (*connect.Response[v1.ExchangeGithubTokenResponse], error)
+	// GetGithubAuthorizationURL generates a GitHub authorization URL.
 	GetGithubAuthorizationURL(context.Context, *connect.Request[v1.GetGithubAuthorizationURLRequest]) (*connect.Response[v1.GetGithubAuthorizationURLResponse], error)
+	// ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
 	ExchangeGithubCode(context.Context, *connect.Request[v1.ExchangeGithubCodeRequest]) (*connect.Response[v1.ExchangeGithubCodeResponse], error)
 }
 
@@ -123,9 +127,13 @@ func (c *oAuthServiceClient) ExchangeGithubCode(ctx context.Context, req *connec
 
 // OAuthServiceHandler is an implementation of the loco.oauth.v1.OAuthService service.
 type OAuthServiceHandler interface {
+	// GithubOAuthDetails retrieves GitHub OAuth configuration.
 	GithubOAuthDetails(context.Context, *connect.Request[v1.GithubOAuthDetailsRequest]) (*connect.Response[v1.GithubOAuthDetailsResponse], error)
+	// ExchangeGithubToken exchanges a GitHub token for a Loco token.
 	ExchangeGithubToken(context.Context, *connect.Request[v1.ExchangeGithubTokenRequest]) (*connect.Response[v1.ExchangeGithubTokenResponse], error)
+	// GetGithubAuthorizationURL generates a GitHub authorization URL.
 	GetGithubAuthorizationURL(context.Context, *connect.Request[v1.GetGithubAuthorizationURLRequest]) (*connect.Response[v1.GetGithubAuthorizationURLResponse], error)
+	// ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
 	ExchangeGithubCode(context.Context, *connect.Request[v1.ExchangeGithubCodeRequest]) (*connect.Response[v1.ExchangeGithubCodeResponse], error)
 }
 

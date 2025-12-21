@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/loco-team/loco/internal/client"
 	"github.com/loco-team/loco/internal/ui"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	"github.com/spf13/cobra"
 )
 
@@ -101,7 +101,7 @@ func streamLogsAsJson(cmd *cobra.Command) error {
 		followPtr = &follow
 	}
 
-	err = apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *appv1.LogEntry) error {
+	err = apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *resourcev1.LogEntry) error {
 		jsonLog, err := json.Marshal(logEntry)
 		if err != nil {
 			slog.Debug("failed to marshal log entry to json", "error", err)
@@ -193,7 +193,7 @@ func streamLogsInteractive(cmd *cobra.Command) error {
 		Bold(false)
 	t.SetStyles(s)
 
-	logsChan := make(chan *appv1.LogEntry)
+	logsChan := make(chan *resourcev1.LogEntry)
 	errChan := make(chan error)
 
 	var linesPtr *int32
@@ -207,7 +207,7 @@ func streamLogsInteractive(cmd *cobra.Command) error {
 	}
 
 	go func() {
-		err := apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *appv1.LogEntry) error {
+		err := apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *resourcev1.LogEntry) error {
 			logsChan <- logEntry
 			return nil
 		})
@@ -250,7 +250,7 @@ type logModel struct {
 	logs      []table.Row
 	err       error
 	ctx       context.Context
-	logsChan  chan *appv1.LogEntry
+	logsChan  chan *resourcev1.LogEntry
 	errChan   chan error
 	table     table.Model
 	baseStyle lipgloss.Style

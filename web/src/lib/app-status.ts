@@ -1,18 +1,16 @@
-import { AppStatus, DeploymentPhase } from "@/gen/app/v1/app_pb";
+import { ResourceStatus, DeploymentPhase } from "@/gen/resource/v1/resource_pb";
 
 export function getStatusLabel(status?: number): string {
 	if (status === undefined || status === null) return "pending";
 	switch (status) {
-		case AppStatus.AVAILABLE:
+		case ResourceStatus.AVAILABLE:
 			return "running";
-		case AppStatus.PROGRESSING:
+		case ResourceStatus.PROGRESSING:
 			return "deploying";
-		case AppStatus.DEGRADED:
+		case ResourceStatus.DEGRADED:
 			return "degraded";
-		case AppStatus.UNAVAILABLE:
+		case ResourceStatus.UNAVAILABLE:
 			return "unavailable";
-		case AppStatus.IDLE:
-			return "idle";
 		default:
 			return "pending";
 	}

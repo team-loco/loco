@@ -19,7 +19,7 @@ import (
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/service"
 	"github.com/loco-team/loco/shared"
-	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
+	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
 	"github.com/loco-team/loco/shared/proto/domain/v1/domainv1connect"
 	"github.com/loco-team/loco/shared/proto/oauth/v1/oauthv1connect"
@@ -123,7 +123,7 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries)
 	orgServiceHandler := service.NewOrgServer(pool, queries)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
-	appServiceHandler := service.NewAppServer(pool, queries, kubeClient)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, kubeClient)
 	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, kubeClient)
 	domainServiceHandler := service.NewDomainServer(pool, queries)
 	registryServiceHandler := service.NewRegistryServer(
@@ -141,7 +141,7 @@ func main() {
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, interceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, interceptors)
 	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(workspaceServiceHandler, interceptors)
-	appPath, appHandler := appv1connect.NewAppServiceHandler(appServiceHandler, interceptors)
+	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(resourceServiceHandler, interceptors)
 	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(deploymentServiceHandler, interceptors)
 	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, interceptors)
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
@@ -181,12 +181,12 @@ func main() {
 		workspacev1connect.WorkspaceServiceRemoveMemberProcedure,
 		workspacev1connect.WorkspaceServiceListMembersProcedure,
 
-		// app service
-		appv1connect.AppServiceCreateAppProcedure,
-		appv1connect.AppServiceGetAppProcedure,
-		appv1connect.AppServiceListAppsProcedure,
-		appv1connect.AppServiceUpdateAppProcedure,
-		appv1connect.AppServiceDeleteAppProcedure,
+		// resource service
+		resourcev1connect.ResourceServiceCreateResourceProcedure,
+		resourcev1connect.ResourceServiceGetResourceProcedure,
+		resourcev1connect.ResourceServiceListResourcesProcedure,
+		resourcev1connect.ResourceServiceUpdateResourceProcedure,
+		resourcev1connect.ResourceServiceDeleteResourceProcedure,
 
 		// deployment service
 		deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
@@ -215,7 +215,7 @@ func main() {
 	mux.Handle(userPath, userHandler)
 	mux.Handle(orgPath, orgHandler)
 	mux.Handle(workspacePath, workspaceHandler)
-	mux.Handle(appPath, appHandler)
+	mux.Handle(resourcePath, resourceHandler)
 	mux.Handle(deploymentPath, deploymentHandler)
 	mux.Handle(domainPath, domainHandler)
 	mux.Handle(registryPath, registryHandler)

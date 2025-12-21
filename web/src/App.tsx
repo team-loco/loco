@@ -13,6 +13,7 @@ import { OAuthCallback } from "@/pages/OAuthCallback";
 import { Onboarding } from "@/pages/Onboarding";
 import { OrgSettings } from "@/pages/OrgSettings";
 import { Profile } from "@/pages/Profile";
+import { Team } from "@/pages/Team";
 import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -48,8 +49,39 @@ const asyncLocalStorage: AsyncStorage = {
 
 const persister = createAsyncStoragePersister({
 	storage: asyncLocalStorage,
-	key: "loco-cache",
+	key: "locoCache",
 });
+
+function AppRoutes() {
+	return (
+		<Routes>
+			{/* Public routes */}
+			<Route path="/login" element={<Login />} />
+			<Route path="/oauth/callback" element={<OAuthCallback />} />
+			<Route path="/onboarding" element={<Onboarding />} />
+
+			{/* Protected routes */}
+			<Route element={<ProtectedRoute />}>
+				<Route path="/dashboard" element={<Home />} />
+				<Route path="/app/:appId" element={<AppDetails />} />
+				<Route path="/app/:appId/settings" element={<AppSettings />} />
+				<Route path="/create-app" element={<CreateApp />} />
+				<Route path="/events" element={<Events />} />
+				<Route path="/team" element={<Team />} />
+				<Route path="/profile" element={<Profile />} />
+				<Route path="/org/:orgId/settings" element={<OrgSettings />} />
+				<Route
+					path="/workspace/:workspaceId/settings"
+					element={<WorkspaceSettings />}
+				/>
+			</Route>
+
+			{/* Default redirect */}
+			<Route path="/" element={<Navigate to="/dashboard" />} />
+			<Route path="*" element={<Navigate to="/dashboard" />} />
+		</Routes>
+	);
+}
 
 export default function App() {
 	return (
@@ -63,37 +95,7 @@ export default function App() {
 								persistOptions={{ persister }}
 							>
 								<Toaster />
-								<Routes>
-									{/* Public routes */}
-									<Route path="/login" element={<Login />} />
-									<Route path="/oauth/callback" element={<OAuthCallback />} />
-									<Route path="/onboarding" element={<Onboarding />} />
-
-									{/* Protected routes */}
-									<Route element={<ProtectedRoute />}>
-										<Route path="/dashboard" element={<Home />} />
-										<Route path="/app/:appId" element={<AppDetails />} />
-										<Route
-											path="/app/:appId/settings"
-											element={<AppSettings />}
-										/>
-										<Route path="/create-app" element={<CreateApp />} />
-										<Route path="/events" element={<Events />} />
-										<Route path="/profile" element={<Profile />} />
-										<Route
-											path="/org/:orgId/settings"
-											element={<OrgSettings />}
-										/>
-										<Route
-											path="/workspace/:workspaceId/settings"
-											element={<WorkspaceSettings />}
-										/>
-									</Route>
-
-									{/* Default redirect */}
-									<Route path="/" element={<Navigate to="/dashboard" />} />
-									<Route path="*" element={<Navigate to="/dashboard" />} />
-								</Routes>
+								<AppRoutes />
 							</PersistQueryClientProvider>
 						</TransportProvider>
 					</HeaderProvider>

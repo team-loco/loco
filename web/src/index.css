@@ -1,4 +1,5 @@
 @import url("https://rsms.me/inter/inter.css");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap");
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 @custom-variant dark (&:is(.dark *));
@@ -59,7 +60,7 @@
 	--popover-foreground: #151b26;
 
 	/* Cloudflare primary - signature orange */
-	--primary: #f48120;
+	--primary: #e07a2a;
 	--primary-foreground: #ffffff;
 
 	/* Secondary - light gray background */
@@ -71,7 +72,7 @@
 	--muted-foreground: #626d7d;
 
 	/* Accent - very subtle hover state */
-	--accent: #f0f2f5;
+	--accent: #e8b78e;
 	--accent-foreground: #151b26;
 
 	/* Status colors */
@@ -84,12 +85,12 @@
 	--input: #e8eaed;
 
 	/* Focus ring */
-	--ring: #f48120;
+	--ring: #e8b78e;
 
 	/* Sidebar */
 	--sidebar: #ffffff;
 	--sidebar-foreground: #151b26;
-	--sidebar-accent: #f5f7fa;
+	--sidebar-accent: #e8b78e;
 	--sidebar-border: #e8eaed;
 }
 
@@ -140,7 +141,7 @@
 	/* Sidebar */
 	--sidebar: #0d1318;
 	--sidebar-foreground: #e5eaef;
-	--sidebar-accent: #1a202c;
+	--sidebar-accent: #e07a2a;
 	--sidebar-border: #2a3139;
 }
 
@@ -163,7 +164,7 @@
 
 	body {
 		@apply bg-background text-foreground antialiased;
-		font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+		font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
 			"Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
 			"Helvetica Neue", sans-serif;
 	}

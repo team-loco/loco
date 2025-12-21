@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loco-api
+  namespace: loco-system
+  labels:
+    app: loco-api
+spec:
+  selector:
+    matchLabels:
+      app: loco-api
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: loco-api
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: loco-api
+      containers:
+        - name: loco-api
+          image: ghcr.io/nikumar1206/loco:latest
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: env-config
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+            limits:
+              cpu: 100m
+              memory: 100Mi
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loco-api
+  namespace: loco-system
+spec:
+  selector:
+    app: loco-api
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+    - name: loco-api
+      protocol: TCP
+      port: 80
+      targetPort: 8000

@@ -13,12 +13,15 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/contextkeys"
+	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/pkg/kube"
 	timeutil "github.com/loco-team/loco/api/timeutil"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
+	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -33,17 +36,17 @@ var imagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
 	case genDb.DeploymentStatusPending:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
+		return deploymentv1.DeploymentPhase_PENDING
 	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
+		return deploymentv1.DeploymentPhase_RUNNING
 	case genDb.DeploymentStatusSucceeded:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
+		return deploymentv1.DeploymentPhase_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
+		return deploymentv1.DeploymentPhase_FAILED
 	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
+		return deploymentv1.DeploymentPhase_CANCELED
 	default:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
+		return deploymentv1.DeploymentPhase_UNSPECIFIED
 	}
 }
 
@@ -75,38 +78,33 @@ func (s *DeploymentServer) CreateDeployment(
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	// tood: move all validations into some sort of hook.
 
-	replicas := r.GetReplicas()
-	if replicas < 1 {
+	// todo: move below validations to a dedicated validation package.
+	if r.Spec == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
+	}
+
+	if r.Spec.Image == nil || *r.Spec.Image == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("image is required"))
+	}
+
+	if r.Spec.InitialReplicas == nil || *r.Spec.InitialReplicas < 1 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidReplicas)
 	}
 
-	if !imagePattern.MatchString(r.Image) {
-		slog.WarnContext(ctx, "invalid image format", "image", r.Image)
+	if !imagePattern.MatchString(*r.Spec.Image) {
+		slog.WarnContext(ctx, "invalid image format", "image", *r.Spec.Image)
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidImage)
 	}
 
-	if len(r.Ports) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one port is required"))
-	}
+	replicas := *r.Spec.InitialReplicas
 
-	// todo: values shared with loader.go, but we should technically move these into constants
-	for _, port := range r.Ports {
-		if port.Port < 1024 || port.Port > 65535 {
-			return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidPort)
-		}
-		if port.Protocol != "TCP" && port.Protocol != "UDP" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("protocol must be TCP or UDP"))
-		}
-	}
-
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "app_id", r.AppId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
-	workspaceID := app.WorkspaceID
+	workspaceID := resource.WorkspaceID
 
 	// todo: move membership check higher.
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
@@ -122,68 +120,52 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	// todo: assign cluster and verify health
-
-	config := map[string]any{
-		"env":       r.Env,
-		"ports":     r.Ports,
-		"resources": r.Resources,
-	}
-	configJSON, err := json.Marshal(config)
+	// get active cluster
+	cluster, err := s.queries.GetFirstActiveCluster(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal config", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
+		slog.ErrorContext(ctx, "failed to get active cluster", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active clusters available: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.AppId)
+	specJSON, err := json.Marshal(r.Spec)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal spec", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+	}
+
+	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to mark previous deployments not current", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		AppID:         r.AppId,
-		ClusterID:     1,
-		Image:         r.Image,
-		Replicas:      replicas,
-		Status:        genDb.DeploymentStatusPending,
-		IsCurrent:     true,
-		CreatedBy:     userID,
-		Config:        configJSON,
-		SchemaVersion: pgtype.Int4{Int32: 1, Valid: true},
+		ResourceID:  r.ResourceId,
+		ClusterID:   cluster.ID,
+		Image:       *r.Spec.Image,
+		Replicas:    replicas,
+		Status:      genDb.DeploymentStatusPending,
+		IsCurrent:   true,
+		CreatedBy:   userID,
+		Spec:        specJSON,
+		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	go s.allocateDeployment(context.Background(), &app, &deployment, r.Env)
-
-	deploymentResp := &deploymentv1.Deployment{
-		Id:        deployment.ID,
-		AppId:     deployment.AppID,
-		Image:     deployment.Image,
-		Replicas:  deployment.Replicas,
-		Status:    *deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING.Enum(),
-		IsCurrent: deployment.IsCurrent,
-		CreatedBy: deployment.CreatedBy,
-		CreatedAt: timeutil.ParsePostgresTimestamp(deployment.CreatedAt.Time),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(deployment.UpdatedAt.Time),
+	// create LocoResource in loco-system namespace
+	err = createLocoResource(ctx, s.kubeClient, resource, deployment)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
 	}
+	slog.InfoContext(ctx, "created LocoResource", "resource_id", resource.ID, "resource_name", resource.Name)
 
-	if len(deployment.Config) > 0 {
-		configStr := string(deployment.Config)
-		deploymentResp.Config = &configStr
-	}
-	deploymentResp.SchemaVersion = deployment.SchemaVersion.Int32
-
-	if deployment.Message.Valid {
-		deploymentResp.Message = &deployment.Message.String
-	}
-
-	// todo: a message for this would be nice.
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
-		Deployment: deploymentResp,
+		DeploymentId: deployment.ID,
+		Message:      "Successfully scheduled deployment.",
 	}), nil
 }
 
@@ -206,14 +188,14 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, deploymentData.AppID)
+	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get app", "error", err)
+		slog.ErrorContext(ctx, "failed to get resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: app.WorkspaceID,
+		WorkspaceID: resource.WorkspaceID,
 		UserID:      userID,
 	})
 	if err != nil {
@@ -222,27 +204,31 @@ func (s *DeploymentServer) GetDeployment(
 	}
 
 	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", app.WorkspaceID, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	deploymentResp := &deploymentv1.Deployment{
-		Id:        deploymentData.ID,
-		AppId:     deploymentData.AppID,
-		Image:     deploymentData.Image,
-		Replicas:  deploymentData.Replicas,
-		Status:    parseDeploymentPhase(deploymentData.Status),
-		IsCurrent: deploymentData.IsCurrent,
-		CreatedBy: deploymentData.CreatedBy,
-		CreatedAt: timeutil.ParsePostgresTimestamp(deploymentData.CreatedAt.Time),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(deploymentData.UpdatedAt.Time),
+		Id:          deploymentData.ID,
+		ResourceId:  deploymentData.ResourceID,
+		Image:       deploymentData.Image,
+		Replicas:    deploymentData.Replicas,
+		Status:      parseDeploymentPhase(deploymentData.Status),
+		IsCurrent:   deploymentData.IsCurrent,
+		CreatedBy:   deploymentData.CreatedBy,
+		CreatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.CreatedAt.Time),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.UpdatedAt.Time),
+		SpecVersion: deploymentData.SpecVersion.Int32,
 	}
 
-	if len(deploymentData.Config) > 0 {
-		configStr := string(deploymentData.Config)
-		deploymentResp.Config = &configStr
+	if len(deploymentData.Spec) > 0 {
+		var spec map[string]any
+		if err := json.Unmarshal(deploymentData.Spec, &spec); err == nil {
+			if s, err := structpb.NewStruct(spec); err == nil {
+				deploymentResp.Spec = s
+			}
+		}
 	}
-	deploymentResp.SchemaVersion = deploymentData.SchemaVersion.Int32
 
 	if deploymentData.Message.Valid {
 		deploymentResp.Message = &deploymentData.Message.String
@@ -277,14 +263,14 @@ func (s *DeploymentServer) ListDeployments(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, r.AppId)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "app not found", "app_id", r.AppId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrAppNotFound)
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
 	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: app.WorkspaceID,
+		WorkspaceID: resource.WorkspaceID,
 		UserID:      userID,
 	})
 	if err != nil {
@@ -293,7 +279,7 @@ func (s *DeploymentServer) ListDeployments(
 	}
 
 	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", app.WorkspaceID, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
@@ -303,16 +289,16 @@ func (s *DeploymentServer) ListDeployments(
 	}
 	offset := r.GetOffset()
 
-	total, err := s.queries.CountDeploymentsForApp(ctx, r.AppId)
+	total, err := s.queries.CountDeploymentsForResource(ctx, r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to count deployments", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	deploymentList, err := s.queries.ListDeploymentsForApp(ctx, genDb.ListDeploymentsForAppParams{
-		AppID:  r.AppId,
-		Limit:  limit,
-		Offset: offset,
+	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
+		ResourceID: r.ResourceId,
+		Limit:      limit,
+		Offset:     offset,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -322,22 +308,27 @@ func (s *DeploymentServer) ListDeployments(
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
 		deployment := &deploymentv1.Deployment{
-			Id:        d.ID,
-			AppId:     d.AppID,
-			Image:     d.Image,
-			Replicas:  d.Replicas,
-			Status:    parseDeploymentPhase(d.Status),
-			IsCurrent: d.IsCurrent,
-			CreatedBy: d.CreatedBy,
-			CreatedAt: timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+			Id:          d.ID,
+			ResourceId:  d.ResourceID,
+			ClusterId:   d.ClusterID,
+			Image:       d.Image,
+			Replicas:    d.Replicas,
+			Status:      parseDeploymentPhase(d.Status),
+			IsCurrent:   d.IsCurrent,
+			CreatedBy:   d.CreatedBy,
+			CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
+			UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+			SpecVersion: d.SpecVersion.Int32,
 		}
 
-		if len(d.Config) > 0 {
-			configStr := string(d.Config)
-			deployment.Config = &configStr
+		if len(d.Spec) > 0 {
+			var spec map[string]any
+			if err := json.Unmarshal(d.Spec, &spec); err == nil {
+				if s, err := structpb.NewStruct(spec); err == nil {
+					deployment.Spec = s
+				}
+			}
 		}
-		deployment.SchemaVersion = d.SchemaVersion.Int32
 
 		if d.Message.Valid {
 			deployment.Message = &d.Message.String
@@ -377,20 +368,20 @@ func (s *DeploymentServer) StreamDeployment(
 		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	appID, err := s.queries.GetDeploymentAppID(ctx, r.DeploymentId)
+	resourceID, err := s.queries.GetDeploymentResourceID(ctx, r.DeploymentId)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
 		return connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
-	app, err := s.queries.GetAppByID(ctx, appID)
+	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get app", "error", err)
+		slog.ErrorContext(ctx, "failed to get resource", "error", err)
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: app.WorkspaceID,
+		WorkspaceID: resource.WorkspaceID,
 		UserID:      userID,
 	})
 	if err != nil {
@@ -399,7 +390,7 @@ func (s *DeploymentServer) StreamDeployment(
 	}
 
 	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", app.WorkspaceID, "userId", userID)
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
 		return connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
@@ -475,54 +466,73 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	return nil
 }
 
-// allocateDeployment runs as a background goroutine that allocates Kubernetes resources
-func (s *DeploymentServer) allocateDeployment(
+// createLocoResource creates a LocoResource in the loco-system namespace
+func createLocoResource(
 	ctx context.Context,
-	app *genDb.App,
-	deployment *genDb.Deployment,
-	envVars map[string]string,
-) {
-	slog.InfoContext(ctx, "Starting deployment allocation", "deployment_id", deployment.ID, "app_id", app.ID)
-
-	var config map[string]any
-	if len(deployment.Config) > 0 {
-		if err := json.Unmarshal(deployment.Config, &config); err != nil {
-			slog.ErrorContext(ctx, "Failed to parse deployment config", "deployment_id", deployment.ID, "error", err)
-			s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusFailed, fmt.Sprintf("Failed to parse config: %v", err))
-			return
+	kubeClient *kube.Client,
+	resource genDb.Resource,
+	deployment genDb.Deployment,
+) error {
+	// parse deployment spec
+	var deploymentSpec map[string]any
+	if len(deployment.Spec) > 0 {
+		if err := json.Unmarshal(deployment.Spec, &deploymentSpec); err != nil {
+			slog.WarnContext(ctx, "failed to parse deployment spec", "error", err)
+			deploymentSpec = make(map[string]any)
 		}
+	} else {
+		deploymentSpec = make(map[string]any)
 	}
 
-	ldc, err := kube.NewLocoDeploymentContext(app, deployment)
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to create deployment context", "deployment_id", deployment.ID, "error", err)
-		s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusFailed, fmt.Sprintf("Failed to create deployment context: %v", err))
-		return
+	// parse resource spec
+	var resourceSpec map[string]any
+	if len(resource.Spec) > 0 {
+		if err := json.Unmarshal(resource.Spec, &resourceSpec); err != nil {
+			slog.WarnContext(ctx, "failed to parse resource spec", "error", err)
+			resourceSpec = make(map[string]any)
+		}
+	} else {
+		resourceSpec = make(map[string]any)
 	}
 
-	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusRunning, "Allocating Kubernetes resources...")
-
-	if err := s.kubeClient.AllocateResources(ctx, ldc, envVars, nil); err != nil {
-		slog.ErrorContext(ctx, "Failed to allocate Kubernetes resources", "deployment_id", deployment.ID, "error", err)
-		s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusFailed, fmt.Sprintf("Failed to allocate resources: %v", err))
-		return
+	// build LocoResource
+	locoRes := &locoControllerV1.LocoResource{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("resource-%d-%s", resource.ID, resource.Name),
+			Namespace: "loco-system",
+			Labels:    map[string]string{},
+		},
+		Spec: locoControllerV1.LocoResourceSpec{
+			ResourceId:  resource.ID,
+			WorkspaceID: resource.WorkspaceID,
+			Type:        "SERVICE",
+			Deployment: &locoControllerV1.DeploymentSpec{
+				Image:           deployment.Image,
+				InitialReplicas: deployment.Replicas,
+				Env:             parseEnvFromSpec(deploymentSpec),
+				CreatedBy:       deployment.CreatedBy,
+			},
+		},
 	}
 
-	s.updateDeploymentStatus(context.Background(), deployment.ID, genDb.DeploymentStatusSucceeded, "Deployment successful")
-	slog.InfoContext(ctx, "Deployment allocation completed", "deployment_id", deployment.ID)
+	// create the LocoResource
+	if err := kubeClient.ControllerClient.Create(ctx, locoRes); err != nil {
+		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
+		return err
+	}
+
+	return nil
 }
 
-// updateDeploymentStatus updates the deployment status in the database
-// todo: should we move these to the app service?
-// technically we are getting app logs, app status, and updating app env/scale.
-func (s *DeploymentServer) updateDeploymentStatus(ctx context.Context, deploymentID int64, status genDb.DeploymentStatus, message string) {
-	messageParam := pgtype.Text{String: message, Valid: message != ""}
-	err := s.queries.UpdateDeploymentStatusWithMessage(ctx, genDb.UpdateDeploymentStatusWithMessageParams{
-		ID:      deploymentID,
-		Status:  status,
-		Message: messageParam,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "Failed to update deployment status", "deployment_id", deploymentID, "error", err)
+// parseEnvFromSpec extracts environment variables from deployment spec
+func parseEnvFromSpec(spec map[string]any) map[string]string {
+	env := make(map[string]string)
+	if envData, ok := spec["env"].(map[string]any); ok {
+		for k, v := range envData {
+			if strVal, ok := v.(string); ok {
+				env[k] = strVal
+			}
+		}
 	}
+	return env
 }

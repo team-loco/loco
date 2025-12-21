@@ -2,95 +2,140 @@ syntax = "proto3";
 
 package loco.deployment.v1;
 
+import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/deployment/v1;deploymentv1";
 
+// DeploymentPhase indicates the current state of a deployment lifecycle.
 enum DeploymentPhase {
-  DEPLOYMENT_PHASE_UNSPECIFIED = 0;
-  DEPLOYMENT_PHASE_PENDING = 1;
-  DEPLOYMENT_PHASE_RUNNING = 2;
-  DEPLOYMENT_PHASE_SUCCEEDED = 3;
-  DEPLOYMENT_PHASE_FAILED = 4;
-  DEPLOYMENT_PHASE_CANCELED = 5;
+  UNSPECIFIED = 0;
+  PENDING     = 1;
+  RUNNING     = 2;
+  SUCCEEDED   = 3;
+  FAILED      = 4;
+  CANCELED    = 5;
 }
 
+// DeploymentService manages resource deployments.
 service DeploymentService {
+  // CreateDeployment creates a new deployment for a resource.
   rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
+  // GetDeployment retrieves a deployment by ID.
   rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
+  // ListDeployments lists deployments for a resource.
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
+  // StreamDeployment streams deployment events in real-time.
   rpc StreamDeployment(StreamDeploymentRequest) returns (stream DeploymentEvent);
 }
 
+// Port defines a network port configuration.
 message Port {
-  int32 port = 1;
+  int32  port     = 1;
   string protocol = 2;
 }
 
+// ResourceSpec defines CPU and memory resource constraints.
 message ResourceSpec {
-  optional string cpu = 1;
+  optional string cpu    = 1;
   optional string memory = 2;
 }
 
+// HealthCheckConfig defines health check parameters.
+message HealthCheckConfig {
+  optional string path                 = 1;
+  optional int32  interval             = 2;
+  optional int32  timeout              = 3;
+  optional int32  fail_threshold       = 4;
+  optional int32  startup_grace_period = 5;
+}
+
+// DeploymentMetricsConfig defines metrics collection settings.
+message DeploymentMetricsConfig {
+  optional bool   enabled = 1;
+  optional string path    = 2;
+  optional int32  port    = 3;
+}
+
+// DeploymentSpec defines deployment configuration.
+message DeploymentSpec {
+  optional string                  image            = 1;
+  optional string                  dockerfile_path  = 2;
+  optional string                  build_type       = 3;
+  optional string                  cpu              = 4;
+  optional string                  memory           = 5;
+  optional int32                   initial_replicas = 6;
+  optional HealthCheckConfig       health_check     = 7;
+  map<string, string>              env              = 8;
+  optional DeploymentMetricsConfig metrics          = 9;
+}
+
+// Deployment represents a resource deployment (immutable, single-region).
 message Deployment {
-   int64 id = 1;
-   int64 app_id = 2;
-   string image = 6;
-   int32 replicas = 7;
-   DeploymentPhase status = 8;
-   bool is_current = 9;
-   optional string message = 10;
-   optional string error_message = 11;
-   int64 created_by = 12;
-   google.protobuf.Timestamp created_at = 13;
-   optional google.protobuf.Timestamp started_at = 14;
-   optional google.protobuf.Timestamp completed_at = 15;
-   google.protobuf.Timestamp updated_at = 16;
-   int32 schema_version = 17;
-   optional string config = 18;
+  int64                              id             = 1;
+  int64                              resource_id    = 2;
+  int64                              cluster_id     = 3;
+  string                             image          = 4;
+  int32                              replicas       = 5;
+  DeploymentPhase                    status         = 6;
+  bool                               is_current     = 7;
+  optional string                    message        = 8;
+  optional string                    error_message  = 9;
+  int64                              created_by     = 10;
+  google.protobuf.Timestamp          created_at     = 11;
+  optional google.protobuf.Timestamp started_at     = 12;
+  optional google.protobuf.Timestamp completed_at   = 13;
+  google.protobuf.Timestamp          updated_at     = 14;
+  int32                              spec_version   = 15;
+  optional google.protobuf.Struct    spec           = 16;
 }
 
+// CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
-  int64 app_id = 1;
-  string image = 3;
-  optional int32 replicas = 4;
-  map<string, string> env = 6;
-  repeated Port ports = 7;
-  optional ResourceSpec resources = 8;
+  int64          resource_id = 1;
+  int64          cluster_id  = 2;
+  DeploymentSpec spec        = 3;
 }
 
+// CreateDeploymentResponse is the response from creating a deployment.
 message CreateDeploymentResponse {
-  Deployment deployment = 1;
-  string message = 2;
+  int64  deployment_id = 1;
+  string message       = 2;
 }
 
+// GetDeploymentRequest is the request to retrieve a deployment.
 message GetDeploymentRequest {
   int64 deployment_id = 1;
 }
 
+// GetDeploymentResponse is the response containing deployment information.
 message GetDeploymentResponse {
   Deployment deployment = 1;
 }
 
+// ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
-  int64 app_id = 1;
-  optional int32 limit = 2;
-  optional int32 offset = 3;
+  int64          resource_id = 1;
+  optional int32 limit       = 2;
+  optional int32 offset      = 3;
 }
 
+// ListDeploymentsResponse is the response containing deployment list.
 message ListDeploymentsResponse {
   repeated Deployment deployments = 1;
-  int64 total = 2;
+  int64               total       = 2;
 }
 
+// StreamDeploymentRequest is the request to stream deployment events.
 message StreamDeploymentRequest {
   int64 deployment_id = 1;
 }
 
+// DeploymentEvent represents a deployment event.
 message DeploymentEvent {
-  int64 deployment_id = 1;
-  DeploymentPhase status = 2;
-  string message = 3;
-  google.protobuf.Timestamp timestamp = 4;
-  optional string error_message = 5;
+  int64                     deployment_id = 1;
+  DeploymentPhase           status        = 2;
+  string                    message       = 3;
+  google.protobuf.Timestamp timestamp     = 4;
+  optional string           error_message = 5;
 }

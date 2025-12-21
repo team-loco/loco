@@ -94,13 +94,9 @@ func (q *Queries) GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([
 }
 
 const getWorkspaceOrgID = `-- name: GetWorkspaceOrgID :one
-
 SELECT org_id FROM workspaces WHERE id = $1
 `
 
-// TODO: Uncomment when apps table exists
-// -- name: CountAppsInWorkspace :one
-// SELECT COUNT(*) FROM apps WHERE workspace_id = $1;
 func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceOrgID, id)
 	var org_id int64
@@ -177,6 +173,61 @@ func (q *Queries) IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspac
 	var is_unique bool
 	err := row.Scan(&is_unique)
 	return is_unique, err
+}
+
+const listWorkspaceMembersWithUserDetails = `-- name: ListWorkspaceMembersWithUserDetails :many
+SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
+       u.name, u.email, u.avatar_url
+FROM workspace_members wm
+JOIN users u ON wm.user_id = u.id
+WHERE wm.workspace_id = $1
+  AND ($3::bigint IS NULL OR wm.user_id > $3::bigint)
+ORDER BY wm.user_id ASC
+LIMIT $2
+`
+
+type ListWorkspaceMembersWithUserDetailsParams struct {
+	WorkspaceID int64       `json:"workspaceId"`
+	Limit       int32       `json:"limit"`
+	AfterCursor pgtype.Int8 `json:"afterCursor"`
+}
+
+type ListWorkspaceMembersWithUserDetailsRow struct {
+	WorkspaceID int64              `json:"workspaceId"`
+	UserID      int64              `json:"userId"`
+	Role        WorkspaceRole      `json:"role"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	Name        pgtype.Text        `json:"name"`
+	Email       string             `json:"email"`
+	AvatarUrl   pgtype.Text        `json:"avatarUrl"`
+}
+
+func (q *Queries) ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceMembersWithUserDetails, arg.WorkspaceID, arg.Limit, arg.AfterCursor)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkspaceMembersWithUserDetailsRow
+	for rows.Next() {
+		var i ListWorkspaceMembersWithUserDetailsRow
+		if err := rows.Scan(
+			&i.WorkspaceID,
+			&i.UserID,
+			&i.Role,
+			&i.CreatedAt,
+			&i.Name,
+			&i.Email,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listWorkspacesForUser = `-- name: ListWorkspacesForUser :many

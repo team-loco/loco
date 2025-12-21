@@ -1,0 +1,7 @@
+apiVersion: v2
+name: loco-controller
+description: Helm chart for the Loco resource controller
+type: application
+version: 0.0.0
+appVersion: "latest"
+icon: "https://example.com/icon.png"

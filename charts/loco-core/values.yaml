@@ -1,0 +1,39 @@
+secrets:
+  cloudflareToken: ""
+  env:
+    GITLAB_PAT: ""
+    GITLAB_PROJECT_ID: ""
+    GITLAB_TOKEN_NAME: ""
+    GH_OAUTH_CLIENT_ID: ""
+    GITLAB_URL: ""
+    GITLAB_REGISTRY_URL: ""
+    GITLAB_DEPLOY_TOKEN_NAME: ""
+    APP_ENV: DEVELOPMENT
+    LOG_LEVEL: "-4"
+    PORT: ":8000"
+    GH_OAUTH_CLIENT_SECRET: ""
+    GH_OAUTH_REDIRECT_URL: ""
+    GH_OAUTH_STATE: ""
+    DATABASE_URL: ""
+    JWT_SECRET: ""
+    REGISTRY_TAG: ""
+
+gateway-helm:
+  enabled: true
+  crds:
+    enabled: true
+  config:
+    envoyGateway:
+      logging:
+        level: null
+        default: info
+      telemetry:
+        metrics:
+          prometheus:
+            disable: true
+          sinks:
+            - type: OpenTelemetry
+              openTelemetry:
+                host: otel-col-deploy.observability.svc.cluster.local
+                port: 4317
+                protocol: grpc

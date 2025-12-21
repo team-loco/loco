@@ -1,4 +1,4 @@
-import { getApp, getAppStatus } from "@/gen/app/v1";
+import { getResource, getResourceStatus } from "@/gen/resource/v1";
 import { listDeployments } from "@/gen/deployment/v1";
 import { useQuery } from "@connectrpc/connect-query";
 
@@ -7,13 +7,13 @@ export function useAppDetails(appId: string) {
 		data: appRes,
 		isLoading: appLoading,
 		error: appError,
-	} = useQuery(getApp, appId ? { appId: BigInt(appId) } : undefined, { enabled: !!appId });
+	} = useQuery(getResource, appId ? { resourceId: BigInt(appId) } : undefined, { enabled: !!appId });
 
 	const {
 		data: statusRes,
 		isLoading: statusLoading,
 		error: statusError,
-	} = useQuery(getAppStatus, { appId: BigInt(appId) }, { enabled: !!appId });
+	} = useQuery(getResourceStatus, { resourceId: BigInt(appId) }, { enabled: !!appId });
 
 	const {
 		data: deploymentsRes,
@@ -26,7 +26,7 @@ export function useAppDetails(appId: string) {
 	);
 
 	return {
-		app: appRes?.app ?? null,
+		app: appRes?.resource ?? null,
 		status: statusRes?.currentDeployment ?? null,
 		deployments: deploymentsRes?.deployments ?? [],
 		isLoading: appLoading || statusLoading || deploymentsLoading,

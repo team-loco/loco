@@ -1,4 +1,4 @@
-import { getEvents } from "@/gen/app/v1";
+import { getEvents } from "@/gen/resource/v1";
 import { useQuery } from "@connectrpc/connect-query";
 
 export interface KubernetesEvent {
@@ -16,7 +16,7 @@ export function useStreamEvents(appId: string) {
 		error,
 	} = useQuery(
 		getEvents,
-		appId ? { appId: BigInt(appId), limit: 50 } : undefined,
+		appId ? { resourceId: BigInt(appId), limit: 50 } : undefined,
 		{ enabled: !!appId }
 	);
 

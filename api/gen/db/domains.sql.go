@@ -13,7 +13,7 @@ import (
 
 const checkDomainAvailability = `-- name: CheckDomainAvailability :one
 SELECT NOT EXISTS(
-    SELECT 1 FROM app_domains
+    SELECT 1 FROM resource_domains
     WHERE domain = $1
 ) as is_available
 `
@@ -23,52 +23,6 @@ func (q *Queries) CheckDomainAvailability(ctx context.Context, domain string) (b
 	var is_available bool
 	err := row.Scan(&is_available)
 	return is_available, err
-}
-
-const createAppDomain = `-- name: CreateAppDomain :one
-INSERT INTO app_domains (
-    app_id,
-    domain,
-    domain_source,
-    subdomain_label,
-    platform_domain_id,
-    is_primary
-)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, app_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
-`
-
-type CreateAppDomainParams struct {
-	AppID            int64        `json:"appId"`
-	Domain           string       `json:"domain"`
-	DomainSource     DomainSource `json:"domainSource"`
-	SubdomainLabel   pgtype.Text  `json:"subdomainLabel"`
-	PlatformDomainID pgtype.Int8  `json:"platformDomainId"`
-	IsPrimary        bool         `json:"isPrimary"`
-}
-
-func (q *Queries) CreateAppDomain(ctx context.Context, arg CreateAppDomainParams) (AppDomain, error) {
-	row := q.db.QueryRow(ctx, createAppDomain,
-		arg.AppID,
-		arg.Domain,
-		arg.DomainSource,
-		arg.SubdomainLabel,
-		arg.PlatformDomainID,
-		arg.IsPrimary,
-	)
-	var i AppDomain
-	err := row.Scan(
-		&i.ID,
-		&i.AppID,
-		&i.Domain,
-		&i.DomainSource,
-		&i.SubdomainLabel,
-		&i.PlatformDomainID,
-		&i.IsPrimary,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }
 
 const createPlatformDomain = `-- name: CreatePlatformDomain :one
@@ -94,6 +48,52 @@ func (q *Queries) CreatePlatformDomain(ctx context.Context, arg CreatePlatformDo
 	return i, err
 }
 
+const createResourceDomain = `-- name: CreateResourceDomain :one
+INSERT INTO resource_domains (
+    resource_id,
+    domain,
+    domain_source,
+    subdomain_label,
+    platform_domain_id,
+    is_primary
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, resource_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
+`
+
+type CreateResourceDomainParams struct {
+	ResourceID       int64        `json:"resourceId"`
+	Domain           string       `json:"domain"`
+	DomainSource     DomainSource `json:"domainSource"`
+	SubdomainLabel   pgtype.Text  `json:"subdomainLabel"`
+	PlatformDomainID pgtype.Int8  `json:"platformDomainId"`
+	IsPrimary        bool         `json:"isPrimary"`
+}
+
+func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (ResourceDomain, error) {
+	row := q.db.QueryRow(ctx, createResourceDomain,
+		arg.ResourceID,
+		arg.Domain,
+		arg.DomainSource,
+		arg.SubdomainLabel,
+		arg.PlatformDomainID,
+		arg.IsPrimary,
+	)
+	var i ResourceDomain
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.Domain,
+		&i.DomainSource,
+		&i.SubdomainLabel,
+		&i.PlatformDomainID,
+		&i.IsPrimary,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const deactivatePlatformDomain = `-- name: DeactivatePlatformDomain :one
 UPDATE platform_domains
 SET is_active = false
@@ -113,70 +113,27 @@ func (q *Queries) DeactivatePlatformDomain(ctx context.Context, id int64) (Platf
 	return i, err
 }
 
-const deleteAppDomain = `-- name: DeleteAppDomain :exec
-DELETE FROM app_domains WHERE id = $1
+const deleteResourceDomain = `-- name: DeleteResourceDomain :exec
+DELETE FROM resource_domains WHERE id = $1
 `
 
-func (q *Queries) DeleteAppDomain(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, deleteAppDomain, id)
+func (q *Queries) DeleteResourceDomain(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteResourceDomain, id)
 	return err
 }
 
-const getAppDomainByID = `-- name: GetAppDomainByID :one
+const getDomainByResourceId = `-- name: GetDomainByResourceId :one
 SELECT 
-    ad.id,
-    ad.app_id,
-    ad.domain,
-    ad.domain_source,
-    ad.subdomain_label,
-    ad.platform_domain_id,
-    ad.is_primary,
-    ad.created_at,
-    ad.updated_at
-FROM app_domains ad
-WHERE ad.id = $1
-`
-
-func (q *Queries) GetAppDomainByID(ctx context.Context, id int64) (AppDomain, error) {
-	row := q.db.QueryRow(ctx, getAppDomainByID, id)
-	var i AppDomain
-	err := row.Scan(
-		&i.ID,
-		&i.AppID,
-		&i.Domain,
-		&i.DomainSource,
-		&i.SubdomainLabel,
-		&i.PlatformDomainID,
-		&i.IsPrimary,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getAppDomainCount = `-- name: GetAppDomainCount :one
-SELECT COUNT(*) as count FROM app_domains WHERE app_id = $1
-`
-
-func (q *Queries) GetAppDomainCount(ctx context.Context, appID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, getAppDomainCount, appID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const getDomainByAppId = `-- name: GetDomainByAppId :one
-SELECT 
-    ad.id, ad.app_id, ad.domain, ad.domain_source, ad.subdomain_label, ad.platform_domain_id, ad.is_primary, ad.created_at, ad.updated_at,
+    rd.id, rd.resource_id, rd.domain, rd.domain_source, rd.subdomain_label, rd.platform_domain_id, rd.is_primary, rd.created_at, rd.updated_at,
     pd.domain as platform_base_domain
-FROM app_domains ad
-LEFT JOIN platform_domains pd ON ad.platform_domain_id = pd.id
-WHERE ad.app_id = $1
+FROM resource_domains rd
+LEFT JOIN platform_domains pd ON rd.platform_domain_id = pd.id
+WHERE rd.resource_id = $1
 `
 
-type GetDomainByAppIdRow struct {
+type GetDomainByResourceIdRow struct {
 	ID                 int64              `json:"id"`
-	AppID              int64              `json:"appId"`
+	ResourceID         int64              `json:"resourceId"`
 	Domain             string             `json:"domain"`
 	DomainSource       DomainSource       `json:"domainSource"`
 	SubdomainLabel     pgtype.Text        `json:"subdomainLabel"`
@@ -187,12 +144,12 @@ type GetDomainByAppIdRow struct {
 	PlatformBaseDomain pgtype.Text        `json:"platformBaseDomain"`
 }
 
-func (q *Queries) GetDomainByAppId(ctx context.Context, appID int64) (GetDomainByAppIdRow, error) {
-	row := q.db.QueryRow(ctx, getDomainByAppId, appID)
-	var i GetDomainByAppIdRow
+func (q *Queries) GetDomainByResourceId(ctx context.Context, resourceID int64) (GetDomainByResourceIdRow, error) {
+	row := q.db.QueryRow(ctx, getDomainByResourceId, resourceID)
+	var i GetDomainByResourceIdRow
 	err := row.Scan(
 		&i.ID,
-		&i.AppID,
+		&i.ResourceID,
 		&i.Domain,
 		&i.DomainSource,
 		&i.SubdomainLabel,
@@ -239,6 +196,49 @@ func (q *Queries) GetPlatformDomainByName(ctx context.Context, domain string) (P
 	return i, err
 }
 
+const getResourceDomainByID = `-- name: GetResourceDomainByID :one
+SELECT 
+    rd.id,
+    rd.resource_id,
+    rd.domain,
+    rd.domain_source,
+    rd.subdomain_label,
+    rd.platform_domain_id,
+    rd.is_primary,
+    rd.created_at,
+    rd.updated_at
+FROM resource_domains rd
+WHERE rd.id = $1
+`
+
+func (q *Queries) GetResourceDomainByID(ctx context.Context, id int64) (ResourceDomain, error) {
+	row := q.db.QueryRow(ctx, getResourceDomainByID, id)
+	var i ResourceDomain
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.Domain,
+		&i.DomainSource,
+		&i.SubdomainLabel,
+		&i.PlatformDomainID,
+		&i.IsPrimary,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getResourceDomainCount = `-- name: GetResourceDomainCount :one
+SELECT COUNT(*) as count FROM resource_domains WHERE resource_id = $1
+`
+
+func (q *Queries) GetResourceDomainCount(ctx context.Context, resourceID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getResourceDomainCount, resourceID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const listActivePlatformDomains = `-- name: ListActivePlatformDomains :many
 SELECT id, domain, is_active, created_at FROM platform_domains
 WHERE is_active = true
@@ -272,23 +272,23 @@ func (q *Queries) ListActivePlatformDomains(ctx context.Context) ([]PlatformDoma
 
 const listAllLocoOwnedDomains = `-- name: ListAllLocoOwnedDomains :many
 SELECT 
-    ad.id,
-    ad.domain,
-    a.name as app_name,
-    a.id as app_id,
+    rd.id,
+    rd.domain,
+    r.name as resource_name,
+    r.id as resource_id,
     pd.domain as platform_domain
-FROM app_domains ad
-JOIN apps a ON ad.app_id = a.id
-JOIN platform_domains pd ON ad.platform_domain_id = pd.id
-WHERE ad.domain_source = 'platform_provided'
-ORDER BY ad.created_at DESC
+FROM resource_domains rd
+JOIN resources r ON rd.resource_id = r.id
+JOIN platform_domains pd ON rd.platform_domain_id = pd.id
+WHERE rd.domain_source = 'platform_provided'
+ORDER BY rd.created_at DESC
 `
 
 type ListAllLocoOwnedDomainsRow struct {
 	ID             int64  `json:"id"`
 	Domain         string `json:"domain"`
-	AppName        string `json:"appName"`
-	AppID          int64  `json:"appId"`
+	ResourceName   string `json:"resourceName"`
+	ResourceID     int64  `json:"resourceId"`
 	PlatformDomain string `json:"platformDomain"`
 }
 
@@ -304,8 +304,8 @@ func (q *Queries) ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwn
 		if err := rows.Scan(
 			&i.ID,
 			&i.Domain,
-			&i.AppName,
-			&i.AppID,
+			&i.ResourceName,
+			&i.ResourceID,
 			&i.PlatformDomain,
 		); err != nil {
 			return nil, err
@@ -318,34 +318,34 @@ func (q *Queries) ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwn
 	return items, nil
 }
 
-const listAppDomains = `-- name: ListAppDomains :many
+const listResourceDomains = `-- name: ListResourceDomains :many
 SELECT 
-    ad.id,
-    ad.app_id,
-    ad.domain,
-    ad.domain_source,
-    ad.subdomain_label,
-    ad.platform_domain_id,
-    ad.is_primary,
-    ad.created_at,
-    ad.updated_at
-FROM app_domains ad
-WHERE ad.app_id = $1
-ORDER BY ad.is_primary DESC, ad.created_at ASC
+    rd.id,
+    rd.resource_id,
+    rd.domain,
+    rd.domain_source,
+    rd.subdomain_label,
+    rd.platform_domain_id,
+    rd.is_primary,
+    rd.created_at,
+    rd.updated_at
+FROM resource_domains rd
+WHERE rd.resource_id = $1
+ORDER BY rd.is_primary DESC, rd.created_at ASC
 `
 
-func (q *Queries) ListAppDomains(ctx context.Context, appID int64) ([]AppDomain, error) {
-	rows, err := q.db.Query(ctx, listAppDomains, appID)
+func (q *Queries) ListResourceDomains(ctx context.Context, resourceID int64) ([]ResourceDomain, error) {
+	rows, err := q.db.Query(ctx, listResourceDomains, resourceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []AppDomain
+	var items []ResourceDomain
 	for rows.Next() {
-		var i AppDomain
+		var i ResourceDomain
 		if err := rows.Scan(
 			&i.ID,
-			&i.AppID,
+			&i.ResourceID,
 			&i.Domain,
 			&i.DomainSource,
 			&i.SubdomainLabel,
@@ -364,24 +364,24 @@ func (q *Queries) ListAppDomains(ctx context.Context, appID int64) ([]AppDomain,
 	return items, nil
 }
 
-const setAppDomainPrimary = `-- name: SetAppDomainPrimary :one
-UPDATE app_domains
+const setResourceDomainPrimary = `-- name: SetResourceDomainPrimary :one
+UPDATE resource_domains
 SET is_primary = true
-WHERE id = $1 AND app_id = $2
-RETURNING id, app_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
+WHERE id = $1 AND resource_id = $2
+RETURNING id, resource_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
 `
 
-type SetAppDomainPrimaryParams struct {
-	ID    int64 `json:"id"`
-	AppID int64 `json:"appId"`
+type SetResourceDomainPrimaryParams struct {
+	ID         int64 `json:"id"`
+	ResourceID int64 `json:"resourceId"`
 }
 
-func (q *Queries) SetAppDomainPrimary(ctx context.Context, arg SetAppDomainPrimaryParams) (AppDomain, error) {
-	row := q.db.QueryRow(ctx, setAppDomainPrimary, arg.ID, arg.AppID)
-	var i AppDomain
+func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (ResourceDomain, error) {
+	row := q.db.QueryRow(ctx, setResourceDomainPrimary, arg.ID, arg.ResourceID)
+	var i ResourceDomain
 	err := row.Scan(
 		&i.ID,
-		&i.AppID,
+		&i.ResourceID,
 		&i.Domain,
 		&i.DomainSource,
 		&i.SubdomainLabel,
@@ -393,25 +393,25 @@ func (q *Queries) SetAppDomainPrimary(ctx context.Context, arg SetAppDomainPrima
 	return i, err
 }
 
-const updateAppDomain = `-- name: UpdateAppDomain :one
-UPDATE app_domains
+const updateResourceDomain = `-- name: UpdateResourceDomain :one
+UPDATE resource_domains
 SET domain = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, app_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
+RETURNING id, resource_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
 `
 
-type UpdateAppDomainParams struct {
+type UpdateResourceDomainParams struct {
 	ID     int64  `json:"id"`
 	Domain string `json:"domain"`
 }
 
-func (q *Queries) UpdateAppDomain(ctx context.Context, arg UpdateAppDomainParams) (AppDomain, error) {
-	row := q.db.QueryRow(ctx, updateAppDomain, arg.ID, arg.Domain)
-	var i AppDomain
+func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (ResourceDomain, error) {
+	row := q.db.QueryRow(ctx, updateResourceDomain, arg.ID, arg.Domain)
+	var i ResourceDomain
 	err := row.Scan(
 		&i.ID,
-		&i.AppID,
+		&i.ResourceID,
 		&i.Domain,
 		&i.DomainSource,
 		&i.SubdomainLabel,
@@ -423,13 +423,13 @@ func (q *Queries) UpdateAppDomain(ctx context.Context, arg UpdateAppDomainParams
 	return i, err
 }
 
-const updateAppDomainPrimary = `-- name: UpdateAppDomainPrimary :exec
-UPDATE app_domains
+const updateResourceDomainPrimary = `-- name: UpdateResourceDomainPrimary :exec
+UPDATE resource_domains
 SET is_primary = false
-WHERE app_id = $1
+WHERE resource_id = $1
 `
 
-func (q *Queries) UpdateAppDomainPrimary(ctx context.Context, appID int64) error {
-	_, err := q.db.Exec(ctx, updateAppDomainPrimary, appID)
+func (q *Queries) UpdateResourceDomainPrimary(ctx context.Context, resourceID int64) error {
+	_, err := q.db.Exec(ctx, updateResourceDomainPrimary, resourceID)
 	return err
 }

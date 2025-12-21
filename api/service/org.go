@@ -17,7 +17,7 @@ import (
 var (
 	ErrOrgNotFound              = errors.New("organization not found")
 	ErrOrgNameNotUnique         = errors.New("organization name already exists")
-	ErrOrgHasWorkspacesWithApps = errors.New("organization has workspaces with apps")
+	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with apps")
 	ErrNotOrgMember             = errors.New("user is not a member of this organization")
 	ErrNotOrgAdmin              = errors.New("user is not an admin of this organization")
 )
@@ -315,7 +315,7 @@ func (s *OrgServer) DeleteOrg(
 
 	// TODO: Check if org has workspaces with apps or not.
 	// var hasApps bool
-	hasApps, err := s.queries.OrgHasWorkspacesWithApps(ctx, r.OrgId)
+	hasApps, err := s.queries.OrgHasWorkspacesWithResources(ctx, r.OrgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for apps in workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -323,7 +323,7 @@ func (s *OrgServer) DeleteOrg(
 
 	if hasApps {
 		slog.WarnContext(ctx, "org has workspaces with apps", "orgId", r.OrgId)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithApps)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
 	}
 
 	err = s.queries.DeleteOrg(ctx, r.OrgId)

@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/loco-team/loco/internal/client"
 	"github.com/loco-team/loco/internal/ui"
-	appv1 "github.com/loco-team/loco/shared/proto/app/v1"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	"github.com/spf13/cobra"
 )
 
@@ -105,7 +105,7 @@ func eventsCmdFunc(cmd *cobra.Command) error {
 	return nil
 }
 
-func printEventsTable(events []*appv1.Event) {
+func printEventsTable(events []*resourcev1.Event) {
 	if len(events) == 0 {
 		fmt.Println("No events found.")
 		return
@@ -156,7 +156,7 @@ func simplifyMessage(message string) string {
 	return message
 }
 
-func printEventsJSON(events []*appv1.Event) error {
+func printEventsJSON(events []*resourcev1.Event) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(events)

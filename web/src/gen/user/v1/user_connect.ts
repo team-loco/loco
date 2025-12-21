@@ -7,12 +7,16 @@ import { CreateUserRequest, CreateUserResponse, DeleteUserRequest, DeleteUserRes
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * UserService manages user accounts and operations.
+ *
  * @generated from service loco.user.v1.UserService
  */
 export const UserService = {
   typeName: "loco.user.v1.UserService",
   methods: {
     /**
+     * CreateUser creates a new user account.
+     *
      * @generated from rpc loco.user.v1.UserService.CreateUser
      */
     createUser: {
@@ -22,6 +26,8 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetUser retrieves a user by ID or email.
+     *
      * @generated from rpc loco.user.v1.UserService.GetUser
      */
     getUser: {
@@ -31,6 +37,8 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetCurrentUser retrieves the current authenticated user.
+     *
      * @generated from rpc loco.user.v1.UserService.GetCurrentUser
      */
     getCurrentUser: {
@@ -40,6 +48,8 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
+     * UpdateUser updates user information.
+     *
      * @generated from rpc loco.user.v1.UserService.UpdateUser
      */
     updateUser: {
@@ -49,6 +59,8 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListUsers lists users with pagination.
+     *
      * @generated from rpc loco.user.v1.UserService.ListUsers
      */
     listUsers: {
@@ -58,6 +70,8 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
+     * DeleteUser deletes a user account.
+     *
      * @generated from rpc loco.user.v1.UserService.DeleteUser
      */
     deleteUser: {
@@ -67,6 +81,8 @@ export const UserService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Logout logs out the current user.
+     *
      * @generated from rpc loco.user.v1.UserService.Logout
      */
     logout: {

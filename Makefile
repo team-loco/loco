@@ -63,6 +63,42 @@ ui:
 	@echo "Starting UI..."
 	@cd web && npm run dev
 
+helm-repos: ## Add/update helm repositories
+	helm repo add jetstack https://charts.jetstack.io
+	helm repo add cilium https://helm.cilium.io
+	helm repo add altinity https://helm.altinity.com
+	helm repo add grafana https://grafana.github.io/helm-charts
+	helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+	helm repo update
+
+helm-deps: ## Build helm chart dependencies
+	helm dependency build ./charts/loco-networking
+	helm dependency build ./charts/loco-obs
+	helm dependency build ./charts/loco-core
+	helm dependency build ./charts/loco-controller
+
+controller-gen: ## Generate controller manifests and code
+	cd controller && make manifests && make generate
+
+helm-u-all: helm-deps ## Sync all releases (local environment)
+	helmfile -e local sync
+
+helm-u-net: helm-deps ## Sync networking release only
+	helmfile -e local sync loco-networking
+
+helm-u-core: helm-deps ## Sync core releases (cert-manager, gateway, loco-core)
+	helmfile -e local sync cert-manager envoy-gateway loco-core
+install:
+	helmfile -e local sync
+helm-u-obs: helm-deps ## Sync observability release only
+	helmfile -e local sync loco-obs
+
+helm-uninstall-all: ## Uninstall all releases
+	helmfile destroy
+
+helm-fix-clickhouse: ## Remove clickhouse finalizer if stuck
+	kubectl -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge
+
 lint: clean
 	@(golangci-lint run)
 

@@ -48,6 +48,7 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 		if req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GithubOAuthDetails" ||
 			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubAuthorizationURL" ||
 			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeGithubCode" ||
+			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeGithubToken" ||
 			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubUser" {
 			return next(ctx, req)
 		}
@@ -96,6 +97,7 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 		if conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GithubOAuthDetails" ||
 			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubAuthorizationURL" ||
 			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeGithubCode" ||
+			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeGithubToken" ||
 			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetGithubUser" {
 			return next(ctx, conn)
 		}

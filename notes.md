@@ -391,3 +391,22 @@ Phase I ends Here
 - potentially setup umami for analytics on the frontend?
 - whereever we make these multi saves, we need to run as a transaction.
 - on the UI, if API returns a message, we need to read that.
+
+missing a proper deployment interface as in whats happening inside allocateResources. we need a simple way to start, execute, and watch these changes.
+
+potentially loco-api chats with loco-controller eventually.
+controller-runtime would be cool.
+
+next major todos:
+lets actually finish the allocate. so the api needs to take in config of map[string][any] and we use it upstream to build the app as is.
+
+things that are fully growing and will need a ttl:
+the configmaps for apps/deployments
+the data in clickhouse
+the audit events.
+
+rename loco_example to loco_full_example
+make deploying user apps, an all or nothing approach.
+is it all or nothing to deploy a single app in one region?
+have a full kubernetes export function where users can literally take their loco.toml config and convert to a kubernetes yaml.
+create loco resource will need to handle loco spec versions.

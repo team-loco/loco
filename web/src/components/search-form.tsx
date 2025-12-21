@@ -1,22 +1,33 @@
-import { Search } from "lucide-react"
+import { Search } from "lucide-react";
 
-import { Label } from "@/components/ui/label"
-import { SidebarInput } from "@/components/ui/sidebar"
+import {
+	InputGroup,
+	InputGroupAddon,
+	InputGroupInput,
+} from "@/components/ui/input-group";
+import { Kbd } from "@/components/ui/kbd";
+import { Label } from "@/components/ui/label";
 
 export function SearchForm({ ...props }: React.ComponentProps<"form">) {
-  return (
-    <form {...props}>
-      <div className="relative">
-        <Label htmlFor="search" className="sr-only">
-          Search
-        </Label>
-        <SidebarInput
-          id="search"
-          placeholder="Type to search..."
-          className="h-8 pl-7 border border-neutral-300 dark:border-neutral-700"
-        />
-        <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 select-none opacity-50" />
-      </div>
-    </form>
-  )
+	return (
+		<form {...props}>
+			<Label htmlFor="search" className="sr-only">
+				Search
+			</Label>
+			<InputGroup>
+				<InputGroupAddon align="inline-start">
+					<Search className="size-3.5" />
+				</InputGroupAddon>
+				<InputGroupInput
+					id="search"
+					placeholder="Search..."
+					className="h-8 px-7 pr-16 text-sm"
+				/>
+				<InputGroupAddon align="inline-end">
+					<Kbd className="px-1.5 py-0.5 text-xs">⌘</Kbd>
+					<Kbd className="px-1.5 py-0.5 text-xs">K</Kbd>
+				</InputGroupAddon>
+			</InputGroup>
+		</form>
+	);
 }

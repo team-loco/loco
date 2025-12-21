@@ -5,21 +5,29 @@
 import { OAuthService } from "./oauth_pb";
 
 /**
+ * GithubOAuthDetails retrieves GitHub OAuth configuration.
+ *
  * @generated from rpc loco.oauth.v1.OAuthService.GithubOAuthDetails
  */
 export const githubOAuthDetails = OAuthService.method.githubOAuthDetails;
 
 /**
+ * ExchangeGithubToken exchanges a GitHub token for a Loco token.
+ *
  * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubToken
  */
 export const exchangeGithubToken = OAuthService.method.exchangeGithubToken;
 
 /**
+ * GetGithubAuthorizationURL generates a GitHub authorization URL.
+ *
  * @generated from rpc loco.oauth.v1.OAuthService.GetGithubAuthorizationURL
  */
 export const getGithubAuthorizationURL = OAuthService.method.getGithubAuthorizationURL;
 
 /**
+ * ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
+ *
  * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubCode
  */
 export const exchangeGithubCode = OAuthService.method.exchangeGithubCode;

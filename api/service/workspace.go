@@ -483,7 +483,7 @@ func (s *WorkspaceServer) RemoveMember(
 	}), nil
 }
 
-// ListMembers lists all members of a workspace
+// ListMembers lists all members of a workspace with pagination
 func (s *WorkspaceServer) ListMembers(
 	ctx context.Context,
 	req *connect.Request[workspacev1.ListMembersRequest],
@@ -510,23 +510,51 @@ func (s *WorkspaceServer) ListMembers(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	memberList, err := s.queries.GetWorkspaceMembers(ctx, r.WorkspaceId)
+	limit := r.Limit
+	if limit == 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	var afterCursor pgtype.Int8
+	if r.AfterCursor != nil {
+		afterCursor = pgtype.Int8{Int64: *r.AfterCursor, Valid: true}
+	}
+
+	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(ctx, genDb.ListWorkspaceMembersWithUserDetailsParams{
+		WorkspaceID:  r.WorkspaceId,
+		Limit:        limit + 1,
+		AfterCursor:  afterCursor,
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list members", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	var members []*workspacev1.WorkspaceMember
+	var nextCursor *int64
+	if len(memberList) > int(limit) {
+		memberList = memberList[:limit]
+		lastMember := memberList[len(memberList)-1]
+		nextCursor = &lastMember.UserID
+	}
+
+	var members []*workspacev1.WorkspaceMemberWithUser
 	for _, member := range memberList {
-		members = append(members, &workspacev1.WorkspaceMember{
-			WorkspaceId: member.WorkspaceID,
-			UserId:      member.UserID,
-			Role:        string(member.Role),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(member.CreatedAt.Time),
+		members = append(members, &workspacev1.WorkspaceMemberWithUser{
+			WorkspaceId:    member.WorkspaceID,
+			UserId:         member.UserID,
+			Role:           string(member.Role),
+			CreatedAt:      timeutil.ParsePostgresTimestamp(member.CreatedAt.Time),
+			UserName:       member.Name.String,
+			UserEmail:      member.Email,
+			UserAvatarUrl:  member.AvatarUrl.String,
 		})
 	}
 
 	return connect.NewResponse(&workspacev1.ListMembersResponse{
-		Members: members,
+		Members:    members,
+		NextCursor: nextCursor,
 	}), nil
 }

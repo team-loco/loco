@@ -40,6 +40,7 @@ const (
 
 // RegistryServiceClient is a client for the loco.registry.v1.RegistryService service.
 type RegistryServiceClient interface {
+	// GitlabToken retrieves GitLab registry credentials.
 	GitlabToken(context.Context, *connect.Request[v1.GitlabTokenRequest]) (*connect.Response[v1.GitlabTokenResponse], error)
 }
 
@@ -75,6 +76,7 @@ func (c *registryServiceClient) GitlabToken(ctx context.Context, req *connect.Re
 
 // RegistryServiceHandler is an implementation of the loco.registry.v1.RegistryService service.
 type RegistryServiceHandler interface {
+	// GitlabToken retrieves GitLab registry credentials.
 	GitlabToken(context.Context, *connect.Request[v1.GitlabTokenRequest]) (*connect.Response[v1.GitlabTokenResponse], error)
 }
 

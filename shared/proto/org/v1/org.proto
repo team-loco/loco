@@ -6,16 +6,25 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/org/v1;orgv1";
 
+// OrgService manages organizations.
 service OrgService {
+  // CreateOrg creates a new organization.
   rpc CreateOrg(CreateOrgRequest) returns (CreateOrgResponse);
+  // GetOrg retrieves an organization by ID.
   rpc GetOrg(GetOrgRequest) returns (GetOrgResponse);
+  // GetCurrentUserOrgs retrieves all organizations for the current user.
   rpc GetCurrentUserOrgs(GetCurrentUserOrgsRequest) returns (GetCurrentUserOrgsResponse);
+  // ListOrgs lists organizations for a user.
   rpc ListOrgs(ListOrgsRequest) returns (ListOrgsResponse);
+  // UpdateOrg updates organization information.
   rpc UpdateOrg(UpdateOrgRequest) returns (UpdateOrgResponse);
+  // DeleteOrg deletes an organization.
   rpc DeleteOrg(DeleteOrgRequest) returns (DeleteOrgResponse);
+  // IsUniqueOrgName checks if an organization name is unique.
   rpc IsUniqueOrgName(IsUniqueOrgNameRequest) returns (IsUniqueOrgNameResponse);
 }
 
+// Organization represents a top-level organization container for users, workspaces, and applications.
 message Organization {
   int64 id = 1;
   string name = 2;
@@ -24,6 +33,7 @@ message Organization {
   google.protobuf.Timestamp updated_at = 5;
 }
 
+// WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
 message WorkspaceSummary {
   int64 id = 1;
   string name = 2;
@@ -31,65 +41,78 @@ message WorkspaceSummary {
   google.protobuf.Timestamp created_at = 4;
 }
 
+// CreateOrgRequest is the request to create a new organization.
 message CreateOrgRequest {
   optional string name = 1;
 }
 
+// CreateOrgResponse is the response from creating an organization.
 message CreateOrgResponse {
   Organization org = 1;
   string message = 2;
 }
 
+// GetOrgRequest is the request to retrieve an organization.
 message GetOrgRequest {
   int64 org_id = 1;
 }
 
+// GetOrgResponse is the response containing organization information.
 message GetOrgResponse {
   Organization org = 1;
 }
 
+// GetCurrentUserOrgsRequest is the request to retrieve current user's organizations.
 message GetCurrentUserOrgsRequest {}
 
+// GetCurrentUserOrgsResponse is the response containing the list of organizations.
 message GetCurrentUserOrgsResponse {
   repeated Organization orgs = 1;
 }
 
+// ListOrgsRequest is the request to list organizations.
 message ListOrgsRequest {
   int64 user_id = 1;
   int32 limit = 2;
   int32 offset = 3;
 }
 
+// ListOrgsResponse is the response containing organization list.
 message ListOrgsResponse {
   repeated Organization orgs = 1;
   int64 total_count = 2;
 }
 
+// UpdateOrgRequest is the request to update an organization.
 message UpdateOrgRequest {
   int64 org_id = 1;
   string new_name = 2;
 }
 
+// UpdateOrgResponse is the response from updating an organization.
 message UpdateOrgResponse {
   Organization org = 1;
   string message = 2;
 }
 
+// DeleteOrgRequest is the request to delete an organization.
 message DeleteOrgRequest {
   int64 org_id = 1;
 }
 
+// DeleteOrgResponse is the response from deleting an organization.
 message DeleteOrgResponse {
   Organization org = 1;
   string message = 2;
 }
 
+// IsUniqueOrgNameRequest is the request to check organization name uniqueness.
 message IsUniqueOrgNameRequest {
   string name = 1;
   optional int64 exclude_org_id = 2;
 }
 
+// IsUniqueOrgNameResponse is the response indicating if a name is unique.
 message IsUniqueOrgNameResponse {
   bool is_unique = 1;
 }
-

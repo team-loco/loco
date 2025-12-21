@@ -11,12 +11,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countDeploymentsForApp = `-- name: CountDeploymentsForApp :one
-SELECT COUNT(*) FROM deployments WHERE app_id = $1
+const countDeploymentsForResource = `-- name: CountDeploymentsForResource :one
+SELECT COUNT(*) FROM deployments WHERE resource_id = $1
 `
 
-func (q *Queries) CountDeploymentsForApp(ctx context.Context, appID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, countDeploymentsForApp, appID)
+func (q *Queries) CountDeploymentsForResource(ctx context.Context, resourceID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countDeploymentsForResource, resourceID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -24,28 +24,28 @@ func (q *Queries) CountDeploymentsForApp(ctx context.Context, appID int64) (int6
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (app_id, cluster_id, image, replicas, status, is_current, message, created_by, config, schema_version)
+INSERT INTO deployments (resource_id, cluster_id, image, replicas, status, is_current, message, created_by, spec, spec_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, config, schema_version, created_by, created_at, started_at, completed_at, updated_at
+RETURNING id, resource_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
 `
 
 type CreateDeploymentParams struct {
-	AppID         int64            `json:"appId"`
-	ClusterID     int64            `json:"clusterId"`
-	Image         string           `json:"image"`
-	Replicas      int32            `json:"replicas"`
-	Status        DeploymentStatus `json:"status"`
-	IsCurrent     bool             `json:"isCurrent"`
-	Message       pgtype.Text      `json:"message"`
-	CreatedBy     int64            `json:"createdBy"`
-	Config        []byte           `json:"config"`
-	SchemaVersion pgtype.Int4      `json:"schemaVersion"`
+	ResourceID  int64            `json:"resourceId"`
+	ClusterID   int64            `json:"clusterId"`
+	Image       string           `json:"image"`
+	Replicas    int32            `json:"replicas"`
+	Status      DeploymentStatus `json:"status"`
+	IsCurrent   bool             `json:"isCurrent"`
+	Message     pgtype.Text      `json:"message"`
+	CreatedBy   int64            `json:"createdBy"`
+	Spec        []byte           `json:"spec"`
+	SpecVersion pgtype.Int4      `json:"specVersion"`
 }
 
 // Deployment queries
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (Deployment, error) {
 	row := q.db.QueryRow(ctx, createDeployment,
-		arg.AppID,
+		arg.ResourceID,
 		arg.ClusterID,
 		arg.Image,
 		arg.Replicas,
@@ -53,13 +53,13 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.IsCurrent,
 		arg.Message,
 		arg.CreatedBy,
-		arg.Config,
-		arg.SchemaVersion,
+		arg.Spec,
+		arg.SpecVersion,
 	)
 	var i Deployment
 	err := row.Scan(
 		&i.ID,
-		&i.AppID,
+		&i.ResourceID,
 		&i.ClusterID,
 		&i.Image,
 		&i.Replicas,
@@ -67,8 +67,8 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		&i.IsCurrent,
 		&i.ErrorMessage,
 		&i.Message,
-		&i.Config,
-		&i.SchemaVersion,
+		&i.Spec,
+		&i.SpecVersion,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.StartedAt,
@@ -78,19 +78,8 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 	return i, err
 }
 
-const getDeploymentAppID = `-- name: GetDeploymentAppID :one
-SELECT app_id FROM deployments WHERE id = $1
-`
-
-func (q *Queries) GetDeploymentAppID(ctx context.Context, id int64) (int64, error) {
-	row := q.db.QueryRow(ctx, getDeploymentAppID, id)
-	var app_id int64
-	err := row.Scan(&app_id)
-	return app_id, err
-}
-
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, config, schema_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, error) {
@@ -98,7 +87,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 	var i Deployment
 	err := row.Scan(
 		&i.ID,
-		&i.AppID,
+		&i.ResourceID,
 		&i.ClusterID,
 		&i.Image,
 		&i.Replicas,
@@ -106,8 +95,8 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 		&i.IsCurrent,
 		&i.ErrorMessage,
 		&i.Message,
-		&i.Config,
-		&i.SchemaVersion,
+		&i.Spec,
+		&i.SpecVersion,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.StartedAt,
@@ -117,21 +106,32 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 	return i, err
 }
 
-const listDeploymentsForApp = `-- name: ListDeploymentsForApp :many
-SELECT id, app_id, cluster_id, image, replicas, status, is_current, error_message, message, config, schema_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
-WHERE app_id = $1
+const getDeploymentResourceID = `-- name: GetDeploymentResourceID :one
+SELECT resource_id FROM deployments WHERE id = $1
+`
+
+func (q *Queries) GetDeploymentResourceID(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRow(ctx, getDeploymentResourceID, id)
+	var resource_id int64
+	err := row.Scan(&resource_id)
+	return resource_id, err
+}
+
+const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
+SELECT id, resource_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+WHERE resource_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
 `
 
-type ListDeploymentsForAppParams struct {
-	AppID  int64 `json:"appId"`
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+type ListDeploymentsForResourceParams struct {
+	ResourceID int64 `json:"resourceId"`
+	Limit      int32 `json:"limit"`
+	Offset     int32 `json:"offset"`
 }
 
-func (q *Queries) ListDeploymentsForApp(ctx context.Context, arg ListDeploymentsForAppParams) ([]Deployment, error) {
-	rows, err := q.db.Query(ctx, listDeploymentsForApp, arg.AppID, arg.Limit, arg.Offset)
+func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error) {
+	rows, err := q.db.Query(ctx, listDeploymentsForResource, arg.ResourceID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func (q *Queries) ListDeploymentsForApp(ctx context.Context, arg ListDeployments
 		var i Deployment
 		if err := rows.Scan(
 			&i.ID,
-			&i.AppID,
+			&i.ResourceID,
 			&i.ClusterID,
 			&i.Image,
 			&i.Replicas,
@@ -149,8 +149,8 @@ func (q *Queries) ListDeploymentsForApp(ctx context.Context, arg ListDeployments
 			&i.IsCurrent,
 			&i.ErrorMessage,
 			&i.Message,
-			&i.Config,
-			&i.SchemaVersion,
+			&i.Spec,
+			&i.SpecVersion,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.StartedAt,
@@ -170,11 +170,11 @@ func (q *Queries) ListDeploymentsForApp(ctx context.Context, arg ListDeployments
 const markPreviousDeploymentsNotCurrent = `-- name: MarkPreviousDeploymentsNotCurrent :exec
 UPDATE deployments
 SET is_current = false, updated_at = NOW()
-WHERE app_id = $1 AND is_current = true
+WHERE resource_id = $1 AND is_current = true
 `
 
-func (q *Queries) MarkPreviousDeploymentsNotCurrent(ctx context.Context, appID int64) error {
-	_, err := q.db.Exec(ctx, markPreviousDeploymentsNotCurrent, appID)
+func (q *Queries) MarkPreviousDeploymentsNotCurrent(ctx context.Context, resourceID int64) error {
+	_, err := q.db.Exec(ctx, markPreviousDeploymentsNotCurrent, resourceID)
 	return err
 }
 

@@ -15,6 +15,8 @@ export const file_org_v1_org: GenFile = /*@__PURE__*/
   fileDesc("ChBvcmcvdjEvb3JnLnByb3RvEgtsb2NvLm9yZy52MSKcAQoMT3JnYW5pemF0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJwChBXb3Jrc3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIuChBDcmVhdGVPcmdSZXF1ZXN0EhEKBG5hbWUYASABKAlIAIgBAUIHCgVfbmFtZSJMChFDcmVhdGVPcmdSZXNwb25zZRImCgNvcmcYASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SDwoHbWVzc2FnZRgCIAEoCSIfCg1HZXRPcmdSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAyI4Cg5HZXRPcmdSZXNwb25zZRImCgNvcmcYASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24iGwoZR2V0Q3VycmVudFVzZXJPcmdzUmVxdWVzdCJFChpHZXRDdXJyZW50VXNlck9yZ3NSZXNwb25zZRInCgRvcmdzGAEgAygLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uIkEKD0xpc3RPcmdzUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJQChBMaXN0T3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SEwoLdG90YWxfY291bnQYAiABKAMiNAoQVXBkYXRlT3JnUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSEAoIbmV3X25hbWUYAiABKAkiTAoRVXBkYXRlT3JnUmVzcG9uc2USJgoDb3JnGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEg8KB21lc3NhZ2UYAiABKAkiIgoQRGVsZXRlT3JnUmVxdWVzdBIOCgZvcmdfaWQYASABKAMiTAoRRGVsZXRlT3JnUmVzcG9uc2USJgoDb3JnGAEgASgLMhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEg8KB21lc3NhZ2UYAiABKAkiVgoWSXNVbmlxdWVPcmdOYW1lUmVxdWVzdBIMCgRuYW1lGAEgASgJEhsKDmV4Y2x1ZGVfb3JnX2lkGAIgASgDSACIAQFCEQoPX2V4Y2x1ZGVfb3JnX2lkIiwKF0lzVW5pcXVlT3JnTmFtZVJlc3BvbnNlEhEKCWlzX3VuaXF1ZRgBIAEoCDLBBAoKT3JnU2VydmljZRJKCglDcmVhdGVPcmcSHS5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVzcG9uc2USQQoGR2V0T3JnEhoubG9jby5vcmcudjEuR2V0T3JnUmVxdWVzdBobLmxvY28ub3JnLnYxLkdldE9yZ1Jlc3BvbnNlEmUKEkdldEN1cnJlbnRVc2VyT3JncxImLmxvY28ub3JnLnYxLkdldEN1cnJlbnRVc2VyT3Jnc1JlcXVlc3QaJy5sb2NvLm9yZy52MS5HZXRDdXJyZW50VXNlck9yZ3NSZXNwb25zZRJHCghMaXN0T3JncxIcLmxvY28ub3JnLnYxLkxpc3RPcmdzUmVxdWVzdBodLmxvY28ub3JnLnYxLkxpc3RPcmdzUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJcCg9Jc1VuaXF1ZU9yZ05hbWUSIy5sb2NvLm9yZy52MS5Jc1VuaXF1ZU9yZ05hbWVSZXF1ZXN0GiQubG9jby5vcmcudjEuSXNVbmlxdWVPcmdOYW1lUmVzcG9uc2VCNVozZ2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
+ * Organization represents a top-level organization container for users, workspaces, and applications.
+ *
  * @generated from message loco.org.v1.Organization
  */
 export type Organization = Message<"loco.org.v1.Organization"> & {
@@ -45,6 +47,8 @@ export type Organization = Message<"loco.org.v1.Organization"> & {
 };
 
 /**
+ * Organization represents a top-level organization container for users, workspaces, and applications.
+ *
  * @generated from message loco.org.v1.Organization
  */
 export type OrganizationJson = {
@@ -82,6 +86,8 @@ export const OrganizationSchema: GenMessage<Organization, {jsonType: Organizatio
   messageDesc(file_org_v1_org, 0);
 
 /**
+ * WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
+ *
  * @generated from message loco.org.v1.WorkspaceSummary
  */
 export type WorkspaceSummary = Message<"loco.org.v1.WorkspaceSummary"> & {
@@ -107,6 +113,8 @@ export type WorkspaceSummary = Message<"loco.org.v1.WorkspaceSummary"> & {
 };
 
 /**
+ * WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
+ *
  * @generated from message loco.org.v1.WorkspaceSummary
  */
 export type WorkspaceSummaryJson = {
@@ -139,6 +147,8 @@ export const WorkspaceSummarySchema: GenMessage<WorkspaceSummary, {jsonType: Wor
   messageDesc(file_org_v1_org, 1);
 
 /**
+ * CreateOrgRequest is the request to create a new organization.
+ *
  * @generated from message loco.org.v1.CreateOrgRequest
  */
 export type CreateOrgRequest = Message<"loco.org.v1.CreateOrgRequest"> & {
@@ -149,6 +159,8 @@ export type CreateOrgRequest = Message<"loco.org.v1.CreateOrgRequest"> & {
 };
 
 /**
+ * CreateOrgRequest is the request to create a new organization.
+ *
  * @generated from message loco.org.v1.CreateOrgRequest
  */
 export type CreateOrgRequestJson = {
@@ -166,6 +178,8 @@ export const CreateOrgRequestSchema: GenMessage<CreateOrgRequest, {jsonType: Cre
   messageDesc(file_org_v1_org, 2);
 
 /**
+ * CreateOrgResponse is the response from creating an organization.
+ *
  * @generated from message loco.org.v1.CreateOrgResponse
  */
 export type CreateOrgResponse = Message<"loco.org.v1.CreateOrgResponse"> & {
@@ -181,6 +195,8 @@ export type CreateOrgResponse = Message<"loco.org.v1.CreateOrgResponse"> & {
 };
 
 /**
+ * CreateOrgResponse is the response from creating an organization.
+ *
  * @generated from message loco.org.v1.CreateOrgResponse
  */
 export type CreateOrgResponseJson = {
@@ -203,6 +219,8 @@ export const CreateOrgResponseSchema: GenMessage<CreateOrgResponse, {jsonType: C
   messageDesc(file_org_v1_org, 3);
 
 /**
+ * GetOrgRequest is the request to retrieve an organization.
+ *
  * @generated from message loco.org.v1.GetOrgRequest
  */
 export type GetOrgRequest = Message<"loco.org.v1.GetOrgRequest"> & {
@@ -213,6 +231,8 @@ export type GetOrgRequest = Message<"loco.org.v1.GetOrgRequest"> & {
 };
 
 /**
+ * GetOrgRequest is the request to retrieve an organization.
+ *
  * @generated from message loco.org.v1.GetOrgRequest
  */
 export type GetOrgRequestJson = {
@@ -230,6 +250,8 @@ export const GetOrgRequestSchema: GenMessage<GetOrgRequest, {jsonType: GetOrgReq
   messageDesc(file_org_v1_org, 4);
 
 /**
+ * GetOrgResponse is the response containing organization information.
+ *
  * @generated from message loco.org.v1.GetOrgResponse
  */
 export type GetOrgResponse = Message<"loco.org.v1.GetOrgResponse"> & {
@@ -240,6 +262,8 @@ export type GetOrgResponse = Message<"loco.org.v1.GetOrgResponse"> & {
 };
 
 /**
+ * GetOrgResponse is the response containing organization information.
+ *
  * @generated from message loco.org.v1.GetOrgResponse
  */
 export type GetOrgResponseJson = {
@@ -257,12 +281,16 @@ export const GetOrgResponseSchema: GenMessage<GetOrgResponse, {jsonType: GetOrgR
   messageDesc(file_org_v1_org, 5);
 
 /**
+ * GetCurrentUserOrgsRequest is the request to retrieve current user's organizations.
+ *
  * @generated from message loco.org.v1.GetCurrentUserOrgsRequest
  */
 export type GetCurrentUserOrgsRequest = Message<"loco.org.v1.GetCurrentUserOrgsRequest"> & {
 };
 
 /**
+ * GetCurrentUserOrgsRequest is the request to retrieve current user's organizations.
+ *
  * @generated from message loco.org.v1.GetCurrentUserOrgsRequest
  */
 export type GetCurrentUserOrgsRequestJson = {
@@ -276,6 +304,8 @@ export const GetCurrentUserOrgsRequestSchema: GenMessage<GetCurrentUserOrgsReque
   messageDesc(file_org_v1_org, 6);
 
 /**
+ * GetCurrentUserOrgsResponse is the response containing the list of organizations.
+ *
  * @generated from message loco.org.v1.GetCurrentUserOrgsResponse
  */
 export type GetCurrentUserOrgsResponse = Message<"loco.org.v1.GetCurrentUserOrgsResponse"> & {
@@ -286,6 +316,8 @@ export type GetCurrentUserOrgsResponse = Message<"loco.org.v1.GetCurrentUserOrgs
 };
 
 /**
+ * GetCurrentUserOrgsResponse is the response containing the list of organizations.
+ *
  * @generated from message loco.org.v1.GetCurrentUserOrgsResponse
  */
 export type GetCurrentUserOrgsResponseJson = {
@@ -303,6 +335,8 @@ export const GetCurrentUserOrgsResponseSchema: GenMessage<GetCurrentUserOrgsResp
   messageDesc(file_org_v1_org, 7);
 
 /**
+ * ListOrgsRequest is the request to list organizations.
+ *
  * @generated from message loco.org.v1.ListOrgsRequest
  */
 export type ListOrgsRequest = Message<"loco.org.v1.ListOrgsRequest"> & {
@@ -323,6 +357,8 @@ export type ListOrgsRequest = Message<"loco.org.v1.ListOrgsRequest"> & {
 };
 
 /**
+ * ListOrgsRequest is the request to list organizations.
+ *
  * @generated from message loco.org.v1.ListOrgsRequest
  */
 export type ListOrgsRequestJson = {
@@ -350,6 +386,8 @@ export const ListOrgsRequestSchema: GenMessage<ListOrgsRequest, {jsonType: ListO
   messageDesc(file_org_v1_org, 8);
 
 /**
+ * ListOrgsResponse is the response containing organization list.
+ *
  * @generated from message loco.org.v1.ListOrgsResponse
  */
 export type ListOrgsResponse = Message<"loco.org.v1.ListOrgsResponse"> & {
@@ -365,6 +403,8 @@ export type ListOrgsResponse = Message<"loco.org.v1.ListOrgsResponse"> & {
 };
 
 /**
+ * ListOrgsResponse is the response containing organization list.
+ *
  * @generated from message loco.org.v1.ListOrgsResponse
  */
 export type ListOrgsResponseJson = {
@@ -387,6 +427,8 @@ export const ListOrgsResponseSchema: GenMessage<ListOrgsResponse, {jsonType: Lis
   messageDesc(file_org_v1_org, 9);
 
 /**
+ * UpdateOrgRequest is the request to update an organization.
+ *
  * @generated from message loco.org.v1.UpdateOrgRequest
  */
 export type UpdateOrgRequest = Message<"loco.org.v1.UpdateOrgRequest"> & {
@@ -402,6 +444,8 @@ export type UpdateOrgRequest = Message<"loco.org.v1.UpdateOrgRequest"> & {
 };
 
 /**
+ * UpdateOrgRequest is the request to update an organization.
+ *
  * @generated from message loco.org.v1.UpdateOrgRequest
  */
 export type UpdateOrgRequestJson = {
@@ -424,6 +468,8 @@ export const UpdateOrgRequestSchema: GenMessage<UpdateOrgRequest, {jsonType: Upd
   messageDesc(file_org_v1_org, 10);
 
 /**
+ * UpdateOrgResponse is the response from updating an organization.
+ *
  * @generated from message loco.org.v1.UpdateOrgResponse
  */
 export type UpdateOrgResponse = Message<"loco.org.v1.UpdateOrgResponse"> & {
@@ -439,6 +485,8 @@ export type UpdateOrgResponse = Message<"loco.org.v1.UpdateOrgResponse"> & {
 };
 
 /**
+ * UpdateOrgResponse is the response from updating an organization.
+ *
  * @generated from message loco.org.v1.UpdateOrgResponse
  */
 export type UpdateOrgResponseJson = {
@@ -461,6 +509,8 @@ export const UpdateOrgResponseSchema: GenMessage<UpdateOrgResponse, {jsonType: U
   messageDesc(file_org_v1_org, 11);
 
 /**
+ * DeleteOrgRequest is the request to delete an organization.
+ *
  * @generated from message loco.org.v1.DeleteOrgRequest
  */
 export type DeleteOrgRequest = Message<"loco.org.v1.DeleteOrgRequest"> & {
@@ -471,6 +521,8 @@ export type DeleteOrgRequest = Message<"loco.org.v1.DeleteOrgRequest"> & {
 };
 
 /**
+ * DeleteOrgRequest is the request to delete an organization.
+ *
  * @generated from message loco.org.v1.DeleteOrgRequest
  */
 export type DeleteOrgRequestJson = {
@@ -488,6 +540,8 @@ export const DeleteOrgRequestSchema: GenMessage<DeleteOrgRequest, {jsonType: Del
   messageDesc(file_org_v1_org, 12);
 
 /**
+ * DeleteOrgResponse is the response from deleting an organization.
+ *
  * @generated from message loco.org.v1.DeleteOrgResponse
  */
 export type DeleteOrgResponse = Message<"loco.org.v1.DeleteOrgResponse"> & {
@@ -503,6 +557,8 @@ export type DeleteOrgResponse = Message<"loco.org.v1.DeleteOrgResponse"> & {
 };
 
 /**
+ * DeleteOrgResponse is the response from deleting an organization.
+ *
  * @generated from message loco.org.v1.DeleteOrgResponse
  */
 export type DeleteOrgResponseJson = {
@@ -525,6 +581,8 @@ export const DeleteOrgResponseSchema: GenMessage<DeleteOrgResponse, {jsonType: D
   messageDesc(file_org_v1_org, 13);
 
 /**
+ * IsUniqueOrgNameRequest is the request to check organization name uniqueness.
+ *
  * @generated from message loco.org.v1.IsUniqueOrgNameRequest
  */
 export type IsUniqueOrgNameRequest = Message<"loco.org.v1.IsUniqueOrgNameRequest"> & {
@@ -540,6 +598,8 @@ export type IsUniqueOrgNameRequest = Message<"loco.org.v1.IsUniqueOrgNameRequest
 };
 
 /**
+ * IsUniqueOrgNameRequest is the request to check organization name uniqueness.
+ *
  * @generated from message loco.org.v1.IsUniqueOrgNameRequest
  */
 export type IsUniqueOrgNameRequestJson = {
@@ -562,6 +622,8 @@ export const IsUniqueOrgNameRequestSchema: GenMessage<IsUniqueOrgNameRequest, {j
   messageDesc(file_org_v1_org, 14);
 
 /**
+ * IsUniqueOrgNameResponse is the response indicating if a name is unique.
+ *
  * @generated from message loco.org.v1.IsUniqueOrgNameResponse
  */
 export type IsUniqueOrgNameResponse = Message<"loco.org.v1.IsUniqueOrgNameResponse"> & {
@@ -572,6 +634,8 @@ export type IsUniqueOrgNameResponse = Message<"loco.org.v1.IsUniqueOrgNameRespon
 };
 
 /**
+ * IsUniqueOrgNameResponse is the response indicating if a name is unique.
+ *
  * @generated from message loco.org.v1.IsUniqueOrgNameResponse
  */
 export type IsUniqueOrgNameResponseJson = {
@@ -589,10 +653,14 @@ export const IsUniqueOrgNameResponseSchema: GenMessage<IsUniqueOrgNameResponse, 
   messageDesc(file_org_v1_org, 15);
 
 /**
+ * OrgService manages organizations.
+ *
  * @generated from service loco.org.v1.OrgService
  */
 export const OrgService: GenService<{
   /**
+   * CreateOrg creates a new organization.
+   *
    * @generated from rpc loco.org.v1.OrgService.CreateOrg
    */
   createOrg: {
@@ -601,6 +669,8 @@ export const OrgService: GenService<{
     output: typeof CreateOrgResponseSchema;
   },
   /**
+   * GetOrg retrieves an organization by ID.
+   *
    * @generated from rpc loco.org.v1.OrgService.GetOrg
    */
   getOrg: {
@@ -609,6 +679,8 @@ export const OrgService: GenService<{
     output: typeof GetOrgResponseSchema;
   },
   /**
+   * GetCurrentUserOrgs retrieves all organizations for the current user.
+   *
    * @generated from rpc loco.org.v1.OrgService.GetCurrentUserOrgs
    */
   getCurrentUserOrgs: {
@@ -617,6 +689,8 @@ export const OrgService: GenService<{
     output: typeof GetCurrentUserOrgsResponseSchema;
   },
   /**
+   * ListOrgs lists organizations for a user.
+   *
    * @generated from rpc loco.org.v1.OrgService.ListOrgs
    */
   listOrgs: {
@@ -625,6 +699,8 @@ export const OrgService: GenService<{
     output: typeof ListOrgsResponseSchema;
   },
   /**
+   * UpdateOrg updates organization information.
+   *
    * @generated from rpc loco.org.v1.OrgService.UpdateOrg
    */
   updateOrg: {
@@ -633,6 +709,8 @@ export const OrgService: GenService<{
     output: typeof UpdateOrgResponseSchema;
   },
   /**
+   * DeleteOrg deletes an organization.
+   *
    * @generated from rpc loco.org.v1.OrgService.DeleteOrg
    */
   deleteOrg: {
@@ -641,6 +719,8 @@ export const OrgService: GenService<{
     output: typeof DeleteOrgResponseSchema;
   },
   /**
+   * IsUniqueOrgName checks if an organization name is unique.
+   *
    * @generated from rpc loco.org.v1.OrgService.IsUniqueOrgName
    */
   isUniqueOrgName: {

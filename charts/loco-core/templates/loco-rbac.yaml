@@ -1,0 +1,54 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: loco-api-cluster-role
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: loco-api-secrets-role
+  namespace: loco-system
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "watch", "list", "create", "update", "delete"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name:  loco-api
+  namespace: loco-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: loco-api-cluster-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: loco-api
+    namespace: loco-system
+roleRef:
+  kind: ClusterRole
+  name: loco-api-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: loco-api-secrets-binding
+  namespace: loco-system
+subjects:
+  - kind: ServiceAccount
+    name: loco-api
+    namespace: loco-system
+roleRef:
+  kind: Role
+  name: loco-api-secrets-role
+  apiGroup: rbac.authorization.k8s.io
