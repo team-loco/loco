@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY api ./api
 COPY shared ./shared
+COPY controller ./controller
 
 WORKDIR /app/api
 
