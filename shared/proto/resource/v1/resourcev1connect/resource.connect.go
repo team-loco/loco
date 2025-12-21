@@ -54,6 +54,9 @@ const (
 	// ResourceServiceGetResourceStatusProcedure is the fully-qualified name of the ResourceService's
 	// GetResourceStatus RPC.
 	ResourceServiceGetResourceStatusProcedure = "/loco.resource.v1.ResourceService/GetResourceStatus"
+	// ResourceServiceListRegionsProcedure is the fully-qualified name of the ResourceService's
+	// ListRegions RPC.
+	ResourceServiceListRegionsProcedure = "/loco.resource.v1.ResourceService/ListRegions"
 	// ResourceServiceStreamLogsProcedure is the fully-qualified name of the ResourceService's
 	// StreamLogs RPC.
 	ResourceServiceStreamLogsProcedure = "/loco.resource.v1.ResourceService/StreamLogs"
@@ -84,6 +87,8 @@ type ResourceServiceClient interface {
 	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error)
 	// GetResourceStatus retrieves the current status and deployment information of a resource.
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
+	// ListRegions lists available regions for resource deployment.
+	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
 	// Logs
 	// StreamLogs streams resource logs in real-time.
 	StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogEntry], error)
@@ -150,6 +155,12 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("GetResourceStatus")),
 			connect.WithClientOptions(opts...),
 		),
+		listRegions: connect.NewClient[v1.ListRegionsRequest, v1.ListRegionsResponse](
+			httpClient,
+			baseURL+ResourceServiceListRegionsProcedure,
+			connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
+			connect.WithClientOptions(opts...),
+		),
 		streamLogs: connect.NewClient[v1.StreamLogsRequest, v1.LogEntry](
 			httpClient,
 			baseURL+ResourceServiceStreamLogsProcedure,
@@ -186,6 +197,7 @@ type resourceServiceClient struct {
 	updateResource    *connect.Client[v1.UpdateResourceRequest, v1.UpdateResourceResponse]
 	deleteResource    *connect.Client[v1.DeleteResourceRequest, v1.DeleteResourceResponse]
 	getResourceStatus *connect.Client[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse]
+	listRegions       *connect.Client[v1.ListRegionsRequest, v1.ListRegionsResponse]
 	streamLogs        *connect.Client[v1.StreamLogsRequest, v1.LogEntry]
 	getEvents         *connect.Client[v1.GetEventsRequest, v1.GetEventsResponse]
 	scaleResource     *connect.Client[v1.ScaleResourceRequest, v1.ScaleResourceResponse]
@@ -227,6 +239,11 @@ func (c *resourceServiceClient) GetResourceStatus(ctx context.Context, req *conn
 	return c.getResourceStatus.CallUnary(ctx, req)
 }
 
+// ListRegions calls loco.resource.v1.ResourceService.ListRegions.
+func (c *resourceServiceClient) ListRegions(ctx context.Context, req *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error) {
+	return c.listRegions.CallUnary(ctx, req)
+}
+
 // StreamLogs calls loco.resource.v1.ResourceService.StreamLogs.
 func (c *resourceServiceClient) StreamLogs(ctx context.Context, req *connect.Request[v1.StreamLogsRequest]) (*connect.ServerStreamForClient[v1.LogEntry], error) {
 	return c.streamLogs.CallServerStream(ctx, req)
@@ -263,6 +280,8 @@ type ResourceServiceHandler interface {
 	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error)
 	// GetResourceStatus retrieves the current status and deployment information of a resource.
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
+	// ListRegions lists available regions for resource deployment.
+	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
 	// Logs
 	// StreamLogs streams resource logs in real-time.
 	StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogEntry]) error
@@ -325,6 +344,12 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resourceServiceMethods.ByName("GetResourceStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	resourceServiceListRegionsHandler := connect.NewUnaryHandler(
+		ResourceServiceListRegionsProcedure,
+		svc.ListRegions,
+		connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	resourceServiceStreamLogsHandler := connect.NewServerStreamHandler(
 		ResourceServiceStreamLogsProcedure,
 		svc.StreamLogs,
@@ -365,6 +390,8 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 			resourceServiceDeleteResourceHandler.ServeHTTP(w, r)
 		case ResourceServiceGetResourceStatusProcedure:
 			resourceServiceGetResourceStatusHandler.ServeHTTP(w, r)
+		case ResourceServiceListRegionsProcedure:
+			resourceServiceListRegionsHandler.ServeHTTP(w, r)
 		case ResourceServiceStreamLogsProcedure:
 			resourceServiceStreamLogsHandler.ServeHTTP(w, r)
 		case ResourceServiceGetEventsProcedure:
@@ -408,6 +435,10 @@ func (UnimplementedResourceServiceHandler) DeleteResource(context.Context, *conn
 
 func (UnimplementedResourceServiceHandler) GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResourceStatus is not implemented"))
+}
+
+func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListRegions is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) StreamLogs(context.Context, *connect.Request[v1.StreamLogsRequest], *connect.ServerStream[v1.LogEntry]) error {

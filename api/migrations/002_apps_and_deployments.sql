@@ -4,8 +4,14 @@ CREATE TYPE deployment_status AS ENUM ('pending', 'running', 'succeeded', 'faile
 -- Resource status enum
 CREATE TYPE resource_status AS ENUM ('available', 'progressing', 'degraded', 'unavailable', 'idle');
 
+-- Resource type enum
+CREATE TYPE resource_type AS ENUM ('service', 'worker', 'database', 'cache', 'queue', 'blob');
+
 -- Domain source enum (who manages the domain)
 CREATE TYPE domain_source AS ENUM ('platform_provided', 'user_provided');
+
+-- Region intent status enum
+CREATE TYPE region_intent_status AS ENUM ('desired', 'provisioning', 'active', 'degraded', 'removing', 'failed');
 
 -- Clusters table
 CREATE TABLE clusters (
@@ -14,6 +20,7 @@ CREATE TABLE clusters (
     region TEXT NOT NULL,
     provider TEXT NOT NULL,
     is_active BOOLEAN DEFAULT true,
+    is_default BOOLEAN DEFAULT false,
     endpoint TEXT,
     health_status TEXT DEFAULT 'healthy' CHECK (health_status IN ('healthy', 'unhealthy', 'degraded')),
     last_health_check TIMESTAMPTZ,
@@ -23,7 +30,6 @@ CREATE TABLE clusters (
 );
 
 CREATE INDEX idx_clusters_region ON clusters (region);
-CREATE INDEX idx_clusters_provider ON clusters (provider);
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
 
 -- Platform domains (loco-provided base domains)
@@ -38,12 +44,11 @@ CREATE TABLE platform_domains (
 CREATE TABLE resources (
     id BIGSERIAL PRIMARY KEY,
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE RESTRICT,
     name TEXT NOT NULL,
-    namespace TEXT NOT NULL,
-    type INT NOT NULL,
+    type resource_type NOT NULL,
     status resource_status DEFAULT 'idle',
     spec JSONB DEFAULT '{}'::jsonb,
+    spec_version INT DEFAULT 1,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -51,7 +56,27 @@ CREATE TABLE resources (
 );
 
 CREATE INDEX idx_resources_workspace_id ON resources (workspace_id);
-CREATE INDEX idx_resources_cluster_id ON resources (cluster_id);
+
+-- Resource regions table (declarative intent)
+CREATE TABLE resource_regions (
+    id BIGSERIAL PRIMARY KEY,
+    resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    region TEXT NOT NULL,
+    is_primary BOOLEAN NOT NULL DEFAULT false,
+    status region_intent_status NOT NULL DEFAULT 'desired',
+    last_error TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (resource_id, region)
+);
+
+CREATE INDEX idx_resource_regions_resource_id ON resource_regions (resource_id);
+CREATE INDEX idx_resource_regions_region ON resource_regions (region);
+
+-- Enforce max 1 primary region per resource
+CREATE UNIQUE INDEX uniq_resource_primary_region
+  ON resource_regions(resource_id)
+  WHERE is_primary = true;
 
 CREATE TABLE resource_domains (
     id BIGSERIAL PRIMARY KEY,
@@ -87,7 +112,7 @@ CREATE UNIQUE INDEX uniq_platform_subdomain
 
 
 
--- Deployments table
+-- Deployments table (immutable, single-region)
 CREATE TABLE deployments (
     id BIGSERIAL PRIMARY KEY,
     resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
@@ -99,7 +124,7 @@ CREATE TABLE deployments (
     error_message TEXT,
     message TEXT,
     spec JSONB DEFAULT '{}'::jsonb,
-    schema_version INT DEFAULT 1,
+    spec_version INT DEFAULT 1,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     started_at TIMESTAMPTZ,
@@ -110,3 +135,9 @@ CREATE TABLE deployments (
 CREATE INDEX idx_deployments_resource_id ON deployments (resource_id);
 CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
 CREATE INDEX idx_deployments_is_current ON deployments (resource_id, is_current) WHERE is_current = true;
+CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);
+
+-- Enforce one current deployment per resource per region
+CREATE UNIQUE INDEX uniq_active_deployment_per_region
+ON deployments(resource_id, cluster_id)
+WHERE is_current = true;

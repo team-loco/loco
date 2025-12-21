@@ -94,13 +94,9 @@ func (q *Queries) GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([
 }
 
 const getWorkspaceOrgID = `-- name: GetWorkspaceOrgID :one
-
 SELECT org_id FROM workspaces WHERE id = $1
 `
 
-// TODO: Uncomment when apps table exists
-// -- name: CountAppsInWorkspace :one
-// SELECT COUNT(*) FROM apps WHERE workspace_id = $1;
 func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceOrgID, id)
 	var org_id int64

@@ -91,8 +91,7 @@ type DeploymentSpec struct {
 	Env         map[string]string `json:"env,omitempty"`
 	Metrics     *MetricsSpec      `json:"metrics,omitempty"`
 
-	CreatedBy     int64 `json:"createdBy,omitempty"`
-	SchemaVersion int32 `json:"schemaVersion,omitempty"`
+	CreatedBy int64 `json:"createdBy,omitempty"`
 }
 
 // DomainSpec contains domain config
@@ -113,19 +112,6 @@ type RoutingSpec struct {
 	Domain      *DomainSpec `json:"domain,omitempty"`      // custom or platform-managed domain
 }
 
-// AppSpec contains app metadata and routing info
-type AppSpec struct {
-	Name        string            `json:"name"`
-	Type        string            `json:"type,omitempty"`        // SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB
-	Description string            `json:"description,omitempty"` // optional
-	AppId       int64             `json:"appId,omitempty"`       // optional
-	WorkspaceID int64             `json:"workspaceId,omitempty"` // optional
-	Labels      map[string]string `json:"labels,omitempty"`      // e.g. app-id, workspace-id
-
-	Routing       RoutingSpec `json:"routing"`
-	Observability ObsSpec     `json:"observability,omitzero"`
-}
-
 // LocoResourceSpec defines the desired state of LocoResource
 type LocoResourceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -133,10 +119,9 @@ type LocoResourceSpec struct {
 	// The following markers will use OpenAPI v3 schema to validate the value
 	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
 
-	// foo is an example field of LocoResource. Edit locoresource_types.go to remove/update
-	// +optional
-	// App-level info
-	App AppSpec `json:"app"`
+	Type        string `json:"type,omitempty"`        // SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB
+	ResourceId  int64  `json:"resourceId,omitempty"`  // optional
+	WorkspaceID int64  `json:"workspaceId,omitempty"` // optional
 
 	// Deployment info (current or requested)
 	Deployment *DeploymentSpec `json:"deployment,omitempty"`

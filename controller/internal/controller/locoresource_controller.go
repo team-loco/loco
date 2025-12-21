@@ -75,11 +75,8 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		status.StartedAt = &now
 	}
 
-	// derive the app spec we need to provision
-	appSpec := deriveAppSpec(&locoRes)
-
 	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
-	if err := ensureNamespace(ctx, r.Client, appSpec); err != nil {
+	if err := ensureNamespace(ctx, r.Client, &locoRes); err != nil {
 		log.Error(err, "failed to ensure namespace")
 		status.Phase = "Failed"
 		status.ErrorMessage = fmt.Sprintf("failed to ensure namespace: %v", err)
@@ -87,7 +84,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if err := ensureSecrets(ctx, r.Client, appSpec); err != nil {
+	if err := ensureSecrets(ctx, r.Client, &locoRes); err != nil {
 		log.Error(err, "failed to ensure secrets")
 		status.Phase = "Failed"
 		status.ErrorMessage = fmt.Sprintf("failed to ensure secrets: %v", err)
@@ -95,7 +92,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if err := ensureServiceAccount(ctx, r.Client, appSpec); err != nil {
+	if err := ensureServiceAccount(ctx, r.Client, &locoRes); err != nil {
 		log.Error(err, "failed to ensure service account")
 		status.Phase = "Failed"
 		status.ErrorMessage = fmt.Sprintf("failed to ensure service account: %v", err)
@@ -103,7 +100,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if err := ensureRoleAndBinding(ctx, r.Client, appSpec); err != nil {
+	if err := ensureRoleAndBinding(ctx, r.Client, &locoRes); err != nil {
 		log.Error(err, "failed to ensure role & binding")
 		status.Phase = "Failed"
 		status.ErrorMessage = fmt.Sprintf("failed to ensure role & binding: %v", err)
@@ -111,7 +108,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	dep, err := ensureDeployment(ctx, r.Client, appSpec)
+	dep, err := ensureDeployment(ctx, r.Client, &locoRes)
 	if err != nil {
 		log.Error(err, "failed to ensure deployment")
 		status.Phase = "Failed"
@@ -120,7 +117,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if err := ensureService(ctx, r.Client, appSpec); err != nil {
+	if err := ensureService(ctx, r.Client, &locoRes); err != nil {
 		log.Error(err, "failed to ensure service")
 		status.Phase = "Failed"
 		status.ErrorMessage = fmt.Sprintf("failed to ensure service: %v", err)
@@ -128,7 +125,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, err
 	}
 
-	if err := ensureHTTPRoute(ctx, r.Client, appSpec); err != nil {
+	if err := ensureHTTPRoute(ctx, r.Client, &locoRes); err != nil {
 		log.Error(err, "failed to ensure HTTP route")
 		status.Phase = "Failed"
 		status.ErrorMessage = fmt.Sprintf("failed to ensure HTTP route: %v", err)
@@ -138,7 +135,11 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// aggregate deployment status into our status
 	if dep != nil {
-		if dep.Status.ReadyReplicas < appSpec.Replicas {
+		replicas := locoRes.Spec.Deployment.InitialReplicas
+		if replicas == 0 {
+			replicas = 1
+		}
+		if dep.Status.ReadyReplicas < replicas {
 			status.Phase = "Deploying"
 		} else {
 			status.Phase = "Ready"
@@ -158,65 +159,31 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
 }
 
-// deriveAppSpec converts LocoResource into an app spec for provisioning
-func deriveAppSpec(locoRes *locov1alpha1.LocoResource) *appSpec {
-	spec := &appSpec{
-		Name:      locoRes.Spec.App.Name,
-		Namespace: fmt.Sprintf("wks-app-%d", locoRes.Spec.App.AppId),
-		Expose:    true,
-	}
-
-	// from deployment spec (if present)
-	if locoRes.Spec.Deployment != nil {
-		spec.Image = locoRes.Spec.Deployment.Image
-		if locoRes.Spec.Deployment.InitialReplicas > 0 {
-			spec.Replicas = locoRes.Spec.Deployment.InitialReplicas
-		}
-		if len(locoRes.Spec.Deployment.Env) > 0 {
-			spec.Env = locoRes.Spec.Deployment.Env
-		}
-		spec.CPU = locoRes.Spec.Deployment.Resources.CPU
-		spec.Memory = locoRes.Spec.Deployment.Resources.Memory
-	}
-
-	// from app spec (policy/intent)
-	spec.EnableHPA = locoRes.Spec.Deployment.Resources.Scalers.Enabled
-	spec.MinReplicas = locoRes.Spec.Deployment.Resources.Replicas.Min
-	spec.MaxReplicas = locoRes.Spec.Deployment.Resources.Replicas.Max
-	spec.CPUThreshold = locoRes.Spec.Deployment.Resources.Scalers.CPUTarget
-
-	return spec
+// getName derives the app name from the LocoResource
+func getName(locoRes *locov1alpha1.LocoResource) string {
+	return fmt.Sprintf("resource-%d", locoRes.Spec.ResourceId)
 }
 
-// appSpec represents the app configuration for provisioning
-type appSpec struct {
-	Name         string
-	Namespace    string
-	Image        string
-	Replicas     int32
-	EnableHPA    bool
-	MinReplicas  int32
-	MaxReplicas  int32
-	CPUThreshold int32
-	CPU          string
-	Memory       string
-	Env          map[string]string
-	Expose       bool
+// getNamespace derives the namespace from the LocoResource
+func getNamespace(locoRes *locov1alpha1.LocoResource) string {
+	return fmt.Sprintf("wks-res-%d", locoRes.Spec.ResourceId)
 }
+
 
 // ensureNamespace ensures the application namespace exists and is configured
-func ensureNamespace(ctx context.Context, kubeClient client.Client, spec *appSpec) error {
-	slog.InfoContext(ctx, "ensuring namespace", "namespace", spec.Namespace)
+func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+	namespace := getNamespace(locoRes)
+	slog.InfoContext(ctx, "ensuring namespace", "namespace", namespace)
 
 	ns := &corev1.Namespace{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Name: spec.Namespace}, ns); err == nil {
-		slog.InfoContext(ctx, "namespace already exists", "namespace", spec.Namespace)
+	if err := kubeClient.Get(ctx, client.ObjectKey{Name: namespace}, ns); err == nil {
+		slog.InfoContext(ctx, "namespace already exists", "namespace", namespace)
 		return nil
 	}
 
 	ns = &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: spec.Namespace,
+			Name: namespace,
 			Labels: map[string]string{
 				"expose-via-gw": "true",
 				"loco.dev/app":  "true",
@@ -225,36 +192,40 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, spec *appSpe
 	}
 
 	if err := kubeClient.Create(ctx, ns); err != nil {
-		slog.ErrorContext(ctx, "failed to create namespace", "namespace", spec.Namespace, "error", err)
+		slog.ErrorContext(ctx, "failed to create namespace", "namespace", namespace, "error", err)
 		return err
 	}
 
-	slog.InfoContext(ctx, "namespace created", "namespace", spec.Namespace)
+	slog.InfoContext(ctx, "namespace created", "namespace", namespace)
 	return nil
 }
 
 // ensureSecrets ensures all required secrets exist in the app namespace
-func ensureSecrets(ctx context.Context, kubeClient client.Client, spec *appSpec) error {
-	slog.InfoContext(ctx, "ensuring secrets", "namespace", spec.Namespace, "name", spec.Name)
+func ensureSecrets(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	slog.InfoContext(ctx, "ensuring secrets", "namespace", namespace, "name", name)
 
 	// check if env secret already exists
 	envSecret := &corev1.Secret{}
-	envSecretName := fmt.Sprintf("%s-env", spec.Name)
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: spec.Namespace, Name: envSecretName}, envSecret); err == nil {
-		slog.InfoContext(ctx, "env secret already exists", "name", envSecretName, "namespace", spec.Namespace)
+	envSecretName := fmt.Sprintf("%s-env", name)
+	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: envSecretName}, envSecret); err == nil {
+		slog.InfoContext(ctx, "env secret already exists", "name", envSecretName, "namespace", namespace)
 	} else {
-		// create env secret from spec.Env map
+		// create env secret from deployment env map
 		secretData := make(map[string][]byte)
-		for k, v := range spec.Env {
-			secretData[k] = []byte(v)
+		if locoRes.Spec.Deployment != nil {
+			for k, v := range locoRes.Spec.Deployment.Env {
+				secretData[k] = []byte(v)
+			}
 		}
 
 		envSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      envSecretName,
-				Namespace: spec.Namespace,
+				Namespace: namespace,
 				Labels: map[string]string{
-					"app": spec.Name,
+					"app": name,
 				},
 			},
 			Type: corev1.SecretTypeOpaque,
@@ -262,62 +233,66 @@ func ensureSecrets(ctx context.Context, kubeClient client.Client, spec *appSpec)
 		}
 
 		if err := kubeClient.Create(ctx, envSecret); err != nil {
-			slog.ErrorContext(ctx, "failed to create env secret", "name", envSecretName, "namespace", spec.Namespace, "error", err)
+			slog.ErrorContext(ctx, "failed to create env secret", "name", envSecretName, "namespace", namespace, "error", err)
 			return err
 		}
 
-		slog.InfoContext(ctx, "env secret created", "name", envSecretName, "namespace", spec.Namespace)
+		slog.InfoContext(ctx, "env secret created", "name", envSecretName, "namespace", namespace)
 	}
 
 	return nil
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment
-func ensureServiceAccount(ctx context.Context, kubeClient client.Client, spec *appSpec) error {
-	slog.InfoContext(ctx, "ensuring service account", "namespace", spec.Namespace, "name", spec.Name)
+func ensureServiceAccount(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	slog.InfoContext(ctx, "ensuring service account", "namespace", namespace, "name", name)
 
 	sa := &corev1.ServiceAccount{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: spec.Namespace, Name: spec.Name}, sa); err == nil {
-		slog.InfoContext(ctx, "service account already exists", "name", spec.Name, "namespace", spec.Namespace)
+	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, sa); err == nil {
+		slog.InfoContext(ctx, "service account already exists", "name", name, "namespace", namespace)
 		return nil
 	}
 
 	sa = &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: spec.Namespace,
+			Name:      name,
+			Namespace: namespace,
 		},
 	}
 
 	if err := kubeClient.Create(ctx, sa); err != nil {
-		slog.ErrorContext(ctx, "failed to create service account", "name", spec.Name, "namespace", spec.Namespace, "error", err)
+		slog.ErrorContext(ctx, "failed to create service account", "name", name, "namespace", namespace, "error", err)
 		return err
 	}
 
-	slog.InfoContext(ctx, "service account created", "name", spec.Name, "namespace", spec.Namespace)
+	slog.InfoContext(ctx, "service account created", "name", name, "namespace", namespace)
 	return nil
 }
 
 // ensureRoleAndBinding ensures the RBAC role and role binding exist
-func ensureRoleAndBinding(ctx context.Context, kubeClient client.Client, spec *appSpec) error {
-	slog.InfoContext(ctx, "ensuring role and role binding", "namespace", spec.Namespace, "name", spec.Name)
+func ensureRoleAndBinding(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	slog.InfoContext(ctx, "ensuring role and role binding", "namespace", namespace, "name", name)
 
-	envSecretName := fmt.Sprintf("%s-env", spec.Name)
-	roleName := fmt.Sprintf("%s-role", spec.Name)
-	roleBindingName := fmt.Sprintf("%s-binding", spec.Name)
+	envSecretName := fmt.Sprintf("%s-env", name)
+	roleName := fmt.Sprintf("%s-role", name)
+	roleBindingName := fmt.Sprintf("%s-binding", name)
 
 	// check if role already exists
 	role := &rbacv1.Role{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: spec.Namespace, Name: roleName}, role); err == nil {
-		slog.InfoContext(ctx, "role already exists", "name", roleName, "namespace", spec.Namespace)
+	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: roleName}, role); err == nil {
+		slog.InfoContext(ctx, "role already exists", "name", roleName, "namespace", namespace)
 	} else {
 		// create role with read access to the env secret
 		role = &rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      roleName,
-				Namespace: spec.Namespace,
+				Namespace: namespace,
 				Labels: map[string]string{
-					"app": spec.Name,
+					"app": name,
 				},
 			},
 			Rules: []rbacv1.PolicyRule{
@@ -331,17 +306,17 @@ func ensureRoleAndBinding(ctx context.Context, kubeClient client.Client, spec *a
 		}
 
 		if err := kubeClient.Create(ctx, role); err != nil {
-			slog.ErrorContext(ctx, "failed to create role", "name", roleName, "namespace", spec.Namespace, "error", err)
+			slog.ErrorContext(ctx, "failed to create role", "name", roleName, "namespace", namespace, "error", err)
 			return err
 		}
 
-		slog.InfoContext(ctx, "role created", "name", roleName, "namespace", spec.Namespace)
+		slog.InfoContext(ctx, "role created", "name", roleName, "namespace", namespace)
 	}
 
 	// check if role binding already exists
 	binding := &rbacv1.RoleBinding{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: spec.Namespace, Name: roleBindingName}, binding); err == nil {
-		slog.InfoContext(ctx, "role binding already exists", "name", roleBindingName, "namespace", spec.Namespace)
+	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: roleBindingName}, binding); err == nil {
+		slog.InfoContext(ctx, "role binding already exists", "name", roleBindingName, "namespace", namespace)
 		return nil
 	}
 
@@ -349,16 +324,16 @@ func ensureRoleAndBinding(ctx context.Context, kubeClient client.Client, spec *a
 	binding = &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      roleBindingName,
-			Namespace: spec.Namespace,
+			Namespace: namespace,
 			Labels: map[string]string{
-				"app": spec.Name,
+				"app": name,
 			},
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Name:      spec.Name,
-				Namespace: spec.Namespace,
+				Name:      name,
+				Namespace: namespace,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -369,36 +344,38 @@ func ensureRoleAndBinding(ctx context.Context, kubeClient client.Client, spec *a
 	}
 
 	if err := kubeClient.Create(ctx, binding); err != nil {
-		slog.ErrorContext(ctx, "failed to create role binding", "name", roleBindingName, "namespace", spec.Namespace, "error", err)
+		slog.ErrorContext(ctx, "failed to create role binding", "name", roleBindingName, "namespace", namespace, "error", err)
 		return err
 	}
 
-	slog.InfoContext(ctx, "role binding created", "name", roleBindingName, "namespace", spec.Namespace)
+	slog.InfoContext(ctx, "role binding created", "name", roleBindingName, "namespace", namespace)
 	return nil
 }
 
 // ensureService ensures the Kubernetes service exists for the deployment
-func ensureService(ctx context.Context, kubeClient client.Client, spec *appSpec) error {
-	slog.InfoContext(ctx, "ensuring service", "namespace", spec.Namespace, "name", spec.Name)
+func ensureService(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	slog.InfoContext(ctx, "ensuring service", "namespace", namespace, "name", name)
 
 	svc := &corev1.Service{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: spec.Namespace, Name: spec.Name}, svc); err == nil {
-		slog.InfoContext(ctx, "service already exists", "name", spec.Name, "namespace", spec.Namespace)
+	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, svc); err == nil {
+		slog.InfoContext(ctx, "service already exists", "name", name, "namespace", namespace)
 		return nil
 	}
 
 	svc = &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: spec.Namespace,
+			Name:      name,
+			Namespace: namespace,
 			Labels: map[string]string{
-				"app": spec.Name,
+				"app": name,
 			},
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				"app": spec.Name,
+				"app": name,
 			},
 			Ports: []corev1.ServicePort{
 				{
@@ -412,66 +389,69 @@ func ensureService(ctx context.Context, kubeClient client.Client, spec *appSpec)
 	}
 
 	if err := kubeClient.Create(ctx, svc); err != nil {
-		slog.ErrorContext(ctx, "failed to create service", "name", spec.Name, "namespace", spec.Namespace, "error", err)
+		slog.ErrorContext(ctx, "failed to create service", "name", name, "namespace", namespace, "error", err)
 		return err
 	}
 
-	slog.InfoContext(ctx, "service created", "name", spec.Name, "namespace", spec.Namespace)
+	slog.InfoContext(ctx, "service created", "name", name, "namespace", namespace)
 	return nil
 }
 
 // ensureDeployment ensures the Kubernetes deployment exists and is configured with the spec
 // Returns the deployment if it exists or was created, or nil if skipped
-func ensureDeployment(ctx context.Context, kubeClient client.Client, spec *appSpec) (*appsv1.Deployment, error) {
-	slog.InfoContext(ctx, "ensuring deployment", "namespace", spec.Namespace, "name", spec.Name, "replicas", spec.Replicas, "image", spec.Image)
-
-	dep := &appsv1.Deployment{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: spec.Namespace, Name: spec.Name}, dep); err == nil {
-		slog.InfoContext(ctx, "deployment already exists", "name", spec.Name, "namespace", spec.Namespace)
-		return dep, nil
-	}
-
-	replicas := spec.Replicas
-	if replicas == 0 {
-		replicas = 1
-	}
-
-	envVars := make([]corev1.EnvVar, 0, len(spec.Env))
-	for k, v := range spec.Env {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  k,
-			Value: v,
-		})
-	}
-
-	// default resource values if not specified
+func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) (*appsv1.Deployment, error) {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	image := ""
+	replicas := int32(1)
+	var envVars []corev1.EnvVar
 	cpuRequest := "100m"
 	cpuLimit := "500m"
 	memoryRequest := "128Mi"
 	memoryLimit := "512Mi"
 
-	if spec.CPU != "" {
-		cpuRequest = spec.CPU
-		cpuLimit = spec.CPU
+	if locoRes.Spec.Deployment != nil {
+		image = locoRes.Spec.Deployment.Image
+		if locoRes.Spec.Deployment.InitialReplicas > 0 {
+			replicas = locoRes.Spec.Deployment.InitialReplicas
+		}
+		for k, v := range locoRes.Spec.Deployment.Env {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  k,
+				Value: v,
+			})
+		}
+		if locoRes.Spec.Deployment.Resources.CPU != "" {
+			cpuRequest = locoRes.Spec.Deployment.Resources.CPU
+			cpuLimit = locoRes.Spec.Deployment.Resources.CPU
+		}
+		if locoRes.Spec.Deployment.Resources.Memory != "" {
+			memoryRequest = locoRes.Spec.Deployment.Resources.Memory
+			memoryLimit = locoRes.Spec.Deployment.Resources.Memory
+		}
 	}
-	if spec.Memory != "" {
-		memoryRequest = spec.Memory
-		memoryLimit = spec.Memory
+
+	slog.InfoContext(ctx, "ensuring deployment", "namespace", namespace, "name", name, "replicas", replicas, "image", image)
+
+	dep := &appsv1.Deployment{}
+	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, dep); err == nil {
+		slog.InfoContext(ctx, "deployment already exists", "name", name, "namespace", namespace)
+		return dep, nil
 	}
 
 	dep = &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      spec.Name,
-			Namespace: spec.Namespace,
+			Name:      name,
+			Namespace: namespace,
 			Labels: map[string]string{
-				"app": spec.Name,
+				"app": name,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"app": spec.Name,
+					"app": name,
 				},
 			},
 			Strategy: appsv1.DeploymentStrategy{
@@ -484,16 +464,16 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, spec *appSp
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": spec.Name,
+						"app": name,
 					},
 				},
 				Spec: corev1.PodSpec{
-					ServiceAccountName: spec.Name,
+					ServiceAccountName: name,
 					RestartPolicy:      corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
 						{
-							Name:  spec.Name,
-							Image: spec.Image,
+							Name:  name,
+							Image: image,
 							Env:   envVars,
 							Ports: []corev1.ContainerPort{
 								{
@@ -520,27 +500,25 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, spec *appSp
 	}
 
 	if err := kubeClient.Create(ctx, dep); err != nil {
-		slog.ErrorContext(ctx, "failed to create deployment", "name", spec.Name, "namespace", spec.Namespace, "error", err)
+		slog.ErrorContext(ctx, "failed to create deployment", "name", name, "namespace", namespace, "error", err)
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "deployment created", "name", spec.Name, "namespace", spec.Namespace, "replicas", replicas)
+	slog.InfoContext(ctx, "deployment created", "name", name, "namespace", namespace, "replicas", replicas)
 	return dep, nil
 }
 
 // ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)
-func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, spec *appSpec) error {
-	if !spec.Expose {
-		slog.InfoContext(ctx, "skipping HTTPRoute creation, expose is false", "name", spec.Name)
-		return nil
-	}
+func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
 
-	slog.InfoContext(ctx, "ensuring HTTPRoute", "namespace", spec.Namespace, "name", spec.Name)
+	slog.InfoContext(ctx, "ensuring HTTPRoute", "namespace", namespace, "name", name)
 
-	routeName := fmt.Sprintf("%s-route", spec.Name)
+	routeName := fmt.Sprintf("%s-route", name)
 	route := &v1Gateway.HTTPRoute{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: spec.Namespace, Name: routeName}, route); err == nil {
-		slog.InfoContext(ctx, "HTTPRoute already exists", "name", routeName, "namespace", spec.Namespace)
+	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: routeName}, route); err == nil {
+		slog.InfoContext(ctx, "HTTPRoute already exists", "name", routeName, "namespace", namespace)
 		return nil
 	}
 
@@ -552,9 +530,9 @@ func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, spec *appSpe
 	route = &v1Gateway.HTTPRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      routeName,
-			Namespace: spec.Namespace,
+			Namespace: namespace,
 			Labels: map[string]string{
-				"app": spec.Name,
+				"app": name,
 			},
 		},
 		Spec: v1Gateway.HTTPRouteSpec{
@@ -580,7 +558,7 @@ func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, spec *appSpe
 						{
 							BackendRef: v1Gateway.BackendRef{
 								BackendObjectReference: v1Gateway.BackendObjectReference{
-									Name: v1Gateway.ObjectName(spec.Name),
+									Name: v1Gateway.ObjectName(name),
 									Port: ptrToPortNumber(80),
 									Kind: ptrToKind("Service"),
 								},
@@ -593,11 +571,11 @@ func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, spec *appSpe
 	}
 
 	if err := kubeClient.Create(ctx, route); err != nil {
-		slog.ErrorContext(ctx, "failed to create HTTPRoute", "name", routeName, "namespace", spec.Namespace, "error", err)
+		slog.ErrorContext(ctx, "failed to create HTTPRoute", "name", routeName, "namespace", namespace, "error", err)
 		return err
 	}
 
-	slog.InfoContext(ctx, "HTTPRoute created", "name", routeName, "namespace", spec.Namespace)
+	slog.InfoContext(ctx, "HTTPRoute created", "name", routeName, "namespace", namespace)
 	return nil
 }
 

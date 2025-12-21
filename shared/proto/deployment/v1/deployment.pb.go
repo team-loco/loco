@@ -435,24 +435,25 @@ func (x *DeploymentSpec) GetMetrics() *DeploymentMetricsConfig {
 	return nil
 }
 
-// Deployment represents a resource deployment.
+// Deployment represents a resource deployment (immutable, single-region).
 type Deployment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	ResourceId    int64                  `protobuf:"varint,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Image         string                 `protobuf:"bytes,3,opt,name=image,proto3" json:"image,omitempty"`
-	Replicas      int32                  `protobuf:"varint,4,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	Status        DeploymentPhase        `protobuf:"varint,5,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
-	IsCurrent     bool                   `protobuf:"varint,6,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
-	Message       *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
-	ErrorMessage  *string                `protobuf:"bytes,8,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
-	CreatedBy     int64                  `protobuf:"varint,9,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
-	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	SchemaVersion int32                  `protobuf:"varint,14,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	Spec          *structpb.Struct       `protobuf:"bytes,15,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
+	ClusterId     int64                  `protobuf:"varint,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	Image         string                 `protobuf:"bytes,4,opt,name=image,proto3" json:"image,omitempty"`
+	Replicas      int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
+	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
+	IsCurrent     bool                   `protobuf:"varint,7,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
+	Message       *string                `protobuf:"bytes,8,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	ErrorMessage  *string                `protobuf:"bytes,9,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
+	CreatedBy     int64                  `protobuf:"varint,10,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SpecVersion   int32                  `protobuf:"varint,15,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
+	Spec          *structpb.Struct       `protobuf:"bytes,16,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -497,6 +498,13 @@ func (x *Deployment) GetId() int64 {
 func (x *Deployment) GetResourceId() int64 {
 	if x != nil {
 		return x.ResourceId
+	}
+	return 0
+}
+
+func (x *Deployment) GetClusterId() int64 {
+	if x != nil {
+		return x.ClusterId
 	}
 	return 0
 }
@@ -578,9 +586,9 @@ func (x *Deployment) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Deployment) GetSchemaVersion() int32 {
+func (x *Deployment) GetSpecVersion() int32 {
 	if x != nil {
-		return x.SchemaVersion
+		return x.SpecVersion
 	}
 	return 0
 }
@@ -596,7 +604,8 @@ func (x *Deployment) GetSpec() *structpb.Struct {
 type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Spec          *DeploymentSpec        `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	ClusterId     int64                  `protobuf:"varint,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	Spec          *DeploymentSpec        `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -634,6 +643,13 @@ func (*CreateDeploymentRequest) Descriptor() ([]byte, []int) {
 func (x *CreateDeploymentRequest) GetResourceId() int64 {
 	if x != nil {
 		return x.ResourceId
+	}
+	return 0
+}
+
+func (x *CreateDeploymentRequest) GetClusterId() int64 {
+	if x != nil {
+		return x.ClusterId
 	}
 	return 0
 }
@@ -1079,41 +1095,45 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x11_initial_replicasB\x0f\n" +
 	"\r_health_checkB\n" +
 	"\n" +
-	"\b_metrics\"\xcd\x05\n" +
+	"\b_metrics\"\xe8\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\x03R\n" +
-	"resourceId\x12\x14\n" +
-	"\x05image\x18\x03 \x01(\tR\x05image\x12\x1a\n" +
-	"\breplicas\x18\x04 \x01(\x05R\breplicas\x12;\n" +
-	"\x06status\x18\x05 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1d\n" +
+	"resourceId\x12\x1d\n" +
 	"\n" +
-	"is_current\x18\x06 \x01(\bR\tisCurrent\x12\x1d\n" +
-	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12(\n" +
-	"\rerror_message\x18\b \x01(\tH\x01R\ferrorMessage\x88\x01\x01\x12\x1d\n" +
+	"cluster_id\x18\x03 \x01(\x03R\tclusterId\x12\x14\n" +
+	"\x05image\x18\x04 \x01(\tR\x05image\x12\x1a\n" +
+	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
+	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\t \x01(\x03R\tcreatedBy\x129\n" +
+	"is_current\x18\a \x01(\bR\tisCurrent\x12\x1d\n" +
+	"\amessage\x18\b \x01(\tH\x00R\amessage\x88\x01\x01\x12(\n" +
+	"\rerror_message\x18\t \x01(\tH\x01R\ferrorMessage\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
+	"created_by\x18\n" +
+	" \x01(\x03R\tcreatedBy\x129\n" +
 	"\n" +
-	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartedAt\x88\x01\x01\x12B\n" +
-	"\fcompleted_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vcompletedAt\x88\x01\x01\x129\n" +
+	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
-	"\x0eschema_version\x18\x0e \x01(\x05R\rschemaVersion\x120\n" +
-	"\x04spec\x18\x0f \x01(\v2\x17.google.protobuf.StructH\x04R\x04spec\x88\x01\x01B\n" +
+	"started_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartedAt\x88\x01\x01\x12B\n" +
+	"\fcompleted_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vcompletedAt\x88\x01\x01\x129\n" +
+	"\n" +
+	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
+	"\fspec_version\x18\x0f \x01(\x05R\vspecVersion\x120\n" +
+	"\x04spec\x18\x10 \x01(\v2\x17.google.protobuf.StructH\x04R\x04spec\x88\x01\x01B\n" +
 	"\n" +
 	"\b_messageB\x10\n" +
 	"\x0e_error_messageB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atB\a\n" +
-	"\x05_spec\"r\n" +
+	"\x05_spec\"\x91\x01\n" +
 	"\x17CreateDeploymentRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
-	"resourceId\x126\n" +
-	"\x04spec\x18\x02 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"Y\n" +
+	"resourceId\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x126\n" +
+	"\x04spec\x18\x03 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"Y\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\";\n" +

@@ -13,19 +13,18 @@ import (
 
 const createResource = `-- name: CreateResource :one
 
-INSERT INTO resources (workspace_id, cluster_id, name, namespace, type, status, spec, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, workspace_id, cluster_id, name, namespace, type, status, spec, created_by, created_at, updated_at
+INSERT INTO resources (workspace_id, name, type, status, spec, spec_version, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, workspace_id, name, type, status, spec, spec_version, created_by, created_at, updated_at
 `
 
 type CreateResourceParams struct {
 	WorkspaceID int64              `json:"workspaceId"`
-	ClusterID   int64              `json:"clusterId"`
 	Name        string             `json:"name"`
-	Namespace   string             `json:"namespace"`
-	Type        int32              `json:"type"`
+	Type        ResourceType       `json:"type"`
 	Status      NullResourceStatus `json:"status"`
 	Spec        []byte             `json:"spec"`
+	SpecVersion pgtype.Int4        `json:"specVersion"`
 	CreatedBy   int64              `json:"createdBy"`
 }
 
@@ -33,25 +32,57 @@ type CreateResourceParams struct {
 func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (Resource, error) {
 	row := q.db.QueryRow(ctx, createResource,
 		arg.WorkspaceID,
-		arg.ClusterID,
 		arg.Name,
-		arg.Namespace,
 		arg.Type,
 		arg.Status,
 		arg.Spec,
+		arg.SpecVersion,
 		arg.CreatedBy,
 	)
 	var i Resource
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
-		&i.ClusterID,
 		&i.Name,
-		&i.Namespace,
 		&i.Type,
 		&i.Status,
 		&i.Spec,
+		&i.SpecVersion,
 		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createResourceRegion = `-- name: CreateResourceRegion :one
+INSERT INTO resource_regions (resource_id, region, is_primary, status)
+VALUES ($1, $2, $3, $4)
+RETURNING id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+`
+
+type CreateResourceRegionParams struct {
+	ResourceID int64              `json:"resourceId"`
+	Region     string             `json:"region"`
+	IsPrimary  bool               `json:"isPrimary"`
+	Status     RegionIntentStatus `json:"status"`
+}
+
+func (q *Queries) CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error) {
+	row := q.db.QueryRow(ctx, createResourceRegion,
+		arg.ResourceID,
+		arg.Region,
+		arg.IsPrimary,
+		arg.Status,
+	)
+	var i ResourceRegion
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.Region,
+		&i.IsPrimary,
+		&i.Status,
+		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -65,6 +96,34 @@ DELETE FROM resources WHERE id = $1
 func (q *Queries) DeleteResource(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteResource, id)
 	return err
+}
+
+const getActiveClusterByRegion = `-- name: GetActiveClusterByRegion :one
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+FROM clusters
+WHERE region = $1 AND is_active = true AND health_status = 'healthy'
+ORDER BY is_default DESC, created_at ASC
+LIMIT 1
+`
+
+func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (Cluster, error) {
+	row := q.db.QueryRow(ctx, getActiveClusterByRegion, region)
+	var i Cluster
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Region,
+		&i.Provider,
+		&i.IsActive,
+		&i.IsDefault,
+		&i.Endpoint,
+		&i.HealthStatus,
+		&i.LastHealthCheck,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedBy,
+	)
+	return i, err
 }
 
 const getClusterDetails = `-- name: GetClusterDetails :one
@@ -87,7 +146,7 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDe
 }
 
 const getFirstActiveCluster = `-- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
 FROM clusters
 WHERE is_active = true
 ORDER BY created_at ASC
@@ -104,6 +163,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 		&i.Region,
 		&i.Provider,
 		&i.IsActive,
+		&i.IsDefault,
 		&i.Endpoint,
 		&i.HealthStatus,
 		&i.LastHealthCheck,
@@ -115,7 +175,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.cluster_id, r.name, r.namespace, r.type, r.status, r.spec, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -126,12 +186,11 @@ func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, erro
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
-		&i.ClusterID,
 		&i.Name,
-		&i.Namespace,
 		&i.Type,
 		&i.Status,
 		&i.Spec,
+		&i.SpecVersion,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -140,7 +199,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, erro
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.cluster_id, r.name, r.namespace, r.type, r.status, r.spec, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -156,12 +215,11 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
-		&i.ClusterID,
 		&i.Name,
-		&i.Namespace,
 		&i.Type,
 		&i.Status,
 		&i.Spec,
+		&i.SpecVersion,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -180,8 +238,84 @@ func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id int64) (int64, 
 	return workspace_id, err
 }
 
+const listClustersActive = `-- name: ListClustersActive :many
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+FROM clusters
+WHERE is_active = true
+ORDER BY region ASC
+`
+
+func (q *Queries) ListClustersActive(ctx context.Context) ([]Cluster, error) {
+	rows, err := q.db.Query(ctx, listClustersActive)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Cluster
+	for rows.Next() {
+		var i Cluster
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Region,
+			&i.Provider,
+			&i.IsActive,
+			&i.IsDefault,
+			&i.Endpoint,
+			&i.HealthStatus,
+			&i.LastHealthCheck,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CreatedBy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listResourceRegions = `-- name: ListResourceRegions :many
+SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+FROM resource_regions
+WHERE resource_id = $1
+ORDER BY is_primary DESC, region ASC
+`
+
+func (q *Queries) ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error) {
+	rows, err := q.db.Query(ctx, listResourceRegions, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ResourceRegion
+	for rows.Next() {
+		var i ResourceRegion
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.Region,
+			&i.IsPrimary,
+			&i.Status,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.cluster_id, r.name, r.namespace, r.type, r.status, r.spec, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
 ORDER BY r.created_at DESC
@@ -199,12 +333,11 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, workspaceID int
 		if err := rows.Scan(
 			&i.ID,
 			&i.WorkspaceID,
-			&i.ClusterID,
 			&i.Name,
-			&i.Namespace,
 			&i.Type,
 			&i.Status,
 			&i.Spec,
+			&i.SpecVersion,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -224,7 +357,7 @@ UPDATE resources
 SET name = COALESCE($2, name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, cluster_id, name, namespace, type, status, spec, created_by, created_at, updated_at
+RETURNING id, workspace_id, name, type, status, spec, spec_version, created_by, created_at, updated_at
 `
 
 type UpdateResourceParams struct {
@@ -238,12 +371,11 @@ func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) 
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
-		&i.ClusterID,
 		&i.Name,
-		&i.Namespace,
 		&i.Type,
 		&i.Status,
 		&i.Spec,
+		&i.SpecVersion,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,

@@ -29,6 +29,7 @@ type Querier interface {
 	// Resource queries
 	CreateResource(ctx context.Context, arg CreateResourceParams) (Resource, error)
 	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (ResourceDomain, error)
+	CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error)
 	// User queries for sqlc
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// Workspace queries
@@ -42,6 +43,7 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id int64) error
 	DeleteWorkspace(ctx context.Context, id int64) error
 	DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error
+	GetActiveClusterByRegion(ctx context.Context, region string) (Cluster, error)
 	GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error)
 	GetDeploymentByID(ctx context.Context, id int64) (Deployment, error)
 	GetDeploymentResourceID(ctx context.Context, id int64) (int64, error)
@@ -69,9 +71,6 @@ type Querier interface {
 	GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error)
 	GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error)
 	GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([]WorkspaceMember, error)
-	// TODO: Uncomment when apps table exists
-	// -- name: CountAppsInWorkspace :one
-	// SELECT COUNT(*) FROM apps WHERE workspace_id = $1;
 	GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error)
 	InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (Workspace, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
@@ -81,10 +80,12 @@ type Querier interface {
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
+	ListClustersActive(ctx context.Context) ([]Cluster, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
 	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListResourceDomains(ctx context.Context, resourceID int64) ([]ResourceDomain, error)
+	ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, workspaceID int64) ([]Resource, error)
 	ListUserOrganizations(ctx context.Context, userID int64) ([]Organization, error)
 	ListUserWorkspaces(ctx context.Context, userID int64) ([]Workspace, error)

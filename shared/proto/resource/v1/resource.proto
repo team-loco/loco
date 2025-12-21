@@ -36,6 +36,16 @@ enum ResourceStatus {
   IDLE        = 4;
 }
 
+// RegionIntentStatus represents the state of a region intent for a resource.
+enum RegionIntentStatus {
+  REGION_INTENT_DESIRED      = 0;
+  REGION_INTENT_PROVISIONING = 1;
+  REGION_INTENT_ACTIVE       = 2;
+  REGION_INTENT_DEGRADED     = 3;
+  REGION_INTENT_REMOVING     = 4;
+  REGION_INTENT_FAILED       = 5;
+}
+
 // ResourceService manages resource lifecycle and operations.
 service ResourceService {
   // CreateResource creates a new resource.
@@ -52,6 +62,8 @@ service ResourceService {
   rpc DeleteResource(DeleteResourceRequest) returns (DeleteResourceResponse);
   // GetResourceStatus retrieves the current status and deployment information of a resource.
   rpc GetResourceStatus(GetResourceStatusRequest) returns (GetResourceStatusResponse);
+  // ListRegions lists available regions for resource deployment.
+  rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
 
   // Logs
   // StreamLogs streams resource logs in real-time.
@@ -73,14 +85,23 @@ message Resource {
   int64                             id           = 1;
   int64                             workspace_id = 2;
   string                            name         = 4;
-  string                            namespace    = 5;
   ResourceType                      type         = 6;
   repeated loco.domain.v1.ResourceDomain domains      = 7;
+  repeated RegionConfig             regions      = 8;
   int64                             created_by   = 11;
   google.protobuf.Timestamp         created_at   = 12;
   google.protobuf.Timestamp         updated_at   = 13;
   ResourceStatus                    status       = 14;
   optional google.protobuf.Struct   spec         = 15;
+  int32                             spec_version = 16;
+}
+
+// RegionConfig represents a region deployment intent for a resource.
+message RegionConfig {
+  string              region     = 1;
+  bool                is_primary = 2;
+  RegionIntentStatus  status     = 3;
+  optional string     last_error = 4;
 }
 
 // --- CRUD ---
@@ -92,6 +113,7 @@ message CreateResourceRequest {
   ResourceType                    type         = 4;
   loco.domain.v1.DomainInput      domain       = 5;
   optional google.protobuf.Struct spec         = 6;
+  repeated string                 regions      = 7;
 }
 
 // CreateResourceResponse is the response from creating a resource.
@@ -154,6 +176,22 @@ message DeleteResourceRequest {
 message DeleteResourceResponse {
   Resource resource = 1;
   string   message  = 2;
+}
+
+// RegionInfo represents available region information.
+message RegionInfo {
+  string  region     = 1;
+  bool    is_default = 2;
+  string  health_status = 3;
+}
+
+// ListRegionsRequest is the request to list available deployment regions.
+message ListRegionsRequest {
+}
+
+// ListRegionsResponse is the response containing available regions.
+message ListRegionsResponse {
+  repeated RegionInfo regions = 1;
 }
 
 // GetResourceStatusRequest is the request to retrieve resource status.

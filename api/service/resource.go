@@ -33,6 +33,12 @@ var (
 	ErrInvalidResourceType   = errors.New("invalid resource type")
 )
 
+// computeNamespace derives a Kubernetes namespace from resource ID
+// format: app-{resourceID}
+func computeNamespace(resourceID int64) string {
+	return fmt.Sprintf("app-%d", resourceID)
+}
+
 type ResourceServer struct {
 	db         *pgxpool.Pool
 	queries    genDb.Querier
@@ -77,11 +83,8 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	// todo: implement cluster selection strategy and health validation
-	cluster, err := s.queries.GetFirstActiveCluster(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active cluster", "error", err)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active cluster available: %w", err))
+	if len(r.Regions) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one region is required"))
 	}
 
 	if r.Domain == nil {
@@ -142,16 +145,30 @@ func (s *ResourceServer) CreateResource(
 
 	resource, err := s.queries.CreateResource(ctx, genDb.CreateResourceParams{
 		WorkspaceID: r.WorkspaceId,
-		ClusterID:   cluster.ID,
 		Name:        r.Name,
-		Type:        int32(r.Type.Number()),
+		Type:        genDb.ResourceType(r.Type.Number()),
 		Status:      genDb.NullResourceStatus{ResourceStatus: genDb.ResourceStatusIdle, Valid: true},
 		Spec:        specBytes,
+		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
 		CreatedBy:   userID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	// Create resource regions (first region is primary)
+	for i, region := range r.Regions {
+		isPrimary := i == 0
+		_, err := s.queries.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
+			ResourceID: resource.ID,
+			Region:     region,
+			IsPrimary:  isPrimary,
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to create resource region", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		}
 	}
 
 	domainParams := genDb.CreateResourceDomainParams{
@@ -169,8 +186,14 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{
-		Resource: dbResourceToProto(resource, []genDb.ResourceDomain{resourceDomain}),
+		Resource: dbResourceToProto(resource, []genDb.ResourceDomain{resourceDomain}, resourceRegions),
 		Message:  "Resource created successfully",
 	}), nil
 }
@@ -210,8 +233,14 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(resource, resourceDomains),
+		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
 	}), nil
 }
 
@@ -252,8 +281,14 @@ func (s *ResourceServer) GetResourceByName(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&resourcev1.GetResourceByNameResponse{
-		Resource: dbResourceToProto(resource, resourceDomains),
+		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
 	}), nil
 }
 
@@ -293,7 +328,12 @@ func (s *ResourceServer) ListResources(
 			slog.ErrorContext(ctx, "failed to list resource domains", "resourceId", dbResource.ID, "error", err)
 			continue
 		}
-		resources = append(resources, dbResourceToProto(dbResource, resourceDomains))
+		resourceRegions, err := s.queries.ListResourceRegions(ctx, dbResource.ID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to list resource regions", "resourceId", dbResource.ID, "error", err)
+			continue
+		}
+		resources = append(resources, dbResourceToProto(dbResource, resourceDomains, resourceRegions))
 	}
 
 	return connect.NewResponse(&resourcev1.ListResourcesResponse{
@@ -356,8 +396,14 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&resourcev1.UpdateResourceResponse{
-		Resource: dbResourceToProto(resource, resourceDomains),
+		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
 		Message:  "Resource updated successfully",
 	}), nil
 }
@@ -409,6 +455,12 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	err = s.queries.DeleteResource(ctx, r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete resource", "error", err)
@@ -416,7 +468,7 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	return connect.NewResponse(&resourcev1.DeleteResourceResponse{
-		Resource: dbResourceToProto(resource, resourceDomains),
+		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
 		Message:  "Resource deleted successfully",
 	}), nil
 }
@@ -481,9 +533,55 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
-		Resource:          dbResourceToProto(resource, resourceDomains),
+		Resource:          dbResourceToProto(resource, resourceDomains, resourceRegions),
 		CurrentDeployment: deploymentStatus,
+	}), nil
+}
+
+// ListRegions lists available regions for resource deployment
+func (s *ResourceServer) ListRegions(
+	ctx context.Context,
+	req *connect.Request[resourcev1.ListRegionsRequest],
+) (*connect.Response[resourcev1.ListRegionsResponse], error) {
+	clusters, err := s.queries.ListClustersActive(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	regionMap := make(map[string]*resourcev1.RegionInfo)
+	for _, cluster := range clusters {
+		if _, exists := regionMap[cluster.Region]; !exists {
+			isDefault := false
+			if cluster.IsDefault.Valid {
+				isDefault = cluster.IsDefault.Bool
+			}
+			healthStatus := ""
+			if cluster.HealthStatus.Valid {
+				healthStatus = cluster.HealthStatus.String
+			}
+			regionMap[cluster.Region] = &resourcev1.RegionInfo{
+				Region:       cluster.Region,
+				IsDefault:    isDefault,
+				HealthStatus: healthStatus,
+			}
+		}
+	}
+
+	var protoRegions []*resourcev1.RegionInfo
+	for _, info := range regionMap {
+		protoRegions = append(protoRegions, info)
+	}
+
+	return connect.NewResponse(&resourcev1.ListRegionsResponse{
+		Regions: protoRegions,
 	}), nil
 }
 
@@ -516,12 +614,7 @@ func (s *ResourceServer) StreamLogs(
 		return connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	if resource.Namespace == "" {
-		slog.WarnContext(ctx, "resource has no namespace assigned", "resource_id", r.ResourceId)
-		return connect.NewError(connect.CodeFailedPrecondition, errors.New("resource has not been deployed yet"))
-	}
-
-	slog.InfoContext(ctx, "fetching logs for resource", "resource_id", r.ResourceId, "resource_namespace", resource.Namespace)
+	slog.InfoContext(ctx, "fetching logs for resource", "resource_id", r.ResourceId)
 
 	follow := false
 	if r.Follow != nil {
@@ -533,8 +626,10 @@ func (s *ResourceServer) StreamLogs(
 		tailLines = int64(*r.Limit)
 	}
 
+	namespace := computeNamespace(resource.ID)
+
 	logStream := klogmux.NewBuilder(s.kubeClient.ClientSet).
-		Namespace(resource.Namespace).
+		Namespace(namespace).
 		Follow(follow).
 		TailLines(tailLines).
 		Build()
@@ -602,16 +697,13 @@ func (s *ResourceServer) GetEvents(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	if resource.Namespace == "" {
-		slog.WarnContext(ctx, "resource has no namespace assigned", "resource_id", r.ResourceId)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("resource has not been deployed yet"))
-	}
+	namespace := computeNamespace(resource.ID)
 
-	slog.InfoContext(ctx, "fetching events for resource", "resource_id", r.ResourceId, "resource_namespace", resource.Namespace)
+	slog.InfoContext(ctx, "fetching events for resource", "resource_id", r.ResourceId, "resource_namespace", namespace)
 
-	eventList, err := s.kubeClient.ClientSet.CoreV1().Events(resource.Namespace).List(ctx, metav1.ListOptions{})
+	eventList, err := s.kubeClient.ClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list events from kubernetes", "error", err, "namespace", resource.Namespace)
+		slog.ErrorContext(ctx, "failed to list events from kubernetes", "error", err, "namespace", namespace)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch events: %w", err))
 	}
 
@@ -780,15 +872,15 @@ func (s *ResourceServer) ScaleResource(
 	}
 
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		ResourceID:    r.ResourceId,
-		ClusterID:     1,
-		Image:         currentDeployment.Image,
-		Replicas:      replicas,
-		Status:        genDb.DeploymentStatusPending,
-		IsCurrent:     true,
-		CreatedBy:     userID,
-		Spec:          specJson,
-		SchemaVersion: pgtype.Int4{Int32: 1, Valid: true},
+		ResourceID:  r.ResourceId,
+		ClusterID:   1,
+		Image:       currentDeployment.Image,
+		Replicas:    replicas,
+		Status:      genDb.DeploymentStatusPending,
+		IsCurrent:   true,
+		CreatedBy:   userID,
+		Spec:        specJson,
+		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -918,15 +1010,15 @@ func (s *ResourceServer) UpdateResourceEnv(
 	}
 
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		ResourceID:    r.ResourceId,
-		ClusterID:     1,
-		Image:         currentDeployment.Image,
-		Replicas:      currentDeployment.Replicas,
-		Status:        genDb.DeploymentStatusPending,
-		IsCurrent:     true,
-		CreatedBy:     userID,
-		Spec:          specJson,
-		SchemaVersion: pgtype.Int4{Int32: 1, Valid: true},
+		ResourceID:  r.ResourceId,
+		ClusterID:   1,
+		Image:       currentDeployment.Image,
+		Replicas:    currentDeployment.Replicas,
+		Status:      genDb.DeploymentStatusPending,
+		IsCurrent:   true,
+		CreatedBy:   userID,
+		Spec:        specJson,
+		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -1038,24 +1130,50 @@ func resourceDomainToProto(rd any) *domainv1.ResourceDomain {
 }
 
 // dbResourceToProto converts a database Resource to the proto Resource
-// to be returned to client. Note: caller is responsible for fetching domain separately.
-func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain) *resourcev1.Resource {
-	resourceType := resourcev1.ResourceType(resource.Type)
+// to be returned to client. Note: caller is responsible for fetching domains and regions separately.
+func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, regions []genDb.ResourceRegion) *resourcev1.Resource {
+	// convert db.ResourceType (string) to proto ResourceType (int32)
+	var resourceType resourcev1.ResourceType
+	switch resource.Type {
+	case "service":
+		resourceType = resourcev1.ResourceType_SERVICE
+	case "database":
+		resourceType = resourcev1.ResourceType_DATABASE
+	case "function":
+		resourceType = resourcev1.ResourceType_FUNCTION
+	case "cache":
+		resourceType = resourcev1.ResourceType_CACHE
+	case "queue":
+		resourceType = resourcev1.ResourceType_QUEUE
+	case "blob":
+		resourceType = resourcev1.ResourceType_BLOB
+	default:
+		resourceType = resourcev1.ResourceType_SERVICE
+	}
+
 	resourceStatus := resourcev1.ResourceStatus_IDLE
 	if resource.Status.Valid {
 		resourceStatus = resourcev1.ResourceStatus(resourcev1.ResourceStatus_value[strings.ToUpper(string(resource.Status.ResourceStatus))])
 	}
 
+	protoRegions := make([]*resourcev1.RegionConfig, len(regions))
+	for i, r := range regions {
+		protoRegions[i] = &resourcev1.RegionConfig{
+			Region:    r.Region,
+			IsPrimary: r.IsPrimary,
+		}
+	}
+
 	return &resourcev1.Resource{
-		Id:          resource.ID,
+		Id:        resource.ID,
 		WorkspaceId: resource.WorkspaceID,
-		Name:        resource.Name,
-		Namespace:   resource.Namespace,
-		Type:        resourceType,
-		Domains:     resourceDomainToListProto(domains),
-		CreatedBy:   resource.CreatedBy,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
-		Status:      resourceStatus,
+		Name:      resource.Name,
+		Type:      resourceType,
+		Domains:   resourceDomainToListProto(domains),
+		Regions:   protoRegions,
+		CreatedBy: resource.CreatedBy,
+		CreatedAt: timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
+		UpdatedAt: timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
+		Status:    resourceStatus,
 	}
 }

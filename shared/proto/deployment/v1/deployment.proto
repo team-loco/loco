@@ -70,29 +70,31 @@ message DeploymentSpec {
   optional DeploymentMetricsConfig metrics          = 9;
 }
 
-// Deployment represents a resource deployment.
+// Deployment represents a resource deployment (immutable, single-region).
 message Deployment {
   int64                              id             = 1;
   int64                              resource_id    = 2;
-  string                             image          = 3;
-  int32                              replicas       = 4;
-  DeploymentPhase                    status         = 5;
-  bool                               is_current     = 6;
-  optional string                    message        = 7;
-  optional string                    error_message  = 8;
-  int64                              created_by     = 9;
-  google.protobuf.Timestamp          created_at     = 10;
-  optional google.protobuf.Timestamp started_at     = 11;
-  optional google.protobuf.Timestamp completed_at   = 12;
-  google.protobuf.Timestamp          updated_at     = 13;
-  int32                              schema_version = 14;
-  optional google.protobuf.Struct    spec           = 15;
+  int64                              cluster_id     = 3;
+  string                             image          = 4;
+  int32                              replicas       = 5;
+  DeploymentPhase                    status         = 6;
+  bool                               is_current     = 7;
+  optional string                    message        = 8;
+  optional string                    error_message  = 9;
+  int64                              created_by     = 10;
+  google.protobuf.Timestamp          created_at     = 11;
+  optional google.protobuf.Timestamp started_at     = 12;
+  optional google.protobuf.Timestamp completed_at   = 13;
+  google.protobuf.Timestamp          updated_at     = 14;
+  int32                              spec_version   = 15;
+  optional google.protobuf.Struct    spec           = 16;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
   int64          resource_id = 1;
-  DeploymentSpec spec        = 2;
+  int64          cluster_id  = 2;
+  DeploymentSpec spec        = 3;
 }
 
 // CreateDeploymentResponse is the response from creating a deployment.

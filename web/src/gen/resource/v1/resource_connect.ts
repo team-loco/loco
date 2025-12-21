@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetEventsRequest, GetEventsResponse, GetResourceByNameRequest, GetResourceByNameResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListResourcesRequest, ListResourcesResponse, LogEntry, ScaleResourceRequest, ScaleResourceResponse, StreamLogsRequest, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetEventsRequest, GetEventsResponse, GetResourceByNameRequest, GetResourceByNameResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourcesRequest, ListResourcesResponse, LogEntry, ScaleResourceRequest, ScaleResourceResponse, StreamLogsRequest, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -89,6 +89,17 @@ export const ResourceService = {
       name: "GetResourceStatus",
       I: GetResourceStatusRequest,
       O: GetResourceStatusResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListRegions lists available regions for resource deployment.
+     *
+     * @generated from rpc loco.resource.v1.ResourceService.ListRegions
+     */
+    listRegions: {
+      name: "ListRegions",
+      I: ListRegionsRequest,
+      O: ListRegionsResponse,
       kind: MethodKind.Unary,
     },
     /**

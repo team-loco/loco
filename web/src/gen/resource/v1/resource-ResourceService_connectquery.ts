@@ -54,6 +54,13 @@ export const deleteResource = ResourceService.method.deleteResource;
 export const getResourceStatus = ResourceService.method.getResourceStatus;
 
 /**
+ * ListRegions lists available regions for resource deployment.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.ListRegions
+ */
+export const listRegions = ResourceService.method.listRegions;
+
+/**
  * Events
  * GetEvents retrieves events for a resource.
  *

@@ -120,12 +120,11 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	// get first active cluster
-	// todo: eventually replace with actual auto cluster selection or
+	// get active cluster
 	cluster, err := s.queries.GetFirstActiveCluster(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, errors.New("no active clusters available"))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active clusters available: %w", err))
 	}
 
 	specJSON, err := json.Marshal(r.Spec)
@@ -141,15 +140,15 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		ResourceID:    r.ResourceId,
-		ClusterID:     cluster.ID,
-		Image:         *r.Spec.Image,
-		Replicas:      replicas,
-		Status:        genDb.DeploymentStatusPending,
-		IsCurrent:     true,
-		CreatedBy:     userID,
-		Spec:          specJSON,
-		SchemaVersion: pgtype.Int4{Int32: 1, Valid: true},
+		ResourceID:  r.ResourceId,
+		ClusterID:   cluster.ID,
+		Image:       *r.Spec.Image,
+		Replicas:    replicas,
+		Status:      genDb.DeploymentStatusPending,
+		IsCurrent:   true,
+		CreatedBy:   userID,
+		Spec:        specJSON,
+		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -210,15 +209,16 @@ func (s *DeploymentServer) GetDeployment(
 	}
 
 	deploymentResp := &deploymentv1.Deployment{
-		Id:         deploymentData.ID,
-		ResourceId: deploymentData.ResourceID,
-		Image:     deploymentData.Image,
-		Replicas:  deploymentData.Replicas,
-		Status:    parseDeploymentPhase(deploymentData.Status),
-		IsCurrent: deploymentData.IsCurrent,
-		CreatedBy: deploymentData.CreatedBy,
-		CreatedAt: timeutil.ParsePostgresTimestamp(deploymentData.CreatedAt.Time),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(deploymentData.UpdatedAt.Time),
+		Id:          deploymentData.ID,
+		ResourceId:  deploymentData.ResourceID,
+		Image:       deploymentData.Image,
+		Replicas:    deploymentData.Replicas,
+		Status:      parseDeploymentPhase(deploymentData.Status),
+		IsCurrent:   deploymentData.IsCurrent,
+		CreatedBy:   deploymentData.CreatedBy,
+		CreatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.CreatedAt.Time),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.UpdatedAt.Time),
+		SpecVersion: deploymentData.SpecVersion.Int32,
 	}
 
 	if len(deploymentData.Spec) > 0 {
@@ -229,7 +229,6 @@ func (s *DeploymentServer) GetDeployment(
 			}
 		}
 	}
-	deploymentResp.SchemaVersion = deploymentData.SchemaVersion.Int32
 
 	if deploymentData.Message.Valid {
 		deploymentResp.Message = &deploymentData.Message.String
@@ -309,15 +308,17 @@ func (s *DeploymentServer) ListDeployments(
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
 		deployment := &deploymentv1.Deployment{
-			Id:         d.ID,
-			ResourceId: d.ResourceID,
-			Image:     d.Image,
-			Replicas:  d.Replicas,
-			Status:    parseDeploymentPhase(d.Status),
-			IsCurrent: d.IsCurrent,
-			CreatedBy: d.CreatedBy,
-			CreatedAt: timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+			Id:          d.ID,
+			ResourceId:  d.ResourceID,
+			ClusterId:   d.ClusterID,
+			Image:       d.Image,
+			Replicas:    d.Replicas,
+			Status:      parseDeploymentPhase(d.Status),
+			IsCurrent:   d.IsCurrent,
+			CreatedBy:   d.CreatedBy,
+			CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
+			UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+			SpecVersion: d.SpecVersion.Int32,
 		}
 
 		if len(d.Spec) > 0 {
@@ -328,7 +329,6 @@ func (s *DeploymentServer) ListDeployments(
 				}
 			}
 		}
-		deployment.SchemaVersion = d.SchemaVersion.Int32
 
 		if d.Message.Valid {
 			deployment.Message = &d.Message.String
@@ -500,27 +500,16 @@ func createLocoResource(
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%d-%s", resource.ID, resource.Name),
 			Namespace: "loco-system",
-			Labels: map[string]string{
-				"resource-id":   fmt.Sprintf("%d", resource.ID),
-				"resource-name": resource.Name,
-			},
+			Labels:    map[string]string{},
 		},
 		Spec: locoControllerV1.LocoResourceSpec{
-			App: locoControllerV1.AppSpec{
-				Name:        resource.Name,
-				AppId:       resource.ID,
-				WorkspaceID: resource.WorkspaceID,
-				Type:        "SERVICE",
-				Routing: locoControllerV1.RoutingSpec{
-					Subdomain: resource.Name,
-					Port:      8080,
-				},
-			},
+			ResourceId:  resource.ID,
+			WorkspaceID: resource.WorkspaceID,
+			Type:        "SERVICE",
 			Deployment: &locoControllerV1.DeploymentSpec{
 				Image:           deployment.Image,
 				InitialReplicas: deployment.Replicas,
 				Env:             parseEnvFromSpec(deploymentSpec),
-				SchemaVersion:   deployment.SchemaVersion.Int32,
 				CreatedBy:       deployment.CreatedBy,
 			},
 		},
