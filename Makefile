@@ -75,6 +75,10 @@ helm-deps: ## Build helm chart dependencies
 	helm dependency build ./charts/loco-networking
 	helm dependency build ./charts/loco-obs
 	helm dependency build ./charts/loco-core
+	helm dependency build ./charts/loco-controller
+
+controller-gen: ## Generate controller manifests and code
+	cd controller && make manifests && make generate
 
 helm-u-all: helm-deps ## Sync all releases (local environment)
 	helmfile -e local sync

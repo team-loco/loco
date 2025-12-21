@@ -6,6 +6,10 @@ cliVersion: 4.10.1
 domain: loco.deploy-app.com
 layout:
   - go.kubebuilder.io/v4
+plugins:
+  helm.kubebuilder.io/v2-alpha:
+    manifests: dist/install.yaml
+    output: ../charts
 projectName: controller
 repo: github.com/team-loco/loco/controller
 resources:

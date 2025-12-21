@@ -1,0 +1,24 @@
+{{- if .Values.rbacHelpers.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/name: controller
+    name: controller-locoresource-viewer-role
+rules:
+    - apiGroups:
+        - loco.loco.deploy-app.com
+      resources:
+        - locoresources
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - loco.loco.deploy-app.com
+      resources:
+        - locoresources/status
+      verbs:
+        - get
+{{- end }}

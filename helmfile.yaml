@@ -9,28 +9,29 @@ environments:
       - environment: prod
       - locoCore:
           secrets:
-            cloudflareToken: {{ requiredEnv "CLOUDFLARE_TOKEN" }}
+            cloudflareToken: { { requiredEnv "CLOUDFLARE_TOKEN" } }
             env:
-              GITLAB_PAT: {{ requiredEnv "GITLAB_PAT" }}
-              GITLAB_PROJECT_ID: {{ requiredEnv "GITLAB_PROJECT_ID" }}
-              GITLAB_TOKEN_NAME: {{ requiredEnv "GITLAB_TOKEN_NAME" }}
-              GITLAB_URL: {{ requiredEnv "GITLAB_URL" }}
-              GITLAB_REGISTRY_URL: {{ requiredEnv "GITLAB_REGISTRY_URL" }}
-              GITLAB_DEPLOY_TOKEN_NAME: {{ requiredEnv "GITLAB_DEPLOY_TOKEN_NAME" }}
+              GITLAB_PAT: { { requiredEnv "GITLAB_PAT" } }
+              GITLAB_PROJECT_ID: { { requiredEnv "GITLAB_PROJECT_ID" } }
+              GITLAB_TOKEN_NAME: { { requiredEnv "GITLAB_TOKEN_NAME" } }
+              GITLAB_URL: { { requiredEnv "GITLAB_URL" } }
+              GITLAB_REGISTRY_URL: { { requiredEnv "GITLAB_REGISTRY_URL" } }
+              GITLAB_DEPLOY_TOKEN_NAME:
+                { { requiredEnv "GITLAB_DEPLOY_TOKEN_NAME" } }
 
-              GH_OAUTH_CLIENT_ID: {{ requiredEnv "GH_OAUTH_CLIENT_ID" }}
-              GH_OAUTH_CLIENT_SECRET: {{ requiredEnv "GH_OAUTH_CLIENT_SECRET" }}
-              GH_OAUTH_REDIRECT_URL: {{ requiredEnv "GH_OAUTH_REDIRECT_URL" }}
-              GH_OAUTH_STATE: {{ requiredEnv "GH_OAUTH_STATE" }}
+              GH_OAUTH_CLIENT_ID: { { requiredEnv "GH_OAUTH_CLIENT_ID" } }
+              GH_OAUTH_CLIENT_SECRET:
+                { { requiredEnv "GH_OAUTH_CLIENT_SECRET" } }
+              GH_OAUTH_REDIRECT_URL: { { requiredEnv "GH_OAUTH_REDIRECT_URL" } }
+              GH_OAUTH_STATE: { { requiredEnv "GH_OAUTH_STATE" } }
 
-              APP_ENV: {{ requiredEnv "APP_ENV" }}
-              LOG_LEVEL: {{ requiredEnv "LOG_LEVEL" }}
-              PORT: {{ requiredEnv "PORT" }}
-              DATABASE_URL: {{ requiredEnv "DATABASE_URL" }}
-              JWT_SECRET: {{ requiredEnv "JWT_SECRET" }}
+              APP_ENV: { { requiredEnv "APP_ENV" } }
+              LOG_LEVEL: { { requiredEnv "LOG_LEVEL" } }
+              PORT: { { requiredEnv "PORT" } }
+              DATABASE_URL: { { requiredEnv "DATABASE_URL" } }
+              JWT_SECRET: { { requiredEnv "JWT_SECRET" } }
 
-              REGISTRY_TAG: {{ requiredEnv "REGISTRY_TAG" }}
-
+              REGISTRY_TAG: { { requiredEnv "REGISTRY_TAG" } }
 ---
 helmDefaults:
   wait: false
@@ -74,18 +75,33 @@ releases:
       - name: crds.enabled
         value: true
 
-  - name: loco-core
-    chart: ./charts/loco-core
+  - name: loco-controller
+    chart: ./charts/loco-controller
     namespace: loco-system
     createNamespace: true
     needs:
       - cert-manager/cert-manager
     labels:
       phase: "2-core"
+      component: "controller"
+    set:
+      - name: crds.enabled
+        value: true
+    values:
+      - ./charts/loco-controller/values.yaml
+
+  - name: loco-core
+    chart: ./charts/loco-core
+    namespace: loco-system
+    createNamespace: false
+    needs:
+      - loco-system/loco-controller
+    labels:
+      phase: "2-core"
       component: "app"
     values:
       - ./charts/loco-core/values.yaml
-      - {{ .Environment.Values.locoCore | default dict }}
+      - { { .Environment.Values.locoCore | default dict } }
 
   # phase 3: observability
   - name: loco-obs
