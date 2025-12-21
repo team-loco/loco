@@ -24,7 +24,7 @@ spec:
       serviceAccountName: loco-api
       containers:
         - name: loco-api
-          image: ghcr.io/nikumar1206/loco:latest
+          image: ghcr.io/team-loco/loco-api:latest
           imagePullPolicy: Always
           envFrom:
             - secretRef:

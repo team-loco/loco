@@ -1,11 +1,11 @@
 # For details on buf.yaml configuration, visit https://buf.build/docs/configuration/v2/buf-yaml
 version: v2
 lint:
-    use:
-        - STANDARD
+  use:
+    - STANDARD
 breaking:
-    use:
-        - FILE
+  use:
+    - FILE
 modules:
   - path: shared/proto
-    name: buf.build/nikumar1206/loco
+    name: buf.build/team-loco/loco

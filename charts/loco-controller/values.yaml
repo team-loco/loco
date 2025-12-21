@@ -3,7 +3,7 @@ manager:
   replicas: 1
 
   image:
-    repository: ghcr.io/nikumar1206/loco-controller
+    repository: ghcr.io/team-loco/loco-controller
     tag: latest
     pullPolicy: IfNotPresent
 

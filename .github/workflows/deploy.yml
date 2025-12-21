@@ -43,7 +43,7 @@ jobs:
       contents: read
       packages: write
     with:
-      image_name: ${{ env.CONTROLLER_IMAGE_NAME }}
+      image_name: ${{ github.repository }}-controller
       context: ./controller
       dockerfile: ./controller/Dockerfile
 
@@ -54,7 +54,7 @@ jobs:
       contents: read
       packages: write
     with:
-      image_name: ${{ env.API_IMAGE_NAME }}
+      image_name: ${{ github.repository }}
       context: ./api
       dockerfile: ./api/Dockerfile
 
