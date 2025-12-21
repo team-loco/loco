@@ -110,11 +110,11 @@ export function Events() {
 							placeholder="Search events by app or message..."
 							value={searchTerm}
 							onChange={(e) => setSearchTerm(e.target.value)}
-							className="border-2 border-border rounded-neo"
+							className="border-2 border-border rounded-lg"
 						/>
 					</div>
 					<Select value={severityFilter} onValueChange={setSeverityFilter}>
-						<SelectTrigger className="w-full sm:w-40 border-2 border-border rounded-neo">
+						<SelectTrigger className="w-full sm:w-40 border-2 border-border rounded-lg">
 							<SelectValue placeholder="All severities" />
 						</SelectTrigger>
 						<SelectContent>
@@ -149,7 +149,7 @@ export function Events() {
 						{filteredEvents.map((event) => (
 							<div
 								key={event.id}
-								className={`border-2 border-border rounded-neo p-4 ${
+								className={`border-2 border-border rounded-lg p-4 ${
 									severityColors[event.severity] || ""
 								}`}
 							>
@@ -176,7 +176,7 @@ export function Events() {
 										</p>
 									</div>
 									<Button
-										variant="neutral"
+										variant="secondary"
 										size="sm"
 										onClick={() => handleDismiss(event.id)}
 										className="h-8 w-8 p-0 shrink-0"

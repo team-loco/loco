@@ -4,6 +4,7 @@ package loco.app.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "domain/v1/domain.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/app/v1;appv1";
 
@@ -42,8 +43,6 @@ service AppService {
   rpc DeleteApp(DeleteAppRequest) returns (DeleteAppResponse);
   rpc GetAppStatus(GetAppStatusRequest) returns (GetAppStatusResponse);
 
-  rpc CheckSubdomainAvailability(CheckSubdomainAvailabilityRequest) returns (CheckSubdomainAvailabilityResponse);
-
   // Logs
   rpc StreamLogs(StreamLogsRequest) returns (stream LogEntry);
 
@@ -61,11 +60,11 @@ message App {
   string name = 4;
   string namespace = 5;
   AppType type = 6;
-  string subdomain = 7;
-  string domain = 8;
+  repeated loco.domain.v1.AppDomain domains = 7;
   int64 created_by = 11;
   google.protobuf.Timestamp created_at = 12;
   google.protobuf.Timestamp updated_at = 13;
+  AppStatus status = 14;
 }
 
 // --- CRUD ---
@@ -74,8 +73,7 @@ message CreateAppRequest {
   int64 workspace_id = 1;
   string name = 3;
   AppType type = 4;
-  string subdomain = 5;
-  optional string domain = 6;
+  loco.domain.v1.DomainInput domain = 5;
 }
 
 message CreateAppResponse {
@@ -127,16 +125,6 @@ message DeleteAppRequest {
 message DeleteAppResponse {
   App app = 1;
   string message = 2;
-}
-
-// --- Subdomain ---
-message CheckSubdomainAvailabilityRequest {
-  string subdomain = 1;
-  string domain = 2;
-}
-
-message CheckSubdomainAvailabilityResponse {
-  bool available = 1;
 }
 
 message GetAppStatusRequest {

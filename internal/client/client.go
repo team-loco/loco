@@ -134,13 +134,11 @@ func (c *Client) GetUserWorkspaces(ctx context.Context) ([]*workspacev1.Workspac
 	return resp.Msg.Workspaces, nil
 }
 
-func (c *Client) CreateApp(ctx context.Context, appType int32, workspaceID int64, clusterID, name, subdomain, domain string) (*appv1.App, error) {
+func (c *Client) CreateApp(ctx context.Context, appType int32, workspaceID int64, name string) (*appv1.App, error) {
 	req := connect.NewRequest(&appv1.CreateAppRequest{
 		WorkspaceId: workspaceID,
 		Name:        name,
 		Type:        appv1.AppType(appType),
-		Subdomain:   subdomain,
-		Domain:      &domain,
 	})
 
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))

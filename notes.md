@@ -1,9 +1,3 @@
-- Make loco multi-tenant, multi-app setup thats backed by a database.
-
-  - currently everything is stored in k8s; this needs to be moved to a Postgres or similar.
-  - db will source of truth, instead of checking whats deployed on the cluster every single time.
-  - will reduce load on etcd and the kube api-server, which is not designed for repititive abuse from APIs
-
 - Make loco work multi-cluster
 
   - currently loco-api gets deployed into a cluster and manipulates kubernetes thru there
@@ -14,6 +8,7 @@
 
 - should certficates be created and managed in the region they are deployed?
 - this should technically also be a 1-time process as well; how do we manage that.
+- potential fix for this is to maybe have a designated cluster/ perhaps per region that manages stuff like this. aka the 'leader'
 
 - Metrics/Logging/Tracing
 
@@ -24,9 +19,7 @@
   - accuracy of dashboards is not clear.
   - need to create a separate admin dashboard, or use something out of the box?
   - metrics need multi-tenant support.
-
-    - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
-
+  - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
   - can potentially create dashboards dynamically, or atleast pull the data down.
   - deploy a self-hosted instance on monitoring.loco.deploy-app.com
   - tracing will be a to-do
@@ -52,7 +45,7 @@
 
 - Health Checks
 
-  - support non http health checks?
+  - should eventually support non-http health checks.
 
 - GRPC Support
 
@@ -388,4 +381,13 @@ Phase I ends Here
 - eventually use.go should be able to switch between different scopes.
 - we should have a way to list all the scopes and switch between them.
 
-- connect does not hve any out of the box validation for requests coming in. we need to manually all incoming params
+- connect does not have any out of the box validation for requests coming in. we need to manually all incoming params
+
+- create a logs service that can get logs from clickhouse or live tail the application.
+- need an invitations microservice alongside an emailing microservice.
+- helm chart for loco. and make loco deploy as the chart instead.
+- never return db errors directly to client, we need to clean that logic up and return a generic error message only for now.
+- missing concept of schema versioning for the app config that should be scoped inside DB
+- potentially setup umami for analytics on the frontend?
+- whereever we make these multi saves, we need to run as a transaction.
+- on the UI, if API returns a message, we need to read that.

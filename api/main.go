@@ -21,6 +21,7 @@ import (
 	"github.com/loco-team/loco/shared"
 	"github.com/loco-team/loco/shared/proto/app/v1/appv1connect"
 	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
+	"github.com/loco-team/loco/shared/proto/domain/v1/domainv1connect"
 	"github.com/loco-team/loco/shared/proto/oauth/v1/oauthv1connect"
 	"github.com/loco-team/loco/shared/proto/org/v1/orgv1connect"
 	"github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
@@ -124,6 +125,7 @@ func main() {
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
 	appServiceHandler := service.NewAppServer(pool, queries, kubeClient)
 	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, kubeClient)
+	domainServiceHandler := service.NewDomainServer(pool, queries)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,
@@ -141,6 +143,7 @@ func main() {
 	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(workspaceServiceHandler, interceptors)
 	appPath, appHandler := appv1connect.NewAppServiceHandler(appServiceHandler, interceptors)
 	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(deploymentServiceHandler, interceptors)
+	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, interceptors)
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
@@ -184,13 +187,21 @@ func main() {
 		appv1connect.AppServiceListAppsProcedure,
 		appv1connect.AppServiceUpdateAppProcedure,
 		appv1connect.AppServiceDeleteAppProcedure,
-		appv1connect.AppServiceCheckSubdomainAvailabilityProcedure,
 
 		// deployment service
 		deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
 		deploymentv1connect.DeploymentServiceGetDeploymentProcedure,
 		deploymentv1connect.DeploymentServiceListDeploymentsProcedure,
 		deploymentv1connect.DeploymentServiceStreamDeploymentProcedure,
+
+		// domain service
+		domainv1connect.DomainServiceCreatePlatformDomainProcedure,
+		domainv1connect.DomainServiceGetPlatformDomainProcedure,
+		domainv1connect.DomainServiceGetPlatformDomainByNameProcedure,
+		domainv1connect.DomainServiceListActivePlatformDomainsProcedure,
+		domainv1connect.DomainServiceDeactivatePlatformDomainProcedure,
+		domainv1connect.DomainServiceCheckDomainAvailabilityProcedure,
+		domainv1connect.DomainServiceListAllLocoOwnedDomainsProcedure,
 
 		// registry service
 		registryv1connect.RegistryServiceGitlabTokenProcedure,
@@ -206,6 +217,7 @@ func main() {
 	mux.Handle(workspacePath, workspaceHandler)
 	mux.Handle(appPath, appHandler)
 	mux.Handle(deploymentPath, deploymentHandler)
+	mux.Handle(domainPath, domainHandler)
 	mux.Handle(registryPath, registryHandler)
 
 	muxWCors := withCORS(mux)

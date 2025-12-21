@@ -116,13 +116,13 @@ export function OrgSettings() {
 					{/* Actions */}
 					<div className="flex gap-3 pt-4 border-t border-border">
 						{!isEditing ? (
-							<Button variant="neutral" onClick={() => setIsEditing(true)}>
+							<Button variant="secondary" onClick={() => setIsEditing(true)}>
 								Edit Organization
 							</Button>
 						) : (
 							<>
 								<Button
-									variant="neutral"
+									variant="secondary"
 									onClick={() => {
 										setIsEditing(false);
 										setOrgName(org.name);
@@ -156,7 +156,7 @@ export function OrgSettings() {
 							{workspaces.map((ws) => (
 								<div
 									key={ws.id}
-									className="flex items-center justify-between p-4 border border-border rounded-neo"
+									className="flex items-center justify-between p-4 border border-border rounded-lg"
 								>
 									<div>
 										<p className="font-medium text-foreground">{ws.name}</p>
@@ -166,14 +166,14 @@ export function OrgSettings() {
 									</div>
 									<div className="flex gap-2">
 										<Button
-											variant="neutral"
+											variant="secondary"
 											size="sm"
 											onClick={() => console.log("Edit workspace", ws.id)}
 										>
 											Edit
 										</Button>
 										<Button
-											variant="neutral"
+											variant="secondary"
 											size="sm"
 											className="text-red-600 border-red-200 hover:bg-red-50"
 											onClick={() => console.log("Delete workspace", ws.id)}
@@ -188,7 +188,7 @@ export function OrgSettings() {
 
 					<div className="mt-4 pt-4 border-t border-border">
 						<Button
-							variant="neutral"
+							variant="secondary"
 							onClick={() => console.log("Create workspace")}
 							disabled
 						>

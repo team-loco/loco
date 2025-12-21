@@ -50,12 +50,12 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
 	db         *pgxpool.Pool
-	queries    *genDb.Queries
+	queries    genDb.Querier
 	kubeClient *kube.Client
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries *genDb.Queries, kubeClient *kube.Client) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client) *DeploymentServer {
 	return &DeploymentServer{
 		db:         db,
 		queries:    queries,

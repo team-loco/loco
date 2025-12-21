@@ -4,6 +4,9 @@ CREATE TYPE deployment_status AS ENUM ('pending', 'running', 'succeeded', 'faile
 -- App status enum
 CREATE TYPE app_status AS ENUM ('available', 'progressing', 'degraded', 'unavailable', 'idle');
 
+-- Domain source enum (who manages the domain)
+CREATE TYPE domain_source AS ENUM ('platform_provided', 'user_provided');
+
 -- Clusters table
 CREATE TABLE clusters (
     id BIGSERIAL PRIMARY KEY,
@@ -23,6 +26,14 @@ CREATE INDEX idx_clusters_region ON clusters (region);
 CREATE INDEX idx_clusters_provider ON clusters (provider);
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
 
+-- Platform domains (loco-provided base domains)
+CREATE TABLE platform_domains (
+    id BIGSERIAL PRIMARY KEY,
+    domain TEXT NOT NULL UNIQUE,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Apps table
 CREATE TABLE apps (
     id BIGSERIAL PRIMARY KEY,
@@ -31,20 +42,48 @@ CREATE TABLE apps (
     name TEXT NOT NULL,
     namespace TEXT NOT NULL,
     type INT NOT NULL,
-    subdomain TEXT NOT NULL,
-    domain TEXT NOT NULL DEFAULT 'loco.deploy-app.com',
     status app_status DEFAULT 'idle',
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE (workspace_id, name),
-    UNIQUE (subdomain, domain),
-    UNIQUE (cluster_id, namespace)
+    UNIQUE (workspace_id, name)
 );
 
 CREATE INDEX idx_apps_workspace_id ON apps (workspace_id);
 CREATE INDEX idx_apps_cluster_id ON apps (cluster_id);
-CREATE INDEX idx_apps_subdomain_domain ON apps (subdomain, domain);
+
+CREATE TABLE app_domains (
+    id BIGSERIAL PRIMARY KEY,
+    app_id BIGINT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+    domain TEXT NOT NULL UNIQUE,
+    domain_source domain_source NOT NULL,
+    subdomain_label TEXT,
+    platform_domain_id BIGINT REFERENCES platform_domains(id),
+    is_primary BOOLEAN NOT NULL DEFAULT false,
+    
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT domain_source_check CHECK (
+        (domain_source = 'platform_provided' AND subdomain_label IS NOT NULL AND platform_domain_id IS NOT NULL)
+        OR
+        (domain_source = 'user_provided' AND subdomain_label IS NULL AND platform_domain_id IS NULL)
+    )
+);
+
+CREATE INDEX idx_app_domains_app_id ON app_domains(app_id);
+CREATE INDEX idx_app_domains_domain ON app_domains(domain);
+
+-- Enforce max 1 primary domain per app
+CREATE UNIQUE INDEX uniq_app_primary_domain
+  ON app_domains(app_id)
+  WHERE is_primary = true;
+
+-- Ensure platform subdomain uniqueness
+CREATE UNIQUE INDEX uniq_platform_subdomain
+  ON app_domains(platform_domain_id, subdomain_label)
+  WHERE domain_source = 'platform_provided';
+
 
 
 -- Deployments table

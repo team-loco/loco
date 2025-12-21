@@ -98,13 +98,13 @@ export function WorkspaceSettings() {
 					{/* Actions */}
 					<div className="flex gap-3 pt-4 border-t border-border">
 						{!isEditing ? (
-							<Button variant="neutral" onClick={() => setIsEditing(true)}>
+							<Button variant="secondary" onClick={() => setIsEditing(true)}>
 								Edit Workspace
 							</Button>
 						) : (
 							<>
 								<Button
-									variant="neutral"
+									variant="secondary"
 									onClick={() => {
 										setIsEditing(false);
 										setWsName(workspace.name);
@@ -133,7 +133,7 @@ export function WorkspaceSettings() {
 						<div className="text-sm text-muted-foreground italic">
 							Member management coming in Phase 6
 						</div>
-						<Button variant="neutral" disabled>
+						<Button variant="secondary" disabled>
 							Add Member
 						</Button>
 					</div>
@@ -148,7 +148,7 @@ export function WorkspaceSettings() {
 				</CardHeader>
 				<CardContent>
 					<Button
-						variant="neutral"
+						variant="secondary"
 						className="text-red-600 border-red-200 hover:bg-red-50"
 						onClick={handleDelete}
 					>

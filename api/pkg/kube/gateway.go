@@ -13,7 +13,7 @@ import (
 func (kc *Client) CreateHTTPRoute(ctx context.Context, ldc *LocoDeploymentContext) (*v1Gateway.HTTPRoute, error) {
 	slog.InfoContext(ctx, "Creating HTTPRoute", "namespace", ldc.Namespace(), "name", ldc.HTTPRouteName())
 
-	hostname := fmt.Sprintf("%s.%s", ldc.App.Subdomain, ldc.App.Domain)
+	hostname := fmt.Sprintf("%s.%s", ldc.Config.Routing.Subdomain, ldc.Config.Routing.Domain)
 	pathType := v1Gateway.PathMatchPathPrefix
 	timeout := DefaultRequestTimeout
 

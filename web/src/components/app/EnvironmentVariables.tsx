@@ -88,7 +88,7 @@ export function EnvironmentVariables({
 					<span>Environment Variables ({vars.length})</span>
 					{!isEditing && (
 						<Button
-							variant="noShadow"
+							variant="outline"
 							size="sm"
 							onClick={() => setIsEditing(true)}
 							className="border-2"
@@ -143,7 +143,7 @@ export function EnvironmentVariables({
 										</TableCell>
 										<TableCell className="text-right">
 											<Button
-												variant="neutral"
+												variant="secondary"
 												size="sm"
 												onClick={() => handleRemove(index)}
 												className="h-8 w-8 p-0"
@@ -157,7 +157,7 @@ export function EnvironmentVariables({
 						</Table>
 
 						<Button
-							variant="noShadow"
+							variant="outline"
 							size="sm"
 							onClick={handleAdd}
 							className="border-2 w-full"
@@ -168,12 +168,12 @@ export function EnvironmentVariables({
 
 						<div className="flex gap-2 pt-4">
 							<Button
-								variant="noShadow"
+								variant="outline"
 								onClick={() => {
 									setVars(envVars);
 									setIsEditing(false);
 								}}
-								className="border-2 flex-1"
+								className="flex-1"
 							>
 								Cancel
 							</Button>

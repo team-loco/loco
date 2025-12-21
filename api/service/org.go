@@ -25,11 +25,11 @@ var (
 // OrgServer implements the OrgService gRPC server
 type OrgServer struct {
 	db      *pgxpool.Pool
-	queries *genDb.Queries
+	queries genDb.Querier
 }
 
 // NewOrgServer creates a new OrgServer instance
-func NewOrgServer(db *pgxpool.Pool, queries *genDb.Queries) *OrgServer {
+func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier) *OrgServer {
 	return &OrgServer{db: db, queries: queries}
 }
 

@@ -1,8 +1,7 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { AppCard } from "@/components/AppCard";
 import { EmptyState } from "@/components/EmptyState";
-import { AppSearch } from "@/components/dashboard/AppSearch";
-import { OrgFilter } from "@/components/dashboard/OrgFilter";
+import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useHeader } from "@/context/HeaderContext";
@@ -11,6 +10,7 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -20,11 +20,11 @@ export function Home() {
 	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
-	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
+	const [selectedOrgId] = useState<bigint | null>(null);
 	const selectedWorkspaceId = workspaceFromUrl
 		? BigInt(workspaceFromUrl)
 		: null;
-	const [searchTerm, setSearchTerm] = useState("");
+	const [searchTerm] = useState("");
 
 	// Fetch all organizations
 	const {
@@ -84,8 +84,8 @@ export function Home() {
 		const workspaceName = currentWorkspace?.name || "Workspace";
 
 		setHeader(
-			<h2 className="text-3xl font-heading text-foreground">
-				{workspaceName}'s Dashboard
+			<h2 className="text-2xl font-mono text-foreground">
+				workspaces::{workspaceName}
 			</h2>
 		);
 	}, [setHeader, workspaces, currentWorkspaceId]);
@@ -151,29 +151,36 @@ export function Home() {
 	}
 
 	return (
-		<div className="space-y-6">
-			{/* Controls: Org Filter, Search, Create Button */}
+		<div className="space-y-4">
+			{/* Create Button */}
 			{allApps.length > 0 && (
-				<div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-					<OrgFilter
-						selectedOrgId={currentOrgId}
-						onOrgChange={setSelectedOrgId}
-					/>
-					<AppSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+				<div className="flex justify-end">
 					<Button
 						onClick={() => navigate("/create-app")}
-						className="w-full sm:w-auto"
+						size="sm"
+						className="gap-2"
 					>
-						+ Create App
+						<Plus className="h-4 w-4" />
+						Create App
 					</Button>
 				</div>
+			)}
+
+			{/* Workspace Dashboard Metrics - only show when workspace is selected */}
+			{currentWorkspaceId && (
+				<WorkspaceDashboardMetrics
+					workspaceId={currentWorkspaceId}
+					workspaceName={
+						workspaces.find((ws) => ws.id === currentWorkspaceId)?.name || ""
+					}
+				/>
 			)}
 
 			{/* Apps Grid */}
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<h3 className="text-2xl font-heading">
-						{searchTerm ? "Search Results" : "Your Applications"}
+						{searchTerm ? "Search Results" : "Applications"}
 					</h3>
 					{allApps.length > 0 && (
 						<p className="text-sm text-foreground opacity-60">
