@@ -1,6 +1,7 @@
 cilium:
   enabled: true
   # --- General settings ---
+  # todo: figure out how to get the service host here.
   k8sServiceHost: "192.168.49.2"
   k8sServicePort: 8443
   kubeProxyReplacement: true
