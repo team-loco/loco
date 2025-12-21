@@ -188,14 +188,14 @@ func Validate(cfg *AppConfig) error {
 			return fmt.Errorf("regionConfig.%s.replicas_max cannot exceed 3 replicas", region)
 		}
 
-		if resources.ScalersEnabled {
-			if resources.ScalersCPUTarget == 0 && resources.ScalersMemTarget == 0 {
+		if resources.EnableAutoScaling {
+			if resources.CPUTarget == 0 && resources.ScalersMemTarget == 0 {
 				return fmt.Errorf("regionConfig.%s: when scalers_enabled=true, either scalers_cpu_target or scalers_memory_target must be provided (non-zero)", region)
 			}
-			if resources.ScalersCPUTarget != 0 && resources.ScalersMemTarget != 0 {
+			if resources.CPUTarget != 0 && resources.ScalersMemTarget != 0 {
 				return fmt.Errorf("regionConfig.%s: only one of scalers_cpu_target or scalers_memory_target should be provided", region)
 			}
-			if resources.ScalersCPUTarget != 0 && (resources.ScalersCPUTarget < 1 || resources.ScalersCPUTarget > 100) {
+			if resources.CPUTarget != 0 && (resources.CPUTarget < 1 || resources.CPUTarget > 100) {
 				return fmt.Errorf("regionConfig.%s.scalers_cpu_target must be between 1 and 100 (0 means disabled)", region)
 			}
 			if resources.ScalersMemTarget != 0 && (resources.ScalersMemTarget < 1 || resources.ScalersMemTarget > 100) {
@@ -288,6 +288,7 @@ func ExtractSubdomainFromHostname(hostname string) string {
 }
 
 // isBannedSubdomain checks if a subdomain is in the banned list
+// todo: revisit, we no longer keep subdomains around.
 func isBannedSubdomain(subdomain string) bool {
 	for _, banned := range BannedSubdomains {
 		if strings.EqualFold(subdomain, banned) {

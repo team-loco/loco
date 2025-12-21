@@ -1,55 +1,53 @@
 [Metadata]
-  ConfigVersion = "0.1"
-  Description = "Default Loco app configuration"
-  Name = "loco"
-  Type = "SERVICE"
+ConfigVersion = "0.1"
+Description = "Default Loco app configuration"
+Name = "foo"
+Type = "SERVICE"
 
 [Build]
-  DockerfilePath = "Dockerfile"
-  Type = "docker"
+DockerfilePath = "Dockerfile"
+Type = "docker"
 
 [Routing]
-  Port = 8000
-  PathPrefix = "/"
-  IdleTimeout = 60
+IdleTimeout = 60
+PathPrefix = "/"
+Port = 8000
 
 [DomainConfig]
-  Type = "platform"
-  Hostname = "loco.deploy-app.com"
+Hostname = "foo.deploy-app.com"
+Type = "platform"
 
 [RegionConfig]
-  [RegionConfig.us-east-1]
-    CPU = "100m"
-    Memory = "256Mi"
-    [RegionConfig.us-east-1.Replicas]
-      Min = 1
-      Max = 1
-    [RegionConfig.us-east-1.Scalers]
-      Enabled = false
-      CPUTarget = 0
-      MemoryTarget = 0
+[RegionConfig.us-east-1]
+CPU = "100m"
+CPUTarget = 0
+EnableAutoScaling = false
+Memory = "256Mi"
+MemoryTarget = 0
+ReplicasMax = 1
+ReplicasMin = 1
 
 [Health]
-  Path = "/health"
-  Interval = 30
-  Timeout = 5
-  StartupGracePeriod = 0
-  FailThreshold = 3
+FailThreshold = 3
+Interval = 30
+Path = "/health"
+StartupGracePeriod = 0
+Timeout = 5
 
 [Env]
-  File = ""
-  [Env.Variables]
+File = ""
+[Env.Variables]
 
 [Obs]
-  [Obs.Logging]
-    Enabled = true
-    RetentionPeriod = "7d"
-    Structured = false
-  [Obs.Metrics]
-    Enabled = false
-    Path = "/metrics"
-    Port = 9090
-  [Obs.Tracing]
-    Enabled = false
-    SampleRate = 0.1
-    [Obs.Tracing.Tags]
+[Obs.Logging]
+Enabled = true
+RetentionPeriod = "7d"
+Structured = false
+[Obs.Metrics]
+Enabled = false
+Path = "/metrics"
+Port = 9090
+[Obs.Tracing]
+Enabled = false
+SampleRate = 0.1
+[Obs.Tracing.Tags]

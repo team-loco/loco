@@ -20,13 +20,13 @@ type Metadata struct {
 }
 
 type Resources struct {
-	CPU              string `json:"cpu" toml:"CPU"`
-	Memory           string `json:"memory" toml:"Memory"`
-	ReplicasMin      int32  `json:"replicas_min" toml:"ReplicasMin"`
-	ReplicasMax      int32  `json:"replicas_max" toml:"ReplicasMax"`
-	ScalersEnabled   bool   `json:"scalers_enabled,omitempty" toml:"ScalersEnabled"`
-	ScalersCPUTarget int32  `json:"scalers_cpu_target,omitempty" toml:"ScalersCPUTarget"`
-	ScalersMemTarget int32  `json:"scalers_mem_target,omitempty" toml:"ScalersMemoryTarget"`
+	CPU               string `json:"cpu" toml:"CPU"`
+	Memory            string `json:"memory" toml:"Memory"`
+	ReplicasMin       int32  `json:"replicas_min" toml:"ReplicasMin"`
+	ReplicasMax       int32  `json:"replicas_max" toml:"ReplicasMax"`
+	EnableAutoScaling bool   `json:"scalers_enabled,omitempty" toml:"EnableAutoScaling"`
+	CPUTarget         int32  `json:"scalers_cpu_target,omitempty" toml:"CPUTarget"`
+	ScalersMemTarget  int32  `json:"scalers_mem_target,omitempty" toml:"MemoryTarget"`
 }
 
 // Deprecated: kept for backward compatibility
@@ -54,8 +54,8 @@ type Routing struct {
 }
 
 type DomainConfig struct {
-	Type     string `json:"type,omitempty" toml:"Type"`     // "platform" (default) or "custom"
-	Hostname string `json:"hostname" toml:"Hostname"`       // full resolvable hostname (e.g., "myapp.deploy-app.com")
+	Type     string `json:"type,omitempty" toml:"Type"` // "platform" (default) or "custom"
+	Hostname string `json:"hostname" toml:"Hostname"`   // full resolvable hostname (e.g., "myapp.deploy-app.com")
 }
 
 type Health struct {
