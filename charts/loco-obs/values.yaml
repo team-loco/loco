@@ -95,7 +95,7 @@ otel-col-daemon:
         limit_mib: 2048
     exporters:
       clickhouse:
-        endpoint: tcp://clickhouse-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        endpoint: tcp://clickhouse-loco-obs-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
         username: default
         password: ""
         traces_table_name: otel_traces
@@ -150,7 +150,7 @@ otel-col-deploy:
             endpoint: 0.0.0.0:4318
     exporters:
       clickhouse:
-        endpoint: tcp://clickhouse-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        endpoint: tcp://clickhouse-loco-obs-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
         username: default
         password: ""
         traces_table_name: otel_traces
@@ -190,7 +190,7 @@ grafana:
           type: grafana-clickhouse-datasource
           jsonData:
             port: 9000
-            host: clickhouse-clickhouse.observability.svc.cluster.local
+            host: clickhouse-loco-obs-clickhouse.observability.svc.cluster.local
             defaultDatabase: default
             username: default
             tlsSkipVerify: true
