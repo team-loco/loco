@@ -16,10 +16,10 @@ RUN go mod download
 
 RUN go build -o loco-api .
 
-FROM debian:bookworm-slim
-
+FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 
 COPY --from=builder /app/api/loco-api .
+USER 65532:65532
 
 ENTRYPOINT ["/loco-api"]

@@ -410,3 +410,5 @@ make deploying user apps, an all or nothing approach.
 is it all or nothing to deploy a single app in one region?
 have a full kubernetes export function where users can literally take their loco.toml config and convert to a kubernetes yaml.
 create loco resource will need to handle loco spec versions.
+fully update the helm charts to be parametrized instead of using hardcoded values.
+potentially use the kubernetes dashboard for admin view.
