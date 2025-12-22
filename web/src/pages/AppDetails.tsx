@@ -13,6 +13,19 @@ import { useParams } from "react-router";
 
 export function AppDetails() {
 	const { appId } = useParams<{ appId: string }>();
+	const { app, status, deployments, isLoading, error } = useAppDetails(appId ?? "");
+
+	// Subscribe to real-time app-specific events
+	useEffect(() => {
+		if (!appId) return;
+
+		const unsubscribe = subscribeToEvents(`app:${appId}`, (event) => {
+			// Event subscription triggers refetches via the hook's internal logic
+			console.log(`[App ${appId}] Event: ${event.type}`);
+		});
+
+		return unsubscribe;
+	}, [appId]);
 
 	if (!appId) {
 		return (
@@ -28,18 +41,6 @@ export function AppDetails() {
 			</div>
 		);
 	}
-
-	const { app, status, deployments, isLoading, error } = useAppDetails(appId);
-
-	// Subscribe to real-time app-specific events
-	useEffect(() => {
-		const unsubscribe = subscribeToEvents(`app:${appId}`, (event) => {
-			// Event subscription triggers refetches via the hook's internal logic
-			console.log(`[App ${appId}] Event: ${event.type}`);
-		});
-
-		return unsubscribe;
-	}, [appId]);
 
 	if (isLoading) {
 		return (
@@ -115,7 +116,7 @@ export function AppDetails() {
 			<EnvironmentVariables
 				appId={appId}
 				envVars={
-					app.envVars?.map((v: any) => ({
+					app.envVars?.map((v: { key: string; value: string }) => ({
 						key: v.key,
 						value: v.value,
 					})) ?? []

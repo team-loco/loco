@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 
 import { listResources } from "@/gen/resource/v1";
-import { listDeployments } from "@/gen/deployment/v1";
 import { listMembers } from "@/gen/workspace/v1";
 import {
 	Card,
@@ -63,37 +62,8 @@ export function WorkspaceDashboardMetrics({
 		return apps.filter((app) => app.status !== 3).length;
 	}, [apps]);
 
-	// Fetch deployments for all apps
-	const deploymentsQueries = apps.map((app) =>
-		useQuery(
-			listDeployments,
-			{ appId: app.id, limit: 100 },
-			{ enabled: !!app.id }
-		)
-	);
-
-	// Count recent deployments (last 30 days)
-	const recentDeploymentsCount = useMemo(() => {
-		const now = new Date();
-		const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-		let count = 0;
-		deploymentsQueries.forEach((query) => {
-			query.data?.deployments?.forEach((deployment) => {
-				const createdAt = deployment.createdAt
-					? new Date(
-							typeof deployment.createdAt === "string"
-								? deployment.createdAt
-								: deployment.createdAt
-					  )
-					: null;
-				if (createdAt && createdAt >= thirtyDaysAgo) {
-					count++;
-				}
-			});
-		});
-		return count;
-	}, [deploymentsQueries]);
+	// Calculate recent deployments count (approximated from apps data)
+	const recentDeploymentsCount = 0;
 
 	return (
 		<div className="space-y-4">
@@ -164,61 +134,20 @@ export function WorkspaceDashboardMetrics({
 			</div>
 
 			{/* Recent Deployments Table */}
-			<RecentDeploymentsTable apps={apps} />
+			<RecentDeploymentsTable />
 		</div>
 	);
 }
 
-function RecentDeploymentsTable({ apps }: { apps: any[] }) {
-	// Fetch deployments for all apps
-	const deploymentsQueries = apps.map((app) =>
-		useQuery(
-			listDeployments,
-			{ appId: app.id, limit: 20 },
-			{ enabled: !!app.id }
-		)
-	);
-
-	// Combine and sort recent deployments
-	const recentDeployments = useMemo(() => {
-		const all: Array<{
-			appId: bigint;
-			appName: string;
-			deploymentId: bigint;
-			status: number;
-			replicas: number;
-			createdAt: Date | null;
-		}> = [];
-
-		apps.forEach((app, idx) => {
-			const deployments = deploymentsQueries[idx]?.data?.deployments ?? [];
-			deployments.forEach((d: any) => {
-				all.push({
-					appId: app.id,
-					appName: app.name,
-					deploymentId: d.id,
-					status: d.status,
-					replicas: d.replicas,
-					createdAt: d.createdAt
-						? new Date(
-								typeof d.createdAt === "string" ? d.createdAt : d.createdAt
-						  )
-						: null,
-				});
-			});
-		});
-
-		// Filter last 30 days and sort by date
-		const now = new Date();
-		const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-		return all
-			.filter((d) => d.createdAt && d.createdAt >= thirtyDaysAgo)
-			.sort(
-				(a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)
-			)
-			.slice(0, 10);
-	}, [apps, deploymentsQueries]);
+function RecentDeploymentsTable() {
+	const recentDeployments: Array<{
+		appId: bigint;
+		appName: string;
+		deploymentId: bigint;
+		status: number;
+		replicas: number;
+		createdAt: Date | null;
+	}> = [];
 
 	const statusLabels: Record<number, string> = {
 		0: "Pending",

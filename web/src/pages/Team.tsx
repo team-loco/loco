@@ -11,7 +11,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getColumns } from "./team/columns";
 import { DataTable } from "./team/data-table";
@@ -86,21 +86,24 @@ export function Team() {
 		}
 	);
 
-	const handleRemoveMember = async (userId: bigint) => {
-		if (!firstWorkspaceId) return;
-		try {
-			await removeMemberMutation({
-				workspaceId: firstWorkspaceId,
-				userId,
-			});
-		} catch (error) {
-			console.error("Failed to remove member:", error);
-		}
-	};
+	const handleRemoveMember = useCallback(
+		async (userId: bigint) => {
+			if (!firstWorkspaceId) return;
+			try {
+				await removeMemberMutation({
+					workspaceId: firstWorkspaceId,
+					userId,
+				});
+			} catch (error) {
+				console.error("Failed to remove member:", error);
+			}
+		},
+		[firstWorkspaceId, removeMemberMutation]
+	);
 
 	const columns = useMemo(
 		() => getColumns(isAdmin, handleRemoveMember, isRemoving),
-		[isAdmin, isRemoving]
+		[isAdmin, handleRemoveMember, isRemoving]
 	);
 
 	return (

@@ -7,7 +7,7 @@ import {
 	Check,
 	HelpCircle,
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -50,7 +50,6 @@ export function NavUser({
 }) {
 	const { isMobile } = useSidebar();
 	const navigate = useNavigate();
-	const [searchParams] = useSearchParams();
 	const authContext = useAuth();
 	const logoutMutation = useMutation(logout);
 

@@ -157,6 +157,7 @@ function NavigationMenuIndicator({
 }
 
 export {
+  // eslint-disable-next-line react-refresh/only-export-components
   navigationMenuTriggerStyle,
   NavigationMenu,
   NavigationMenuList,

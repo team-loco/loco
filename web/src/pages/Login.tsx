@@ -1,15 +1,10 @@
 import { transport } from "@/auth/connect-transport";
 import { Button } from "@/components/ui/button";
 import { OAuthService } from "@/gen/oauth/v1";
-import { getCurrentUser } from "@/gen/user/v1";
 import { createClient } from "@connectrpc/connect";
-import { useQuery } from "@connectrpc/connect-query";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useState } from "react";
 
 export function Login() {
-	const navigate = useNavigate();
-	const { isLoading, error: authError } = useQuery(getCurrentUser, {});
 
 	const [error, setError] = useState<string | null>(() => {
 		// Check if there's an error from OAuth callback

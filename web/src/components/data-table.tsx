@@ -99,6 +99,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const schema = z.object({
 	id: z.number(),
 	header: z.string(),

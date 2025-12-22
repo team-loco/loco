@@ -6,7 +6,6 @@ import { scaleResource } from "@/gen/resource/v1";
 import type { DeploymentStatus } from "@/gen/resource/v1/resource_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
-import { getDeploymentPhaseLabel } from "@/lib/app-status";
 
 interface DeploymentStatusCardProps {
 	appId: string;
@@ -62,17 +61,7 @@ export function DeploymentStatusCard({
 		return null;
 	}
 
-	const statusLabel = getDeploymentPhaseLabel(status.status);
-	const statusColor =
-		statusLabel === "running"
-			? "green"
-			: statusLabel === "pending"
-			? "yellow"
-			: statusLabel === "succeeded"
-			? "green"
-			: statusLabel === "failed"
-			? "red"
-			: "gray";
+
 
 	return (
 		<Card className="border-2">

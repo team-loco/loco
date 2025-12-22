@@ -69,7 +69,7 @@ export function CreateApp() {
 		paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
 	const { data: platformDomainsRes } = useQuery(listActivePlatformDomains, {});
-	const platformDomains = platformDomainsRes?.platformDomains ?? [];
+	const platformDomains = useMemo(() => platformDomainsRes?.platformDomains ?? [], [platformDomainsRes?.platformDomains]);
 
 	const createResourceMutation = useMutation(createResource);
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);

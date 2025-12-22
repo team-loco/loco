@@ -31,6 +31,7 @@ const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 	},
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 function RoleBadge({ role }: { role: string }) {
 	const variant =
 		roleBadgeVariants[role.toLowerCase()] || roleBadgeVariants.member;
@@ -46,6 +47,64 @@ function getInitials(name: string): string {
 		.join("")
 		.toUpperCase()
 		.slice(0, 2);
+}
+
+interface ActionsCellProps {
+	member: WorkspaceMemberWithUser;
+	isAdmin: boolean;
+	onRemoveMember: (userId: bigint) => void;
+	isRemoving: boolean;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+function ActionsCell({
+	member,
+	isAdmin,
+	onRemoveMember,
+	isRemoving,
+}: ActionsCellProps) {
+	const [open, setOpen] = useState(false);
+
+	if (!isAdmin) return null;
+
+	return (
+		<div className="flex justify-end">
+			<AlertDialog open={open} onOpenChange={setOpen}>
+				<AlertDialogTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8"
+						title="Remove user"
+						disabled={isRemoving}
+					>
+						<Trash2 className="h-4 w-4 text-destructive" />
+					</Button>
+				</AlertDialogTrigger>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Remove member</AlertDialogTitle>
+						<AlertDialogDescription>
+							Are you sure you want to remove {member.userName} from the workspace? This
+							action cannot be undone.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<div className="flex gap-2 justify-end">
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={() => {
+								onRemoveMember(member.userId);
+								setOpen(false);
+							}}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							Remove
+						</AlertDialogAction>
+					</div>
+				</AlertDialogContent>
+			</AlertDialog>
+		</div>
+	);
 }
 
 export function getColumns(
@@ -90,51 +149,14 @@ export function getColumns(
 		{
 			id: "actions",
 			enableHiding: false,
-			cell: ({ row }) => {
-				const member = row.original;
-				const [open, setOpen] = useState(false);
-
-				if (!isAdmin) return null;
-
-				return (
-					<div className="flex justify-end">
-						<AlertDialog open={open} onOpenChange={setOpen}>
-							<AlertDialogTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8"
-									title="Remove user"
-									disabled={isRemoving}
-								>
-									<Trash2 className="h-4 w-4 text-destructive" />
-								</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Remove member</AlertDialogTitle>
-									<AlertDialogDescription>
-										Are you sure you want to remove {member.userName} from the workspace? This
-										action cannot be undone.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								<div className="flex gap-2 justify-end">
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
-									<AlertDialogAction
-										onClick={() => {
-											onRemoveMember(member.userId);
-											setOpen(false);
-										}}
-										className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-									>
-										Remove
-									</AlertDialogAction>
-								</div>
-							</AlertDialogContent>
-						</AlertDialog>
-					</div>
-				);
-			},
+			cell: ({ row }) => (
+				<ActionsCell
+					member={row.original}
+					isAdmin={isAdmin}
+					onRemoveMember={onRemoveMember}
+					isRemoving={isRemoving}
+				/>
+			),
 		},
 	];
 }
