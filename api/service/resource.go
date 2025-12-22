@@ -133,22 +133,23 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
 	}
 
-	var specBytes []byte
-	if r.Spec != nil {
-		var err error
-		specBytes, err = json.Marshal(r.Spec)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
+	if r.Spec == nil {
+		slog.ErrorContext(ctx, "cannot create resource with nil spec")
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
+	}
+
+	spec, err := r.Spec.MarshalJSON()
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
 	resource, err := s.queries.CreateResource(ctx, genDb.CreateResourceParams{
 		WorkspaceID: r.WorkspaceId,
 		Name:        r.Name,
-		Type:        genDb.ResourceType(r.Type.Number()),
-		Status:      genDb.NullResourceStatus{ResourceStatus: genDb.ResourceStatusIdle, Valid: true},
-		Spec:        specBytes,
+		Type:        genDb.ResourceType(strings.ToLower(r.Type.String())),
+		Status:      genDb.ResourceStatusIdle,
+		Spec:        spec,
 		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
 		CreatedBy:   userID,
 	})
@@ -164,6 +165,7 @@ func (s *ResourceServer) CreateResource(
 			ResourceID: resource.ID,
 			Region:     region,
 			IsPrimary:  isPrimary,
+			Status:     genDb.RegionIntentStatusDesired,
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to create resource region", "error", err)
@@ -1152,9 +1154,6 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 	}
 
 	resourceStatus := resourcev1.ResourceStatus_IDLE
-	if resource.Status.Valid {
-		resourceStatus = resourcev1.ResourceStatus(resourcev1.ResourceStatus_value[strings.ToUpper(string(resource.Status.ResourceStatus))])
-	}
 
 	protoRegions := make([]*resourcev1.RegionConfig, len(regions))
 	for i, r := range regions {
@@ -1165,15 +1164,15 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 	}
 
 	return &resourcev1.Resource{
-		Id:        resource.ID,
+		Id:          resource.ID,
 		WorkspaceId: resource.WorkspaceID,
-		Name:      resource.Name,
-		Type:      resourceType,
-		Domains:   resourceDomainToListProto(domains),
-		Regions:   protoRegions,
-		CreatedBy: resource.CreatedBy,
-		CreatedAt: timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
-		Status:    resourceStatus,
+		Name:        resource.Name,
+		Type:        resourceType,
+		Domains:     resourceDomainToListProto(domains),
+		Regions:     protoRegions,
+		CreatedBy:   resource.CreatedBy,
+		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
+		Status:      resourceStatus,
 	}
 }

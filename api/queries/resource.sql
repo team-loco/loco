@@ -51,21 +51,21 @@ WHERE id = $1;
 SELECT workspace_id FROM resources WHERE id = $1;
 
 -- name: GetActiveClusterByRegion :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
 WHERE region = $1 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
 LIMIT 1;
 
 -- name: ListClustersActive :many
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY region ASC;
 
 -- todo: eventually remove
 -- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY created_at ASC

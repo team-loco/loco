@@ -1,19 +1,8 @@
 [Metadata]
 ConfigVersion = "0.1"
-Description = "Backend Service"
+Description = "Default Loco app configuration"
 Name = "backend"
-
-[Resources]
-Cpu = "100m"
-Memory = "256Mi"
-
-[Resources.Replicas]
-Max = 1
-Min = 1
-
-[Resources.Scalers]
-CpuTarget = 70
-Enabled = true
+Type = "SERVICE"
 
 [Build]
 DockerfilePath = "Dockerfile"
@@ -23,28 +12,41 @@ Type = "docker"
 IdleTimeout = 60
 PathPrefix = "/api"
 Port = 8000
-Subdomain = "test-api"
+
+[DomainConfig]
+Hostname = "backend.deploy-app.com"
+Type = "platform"
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+CPUTarget = 0
+EnableAutoScaling = false
+Memory = "256Mi"
+MemoryTarget = 0
+ReplicasMax = 1
+ReplicasMin = 1
 
 [Health]
-FailThreshold = 2
-Interval = 5
+FailThreshold = 3
+Interval = 30
 Path = "/api/health"
 StartupGracePeriod = 0
 Timeout = 5
 
 [Env]
-File = ".env"
+File = ""
+[Env.Variables]
 
+[Obs]
 [Obs.Logging]
 Enabled = true
 RetentionPeriod = "7d"
 Structured = false
-
 [Obs.Metrics]
 Enabled = false
 Path = "/metrics"
 Port = 9090
-
 [Obs.Tracing]
 Enabled = false
 SampleRate = 0.1

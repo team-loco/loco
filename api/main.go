@@ -19,12 +19,12 @@ import (
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/service"
 	"github.com/loco-team/loco/shared"
-	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
 	"github.com/loco-team/loco/shared/proto/domain/v1/domainv1connect"
 	"github.com/loco-team/loco/shared/proto/oauth/v1/oauthv1connect"
 	"github.com/loco-team/loco/shared/proto/org/v1/orgv1connect"
 	"github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
+	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/loco-team/loco/shared/proto/user/v1/userv1connect"
 	"github.com/loco-team/loco/shared/proto/workspace/v1/workspacev1connect"
 	"github.com/rs/cors"
@@ -32,7 +32,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
-type AppConfig struct {
+type ApiConfig struct {
 	Env             string // Environment (e.g., dev, prod)
 	ProjectID       string // GitLab project ID
 	GitlabURL       string // Container registry URL
@@ -46,7 +46,7 @@ type AppConfig struct {
 	RegistryTag     string
 }
 
-func newAppConfig() *AppConfig {
+func newApiConfig() *ApiConfig {
 	logLevelStr := os.Getenv("LOG_LEVEL")
 	logLevel := slog.LevelInfo
 	if logLevelStr != "" {
@@ -55,7 +55,7 @@ func newAppConfig() *AppConfig {
 		}
 	}
 
-	return &AppConfig{
+	return &ApiConfig{
 		Env:             os.Getenv("APP_ENV"),
 		ProjectID:       os.Getenv("GITLAB_PROJECT_ID"),
 		GitlabURL:       os.Getenv("GITLAB_URL"),
@@ -85,7 +85,7 @@ func withCORS(h http.Handler) http.Handler {
 }
 
 func main() {
-	ac := newAppConfig()
+	ac := newApiConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
@@ -230,7 +230,7 @@ func main() {
 	))
 }
 
-func getLoggerHandler(ac *AppConfig) slog.Handler {
+func getLoggerHandler(ac *ApiConfig) slog.Handler {
 	if ac.Env == "PRODUCTION" {
 		return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level:     ac.LogLevel,

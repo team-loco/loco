@@ -22,6 +22,7 @@ import (
 	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var deployCmd = &cobra.Command{
@@ -259,6 +260,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			Type:    resourcev1.ResourceType_SERVICE,
 			Domain:  domainInput,
 			Regions: regions,
+			Spec:    &structpb.Struct{},
 		})
 
 		createResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
@@ -393,7 +395,7 @@ func deployApp(ctx context.Context,
 	apiClient *client.Client,
 	resourceID int64,
 	imageName string,
-	cfg *config.AppConfig,
+	cfg *config.LocoConfig,
 	token string,
 	logf func(string),
 	wait bool,

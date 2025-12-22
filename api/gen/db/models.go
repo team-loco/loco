@@ -332,7 +332,6 @@ type Cluster struct {
 	LastHealthCheck pgtype.Timestamptz `json:"lastHealthCheck"`
 	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
-	CreatedBy       int64              `json:"createdBy"`
 }
 
 type Deployment struct {
@@ -381,7 +380,7 @@ type Resource struct {
 	WorkspaceID int64              `json:"workspaceId"`
 	Name        string             `json:"name"`
 	Type        ResourceType       `json:"type"`
-	Status      NullResourceStatus `json:"status"`
+	Status      ResourceStatus     `json:"status"`
 	Spec        []byte             `json:"spec"`
 	SpecVersion pgtype.Int4        `json:"specVersion"`
 	CreatedBy   int64              `json:"createdBy"`

@@ -19,13 +19,13 @@ RETURNING id, workspace_id, name, type, status, spec, spec_version, created_by, 
 `
 
 type CreateResourceParams struct {
-	WorkspaceID int64              `json:"workspaceId"`
-	Name        string             `json:"name"`
-	Type        ResourceType       `json:"type"`
-	Status      NullResourceStatus `json:"status"`
-	Spec        []byte             `json:"spec"`
-	SpecVersion pgtype.Int4        `json:"specVersion"`
-	CreatedBy   int64              `json:"createdBy"`
+	WorkspaceID int64          `json:"workspaceId"`
+	Name        string         `json:"name"`
+	Type        ResourceType   `json:"type"`
+	Status      ResourceStatus `json:"status"`
+	Spec        []byte         `json:"spec"`
+	SpecVersion pgtype.Int4    `json:"specVersion"`
+	CreatedBy   int64          `json:"createdBy"`
 }
 
 // Resource queries
@@ -99,7 +99,7 @@ func (q *Queries) DeleteResource(ctx context.Context, id int64) error {
 }
 
 const getActiveClusterByRegion = `-- name: GetActiveClusterByRegion :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
 WHERE region = $1 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
@@ -121,7 +121,6 @@ func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (
 		&i.LastHealthCheck,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -146,7 +145,7 @@ func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDe
 }
 
 const getFirstActiveCluster = `-- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY created_at ASC
@@ -169,7 +168,6 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 		&i.LastHealthCheck,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -239,7 +237,7 @@ func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id int64) (int64, 
 }
 
 const listClustersActive = `-- name: ListClustersActive :many
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at, created_by
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY region ASC
@@ -266,7 +264,6 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]Cluster, error) {
 			&i.LastHealthCheck,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.CreatedBy,
 		); err != nil {
 			return nil, err
 		}

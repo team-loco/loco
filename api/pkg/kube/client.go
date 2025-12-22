@@ -3,10 +3,15 @@ package kube
 import (
 	"log/slog"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	crClient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
 )
 
 // Client implements Kubernetes operations for deployments
@@ -67,7 +72,11 @@ func buildKubeClientSet(config *rest.Config) kubernetes.Interface {
 // ControllerRuntimeClient returns a lazy-initialized controller-runtime client.
 // Used for creating custom resources like LocoResource.
 func buildControllerRuntimeClient(config *rest.Config) crClient.Client {
-	crClient, err := crClient.New(config, crClient.Options{})
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(locov1alpha1.AddToScheme(scheme))
+
+	crClient, err := crClient.New(config, crClient.Options{Scheme: scheme})
 	if err != nil {
 		slog.Error("failed to create controller-runtime client", "error", err)
 		panic(err)

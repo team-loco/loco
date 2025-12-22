@@ -26,8 +26,8 @@ var BannedSubdomains = []string{
 	"config", "configuration", "settings", "setup", "install", "uninstall",
 }
 
-// Default provides sensible defaults for a new AppConfig
-var Default = &AppConfig{
+// Default provides sensible defaults for a new LocoConfig
+var Default = &LocoConfig{
 	Metadata: Metadata{
 		ConfigVersion: "0.1",
 		Description:   "Default Loco app configuration",
@@ -77,7 +77,7 @@ var Default = &AppConfig{
 }
 
 // FillSensibleDefaults applies defaults to a config where values are not set
-func FillSensibleDefaults(cfg *AppConfig) {
+func FillSensibleDefaults(cfg *LocoConfig) {
 	if cfg.Build.DockerfilePath == "" {
 		cfg.Build.DockerfilePath = Default.Build.DockerfilePath
 	}
@@ -113,8 +113,8 @@ func FillSensibleDefaults(cfg *AppConfig) {
 	}
 }
 
-// Validate ensures the AppConfig is valid according to the schema
-func Validate(cfg *AppConfig) error {
+// Validate ensures the LocoConfig is valid according to the schema
+func Validate(cfg *LocoConfig) error {
 	if cfg.Metadata.ConfigVersion == "" {
 		return fmt.Errorf("metadata.configVersion must be set")
 	}
@@ -318,7 +318,7 @@ func resolvePath(path, baseDir string) string {
 }
 
 // ResolveConfigPaths resolves relative paths in the config to absolute paths
-func ResolveConfigPaths(cfg *AppConfig, cfgPath string) error {
+func ResolveConfigPaths(cfg *LocoConfig, cfgPath string) error {
 	cfgPathAbs, err := filepath.Abs(cfgPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve config path: %w", err)
@@ -332,7 +332,7 @@ func ResolveConfigPaths(cfg *AppConfig, cfgPath string) error {
 
 // LoadedConfig represents a loaded configuration with its project path
 type LoadedConfig struct {
-	Config      *AppConfig
+	Config      *LocoConfig
 	ProjectPath string
 }
 
@@ -353,7 +353,7 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 	}
 	defer file.Close()
 
-	var cfg AppConfig
+	var cfg LocoConfig
 	decoder := toml.NewDecoder(file)
 	if _, err := decoder.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse loco.toml: %w", err)
@@ -369,8 +369,8 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 	}, nil
 }
 
-// Create writes a AppConfig to a loco.toml file at the specified path
-func Create(cfg *AppConfig, outputPath string) error {
+// Create writes a LocoConfig to a loco.toml file at the specified path
+func Create(cfg *LocoConfig, outputPath string) error {
 	var filePath string
 	fileInfo, err := os.Stat(outputPath)
 	if err == nil && fileInfo.IsDir() {
