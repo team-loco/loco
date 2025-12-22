@@ -11,11 +11,6 @@ export function Login() {
 	const navigate = useNavigate();
 	const { isLoading, error: authError } = useQuery(getCurrentUser, {});
 
-	useEffect(() => {
-		if (!isLoading && !authError) {
-			navigate("/dashboard", { replace: true });
-		}
-	}, [isLoading, authError, navigate]);
 	const [error, setError] = useState<string | null>(() => {
 		// Check if there's an error from OAuth callback
 		const oauthError = sessionStorage.getItem("oauth_error");
@@ -53,7 +48,11 @@ export function Login() {
 			<div className="relative min-h-screen bg-white">
 				{/* Mobile background image */}
 				<div className="lg:hidden absolute inset-0 overflow-hidden rounded-2xl">
-					<img src="gradient.svg" alt="" className="w-full h-full object-cover scale-110" />
+					<img
+						src="gradient.svg"
+						alt=""
+						className="w-full h-full object-cover scale-110"
+					/>
 				</div>
 
 				{/* Logo */}

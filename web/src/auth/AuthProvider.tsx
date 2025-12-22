@@ -26,11 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	};
 
 	const logout = () => {
-		// Clear the cookie by calling logout endpoint
-		fetch("http://localhost:8000/logout", { method: "POST" }).catch(() => {});
-		setTokenState(null);
-		// Clear query cache to prevent stale data from causing redirects
-		clearCacheCallback?.();
 		console.log("AuthProvider: logout");
 	};
 

@@ -25,6 +25,10 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
+import { logout } from "@/gen/user/v1";
+import { useMutation } from "@connectrpc/connect-query";
+import { useAuth } from "@/auth/AuthProvider";
+import { toast } from "sonner";
 
 export interface Workspace {
 	id: bigint;
@@ -47,6 +51,8 @@ export function NavUser({
 	const { isMobile } = useSidebar();
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
+	const authContext = useAuth();
+	const logoutMutation = useMutation(logout);
 
 	return (
 		<SidebarMenu>
@@ -91,9 +97,7 @@ export function NavUser({
 										<DropdownMenuItem
 											key={workspace.id.toString()}
 											onClick={() =>
-												navigate(
-													`/dashboard?workspace=${workspace.id}`
-												)
+												navigate(`/dashboard?workspace=${workspace.id}`)
 											}
 											className="flex items-center justify-between"
 										>
@@ -127,7 +131,18 @@ export function NavUser({
 							</DropdownMenuItem>
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />
-						<DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={async () => {
+								try {
+									await logoutMutation.mutateAsync({});
+								} catch (error) {
+									console.error("Logout API error:", error);
+								}
+								authContext.logout();
+								navigate("/login", { replace: true });
+								toast.success("Logged out successfully");
+							}}
+						>
 							<LogOut />
 							Log out
 						</DropdownMenuItem>
