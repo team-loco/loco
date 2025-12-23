@@ -83,8 +83,8 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	if len(r.Regions) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one region is required"))
+	if r.Spec == nil || len(r.Spec.Regions) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one region is required in spec"))
 	}
 
 	if r.Domain == nil {
@@ -138,29 +138,32 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
 	}
 
-	spec, err := r.Spec.MarshalJSON()
+	spec, err := json.Marshal(r.Spec)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
-	resource, err := s.queries.CreateResource(ctx, genDb.CreateResourceParams{
+	params := genDb.CreateResourceParams{
 		WorkspaceID: r.WorkspaceId,
 		Name:        r.Name,
 		Type:        genDb.ResourceType(strings.ToLower(r.Type.String())),
 		Status:      genDb.ResourceStatusIdle,
 		Spec:        spec,
-		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
+		SpecVersion: 1,
 		CreatedBy:   userID,
-	})
+		Description: r.GetDescription(),
+	}
+
+	resource, err := s.queries.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	// Create resource regions (first region is primary)
-	for i, region := range r.Regions {
-		isPrimary := i == 0
+	for region, regionConfig := range r.Spec.Regions {
+		isPrimary := regionConfig.Primary
 		_, err := s.queries.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
 			ResourceID: resource.ID,
 			Region:     region,
@@ -182,21 +185,14 @@ func (s *ResourceServer) CreateResource(
 		IsPrimary:        true,
 	}
 
-	resourceDomain, err := s.queries.CreateResourceDomain(ctx, domainParams)
+	_, err = s.queries.CreateResourceDomain(ctx, domainParams)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{
-		Resource: dbResourceToProto(resource, []genDb.ResourceDomain{resourceDomain}, resourceRegions),
-		Message:  "Resource created successfully",
+		ResourceId: resource.ID,
 	}), nil
 }
 
@@ -392,21 +388,8 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
 	return connect.NewResponse(&resourcev1.UpdateResourceResponse{
-		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
-		Message:  "Resource updated successfully",
+		ResourceId: resource.ID,
 	}), nil
 }
 
@@ -561,10 +544,7 @@ func (s *ResourceServer) ListRegions(
 	regionMap := make(map[string]*resourcev1.RegionInfo)
 	for _, cluster := range clusters {
 		if _, exists := regionMap[cluster.Region]; !exists {
-			isDefault := false
-			if cluster.IsDefault.Valid {
-				isDefault = cluster.IsDefault.Bool
-			}
+			isDefault := cluster.IsDefault
 			healthStatus := ""
 			if cluster.HealthStatus.Valid {
 				healthStatus = cluster.HealthStatus.String
@@ -867,9 +847,9 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.ResourceId)
+	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to mark previous deployments not current", "error", err)
+		slog.ErrorContext(ctx, "failed to mark previous deployments not active", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
@@ -879,10 +859,10 @@ func (s *ResourceServer) ScaleResource(
 		Image:       currentDeployment.Image,
 		Replicas:    replicas,
 		Status:      genDb.DeploymentStatusPending,
-		IsCurrent:   true,
+		IsActive:    true,
 		CreatedBy:   userID,
 		Spec:        specJson,
-		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
+		SpecVersion: 1,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -1005,9 +985,9 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.ResourceId)
+	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to mark previous deployments not current", "error", err)
+		slog.ErrorContext(ctx, "failed to mark previous deployments not active", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
@@ -1017,10 +997,10 @@ func (s *ResourceServer) UpdateResourceEnv(
 		Image:       currentDeployment.Image,
 		Replicas:    currentDeployment.Replicas,
 		Status:      genDb.DeploymentStatusPending,
-		IsCurrent:   true,
+		IsActive:    true,
 		CreatedBy:   userID,
 		Spec:        specJson,
-		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
+		SpecVersion: 1,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -1163,7 +1143,7 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		}
 	}
 
-	return &resourcev1.Resource{
+	result := &resourcev1.Resource{
 		Id:          resource.ID,
 		WorkspaceId: resource.WorkspaceID,
 		Name:        resource.Name,
@@ -1174,5 +1154,8 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
 		Status:      resourceStatus,
+		Description: &resource.Description,
 	}
+
+	return result
 }

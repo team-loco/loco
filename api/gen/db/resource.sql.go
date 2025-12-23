@@ -13,18 +13,19 @@ import (
 
 const createResource = `-- name: CreateResource :one
 
-INSERT INTO resources (workspace_id, name, type, status, spec, spec_version, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, workspace_id, name, type, status, spec, spec_version, created_by, created_at, updated_at
+INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at
 `
 
 type CreateResourceParams struct {
 	WorkspaceID int64          `json:"workspaceId"`
 	Name        string         `json:"name"`
 	Type        ResourceType   `json:"type"`
+	Description string         `json:"description"`
 	Status      ResourceStatus `json:"status"`
 	Spec        []byte         `json:"spec"`
-	SpecVersion pgtype.Int4    `json:"specVersion"`
+	SpecVersion int32          `json:"specVersion"`
 	CreatedBy   int64          `json:"createdBy"`
 }
 
@@ -34,6 +35,7 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.WorkspaceID,
 		arg.Name,
 		arg.Type,
+		arg.Description,
 		arg.Status,
 		arg.Spec,
 		arg.SpecVersion,
@@ -45,6 +47,7 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Type,
+		&i.Description,
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
@@ -133,7 +136,7 @@ WHERE id = $1
 
 type GetClusterDetailsRow struct {
 	ID           int64       `json:"id"`
-	IsActive     pgtype.Bool `json:"isActive"`
+	IsActive     bool        `json:"isActive"`
 	HealthStatus pgtype.Text `json:"healthStatus"`
 }
 
@@ -173,7 +176,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -186,6 +189,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, erro
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Type,
+		&i.Description,
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
@@ -197,7 +201,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, erro
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -215,6 +219,7 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Type,
+		&i.Description,
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
@@ -312,7 +317,7 @@ func (q *Queries) ListResourceRegions(ctx context.Context, resourceID int64) ([]
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
 ORDER BY r.created_at DESC
@@ -332,6 +337,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, workspaceID int
 			&i.WorkspaceID,
 			&i.Name,
 			&i.Type,
+			&i.Description,
 			&i.Status,
 			&i.Spec,
 			&i.SpecVersion,
@@ -354,7 +360,7 @@ UPDATE resources
 SET name = COALESCE($2, name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, type, status, spec, spec_version, created_by, created_at, updated_at
+RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at
 `
 
 type UpdateResourceParams struct {
@@ -370,6 +376,7 @@ func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) 
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Type,
+		&i.Description,
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,

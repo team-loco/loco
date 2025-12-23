@@ -1,7 +1,7 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, cluster_id, image, replicas, status, is_current, message, created_by, spec, spec_version)
+INSERT INTO deployments (resource_id, cluster_id, image, replicas, status, is_active, message, created_by, spec, spec_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
 
@@ -17,10 +17,10 @@ LIMIT $2 OFFSET $3;
 -- name: CountDeploymentsForResource :one
 SELECT COUNT(*) FROM deployments WHERE resource_id = $1;
 
--- name: MarkPreviousDeploymentsNotCurrent :exec
+-- name: MarkPreviousDeploymentsNotActive :exec
 UPDATE deployments
-SET is_current = false, updated_at = NOW()
-WHERE resource_id = $1 AND is_current = true;
+SET is_active = false, updated_at = NOW()
+WHERE resource_id = $1 AND is_active = true;
 
 -- name: GetDeploymentResourceID :one
 SELECT resource_id FROM deployments WHERE id = $1;

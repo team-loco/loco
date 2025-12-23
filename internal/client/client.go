@@ -14,12 +14,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/loco-team/loco/shared"
-	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
-	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
 	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
 	orgv1 "github.com/loco-team/loco/shared/proto/org/v1"
 	"github.com/loco-team/loco/shared/proto/org/v1/orgv1connect"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
+	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	userv1 "github.com/loco-team/loco/shared/proto/user/v1"
 	"github.com/loco-team/loco/shared/proto/user/v1/userv1connect"
 	workspacev1 "github.com/loco-team/loco/shared/proto/workspace/v1"
@@ -134,24 +134,6 @@ func (c *Client) GetUserWorkspaces(ctx context.Context) ([]*workspacev1.Workspac
 	return resp.Msg.Workspaces, nil
 }
 
-func (c *Client) CreateApp(ctx context.Context, appType int32, workspaceID int64, name string) (*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.CreateResourceRequest{
-		WorkspaceId: workspaceID,
-		Name:        name,
-		Type:        resourcev1.ResourceType(appType),
-	})
-
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	resp, err := c.Resource.CreateResource(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to create app")
-		return nil, err
-	}
-
-	return resp.Msg.Resource, nil
-}
-
 func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource, error) {
 	appIDInt, err := strconv.ParseInt(appID, 10, 64)
 	if err != nil {
@@ -204,31 +186,6 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID int64, appName st
 	}
 
 	return resp.Msg.Resource, nil
-}
-
-func (c *Client) CreateDeployment(ctx context.Context, appID, clusterID, image string, replicas int32, message string, env map[string]string, ports []*deploymentv1.Port, resources *deploymentv1.ResourceSpec) (int64, error) {
-	appIDInt, err := strconv.ParseInt(appID, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid app ID: %w", err)
-	}
-
-	req := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{
-		ResourceId: appIDInt,
-		Spec: &deploymentv1.DeploymentSpec{
-			Image:           &image,
-			InitialReplicas: &replicas,
-			Env:             env,
-		},
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	resp, err := c.Deployment.CreateDeployment(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to create deployment")
-		return 0, err
-	}
-
-	return resp.Msg.DeploymentId, nil
 }
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {

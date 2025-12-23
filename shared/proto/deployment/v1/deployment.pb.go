@@ -188,16 +188,15 @@ func (x *ResourceSpec) GetMemory() string {
 	return ""
 }
 
-// HealthCheckConfig defines health check parameters.
+// HealthCheckSpec defines health check parameters.
 type HealthCheckConfig struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Path               *string                `protobuf:"bytes,1,opt,name=path,proto3,oneof" json:"path,omitempty"`
-	Interval           *int32                 `protobuf:"varint,2,opt,name=interval,proto3,oneof" json:"interval,omitempty"`
-	Timeout            *int32                 `protobuf:"varint,3,opt,name=timeout,proto3,oneof" json:"timeout,omitempty"`
-	FailThreshold      *int32                 `protobuf:"varint,4,opt,name=fail_threshold,json=failThreshold,proto3,oneof" json:"fail_threshold,omitempty"`
-	StartupGracePeriod *int32                 `protobuf:"varint,5,opt,name=startup_grace_period,json=startupGracePeriod,proto3,oneof" json:"startup_grace_period,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Path                string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	InitialDelaySeconds int32                  `protobuf:"varint,2,opt,name=initial_delay_seconds,json=initialDelaySeconds,proto3" json:"initial_delay_seconds,omitempty"`
+	IntervalSeconds     int32                  `protobuf:"varint,3,opt,name=interval_seconds,json=intervalSeconds,proto3" json:"interval_seconds,omitempty"` // how often to probe
+	TimeoutSeconds      int32                  `protobuf:"varint,4,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`    // how long to wait for response
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *HealthCheckConfig) Reset() {
@@ -231,64 +230,57 @@ func (*HealthCheckConfig) Descriptor() ([]byte, []int) {
 }
 
 func (x *HealthCheckConfig) GetPath() string {
-	if x != nil && x.Path != nil {
-		return *x.Path
+	if x != nil {
+		return x.Path
 	}
 	return ""
 }
 
-func (x *HealthCheckConfig) GetInterval() int32 {
-	if x != nil && x.Interval != nil {
-		return *x.Interval
+func (x *HealthCheckConfig) GetInitialDelaySeconds() int32 {
+	if x != nil {
+		return x.InitialDelaySeconds
 	}
 	return 0
 }
 
-func (x *HealthCheckConfig) GetTimeout() int32 {
-	if x != nil && x.Timeout != nil {
-		return *x.Timeout
+func (x *HealthCheckConfig) GetIntervalSeconds() int32 {
+	if x != nil {
+		return x.IntervalSeconds
 	}
 	return 0
 }
 
-func (x *HealthCheckConfig) GetFailThreshold() int32 {
-	if x != nil && x.FailThreshold != nil {
-		return *x.FailThreshold
+func (x *HealthCheckConfig) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
 	}
 	return 0
 }
 
-func (x *HealthCheckConfig) GetStartupGracePeriod() int32 {
-	if x != nil && x.StartupGracePeriod != nil {
-		return *x.StartupGracePeriod
-	}
-	return 0
+// BuildSource defines where the code comes from.
+type BuildSource struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Type           string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`   // "dockerfile", "buildpack", "image"
+	Image          string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"` // final image or pre-built
+	DockerfilePath *string                `protobuf:"bytes,3,opt,name=dockerfile_path,json=dockerfilePath,proto3,oneof" json:"dockerfile_path,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-// DeploymentMetricsConfig defines metrics collection settings.
-type DeploymentMetricsConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Enabled       *bool                  `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
-	Path          *string                `protobuf:"bytes,2,opt,name=path,proto3,oneof" json:"path,omitempty"`
-	Port          *int32                 `protobuf:"varint,3,opt,name=port,proto3,oneof" json:"port,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeploymentMetricsConfig) Reset() {
-	*x = DeploymentMetricsConfig{}
+func (x *BuildSource) Reset() {
+	*x = BuildSource{}
 	mi := &file_deployment_v1_deployment_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeploymentMetricsConfig) String() string {
+func (x *BuildSource) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeploymentMetricsConfig) ProtoMessage() {}
+func (*BuildSource) ProtoMessage() {}
 
-func (x *DeploymentMetricsConfig) ProtoReflect() protoreflect.Message {
+func (x *BuildSource) ProtoReflect() protoreflect.Message {
 	mi := &file_deployment_v1_deployment_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -300,46 +292,46 @@ func (x *DeploymentMetricsConfig) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeploymentMetricsConfig.ProtoReflect.Descriptor instead.
-func (*DeploymentMetricsConfig) Descriptor() ([]byte, []int) {
+// Deprecated: Use BuildSource.ProtoReflect.Descriptor instead.
+func (*BuildSource) Descriptor() ([]byte, []int) {
 	return file_deployment_v1_deployment_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *DeploymentMetricsConfig) GetEnabled() bool {
-	if x != nil && x.Enabled != nil {
-		return *x.Enabled
-	}
-	return false
-}
-
-func (x *DeploymentMetricsConfig) GetPath() string {
-	if x != nil && x.Path != nil {
-		return *x.Path
+func (x *BuildSource) GetType() string {
+	if x != nil {
+		return x.Type
 	}
 	return ""
 }
 
-func (x *DeploymentMetricsConfig) GetPort() int32 {
-	if x != nil && x.Port != nil {
-		return *x.Port
+func (x *BuildSource) GetImage() string {
+	if x != nil {
+		return x.Image
 	}
-	return 0
+	return ""
 }
 
-// DeploymentSpec defines deployment configuration.
+func (x *BuildSource) GetDockerfilePath() string {
+	if x != nil && x.DockerfilePath != nil {
+		return *x.DockerfilePath
+	}
+	return ""
+}
+
+// DeploymentSpec is the immutable runtime snapshot for a deployment.
 type DeploymentSpec struct {
-	state           protoimpl.MessageState   `protogen:"open.v1"`
-	Image           *string                  `protobuf:"bytes,1,opt,name=image,proto3,oneof" json:"image,omitempty"`
-	DockerfilePath  *string                  `protobuf:"bytes,2,opt,name=dockerfile_path,json=dockerfilePath,proto3,oneof" json:"dockerfile_path,omitempty"`
-	BuildType       *string                  `protobuf:"bytes,3,opt,name=build_type,json=buildType,proto3,oneof" json:"build_type,omitempty"`
-	Cpu             *string                  `protobuf:"bytes,4,opt,name=cpu,proto3,oneof" json:"cpu,omitempty"`
-	Memory          *string                  `protobuf:"bytes,5,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
-	InitialReplicas *int32                   `protobuf:"varint,6,opt,name=initial_replicas,json=initialReplicas,proto3,oneof" json:"initial_replicas,omitempty"`
-	HealthCheck     *HealthCheckConfig       `protobuf:"bytes,7,opt,name=health_check,json=healthCheck,proto3,oneof" json:"health_check,omitempty"`
-	Env             map[string]string        `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Metrics         *DeploymentMetricsConfig `protobuf:"bytes,9,opt,name=metrics,proto3,oneof" json:"metrics,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Build         *BuildSource           `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
+	HealthCheck   *HealthCheckConfig     `protobuf:"bytes,2,opt,name=health_check,json=healthCheck,proto3,oneof" json:"health_check,omitempty"`
+	Cpu           string                 `protobuf:"bytes,3,opt,name=cpu,proto3" json:"cpu,omitempty"`       // e.g., "100m"
+	Memory        string                 `protobuf:"bytes,4,opt,name=memory,proto3" json:"memory,omitempty"` // e.g., "256Mi"
+	MinReplicas   *int32                 `protobuf:"varint,5,opt,name=min_replicas,json=minReplicas,proto3,oneof" json:"min_replicas,omitempty"`
+	MaxReplicas   *int32                 `protobuf:"varint,6,opt,name=max_replicas,json=maxReplicas,proto3,oneof" json:"max_replicas,omitempty"`
+	TargetCpu     *int32                 `protobuf:"varint,7,opt,name=target_cpu,json=targetCpu,proto3,oneof" json:"target_cpu,omitempty"` // percentage (0-100)
+	Env           map[string]string      `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Port          int32                  `protobuf:"varint,9,opt,name=port,proto3" json:"port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeploymentSpec) Reset() {
@@ -372,46 +364,11 @@ func (*DeploymentSpec) Descriptor() ([]byte, []int) {
 	return file_deployment_v1_deployment_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *DeploymentSpec) GetImage() string {
-	if x != nil && x.Image != nil {
-		return *x.Image
+func (x *DeploymentSpec) GetBuild() *BuildSource {
+	if x != nil {
+		return x.Build
 	}
-	return ""
-}
-
-func (x *DeploymentSpec) GetDockerfilePath() string {
-	if x != nil && x.DockerfilePath != nil {
-		return *x.DockerfilePath
-	}
-	return ""
-}
-
-func (x *DeploymentSpec) GetBuildType() string {
-	if x != nil && x.BuildType != nil {
-		return *x.BuildType
-	}
-	return ""
-}
-
-func (x *DeploymentSpec) GetCpu() string {
-	if x != nil && x.Cpu != nil {
-		return *x.Cpu
-	}
-	return ""
-}
-
-func (x *DeploymentSpec) GetMemory() string {
-	if x != nil && x.Memory != nil {
-		return *x.Memory
-	}
-	return ""
-}
-
-func (x *DeploymentSpec) GetInitialReplicas() int32 {
-	if x != nil && x.InitialReplicas != nil {
-		return *x.InitialReplicas
-	}
-	return 0
+	return nil
 }
 
 func (x *DeploymentSpec) GetHealthCheck() *HealthCheckConfig {
@@ -421,6 +378,41 @@ func (x *DeploymentSpec) GetHealthCheck() *HealthCheckConfig {
 	return nil
 }
 
+func (x *DeploymentSpec) GetCpu() string {
+	if x != nil {
+		return x.Cpu
+	}
+	return ""
+}
+
+func (x *DeploymentSpec) GetMemory() string {
+	if x != nil {
+		return x.Memory
+	}
+	return ""
+}
+
+func (x *DeploymentSpec) GetMinReplicas() int32 {
+	if x != nil && x.MinReplicas != nil {
+		return *x.MinReplicas
+	}
+	return 0
+}
+
+func (x *DeploymentSpec) GetMaxReplicas() int32 {
+	if x != nil && x.MaxReplicas != nil {
+		return *x.MaxReplicas
+	}
+	return 0
+}
+
+func (x *DeploymentSpec) GetTargetCpu() int32 {
+	if x != nil && x.TargetCpu != nil {
+		return *x.TargetCpu
+	}
+	return 0
+}
+
 func (x *DeploymentSpec) GetEnv() map[string]string {
 	if x != nil {
 		return x.Env
@@ -428,11 +420,11 @@ func (x *DeploymentSpec) GetEnv() map[string]string {
 	return nil
 }
 
-func (x *DeploymentSpec) GetMetrics() *DeploymentMetricsConfig {
+func (x *DeploymentSpec) GetPort() int32 {
 	if x != nil {
-		return x.Metrics
+		return x.Port
 	}
-	return nil
+	return 0
 }
 
 // Deployment represents a resource deployment (immutable, single-region).
@@ -444,7 +436,7 @@ type Deployment struct {
 	Image         string                 `protobuf:"bytes,4,opt,name=image,proto3" json:"image,omitempty"`
 	Replicas      int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
-	IsCurrent     bool                   `protobuf:"varint,7,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`
+	IsActive      bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	Message       *string                `protobuf:"bytes,8,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	ErrorMessage  *string                `protobuf:"bytes,9,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
 	CreatedBy     int64                  `protobuf:"varint,10,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
@@ -530,9 +522,9 @@ func (x *Deployment) GetStatus() DeploymentPhase {
 	return DeploymentPhase_UNSPECIFIED
 }
 
-func (x *Deployment) GetIsCurrent() bool {
+func (x *Deployment) GetIsActive() bool {
 	if x != nil {
-		return x.IsCurrent
+		return x.IsActive
 	}
 	return false
 }
@@ -1052,50 +1044,35 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x03cpu\x18\x01 \x01(\tH\x00R\x03cpu\x88\x01\x01\x12\x1b\n" +
 	"\x06memory\x18\x02 \x01(\tH\x01R\x06memory\x88\x01\x01B\x06\n" +
 	"\x04_cpuB\t\n" +
-	"\a_memory\"\x9d\x02\n" +
-	"\x11HealthCheckConfig\x12\x17\n" +
-	"\x04path\x18\x01 \x01(\tH\x00R\x04path\x88\x01\x01\x12\x1f\n" +
-	"\binterval\x18\x02 \x01(\x05H\x01R\binterval\x88\x01\x01\x12\x1d\n" +
-	"\atimeout\x18\x03 \x01(\x05H\x02R\atimeout\x88\x01\x01\x12*\n" +
-	"\x0efail_threshold\x18\x04 \x01(\x05H\x03R\rfailThreshold\x88\x01\x01\x125\n" +
-	"\x14startup_grace_period\x18\x05 \x01(\x05H\x04R\x12startupGracePeriod\x88\x01\x01B\a\n" +
-	"\x05_pathB\v\n" +
-	"\t_intervalB\n" +
+	"\a_memory\"\xaf\x01\n" +
+	"\x11HealthCheckConfig\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x122\n" +
+	"\x15initial_delay_seconds\x18\x02 \x01(\x05R\x13initialDelaySeconds\x12)\n" +
+	"\x10interval_seconds\x18\x03 \x01(\x05R\x0fintervalSeconds\x12'\n" +
+	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\"y\n" +
+	"\vBuildSource\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
+	"\x05image\x18\x02 \x01(\tR\x05image\x12,\n" +
+	"\x0fdockerfile_path\x18\x03 \x01(\tH\x00R\x0edockerfilePath\x88\x01\x01B\x12\n" +
+	"\x10_dockerfile_path\"\x81\x04\n" +
+	"\x0eDeploymentSpec\x125\n" +
+	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceR\x05build\x12M\n" +
+	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x10\n" +
+	"\x03cpu\x18\x03 \x01(\tR\x03cpu\x12\x16\n" +
+	"\x06memory\x18\x04 \x01(\tR\x06memory\x12&\n" +
+	"\fmin_replicas\x18\x05 \x01(\x05H\x01R\vminReplicas\x88\x01\x01\x12&\n" +
+	"\fmax_replicas\x18\x06 \x01(\x05H\x02R\vmaxReplicas\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"\b_timeoutB\x11\n" +
-	"\x0f_fail_thresholdB\x17\n" +
-	"\x15_startup_grace_period\"\x88\x01\n" +
-	"\x17DeploymentMetricsConfig\x12\x1d\n" +
-	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12\x17\n" +
-	"\x04path\x18\x02 \x01(\tH\x01R\x04path\x88\x01\x01\x12\x17\n" +
-	"\x04port\x18\x03 \x01(\x05H\x02R\x04port\x88\x01\x01B\n" +
-	"\n" +
-	"\b_enabledB\a\n" +
-	"\x05_pathB\a\n" +
-	"\x05_port\"\xe5\x04\n" +
-	"\x0eDeploymentSpec\x12\x19\n" +
-	"\x05image\x18\x01 \x01(\tH\x00R\x05image\x88\x01\x01\x12,\n" +
-	"\x0fdockerfile_path\x18\x02 \x01(\tH\x01R\x0edockerfilePath\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"build_type\x18\x03 \x01(\tH\x02R\tbuildType\x88\x01\x01\x12\x15\n" +
-	"\x03cpu\x18\x04 \x01(\tH\x03R\x03cpu\x88\x01\x01\x12\x1b\n" +
-	"\x06memory\x18\x05 \x01(\tH\x04R\x06memory\x88\x01\x01\x12.\n" +
-	"\x10initial_replicas\x18\x06 \x01(\x05H\x05R\x0finitialReplicas\x88\x01\x01\x12M\n" +
-	"\fhealth_check\x18\a \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x06R\vhealthCheck\x88\x01\x01\x12=\n" +
-	"\x03env\x18\b \x03(\v2+.loco.deployment.v1.DeploymentSpec.EnvEntryR\x03env\x12J\n" +
-	"\ametrics\x18\t \x01(\v2+.loco.deployment.v1.DeploymentMetricsConfigH\aR\ametrics\x88\x01\x01\x1a6\n" +
+	"target_cpu\x18\a \x01(\x05H\x03R\ttargetCpu\x88\x01\x01\x12=\n" +
+	"\x03env\x18\b \x03(\v2+.loco.deployment.v1.DeploymentSpec.EnvEntryR\x03env\x12\x12\n" +
+	"\x04port\x18\t \x01(\x05R\x04port\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\b\n" +
-	"\x06_imageB\x12\n" +
-	"\x10_dockerfile_pathB\r\n" +
-	"\v_build_typeB\x06\n" +
-	"\x04_cpuB\t\n" +
-	"\a_memoryB\x13\n" +
-	"\x11_initial_replicasB\x0f\n" +
-	"\r_health_checkB\n" +
-	"\n" +
-	"\b_metrics\"\xe8\x05\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
+	"\r_health_checkB\x0f\n" +
+	"\r_min_replicasB\x0f\n" +
+	"\r_max_replicasB\r\n" +
+	"\v_target_cpu\"\xe6\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
@@ -1105,9 +1082,8 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"cluster_id\x18\x03 \x01(\x03R\tclusterId\x12\x14\n" +
 	"\x05image\x18\x04 \x01(\tR\x05image\x12\x1a\n" +
 	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
-	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1d\n" +
-	"\n" +
-	"is_current\x18\a \x01(\bR\tisCurrent\x12\x1d\n" +
+	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
+	"\tis_active\x18\a \x01(\bR\bisActive\x12\x1d\n" +
 	"\amessage\x18\b \x01(\tH\x00R\amessage\x88\x01\x01\x12(\n" +
 	"\rerror_message\x18\t \x01(\tH\x01R\ferrorMessage\x88\x01\x01\x12\x1d\n" +
 	"\n" +
@@ -1195,7 +1171,7 @@ var file_deployment_v1_deployment_proto_goTypes = []any{
 	(*Port)(nil),                     // 1: loco.deployment.v1.Port
 	(*ResourceSpec)(nil),             // 2: loco.deployment.v1.ResourceSpec
 	(*HealthCheckConfig)(nil),        // 3: loco.deployment.v1.HealthCheckConfig
-	(*DeploymentMetricsConfig)(nil),  // 4: loco.deployment.v1.DeploymentMetricsConfig
+	(*BuildSource)(nil),              // 4: loco.deployment.v1.BuildSource
 	(*DeploymentSpec)(nil),           // 5: loco.deployment.v1.DeploymentSpec
 	(*Deployment)(nil),               // 6: loco.deployment.v1.Deployment
 	(*CreateDeploymentRequest)(nil),  // 7: loco.deployment.v1.CreateDeploymentRequest
@@ -1211,9 +1187,9 @@ var file_deployment_v1_deployment_proto_goTypes = []any{
 	(*structpb.Struct)(nil),          // 17: google.protobuf.Struct
 }
 var file_deployment_v1_deployment_proto_depIdxs = []int32{
-	3,  // 0: loco.deployment.v1.DeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	15, // 1: loco.deployment.v1.DeploymentSpec.env:type_name -> loco.deployment.v1.DeploymentSpec.EnvEntry
-	4,  // 2: loco.deployment.v1.DeploymentSpec.metrics:type_name -> loco.deployment.v1.DeploymentMetricsConfig
+	4,  // 0: loco.deployment.v1.DeploymentSpec.build:type_name -> loco.deployment.v1.BuildSource
+	3,  // 1: loco.deployment.v1.DeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	15, // 2: loco.deployment.v1.DeploymentSpec.env:type_name -> loco.deployment.v1.DeploymentSpec.EnvEntry
 	0,  // 3: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentPhase
 	16, // 4: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
 	16, // 5: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
@@ -1246,7 +1222,6 @@ func file_deployment_v1_deployment_proto_init() {
 		return
 	}
 	file_deployment_v1_deployment_proto_msgTypes[1].OneofWrappers = []any{}
-	file_deployment_v1_deployment_proto_msgTypes[2].OneofWrappers = []any{}
 	file_deployment_v1_deployment_proto_msgTypes[3].OneofWrappers = []any{}
 	file_deployment_v1_deployment_proto_msgTypes[4].OneofWrappers = []any{}
 	file_deployment_v1_deployment_proto_msgTypes[5].OneofWrappers = []any{}

@@ -19,10 +19,10 @@ CREATE TABLE clusters (
     name TEXT UNIQUE NOT NULL,
     region TEXT NOT NULL,
     provider TEXT NOT NULL,
-    is_active BOOLEAN DEFAULT true,
-    is_default BOOLEAN DEFAULT false,
+    is_active BOOLEAN NOT NULL,
+    is_default BOOLEAN NOT NULL,
     endpoint TEXT,
-    health_status TEXT DEFAULT 'healthy' CHECK (health_status IN ('healthy', 'unhealthy', 'degraded')),
+    health_status TEXT CHECK (health_status IN ('healthy', 'unhealthy', 'degraded')),
     last_health_check TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -35,7 +35,7 @@ CREATE INDEX idx_clusters_is_active ON clusters (is_active);
 CREATE TABLE platform_domains (
     id BIGSERIAL PRIMARY KEY,
     domain TEXT NOT NULL UNIQUE,
-    is_active BOOLEAN NOT NULL DEFAULT true,
+    is_active BOOLEAN NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -45,9 +45,10 @@ CREATE TABLE resources (
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     type resource_type NOT NULL,
-    status resource_status NOT NULL DEFAULT 'idle',
-    spec JSONB NOT NULL DEFAULT '{}'::jsonb,
-    spec_version INT DEFAULT 1,
+    description TEXT NOT NULL,
+    status resource_status NOT NULL,
+    spec JSONB NOT NULL,
+    spec_version INT NOT NULL,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -61,8 +62,8 @@ CREATE TABLE resource_regions (
     id BIGSERIAL PRIMARY KEY,
     resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     region TEXT NOT NULL,
-    is_primary BOOLEAN NOT NULL DEFAULT false,
-    status region_intent_status NOT NULL DEFAULT 'desired',
+    is_primary BOOLEAN NOT NULL,
+    status region_intent_status NOT NULL,
     last_error TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -84,7 +85,7 @@ CREATE TABLE resource_domains (
     domain_source domain_source NOT NULL,
     subdomain_label TEXT,
     platform_domain_id BIGINT REFERENCES platform_domains(id),
-    is_primary BOOLEAN NOT NULL DEFAULT false,
+    is_primary BOOLEAN NOT NULL,
     
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -117,13 +118,13 @@ CREATE TABLE deployments (
     resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE RESTRICT,
     image TEXT NOT NULL,
-    replicas INT NOT NULL DEFAULT 1,
-    status deployment_status NOT NULL DEFAULT 'pending',
-    is_current BOOLEAN NOT NULL DEFAULT false,
+    replicas INT NOT NULL,
+    status deployment_status NOT NULL,
+    is_active BOOLEAN NOT NULL,
     error_message TEXT,
     message TEXT,
-    spec JSONB NOT NULL DEFAULT '{}'::jsonb,
-    spec_version INT DEFAULT 1,
+    spec JSONB NOT NULL,
+    spec_version INT NOT NULL,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     started_at TIMESTAMPTZ,
@@ -133,10 +134,10 @@ CREATE TABLE deployments (
 
 CREATE INDEX idx_deployments_resource_id ON deployments (resource_id);
 CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
-CREATE INDEX idx_deployments_is_current ON deployments (resource_id, is_current) WHERE is_current = true;
+CREATE INDEX idx_deployments_is_active ON deployments (resource_id, is_active) WHERE is_active = true;
 CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);
 
--- Enforce one current deployment per resource per region
+-- Enforce one active deployment per resource per region
 CREATE UNIQUE INDEX uniq_active_deployment_per_region
 ON deployments(resource_id, cluster_id)
-WHERE is_current = true;
+WHERE is_active = true;

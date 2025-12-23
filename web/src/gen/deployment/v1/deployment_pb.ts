@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file deployment/v1/deployment.proto.
  */
 export const file_deployment_v1_deployment: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSLhAQoRSGVhbHRoQ2hlY2tDb25maWcSEQoEcGF0aBgBIAEoCUgAiAEBEhUKCGludGVydmFsGAIgASgFSAGIAQESFAoHdGltZW91dBgDIAEoBUgCiAEBEhsKDmZhaWxfdGhyZXNob2xkGAQgASgFSAOIAQESIQoUc3RhcnR1cF9ncmFjZV9wZXJpb2QYBSABKAVIBIgBAUIHCgVfcGF0aEILCglfaW50ZXJ2YWxCCgoIX3RpbWVvdXRCEQoPX2ZhaWxfdGhyZXNob2xkQhcKFV9zdGFydHVwX2dyYWNlX3BlcmlvZCJzChdEZXBsb3ltZW50TWV0cmljc0NvbmZpZxIUCgdlbmFibGVkGAEgASgISACIAQESEQoEcGF0aBgCIAEoCUgBiAEBEhEKBHBvcnQYAyABKAVIAogBAUIKCghfZW5hYmxlZEIHCgVfcGF0aEIHCgVfcG9ydCL+AwoORGVwbG95bWVudFNwZWMSEgoFaW1hZ2UYASABKAlIAIgBARIcCg9kb2NrZXJmaWxlX3BhdGgYAiABKAlIAYgBARIXCgpidWlsZF90eXBlGAMgASgJSAKIAQESEAoDY3B1GAQgASgJSAOIAQESEwoGbWVtb3J5GAUgASgJSASIAQESHQoQaW5pdGlhbF9yZXBsaWNhcxgGIAEoBUgFiAEBEkAKDGhlYWx0aF9jaGVjaxgHIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZ0gGiAEBEjgKA2VudhgIIAMoCzIrLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3BlYy5FbnZFbnRyeRJBCgdtZXRyaWNzGAkgASgLMisubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRNZXRyaWNzQ29uZmlnSAeIAQEaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIICgZfaW1hZ2VCEgoQX2RvY2tlcmZpbGVfcGF0aEINCgtfYnVpbGRfdHlwZUIGCgRfY3B1QgkKB19tZW1vcnlCEwoRX2luaXRpYWxfcmVwbGljYXNCDwoNX2hlYWx0aF9jaGVja0IKCghfbWV0cmljcyLGBAoKRGVwbG95bWVudBIKCgJpZBgBIAEoAxITCgtyZXNvdXJjZV9pZBgCIAEoAxISCgpjbHVzdGVyX2lkGAMgASgDEg0KBWltYWdlGAQgASgJEhAKCHJlcGxpY2FzGAUgASgFEjMKBnN0YXR1cxgGIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USEgoKaXNfY3VycmVudBgHIAEoCBIUCgdtZXNzYWdlGAggASgJSACIAQESGgoNZXJyb3JfbWVzc2FnZRgJIAEoCUgBiAEBEhIKCmNyZWF0ZWRfYnkYCiABKAMSLgoKY3JlYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoKc3RhcnRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAogBARI1Cgxjb21wbGV0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQESLgoKdXBkYXRlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMc3BlY192ZXJzaW9uGA8gASgFEioKBHNwZWMYECABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0SASIAQFCCgoIX21lc3NhZ2VCEAoOX2Vycm9yX21lc3NhZ2VCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdEIHCgVfc3BlYyJ0ChdDcmVhdGVEZXBsb3ltZW50UmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgpjbHVzdGVyX2lkGAIgASgDEjAKBHNwZWMYAyABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWMiQgoYQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEhUKDWRlcGxveW1lbnRfaWQYASABKAMSDwoHbWVzc2FnZRgCIAEoCSItChRHZXREZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiawoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBEhMKBm9mZnNldBgDIAEoBUgBiAEBQggKBl9saW1pdEIJCgdfb2Zmc2V0Il0KF0xpc3REZXBsb3ltZW50c1Jlc3BvbnNlEjMKC2RlcGxveW1lbnRzGAEgAygLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQSDQoFdG90YWwYAiABKAMiMAoXU3RyZWFtRGVwbG95bWVudFJlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoAyLLAQoPRGVwbG95bWVudEV2ZW50EhUKDWRlcGxveW1lbnRfaWQYASABKAMSMwoGc3RhdHVzGAIgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIPCgdtZXNzYWdlGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoNZXJyb3JfbWVzc2FnZRgFIAEoCUgAiAEBQhAKDl9lcnJvcl9tZXNzYWdlKmUKD0RlcGxveW1lbnRQaGFzZRIPCgtVTlNQRUNJRklFRBAAEgsKB1BFTkRJTkcQARILCgdSVU5OSU5HEAISDQoJU1VDQ0VFREVEEAMSCgoGRkFJTEVEEAQSDAoIQ0FOQ0VMRUQQBTK8AwoRRGVwbG95bWVudFNlcnZpY2USbQoQQ3JlYXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USZAoNR2V0RGVwbG95bWVudBIoLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVxdWVzdBopLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVzcG9uc2USagoPTGlzdERlcGxveW1lbnRzEioubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1JlcXVlc3QaKy5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVzcG9uc2USZgoQU3RyZWFtRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5TdHJlYW1EZXBsb3ltZW50UmVxdWVzdBojLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50RXZlbnQwAUJDWkFnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9kZXBsb3ltZW50L3YxO2RlcGxveW1lbnR2MWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSJzChFIZWFsdGhDaGVja0NvbmZpZxIMCgRwYXRoGAEgASgJEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIYChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFEhcKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBSJcCgtCdWlsZFNvdXJjZRIMCgR0eXBlGAEgASgJEg0KBWltYWdlGAIgASgJEhwKD2RvY2tlcmZpbGVfcGF0aBgDIAEoCUgAiAEBQhIKEF9kb2NrZXJmaWxlX3BhdGgipAMKDkRlcGxveW1lbnRTcGVjEi4KBWJ1aWxkGAEgASgLMh8ubG9jby5kZXBsb3ltZW50LnYxLkJ1aWxkU291cmNlEkAKDGhlYWx0aF9jaGVjaxgCIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZ0gAiAEBEgsKA2NwdRgDIAEoCRIOCgZtZW1vcnkYBCABKAkSGQoMbWluX3JlcGxpY2FzGAUgASgFSAGIAQESGQoMbWF4X3JlcGxpY2FzGAYgASgFSAKIAQESFwoKdGFyZ2V0X2NwdRgHIAEoBUgDiAEBEjgKA2VudhgIIAMoCzIrLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3BlYy5FbnZFbnRyeRIMCgRwb3J0GAkgASgFGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDwoNX2hlYWx0aF9jaGVja0IPCg1fbWluX3JlcGxpY2FzQg8KDV9tYXhfcmVwbGljYXNCDQoLX3RhcmdldF9jcHUixQQKCkRlcGxveW1lbnQSCgoCaWQYASABKAMSEwoLcmVzb3VyY2VfaWQYAiABKAMSEgoKY2x1c3Rlcl9pZBgDIAEoAxINCgVpbWFnZRgEIAEoCRIQCghyZXBsaWNhcxgFIAEoBRIzCgZzdGF0dXMYBiABKA4yIy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFBoYXNlEhEKCWlzX2FjdGl2ZRgHIAEoCBIUCgdtZXNzYWdlGAggASgJSACIAQESGgoNZXJyb3JfbWVzc2FnZRgJIAEoCUgBiAEBEhIKCmNyZWF0ZWRfYnkYCiABKAMSLgoKY3JlYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoKc3RhcnRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAogBARI1Cgxjb21wbGV0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQESLgoKdXBkYXRlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMc3BlY192ZXJzaW9uGA8gASgFEioKBHNwZWMYECABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0SASIAQFCCgoIX21lc3NhZ2VCEAoOX2Vycm9yX21lc3NhZ2VCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdEIHCgVfc3BlYyJ0ChdDcmVhdGVEZXBsb3ltZW50UmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgpjbHVzdGVyX2lkGAIgASgDEjAKBHNwZWMYAyABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWMiQgoYQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEhUKDWRlcGxveW1lbnRfaWQYASABKAMSDwoHbWVzc2FnZRgCIAEoCSItChRHZXREZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiawoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBEhMKBm9mZnNldBgDIAEoBUgBiAEBQggKBl9saW1pdEIJCgdfb2Zmc2V0Il0KF0xpc3REZXBsb3ltZW50c1Jlc3BvbnNlEjMKC2RlcGxveW1lbnRzGAEgAygLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQSDQoFdG90YWwYAiABKAMiMAoXU3RyZWFtRGVwbG95bWVudFJlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoAyLLAQoPRGVwbG95bWVudEV2ZW50EhUKDWRlcGxveW1lbnRfaWQYASABKAMSMwoGc3RhdHVzGAIgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIPCgdtZXNzYWdlGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoNZXJyb3JfbWVzc2FnZRgFIAEoCUgAiAEBQhAKDl9lcnJvcl9tZXNzYWdlKmUKD0RlcGxveW1lbnRQaGFzZRIPCgtVTlNQRUNJRklFRBAAEgsKB1BFTkRJTkcQARILCgdSVU5OSU5HEAISDQoJU1VDQ0VFREVEEAMSCgoGRkFJTEVEEAQSDAoIQ0FOQ0VMRUQQBTK8AwoRRGVwbG95bWVudFNlcnZpY2USbQoQQ3JlYXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USZAoNR2V0RGVwbG95bWVudBIoLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVxdWVzdBopLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVzcG9uc2USagoPTGlzdERlcGxveW1lbnRzEioubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1JlcXVlc3QaKy5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVzcG9uc2USZgoQU3RyZWFtRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5TdHJlYW1EZXBsb3ltZW50UmVxdWVzdBojLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50RXZlbnQwAUJDWkFnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9kZXBsb3ltZW50L3YxO2RlcGxveW1lbnR2MWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * Port defines a network port configuration.
@@ -97,67 +97,65 @@ export const ResourceSpecSchema: GenMessage<ResourceSpec, {jsonType: ResourceSpe
   messageDesc(file_deployment_v1_deployment, 1);
 
 /**
- * HealthCheckConfig defines health check parameters.
+ * HealthCheckSpec defines health check parameters.
  *
  * @generated from message loco.deployment.v1.HealthCheckConfig
  */
 export type HealthCheckConfig = Message<"loco.deployment.v1.HealthCheckConfig"> & {
   /**
-   * @generated from field: optional string path = 1;
+   * @generated from field: string path = 1;
    */
-  path?: string;
+  path: string;
 
   /**
-   * @generated from field: optional int32 interval = 2;
+   * @generated from field: int32 initial_delay_seconds = 2;
    */
-  interval?: number;
+  initialDelaySeconds: number;
 
   /**
-   * @generated from field: optional int32 timeout = 3;
+   * how often to probe
+   *
+   * @generated from field: int32 interval_seconds = 3;
    */
-  timeout?: number;
+  intervalSeconds: number;
 
   /**
-   * @generated from field: optional int32 fail_threshold = 4;
+   * how long to wait for response
+   *
+   * @generated from field: int32 timeout_seconds = 4;
    */
-  failThreshold?: number;
-
-  /**
-   * @generated from field: optional int32 startup_grace_period = 5;
-   */
-  startupGracePeriod?: number;
+  timeoutSeconds: number;
 };
 
 /**
- * HealthCheckConfig defines health check parameters.
+ * HealthCheckSpec defines health check parameters.
  *
  * @generated from message loco.deployment.v1.HealthCheckConfig
  */
 export type HealthCheckConfigJson = {
   /**
-   * @generated from field: optional string path = 1;
+   * @generated from field: string path = 1;
    */
   path?: string;
 
   /**
-   * @generated from field: optional int32 interval = 2;
+   * @generated from field: int32 initial_delay_seconds = 2;
    */
-  interval?: number;
+  initialDelaySeconds?: number;
 
   /**
-   * @generated from field: optional int32 timeout = 3;
+   * how often to probe
+   *
+   * @generated from field: int32 interval_seconds = 3;
    */
-  timeout?: number;
+  intervalSeconds?: number;
 
   /**
-   * @generated from field: optional int32 fail_threshold = 4;
+   * how long to wait for response
+   *
+   * @generated from field: int32 timeout_seconds = 4;
    */
-  failThreshold?: number;
-
-  /**
-   * @generated from field: optional int32 startup_grace_period = 5;
-   */
-  startupGracePeriod?: number;
+  timeoutSeconds?: number;
 };
 
 /**
@@ -168,96 +166,110 @@ export const HealthCheckConfigSchema: GenMessage<HealthCheckConfig, {jsonType: H
   messageDesc(file_deployment_v1_deployment, 2);
 
 /**
- * DeploymentMetricsConfig defines metrics collection settings.
+ * BuildSource defines where the code comes from.
  *
- * @generated from message loco.deployment.v1.DeploymentMetricsConfig
+ * @generated from message loco.deployment.v1.BuildSource
  */
-export type DeploymentMetricsConfig = Message<"loco.deployment.v1.DeploymentMetricsConfig"> & {
+export type BuildSource = Message<"loco.deployment.v1.BuildSource"> & {
   /**
-   * @generated from field: optional bool enabled = 1;
+   * "dockerfile", "buildpack", "image"
+   *
+   * @generated from field: string type = 1;
    */
-  enabled?: boolean;
+  type: string;
 
   /**
-   * @generated from field: optional string path = 2;
+   * final image or pre-built
+   *
+   * @generated from field: string image = 2;
    */
-  path?: string;
+  image: string;
 
   /**
-   * @generated from field: optional int32 port = 3;
+   * @generated from field: optional string dockerfile_path = 3;
    */
-  port?: number;
+  dockerfilePath?: string;
 };
 
 /**
- * DeploymentMetricsConfig defines metrics collection settings.
+ * BuildSource defines where the code comes from.
  *
- * @generated from message loco.deployment.v1.DeploymentMetricsConfig
+ * @generated from message loco.deployment.v1.BuildSource
  */
-export type DeploymentMetricsConfigJson = {
+export type BuildSourceJson = {
   /**
-   * @generated from field: optional bool enabled = 1;
+   * "dockerfile", "buildpack", "image"
+   *
+   * @generated from field: string type = 1;
    */
-  enabled?: boolean;
+  type?: string;
 
   /**
-   * @generated from field: optional string path = 2;
+   * final image or pre-built
+   *
+   * @generated from field: string image = 2;
    */
-  path?: string;
+  image?: string;
 
   /**
-   * @generated from field: optional int32 port = 3;
+   * @generated from field: optional string dockerfile_path = 3;
    */
-  port?: number;
+  dockerfilePath?: string;
 };
 
 /**
- * Describes the message loco.deployment.v1.DeploymentMetricsConfig.
- * Use `create(DeploymentMetricsConfigSchema)` to create a new message.
+ * Describes the message loco.deployment.v1.BuildSource.
+ * Use `create(BuildSourceSchema)` to create a new message.
  */
-export const DeploymentMetricsConfigSchema: GenMessage<DeploymentMetricsConfig, {jsonType: DeploymentMetricsConfigJson}> = /*@__PURE__*/
+export const BuildSourceSchema: GenMessage<BuildSource, {jsonType: BuildSourceJson}> = /*@__PURE__*/
   messageDesc(file_deployment_v1_deployment, 3);
 
 /**
- * DeploymentSpec defines deployment configuration.
+ * DeploymentSpec is the immutable runtime snapshot for a deployment.
  *
  * @generated from message loco.deployment.v1.DeploymentSpec
  */
 export type DeploymentSpec = Message<"loco.deployment.v1.DeploymentSpec"> & {
   /**
-   * @generated from field: optional string image = 1;
+   * @generated from field: loco.deployment.v1.BuildSource build = 1;
    */
-  image?: string;
+  build?: BuildSource;
 
   /**
-   * @generated from field: optional string dockerfile_path = 2;
-   */
-  dockerfilePath?: string;
-
-  /**
-   * @generated from field: optional string build_type = 3;
-   */
-  buildType?: string;
-
-  /**
-   * @generated from field: optional string cpu = 4;
-   */
-  cpu?: string;
-
-  /**
-   * @generated from field: optional string memory = 5;
-   */
-  memory?: string;
-
-  /**
-   * @generated from field: optional int32 initial_replicas = 6;
-   */
-  initialReplicas?: number;
-
-  /**
-   * @generated from field: optional loco.deployment.v1.HealthCheckConfig health_check = 7;
+   * @generated from field: optional loco.deployment.v1.HealthCheckConfig health_check = 2;
    */
   healthCheck?: HealthCheckConfig;
+
+  /**
+   * e.g., "100m"
+   *
+   * @generated from field: string cpu = 3;
+   */
+  cpu: string;
+
+  /**
+   * e.g., "256Mi"
+   *
+   * @generated from field: string memory = 4;
+   */
+  memory: string;
+
+  /**
+   * @generated from field: optional int32 min_replicas = 5;
+   */
+  minReplicas?: number;
+
+  /**
+   * @generated from field: optional int32 max_replicas = 6;
+   */
+  maxReplicas?: number;
+
+  /**
+   * percentage (0-100)
+   *
+   * @generated from field: optional int32 target_cpu = 7;
+   */
+  targetCpu?: number;
 
   /**
    * @generated from field: map<string, string> env = 8;
@@ -265,51 +277,57 @@ export type DeploymentSpec = Message<"loco.deployment.v1.DeploymentSpec"> & {
   env: { [key: string]: string };
 
   /**
-   * @generated from field: optional loco.deployment.v1.DeploymentMetricsConfig metrics = 9;
+   * @generated from field: int32 port = 9;
    */
-  metrics?: DeploymentMetricsConfig;
+  port: number;
 };
 
 /**
- * DeploymentSpec defines deployment configuration.
+ * DeploymentSpec is the immutable runtime snapshot for a deployment.
  *
  * @generated from message loco.deployment.v1.DeploymentSpec
  */
 export type DeploymentSpecJson = {
   /**
-   * @generated from field: optional string image = 1;
+   * @generated from field: loco.deployment.v1.BuildSource build = 1;
    */
-  image?: string;
+  build?: BuildSourceJson;
 
   /**
-   * @generated from field: optional string dockerfile_path = 2;
+   * @generated from field: optional loco.deployment.v1.HealthCheckConfig health_check = 2;
    */
-  dockerfilePath?: string;
+  healthCheck?: HealthCheckConfigJson;
 
   /**
-   * @generated from field: optional string build_type = 3;
-   */
-  buildType?: string;
-
-  /**
-   * @generated from field: optional string cpu = 4;
+   * e.g., "100m"
+   *
+   * @generated from field: string cpu = 3;
    */
   cpu?: string;
 
   /**
-   * @generated from field: optional string memory = 5;
+   * e.g., "256Mi"
+   *
+   * @generated from field: string memory = 4;
    */
   memory?: string;
 
   /**
-   * @generated from field: optional int32 initial_replicas = 6;
+   * @generated from field: optional int32 min_replicas = 5;
    */
-  initialReplicas?: number;
+  minReplicas?: number;
 
   /**
-   * @generated from field: optional loco.deployment.v1.HealthCheckConfig health_check = 7;
+   * @generated from field: optional int32 max_replicas = 6;
    */
-  healthCheck?: HealthCheckConfigJson;
+  maxReplicas?: number;
+
+  /**
+   * percentage (0-100)
+   *
+   * @generated from field: optional int32 target_cpu = 7;
+   */
+  targetCpu?: number;
 
   /**
    * @generated from field: map<string, string> env = 8;
@@ -317,9 +335,9 @@ export type DeploymentSpecJson = {
   env?: { [key: string]: string };
 
   /**
-   * @generated from field: optional loco.deployment.v1.DeploymentMetricsConfig metrics = 9;
+   * @generated from field: int32 port = 9;
    */
-  metrics?: DeploymentMetricsConfigJson;
+  port?: number;
 };
 
 /**
@@ -366,9 +384,9 @@ export type Deployment = Message<"loco.deployment.v1.Deployment"> & {
   status: DeploymentPhase;
 
   /**
-   * @generated from field: bool is_current = 7;
+   * @generated from field: bool is_active = 7;
    */
-  isCurrent: boolean;
+  isActive: boolean;
 
   /**
    * @generated from field: optional string message = 8;
@@ -453,9 +471,9 @@ export type DeploymentJson = {
   status?: DeploymentPhaseJson;
 
   /**
-   * @generated from field: bool is_current = 7;
+   * @generated from field: bool is_active = 7;
    */
-  isCurrent?: boolean;
+  isActive?: boolean;
 
   /**
    * @generated from field: optional string message = 8;

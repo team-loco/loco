@@ -81,17 +81,12 @@ type TracingSpec struct {
 // DeploymentSpec contains everything to run a deployment
 type DeploymentSpec struct {
 	Image          string `json:"image,omitempty"`
+	Port           int32  `json:"port,omitempty"`
 	DockerfilePath string `json:"dockerfilePath,omitempty"`
 	BuildType      string `json:"buildType,omitempty"` // docker, buildpack, etc
 
-	Resources       ResourcesSpec `json:"resources,omitzero"`
-	InitialReplicas int32         `json:"initialReplicas,omitempty"`
-
 	HealthCheck *HealthCheckSpec  `json:"healthCheck,omitempty"`
 	Env         map[string]string `json:"env,omitempty"`
-	Metrics     *MetricsSpec      `json:"metrics,omitempty"`
-
-	CreatedBy int64 `json:"createdBy,omitempty"`
 }
 
 // DomainSpec contains domain config
@@ -125,6 +120,12 @@ type LocoResourceSpec struct {
 
 	// Deployment info (current or requested)
 	Deployment *DeploymentSpec `json:"deployment,omitempty"`
+
+	// Resources (CPU, Memory, Replicas, Scalers)
+	Resources *ResourcesSpec `json:"resources,omitempty"`
+
+	// Routing configuration (port, domain, etc)
+	Routing *RoutingSpec `json:"routing,omitempty"`
 }
 
 // LocoResourceStatus defines the observed state of LocoResource.

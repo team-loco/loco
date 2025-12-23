@@ -412,3 +412,13 @@ have a full kubernetes export function where users can literally take their loco
 create loco resource will need to handle loco spec versions.
 fully update the helm charts to be parametrized instead of using hardcoded values.
 potentially use the kubernetes dashboard for admin view.
+
+deployment defaults should come from where?
+the resource, the last deployment?
+for rolling back, we will need to persist the env someplace. and unfortunately, we cannot persist in postgres.
+for rolling back, how do we decide whcih deployment to push it back to? rollbacks will need to be regional
+clickhouse is named weirdly and so is our controller.
+
+- resourcespec needs to be different per type of resoure. the current one works specifically for services.
+- what is this locoresourcespec man.
+- whenever we crud on any resource, we should just return the id. not the resource itself. it can be requiried to fetch the data.

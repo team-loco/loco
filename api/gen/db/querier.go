@@ -95,7 +95,7 @@ type Querier interface {
 	ListWorkspacesForOrg(ctx context.Context, orgID int64) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, userID int64) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, orgID int64) ([]Workspace, error)
-	MarkPreviousDeploymentsNotCurrent(ctx context.Context, resourceID int64) error
+	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID int64) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID int64) (bool, error)
 	RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error
 	RemoveWorkspace(ctx context.Context, id int64) error

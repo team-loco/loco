@@ -12,9 +12,9 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
-	github.com/loco-team/loco/shared v0.0.0-20251123182415-9216adda056e
+	github.com/loco-team/loco/shared v0.0.0
 	github.com/rs/cors v1.11.1
-	github.com/team-loco/loco/controller v0.0.0-00010101000000-000000000000
+	github.com/team-loco/loco/controller v0.0.0
 	golang.org/x/oauth2 v0.34.0
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3

@@ -24,9 +24,9 @@ func (q *Queries) CountDeploymentsForResource(ctx context.Context, resourceID in
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, cluster_id, image, replicas, status, is_current, message, created_by, spec, spec_version)
+INSERT INTO deployments (resource_id, cluster_id, image, replicas, status, is_active, message, created_by, spec, spec_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, resource_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
+RETURNING id, resource_id, cluster_id, image, replicas, status, is_active, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
 `
 
 type CreateDeploymentParams struct {
@@ -35,11 +35,11 @@ type CreateDeploymentParams struct {
 	Image       string           `json:"image"`
 	Replicas    int32            `json:"replicas"`
 	Status      DeploymentStatus `json:"status"`
-	IsCurrent   bool             `json:"isCurrent"`
+	IsActive    bool             `json:"isActive"`
 	Message     pgtype.Text      `json:"message"`
 	CreatedBy   int64            `json:"createdBy"`
 	Spec        []byte           `json:"spec"`
-	SpecVersion pgtype.Int4      `json:"specVersion"`
+	SpecVersion int32            `json:"specVersion"`
 }
 
 // Deployment queries
@@ -50,7 +50,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Image,
 		arg.Replicas,
 		arg.Status,
-		arg.IsCurrent,
+		arg.IsActive,
 		arg.Message,
 		arg.CreatedBy,
 		arg.Spec,
@@ -64,7 +64,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		&i.Image,
 		&i.Replicas,
 		&i.Status,
-		&i.IsCurrent,
+		&i.IsActive,
 		&i.ErrorMessage,
 		&i.Message,
 		&i.Spec,
@@ -79,7 +79,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, cluster_id, image, replicas, status, is_active, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, error) {
@@ -92,7 +92,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 		&i.Image,
 		&i.Replicas,
 		&i.Status,
-		&i.IsCurrent,
+		&i.IsActive,
 		&i.ErrorMessage,
 		&i.Message,
 		&i.Spec,
@@ -118,7 +118,7 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id int64) (int64,
 }
 
 const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, image, replicas, status, is_current, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, image, replicas, status, is_active, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -146,7 +146,7 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 			&i.Image,
 			&i.Replicas,
 			&i.Status,
-			&i.IsCurrent,
+			&i.IsActive,
 			&i.ErrorMessage,
 			&i.Message,
 			&i.Spec,
@@ -167,14 +167,14 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 	return items, nil
 }
 
-const markPreviousDeploymentsNotCurrent = `-- name: MarkPreviousDeploymentsNotCurrent :exec
+const markPreviousDeploymentsNotActive = `-- name: MarkPreviousDeploymentsNotActive :exec
 UPDATE deployments
-SET is_current = false, updated_at = NOW()
-WHERE resource_id = $1 AND is_current = true
+SET is_active = false, updated_at = NOW()
+WHERE resource_id = $1 AND is_active = true
 `
 
-func (q *Queries) MarkPreviousDeploymentsNotCurrent(ctx context.Context, resourceID int64) error {
-	_, err := q.db.Exec(ctx, markPreviousDeploymentsNotCurrent, resourceID)
+func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID int64) error {
+	_, err := q.db.Exec(ctx, markPreviousDeploymentsNotActive, resourceID)
 	return err
 }
 

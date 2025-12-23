@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/loco-team/loco/api/contextkeys"
 	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/pkg/converter"
 	"github.com/loco-team/loco/api/pkg/kube"
 	timeutil "github.com/loco-team/loco/api/timeutil"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
@@ -84,20 +84,20 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
 	}
 
-	if r.Spec.Image == nil || *r.Spec.Image == "" {
+	if r.Spec.Build == nil || r.Spec.Build.Image == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("image is required"))
 	}
 
-	if r.Spec.InitialReplicas == nil || *r.Spec.InitialReplicas < 1 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidReplicas)
+	if r.Spec.Port < 1 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidPort)
 	}
 
-	if !imagePattern.MatchString(*r.Spec.Image) {
-		slog.WarnContext(ctx, "invalid image format", "image", *r.Spec.Image)
+	if !imagePattern.MatchString(r.Spec.Build.Image) {
+		slog.WarnContext(ctx, "invalid image format", "image", r.Spec.Build.Image)
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidImage)
 	}
 
-	replicas := *r.Spec.InitialReplicas
+	replicas := r.Spec.GetMinReplicas()
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
@@ -127,36 +127,49 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active clusters available: %w", err))
 	}
 
-	specJSON, err := json.Marshal(r.Spec)
+	// create spec copy without env for DB persistence (no plaintext secrets in DB)
+	specForDB := &deploymentv1.DeploymentSpec{
+		Build:       r.Spec.Build,
+		HealthCheck: r.Spec.HealthCheck,
+		Cpu:         r.Spec.Cpu,
+		Memory:      r.Spec.Memory,
+		MinReplicas: r.Spec.MinReplicas,
+		MaxReplicas: r.Spec.MaxReplicas,
+		TargetCpu:   r.Spec.TargetCpu,
+		Port:        r.Spec.Port,
+		// Env intentionally omitted (as it can have sensitive information)
+	}
+
+	specJSON, err := json.Marshal(specForDB)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal spec", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotCurrent(ctx, r.ResourceId)
+	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to mark previous deployments not current", "error", err)
+		slog.ErrorContext(ctx, "failed to mark previous deployments not active", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   cluster.ID,
-		Image:       *r.Spec.Image,
+		Image:       r.Spec.Build.Image,
 		Replicas:    replicas,
 		Status:      genDb.DeploymentStatusPending,
-		IsCurrent:   true,
+		IsActive:    true,
 		CreatedBy:   userID,
 		Spec:        specJSON,
-		SpecVersion: pgtype.Int4{Int32: 1, Valid: true},
+		SpecVersion: 1,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	// create LocoResource in loco-system namespace
-	err = createLocoResource(ctx, s.kubeClient, resource, deployment)
+	// create LocoResource in loco-system namespace (pass spec WITH env to controller)
+	err = createLocoResource(ctx, s.kubeClient, resource, r.Spec, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
@@ -165,7 +178,6 @@ func (s *DeploymentServer) CreateDeployment(
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
 		DeploymentId: deployment.ID,
-		Message:      "Successfully scheduled deployment.",
 	}), nil
 }
 
@@ -214,11 +226,11 @@ func (s *DeploymentServer) GetDeployment(
 		Image:       deploymentData.Image,
 		Replicas:    deploymentData.Replicas,
 		Status:      parseDeploymentPhase(deploymentData.Status),
-		IsCurrent:   deploymentData.IsCurrent,
+		IsActive:    deploymentData.IsActive,
 		CreatedBy:   deploymentData.CreatedBy,
 		CreatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.CreatedAt.Time),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.UpdatedAt.Time),
-		SpecVersion: deploymentData.SpecVersion.Int32,
+		SpecVersion: deploymentData.SpecVersion,
 	}
 
 	if len(deploymentData.Spec) > 0 {
@@ -314,11 +326,11 @@ func (s *DeploymentServer) ListDeployments(
 			Image:       d.Image,
 			Replicas:    d.Replicas,
 			Status:      parseDeploymentPhase(d.Status),
-			IsCurrent:   d.IsCurrent,
+			IsActive:    d.IsActive,
 			CreatedBy:   d.CreatedBy,
 			CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
 			UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
-			SpecVersion: d.SpecVersion.Int32,
+			SpecVersion: d.SpecVersion,
 		}
 
 		if len(d.Spec) > 0 {
@@ -471,29 +483,11 @@ func createLocoResource(
 	ctx context.Context,
 	kubeClient *kube.Client,
 	resource genDb.Resource,
-	deployment genDb.Deployment,
+	spec *deploymentv1.DeploymentSpec,
+	createdBy int64,
 ) error {
-	// parse deployment spec
-	var deploymentSpec map[string]any
-	if len(deployment.Spec) > 0 {
-		if err := json.Unmarshal(deployment.Spec, &deploymentSpec); err != nil {
-			slog.WarnContext(ctx, "failed to parse deployment spec", "error", err)
-			deploymentSpec = make(map[string]any)
-		}
-	} else {
-		deploymentSpec = make(map[string]any)
-	}
-
-	// parse resource spec
-	var resourceSpec map[string]any
-	if len(resource.Spec) > 0 {
-		if err := json.Unmarshal(resource.Spec, &resourceSpec); err != nil {
-			slog.WarnContext(ctx, "failed to parse resource spec", "error", err)
-			resourceSpec = make(map[string]any)
-		}
-	} else {
-		resourceSpec = make(map[string]any)
-	}
+	// convert proto to controller CRD types (includes all fields: image, replicas, cpu, memory, env, healthCheck, metrics, etc.)
+	crdDeploymentSpec := converter.ProtoToDeploymentSpec(spec, createdBy)
 
 	// build LocoResource
 	locoRes := &locoControllerV1.LocoResource{
@@ -506,12 +500,7 @@ func createLocoResource(
 			ResourceId:  resource.ID,
 			WorkspaceID: resource.WorkspaceID,
 			Type:        "SERVICE",
-			Deployment: &locoControllerV1.DeploymentSpec{
-				Image:           deployment.Image,
-				InitialReplicas: deployment.Replicas,
-				Env:             parseEnvFromSpec(deploymentSpec),
-				CreatedBy:       deployment.CreatedBy,
-			},
+			Deployment:  crdDeploymentSpec,
 		},
 	}
 
@@ -522,17 +511,4 @@ func createLocoResource(
 	}
 
 	return nil
-}
-
-// parseEnvFromSpec extracts environment variables from deployment spec
-func parseEnvFromSpec(spec map[string]any) map[string]string {
-	env := make(map[string]string)
-	if envData, ok := spec["env"].(map[string]any); ok {
-		for k, v := range envData {
-			if strVal, ok := v.(string); ok {
-				env[k] = strVal
-			}
-		}
-	}
-	return env
 }

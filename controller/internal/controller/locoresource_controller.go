@@ -135,10 +135,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// aggregate deployment status into our status
 	if dep != nil {
-		replicas := locoRes.Spec.Deployment.InitialReplicas
-		if replicas == 0 {
-			replicas = 1
-		}
+		replicas := int32(1)
 		if dep.Status.ReadyReplicas < replicas {
 			status.Phase = "Deploying"
 		} else {
@@ -168,7 +165,6 @@ func getName(locoRes *locov1alpha1.LocoResource) string {
 func getNamespace(locoRes *locov1alpha1.LocoResource) string {
 	return fmt.Sprintf("wks-res-%d", locoRes.Spec.ResourceId)
 }
-
 
 // ensureNamespace ensures the application namespace exists and is configured
 func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
@@ -405,6 +401,9 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *lo
 	image := ""
 	replicas := int32(1)
 	var envVars []corev1.EnvVar
+	var livenessProbe *corev1.Probe
+	var readinessProbe *corev1.Probe
+	var containerPort int32 = 8080
 	cpuRequest := "100m"
 	cpuLimit := "500m"
 	memoryRequest := "128Mi"
@@ -412,22 +411,53 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *lo
 
 	if locoRes.Spec.Deployment != nil {
 		image = locoRes.Spec.Deployment.Image
-		if locoRes.Spec.Deployment.InitialReplicas > 0 {
-			replicas = locoRes.Spec.Deployment.InitialReplicas
-		}
 		for k, v := range locoRes.Spec.Deployment.Env {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  k,
 				Value: v,
 			})
 		}
-		if locoRes.Spec.Deployment.Resources.CPU != "" {
-			cpuRequest = locoRes.Spec.Deployment.Resources.CPU
-			cpuLimit = locoRes.Spec.Deployment.Resources.CPU
+	}
+
+	// prefer routing port, fall back to deployment port
+	if locoRes.Spec.Routing != nil && locoRes.Spec.Routing.Port > 0 {
+		containerPort = locoRes.Spec.Routing.Port
+	} else if locoRes.Spec.Deployment != nil {
+		containerPort = locoRes.Spec.Deployment.Port
+	}
+
+	if locoRes.Spec.Deployment != nil {
+		if locoRes.Spec.Deployment.HealthCheck != nil {
+			hc := locoRes.Spec.Deployment.HealthCheck
+			probe := &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					HTTPGet: &corev1.HTTPGetAction{
+						Path: hc.Path,
+						Port: intstr.FromInt(int(containerPort)),
+					},
+				},
+				InitialDelaySeconds: hc.StartupGracePeriod,
+				TimeoutSeconds:      hc.Timeout,
+				PeriodSeconds:       hc.Interval,
+				FailureThreshold:    hc.FailThreshold,
+			}
+
+			livenessProbe = probe
+			readinessProbe = probe
 		}
-		if locoRes.Spec.Deployment.Resources.Memory != "" {
-			memoryRequest = locoRes.Spec.Deployment.Resources.Memory
-			memoryLimit = locoRes.Spec.Deployment.Resources.Memory
+	}
+
+	if locoRes.Spec.Resources != nil {
+		if locoRes.Spec.Resources.CPU != "" {
+			cpuRequest = locoRes.Spec.Resources.CPU
+			cpuLimit = locoRes.Spec.Resources.CPU
+		}
+		if locoRes.Spec.Resources.Memory != "" {
+			memoryRequest = locoRes.Spec.Resources.Memory
+			memoryLimit = locoRes.Spec.Resources.Memory
+		}
+		if locoRes.Spec.Resources.Replicas.Min > 0 {
+			replicas = locoRes.Spec.Resources.Replicas.Min
 		}
 	}
 
@@ -437,6 +467,34 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *lo
 	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, dep); err == nil {
 		slog.InfoContext(ctx, "deployment already exists", "name", name, "namespace", namespace)
 		return dep, nil
+	}
+
+	container := corev1.Container{
+		Name:  name,
+		Image: image,
+		Env:   envVars,
+		Ports: []corev1.ContainerPort{
+			{
+				Name:          "http",
+				ContainerPort: containerPort,
+				Protocol:      corev1.ProtocolTCP,
+			},
+		},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse(cpuRequest),
+				corev1.ResourceMemory: resource.MustParse(memoryRequest),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse(cpuLimit),
+				corev1.ResourceMemory: resource.MustParse(memoryLimit),
+			},
+		},
+	}
+
+	if livenessProbe != nil {
+		container.LivenessProbe = livenessProbe
+		container.ReadinessProbe = readinessProbe
 	}
 
 	dep = &appsv1.Deployment{
@@ -471,28 +529,7 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *lo
 					ServiceAccountName: name,
 					RestartPolicy:      corev1.RestartPolicyAlways,
 					Containers: []corev1.Container{
-						{
-							Name:  name,
-							Image: image,
-							Env:   envVars,
-							Ports: []corev1.ContainerPort{
-								{
-									Name:          "http",
-									ContainerPort: 8080,
-									Protocol:      corev1.ProtocolTCP,
-								},
-							},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse(cpuRequest),
-									corev1.ResourceMemory: resource.MustParse(memoryRequest),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse(cpuLimit),
-									corev1.ResourceMemory: resource.MustParse(memoryLimit),
-								},
-							},
-						},
+						container,
 					},
 				},
 			},
@@ -526,6 +563,21 @@ func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, locoRes *loc
 	// parent gateway must exist in loco-gateway namespace
 	pathType := v1Gateway.PathMatchPathPrefix
 	gatewayNamespace := "loco-gateway"
+	pathValue := "/"
+	var backendPort *v1Gateway.PortNumber
+
+	if locoRes.Spec.Routing != nil {
+		if locoRes.Spec.Routing.PathPrefix != "" {
+			pathValue = locoRes.Spec.Routing.PathPrefix
+		}
+		if locoRes.Spec.Routing.Port > 0 {
+			backendPort = ptrToPortNumber(int(locoRes.Spec.Routing.Port))
+		}
+	}
+
+	if backendPort == nil {
+		backendPort = ptrToPortNumber(80)
+	}
 
 	route = &v1Gateway.HTTPRoute{
 		ObjectMeta: metav1.ObjectMeta{
@@ -550,7 +602,7 @@ func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, locoRes *loc
 						{
 							Path: &v1Gateway.HTTPPathMatch{
 								Type:  &pathType,
-								Value: ptrToString("/"),
+								Value: ptrToString(pathValue),
 							},
 						},
 					},
@@ -559,7 +611,7 @@ func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, locoRes *loc
 							BackendRef: v1Gateway.BackendRef{
 								BackendObjectReference: v1Gateway.BackendObjectReference{
 									Name: v1Gateway.ObjectName(name),
-									Port: ptrToPortNumber(80),
+									Port: backendPort,
 									Kind: ptrToKind("Service"),
 								},
 							},

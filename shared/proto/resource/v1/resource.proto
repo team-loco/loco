@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package loco.resource.v1;
 
-import "domain/v1/domain.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+
+import "domain/v1/domain.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/resource/v1;resourcev1";
 
@@ -80,46 +81,100 @@ service ResourceService {
   rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (UpdateResourceEnvResponse);
 }
 
+// RoutingConfig defines routing configuration for a resource.
+message RoutingConfig {
+  int32  port         = 1; // application port
+  string path_prefix  = 2; // e.g., "/"
+  int32  idle_timeout = 3; // seconds
+}
+
+// LoggingConfig defines logging configuration.
+message LoggingConfig {
+  bool   enabled          = 1;
+  string retention_period = 2; // e.g., "7d", "30d"
+  bool   structured       = 3; // parse as JSON
+}
+
+// MetricsConfig defines metrics scraping configuration.
+message MetricsConfig {
+  bool   enabled = 1;
+  string path    = 2; // e.g., "/metrics"
+  int32  port    = 3; // e.g., 9090
+}
+
+// TracingConfig defines distributed tracing configuration.
+message TracingConfig {
+  bool                enabled     = 1;
+  double              sample_rate = 2; // 0.0 to 1.0
+  map<string, string> tags        = 3;
+}
+
+// ObservabilityConfig defines observability settings.
+message ObservabilityConfig {
+  LoggingConfig logging = 1;
+  MetricsConfig metrics = 2;
+  TracingConfig tracing = 3;
+}
+
+// RegionTarget defines the desired state for a specific region.
+message RegionTarget {
+  bool           enabled      = 1;
+  bool           primary      = 2;
+  string         cpu          = 3; // e.g., "100m"
+  string         memory       = 4; // e.g., "256Mi"
+  int32          min_replicas = 5;
+  int32          max_replicas = 6;
+  optional int32 target_cpu   = 7; // percentage (0-100)
+}
+
+// ResourceSpec defines the global infrastructure intent for a resource.
+message ResourceSpec {
+  string                    type          = 1; // SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB
+  RoutingConfig             routing       = 2;
+  ObservabilityConfig       observability = 3;
+  map<string, RegionTarget> regions       = 4; // key = region name
+}
+
 // Resource represents a resource in a workspace.
 message Resource {
-  int64                             id           = 1;
-  int64                             workspace_id = 2;
-  string                            name         = 4;
-  ResourceType                      type         = 6;
-  repeated loco.domain.v1.ResourceDomain domains      = 7;
-  repeated RegionConfig             regions      = 8;
-  int64                             created_by   = 11;
-  google.protobuf.Timestamp         created_at   = 12;
-  google.protobuf.Timestamp         updated_at   = 13;
-  ResourceStatus                    status       = 14;
-  optional google.protobuf.Struct   spec         = 15;
-  int32                             spec_version = 16;
+  int64                                  id           = 1;
+  int64                                  workspace_id = 2;
+  string                                 name         = 3;
+  ResourceType                           type         = 4;
+  repeated loco.domain.v1.ResourceDomain domains      = 5;
+  repeated RegionConfig                  regions      = 6;
+  ResourceStatus                         status       = 7;
+  optional google.protobuf.Struct        spec         = 8;
+  int32                                  spec_version = 9;
+  optional string                        description  = 10;
+  int64                                  created_by   = 11;
+  google.protobuf.Timestamp              created_at   = 12;
+  google.protobuf.Timestamp              updated_at   = 13;
 }
 
 // RegionConfig represents a region deployment intent for a resource.
 message RegionConfig {
-  string              region     = 1;
-  bool                is_primary = 2;
-  RegionIntentStatus  status     = 3;
-  optional string     last_error = 4;
+  string             region     = 1;
+  bool               is_primary = 2;
+  RegionIntentStatus status     = 3;
+  optional string    last_error = 4;
 }
 
 // --- CRUD ---
 
 // CreateResourceRequest is the request to create a new resource.
 message CreateResourceRequest {
-  int64                           workspace_id = 1;
-  string                          name         = 3;
-  ResourceType                    type         = 4;
-  loco.domain.v1.DomainInput      domain       = 5;
-  optional google.protobuf.Struct spec         = 6;
-  repeated string                 regions      = 7;
+  int64                      workspace_id = 1;
+  string                     name         = 2;
+  ResourceType               type         = 3;
+  loco.domain.v1.DomainInput domain       = 4;
+  optional ResourceSpec      spec         = 5;
+  optional string            description  = 6;
 }
 
 // CreateResourceResponse is the response from creating a resource.
 message CreateResourceResponse {
-  Resource resource = 1;
-  string   message  = 2;
+  int64 resource_id = 1;
 }
 
 // GetResourceRequest is the request to retrieve a resource.
@@ -163,8 +218,8 @@ message UpdateResourceRequest {
 
 // UpdateResourceResponse is the response from updating a resource.
 message UpdateResourceResponse {
-  Resource resource = 1;
-  string   message  = 2;
+  int64  resource_id = 1;
+  string message     = 2;
 }
 
 // DeleteResourceRequest is the request to delete a resource.
@@ -180,9 +235,9 @@ message DeleteResourceResponse {
 
 // RegionInfo represents available region information.
 message RegionInfo {
-  string  region     = 1;
-  bool    is_default = 2;
-  string  health_status = 3;
+  string region        = 1;
+  bool   is_default    = 2;
+  string health_status = 3;
 }
 
 // ListRegionsRequest is the request to list available deployment regions.
@@ -210,7 +265,7 @@ message DeploymentStatus {
 
 // GetResourceStatusResponse is the response containing resource status information.
 message GetResourceStatusResponse {
-  Resource         resource            = 1;
+  Resource         resource           = 1;
   DeploymentStatus current_deployment = 2;
 }
 

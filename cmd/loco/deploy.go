@@ -22,7 +22,6 @@ import (
 	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var deployCmd = &cobra.Command{
@@ -253,14 +252,19 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			return errors.New("failed to determine domain configuration")
 		}
 
+		// convert config to ResourceSpec (v1 schema)
+		resourceSpec, err := config.ConfigToResourceSpec(loadedCfg.Config, "v1")
+		if err != nil {
+			return fmt.Errorf("failed to convert config to resource spec: %w", err)
+		}
+
 		createResourceReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
 			WorkspaceId: workspaceID,
 			Name:        loadedCfg.Config.Metadata.Name,
 			// todo: add to loco config. we need to grab app type from there.
-			Type:    resourcev1.ResourceType_SERVICE,
-			Domain:  domainInput,
-			Regions: regions,
-			Spec:    &structpb.Struct{},
+			Type:   resourcev1.ResourceType_SERVICE,
+			Domain: domainInput,
+			Spec:   resourceSpec,
 		})
 
 		createResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
@@ -271,7 +275,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to create resource: %w", err)
 		}
 
-		resourceID = createResourceResp.Msg.Resource.Id
+		resourceID = createResourceResp.Msg.ResourceId
 		slog.Debug("created resource", "resource_id", resourceID)
 	}
 
@@ -400,42 +404,15 @@ func deployApp(ctx context.Context,
 	logf func(string),
 	wait bool,
 ) error {
-	// Get resources from primary region (first region in config)
-	var primaryResources *config.Resources
-	for _, resources := range cfg.RegionConfig {
-		primaryResources = &resources
-		break
+	// convert config to DeploymentSpec (v1 schema)
+	deploymentSpec, err := config.ConfigToDeploymentSpec(cfg, "v1", imageName)
+	if err != nil {
+		return fmt.Errorf("failed to convert config to deployment spec: %w", err)
 	}
-
-	if primaryResources == nil {
-		return errors.New("no regions configured for deployment")
-	}
-
-	replicas := primaryResources.ReplicasMin
 
 	createDeploymentReq := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{
 		ResourceId: resourceID,
-		Spec: &deploymentv1.DeploymentSpec{
-			Image:           &imageName,
-			InitialReplicas: &replicas,
-			Env:             cfg.Env.Variables,
-			Cpu:             &primaryResources.CPU,
-			Memory:          &primaryResources.Memory,
-			DockerfilePath:  &cfg.Build.DockerfilePath,
-			BuildType:       &cfg.Build.Type,
-			HealthCheck: &deploymentv1.HealthCheckConfig{
-				Path:               &cfg.Health.Path,
-				Interval:           &cfg.Health.Interval,
-				Timeout:            &cfg.Health.Timeout,
-				FailThreshold:      &cfg.Health.FailThreshold,
-				StartupGracePeriod: &cfg.Health.StartupGracePeriod,
-			},
-			Metrics: &deploymentv1.DeploymentMetricsConfig{
-				Enabled: &cfg.Obs.Metrics.Enabled,
-				Path:    &cfg.Obs.Metrics.Path,
-				Port:    &cfg.Obs.Metrics.Port,
-			},
-		},
+		Spec:       deploymentSpec,
 	})
 	createDeploymentReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
 

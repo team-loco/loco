@@ -325,8 +325,8 @@ type Cluster struct {
 	Name            string             `json:"name"`
 	Region          string             `json:"region"`
 	Provider        string             `json:"provider"`
-	IsActive        pgtype.Bool        `json:"isActive"`
-	IsDefault       pgtype.Bool        `json:"isDefault"`
+	IsActive        bool               `json:"isActive"`
+	IsDefault       bool               `json:"isDefault"`
 	Endpoint        pgtype.Text        `json:"endpoint"`
 	HealthStatus    pgtype.Text        `json:"healthStatus"`
 	LastHealthCheck pgtype.Timestamptz `json:"lastHealthCheck"`
@@ -341,11 +341,11 @@ type Deployment struct {
 	Image        string             `json:"image"`
 	Replicas     int32              `json:"replicas"`
 	Status       DeploymentStatus   `json:"status"`
-	IsCurrent    bool               `json:"isCurrent"`
+	IsActive     bool               `json:"isActive"`
 	ErrorMessage pgtype.Text        `json:"errorMessage"`
 	Message      pgtype.Text        `json:"message"`
 	Spec         []byte             `json:"spec"`
-	SpecVersion  pgtype.Int4        `json:"specVersion"`
+	SpecVersion  int32              `json:"specVersion"`
 	CreatedBy    int64              `json:"createdBy"`
 	CreatedAt    pgtype.Timestamptz `json:"createdAt"`
 	StartedAt    pgtype.Timestamptz `json:"startedAt"`
@@ -380,9 +380,10 @@ type Resource struct {
 	WorkspaceID int64              `json:"workspaceId"`
 	Name        string             `json:"name"`
 	Type        ResourceType       `json:"type"`
+	Description string             `json:"description"`
 	Status      ResourceStatus     `json:"status"`
 	Spec        []byte             `json:"spec"`
-	SpecVersion pgtype.Int4        `json:"specVersion"`
+	SpecVersion int32              `json:"specVersion"`
 	CreatedBy   int64              `json:"createdBy"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`

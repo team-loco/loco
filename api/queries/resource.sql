@@ -1,22 +1,22 @@
 -- Resource queries
 
 -- name: CreateResource :one
-INSERT INTO resources (workspace_id, name, type, status, spec, spec_version, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, workspace_id, name, type, status, spec, spec_version, created_by, created_at, updated_at;
+INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
 ORDER BY r.created_at DESC;
@@ -26,7 +26,7 @@ UPDATE resources
 SET name = COALESCE(sqlc.narg('name'), name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, type, status, spec, spec_version, created_by, created_at, updated_at;
+RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at;
 
 -- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1;

@@ -52,9 +52,6 @@ spec:
                 properties:
                   buildType:
                     type: string
-                  createdBy:
-                    format: int64
-                    type: integer
                   dockerfilePath:
                     type: string
                   env:
@@ -81,51 +78,9 @@ spec:
                     type: object
                   image:
                     type: string
-                  initialReplicas:
+                  port:
                     format: int32
                     type: integer
-                  metrics:
-                    description: MetricsSpec defines metrics scraping info
-                    properties:
-                      enabled:
-                        type: boolean
-                      path:
-                        type: string
-                      port:
-                        format: int32
-                        type: integer
-                    type: object
-                  resources:
-                    description: ResourcesSpec contains CPU, Memory, replicas, and
-                      autoscaling
-                    properties:
-                      cpu:
-                        type: string
-                      memory:
-                        type: string
-                      replicas:
-                        properties:
-                          max:
-                            format: int32
-                            type: integer
-                          min:
-                            format: int32
-                            type: integer
-                        type: object
-                      scalers:
-                        properties:
-                          cpuTarget:
-                            format: int32
-                            type: integer
-                          enabled:
-                            type: boolean
-                          memoryTarget:
-                            format: int32
-                            type: integer
-                        type: object
-                    type: object
-                required:
-                - resources
                 type: object
               resourceId:
                 format: int64

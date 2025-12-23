@@ -18,7 +18,6 @@ require (
 	github.com/moby/go-archive v0.1.0
 	github.com/spf13/cobra v1.10.1
 	github.com/zalando/go-keyring v0.2.6
-	google.golang.org/protobuf v1.36.10
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
@@ -94,6 +93,7 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
+	google.golang.org/protobuf v1.36.10 // indirect
 )
 
 // these replace directives seem to work better than go.work
