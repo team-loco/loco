@@ -19,9 +19,9 @@ var (
 )
 
 type selectItem struct {
+	value       any
 	title       string
 	description string
-	value       any
 }
 
 func (i selectItem) Title() string       { return i.title }
@@ -87,9 +87,9 @@ func (m selectModel) View() string {
 }
 
 type SelectOption struct {
+	Value       any
 	Label       string
 	Description string
-	Value       any
 }
 
 func SelectFromList(title string, options []SelectOption) (any, error) {

@@ -182,8 +182,8 @@ var loginCmd = &cobra.Command{
 
 		// use existing scope if it exists.
 		if existingCfg != nil {
-			scope, err := existingCfg.GetScope()
-			if err == nil {
+			scope, scopeErr := existingCfg.GetScope()
+			if scopeErr == nil {
 				keychain.SetLocoToken(user.Name, keychain.UserToken{
 					Token: locoResp.Msg.LocoToken,
 					// sub 10 mins
@@ -252,14 +252,14 @@ var loginCmd = &cobra.Command{
 			}
 
 			workspaceName := "default"
-			wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
+			wsClientNew := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 			createWSReq := connect.NewRequest(&workspacev1.CreateWorkspaceRequest{
 				OrgId: createdOrg.Id,
 				Name:  workspaceName,
 			})
 			createWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-			createWSResp, err := wsClient.CreateWorkspace(context.Background(), createWSReq)
+			createWSResp, err := wsClientNew.CreateWorkspace(context.Background(), createWSReq)
 			if err != nil {
 				slog.Debug("failed to create workspace", "error", err)
 				return fmt.Errorf("failed to create workspace: %w", err)
@@ -436,13 +436,13 @@ func waitForError(errorChan <-chan error) tea.Cmd {
 }
 
 type model struct {
+	tokenResp       *AuthTokenResponse
+	tokenChan       <-chan AuthTokenResponse
+	errorChan       <-chan error
 	loadingFrames   []string
 	userCode        string
 	verificationURI string
 	err             error
-	tokenChan       <-chan AuthTokenResponse
-	errorChan       <-chan error
-	tokenResp       *AuthTokenResponse
 	frameIndex      int
 	polling         bool
 	done            bool

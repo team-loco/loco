@@ -89,6 +89,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	if validateErr := config.Validate(loadedCfg.Config); validateErr != nil {
 		return fmt.Errorf("%w: %w", ErrValidation, validateErr)
 	}
+
 	config.FillSensibleDefaults(loadedCfg.Config)
 
 	cfgValid := lipgloss.NewStyle().
@@ -135,9 +136,9 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	if resourceID == 0 {
 		slog.Info("no existing app found, need to create a new one.")
 
-		// Determine regions from config or use all available regions
-		var regions []string
+		// Log available regions from config if present
 		if len(loadedCfg.Config.RegionConfig) > 0 {
+			var regions []string
 			for region := range loadedCfg.Config.RegionConfig {
 				regions = append(regions, region)
 			}
@@ -147,10 +148,10 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			listRegionsReq := connect.NewRequest(&resourcev1.ListRegionsRequest{})
 			listRegionsReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-			listRegionsResp, err := resourceClient.ListRegions(ctx, listRegionsReq)
-			if err != nil {
-				logRequestID(ctx, err, "list regions")
-				return fmt.Errorf("failed to fetch regions: %w", err)
+			listRegionsResp, regionsErr := resourceClient.ListRegions(ctx, listRegionsReq)
+			if regionsErr != nil {
+				logRequestID(ctx, regionsErr, "list regions")
+				return fmt.Errorf("failed to fetch regions: %w", regionsErr)
 			}
 
 			if len(listRegionsResp.Msg.Regions) == 0 {
@@ -172,12 +173,16 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			}
 
 			// Let user select region
-			selectedRegion, err := ui.SelectFromList("Select a region for your app", regionOptions)
-			if err != nil {
-				return fmt.Errorf("region selection cancelled: %w", err)
+			selectedRegion, selErr := ui.SelectFromList("Select a region for your app", regionOptions)
+			if selErr != nil {
+				return fmt.Errorf("region selection cancelled: %w", selErr)
 			}
 
-			regions = []string{selectedRegion.(string)}
+			regionStr, ok := selectedRegion.(string)
+			if !ok {
+				return fmt.Errorf("invalid region type: expected string, got %T", selectedRegion)
+			}
+			slog.Info("selected region", "region", regionStr)
 		}
 
 		// Extract subdomain from hostname
@@ -201,10 +206,10 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			listDomainsReq := connect.NewRequest(&domainv1.ListActivePlatformDomainsRequest{})
 			listDomainsReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-			listDomainsResp, err := domainClient.ListActivePlatformDomains(ctx, listDomainsReq)
-			if err != nil {
-				logRequestID(ctx, err, "list platform domains")
-				return fmt.Errorf("failed to fetch platform domains: %w", err)
+			listDomainsResp, domainsErr := domainClient.ListActivePlatformDomains(ctx, listDomainsReq)
+			if domainsErr != nil {
+				logRequestID(ctx, domainsErr, "list platform domains")
+				return fmt.Errorf("failed to fetch platform domains: %w", domainsErr)
 			}
 
 			if len(listDomainsResp.Msg.PlatformDomains) == 0 {
@@ -233,12 +238,16 @@ func deployCmdFunc(cmd *cobra.Command) error {
 					}
 				}
 
-				selectedDomainID, err := ui.SelectFromList("Select platform domain for your app", options)
-				if err != nil {
-					return fmt.Errorf("domain selection cancelled: %w", err)
+				selectedDomainID, domainSelErr := ui.SelectFromList("Select platform domain for your app", options)
+				if domainSelErr != nil {
+					return fmt.Errorf("domain selection cancelled: %w", domainSelErr)
 				}
 
-				foundDomainID = selectedDomainID.(int64)
+				domainID, ok := selectedDomainID.(int64)
+				if !ok {
+					return fmt.Errorf("invalid domain ID type: expected int64, got %T", selectedDomainID)
+				}
+				foundDomainID = domainID
 			}
 
 			domainInput = &domainv1.DomainInput{
@@ -248,14 +257,10 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			}
 		}
 
-		if domainInput == nil {
-			return errors.New("failed to determine domain configuration")
-		}
-
 		// convert config to ResourceSpec (v1 schema)
-		resourceSpec, err := configToResourceSpec(loadedCfg.Config, "v1")
-		if err != nil {
-			return fmt.Errorf("failed to convert config to resource spec: %w", err)
+		resourceSpec, specErr := configToResourceSpec(loadedCfg.Config, "v1")
+		if specErr != nil {
+			return fmt.Errorf("failed to convert config to resource spec: %w", specErr)
 		}
 
 		createResourceReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
@@ -269,10 +274,10 @@ func deployCmdFunc(cmd *cobra.Command) error {
 
 		createResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-		createResourceResp, err := resourceClient.CreateResource(ctx, createResourceReq)
-		if err != nil {
-			logRequestID(ctx, err, "create resource")
-			return fmt.Errorf("failed to create resource: %w", err)
+		createResourceResp, createErr := resourceClient.CreateResource(ctx, createResourceReq)
+		if createErr != nil {
+			logRequestID(ctx, createErr, "create resource")
+			return fmt.Errorf("failed to create resource: %w", createErr)
 		}
 
 		resourceID = createResourceResp.Msg.ResourceId
@@ -322,10 +327,10 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			tokenReq := connect.NewRequest(&registryv1.GitlabTokenRequest{})
 			tokenReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 			// todo: responsible for checking deploy permissions
-			tokenResp, err := registryClient.GitlabToken(ctx, tokenReq)
-			if err != nil {
-				logRequestID(ctx, err, "gitlab token request")
-				return fmt.Errorf("failed to fetch registry credentials: %w", err)
+			tokenResp, tokenErr := registryClient.GitlabToken(ctx, tokenReq)
+			if tokenErr != nil {
+				logRequestID(ctx, tokenErr, "gitlab token request")
+				return fmt.Errorf("failed to fetch registry credentials: %w", tokenErr)
 			}
 
 			if imageID != "" {
@@ -341,27 +346,15 @@ func deployCmdFunc(cmd *cobra.Command) error {
 		},
 	})
 
-	// Fetch resource to get primary region
+	// Fetch resource to verify it exists
 	getResourceReq := connect.NewRequest(&resourcev1.GetResourceRequest{
 		ResourceId: resourceID,
 	})
 	getResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getResourceResp, err := resourceClient.GetResource(ctx, getResourceReq)
+	_, err = resourceClient.GetResource(ctx, getResourceReq)
 	if err != nil {
 		return fmt.Errorf("failed to fetch resource: %w", err)
-	}
-
-	var primaryRegion string
-	for _, r := range getResourceResp.Msg.Resource.Regions {
-		if r.IsPrimary {
-			primaryRegion = r.Region
-			break
-		}
-	}
-
-	if primaryRegion == "" && len(getResourceResp.Msg.Resource.Regions) > 0 {
-		primaryRegion = getResourceResp.Msg.Resource.Regions[0].Region
 	}
 
 	steps = append(steps, ui.Step{

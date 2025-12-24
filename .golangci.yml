@@ -1,146 +1,166 @@
 # pulled from fiber's golangci, may need to update this.
 version: "2"
 output:
-    show-stats: true
-    formats:
-        html:
-            path: lint.html
-        text:
-            print-linter-name: true
-            print-issued-lines: true
-            colors: true
-            path: stdout
-    sort-order:
-        - severity
+  show-stats: true
+  formats:
+    html:
+      path: lint.html
+    text:
+      print-linter-name: true
+      print-issued-lines: true
+      colors: true
+      path: stdout
+  sort-order:
+    - severity
 run:
-    timeout: "1m"
-    issues-exit-code: 1
-    tests: true
-    allow-parallel-runners: true
-    go: "1.25"
-    relative-path-mode: wd
+  timeout: "1m"
+  issues-exit-code: 1
+  tests: true
+  allow-parallel-runners: true
+  go: "1.25"
+  relative-path-mode: wd
 linters:
-    default: standard
-    settings:
-        errcheck:
-            check-type-assertions: true
-            check-blank: true
-            disable-default-exclusions: true
-            exclude-functions:
-                - "(*bytes.Buffer).Write" # always returns nil error
-                - "(*github.com/valyala/bytebufferpool.ByteBuffer).Write" # always returns nil error
-                - "(*github.com/valyala/bytebufferpool.ByteBuffer).WriteByte" # always returns nil error
-                - "(*github.com/valyala/bytebufferpool.ByteBuffer).WriteString" # always returns nil error
+  exclusions:
+    rules:
+      - { linters: [errcheck], source: "^\\s*defer\\s+" }
+      - { linters: [govet], text: "fieldalignment" }
+  default: standard
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      exclude-functions:
+        - "(*bytes.Buffer).Write"
+        - "(*github.com/valyala/bytebufferpool.ByteBuffer).Write"
+        - "(*github.com/valyala/bytebufferpool.ByteBuffer).WriteByte"
+        - "(*github.com/valyala/bytebufferpool.ByteBuffer).WriteString"
+        - "fmt.Print"
+        - "fmt.Println"
+        - "fmt.Printf"
+        - "fmt.Fprint"
+        - "fmt.Fprintln"
+        - "fmt.Fprintf"
+        - "github.com/loco-team/loco/internal/keychain.SetLocoToken"
 
-        errchkjson:
-            report-no-exported: true
+    errchkjson:
+      report-no-exported: true
 
-        exhaustive:
-            default-signifies-exhaustive: true
+    exhaustive:
+      default-signifies-exhaustive: true
 
-        forbidigo:
-            analyze-types: true
-        goconst:
-            numbers: true
-        gocritic:
-            # TODO: Uncomment the following lines
-            enabled-tags:
-                - diagnostic
-            #   - style
-            #   - performance
-            #   - experimental
-            #   - opinionated
-            settings:
-                captLocal:
-                    paramsOnly: false
-                elseif:
-                    skipBalanced: false
-                underef:
-                    skipRecvDeref: false
-                # NOTE: Set this option to false if other projects rely on this project's code
-                # unnamedResult:
-                # checkExported: false
+    forbidigo:
+      analyze-types: true
+    goconst:
+      numbers: true
+    gocritic:
+      # TODO: Uncomment the following lines
+      enabled-tags:
+        - diagnostic
+      #   - style
+      #   - performance
+      #   - experimental
+      #   - opinionated
+      settings:
+        captLocal:
+          paramsOnly: false
+        elseif:
+          skipBalanced: false
+        underef:
+          skipRecvDeref: false
+        # NOTE: Set this option to false if other projects rely on this project's code
+        # unnamedResult:
+        # checkExported: false
 
-        gosec:
-            excludes:
-                - G104 # TODO: Enable this again. Mostly provided by errcheck
-            config:
-                global:
-                    # show-ignored: true # TODO: Enable this
-                    audit: true
+    gosec:
+      excludes:
+        - G104 # TODO: Enable this again. Mostly provided by errcheck
+      config:
+        global:
+          # show-ignored: true # TODO: Enable this
+          audit: true
 
-        govet:
-            enable-all: true
+    govet:
+      enable-all: true
 
-        grouper:
-            # const-require-grouping: true # TODO: Enable this
-            import-require-single-import: true
-            import-require-grouping: true
-            # var-require-grouping: true # TODO: Conflicts with gofumpt
+    grouper:
+      # const-require-grouping: true # TODO: Enable this
+      import-require-single-import: true
+      import-require-grouping: true
+      # var-require-grouping: true # TODO: Conflicts with gofumpt
 
-        loggercheck:
-            require-string-key: true
-            no-printf-like: true
+    loggercheck:
+      require-string-key: true
+      no-printf-like: true
 
-        misspell:
-            locale: US
+    misspell:
+      locale: US
 
-        nolintlint:
-            require-explanation: true
-            require-specific: true
+    nolintlint:
+      require-explanation: true
+      require-specific: true
 
-        nonamedreturns:
-            report-error-in-defer: true
+    nonamedreturns:
+      report-error-in-defer: true
 
-        perfsprint:
-            err-error: true
+    perfsprint:
+      err-error: true
 
-        promlinter:
-            strict: true
+    promlinter:
+      strict: true
 
-        # TODO: Enable this
-        # reassign:
-        # patterns:
-        # - '.*'
+    # TODO: Enable this
+    # reassign:
+    # patterns:
+    # - '.*'
 
-        revive:
-            enable-all-rules: true
+    revive:
+      enable-all-rules: true
 
-        tagalign:
-            strict: true
+    tagalign:
+      strict: true
 
-        tagliatelle:
-            case:
-                rules:
-                    json: snake
+    tagliatelle:
+      case:
+        rules:
+          json: snake
 
-        testifylint:
-            enable-all: true
+    testifylint:
+      enable-all: true
 
-        testpackage:
-            skip-regexp: "^$"
+    testpackage:
+      skip-regexp: "^$"
 
-        unparam:
-            # NOTE: Set this option to false if other projects rely on this project's code
-            check-exported: false
+    unparam:
+      # NOTE: Set this option to false if other projects rely on this project's code
+      check-exported: false
 
-        unused:
-            # TODO: Uncomment these two lines
-            # parameters-are-used: false
-            # local-variables-are-used: false
-            # NOTE: Set these options to true if other projects rely on this project's code
-            field-writes-are-uses: true
-            # exported-is-used: true # TODO: Fix issues with this option (upstream)
-            exported-fields-are-used: true
+    unused:
+      # TODO: Uncomment these two lines
+      # parameters-are-used: false
+      # local-variables-are-used: false
+      # NOTE: Set these options to true if other projects rely on this project's code
+      field-writes-are-uses: true
+      # exported-is-used: true # TODO: Fix issues with this option (upstream)
+      exported-fields-are-used: true
 
-        usestdlibvars:
-            http-method: true
-            http-status-code: true
-            time-weekday: true
-            time-month: true
-            time-layout: true
-            crypto-hash: true
-            default-rpc-path: true
-            sql-isolation-level: true
-            tls-signature-scheme: true
-            constant-kind: true
+    usestdlibvars:
+      http-method: true
+      http-status-code: true
+      time-weekday: true
+      time-month: true
+      time-layout: true
+      crypto-hash: true
+      default-rpc-path: true
+      sql-isolation-level: true
+      tls-signature-scheme: true
+      constant-kind: true
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

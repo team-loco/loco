@@ -12,8 +12,8 @@ import (
 )
 
 type Client struct {
-	BaseURL    string
 	HTTPClient *http.Client
+	BaseURL    string
 }
 
 func NewClient(baseURL string) *Client {
@@ -26,8 +26,8 @@ func NewClient(baseURL string) *Client {
 }
 
 type APIError struct {
-	StatusCode int
 	Body       string
+	StatusCode int
 }
 
 func (e *APIError) Error() string {

@@ -425,3 +425,4 @@ clickhouse is named weirdly and so is our controller.
 - owner reference?
 - cmd/deploy.go has become lost in the sauce. we need to clean it up.
 - do we need tls in-cluster communication?
+- api needs to set and validate defaults before firing to locoresource.

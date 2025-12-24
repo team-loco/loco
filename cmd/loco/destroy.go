@@ -81,9 +81,9 @@ func destroyCmdFunc(cmd *cobra.Command) error {
 	slog.Debug("found app by name", "app_name", appName, "app_id", appID)
 
 	if !yes {
-		confirmed, err := ui.AskYesNo(fmt.Sprintf("Are you sure you want to destroy the app '%s'?", appName))
-		if err != nil {
-			return err
+		confirmed, confirmErr := ui.AskYesNo(fmt.Sprintf("Are you sure you want to destroy the app '%s'?", appName))
+		if confirmErr != nil {
+			return confirmErr
 		}
 		if !confirmed {
 			fmt.Println("Aborted.")

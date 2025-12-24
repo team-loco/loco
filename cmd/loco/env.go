@@ -71,14 +71,14 @@ func envCmdFunc(cmd *cobra.Command) error {
 	envVars := make(map[string]string)
 
 	if envFile != "" {
-		f, err := os.Open(envFile)
-		if err != nil {
-			return fmt.Errorf("failed to open env file %s: %w", envFile, err)
+		f, openErr := os.Open(envFile)
+		if openErr != nil {
+			return fmt.Errorf("failed to open env file %s: %w", envFile, openErr)
 		}
 		defer f.Close()
-		parsed, err := godotenv.Parse(f)
-		if err != nil {
-			return fmt.Errorf("failed to parse env file %s: %w", envFile, err)
+		parsed, parseErr := godotenv.Parse(f)
+		if parseErr != nil {
+			return fmt.Errorf("failed to parse env file %s: %w", envFile, parseErr)
 		}
 		maps.Copy(envVars, parsed)
 	}

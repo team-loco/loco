@@ -30,8 +30,6 @@ import (
 // this is literally impossible to test.
 
 type Client struct {
-	host       string
-	token      string
 	httpClient *http.Client
 
 	User       userv1connect.UserServiceClient
@@ -39,6 +37,9 @@ type Client struct {
 	Workspace  workspacev1connect.WorkspaceServiceClient
 	Resource   resourcev1connect.ResourceServiceClient
 	Deployment deploymentv1connect.DeploymentServiceClient
+
+	host  string
+	token string
 }
 
 func NewClient(host, token string) *Client {
@@ -342,9 +343,9 @@ func (c *Client) GetEvents(ctx context.Context, appID int64, limit *int32) ([]*r
 
 // APIError represents an HTTP API error
 type APIError struct {
-	StatusCode int
 	Body       string
 	RequestID  string
+	StatusCode int
 }
 
 func (e *APIError) Error() string {

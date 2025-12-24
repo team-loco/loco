@@ -22,22 +22,22 @@ const (
 
 type Step struct {
 	Run     func(logf func(string)) error
-	Err     error
-	Spinner spinner.Model
 	Bar     progress.Model
-	Title   string
+	Spinner spinner.Model
 	Status  StepStatus
+	Title   string
+	Err     error
 }
 
 type model struct {
+	program     *tea.Program
+	sync.Mutex
 	steps       []Step
 	logs        map[int][]string
-	error       error
-	program     *tea.Program // Add reference to the program
 	activeIndex int
 	quitting    bool
 	hasError    bool
-	sync.Mutex
+	error       error
 }
 
 type stepDoneMsg struct {

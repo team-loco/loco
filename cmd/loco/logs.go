@@ -102,10 +102,10 @@ func streamLogsAsJson(cmd *cobra.Command) error {
 	}
 
 	err = apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *resourcev1.LogEntry) error {
-		jsonLog, err := json.Marshal(logEntry)
-		if err != nil {
-			slog.Debug("failed to marshal log entry to json", "error", err)
-			fmt.Fprintf(os.Stderr, "Error marshaling log: %v\n", err)
+		jsonLog, marshalErr := json.Marshal(logEntry)
+		if marshalErr != nil {
+			slog.Debug("failed to marshal log entry to json", "error", marshalErr)
+			fmt.Fprintf(os.Stderr, "Error marshaling log: %v\n", marshalErr)
 			return nil
 		}
 		fmt.Println(string(jsonLog))
@@ -247,13 +247,13 @@ type logMsg struct {
 type errMsg struct{ error }
 
 type logModel struct {
-	logs      []table.Row
-	err       error
-	ctx       context.Context
-	logsChan  chan *resourcev1.LogEntry
-	errChan   chan error
 	table     table.Model
 	baseStyle lipgloss.Style
+	logsChan  chan *resourcev1.LogEntry
+	errChan   chan error
+	logs      []table.Row
+	ctx       context.Context
+	err       error
 }
 
 func (m logModel) Init() tea.Cmd {
