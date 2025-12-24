@@ -49,12 +49,25 @@ releases:
       - name: crds.enabled
         value: true
 
-  - name: loco-controller
-    chart: ./charts/loco-controller
+  - name: loco-core
+    chart: ./charts/loco-core
     namespace: loco-system
     createNamespace: true
     needs:
       - cert-manager/cert-manager
+    labels:
+      phase: "2-core"
+      component: "app"
+    values:
+      - ./charts/loco-core/values.yaml
+      - env/{{ .Environment.Name }}.yaml.gotmpl
+
+  - name: loco-controller
+    chart: ./charts/loco-controller
+    namespace: loco-system
+    createNamespace: false
+    needs:
+      - loco-system/loco-core
     labels:
       phase: "2-core"
       component: "loco-controller"
@@ -64,18 +77,6 @@ releases:
     values:
       - ./charts/loco-controller/values.yaml
 
-  - name: loco-core
-    chart: ./charts/loco-core
-    namespace: loco-system
-    createNamespace: false
-    needs:
-      - loco-system/loco-controller
-    labels:
-      phase: "2-core"
-      component: "app"
-    values:
-      - ./charts/loco-core/values.yaml
-      - env/{{ .Environment.Name }}.yaml.gotmpl
 
   # phase 3: observability
   - name: loco-obs
