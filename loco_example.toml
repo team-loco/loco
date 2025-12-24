@@ -3,6 +3,7 @@ ConfigVersion = "0.1" # Version of the loco.toml config. Required: yes. No defau
 Description = "Optional description about the application" # Short description of the app. Required: no. Default: ""
 Name = "myapp" # Name of the application. Required: yes. No default.
 Type = "SERVICE" # App type (SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB). Required: no. Default: "SERVICE"
+Region = "us-east-1" # Deployment region. Must match a key in RegionConfig. Required: yes. No default.
 
 [Build]
 DockerfilePath = "Dockerfile" # Path to the Dockerfile. Required: no. Default: "Dockerfile"

@@ -33,6 +33,7 @@ var Default = &LocoConfig{
 		Description:   "Default Loco app configuration",
 		Name:          "<ENTER_APP_NAME>",
 		Type:          "SERVICE",
+		Region:        "us-east-1",
 	},
 	Build: Build{
 		DockerfilePath: "Dockerfile",
@@ -165,6 +166,14 @@ func Validate(cfg *LocoConfig) error {
 
 	if len(cfg.RegionConfig) == 0 {
 		return fmt.Errorf("regionConfig must have at least one region configured")
+	}
+
+	if cfg.Metadata.Region == "" {
+		return fmt.Errorf("metadata.region must be set and match one of the configured regions")
+	}
+
+	if _, exists := cfg.RegionConfig[cfg.Metadata.Region]; !exists {
+		return fmt.Errorf("metadata.region %q is not configured in regionConfig", cfg.Metadata.Region)
 	}
 
 	for region, resources := range cfg.RegionConfig {
@@ -398,6 +407,7 @@ func Create(cfg *LocoConfig, outputPath string) error {
 func CreateDefault(appName string) error {
 	cfg := *Default // Copy the default config
 	cfg.Metadata.Name = appName
+	cfg.Metadata.Region = "us-east-1"
 	cfg.DomainConfig.Hostname = appName + ".deploy-app.com"
 	cfg.RegionConfig = map[string]Resources{
 		"us-east-1": {

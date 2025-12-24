@@ -63,7 +63,7 @@ spec:
           args:
             - --leader-elect
             - --health-probe-bind-address=:8081
-          image: loco-controller:latest
+          image: ghcr.io/team-loco/loco-controller:latest
           name: manager
           ports: []
           securityContext:

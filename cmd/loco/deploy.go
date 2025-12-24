@@ -412,7 +412,7 @@ func deployApp(ctx context.Context,
 	}
 
 	// get primary region for resource defaults
-	primaryRegion := cfg.RegionConfig[cfg.PrimaryRegion]
+	primaryRegion := cfg.RegionConfig[cfg.Metadata.Region]
 
 	var scalers *deploymentv1.Scalers
 	if primaryRegion.EnableAutoScaling {
@@ -432,7 +432,7 @@ func deployApp(ctx context.Context,
 		MinReplicas: &primaryRegion.ReplicasMin,
 		MaxReplicas: &primaryRegion.ReplicasMax,
 		Scalers:     scalers,
-		Region:      cfg.PrimaryRegion,
+		Region:      cfg.Metadata.Region,
 	}
 
 	deploymentSpec := &deploymentv1.DeploymentSpec{

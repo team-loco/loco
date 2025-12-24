@@ -2,15 +2,14 @@ package config
 
 // LocoConfig represents the full configuration from loco.toml
 type LocoConfig struct {
-	Metadata      Metadata             `json:"metadata" toml:"Metadata"`
-	Build         Build                `json:"build" toml:"Build"`
-	Routing       Routing              `json:"routing" toml:"Routing"`
-	DomainConfig  DomainConfig         `json:"domainConfig" toml:"DomainConfig"`
-	RegionConfig  map[string]Resources `json:"regionConfig" toml:"RegionConfig"`
-	PrimaryRegion string               `json:"primaryRegion,omitempty" toml:"PrimaryRegion"` // region name for primary deployment
-	Health        Health               `json:"health" toml:"Health"`
-	Env           Env                  `json:"env,omitzero" toml:"Env"`
-	Obs           Obs                  `json:"obs,omitzero" toml:"Obs"`
+	Metadata     Metadata             `json:"metadata" toml:"Metadata"`
+	Build        Build                `json:"build" toml:"Build"`
+	Routing      Routing              `json:"routing" toml:"Routing"`
+	DomainConfig DomainConfig         `json:"domainConfig" toml:"DomainConfig"`
+	RegionConfig map[string]Resources `json:"regionConfig" toml:"RegionConfig"`
+	Health       Health               `json:"health" toml:"Health"`
+	Env          Env                  `json:"env,omitzero" toml:"Env"`
+	Obs          Obs                  `json:"obs,omitzero" toml:"Obs"`
 }
 
 type Metadata struct {
@@ -18,6 +17,7 @@ type Metadata struct {
 	Description   string `json:"description,omitempty" toml:"Description"`
 	Name          string `json:"name" toml:"Name"`
 	Type          string `json:"type,omitempty" toml:"Type"`
+	Region        string `json:"region" toml:"Region"` // deployment region
 }
 
 type Resources struct {

@@ -181,8 +181,7 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 			Labels: map[string]string{
-				"expose-via-gw": "true",
-				"loco.dev/app":  "true",
+				"loco.dev/app": "true",
 			},
 		},
 	}
