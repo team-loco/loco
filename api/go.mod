@@ -12,14 +12,14 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.6
+	github.com/loco-team/loco/shared v0.0.0
 	github.com/rs/cors v1.11.1
+	github.com/team-loco/loco/controller v0.0.0
 	golang.org/x/oauth2 v0.34.0
 	k8s.io/api v0.34.3
-	k8s.io/apimachinery v0.34.3
+	k8s.io/apimachinery v0.35.0
 	k8s.io/client-go v0.34.3
 	sigs.k8s.io/controller-runtime v0.22.4
-	github.com/loco-team/loco/shared v0.0.0
-	github.com/team-loco/loco/controller v0.0.0
 )
 
 require (
@@ -73,7 +73,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
