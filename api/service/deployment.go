@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -142,13 +143,13 @@ func (s *DeploymentServer) CreateDeployment(
 	if len(resource.Spec) > 0 {
 		resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err)
+			slog.ErrorContext(ctx, err.Error())
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", err))
 		}
 
 		mergedSpec, err = converter.MergeDeploymentSpec(resourceSpec, r.Spec)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to merge deployment spec with resource defaults", "error", err)
+			slog.ErrorContext(ctx, err.Error())
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", err))
 		}
 	} else {
@@ -211,7 +212,7 @@ func (s *DeploymentServer) CreateDeployment(
 		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
 	}
-	slog.InfoContext(ctx, "created LocoResource", "resource_id", resource.ID, "resource_name", resource.Name)
+	slog.InfoContext(ctx, "created/updated LocoResource", "resource_id", resource.ID, "resource_name", resource.Name)
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
 		DeploymentId: deployment.ID,
@@ -532,6 +533,7 @@ func createLocoResource(
 
 	// convert proto to controller CRD types (includes all fields: image, replicas, cpu, memory, env, healthCheck, metrics, etc.)
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec, createdBy)
+	slog.InfoContext(ctx, "converted deployment spec", "image", crdServiceDeploymentSpec.Image, "port", crdServiceDeploymentSpec.Port)
 
 	// determine resource type and build type-specific spec
 	var locoResourceSpec locoControllerV1.LocoResourceSpec
@@ -577,9 +579,29 @@ func createLocoResource(
 		Spec: locoResourceSpec,
 	}
 
-	// create the LocoResource
-	if err := kubeClient.ControllerClient.Create(ctx, locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
+	// create or update the LocoResource
+	err = kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
+		Name:      locoRes.Name,
+		Namespace: locoRes.Namespace,
+	}, locoRes)
+
+	if err == nil {
+		// resource exists, update it
+		if err := kubeClient.ControllerClient.Update(ctx, locoRes); err != nil {
+			slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
+			return err
+		}
+		slog.InfoContext(ctx, "updated existing LocoResource", "resource_id", resource.ID)
+	} else if client.IgnoreNotFound(err) == nil {
+		// resource does not exist, create it
+		if err := kubeClient.ControllerClient.Create(ctx, locoRes); err != nil {
+			slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
+			return err
+		}
+		slog.InfoContext(ctx, "created new LocoResource", "resource_id", resource.ID)
+	} else {
+		// some other error occurred
+		slog.ErrorContext(ctx, "failed to check if LocoResource exists", "error", err, "resource_id", resource.ID)
 		return err
 	}
 

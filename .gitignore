@@ -62,3 +62,4 @@ references/
 **/dist/**
 
 lint.html
+seed.sql

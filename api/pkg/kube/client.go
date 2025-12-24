@@ -2,15 +2,19 @@ package kube
 
 import (
 	"log/slog"
+	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/go-logr/logr"
 	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
 )
 
@@ -76,6 +80,13 @@ func buildControllerRuntimeClient(config *rest.Config) crClient.Client {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(locov1alpha1.AddToScheme(scheme))
 
+	// controller-runtime uses logr, we convert to slog.
+	slogger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
+	logger := logr.FromSlogHandler(slogger.Handler())
+	controllerruntime.SetLogger(logger)
 	crClient, err := crClient.New(config, crClient.Options{Scheme: scheme})
 	if err != nil {
 		slog.Error("failed to create controller-runtime client", "error", err)

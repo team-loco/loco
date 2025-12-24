@@ -20,6 +20,7 @@ import (
 	"github.com/loco-team/loco/api/timeutil"
 	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
 	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -148,7 +149,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
 	}
 
-	spec, err := json.Marshal(r.Spec)
+	spec, err := protojson.Marshal(r.Spec)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
