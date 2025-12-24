@@ -210,8 +210,8 @@ func ensureSecrets(ctx context.Context, kubeClient client.Client, locoRes *locov
 	} else {
 		// create env secret from deployment env map
 		secretData := make(map[string][]byte)
-		if locoRes.Spec.Deployment != nil {
-			for k, v := range locoRes.Spec.Deployment.Env {
+		if locoRes.Spec.ServiceSpec != nil && locoRes.Spec.ServiceSpec.Deployment != nil {
+			for k, v := range locoRes.Spec.ServiceSpec.Deployment.Env {
 				secretData[k] = []byte(v)
 			}
 		}
@@ -409,9 +409,9 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *lo
 	memoryRequest := "128Mi"
 	memoryLimit := "512Mi"
 
-	if locoRes.Spec.Deployment != nil {
-		image = locoRes.Spec.Deployment.Image
-		for k, v := range locoRes.Spec.Deployment.Env {
+	if locoRes.Spec.ServiceSpec != nil && locoRes.Spec.ServiceSpec.Deployment != nil {
+		image = locoRes.Spec.ServiceSpec.Deployment.Image
+		for k, v := range locoRes.Spec.ServiceSpec.Deployment.Env {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  k,
 				Value: v,
@@ -420,15 +420,15 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *lo
 	}
 
 	// prefer routing port, fall back to deployment port
-	if locoRes.Spec.Routing != nil && locoRes.Spec.Routing.Port > 0 {
-		containerPort = locoRes.Spec.Routing.Port
-	} else if locoRes.Spec.Deployment != nil {
-		containerPort = locoRes.Spec.Deployment.Port
+	if locoRes.Spec.ServiceSpec != nil && locoRes.Spec.ServiceSpec.Routing != nil && locoRes.Spec.ServiceSpec.Routing.Port > 0 {
+		containerPort = locoRes.Spec.ServiceSpec.Routing.Port
+	} else if locoRes.Spec.ServiceSpec != nil && locoRes.Spec.ServiceSpec.Deployment != nil {
+		containerPort = locoRes.Spec.ServiceSpec.Deployment.Port
 	}
 
-	if locoRes.Spec.Deployment != nil {
-		if locoRes.Spec.Deployment.HealthCheck != nil {
-			hc := locoRes.Spec.Deployment.HealthCheck
+	if locoRes.Spec.ServiceSpec != nil && locoRes.Spec.ServiceSpec.Deployment != nil {
+		if locoRes.Spec.ServiceSpec.Deployment.HealthCheck != nil {
+			hc := locoRes.Spec.ServiceSpec.Deployment.HealthCheck
 			probe := &corev1.Probe{
 				ProbeHandler: corev1.ProbeHandler{
 					HTTPGet: &corev1.HTTPGetAction{
@@ -447,17 +447,17 @@ func ensureDeployment(ctx context.Context, kubeClient client.Client, locoRes *lo
 		}
 	}
 
-	if locoRes.Spec.Resources != nil {
-		if locoRes.Spec.Resources.CPU != "" {
-			cpuRequest = locoRes.Spec.Resources.CPU
-			cpuLimit = locoRes.Spec.Resources.CPU
+	if locoRes.Spec.ServiceSpec != nil && locoRes.Spec.ServiceSpec.Resources != nil {
+		if locoRes.Spec.ServiceSpec.Resources.CPU != "" {
+			cpuRequest = locoRes.Spec.ServiceSpec.Resources.CPU
+			cpuLimit = locoRes.Spec.ServiceSpec.Resources.CPU
 		}
-		if locoRes.Spec.Resources.Memory != "" {
-			memoryRequest = locoRes.Spec.Resources.Memory
-			memoryLimit = locoRes.Spec.Resources.Memory
+		if locoRes.Spec.ServiceSpec.Resources.Memory != "" {
+			memoryRequest = locoRes.Spec.ServiceSpec.Resources.Memory
+			memoryLimit = locoRes.Spec.ServiceSpec.Resources.Memory
 		}
-		if locoRes.Spec.Resources.Replicas.Min > 0 {
-			replicas = locoRes.Spec.Resources.Replicas.Min
+		if locoRes.Spec.ServiceSpec.Resources.Replicas.Min > 0 {
+			replicas = locoRes.Spec.ServiceSpec.Resources.Replicas.Min
 		}
 	}
 
@@ -566,12 +566,12 @@ func ensureHTTPRoute(ctx context.Context, kubeClient client.Client, locoRes *loc
 	pathValue := "/"
 	var backendPort *v1Gateway.PortNumber
 
-	if locoRes.Spec.Routing != nil {
-		if locoRes.Spec.Routing.PathPrefix != "" {
-			pathValue = locoRes.Spec.Routing.PathPrefix
+	if locoRes.Spec.ServiceSpec != nil && locoRes.Spec.ServiceSpec.Routing != nil {
+		if locoRes.Spec.ServiceSpec.Routing.PathPrefix != "" {
+			pathValue = locoRes.Spec.ServiceSpec.Routing.PathPrefix
 		}
-		if locoRes.Spec.Routing.Port > 0 {
-			backendPort = ptrToPortNumber(int(locoRes.Spec.Routing.Port))
+		if locoRes.Spec.ServiceSpec.Routing.Port > 0 {
+			backendPort = ptrToPortNumber(int(locoRes.Spec.ServiceSpec.Routing.Port))
 		}
 	}
 

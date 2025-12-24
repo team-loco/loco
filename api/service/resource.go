@@ -83,7 +83,17 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	if r.Spec == nil || len(r.Spec.Regions) == 0 {
+	if r.Spec == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
+	}
+
+	// validate that spec contains a service spec (for now, only services are supported)
+	if r.Spec.GetService() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are currently supported"))
+	}
+
+	serviceSpec := r.Spec.GetService()
+	if len(serviceSpec.Regions) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one region is required in spec"))
 	}
 
@@ -162,7 +172,7 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	// Create resource regions (first region is primary)
-	for region, regionConfig := range r.Spec.Regions {
+	for region, regionConfig := range serviceSpec.Regions {
 		isPrimary := regionConfig.Primary
 		_, err := s.queries.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
 			ResourceID: resource.ID,

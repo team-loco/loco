@@ -59,3 +59,4 @@ env/local.yaml.gotmpl
 
 # full helm chart references.
 references/
+**/dist/**

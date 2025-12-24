@@ -2,14 +2,15 @@ package config
 
 // LocoConfig represents the full configuration from loco.toml
 type LocoConfig struct {
-	Metadata     Metadata             `json:"metadata" toml:"Metadata"`
-	Build        Build                `json:"build" toml:"Build"`
-	Routing      Routing              `json:"routing" toml:"Routing"`
-	DomainConfig DomainConfig         `json:"domainConfig" toml:"DomainConfig"`
-	RegionConfig map[string]Resources `json:"regionConfig" toml:"RegionConfig"`
-	Health       Health               `json:"health" toml:"Health"`
-	Env          Env                  `json:"env,omitzero" toml:"Env"`
-	Obs          Obs                  `json:"obs,omitzero" toml:"Obs"`
+	Metadata      Metadata             `json:"metadata" toml:"Metadata"`
+	Build         Build                `json:"build" toml:"Build"`
+	Routing       Routing              `json:"routing" toml:"Routing"`
+	DomainConfig  DomainConfig         `json:"domainConfig" toml:"DomainConfig"`
+	RegionConfig  map[string]Resources `json:"regionConfig" toml:"RegionConfig"`
+	PrimaryRegion string               `json:"primaryRegion,omitempty" toml:"PrimaryRegion"` // region name for primary deployment
+	Health        Health               `json:"health" toml:"Health"`
+	Env           Env                  `json:"env,omitzero" toml:"Env"`
+	Obs           Obs                  `json:"obs,omitzero" toml:"Obs"`
 }
 
 type Metadata struct {
@@ -27,19 +28,6 @@ type Resources struct {
 	EnableAutoScaling bool   `json:"scalers_enabled,omitempty" toml:"EnableAutoScaling"`
 	CPUTarget         int32  `json:"scalers_cpu_target,omitempty" toml:"CPUTarget"`
 	ScalersMemTarget  int32  `json:"scalers_mem_target,omitempty" toml:"MemoryTarget"`
-}
-
-// Deprecated: kept for backward compatibility
-type Replicas struct {
-	Min int32 `json:"min" toml:"Min"`
-	Max int32 `json:"max" toml:"Max"`
-}
-
-// Deprecated: kept for backward compatibility
-type Scalers struct {
-	Enabled      bool  `json:"enabled" toml:"Enabled"`
-	CPUTarget    int32 `json:"cpuTarget,omitempty" toml:"CPUTarget"`
-	MemoryTarget int32 `json:"memoryTarget,omitempty" toml:"MemoryTarget"`
 }
 
 type Build struct {

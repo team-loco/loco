@@ -136,8 +136,3 @@ CREATE INDEX idx_deployments_resource_id ON deployments (resource_id);
 CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
 CREATE INDEX idx_deployments_is_active ON deployments (resource_id, is_active) WHERE is_active = true;
 CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);
-
--- Enforce one active deployment per resource per region
-CREATE UNIQUE INDEX uniq_active_deployment_per_region
-ON deployments(resource_id, cluster_id)
-WHERE is_active = true;

@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file deployment/v1/deployment.proto.
  */
 export const file_deployment_v1_deployment: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSJzChFIZWFsdGhDaGVja0NvbmZpZxIMCgRwYXRoGAEgASgJEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIYChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFEhcKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBSJcCgtCdWlsZFNvdXJjZRIMCgR0eXBlGAEgASgJEg0KBWltYWdlGAIgASgJEhwKD2RvY2tlcmZpbGVfcGF0aBgDIAEoCUgAiAEBQhIKEF9kb2NrZXJmaWxlX3BhdGgipAMKDkRlcGxveW1lbnRTcGVjEi4KBWJ1aWxkGAEgASgLMh8ubG9jby5kZXBsb3ltZW50LnYxLkJ1aWxkU291cmNlEkAKDGhlYWx0aF9jaGVjaxgCIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZ0gAiAEBEgsKA2NwdRgDIAEoCRIOCgZtZW1vcnkYBCABKAkSGQoMbWluX3JlcGxpY2FzGAUgASgFSAGIAQESGQoMbWF4X3JlcGxpY2FzGAYgASgFSAKIAQESFwoKdGFyZ2V0X2NwdRgHIAEoBUgDiAEBEjgKA2VudhgIIAMoCzIrLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3BlYy5FbnZFbnRyeRIMCgRwb3J0GAkgASgFGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDwoNX2hlYWx0aF9jaGVja0IPCg1fbWluX3JlcGxpY2FzQg8KDV9tYXhfcmVwbGljYXNCDQoLX3RhcmdldF9jcHUixQQKCkRlcGxveW1lbnQSCgoCaWQYASABKAMSEwoLcmVzb3VyY2VfaWQYAiABKAMSEgoKY2x1c3Rlcl9pZBgDIAEoAxINCgVpbWFnZRgEIAEoCRIQCghyZXBsaWNhcxgFIAEoBRIzCgZzdGF0dXMYBiABKA4yIy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFBoYXNlEhEKCWlzX2FjdGl2ZRgHIAEoCBIUCgdtZXNzYWdlGAggASgJSACIAQESGgoNZXJyb3JfbWVzc2FnZRgJIAEoCUgBiAEBEhIKCmNyZWF0ZWRfYnkYCiABKAMSLgoKY3JlYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoKc3RhcnRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAogBARI1Cgxjb21wbGV0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQESLgoKdXBkYXRlZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMc3BlY192ZXJzaW9uGA8gASgFEioKBHNwZWMYECABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0SASIAQFCCgoIX21lc3NhZ2VCEAoOX2Vycm9yX21lc3NhZ2VCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdEIHCgVfc3BlYyJ0ChdDcmVhdGVEZXBsb3ltZW50UmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgpjbHVzdGVyX2lkGAIgASgDEjAKBHNwZWMYAyABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWMiQgoYQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEhUKDWRlcGxveW1lbnRfaWQYASABKAMSDwoHbWVzc2FnZRgCIAEoCSItChRHZXREZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiawoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBEhMKBm9mZnNldBgDIAEoBUgBiAEBQggKBl9saW1pdEIJCgdfb2Zmc2V0Il0KF0xpc3REZXBsb3ltZW50c1Jlc3BvbnNlEjMKC2RlcGxveW1lbnRzGAEgAygLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQSDQoFdG90YWwYAiABKAMiMAoXU3RyZWFtRGVwbG95bWVudFJlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoAyLLAQoPRGVwbG95bWVudEV2ZW50EhUKDWRlcGxveW1lbnRfaWQYASABKAMSMwoGc3RhdHVzGAIgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIPCgdtZXNzYWdlGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoNZXJyb3JfbWVzc2FnZRgFIAEoCUgAiAEBQhAKDl9lcnJvcl9tZXNzYWdlKmUKD0RlcGxveW1lbnRQaGFzZRIPCgtVTlNQRUNJRklFRBAAEgsKB1BFTkRJTkcQARILCgdSVU5OSU5HEAISDQoJU1VDQ0VFREVEEAMSCgoGRkFJTEVEEAQSDAoIQ0FOQ0VMRUQQBTK8AwoRRGVwbG95bWVudFNlcnZpY2USbQoQQ3JlYXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USZAoNR2V0RGVwbG95bWVudBIoLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVxdWVzdBopLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVzcG9uc2USagoPTGlzdERlcGxveW1lbnRzEioubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1JlcXVlc3QaKy5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVzcG9uc2USZgoQU3RyZWFtRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5TdHJlYW1EZXBsb3ltZW50UmVxdWVzdBojLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50RXZlbnQwAUJDWkFnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9kZXBsb3ltZW50L3YxO2RlcGxveW1lbnR2MWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSKOAQoRSGVhbHRoQ2hlY2tDb25maWcSDAoEcGF0aBgBIAEoCRIdChVpbml0aWFsX2RlbGF5X3NlY29uZHMYAiABKAUSGAoQaW50ZXJ2YWxfc2Vjb25kcxgDIAEoBRIXCg90aW1lb3V0X3NlY29uZHMYBCABKAUSGQoRZmFpbHVyZV90aHJlc2hvbGQYBSABKAUicAoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEhcKCmNwdV90YXJnZXQYAiABKAVIAIgBARIaCg1tZW1vcnlfdGFyZ2V0GAMgASgFSAGIAQFCDQoLX2NwdV90YXJnZXRCEAoOX21lbW9yeV90YXJnZXQiXAoLQnVpbGRTb3VyY2USDAoEdHlwZRgBIAEoCRINCgVpbWFnZRgCIAEoCRIcCg9kb2NrZXJmaWxlX3BhdGgYAyABKAlIAIgBAUISChBfZG9ja2VyZmlsZV9wYXRoIvYDChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSLgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2USQAoMaGVhbHRoX2NoZWNrGAIgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnSACIAQESEAoDY3B1GAMgASgJSAGIAQESEwoGbWVtb3J5GAQgASgJSAKIAQESGQoMbWluX3JlcGxpY2FzGAUgASgFSAOIAQESGQoMbWF4X3JlcGxpY2FzGAYgASgFSASIAQESMQoHc2NhbGVycxgHIAEoCzIbLmxvY28uZGVwbG95bWVudC52MS5TY2FsZXJzSAWIAQESPwoDZW52GAggAygLMjIubG9jby5kZXBsb3ltZW50LnYxLlNlcnZpY2VEZXBsb3ltZW50U3BlYy5FbnZFbnRyeRIMCgRwb3J0GAkgASgFEg4KBnJlZ2lvbhgKIAEoCRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQg8KDV9oZWFsdGhfY2hlY2tCBgoEX2NwdUIJCgdfbWVtb3J5Qg8KDV9taW5fcmVwbGljYXNCDwoNX21heF9yZXBsaWNhc0IKCghfc2NhbGVycyIYChZEYXRhYmFzZURlcGxveW1lbnRTcGVjIhUKE0NhY2hlRGVwbG95bWVudFNwZWMiFQoTUXVldWVEZXBsb3ltZW50U3BlYyKKAgoORGVwbG95bWVudFNwZWMSPAoHc2VydmljZRgBIAEoCzIpLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlRGVwbG95bWVudFNwZWNIABI+CghkYXRhYmFzZRgCIAEoCzIqLmxvY28uZGVwbG95bWVudC52MS5EYXRhYmFzZURlcGxveW1lbnRTcGVjSAASOAoFY2FjaGUYAyABKAsyJy5sb2NvLmRlcGxveW1lbnQudjEuQ2FjaGVEZXBsb3ltZW50U3BlY0gAEjgKBXF1ZXVlGAQgASgLMicubG9jby5kZXBsb3ltZW50LnYxLlF1ZXVlRGVwbG95bWVudFNwZWNIAEIGCgRzcGVjIsUECgpEZXBsb3ltZW50EgoKAmlkGAEgASgDEhMKC3Jlc291cmNlX2lkGAIgASgDEhIKCmNsdXN0ZXJfaWQYAyABKAMSDQoFaW1hZ2UYBCABKAkSEAoIcmVwbGljYXMYBSABKAUSMwoGc3RhdHVzGAYgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIRCglpc19hY3RpdmUYByABKAgSFAoHbWVzc2FnZRgIIAEoCUgAiAEBEhoKDWVycm9yX21lc3NhZ2UYCSABKAlIAYgBARISCgpjcmVhdGVkX2J5GAogASgDEi4KCmNyZWF0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKCnN0YXJ0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESNQoMY29tcGxldGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBEi4KCnVwZGF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHNwZWNfdmVyc2lvbhgPIAEoBRIqCgRzcGVjGBAgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdEgEiAEBQgoKCF9tZXNzYWdlQhAKDl9lcnJvcl9tZXNzYWdlQg0KC19zdGFydGVkX2F0Qg8KDV9jb21wbGV0ZWRfYXRCBwoFX3NwZWMidAoXQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSEgoKY2x1c3Rlcl9pZBgCIAEoAxIwCgRzcGVjGAMgASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjIkIKGENyZWF0ZURlcGxveW1lbnRSZXNwb25zZRIVCg1kZXBsb3ltZW50X2lkGAEgASgDEg8KB21lc3NhZ2UYAiABKAkiLQoUR2V0RGVwbG95bWVudFJlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoAyJLChVHZXREZXBsb3ltZW50UmVzcG9uc2USMgoKZGVwbG95bWVudBgBIAEoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50ImsKFkxpc3REZXBsb3ltZW50c1JlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSEgoFbGltaXQYAiABKAVIAIgBARITCgZvZmZzZXQYAyABKAVIAYgBAUIICgZfbGltaXRCCQoHX29mZnNldCJdChdMaXN0RGVwbG95bWVudHNSZXNwb25zZRIzCgtkZXBsb3ltZW50cxgBIAMoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50Eg0KBXRvdGFsGAIgASgDIjAKF1N0cmVhbURlcGxveW1lbnRSZXF1ZXN0EhUKDWRlcGxveW1lbnRfaWQYASABKAMiywEKD0RlcGxveW1lbnRFdmVudBIVCg1kZXBsb3ltZW50X2lkGAEgASgDEjMKBnN0YXR1cxgCIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USDwoHbWVzc2FnZRgDIAEoCRItCgl0aW1lc3RhbXAYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhoKDWVycm9yX21lc3NhZ2UYBSABKAlIAIgBAUIQCg5fZXJyb3JfbWVzc2FnZSplCg9EZXBsb3ltZW50UGhhc2USDwoLVU5TUEVDSUZJRUQQABILCgdQRU5ESU5HEAESCwoHUlVOTklORxACEg0KCVNVQ0NFRURFRBADEgoKBkZBSUxFRBAEEgwKCENBTkNFTEVEEAUyvAMKEURlcGxveW1lbnRTZXJ2aWNlEm0KEENyZWF0ZURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEmQKDUdldERlcGxveW1lbnQSKC5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlcXVlc3QaKS5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlc3BvbnNlEmoKD0xpc3REZXBsb3ltZW50cxIqLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXF1ZXN0GisubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1Jlc3BvbnNlEmYKEFN0cmVhbURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuU3RyZWFtRGVwbG95bWVudFJlcXVlc3QaIy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudEV2ZW50MAFCQ1pBZ2l0aHViLmNvbS9sb2NvLXRlYW0vbG9jby9zaGFyZWQvcHJvdG8vZGVwbG95bWVudC92MTtkZXBsb3ltZW50djFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * Port defines a network port configuration.
@@ -97,7 +97,7 @@ export const ResourceSpecSchema: GenMessage<ResourceSpec, {jsonType: ResourceSpe
   messageDesc(file_deployment_v1_deployment, 1);
 
 /**
- * HealthCheckSpec defines health check parameters.
+ * HealthCheckConfig defines health check parameters.
  *
  * @generated from message loco.deployment.v1.HealthCheckConfig
  */
@@ -125,10 +125,17 @@ export type HealthCheckConfig = Message<"loco.deployment.v1.HealthCheckConfig"> 
    * @generated from field: int32 timeout_seconds = 4;
    */
   timeoutSeconds: number;
+
+  /**
+   * number of failures before marking unhealthy
+   *
+   * @generated from field: int32 failure_threshold = 5;
+   */
+  failureThreshold: number;
 };
 
 /**
- * HealthCheckSpec defines health check parameters.
+ * HealthCheckConfig defines health check parameters.
  *
  * @generated from message loco.deployment.v1.HealthCheckConfig
  */
@@ -156,6 +163,13 @@ export type HealthCheckConfigJson = {
    * @generated from field: int32 timeout_seconds = 4;
    */
   timeoutSeconds?: number;
+
+  /**
+   * number of failures before marking unhealthy
+   *
+   * @generated from field: int32 failure_threshold = 5;
+   */
+  failureThreshold?: number;
 };
 
 /**
@@ -164,6 +178,69 @@ export type HealthCheckConfigJson = {
  */
 export const HealthCheckConfigSchema: GenMessage<HealthCheckConfig, {jsonType: HealthCheckConfigJson}> = /*@__PURE__*/
   messageDesc(file_deployment_v1_deployment, 2);
+
+/**
+ * Scalers defines autoscaling configuration.
+ *
+ * @generated from message loco.deployment.v1.Scalers
+ */
+export type Scalers = Message<"loco.deployment.v1.Scalers"> & {
+  /**
+   * enable autoscaling
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled: boolean;
+
+  /**
+   * target CPU percentage (0-100)
+   *
+   * @generated from field: optional int32 cpu_target = 2;
+   */
+  cpuTarget?: number;
+
+  /**
+   * target memory percentage (0-100)
+   *
+   * @generated from field: optional int32 memory_target = 3;
+   */
+  memoryTarget?: number;
+};
+
+/**
+ * Scalers defines autoscaling configuration.
+ *
+ * @generated from message loco.deployment.v1.Scalers
+ */
+export type ScalersJson = {
+  /**
+   * enable autoscaling
+   *
+   * @generated from field: bool enabled = 1;
+   */
+  enabled?: boolean;
+
+  /**
+   * target CPU percentage (0-100)
+   *
+   * @generated from field: optional int32 cpu_target = 2;
+   */
+  cpuTarget?: number;
+
+  /**
+   * target memory percentage (0-100)
+   *
+   * @generated from field: optional int32 memory_target = 3;
+   */
+  memoryTarget?: number;
+};
+
+/**
+ * Describes the message loco.deployment.v1.Scalers.
+ * Use `create(ScalersSchema)` to create a new message.
+ */
+export const ScalersSchema: GenMessage<Scalers, {jsonType: ScalersJson}> = /*@__PURE__*/
+  messageDesc(file_deployment_v1_deployment, 3);
 
 /**
  * BuildSource defines where the code comes from.
@@ -222,14 +299,14 @@ export type BuildSourceJson = {
  * Use `create(BuildSourceSchema)` to create a new message.
  */
 export const BuildSourceSchema: GenMessage<BuildSource, {jsonType: BuildSourceJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 3);
+  messageDesc(file_deployment_v1_deployment, 4);
 
 /**
- * DeploymentSpec is the immutable runtime snapshot for a deployment.
+ * ServiceDeploymentSpec is the deployment specification for SERVICE type resources.
  *
- * @generated from message loco.deployment.v1.DeploymentSpec
+ * @generated from message loco.deployment.v1.ServiceDeploymentSpec
  */
-export type DeploymentSpec = Message<"loco.deployment.v1.DeploymentSpec"> & {
+export type ServiceDeploymentSpec = Message<"loco.deployment.v1.ServiceDeploymentSpec"> & {
   /**
    * @generated from field: loco.deployment.v1.BuildSource build = 1;
    */
@@ -241,35 +318,39 @@ export type DeploymentSpec = Message<"loco.deployment.v1.DeploymentSpec"> & {
   healthCheck?: HealthCheckConfig;
 
   /**
-   * e.g., "100m"
+   * e.g., "100m" (defaults from resource if omitted)
    *
-   * @generated from field: string cpu = 3;
+   * @generated from field: optional string cpu = 3;
    */
-  cpu: string;
+  cpu?: string;
 
   /**
-   * e.g., "256Mi"
+   * e.g., "256Mi" (defaults from resource if omitted)
    *
-   * @generated from field: string memory = 4;
+   * @generated from field: optional string memory = 4;
    */
-  memory: string;
+  memory?: string;
 
   /**
+   * defaults from resource if omitted
+   *
    * @generated from field: optional int32 min_replicas = 5;
    */
   minReplicas?: number;
 
   /**
+   * defaults from resource if omitted
+   *
    * @generated from field: optional int32 max_replicas = 6;
    */
   maxReplicas?: number;
 
   /**
-   * percentage (0-100)
+   * autoscaling config (defaults from resource if omitted)
    *
-   * @generated from field: optional int32 target_cpu = 7;
+   * @generated from field: optional loco.deployment.v1.Scalers scalers = 7;
    */
-  targetCpu?: number;
+  scalers?: Scalers;
 
   /**
    * @generated from field: map<string, string> env = 8;
@@ -280,14 +361,21 @@ export type DeploymentSpec = Message<"loco.deployment.v1.DeploymentSpec"> & {
    * @generated from field: int32 port = 9;
    */
   port: number;
+
+  /**
+   * region name for deployment
+   *
+   * @generated from field: string region = 10;
+   */
+  region: string;
 };
 
 /**
- * DeploymentSpec is the immutable runtime snapshot for a deployment.
+ * ServiceDeploymentSpec is the deployment specification for SERVICE type resources.
  *
- * @generated from message loco.deployment.v1.DeploymentSpec
+ * @generated from message loco.deployment.v1.ServiceDeploymentSpec
  */
-export type DeploymentSpecJson = {
+export type ServiceDeploymentSpecJson = {
   /**
    * @generated from field: loco.deployment.v1.BuildSource build = 1;
    */
@@ -299,35 +387,39 @@ export type DeploymentSpecJson = {
   healthCheck?: HealthCheckConfigJson;
 
   /**
-   * e.g., "100m"
+   * e.g., "100m" (defaults from resource if omitted)
    *
-   * @generated from field: string cpu = 3;
+   * @generated from field: optional string cpu = 3;
    */
   cpu?: string;
 
   /**
-   * e.g., "256Mi"
+   * e.g., "256Mi" (defaults from resource if omitted)
    *
-   * @generated from field: string memory = 4;
+   * @generated from field: optional string memory = 4;
    */
   memory?: string;
 
   /**
+   * defaults from resource if omitted
+   *
    * @generated from field: optional int32 min_replicas = 5;
    */
   minReplicas?: number;
 
   /**
+   * defaults from resource if omitted
+   *
    * @generated from field: optional int32 max_replicas = 6;
    */
   maxReplicas?: number;
 
   /**
-   * percentage (0-100)
+   * autoscaling config (defaults from resource if omitted)
    *
-   * @generated from field: optional int32 target_cpu = 7;
+   * @generated from field: optional loco.deployment.v1.Scalers scalers = 7;
    */
-  targetCpu?: number;
+  scalers?: ScalersJson;
 
   /**
    * @generated from field: map<string, string> env = 8;
@@ -338,6 +430,166 @@ export type DeploymentSpecJson = {
    * @generated from field: int32 port = 9;
    */
   port?: number;
+
+  /**
+   * region name for deployment
+   *
+   * @generated from field: string region = 10;
+   */
+  region?: string;
+};
+
+/**
+ * Describes the message loco.deployment.v1.ServiceDeploymentSpec.
+ * Use `create(ServiceDeploymentSpecSchema)` to create a new message.
+ */
+export const ServiceDeploymentSpecSchema: GenMessage<ServiceDeploymentSpec, {jsonType: ServiceDeploymentSpecJson}> = /*@__PURE__*/
+  messageDesc(file_deployment_v1_deployment, 5);
+
+/**
+ * DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
+ *
+ * reserved for future expansion
+ *
+ * @generated from message loco.deployment.v1.DatabaseDeploymentSpec
+ */
+export type DatabaseDeploymentSpec = Message<"loco.deployment.v1.DatabaseDeploymentSpec"> & {
+};
+
+/**
+ * DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
+ *
+ * reserved for future expansion
+ *
+ * @generated from message loco.deployment.v1.DatabaseDeploymentSpec
+ */
+export type DatabaseDeploymentSpecJson = {
+};
+
+/**
+ * Describes the message loco.deployment.v1.DatabaseDeploymentSpec.
+ * Use `create(DatabaseDeploymentSpecSchema)` to create a new message.
+ */
+export const DatabaseDeploymentSpecSchema: GenMessage<DatabaseDeploymentSpec, {jsonType: DatabaseDeploymentSpecJson}> = /*@__PURE__*/
+  messageDesc(file_deployment_v1_deployment, 6);
+
+/**
+ * CacheDeploymentSpec is a placeholder for CACHE type deployments (future implementation).
+ *
+ * reserved for future expansion
+ *
+ * @generated from message loco.deployment.v1.CacheDeploymentSpec
+ */
+export type CacheDeploymentSpec = Message<"loco.deployment.v1.CacheDeploymentSpec"> & {
+};
+
+/**
+ * CacheDeploymentSpec is a placeholder for CACHE type deployments (future implementation).
+ *
+ * reserved for future expansion
+ *
+ * @generated from message loco.deployment.v1.CacheDeploymentSpec
+ */
+export type CacheDeploymentSpecJson = {
+};
+
+/**
+ * Describes the message loco.deployment.v1.CacheDeploymentSpec.
+ * Use `create(CacheDeploymentSpecSchema)` to create a new message.
+ */
+export const CacheDeploymentSpecSchema: GenMessage<CacheDeploymentSpec, {jsonType: CacheDeploymentSpecJson}> = /*@__PURE__*/
+  messageDesc(file_deployment_v1_deployment, 7);
+
+/**
+ * QueueDeploymentSpec is a placeholder for QUEUE type deployments (future implementation).
+ *
+ * reserved for future expansion
+ *
+ * @generated from message loco.deployment.v1.QueueDeploymentSpec
+ */
+export type QueueDeploymentSpec = Message<"loco.deployment.v1.QueueDeploymentSpec"> & {
+};
+
+/**
+ * QueueDeploymentSpec is a placeholder for QUEUE type deployments (future implementation).
+ *
+ * reserved for future expansion
+ *
+ * @generated from message loco.deployment.v1.QueueDeploymentSpec
+ */
+export type QueueDeploymentSpecJson = {
+};
+
+/**
+ * Describes the message loco.deployment.v1.QueueDeploymentSpec.
+ * Use `create(QueueDeploymentSpecSchema)` to create a new message.
+ */
+export const QueueDeploymentSpecSchema: GenMessage<QueueDeploymentSpec, {jsonType: QueueDeploymentSpecJson}> = /*@__PURE__*/
+  messageDesc(file_deployment_v1_deployment, 8);
+
+/**
+ * DeploymentSpec is the immutable runtime snapshot for a deployment.
+ * Uses oneof to support different resource types.
+ *
+ * @generated from message loco.deployment.v1.DeploymentSpec
+ */
+export type DeploymentSpec = Message<"loco.deployment.v1.DeploymentSpec"> & {
+  /**
+   * @generated from oneof loco.deployment.v1.DeploymentSpec.spec
+   */
+  spec: {
+    /**
+     * @generated from field: loco.deployment.v1.ServiceDeploymentSpec service = 1;
+     */
+    value: ServiceDeploymentSpec;
+    case: "service";
+  } | {
+    /**
+     * @generated from field: loco.deployment.v1.DatabaseDeploymentSpec database = 2;
+     */
+    value: DatabaseDeploymentSpec;
+    case: "database";
+  } | {
+    /**
+     * @generated from field: loco.deployment.v1.CacheDeploymentSpec cache = 3;
+     */
+    value: CacheDeploymentSpec;
+    case: "cache";
+  } | {
+    /**
+     * @generated from field: loco.deployment.v1.QueueDeploymentSpec queue = 4;
+     */
+    value: QueueDeploymentSpec;
+    case: "queue";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * DeploymentSpec is the immutable runtime snapshot for a deployment.
+ * Uses oneof to support different resource types.
+ *
+ * @generated from message loco.deployment.v1.DeploymentSpec
+ */
+export type DeploymentSpecJson = {
+  /**
+   * @generated from field: loco.deployment.v1.ServiceDeploymentSpec service = 1;
+   */
+  service?: ServiceDeploymentSpecJson;
+
+  /**
+   * @generated from field: loco.deployment.v1.DatabaseDeploymentSpec database = 2;
+   */
+  database?: DatabaseDeploymentSpecJson;
+
+  /**
+   * @generated from field: loco.deployment.v1.CacheDeploymentSpec cache = 3;
+   */
+  cache?: CacheDeploymentSpecJson;
+
+  /**
+   * @generated from field: loco.deployment.v1.QueueDeploymentSpec queue = 4;
+   */
+  queue?: QueueDeploymentSpecJson;
 };
 
 /**
@@ -345,7 +597,7 @@ export type DeploymentSpecJson = {
  * Use `create(DeploymentSpecSchema)` to create a new message.
  */
 export const DeploymentSpecSchema: GenMessage<DeploymentSpec, {jsonType: DeploymentSpecJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 4);
+  messageDesc(file_deployment_v1_deployment, 9);
 
 /**
  * Deployment represents a resource deployment (immutable, single-region).
@@ -526,7 +778,7 @@ export type DeploymentJson = {
  * Use `create(DeploymentSchema)` to create a new message.
  */
 export const DeploymentSchema: GenMessage<Deployment, {jsonType: DeploymentJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 5);
+  messageDesc(file_deployment_v1_deployment, 10);
 
 /**
  * CreateDeploymentRequest is the request to create a new deployment.
@@ -577,7 +829,7 @@ export type CreateDeploymentRequestJson = {
  * Use `create(CreateDeploymentRequestSchema)` to create a new message.
  */
 export const CreateDeploymentRequestSchema: GenMessage<CreateDeploymentRequest, {jsonType: CreateDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 6);
+  messageDesc(file_deployment_v1_deployment, 11);
 
 /**
  * CreateDeploymentResponse is the response from creating a deployment.
@@ -618,7 +870,7 @@ export type CreateDeploymentResponseJson = {
  * Use `create(CreateDeploymentResponseSchema)` to create a new message.
  */
 export const CreateDeploymentResponseSchema: GenMessage<CreateDeploymentResponse, {jsonType: CreateDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 7);
+  messageDesc(file_deployment_v1_deployment, 12);
 
 /**
  * GetDeploymentRequest is the request to retrieve a deployment.
@@ -649,7 +901,7 @@ export type GetDeploymentRequestJson = {
  * Use `create(GetDeploymentRequestSchema)` to create a new message.
  */
 export const GetDeploymentRequestSchema: GenMessage<GetDeploymentRequest, {jsonType: GetDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 8);
+  messageDesc(file_deployment_v1_deployment, 13);
 
 /**
  * GetDeploymentResponse is the response containing deployment information.
@@ -680,7 +932,7 @@ export type GetDeploymentResponseJson = {
  * Use `create(GetDeploymentResponseSchema)` to create a new message.
  */
 export const GetDeploymentResponseSchema: GenMessage<GetDeploymentResponse, {jsonType: GetDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 9);
+  messageDesc(file_deployment_v1_deployment, 14);
 
 /**
  * ListDeploymentsRequest is the request to list deployments.
@@ -731,7 +983,7 @@ export type ListDeploymentsRequestJson = {
  * Use `create(ListDeploymentsRequestSchema)` to create a new message.
  */
 export const ListDeploymentsRequestSchema: GenMessage<ListDeploymentsRequest, {jsonType: ListDeploymentsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 10);
+  messageDesc(file_deployment_v1_deployment, 15);
 
 /**
  * ListDeploymentsResponse is the response containing deployment list.
@@ -772,7 +1024,7 @@ export type ListDeploymentsResponseJson = {
  * Use `create(ListDeploymentsResponseSchema)` to create a new message.
  */
 export const ListDeploymentsResponseSchema: GenMessage<ListDeploymentsResponse, {jsonType: ListDeploymentsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 11);
+  messageDesc(file_deployment_v1_deployment, 16);
 
 /**
  * StreamDeploymentRequest is the request to stream deployment events.
@@ -803,7 +1055,7 @@ export type StreamDeploymentRequestJson = {
  * Use `create(StreamDeploymentRequestSchema)` to create a new message.
  */
 export const StreamDeploymentRequestSchema: GenMessage<StreamDeploymentRequest, {jsonType: StreamDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 12);
+  messageDesc(file_deployment_v1_deployment, 17);
 
 /**
  * DeploymentEvent represents a deployment event.
@@ -874,7 +1126,7 @@ export type DeploymentEventJson = {
  * Use `create(DeploymentEventSchema)` to create a new message.
  */
 export const DeploymentEventSchema: GenMessage<DeploymentEvent, {jsonType: DeploymentEventJson}> = /*@__PURE__*/
-  messageDesc(file_deployment_v1_deployment, 13);
+  messageDesc(file_deployment_v1_deployment, 18);
 
 /**
  * DeploymentPhase indicates the current state of a deployment lifecycle.

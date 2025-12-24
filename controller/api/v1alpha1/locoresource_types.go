@@ -78,17 +78,6 @@ type TracingSpec struct {
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
-// DeploymentSpec contains everything to run a deployment
-type DeploymentSpec struct {
-	Image          string `json:"image,omitempty"`
-	Port           int32  `json:"port,omitempty"`
-	DockerfilePath string `json:"dockerfilePath,omitempty"`
-	BuildType      string `json:"buildType,omitempty"` // docker, buildpack, etc
-
-	HealthCheck *HealthCheckSpec  `json:"healthCheck,omitempty"`
-	Env         map[string]string `json:"env,omitempty"`
-}
-
 // DomainSpec contains domain config
 type DomainSpec struct {
 	Domain           string `json:"domain"`                 // full domain name
@@ -108,24 +97,86 @@ type RoutingSpec struct {
 }
 
 // LocoResourceSpec defines the desired state of LocoResource
+// Uses a type discriminator with type-specific specs to support multiple resource types
 type LocoResourceSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	// The following markers will use OpenAPI v3 schema to validate the value
 	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
 
-	Type        string `json:"type,omitempty"`        // SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB
-	ResourceId  int64  `json:"resourceId,omitempty"`  // optional
-	WorkspaceID int64  `json:"workspaceId,omitempty"` // optional
+	// Type indicates the resource type (SERVICE, DATABASE, CACHE, QUEUE, BLOB)
+	// Only the corresponding TypeSpec field should be populated
+	Type        string `json:"type"`                 // SERVICE, DATABASE, CACHE, QUEUE, BLOB
+	ResourceId  int64  `json:"resourceId,omitempty"` // optional
+	WorkspaceID int64  `json:"workspaceId,omitempty"`
 
+	// Type-specific specs (only one populated based on Type)
+	ServiceSpec  *ServiceResourceSpec  `json:"serviceSpec,omitempty"`
+	DatabaseSpec *DatabaseResourceSpec `json:"databaseSpec,omitempty"`
+	CacheSpec    *CacheResourceSpec    `json:"cacheSpec,omitempty"`
+	QueueSpec    *QueueResourceSpec    `json:"queueSpec,omitempty"`
+	BlobSpec     *BlobResourceSpec     `json:"blobSpec,omitempty"`
+}
+
+// ServiceResourceSpec contains service-specific deployment and resource configuration
+type ServiceResourceSpec struct {
 	// Deployment info (current or requested)
-	Deployment *DeploymentSpec `json:"deployment,omitempty"`
+	Deployment *ServiceDeploymentSpec `json:"deployment,omitempty"`
 
-	// Resources (CPU, Memory, Replicas, Scalers)
+	// Resources (CPU, Memory, Replicas, Scalers) - global defaults
 	Resources *ResourcesSpec `json:"resources,omitempty"`
 
-	// Routing configuration (port, domain, etc)
+	// Routing configuration (port, domain, subdomain, etc)
 	Routing *RoutingSpec `json:"routing,omitempty"`
+
+	// Observability configuration (logging, metrics, tracing)
+	Obs *ObsSpec `json:"obs,omitempty"`
+}
+
+// ServiceDeploymentSpec contains service deployment-specific configuration
+type ServiceDeploymentSpec struct {
+	Image          string `json:"image,omitempty"`
+	Port           int32  `json:"port,omitempty"`
+	DockerfilePath string `json:"dockerfilePath,omitempty"`
+	BuildType      string `json:"buildType,omitempty"` // docker, buildpack, etc
+
+	// Resource requests (defaults from resource if omitted)
+	CPU    string `json:"cpu,omitempty"`
+	Memory string `json:"memory,omitempty"`
+
+	// Replica configuration (defaults from resource if omitted)
+	MinReplicas int32 `json:"minReplicas,omitempty"`
+	MaxReplicas int32 `json:"maxReplicas,omitempty"`
+
+	// Autoscaling (defaults from resource if omitted)
+	Scalers *ScalersSpec `json:"scalers,omitempty"`
+
+	HealthCheck *HealthCheckSpec  `json:"healthCheck,omitempty"`
+	Env         map[string]string `json:"env,omitempty"`
+}
+
+// DatabaseResourceSpec is a placeholder for future DATABASE type resources
+type DatabaseResourceSpec struct {
+	// TODO: Add when implementing database support
+	// Engine      string `json:"engine,omitempty"`      // "postgres", "mysql"
+	// Version     string `json:"version,omitempty"`     // "15"
+	// Storage     *StorageSpec `json:"storage,omitempty"`
+	// Replication *ReplicationSpec `json:"replication,omitempty"`
+}
+
+// CacheResourceSpec is a placeholder for future CACHE type resources
+type CacheResourceSpec struct {
+	// TODO: Add when implementing cache support
+}
+
+// QueueResourceSpec is a placeholder for future QUEUE type resources
+type QueueResourceSpec struct {
+	// TODO: Add when implementing queue support
+}
+
+// BlobResourceSpec is a placeholder for future BLOB type resources
+type BlobResourceSpec struct {
+	// TODO: Add when implementing blob storage support
 }
 
 // LocoResourceStatus defines the observed state of LocoResource.

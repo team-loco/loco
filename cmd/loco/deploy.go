@@ -253,7 +253,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 		}
 
 		// convert config to ResourceSpec (v1 schema)
-		resourceSpec, err := config.ConfigToResourceSpec(loadedCfg.Config, "v1")
+		resourceSpec, err := configToResourceSpec(loadedCfg.Config, "v1")
 		if err != nil {
 			return fmt.Errorf("failed to convert config to resource spec: %w", err)
 		}
@@ -404,10 +404,48 @@ func deployApp(ctx context.Context,
 	logf func(string),
 	wait bool,
 ) error {
-	// convert config to DeploymentSpec (v1 schema)
-	deploymentSpec, err := config.ConfigToDeploymentSpec(cfg, "v1", imageName)
-	if err != nil {
-		return fmt.Errorf("failed to convert config to deployment spec: %w", err)
+	buildSource := &deploymentv1.BuildSource{
+		Type:           cfg.Build.Type,
+		Image:          imageName,
+		DockerfilePath: &cfg.Build.DockerfilePath,
+	}
+
+	healthCheck := &deploymentv1.HealthCheckConfig{
+		Path:                cfg.Health.Path,
+		InitialDelaySeconds: cfg.Health.StartupGracePeriod,
+		IntervalSeconds:     cfg.Health.Interval,
+		TimeoutSeconds:      cfg.Health.Timeout,
+		FailureThreshold:    cfg.Health.FailThreshold,
+	}
+
+	// get primary region for resource defaults
+	primaryRegion := cfg.RegionConfig[cfg.PrimaryRegion]
+
+	var scalers *deploymentv1.Scalers
+	if primaryRegion.EnableAutoScaling {
+		scalers = &deploymentv1.Scalers{
+			Enabled:      true,
+			CpuTarget:    &primaryRegion.CPUTarget,
+			MemoryTarget: &primaryRegion.ScalersMemTarget,
+		}
+	}
+
+	serviceDeploymentSpec := &deploymentv1.ServiceDeploymentSpec{
+		Build:       buildSource,
+		HealthCheck: healthCheck,
+		Port:        cfg.Routing.Port,
+		Cpu:         &primaryRegion.CPU,
+		Memory:      &primaryRegion.Memory,
+		MinReplicas: &primaryRegion.ReplicasMin,
+		MaxReplicas: &primaryRegion.ReplicasMax,
+		Scalers:     scalers,
+		Region:      cfg.PrimaryRegion,
+	}
+
+	deploymentSpec := &deploymentv1.DeploymentSpec{
+		Spec: &deploymentv1.DeploymentSpec_Service{
+			Service: serviceDeploymentSpec,
+		},
 	}
 
 	createDeploymentReq := connect.NewRequest(&deploymentv1.CreateDeploymentRequest{

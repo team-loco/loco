@@ -6,6 +6,7 @@ import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 import "domain/v1/domain.proto";
+import "deployment/v1/deployment.proto";
 
 option go_package = "github.com/loco-team/loco/shared/proto/resource/v1;resourcev1";
 
@@ -118,21 +119,53 @@ message ObservabilityConfig {
 
 // RegionTarget defines the desired state for a specific region.
 message RegionTarget {
-  bool           enabled      = 1;
-  bool           primary      = 2;
-  string         cpu          = 3; // e.g., "100m"
-  string         memory       = 4; // e.g., "256Mi"
-  int32          min_replicas = 5;
-  int32          max_replicas = 6;
-  optional int32 target_cpu   = 7; // percentage (0-100)
+  bool                          enabled      = 1;
+  bool                          primary      = 2;
+  string                        cpu          = 3; // e.g., "100m"
+  string                        memory       = 4; // e.g., "256Mi"
+  int32                         min_replicas = 5;
+  int32                         max_replicas = 6;
+  optional loco.deployment.v1.Scalers scalers = 7; // autoscaling config
+}
+
+// ServiceSpec is the resource specification for SERVICE type resources.
+message ServiceSpec {
+  RoutingConfig                       routing       = 1;
+  ObservabilityConfig                 observability = 2;
+  map<string, RegionTarget>           regions       = 3; // key = region name
+  optional loco.deployment.v1.HealthCheckConfig health_check = 4; // health check defaults
+}
+
+// DatabaseSpec is a placeholder for DATABASE type resources (future implementation).
+message DatabaseSpec {
+  // reserved for future expansion
+}
+
+// CacheSpec is a placeholder for CACHE type resources (future implementation).
+message CacheSpec {
+  // reserved for future expansion
+}
+
+// QueueSpec is a placeholder for QUEUE type resources (future implementation).
+message QueueSpec {
+  // reserved for future expansion
+}
+
+// BlobSpec is a placeholder for BLOB type resources (future implementation).
+message BlobSpec {
+  // reserved for future expansion
 }
 
 // ResourceSpec defines the global infrastructure intent for a resource.
+// Uses oneof to support different resource types.
 message ResourceSpec {
-  string                    type          = 1; // SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB
-  RoutingConfig             routing       = 2;
-  ObservabilityConfig       observability = 3;
-  map<string, RegionTarget> regions       = 4; // key = region name
+  oneof spec {
+    ServiceSpec   service   = 1;
+    DatabaseSpec  database  = 2;
+    CacheSpec     cache     = 3;
+    QueueSpec     queue     = 4;
+    BlobSpec      blob      = 5;
+  }
 }
 
 // Resource represents a resource in a workspace.

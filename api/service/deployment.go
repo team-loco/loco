@@ -18,6 +18,7 @@ import (
 	"github.com/loco-team/loco/api/pkg/kube"
 	timeutil "github.com/loco-team/loco/api/timeutil"
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
+	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -84,20 +85,27 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
 	}
 
-	if r.Spec.Build == nil || r.Spec.Build.Image == "" {
+	// validate that request spec contains a service deployment (for now, only services are supported)
+	if r.Spec.GetService() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service deployments are currently supported"))
+	}
+
+	serviceSpec := r.Spec.GetService()
+
+	if serviceSpec.Build == nil || serviceSpec.Build.Image == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("image is required"))
 	}
 
-	if r.Spec.Port < 1 {
+	if serviceSpec.Port < 1 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidPort)
 	}
 
-	if !imagePattern.MatchString(r.Spec.Build.Image) {
-		slog.WarnContext(ctx, "invalid image format", "image", r.Spec.Build.Image)
+	if !imagePattern.MatchString(serviceSpec.Build.Image) {
+		slog.WarnContext(ctx, "invalid image format", "image", serviceSpec.Build.Image)
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidImage)
 	}
 
-	replicas := r.Spec.GetMinReplicas()
+	replicas := serviceSpec.GetMinReplicas()
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
@@ -127,17 +135,46 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active clusters available: %w", err))
 	}
 
+	// deserialize resource spec and merge with request spec
+	// this is the API's single source of truth for deployment defaults
+	var mergedSpec *deploymentv1.DeploymentSpec
+
+	if len(resource.Spec) > 0 {
+		resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", err))
+		}
+
+		mergedSpec, err = converter.MergeDeploymentSpec(resourceSpec, r.Spec)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to merge deployment spec with resource defaults", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", err))
+		}
+	} else {
+		// no resource spec, use request spec as-is
+		mergedSpec = r.Spec
+	}
+
 	// create spec copy without env for DB persistence (no plaintext secrets in DB)
-	specForDB := &deploymentv1.DeploymentSpec{
-		Build:       r.Spec.Build,
-		HealthCheck: r.Spec.HealthCheck,
-		Cpu:         r.Spec.Cpu,
-		Memory:      r.Spec.Memory,
-		MinReplicas: r.Spec.MinReplicas,
-		MaxReplicas: r.Spec.MaxReplicas,
-		TargetCpu:   r.Spec.TargetCpu,
-		Port:        r.Spec.Port,
+	mergedServiceSpec := mergedSpec.GetService()
+	specForDBService := &deploymentv1.ServiceDeploymentSpec{
+		Build:       mergedServiceSpec.Build,
+		HealthCheck: mergedServiceSpec.HealthCheck,
+		Cpu:         mergedServiceSpec.Cpu,
+		Memory:      mergedServiceSpec.Memory,
+		MinReplicas: mergedServiceSpec.MinReplicas,
+		MaxReplicas: mergedServiceSpec.MaxReplicas,
+		Scalers:     mergedServiceSpec.Scalers,
+		Port:        mergedServiceSpec.Port,
+		Region:      mergedServiceSpec.Region,
 		// Env intentionally omitted (as it can have sensitive information)
+	}
+
+	specForDB := &deploymentv1.DeploymentSpec{
+		Spec: &deploymentv1.DeploymentSpec_Service{
+			Service: specForDBService,
+		},
 	}
 
 	specJSON, err := json.Marshal(specForDB)
@@ -155,7 +192,7 @@ func (s *DeploymentServer) CreateDeployment(
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   cluster.ID,
-		Image:       r.Spec.Build.Image,
+		Image:       serviceSpec.Build.Image,
 		Replicas:    replicas,
 		Status:      genDb.DeploymentStatusPending,
 		IsActive:    true,
@@ -168,8 +205,8 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	// create LocoResource in loco-system namespace (pass spec WITH env to controller)
-	err = createLocoResource(ctx, s.kubeClient, resource, r.Spec, userID)
+	// create LocoResource in loco-system namespace (pass merged spec WITH env to controller)
+	err = createLocoResource(ctx, s.kubeClient, resource, mergedSpec, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
@@ -486,8 +523,49 @@ func createLocoResource(
 	spec *deploymentv1.DeploymentSpec,
 	createdBy int64,
 ) error {
+	// deserialize ResourceSpec from database
+	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err, "resource_id", resource.ID)
+		return fmt.Errorf("invalid resource spec: %w", err)
+	}
+
 	// convert proto to controller CRD types (includes all fields: image, replicas, cpu, memory, env, healthCheck, metrics, etc.)
-	crdDeploymentSpec := converter.ProtoToDeploymentSpec(spec, createdBy)
+	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec, createdBy)
+
+	// determine resource type and build type-specific spec
+	var locoResourceSpec locoControllerV1.LocoResourceSpec
+	locoResourceSpec.ResourceId = resource.ID
+	locoResourceSpec.WorkspaceID = resource.WorkspaceID
+
+	switch specType := resourceSpec.Spec.(type) {
+	case *resourcev1.ResourceSpec_Service:
+		locoResourceSpec.Type = "SERVICE"
+		resourcesSpec, err := buildResourcesSpecFromServiceSpec(specType.Service)
+		if err != nil {
+			return fmt.Errorf("failed to build resources spec: %w", err)
+		}
+		locoResourceSpec.ServiceSpec = &locoControllerV1.ServiceResourceSpec{
+			Deployment: crdServiceDeploymentSpec,
+			Resources:  resourcesSpec,
+			Obs:        converter.ProtoToObsSpec(specType.Service.GetObservability()),
+		}
+
+	case *resourcev1.ResourceSpec_Database:
+		// TODO: implement database resource type
+		return fmt.Errorf("database resource type not yet implemented")
+	case *resourcev1.ResourceSpec_Cache:
+		// TODO: implement cache resource type
+		return fmt.Errorf("cache resource type not yet implemented")
+	case *resourcev1.ResourceSpec_Queue:
+		// TODO: implement queue resource type
+		return fmt.Errorf("queue resource type not yet implemented")
+	case *resourcev1.ResourceSpec_Blob:
+		// TODO: implement blob resource type
+		return fmt.Errorf("blob resource type not yet implemented")
+	default:
+		return fmt.Errorf("unknown or unset resource spec type")
+	}
 
 	// build LocoResource
 	locoRes := &locoControllerV1.LocoResource{
@@ -496,12 +574,7 @@ func createLocoResource(
 			Namespace: "loco-system",
 			Labels:    map[string]string{},
 		},
-		Spec: locoControllerV1.LocoResourceSpec{
-			ResourceId:  resource.ID,
-			WorkspaceID: resource.WorkspaceID,
-			Type:        "SERVICE",
-			Deployment:  crdDeploymentSpec,
-		},
+		Spec: locoResourceSpec,
 	}
 
 	// create the LocoResource
@@ -511,4 +584,50 @@ func createLocoResource(
 	}
 
 	return nil
+}
+
+// buildResourcesSpecFromServiceSpec extracts ResourcesSpec from ServiceSpec defaults
+// This extracts the default resource configuration (CPU, Memory, Replicas, Scalers)
+// which can be overridden at deployment time via DeploymentSpec
+func buildResourcesSpecFromServiceSpec(serviceSpec *resourcev1.ServiceSpec) (*locoControllerV1.ResourcesSpec, error) {
+	if serviceSpec == nil {
+		return nil, fmt.Errorf("service spec is required")
+	}
+
+	// NOTE: Observability settings (Logging, Metrics, Tracing) from ServiceSpec are currently
+	// not propagated to the controller. They can be added to LocoResourceSpec if needed.
+
+	// Get the primary region to extract default resources
+	var primaryRegion *resourcev1.RegionTarget
+	for _, region := range serviceSpec.GetRegions() {
+		if region.Primary {
+			primaryRegion = region
+			break
+		}
+	}
+
+	if primaryRegion == nil {
+		return nil, fmt.Errorf("primary region not found in service spec")
+	}
+
+	// Build ResourcesSpec from primary region defaults
+	resourcesSpec := &locoControllerV1.ResourcesSpec{
+		CPU:    primaryRegion.Cpu,
+		Memory: primaryRegion.Memory,
+		Replicas: locoControllerV1.ReplicasSpec{
+			Min: primaryRegion.MinReplicas,
+			Max: primaryRegion.MaxReplicas,
+		},
+	}
+
+	// Add scalers if configured
+	if primaryRegion.Scalers != nil {
+		resourcesSpec.Scalers = locoControllerV1.ScalersSpec{
+			Enabled:      primaryRegion.Scalers.GetEnabled(),
+			CPUTarget:    primaryRegion.Scalers.GetCpuTarget(),
+			MemoryTarget: primaryRegion.Scalers.GetMemoryTarget(),
+		}
+	}
+
+	return resourcesSpec, nil
 }

@@ -422,3 +422,6 @@ clickhouse is named weirdly and so is our controller.
 - resourcespec needs to be different per type of resoure. the current one works specifically for services.
 - what is this locoresourcespec man.
 - whenever we crud on any resource, we should just return the id. not the resource itself. it can be requiried to fetch the data.
+- owner reference?
+- cmd/deploy.go has become lost in the sauce. we need to clean it up.
+- do we need tls in-cluster communication?
