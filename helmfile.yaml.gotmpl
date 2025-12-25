@@ -76,6 +76,7 @@ releases:
         value: true
     values:
       - ./charts/loco-controller/values.yaml
+      - env/{{ .Environment.Name }}-controller.yaml.gotmpl
 
 
   # phase 3: observability

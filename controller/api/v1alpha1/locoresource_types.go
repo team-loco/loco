@@ -91,7 +91,6 @@ type DomainSpec struct {
 type RoutingSpec struct {
 	Subdomain   string      `json:"subdomain"`
 	PathPrefix  string      `json:"pathPrefix,omitempty"`
-	Port        int32       `json:"port"`
 	IdleTimeout int32       `json:"idleTimeout,omitempty"` // seconds
 	Domain      *DomainSpec `json:"domain,omitempty"`      // custom or platform-managed domain
 }
