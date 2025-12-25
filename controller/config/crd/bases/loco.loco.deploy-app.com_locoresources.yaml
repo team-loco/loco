@@ -216,13 +216,9 @@ spec:
                         type: integer
                       pathPrefix:
                         type: string
-                      port:
-                        format: int32
-                        type: integer
                       subdomain:
                         type: string
                     required:
-                    - port
                     - subdomain
                     type: object
                 type: object

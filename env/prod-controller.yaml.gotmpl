@@ -1,0 +1,11 @@
+environment: prod-controller
+manager:
+  env:
+    - name: GITLAB_URL
+      value: {{ requiredEnv "GITLAB_URL" }}
+    - name: GITLAB_PAT
+      value: {{ requiredEnv "GITLAB_PAT" }}
+    - name: GITLAB_PROJECT_ID
+      value: {{ requiredEnv "GITLAB_PROJECT_ID" }}
+    - name: GITLAB_REGISTRY_URL
+      value: {{ requiredEnv "GITLAB_REGISTRY_URL" }}
