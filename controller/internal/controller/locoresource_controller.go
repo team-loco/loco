@@ -231,7 +231,12 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	r.startSecretRefresherGoroutine(ctx, &locoRes)
 
 	slog.InfoContext(ctx, "reconcile complete", "phase", status.Phase)
-	return ctrl.Result{RequeueAfter: 15 * time.Second}, nil
+	if status.Phase == "Deploying" {
+		// requeue faster while deployment is rolling out
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
+	// Otherwise, rely on watch events
+	return ctrl.Result{}, nil
 }
 
 // handleDeletion cancels the secret refresher goroutine, deletes the namespace, and removes the finalizer
