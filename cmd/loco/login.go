@@ -157,7 +157,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		if finalM.tokenResp != nil {
-			slog.Debug("received auth token from github oauth", "token", finalM.tokenResp.AccessToken)
+			slog.Debug("received auth token from github oauth")
 		}
 
 		if finalM.tokenResp == nil {
