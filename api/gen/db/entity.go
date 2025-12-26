@@ -40,7 +40,7 @@ func EntityScopesFromUserScopes(uss []UserScope) []EntityScope {
 	return ess
 }
 
-type Scope string
+type Scope = string
 
 const (
 	ScopeRead  Scope = "read"
