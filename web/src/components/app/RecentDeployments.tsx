@@ -52,18 +52,6 @@ export function RecentDeployments({
 		}
 	};
 
-	const parseCPU = (cpu: string): number => {
-		if (!cpu) return 0;
-		const value = parseInt(cpu);
-		return isNaN(value) ? 0 : value;
-	};
-
-	const parseMemory = (memory: string): number => {
-		if (!memory) return 0;
-		const value = parseInt(memory);
-		return isNaN(value) ? 0 : value;
-	};
-
 	const getPhaseColor = (phase: number): string => {
 		const colorMap: Record<number, string> = {
 			0: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
@@ -177,16 +165,22 @@ export function RecentDeployments({
 										className="bg-background/30"
 									>
 										<TableCell colSpan={6}>
-											<div className="p-4 space-y-2">
+											<div className="p-4 space-y-3">
+												<div>
+													<p className="text-xs text-foreground opacity-60 uppercase">
+														ID
+													</p>
+													<p className="text-sm font-mono">{deployment.id}</p>
+												</div>
+												<div>
+													<p className="text-xs text-foreground opacity-60 uppercase">
+														Image
+													</p>
+													<p className="text-sm font-mono break-all">
+														{deployment.image || "—"}
+													</p>
+												</div>
 												<div className="grid grid-cols-2 gap-4">
-													<div>
-														<p className="text-xs text-foreground opacity-60 uppercase">
-															ID
-														</p>
-														<p className="text-sm font-mono">
-															{String(deployment.id).slice(0, 8)}...
-														</p>
-													</div>
 													<div>
 														<p className="text-xs text-foreground opacity-60 uppercase">
 															Replicas
