@@ -9,14 +9,16 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
-// ExchangeGithub exchanges a GitHub token for a TVM token.
-func (tvm *VendingMachine) ExchangeGithub(ctx context.Context, githubToken string) (string, error) {
+// EmailProvider returns the email associated with an external provider (e.g. email from github token).
+type EmailProvider func(ctx context.Context, token string) (string, error)
+
+func GithubProvider(ctx context.Context, token string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", nil)
 	if err != nil {
 		slog.Error("github token exchange: new request", "error", err)
 		return "", ErrGithubExchange
 	}
-	req.Header.Set("Authorization", "Bearer "+githubToken)
+	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Add("Accept", "application/vnd.github+json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -42,14 +44,23 @@ func (tvm *VendingMachine) ExchangeGithub(ctx context.Context, githubToken strin
 		return "", ErrGithubExchange
 	}
 
-	// look up the user by email
-	userScopes, err := tvm.queries.GetUserScopesByEmail(ctx, guResp.Email)
+	return guResp.Email, nil
+}
+
+func (tvm *VendingMachine) Exchange(ctx context.Context, emailProvider EmailProvider, token string) (string, error) {
+	email, err := emailProvider(ctx, token)
 	if err != nil {
-		slog.Error("github token exchange: get user by email", "email", guResp.Email, "error", err)
+		return "", err
+	}
+
+	// look up the user by email
+	userScopes, err := tvm.queries.GetUserScopesByEmail(ctx, email)
+	if err != nil {
+		slog.Error("github token exchange: get user by email", "email", email, "error", err)
 		return "", ErrUserNotFound
 	}
 	if len(userScopes) == 0 { // either user not found or has no scopes
-		slog.Error("github token exchange: user not found or has no scopes", "email", guResp.Email)
+		slog.Error("github token exchange: user not found or has no scopes", "email", email)
 		return "", ErrUserNotFound
 	}
 	userID := userScopes[0].UserID

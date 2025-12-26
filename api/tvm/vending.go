@@ -2,7 +2,6 @@ package tvm
 
 import (
 	"context"
-	"os"
 	"slices"
 	"time"
 
@@ -11,9 +10,20 @@ import (
 )
 
 // todo config
+
+// Queries is the interface of queries that the Token Vending Machine relies on.
+// Usually, *queries.Queries or a fake test database.
+type Queries interface {
+	GetUserScopes(ctx context.Context, userID int64) ([]queries.UserScope, error)
+	StoreToken(ctx context.Context, arg queries.StoreTokenParams) error
+	GetToken(ctx context.Context, token string) (queries.GetTokenRow, error)
+	GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error)
+	GetWorkspaceOrganizationIDByAppID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByAppIDRow, error)
+	GetUserScopesByEmail(ctx context.Context, email string) ([]queries.UserScope, error)
+}
+
 type VendingMachine struct {
-	queries *queries.Queries
-	secret  []byte
+	queries Queries
 	cfg     Config
 }
 
@@ -68,7 +78,7 @@ func (tvm *VendingMachine) issueNoCheck(ctx context.Context, entity queries.Enti
 	return tks, nil
 }
 
-func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, entityScope queries.EntityScope) error {
+func (tvm *VendingMachine) Verify(ctx context.Context, token string, entityScope queries.EntityScope) error {
 	tokenData, err := tvm.queries.GetToken(ctx, token)
 	if err != nil {
 		return ErrTokenNotFound
@@ -92,7 +102,7 @@ func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, entit
 	// not so hot path: if the token has an entityScope that is *implied*
 	var otherEntityScopes []queries.EntityScope
 	switch entityScope.Entity.Type {
-	case queries.EntityTypeOrganization:
+	case queries.EntityTypeOrganization, queries.EntityTypeUser:
 		return ErrInsufficentPermissions // there is nothing higher to check. if doesn't have org or sys permissions for scope on an org, you don't have enough perms.
 	case queries.EntityTypeWorkspace:
 		// lookup the org id for the workspace
@@ -154,14 +164,9 @@ func (tvm *VendingMachine) VerifyAccess(ctx context.Context, token string, entit
 	return ErrInsufficentPermissions
 }
 
-func NewVendingMachine(queries *queries.Queries, cfg Config) *VendingMachine {
-	secret := os.Getenv("JWT_SECRET")
-	if len(secret) == 0 {
-		panic("JWT_SECRET not set")
-	}
+func NewVendingMachine(queries Queries, cfg Config) *VendingMachine {
 	return &VendingMachine{
 		queries: queries,
-		secret:  []byte(secret),
 		cfg:     cfg,
 	}
 }
