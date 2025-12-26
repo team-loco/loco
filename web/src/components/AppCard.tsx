@@ -22,7 +22,7 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 	const navigate = useNavigate();
 
 	const handleCardClick = () => {
-		navigate(`/resource/${app.id}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
+		navigate(`/app/${app.id}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
 	};
 
 	// Format app type for display

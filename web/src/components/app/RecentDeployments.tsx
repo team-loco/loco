@@ -9,9 +9,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import type { Deployment } from "@/gen/deployment/v1/deployment_pb";
+import {
+	DeploymentPhase,
+	type Deployment,
+} from "@/gen/deployment/v1/deployment_pb";
 import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 interface RecentDeploymentsProps {
 	deployments: Deployment[];
@@ -36,19 +39,43 @@ export function RecentDeployments({
 			} else {
 				return "unknown";
 			}
-			const now = new Date().getTime();
-			const diff = now - ms;
-			const hours = Math.floor(diff / (1000 * 60 * 60));
-			const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-			if (hours === 0) return "just now";
-			if (hours === 1) return "1h ago";
-			if (hours < 24) return `${hours}h ago`;
-			if (days === 1) return "1d ago";
-			return `${days}d ago`;
+			const date = new Date(ms);
+			return date.toLocaleDateString("en-US", {
+				month: "short",
+				day: "numeric",
+				hour: "2-digit",
+				minute: "2-digit",
+				hour12: true,
+			});
 		} catch {
 			return "unknown";
 		}
+	};
+
+	const parseCPU = (cpu: string): number => {
+		if (!cpu) return 0;
+		const value = parseInt(cpu);
+		return isNaN(value) ? 0 : value;
+	};
+
+	const parseMemory = (memory: string): number => {
+		if (!memory) return 0;
+		const value = parseInt(memory);
+		return isNaN(value) ? 0 : value;
+	};
+
+	const getPhaseColor = (phase: number): string => {
+		const colorMap: Record<number, string> = {
+			0: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+			1: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+			2: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+			3: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+			4: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+		};
+		return (
+			colorMap[phase] ||
+			"bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+		);
 	};
 
 	if (isLoading) {
@@ -68,7 +95,9 @@ export function RecentDeployments({
 					<CardTitle>Recent Deployments</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<p className="text-sm text-foreground opacity-70">No deployments yet</p>
+					<p className="text-sm text-foreground opacity-70">
+						No deployments yet
+					</p>
 				</CardContent>
 			</Card>
 		);
@@ -84,15 +113,16 @@ export function RecentDeployments({
 					<TableHeader>
 						<TableRow>
 							<TableHead></TableHead>
-							<TableHead>Image</TableHead>
+							<TableHead>Deployment ID</TableHead>
 							<TableHead>Status</TableHead>
+							<TableHead>Replicas</TableHead>
 							<TableHead>Created</TableHead>
 							<TableHead className="text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{deployments.map((deployment) => (
-							<div key={deployment.id}>
+							<React.Fragment key={deployment.id}>
 								<TableRow className="cursor-pointer hover:bg-background/50">
 									<TableCell
 										onClick={() =>
@@ -109,12 +139,18 @@ export function RecentDeployments({
 										)}
 									</TableCell>
 									<TableCell className="font-mono text-xs max-w-xs truncate">
-										{deployment.image?.split("/").pop() || "—"}
+										{deployment.id}
 									</TableCell>
 									<TableCell>
-										<Badge variant="secondary" className="text-xs">
-											{deployment.status || "unknown"}
+										<Badge
+											variant="outline"
+											className={`text-xs ${getPhaseColor(deployment.status)}`}
+										>
+											{DeploymentPhase[deployment.status]}
 										</Badge>
+									</TableCell>
+									<TableCell className="text-sm">
+										{deployment.replicas || "—"}
 									</TableCell>
 									<TableCell className="text-sm text-foreground opacity-70">
 										{formatTimestamp(deployment.createdAt)}
@@ -136,22 +172,19 @@ export function RecentDeployments({
 
 								{/* Expanded Details */}
 								{expandedId === deployment.id && (
-									<TableRow className="bg-background/30">
-										<TableCell colSpan={5}>
+									<TableRow
+										key={`${deployment.id}-expanded`}
+										className="bg-background/30"
+									>
+										<TableCell colSpan={6}>
 											<div className="p-4 space-y-2">
 												<div className="grid grid-cols-2 gap-4">
 													<div>
 														<p className="text-xs text-foreground opacity-60 uppercase">
 															ID
 														</p>
-														<p className="text-sm font-mono">{deployment.id}</p>
-													</div>
-													<div>
-														<p className="text-xs text-foreground opacity-60 uppercase">
-															Image
-														</p>
-														<p className="text-sm font-mono break-all">
-															{deployment.image}
+														<p className="text-sm font-mono">
+															{String(deployment.id).slice(0, 8)}...
 														</p>
 													</div>
 													<div>
@@ -166,26 +199,16 @@ export function RecentDeployments({
 														<p className="text-xs text-foreground opacity-60 uppercase">
 															Status
 														</p>
-														<p className="text-sm">{deployment.status}</p>
+														<p className="text-sm">
+															{DeploymentPhase[deployment.status]}
+														</p>
 													</div>
 												</div>
-
-												{/* Config Preview */}
-												{deployment.config && (
-													<div>
-														<p className="text-xs text-foreground opacity-60 uppercase mt-2">
-															Config
-														</p>
-														<pre className="text-xs bg-foreground/5 border border-border rounded p-2 mt-1 overflow-auto max-h-40">
-															{deployment.config}
-														</pre>
-													</div>
-												)}
 											</div>
 										</TableCell>
 									</TableRow>
 								)}
-							</div>
+							</React.Fragment>
 						))}
 					</TableBody>
 				</Table>

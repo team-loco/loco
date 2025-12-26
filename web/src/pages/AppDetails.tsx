@@ -98,7 +98,7 @@ export function AppDetails() {
 			{/* Deployment Status Card */}
 			<DeploymentStatusCard
 				appId={appId}
-				status={status}
+				deployment={deployments[0]}
 				isLoading={isLoading}
 			/>
 

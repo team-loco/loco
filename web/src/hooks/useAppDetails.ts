@@ -7,13 +7,19 @@ export function useAppDetails(appId: string) {
 		data: appRes,
 		isLoading: appLoading,
 		error: appError,
-	} = useQuery(getResource, appId ? { resourceId: BigInt(appId) } : undefined, { enabled: !!appId });
+	} = useQuery(getResource, appId ? { resourceId: BigInt(appId) } : undefined, {
+		enabled: !!appId,
+	});
 
 	const {
 		data: statusRes,
 		isLoading: statusLoading,
 		error: statusError,
-	} = useQuery(getResourceStatus, { resourceId: BigInt(appId) }, { enabled: !!appId });
+	} = useQuery(
+		getResourceStatus,
+		{ resourceId: BigInt(appId) },
+		{ enabled: !!appId }
+	);
 
 	const {
 		data: deploymentsRes,
@@ -21,7 +27,7 @@ export function useAppDetails(appId: string) {
 		error: deploymentsError,
 	} = useQuery(
 		listDeployments,
-		{ limit: 10, appId: BigInt(appId) },
+		{ limit: 10, resourceId: BigInt(appId) },
 		{ enabled: !!appId }
 	);
 

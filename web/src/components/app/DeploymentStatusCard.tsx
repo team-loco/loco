@@ -3,42 +3,33 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { scaleResource } from "@/gen/resource/v1";
-import type { DeploymentStatus } from "@/gen/resource/v1/resource_pb";
+import { DeploymentPhase, type Deployment } from "@/gen/deployment/v1/deployment_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
 
 interface DeploymentStatusCardProps {
 	appId: string;
-	status: DeploymentStatus | null;
+	deployment?: Deployment;
 	isLoading?: boolean;
 }
 
 export function DeploymentStatusCard({
 	appId,
-	status,
+	deployment,
 	isLoading = false,
 }: DeploymentStatusCardProps) {
 	const [isEditing, setIsEditing] = useState(false);
-	const [replicas, setReplicas] = useState(status?.replicas ?? 1);
-	const [cpu, setCpu] = useState(status?.resources?.limits?.cpu || "1000m");
-	const [memory, setMemory] = useState(
-		status?.resources?.limits?.memory || "512Mi"
-	);
+	const [replicas, setReplicas] = useState(deployment?.replicas ?? 1);
 
 	const scaleResourceMutation = useMutation(scaleResource);
 
-	const hasChanges =
-		replicas !== status?.replicas ||
-		cpu !== status?.resources?.limits?.cpu ||
-		memory !== status?.resources?.limits?.memory;
+	const hasChanges = replicas !== deployment?.replicas;
 
 	const handleApply = async () => {
 		try {
 			await scaleResourceMutation.mutateAsync({
-				resourceId: appId,
+				resourceId: BigInt(appId),
 				replicas,
-				cpu,
-				memory,
 			});
 			setIsEditing(false);
 		} catch (error) {
@@ -57,11 +48,9 @@ export function DeploymentStatusCard({
 		);
 	}
 
-	if (!status) {
+	if (!deployment) {
 		return null;
 	}
-
-
 
 	return (
 		<Card className="border-2">
@@ -86,15 +75,8 @@ export function DeploymentStatusCard({
 					<div className="flex items-center justify-between">
 						<span className="text-sm font-medium text-foreground">Status</span>
 						<Badge variant="secondary" className="bg-blue-100">
-							{status.status || "unknown"}
+							{DeploymentPhase[deployment.status] || "unknown"}
 						</Badge>
-					</div>
-
-					<div className="flex items-center justify-between">
-						<span className="text-sm font-medium text-foreground">Image</span>
-						<span className="text-xs text-foreground opacity-70 font-mono">
-							{status.image?.substring(0, 20)}...
-						</span>
 					</div>
 
 					<div className="flex items-center justify-between">
@@ -102,43 +84,8 @@ export function DeploymentStatusCard({
 							Replicas
 						</span>
 						<span className="text-sm font-mono">
-							{status.replicas}/{status.replicas}
+							{deployment.replicas}/{deployment.replicas}
 						</span>
-					</div>
-				</div>
-
-				{/* Resource Usage */}
-				<div className="space-y-3 border-t border-border pt-4">
-					<div>
-						<div className="flex justify-between mb-2">
-							<span className="text-sm font-medium text-foreground">CPU</span>
-							<span className="text-xs text-foreground opacity-60">
-								450m / {status.resources?.limits?.cpu || "1000m"}
-							</span>
-						</div>
-						<div className="w-full bg-background border-2 border-border rounded h-2">
-							<div
-								className="bg-main h-full rounded"
-								style={{ width: "45%" }}
-							></div>
-						</div>
-					</div>
-
-					<div>
-						<div className="flex justify-between mb-2">
-							<span className="text-sm font-medium text-foreground">
-								Memory
-							</span>
-							<span className="text-xs text-foreground opacity-60">
-								256Mi / {status.resources?.limits?.memory || "512Mi"}
-							</span>
-						</div>
-						<div className="w-full bg-background border-2 border-border rounded h-2">
-							<div
-								className="bg-main h-full rounded"
-								style={{ width: "50%" }}
-							></div>
-						</div>
 					</div>
 				</div>
 
@@ -156,30 +103,6 @@ export function DeploymentStatusCard({
 								value={replicas}
 								onChange={(e) => setReplicas(parseInt(e.target.value) || 1)}
 								className="mt-1"
-							/>
-						</div>
-
-						<div>
-							<label className="text-sm font-medium text-foreground">
-								CPU (e.g., 1000m)
-							</label>
-							<Input
-								type="text"
-								value={cpu}
-								onChange={(e) => setCpu(e.target.value)}
-								className="mt-1 font-mono text-sm"
-							/>
-						</div>
-
-						<div>
-							<label className="text-sm font-medium text-foreground">
-								Memory (e.g., 512Mi)
-							</label>
-							<Input
-								type="text"
-								value={memory}
-								onChange={(e) => setMemory(e.target.value)}
-								className="mt-1 font-mono text-sm"
 							/>
 						</div>
 

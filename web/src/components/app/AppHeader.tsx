@@ -51,7 +51,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 						<StatusBadge status={statusLabel} />
 					</div>
 					<p className="text-sm text-foreground opacity-70">
-						{app.namespace || "default"}
+						{app.name || "default"}
 					</p>
 				</div>
 			</div>
