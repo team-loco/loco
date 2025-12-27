@@ -151,7 +151,7 @@ func TestingGithubProvider(ctx context.Context, token string) (string, error) {
 	return "", tvm.ErrUserNotFound
 }
 
-func TestExchangeAndVerify(t *testing.T) {
+func TestExchangeAndVerify1(t *testing.T) {
 	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
@@ -219,5 +219,120 @@ func TestExchangeAndVerify(t *testing.T) {
 		t.Fatalf("t4: unexpected error during verify: %v", err)
 	} else {
 		t.Fatalf("t4: expected insufficent permissions error but got no error (you are a baked potato now)")
+	}
+}
+
+func TestExchangeAndVerify2(t *testing.T) {
+	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+		MaxTokenDuration:   24 * time.Hour,
+		LoginTokenDuration: 15 * time.Minute,
+	})
+	token, err := machine.Exchange(t.Context(), TestingGithubProvider, "github-token-user2")
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
+	}
+	err = machine.Verify(t.Context(), token, queries.EntityScope{
+		Entity: queries.Entity{
+			Type: queries.EntityTypeOrganization,
+			ID:   1,
+		},
+		Scope: queries.ScopeAdmin,
+	})
+	if err == tvm.ErrInsufficentPermissions {
+		t.Fatalf("t1: incorrectly denied access: %v", err)
+	} else if err != nil {
+		t.Fatalf("t1: unexpected error during verify: %v", err)
+	} else {
+		t.Log("t1: correctly granted access for user2 (org 1 admin by user2)")
+	}
+
+	err = machine.Verify(t.Context(), token, queries.EntityScope{ // *implied* access via org 1 write
+		Entity: queries.Entity{
+			Type: queries.EntityTypeWorkspace,
+			ID:   2,
+		},
+		Scope: queries.ScopeWrite,
+	})
+	if err == tvm.ErrInsufficentPermissions {
+		t.Fatalf("t2: incorrectly denied access: %v", err)
+	} else if err != nil {
+		t.Fatalf("t2: unexpected error during verify: %v", err)
+	} else {
+		t.Log("t2: correctly granted access for user2 (ws 2 write by user2 via org 1 write)")
+	}
+
+	err = machine.Verify(t.Context(), token, queries.EntityScope{ // no access
+		Entity: queries.Entity{
+			Type: queries.EntityTypeWorkspace,
+			ID:   3,
+		},
+		Scope: queries.ScopeRead,
+	})
+	if err == tvm.ErrInsufficentPermissions {
+		t.Log("t3: correctly denied access for user2 (ws 3 read by user2)")
+	} else if err != nil {
+		t.Fatalf("t3: unexpected error during verify: %v", err)
+	} else {
+		t.Fatalf("t3: expected insufficent permissions error but got no error (you are now a french fry)")
+	}
+
+	err = machine.Verify(t.Context(), token, queries.EntityScope{ // direct access
+		Entity: queries.Entity{
+			Type: queries.EntityTypeOrganization,
+			ID:   1,
+		},
+		Scope: queries.ScopeRead,
+	})
+	if err == tvm.ErrInsufficentPermissions {
+		t.Fatalf("t4: incorrectly denied access: %v", err)
+	} else if err != nil {
+		t.Fatalf("t4: unexpected error during verify: %v", err)
+	} else {
+		t.Log("t4: correctly granted access for user2 (org 1 read by user2)")
+	}
+
+	err = machine.Verify(t.Context(), token, queries.EntityScope{ // access another org?
+		Entity: queries.Entity{
+			Type: queries.EntityTypeOrganization,
+			ID:   2,
+		},
+		Scope: queries.ScopeRead,
+	})
+	if err == tvm.ErrInsufficentPermissions {
+		t.Log("t5: correctly denied access for user2 (org 2 read by user2)")
+	} else if err != nil {
+		t.Fatalf("t5: unexpected error during verify: %v", err)
+	} else {
+		t.Fatalf("t5: expected insufficent permissions error but got no error (you are now a potato wedge)")
+	}
+
+	err = machine.Verify(t.Context(), token, queries.EntityScope{ // access an app from my org
+		Entity: queries.Entity{
+			Type: queries.EntityTypeApp,
+			ID:   2,
+		},
+		Scope: queries.ScopeWrite,
+	})
+	if err == tvm.ErrInsufficentPermissions {
+		t.Fatalf("t6: incorrectly denied access: %v", err)
+	} else if err != nil {
+		t.Fatalf("t6: unexpected error during verify: %v", err)
+	} else {
+		t.Log("t6: correctly granted access for user2 (app 2 write by user2 via org 1 write)")
+	}
+
+	err = machine.Verify(t.Context(), token, queries.EntityScope{ // access an app from another org
+		Entity: queries.Entity{
+			Type: queries.EntityTypeApp,
+			ID:   3,
+		},
+		Scope: queries.ScopeRead,
+	})
+	if err == tvm.ErrInsufficentPermissions {
+		t.Log("t7: correctly denied access for user2 (app 3 read by user2)")
+	} else if err != nil {
+		t.Fatalf("t7: unexpected error during verify: %v", err)
+	} else {
+		t.Fatalf("t7: expected insufficent permissions error but got no error (you are now a tater tot)")
 	}
 }
