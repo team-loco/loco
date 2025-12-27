@@ -6,6 +6,9 @@ clickhouse:
     persistence:
       enabled: true
       storageClass: ""
+      # extraConfig: |
+      #   <clickhouse>
+      #   </clickhouse>
     defaultUser:
       allowExternalAccess: true
 
