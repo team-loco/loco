@@ -115,12 +115,7 @@ export function AppDetails() {
 			{/* Environment Variables */}
 			<EnvironmentVariables
 				appId={appId}
-				envVars={
-					app.envVars?.map((v: { key: string; value: string }) => ({
-						key: v.key,
-						value: v.value,
-					})) ?? []
-				}
+				envVars={[]}
 				isLoading={isLoading}
 			/>
 

@@ -18,4 +18,34 @@ export default defineConfig({
 			"@": path.resolve(__dirname, "./src"),
 		},
 	},
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks(id) {
+					if (id.includes("node_modules/react/")) {
+						return "vendor-react-core";
+					}
+					if (id.includes("node_modules/react-dom/")) {
+						return "vendor-react-dom";
+					}
+
+					// Radix UI components
+					if (id.includes("@radix-ui")) {
+						return "vendor-radix";
+					}
+
+					// Tanstack libraries
+					if (id.includes("@tanstack")) {
+						return "vendor-tanstack";
+					}
+
+					// Other node_modules
+					if (id.includes("node_modules")) {
+						return "vendor-other";
+					}
+				},
+			},
+		},
+		chunkSizeWarningLimit: 1000,
+	},
 });

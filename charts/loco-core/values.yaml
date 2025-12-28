@@ -1,3 +1,9 @@
+ui:
+  image:
+    repository: ghcr.io/team-loco/loco-ui
+    tag: latest
+  imagePullPolicy: Always
+
 secrets:
   cloudflareToken: ""
   env:
@@ -12,7 +18,6 @@ secrets:
     LOG_LEVEL: "-4"
     PORT: ":8000"
     GH_OAUTH_CLIENT_SECRET: ""
-    GH_OAUTH_REDIRECT_URL: ""
     GH_OAUTH_STATE: ""
     DATABASE_URL: ""
     JWT_SECRET: ""

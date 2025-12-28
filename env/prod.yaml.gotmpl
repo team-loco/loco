@@ -1,4 +1,8 @@
 environment: prod
+ui:
+  image:
+    tag: sha-{{ .Env.GH_SHA }}
+
 secrets:
   cloudflareToken: {{ requiredEnv "CLOUDFLARE_TOKEN" }}
 
@@ -12,7 +16,6 @@ secrets:
 
     GH_OAUTH_CLIENT_ID: {{ requiredEnv "GH_OAUTH_CLIENT_ID" }}
     GH_OAUTH_CLIENT_SECRET: {{ requiredEnv "GH_OAUTH_CLIENT_SECRET" }}
-    GH_OAUTH_REDIRECT_URL: {{ requiredEnv "GH_OAUTH_REDIRECT_URL" }}
     GH_OAUTH_STATE: {{ requiredEnv "GH_OAUTH_STATE" }}
 
     APP_ENV: {{ requiredEnv "APP_ENV" }}

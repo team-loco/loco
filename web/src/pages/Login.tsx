@@ -30,7 +30,11 @@ export function Login() {
 				throw new Error("No authorization URL returned");
 			}
 
-			window.location.href = authUrl;
+			const redirectUri = `${window.location.origin}/oauth/callback`;
+			const url = new URL(authUrl);
+			url.searchParams.set("redirect_uri", redirectUri);
+
+			window.location.href = url.toString();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Authentication failed");
 			setIsGithubLoading(false);

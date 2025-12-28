@@ -12,6 +12,7 @@ env:
   REGISTRY: ghcr.io
   API_IMAGE_NAME: ${{ github.repository }}
   CONTROLLER_IMAGE_NAME: ${{ github.repository }}-controller
+  UI_IMAGE_NAME: ${{ github.repository }}-ui
 jobs:
   infra:
     name: Provision Infrastructure
@@ -58,6 +59,17 @@ jobs:
       context: .
       dockerfile: ./api/Dockerfile
 
+  push-ui-image:
+    name: Build and Push UI Image
+    uses: ./.github/workflows/build-push.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image_name: ${{ github.repository }}-ui
+      context: ./web
+      dockerfile: ./web/Dockerfile
+
   deploy:
     name: Deploy Helm Charts
     runs-on: ubuntu-latest
@@ -65,6 +77,7 @@ jobs:
       - infra
       - push-api-image
       - push-controller-image
+      - push-ui-image
     environment: production
 
     env:
@@ -80,7 +93,6 @@ jobs:
 
       GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
       GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-      GH_OAUTH_REDIRECT_URL: ${{ secrets.GH_OAUTH_REDIRECT_URL }}
       GH_OAUTH_STATE: ${{ secrets.GH_OAUTH_STATE }}
 
       APP_ENV: ${{ secrets.APP_ENV }}
@@ -90,6 +102,7 @@ jobs:
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       REGISTRY_TAG: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      GH_SHA: ${{ github.sha }}
 
     steps:
       - name: Checkout

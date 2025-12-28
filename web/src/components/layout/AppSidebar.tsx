@@ -36,6 +36,21 @@ import { useQuery } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "./ThemeToggle";
 
+type NavItemBase = {
+	title: string;
+	url: string;
+	icon: React.ComponentType<{ className?: string }>;
+};
+
+type SectionNavItem = {
+	section: string;
+	items: Array<NavItemBase & { badge?: string }>;
+};
+
+type RegularNavItem = NavItemBase & {
+	items: Array<{ title: string; url: string }>;
+};
+
 const data = {
 	navMain: [
 		{
@@ -181,8 +196,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			<SidebarContent>
 				{data.navMain.map((item, idx) => {
 					if ("section" in item) {
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const sectionItem = item as any;
+						const sectionItem = item as SectionNavItem;
 						return (
 							<SidebarGroup key={sectionItem.section}>
 								<SidebarGroupLabel>{sectionItem.section}</SidebarGroupLabel>
@@ -192,15 +206,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 											<SidebarMenuItem key={subItem.title}>
 												<SidebarMenuButton
 													onClick={() => {
-														// eslint-disable-next-line @typescript-eslint/no-explicit-any
-														if (!(subItem as any).badge) {
+														if (!subItem.badge) {
 															navigate(subItem.url);
 														}
 													}}
 													isActive={isActive(subItem.url)}
 													className={`flex items-center justify-between ${
-														// eslint-disable-next-line @typescript-eslint/no-explicit-any
-														(subItem as any).badge
+														subItem.badge
 															? "cursor-not-allowed opacity-60 hover:bg-transparent"
 															: "cursor-pointer"
 													}`}
@@ -209,10 +221,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 														<subItem.icon className="size-4" />
 														<span>{subItem.title}</span>
 													</div>
-													{/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-													{(subItem as any).badge && (
+													{subItem.badge && (
 														<Badge className="bg-yellow-500 border-0 text-xs font-mono">
-															{(subItem as unknown).badge}
+															{subItem.badge}
 														</Badge>
 													)}
 												</SidebarMenuButton>
@@ -224,8 +235,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 						);
 					}
 
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const navItem = item as any;
+					const navItem = item as RegularNavItem;
 					return (
 						<SidebarGroup key={navItem.title || idx}>
 							<SidebarMenu>
