@@ -195,19 +195,10 @@ func (s *DeploymentServer) CreateDeployment(
 	// create spec copy without env for DB persistence (no plaintext secrets in DB)
 	mergedServiceSpec := mergedSpec.GetService()
 
-	specForDBService := &deploymentv1.ServiceDeploymentSpec{
-		Build:       mergedServiceSpec.Build,
-		HealthCheck: mergedServiceSpec.HealthCheck,
-		Cpu:         mergedServiceSpec.Cpu,
-		Memory:      mergedServiceSpec.Memory,
-		MinReplicas: mergedServiceSpec.MinReplicas,
-		MaxReplicas: mergedServiceSpec.MaxReplicas,
-		Scalers:     mergedServiceSpec.Scalers,
-		Port:        mergedServiceSpec.Port,
-		Region:      mergedServiceSpec.Region,
-		// Env omitted as it can have sensitive info and should not be stored in the DB
-	}
+	// create shallow copy excluding env as it can have sensitive info.
 	// todo: consider using dedicated secrets management solution.
+	specForDBService := mergedServiceSpec
+	specForDBService.Env = nil
 
 	specJSON, err := json.Marshal(specForDBService)
 	if err != nil {
