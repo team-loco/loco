@@ -518,9 +518,6 @@ func (s *ResourceServer) GetResourceStatus(
 		if deployment.Message.Valid {
 			deploymentStatus.Message = &deployment.Message.String
 		}
-		if deployment.ErrorMessage.Valid {
-			deploymentStatus.ErrorMessage = &deployment.ErrorMessage.String
-		}
 	}
 
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
@@ -890,10 +887,6 @@ func (s *ResourceServer) ScaleResource(
 		deploymentStatus.Message = &deployment.Message.String
 	}
 
-	if deployment.ErrorMessage.Valid {
-		deploymentStatus.ErrorMessage = &deployment.ErrorMessage.String
-	}
-
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{
 		Deployment: deploymentStatus,
 	}), nil
@@ -1026,10 +1019,6 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	if deployment.Message.Valid {
 		deploymentStatus.Message = &deployment.Message.String
-	}
-
-	if deployment.ErrorMessage.Valid {
-		deploymentStatus.ErrorMessage = &deployment.ErrorMessage.String
 	}
 
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{

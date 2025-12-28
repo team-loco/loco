@@ -26,7 +26,7 @@ const createDeployment = `-- name: CreateDeployment :one
 
 INSERT INTO deployments (resource_id, cluster_id, image, replicas, status, is_active, message, created_by, spec, spec_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, resource_id, cluster_id, image, replicas, status, is_active, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
+RETURNING id, resource_id, cluster_id, image, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
 `
 
 type CreateDeploymentParams struct {
@@ -65,7 +65,6 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		&i.Replicas,
 		&i.Status,
 		&i.IsActive,
-		&i.ErrorMessage,
 		&i.Message,
 		&i.Spec,
 		&i.SpecVersion,
@@ -79,7 +78,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, cluster_id, image, replicas, status, is_active, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, cluster_id, image, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, error) {
@@ -93,7 +92,6 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 		&i.Replicas,
 		&i.Status,
 		&i.IsActive,
-		&i.ErrorMessage,
 		&i.Message,
 		&i.Spec,
 		&i.SpecVersion,
@@ -117,8 +115,32 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id int64) (int64,
 	return resource_id, err
 }
 
+const listActiveDeployments = `-- name: ListActiveDeployments :many
+SELECT resource_id FROM deployments WHERE is_active = true
+`
+
+func (q *Queries) ListActiveDeployments(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listActiveDeployments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var resource_id int64
+		if err := rows.Scan(&resource_id); err != nil {
+			return nil, err
+		}
+		items = append(items, resource_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, image, replicas, status, is_active, error_message, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, image, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -147,7 +169,6 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 			&i.Replicas,
 			&i.Status,
 			&i.IsActive,
-			&i.ErrorMessage,
 			&i.Message,
 			&i.Spec,
 			&i.SpecVersion,
@@ -175,6 +196,23 @@ WHERE resource_id = $1 AND is_active = true
 
 func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID int64) error {
 	_, err := q.db.Exec(ctx, markPreviousDeploymentsNotActive, resourceID)
+	return err
+}
+
+const updateActiveDeploymentStatus = `-- name: UpdateActiveDeploymentStatus :exec
+UPDATE deployments
+SET status = $2, message = $3, updated_at = NOW()
+WHERE resource_id = $1 AND is_active = true
+`
+
+type UpdateActiveDeploymentStatusParams struct {
+	ResourceID int64            `json:"resourceId"`
+	Status     DeploymentStatus `json:"status"`
+	Message    pgtype.Text      `json:"message"`
+}
+
+func (q *Queries) UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error {
+	_, err := q.db.Exec(ctx, updateActiveDeploymentStatus, arg.ResourceID, arg.Status, arg.Message)
 	return err
 }
 

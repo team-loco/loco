@@ -460,9 +460,9 @@ func deployApp(ctx context.Context,
 		logf("Waiting for deployment to complete...")
 		if err := apiClient.StreamDeployment(ctx, fmt.Sprintf("%d", deploymentID), func(event *deploymentv1.DeploymentEvent) error {
 			logf(fmt.Sprintf("[%s] %s", event.Status, event.Message))
-			if event.ErrorMessage != nil && *event.ErrorMessage != "" {
-				logf(fmt.Sprintf("ERROR: %s", *event.ErrorMessage))
-				return errors.New(*event.ErrorMessage)
+			if event.Status == deploymentv1.DeploymentPhase_FAILED && event.Message != "" {
+				logf(fmt.Sprintf("ERROR: %s", event.Message))
+				return errors.New(event.Message)
 			}
 			return nil
 		}); err != nil {

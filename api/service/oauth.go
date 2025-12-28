@@ -24,6 +24,7 @@ import (
 )
 
 // OAuthStateCache uses bigcache for storing OAuth state tokens
+// todo: this is a temporary in-memory solution; we will eventually move to distributed cache
 type OAuthStateCache struct {
 	cache *bigcache.BigCache
 }

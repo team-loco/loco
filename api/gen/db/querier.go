@@ -78,6 +78,7 @@ type Querier interface {
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	IsWorkspaceMember(ctx context.Context, arg IsWorkspaceMemberParams) (bool, error)
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
+	ListActiveDeployments(ctx context.Context) ([]int64, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
 	ListClustersActive(ctx context.Context) ([]Cluster, error)
@@ -101,6 +102,7 @@ type Querier interface {
 	RemoveWorkspace(ctx context.Context, id int64) error
 	RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (ResourceDomain, error)
+	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)

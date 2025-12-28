@@ -68,13 +68,15 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources/finalizers,verbs=update
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update
+
+// todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

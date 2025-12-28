@@ -53,12 +53,13 @@ export function RecentDeployments({
 	};
 
 	const getPhaseColor = (phase: number): string => {
+		console.log(phase);
 		const colorMap: Record<number, string> = {
 			0: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
 			1: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
 			2: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
 			3: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-			4: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
+			4: "bg-red-400 text-destructive-foreground",
 		};
 		return (
 			colorMap[phase] ||
@@ -131,7 +132,7 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell>
 										<Badge
-											variant="outline"
+											variant="default"
 											className={`text-xs ${getPhaseColor(deployment.status)}`}
 										>
 											{DeploymentPhase[deployment.status]}

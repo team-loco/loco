@@ -283,9 +283,6 @@ func (s *DeploymentServer) GetDeployment(
 	if deploymentData.Message.Valid {
 		deploymentResp.Message = &deploymentData.Message.String
 	}
-	if deploymentData.ErrorMessage.Valid {
-		deploymentResp.ErrorMessage = &deploymentData.ErrorMessage.String
-	}
 	if deploymentData.StartedAt.Valid {
 		ts := timeutil.ParsePostgresTimestamp(deploymentData.StartedAt.Time)
 		deploymentResp.StartedAt = ts
@@ -382,9 +379,6 @@ func (s *DeploymentServer) ListDeployments(
 
 		if d.Message.Valid {
 			deployment.Message = &d.Message.String
-		}
-		if d.ErrorMessage.Valid {
-			deployment.ErrorMessage = &d.ErrorMessage.String
 		}
 		if d.StartedAt.Valid {
 			ts := timeutil.ParsePostgresTimestamp(d.StartedAt.Time)
@@ -499,10 +493,6 @@ func (s *DeploymentServer) sendDeploymentEvent(
 			Status:       statusPhase,
 			Message:      message,
 			Timestamp:    timestamppb.New(time.Now()),
-		}
-
-		if deployment.ErrorMessage.Valid {
-			event.ErrorMessage = &deployment.ErrorMessage.String
 		}
 
 		if err := stream.Send(event); err != nil {

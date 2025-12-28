@@ -121,7 +121,6 @@ CREATE TABLE deployments (
     replicas INT NOT NULL,
     status deployment_status NOT NULL,
     is_active BOOLEAN NOT NULL,
-    error_message TEXT,
     message TEXT,
     spec JSONB NOT NULL,
     spec_version INT NOT NULL,
