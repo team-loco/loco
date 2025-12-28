@@ -11,7 +11,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getColumns } from "./team/columns";
 import { DataTable } from "./team/data-table";
@@ -48,11 +48,7 @@ export function Team() {
 		return null;
 	}, [workspaceFromUrl, workspaces]);
 
-	const {
-		data: membersRes,
-		isLoading,
-		refetch,
-	} = useQuery(
+	const { data: membersRes, isLoading } = useQuery(
 		listMembers,
 		firstWorkspaceId
 			? {
@@ -66,12 +62,6 @@ export function Team() {
 	const members = membersRes?.members ?? [];
 	const nextCursor = membersRes?.nextCursor ?? null;
 	const hasNextPage = nextCursor !== null;
-
-	useEffect(() => {
-		if (firstWorkspaceId) {
-			refetch();
-		}
-	}, [firstWorkspaceId, refetch]);
 
 	// todo: fix admin checks after tvm
 	const isAdmin = false;
