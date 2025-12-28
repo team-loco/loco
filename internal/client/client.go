@@ -248,7 +248,7 @@ func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 	return err
 }
 
-func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu, memory *string) (*resourcev1.DeploymentStatus, error) {
+func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu, memory *string) (int64, error) {
 	req := connect.NewRequest(&resourcev1.ScaleResourceRequest{
 		ResourceId: appID,
 		Replicas:   replicas,
@@ -260,13 +260,13 @@ func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu
 	resp, err := c.Resource.ScaleResource(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to scale app")
-		return nil, err
+		return 0, err
 	}
 
-	return resp.Msg.Deployment, nil
+	return resp.Msg.DeploymentId, nil
 }
 
-func (c *Client) UpdateAppEnv(ctx context.Context, appID int64, env map[string]string) (*resourcev1.DeploymentStatus, error) {
+func (c *Client) UpdateAppEnv(ctx context.Context, appID int64, env map[string]string) (int64, error) {
 	req := connect.NewRequest(&resourcev1.UpdateResourceEnvRequest{
 		ResourceId: appID,
 		Env:        env,
@@ -276,10 +276,10 @@ func (c *Client) UpdateAppEnv(ctx context.Context, appID int64, env map[string]s
 	resp, err := c.Resource.UpdateResourceEnv(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to update app env")
-		return nil, err
+		return 0, err
 	}
 
-	return resp.Msg.Deployment, nil
+	return resp.Msg.DeploymentId, nil
 }
 
 func (c *Client) GetAppStatus(ctx context.Context, appID int64) (*resourcev1.GetResourceStatusResponse, error) {

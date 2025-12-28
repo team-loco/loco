@@ -265,15 +265,10 @@ var loginCmd = &cobra.Command{
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
 
-			createdWS := createWSResp.Msg.GetWorkspace()
-			if createdWS == nil {
-				return fmt.Errorf("workspace creation returned empty response")
-			}
-
 			cfg := config.NewSessionConfig()
 			if err := cfg.SetDefaultScope(
 				config.SimpleOrg{ID: createdOrg.Id, Name: createdOrg.Name},
-				config.SimpleWorkspace{ID: createdWS.Id, Name: createdWS.Name},
+				config.SimpleWorkspace{ID: createWSResp.Msg.WorkspaceId, Name: createWSReq.Msg.Name},
 			); err != nil {
 				slog.Error(err.Error())
 				return err
@@ -288,7 +283,7 @@ var loginCmd = &cobra.Command{
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
 			orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", createdOrg.Name))
-			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", createdWS.Name))
+			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", createWSReq.Msg.Name))
 			fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 			return nil
