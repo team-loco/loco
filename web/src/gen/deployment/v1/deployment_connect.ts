@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentEvent, GetDeploymentRequest, GetDeploymentResponse, ListDeploymentsRequest, ListDeploymentsResponse, StreamDeploymentRequest } from "./deployment_pb";
+import { CreateDeploymentRequest, CreateDeploymentResponse, DeleteDeploymentRequest, DeleteDeploymentResponse, DeploymentEvent, GetDeploymentRequest, GetDeploymentResponse, ListDeploymentsRequest, ListDeploymentsResponse, StreamDeploymentRequest } from "./deployment_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -57,6 +57,17 @@ export const DeploymentService = {
       I: StreamDeploymentRequest,
       O: DeploymentEvent,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * DeleteDeployment deletes/inactivates a deployment.
+     *
+     * @generated from rpc loco.deployment.v1.DeploymentService.DeleteDeployment
+     */
+    deleteDeployment: {
+      name: "DeleteDeployment",
+      I: DeleteDeploymentRequest,
+      O: DeleteDeploymentResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

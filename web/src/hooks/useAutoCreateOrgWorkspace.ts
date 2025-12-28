@@ -76,11 +76,11 @@ export function useAutoCreateOrgWorkspace() {
 						name: "default",
 					});
 
-					if (!wsRes.workspace?.id) {
+					if (!wsRes.workspaceId) {
 						throw new Error("Failed to create workspace");
 					}
 
-					createdWorkspaceId = wsRes.workspace.id;
+					createdWorkspaceId = wsRes.workspaceId;
 				} catch (wsErr) {
 					// If workspace already exists, fetch it instead
 					if (
