@@ -427,3 +427,6 @@ clickhouse is named weirdly and so is our controller.
 - do we need tls in-cluster communication?
 - api needs to set and validate defaults before firing to locoresource.
 - make controller an all or nothing approach.
+- mark previous deployments as inactive or something before creating the next deployment. do this transactionally.
+- {"Spec": {"Service":{}} saved to DB, we should drop it.
+- do all the previous helm secrets and nonsense need to be removed? maybe we max history at 5.

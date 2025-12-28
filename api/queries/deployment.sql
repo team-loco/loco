@@ -34,3 +34,11 @@ WHERE id = $1;
 UPDATE deployments
 SET status = $2, message = $3, updated_at = NOW()
 WHERE id = $1;
+
+-- name: UpdateActiveDeploymentStatus :exec
+UPDATE deployments
+SET status = $2, message = $3, updated_at = NOW()
+WHERE resource_id = $1 AND is_active = true;
+
+-- name: ListActiveDeployments :many
+SELECT resource_id FROM deployments WHERE is_active = true;

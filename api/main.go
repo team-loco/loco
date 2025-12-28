@@ -17,6 +17,7 @@ import (
 	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/middleware"
 	"github.com/loco-team/loco/api/pkg/kube"
+	"github.com/loco-team/loco/api/pkg/statuswatcher"
 	"github.com/loco-team/loco/api/service"
 	"github.com/loco-team/loco/shared"
 	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
@@ -113,6 +114,16 @@ func main() {
 
 	pool := dbConn.Pool()
 	queries := genDb.New(pool)
+
+	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries)
+	watcherCtx, watcherCancel := context.WithCancel(context.Background())
+	defer watcherCancel()
+
+	go func() {
+		if err := watcher.Start(watcherCtx); err != nil {
+			slog.Error("status watcher failed", "error", err)
+		}
+	}()
 
 	httpClient := shared.NewHTTPClient()
 

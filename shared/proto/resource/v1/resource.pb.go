@@ -2035,7 +2035,6 @@ type DeploymentStatus struct {
 	Status        DeploymentPhase        `protobuf:"varint,2,opt,name=status,proto3,enum=loco.resource.v1.DeploymentPhase" json:"status,omitempty"`
 	Replicas      int32                  `protobuf:"varint,3,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Message       *string                `protobuf:"bytes,4,opt,name=message,proto3,oneof" json:"message,omitempty"`
-	ErrorMessage  *string                `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2094,13 +2093,6 @@ func (x *DeploymentStatus) GetReplicas() int32 {
 func (x *DeploymentStatus) GetMessage() string {
 	if x != nil && x.Message != nil {
 		return *x.Message
-	}
-	return ""
-}
-
-func (x *DeploymentStatus) GetErrorMessage() string {
-	if x != nil && x.ErrorMessage != nil {
-		return *x.ErrorMessage
 	}
 	return ""
 }
@@ -2839,16 +2831,14 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\aregions\x18\x01 \x03(\v2\x1c.loco.resource.v1.RegionInfoR\aregions\";\n" +
 	"\x18GetResourceStatusRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
-	"resourceId\"\xe0\x01\n" +
+	"resourceId\"\xa4\x01\n" +
 	"\x10DeploymentStatus\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x129\n" +
 	"\x06status\x18\x02 \x01(\x0e2!.loco.resource.v1.DeploymentPhaseR\x06status\x12\x1a\n" +
 	"\breplicas\x18\x03 \x01(\x05R\breplicas\x12\x1d\n" +
-	"\amessage\x18\x04 \x01(\tH\x00R\amessage\x88\x01\x01\x12(\n" +
-	"\rerror_message\x18\x05 \x01(\tH\x01R\ferrorMessage\x88\x01\x01B\n" +
+	"\amessage\x18\x04 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
 	"\n" +
-	"\b_messageB\x10\n" +
-	"\x0e_error_message\"\xa6\x01\n" +
+	"\b_message\"\xa6\x01\n" +
 	"\x19GetResourceStatusResponse\x126\n" +
 	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\x12Q\n" +
 	"\x12current_deployment\x18\x02 \x01(\v2\".loco.resource.v1.DeploymentStatusR\x11currentDeployment\"\x81\x01\n" +

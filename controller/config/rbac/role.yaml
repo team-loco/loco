@@ -8,9 +8,9 @@ rules:
   - ""
   resources:
   - namespaces
-  - serviceaccounts
   verbs:
   - create
+  - delete
   - get
   - list
   - watch
@@ -25,6 +25,15 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - get
+  - list
   - watch
 - apiGroups:
   - apps

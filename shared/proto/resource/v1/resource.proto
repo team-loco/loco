@@ -289,11 +289,10 @@ message GetResourceStatusRequest {
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
 message DeploymentStatus {
-  int64           id            = 1;
-  DeploymentPhase status        = 2;
-  int32           replicas      = 3;
-  optional string message       = 4;
-  optional string error_message = 5;
+  int64           id       = 1;
+  DeploymentPhase status   = 2;
+  int32           replicas = 3;
+  optional string message  = 4;
 }
 
 // GetResourceStatusResponse is the response containing resource status information.

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
+import { useNavigate } from "react-router";
 
 import { listResources } from "@/gen/resource/v1";
 import { listMembers } from "@/gen/workspace/v1";
@@ -35,7 +36,10 @@ export function WorkspaceDashboardMetrics({
 		{ workspaceId },
 		{ enabled: !!workspaceId }
 	);
-	const apps = useMemo(() => resourcesRes?.resources ?? [], [resourcesRes?.resources]);
+	const apps = useMemo(
+		() => resourcesRes?.resources ?? [],
+		[resourcesRes?.resources]
+	);
 
 	// Fetch members
 	const { data: membersRes } = useQuery(
@@ -140,6 +144,7 @@ export function WorkspaceDashboardMetrics({
 }
 
 function RecentDeploymentsTable() {
+	const navigate = useNavigate();
 	const recentDeployments: Array<{
 		appId: bigint;
 		appName: string;
@@ -184,7 +189,11 @@ function RecentDeploymentsTable() {
 						</TableHeader>
 						<TableBody>
 							{recentDeployments.map((d) => (
-								<TableRow key={d.deploymentId.toString()}>
+								<TableRow
+									key={d.deploymentId.toString()}
+									className="cursor-pointer"
+									onClick={() => navigate(`/app/${d.appId}`)}
+								>
 									<TableCell>{d.appName}</TableCell>
 									<TableCell>
 										<Badge

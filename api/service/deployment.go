@@ -115,6 +115,12 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 	workspaceID := resource.WorkspaceID
 
+	domain, err := s.queries.GetDomainByResourceId(ctx, r.ResourceId)
+	if err != nil {
+		slog.WarnContext(ctx, "domain not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+	}
+
 	// todo: move membership check higher.
 	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
 		WorkspaceID: workspaceID,
@@ -207,7 +213,7 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	// create LocoResource in loco-system namespace (pass merged spec WITH env to controller)
-	err = createLocoResource(ctx, s.kubeClient, resource, mergedSpec, userID)
+	err = createLocoResource(ctx, s.kubeClient, resource, domain.Domain, mergedSpec, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
@@ -282,9 +288,6 @@ func (s *DeploymentServer) GetDeployment(
 
 	if deploymentData.Message.Valid {
 		deploymentResp.Message = &deploymentData.Message.String
-	}
-	if deploymentData.ErrorMessage.Valid {
-		deploymentResp.ErrorMessage = &deploymentData.ErrorMessage.String
 	}
 	if deploymentData.StartedAt.Valid {
 		ts := timeutil.ParsePostgresTimestamp(deploymentData.StartedAt.Time)
@@ -382,9 +385,6 @@ func (s *DeploymentServer) ListDeployments(
 
 		if d.Message.Valid {
 			deployment.Message = &d.Message.String
-		}
-		if d.ErrorMessage.Valid {
-			deployment.ErrorMessage = &d.ErrorMessage.String
 		}
 		if d.StartedAt.Valid {
 			ts := timeutil.ParsePostgresTimestamp(d.StartedAt.Time)
@@ -501,10 +501,6 @@ func (s *DeploymentServer) sendDeploymentEvent(
 			Timestamp:    timestamppb.New(time.Now()),
 		}
 
-		if deployment.ErrorMessage.Valid {
-			event.ErrorMessage = &deployment.ErrorMessage.String
-		}
-
 		if err := stream.Send(event); err != nil {
 			return err
 		}
@@ -521,6 +517,7 @@ func createLocoResource(
 	ctx context.Context,
 	kubeClient *kube.Client,
 	resource genDb.Resource,
+	hostname string,
 	spec *deploymentv1.DeploymentSpec,
 	createdBy int64,
 ) error {
@@ -535,10 +532,10 @@ func createLocoResource(
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec, createdBy)
 	slog.InfoContext(ctx, "converted deployment spec", "image", crdServiceDeploymentSpec.Image, "port", crdServiceDeploymentSpec.Port)
 
-	// determine resource type and build type-specific spec
-	var locoResourceSpec locoControllerV1.LocoResourceSpec
-	locoResourceSpec.ResourceId = resource.ID
-	locoResourceSpec.WorkspaceID = resource.WorkspaceID
+	locoResourceSpec := locoControllerV1.LocoResourceSpec{
+		ResourceId:  resource.ID,
+		WorkspaceId: resource.WorkspaceID,
+	}
 
 	switch specType := resourceSpec.Spec.(type) {
 	case *resourcev1.ResourceSpec_Service:
@@ -551,6 +548,7 @@ func createLocoResource(
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  resourcesSpec,
 			Obs:        converter.ProtoToObsSpec(specType.Service.GetObservability()),
+			Routing:    converter.ProtoToRoutingSpec(specType.Service.GetRouting(), hostname),
 		}
 
 	case *resourcev1.ResourceSpec_Database:
@@ -572,7 +570,7 @@ func createLocoResource(
 	// build LocoResource
 	locoRes := &locoControllerV1.LocoResource{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("resource-%d-%s", resource.ID, resource.Name),
+			Name:      fmt.Sprintf("resource-%d", resource.ID),
 			Namespace: "loco-system",
 			Labels:    map[string]string{},
 		},

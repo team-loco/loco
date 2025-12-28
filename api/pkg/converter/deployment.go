@@ -210,3 +210,15 @@ func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSp
 		Tracing: tracing,
 	}
 }
+
+func ProtoToRoutingSpec(routing *resourcev1.RoutingConfig, hostname string) *locoControllerV1.RoutingSpec {
+	if routing == nil {
+		return nil
+	}
+
+	return &locoControllerV1.RoutingSpec{
+		HostName:    hostname,
+		PathPrefix:  routing.GetPathPrefix(),
+		IdleTimeout: routing.GetIdleTimeout(),
+	}
+}

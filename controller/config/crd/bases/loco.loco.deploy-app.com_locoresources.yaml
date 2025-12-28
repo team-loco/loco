@@ -194,32 +194,13 @@ spec:
                   routing:
                     description: Routing configuration (port, domain, subdomain, etc)
                     properties:
-                      domain:
-                        description: DomainSpec contains domain config
-                        properties:
-                          domain:
-                            type: string
-                          domainSource:
-                            type: string
-                          isPrimary:
-                            type: boolean
-                          platformDomainId:
-                            format: int64
-                            type: integer
-                          subdomainLabel:
-                            type: string
-                        required:
-                        - domain
-                        type: object
+                      hostName:
+                        type: string
                       idleTimeout:
                         format: int32
                         type: integer
                       pathPrefix:
                         type: string
-                      subdomain:
-                        type: string
-                    required:
-                    - subdomain
                     type: object
                 type: object
               type:

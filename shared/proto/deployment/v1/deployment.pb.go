@@ -742,14 +742,13 @@ type Deployment struct {
 	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	IsActive      bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	Message       *string                `protobuf:"bytes,8,opt,name=message,proto3,oneof" json:"message,omitempty"`
-	ErrorMessage  *string                `protobuf:"bytes,9,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
-	CreatedBy     int64                  `protobuf:"varint,10,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
-	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	SpecVersion   int32                  `protobuf:"varint,15,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
-	Spec          *structpb.Struct       `protobuf:"bytes,16,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
+	CreatedBy     int64                  `protobuf:"varint,9,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SpecVersion   int32                  `protobuf:"varint,14,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
+	Spec          *structpb.Struct       `protobuf:"bytes,15,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -836,13 +835,6 @@ func (x *Deployment) GetIsActive() bool {
 func (x *Deployment) GetMessage() string {
 	if x != nil && x.Message != nil {
 		return *x.Message
-	}
-	return ""
-}
-
-func (x *Deployment) GetErrorMessage() string {
-	if x != nil && x.ErrorMessage != nil {
-		return *x.ErrorMessage
 	}
 	return ""
 }
@@ -1266,7 +1258,6 @@ type DeploymentEvent struct {
 	Status        DeploymentPhase        `protobuf:"varint,2,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	ErrorMessage  *string                `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1327,13 +1318,6 @@ func (x *DeploymentEvent) GetTimestamp() *timestamppb.Timestamp {
 		return x.Timestamp
 	}
 	return nil
-}
-
-func (x *DeploymentEvent) GetErrorMessage() string {
-	if x != nil && x.ErrorMessage != nil {
-		return *x.ErrorMessage
-	}
-	return ""
 }
 
 var File_deployment_v1_deployment_proto protoreflect.FileDescriptor
@@ -1397,7 +1381,7 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
 	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
 	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\xe6\x05\n" +
+	"\x04spec\"\xaa\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
@@ -1409,23 +1393,21 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
 	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
 	"\tis_active\x18\a \x01(\bR\bisActive\x12\x1d\n" +
-	"\amessage\x18\b \x01(\tH\x00R\amessage\x88\x01\x01\x12(\n" +
-	"\rerror_message\x18\t \x01(\tH\x01R\ferrorMessage\x88\x01\x01\x12\x1d\n" +
+	"\amessage\x18\b \x01(\tH\x00R\amessage\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\n" +
-	" \x01(\x03R\tcreatedBy\x129\n" +
+	"created_by\x18\t \x01(\x03R\tcreatedBy\x129\n" +
 	"\n" +
-	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
+	"created_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
-	"started_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartedAt\x88\x01\x01\x12B\n" +
-	"\fcompleted_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vcompletedAt\x88\x01\x01\x129\n" +
+	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x01R\tstartedAt\x88\x01\x01\x12B\n" +
+	"\fcompleted_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x02R\vcompletedAt\x88\x01\x01\x129\n" +
 	"\n" +
-	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
-	"\fspec_version\x18\x0f \x01(\x05R\vspecVersion\x120\n" +
-	"\x04spec\x18\x10 \x01(\v2\x17.google.protobuf.StructH\x04R\x04spec\x88\x01\x01B\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
+	"\fspec_version\x18\x0e \x01(\x05R\vspecVersion\x120\n" +
+	"\x04spec\x18\x0f \x01(\v2\x17.google.protobuf.StructH\x03R\x04spec\x88\x01\x01B\n" +
 	"\n" +
-	"\b_messageB\x10\n" +
-	"\x0e_error_messageB\r\n" +
+	"\b_messageB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atB\a\n" +
 	"\x05_spec\"\x91\x01\n" +
@@ -1455,14 +1437,12 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12\x14\n" +
 	"\x05total\x18\x02 \x01(\x03R\x05total\">\n" +
 	"\x17StreamDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\x83\x02\n" +
+	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\xc7\x01\n" +
 	"\x0fDeploymentEvent\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12;\n" +
 	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x128\n" +
-	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12(\n" +
-	"\rerror_message\x18\x05 \x01(\tH\x00R\ferrorMessage\x88\x01\x01B\x10\n" +
-	"\x0e_error_message*e\n" +
+	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp*e\n" +
 	"\x0fDeploymentPhase\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\v\n" +
 	"\aPENDING\x10\x01\x12\v\n" +
@@ -1568,7 +1548,6 @@ func file_deployment_v1_deployment_proto_init() {
 	}
 	file_deployment_v1_deployment_proto_msgTypes[10].OneofWrappers = []any{}
 	file_deployment_v1_deployment_proto_msgTypes[15].OneofWrappers = []any{}
-	file_deployment_v1_deployment_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

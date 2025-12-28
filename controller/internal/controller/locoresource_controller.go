@@ -68,13 +68,15 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources/finalizers,verbs=update
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update
+
+// todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -230,7 +232,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	r.startSecretRefresherGoroutine(ctx, &locoRes)
 
-	slog.InfoContext(ctx, "reconcile complete", "phase", status.Phase)
+	slog.InfoContext(ctx, "reconcile complete", "phase", status.Phase, "resource", locoRes.Name)
 	if status.Phase == "Deploying" {
 		// requeue faster while deployment is rolling out
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
@@ -281,7 +283,7 @@ func getName(locoRes *locov1alpha1.LocoResource) string {
 
 // getNamespace derives the namespace from the LocoResource
 func getNamespace(locoRes *locov1alpha1.LocoResource) string {
-	return fmt.Sprintf("wks-%d-res-%d", locoRes.Spec.WorkspaceID, locoRes.Spec.ResourceId)
+	return fmt.Sprintf("wks-%d-res-%d", locoRes.Spec.WorkspaceId, locoRes.Spec.ResourceId)
 }
 
 func getImageSecretName(locoRes *locov1alpha1.LocoResource) string {
@@ -394,7 +396,7 @@ func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, loco
 		}
 	}
 
-	token, err := r.getGitlabDeployToken(ctx)
+	token, err := r.getGitlabRegistryToken(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get gitlab deploy token", "error", err)
 		return err
@@ -739,7 +741,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 	routeName := fmt.Sprintf("%s-route", name)
 	pathType := v1Gateway.PathMatchPathPrefix
-	gatewayNamespace := "loco-gateway"
+	gatewayNamespace := "loco-system"
 	pathValue := "/"
 	var backendPort *v1Gateway.PortNumber
 
@@ -767,9 +769,13 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 		route.Labels = map[string]string{
 			"app": name,
 		}
+		route.Spec.Hostnames = []v1Gateway.Hostname{
+			v1Gateway.Hostname(locoRes.Spec.ServiceSpec.Routing.HostName),
+		}
 		route.Spec.ParentRefs = []v1Gateway.ParentReference{
+			// todo: remove the hardooded gateway name and namespace.
 			{
-				Name:      v1Gateway.ObjectName("loco-gateway"),
+				Name:      v1Gateway.ObjectName("eg"),
 				Namespace: (*v1Gateway.Namespace)(&gatewayNamespace),
 			},
 		}
@@ -908,7 +914,7 @@ func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, loc
 
 	slog.InfoContext(ctx, "refreshing image pull secret token", "namespace", namespace, "name", secretName)
 
-	token, err := r.getGitlabDeployToken(ctx)
+	token, err := r.getGitlabRegistryToken(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get new gitlab deploy token", "namespace", namespace, "name", secretName, "error", err)
 		return
@@ -933,11 +939,11 @@ func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, loc
 	slog.InfoContext(ctx, "image pull secret token refreshed successfully", "namespace", namespace, "name", secretName)
 }
 
-// getGitlabDeployToken fetches a new deploy token from GitLab
-func (r *LocoResourceReconciler) getGitlabDeployToken(ctx context.Context) (*gitlabDeployTokenResponse, error) {
+// getGitlabRegistryToken fetches a new read token from GitLab
+func (r *LocoResourceReconciler) getGitlabRegistryToken(ctx context.Context) (*gitlabDeployTokenResponse, error) {
 	expiresAt := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
 	payload := map[string]any{
-		"name":       "loco-deploy-token",
+		"name":       "loco-read-token",
 		"scopes":     []string{"read_registry"},
 		"expires_at": expiresAt,
 	}
@@ -1027,7 +1033,7 @@ func (r *LocoResourceReconciler) validateLocoResource(locoRes *locov1alpha1.Loco
 	if locoRes.Spec.ResourceId == 0 {
 		return fmt.Errorf("ResourceId is required")
 	}
-	if locoRes.Spec.WorkspaceID == 0 {
+	if locoRes.Spec.WorkspaceId == 0 {
 		return fmt.Errorf("WorkspaceID is required")
 	}
 	return nil
