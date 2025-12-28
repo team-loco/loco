@@ -27,6 +27,8 @@ service DeploymentService {
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
   // StreamDeployment streams deployment events in real-time.
   rpc StreamDeployment(StreamDeploymentRequest) returns (stream DeploymentEvent);
+  // DeleteDeployment deletes/inactivates a deployment.
+  rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
 }
 
 // Port defines a network port configuration.
@@ -170,4 +172,15 @@ message DeploymentEvent {
   DeploymentPhase           status        = 2;
   string                    message       = 3;
   google.protobuf.Timestamp timestamp     = 4;
+}
+
+// DeleteDeploymentRequest is the request to delete/inactivate a deployment.
+message DeleteDeploymentRequest {
+  int64 deployment_id = 1;
+}
+
+// DeleteDeploymentResponse is the response from deleting a deployment.
+message DeleteDeploymentResponse {
+  int64  deployment_id = 1;
+  string message       = 2;
 }

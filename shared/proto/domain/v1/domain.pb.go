@@ -379,10 +379,11 @@ func (x *CreatePlatformDomainRequest) GetIsActive() bool {
 
 // CreatePlatformDomainResponse is the response from creating a platform domain.
 type CreatePlatformDomainResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PlatformDomain *PlatformDomain        `protobuf:"bytes,1,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreatePlatformDomainResponse) Reset() {
@@ -415,11 +416,18 @@ func (*CreatePlatformDomainResponse) Descriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CreatePlatformDomainResponse) GetPlatformDomain() *PlatformDomain {
+func (x *CreatePlatformDomainResponse) GetDomainId() int64 {
 	if x != nil {
-		return x.PlatformDomain
+		return x.DomainId
 	}
-	return nil
+	return 0
+}
+
+func (x *CreatePlatformDomainResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
 }
 
 // GetPlatformDomainRequest is the request to retrieve a platform domain.
@@ -731,10 +739,11 @@ func (x *DeactivatePlatformDomainRequest) GetId() int64 {
 
 // DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
 type DeactivatePlatformDomainResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PlatformDomain *PlatformDomain        `protobuf:"bytes,1,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeactivatePlatformDomainResponse) Reset() {
@@ -767,11 +776,18 @@ func (*DeactivatePlatformDomainResponse) Descriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *DeactivatePlatformDomainResponse) GetPlatformDomain() *PlatformDomain {
+func (x *DeactivatePlatformDomainResponse) GetDomainId() int64 {
 	if x != nil {
-		return x.PlatformDomain
+		return x.DomainId
 	}
-	return nil
+	return 0
+}
+
+func (x *DeactivatePlatformDomainResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
 }
 
 // CheckDomainAvailabilityRequest is the request to check domain availability.
@@ -1079,7 +1095,7 @@ func (x *AddResourceDomainRequest) GetDomain() *DomainInput {
 // AddResourceDomainResponse is the response from adding a domain to a resource.
 type AddResourceDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Domain        *ResourceDomain        `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1115,11 +1131,11 @@ func (*AddResourceDomainResponse) Descriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *AddResourceDomainResponse) GetDomain() *ResourceDomain {
+func (x *AddResourceDomainResponse) GetDomainId() int64 {
 	if x != nil {
-		return x.Domain
+		return x.DomainId
 	}
-	return nil
+	return 0
 }
 
 func (x *AddResourceDomainResponse) GetMessage() string {
@@ -1185,7 +1201,7 @@ func (x *UpdateResourceDomainRequest) GetDomain() string {
 // UpdateResourceDomainResponse is the response from updating a resource's domain.
 type UpdateResourceDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Domain        *ResourceDomain        `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1221,11 +1237,11 @@ func (*UpdateResourceDomainResponse) Descriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *UpdateResourceDomainResponse) GetDomain() *ResourceDomain {
+func (x *UpdateResourceDomainResponse) GetDomainId() int64 {
 	if x != nil {
-		return x.Domain
+		return x.DomainId
 	}
-	return nil
+	return 0
 }
 
 func (x *UpdateResourceDomainResponse) GetMessage() string {
@@ -1291,7 +1307,7 @@ func (x *SetPrimaryResourceDomainRequest) GetDomainId() int64 {
 // SetPrimaryResourceDomainResponse is the response from setting the primary domain.
 type SetPrimaryResourceDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Domain        *ResourceDomain        `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1327,11 +1343,11 @@ func (*SetPrimaryResourceDomainResponse) Descriptor() ([]byte, []int) {
 	return file_domain_v1_domain_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *SetPrimaryResourceDomainResponse) GetDomain() *ResourceDomain {
+func (x *SetPrimaryResourceDomainResponse) GetDomainId() int64 {
 	if x != nil {
-		return x.Domain
+		return x.DomainId
 	}
-	return nil
+	return 0
 }
 
 func (x *SetPrimaryResourceDomainResponse) GetMessage() string {
@@ -1471,9 +1487,10 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"\x13_platform_domain_id\"R\n" +
 	"\x1bCreatePlatformDomainRequest\x12\x16\n" +
 	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x1b\n" +
-	"\tis_active\x18\x02 \x01(\bR\bisActive\"g\n" +
-	"\x1cCreatePlatformDomainResponse\x12G\n" +
-	"\x0fplatform_domain\x18\x01 \x01(\v2\x1e.loco.domain.v1.PlatformDomainR\x0eplatformDomain\"*\n" +
+	"\tis_active\x18\x02 \x01(\bR\bisActive\"U\n" +
+	"\x1cCreatePlatformDomainResponse\x12\x1b\n" +
+	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"*\n" +
 	"\x18GetPlatformDomainRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"d\n" +
 	"\x19GetPlatformDomainResponse\x12G\n" +
@@ -1486,9 +1503,10 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"!ListActivePlatformDomainsResponse\x12I\n" +
 	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"1\n" +
 	"\x1fDeactivatePlatformDomainRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"k\n" +
-	" DeactivatePlatformDomainResponse\x12G\n" +
-	"\x0fplatform_domain\x18\x01 \x01(\v2\x1e.loco.domain.v1.PlatformDomainR\x0eplatformDomain\"8\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"Y\n" +
+	" DeactivatePlatformDomainResponse\x12\x1b\n" +
+	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"8\n" +
 	"\x1eCheckDomainAvailabilityRequest\x12\x16\n" +
 	"\x06domain\x18\x01 \x01(\tR\x06domain\"D\n" +
 	"\x1fCheckDomainAvailabilityResponse\x12!\n" +
@@ -1506,22 +1524,22 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"\x18AddResourceDomainRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x123\n" +
-	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\"m\n" +
-	"\x19AddResourceDomainResponse\x126\n" +
-	"\x06domain\x18\x01 \x01(\v2\x1e.loco.domain.v1.ResourceDomainR\x06domain\x12\x18\n" +
+	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\"R\n" +
+	"\x19AddResourceDomainResponse\x12\x1b\n" +
+	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"R\n" +
 	"\x1bUpdateResourceDomainRequest\x12\x1b\n" +
 	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\x12\x16\n" +
-	"\x06domain\x18\x02 \x01(\tR\x06domain\"p\n" +
-	"\x1cUpdateResourceDomainResponse\x126\n" +
-	"\x06domain\x18\x01 \x01(\v2\x1e.loco.domain.v1.ResourceDomainR\x06domain\x12\x18\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\"U\n" +
+	"\x1cUpdateResourceDomainResponse\x12\x1b\n" +
+	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"_\n" +
 	"\x1fSetPrimaryResourceDomainRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x1b\n" +
-	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\"t\n" +
-	" SetPrimaryResourceDomainResponse\x126\n" +
-	"\x06domain\x18\x01 \x01(\v2\x1e.loco.domain.v1.ResourceDomainR\x06domain\x12\x18\n" +
+	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\"Y\n" +
+	" SetPrimaryResourceDomainResponse\x12\x1b\n" +
+	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\":\n" +
 	"\x1bRemoveResourceDomainRequest\x12\x1b\n" +
 	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\"8\n" +
@@ -1596,43 +1614,38 @@ var file_domain_v1_domain_proto_depIdxs = []int32{
 	0,  // 3: loco.domain.v1.ResourceDomain.domain_source:type_name -> loco.domain.v1.DomainType
 	27, // 4: loco.domain.v1.ResourceDomain.created_at:type_name -> google.protobuf.Timestamp
 	27, // 5: loco.domain.v1.ResourceDomain.updated_at:type_name -> google.protobuf.Timestamp
-	1,  // 6: loco.domain.v1.CreatePlatformDomainResponse.platform_domain:type_name -> loco.domain.v1.PlatformDomain
-	1,  // 7: loco.domain.v1.GetPlatformDomainResponse.platform_domain:type_name -> loco.domain.v1.PlatformDomain
-	1,  // 8: loco.domain.v1.GetPlatformDomainByNameResponse.platform_domain:type_name -> loco.domain.v1.PlatformDomain
-	1,  // 9: loco.domain.v1.ListActivePlatformDomainsResponse.platform_domains:type_name -> loco.domain.v1.PlatformDomain
-	1,  // 10: loco.domain.v1.DeactivatePlatformDomainResponse.platform_domain:type_name -> loco.domain.v1.PlatformDomain
-	16, // 11: loco.domain.v1.ListAllLocoOwnedDomainsResponse.domains:type_name -> loco.domain.v1.LocoOwnedDomain
-	2,  // 12: loco.domain.v1.AddResourceDomainRequest.domain:type_name -> loco.domain.v1.DomainInput
-	3,  // 13: loco.domain.v1.AddResourceDomainResponse.domain:type_name -> loco.domain.v1.ResourceDomain
-	3,  // 14: loco.domain.v1.UpdateResourceDomainResponse.domain:type_name -> loco.domain.v1.ResourceDomain
-	3,  // 15: loco.domain.v1.SetPrimaryResourceDomainResponse.domain:type_name -> loco.domain.v1.ResourceDomain
-	4,  // 16: loco.domain.v1.DomainService.CreatePlatformDomain:input_type -> loco.domain.v1.CreatePlatformDomainRequest
-	6,  // 17: loco.domain.v1.DomainService.GetPlatformDomain:input_type -> loco.domain.v1.GetPlatformDomainRequest
-	8,  // 18: loco.domain.v1.DomainService.GetPlatformDomainByName:input_type -> loco.domain.v1.GetPlatformDomainByNameRequest
-	10, // 19: loco.domain.v1.DomainService.ListActivePlatformDomains:input_type -> loco.domain.v1.ListActivePlatformDomainsRequest
-	12, // 20: loco.domain.v1.DomainService.DeactivatePlatformDomain:input_type -> loco.domain.v1.DeactivatePlatformDomainRequest
-	19, // 21: loco.domain.v1.DomainService.AddResourceDomain:input_type -> loco.domain.v1.AddResourceDomainRequest
-	21, // 22: loco.domain.v1.DomainService.UpdateResourceDomain:input_type -> loco.domain.v1.UpdateResourceDomainRequest
-	23, // 23: loco.domain.v1.DomainService.SetPrimaryResourceDomain:input_type -> loco.domain.v1.SetPrimaryResourceDomainRequest
-	25, // 24: loco.domain.v1.DomainService.RemoveResourceDomain:input_type -> loco.domain.v1.RemoveResourceDomainRequest
-	14, // 25: loco.domain.v1.DomainService.CheckDomainAvailability:input_type -> loco.domain.v1.CheckDomainAvailabilityRequest
-	17, // 26: loco.domain.v1.DomainService.ListAllLocoOwnedDomains:input_type -> loco.domain.v1.ListAllLocoOwnedDomainsRequest
-	5,  // 27: loco.domain.v1.DomainService.CreatePlatformDomain:output_type -> loco.domain.v1.CreatePlatformDomainResponse
-	7,  // 28: loco.domain.v1.DomainService.GetPlatformDomain:output_type -> loco.domain.v1.GetPlatformDomainResponse
-	9,  // 29: loco.domain.v1.DomainService.GetPlatformDomainByName:output_type -> loco.domain.v1.GetPlatformDomainByNameResponse
-	11, // 30: loco.domain.v1.DomainService.ListActivePlatformDomains:output_type -> loco.domain.v1.ListActivePlatformDomainsResponse
-	13, // 31: loco.domain.v1.DomainService.DeactivatePlatformDomain:output_type -> loco.domain.v1.DeactivatePlatformDomainResponse
-	20, // 32: loco.domain.v1.DomainService.AddResourceDomain:output_type -> loco.domain.v1.AddResourceDomainResponse
-	22, // 33: loco.domain.v1.DomainService.UpdateResourceDomain:output_type -> loco.domain.v1.UpdateResourceDomainResponse
-	24, // 34: loco.domain.v1.DomainService.SetPrimaryResourceDomain:output_type -> loco.domain.v1.SetPrimaryResourceDomainResponse
-	26, // 35: loco.domain.v1.DomainService.RemoveResourceDomain:output_type -> loco.domain.v1.RemoveResourceDomainResponse
-	15, // 36: loco.domain.v1.DomainService.CheckDomainAvailability:output_type -> loco.domain.v1.CheckDomainAvailabilityResponse
-	18, // 37: loco.domain.v1.DomainService.ListAllLocoOwnedDomains:output_type -> loco.domain.v1.ListAllLocoOwnedDomainsResponse
-	27, // [27:38] is the sub-list for method output_type
-	16, // [16:27] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	1,  // 6: loco.domain.v1.GetPlatformDomainResponse.platform_domain:type_name -> loco.domain.v1.PlatformDomain
+	1,  // 7: loco.domain.v1.GetPlatformDomainByNameResponse.platform_domain:type_name -> loco.domain.v1.PlatformDomain
+	1,  // 8: loco.domain.v1.ListActivePlatformDomainsResponse.platform_domains:type_name -> loco.domain.v1.PlatformDomain
+	16, // 9: loco.domain.v1.ListAllLocoOwnedDomainsResponse.domains:type_name -> loco.domain.v1.LocoOwnedDomain
+	2,  // 10: loco.domain.v1.AddResourceDomainRequest.domain:type_name -> loco.domain.v1.DomainInput
+	4,  // 11: loco.domain.v1.DomainService.CreatePlatformDomain:input_type -> loco.domain.v1.CreatePlatformDomainRequest
+	6,  // 12: loco.domain.v1.DomainService.GetPlatformDomain:input_type -> loco.domain.v1.GetPlatformDomainRequest
+	8,  // 13: loco.domain.v1.DomainService.GetPlatformDomainByName:input_type -> loco.domain.v1.GetPlatformDomainByNameRequest
+	10, // 14: loco.domain.v1.DomainService.ListActivePlatformDomains:input_type -> loco.domain.v1.ListActivePlatformDomainsRequest
+	12, // 15: loco.domain.v1.DomainService.DeactivatePlatformDomain:input_type -> loco.domain.v1.DeactivatePlatformDomainRequest
+	19, // 16: loco.domain.v1.DomainService.AddResourceDomain:input_type -> loco.domain.v1.AddResourceDomainRequest
+	21, // 17: loco.domain.v1.DomainService.UpdateResourceDomain:input_type -> loco.domain.v1.UpdateResourceDomainRequest
+	23, // 18: loco.domain.v1.DomainService.SetPrimaryResourceDomain:input_type -> loco.domain.v1.SetPrimaryResourceDomainRequest
+	25, // 19: loco.domain.v1.DomainService.RemoveResourceDomain:input_type -> loco.domain.v1.RemoveResourceDomainRequest
+	14, // 20: loco.domain.v1.DomainService.CheckDomainAvailability:input_type -> loco.domain.v1.CheckDomainAvailabilityRequest
+	17, // 21: loco.domain.v1.DomainService.ListAllLocoOwnedDomains:input_type -> loco.domain.v1.ListAllLocoOwnedDomainsRequest
+	5,  // 22: loco.domain.v1.DomainService.CreatePlatformDomain:output_type -> loco.domain.v1.CreatePlatformDomainResponse
+	7,  // 23: loco.domain.v1.DomainService.GetPlatformDomain:output_type -> loco.domain.v1.GetPlatformDomainResponse
+	9,  // 24: loco.domain.v1.DomainService.GetPlatformDomainByName:output_type -> loco.domain.v1.GetPlatformDomainByNameResponse
+	11, // 25: loco.domain.v1.DomainService.ListActivePlatformDomains:output_type -> loco.domain.v1.ListActivePlatformDomainsResponse
+	13, // 26: loco.domain.v1.DomainService.DeactivatePlatformDomain:output_type -> loco.domain.v1.DeactivatePlatformDomainResponse
+	20, // 27: loco.domain.v1.DomainService.AddResourceDomain:output_type -> loco.domain.v1.AddResourceDomainResponse
+	22, // 28: loco.domain.v1.DomainService.UpdateResourceDomain:output_type -> loco.domain.v1.UpdateResourceDomainResponse
+	24, // 29: loco.domain.v1.DomainService.SetPrimaryResourceDomain:output_type -> loco.domain.v1.SetPrimaryResourceDomainResponse
+	26, // 30: loco.domain.v1.DomainService.RemoveResourceDomain:output_type -> loco.domain.v1.RemoveResourceDomainResponse
+	15, // 31: loco.domain.v1.DomainService.CheckDomainAvailability:output_type -> loco.domain.v1.CheckDomainAvailabilityResponse
+	18, // 32: loco.domain.v1.DomainService.ListAllLocoOwnedDomains:output_type -> loco.domain.v1.ListAllLocoOwnedDomainsResponse
+	22, // [22:33] is the sub-list for method output_type
+	11, // [11:22] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_domain_v1_domain_proto_init() }

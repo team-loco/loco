@@ -89,7 +89,8 @@ message CreatePlatformDomainRequest {
 
 // CreatePlatformDomainResponse is the response from creating a platform domain.
 message CreatePlatformDomainResponse {
-  PlatformDomain platform_domain = 1;
+  int64  domain_id = 1;
+  string message   = 2;
 }
 
 // GetPlatformDomainRequest is the request to retrieve a platform domain.
@@ -127,7 +128,8 @@ message DeactivatePlatformDomainRequest {
 
 // DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
 message DeactivatePlatformDomainResponse {
-  PlatformDomain platform_domain = 1;
+  int64  domain_id = 1;
+  string message   = 2;
 }
 
 // --- Domain Availability ---
@@ -171,8 +173,8 @@ message AddResourceDomainRequest {
 
 // AddResourceDomainResponse is the response from adding a domain to a resource.
 message AddResourceDomainResponse {
-  ResourceDomain domain = 1;
-  string message = 2;
+  int64  domain_id = 1;
+  string message   = 2;
 }
 
 // UpdateResourceDomainRequest is the request to update a resource's domain.
@@ -183,8 +185,8 @@ message UpdateResourceDomainRequest {
 
 // UpdateResourceDomainResponse is the response from updating a resource's domain.
 message UpdateResourceDomainResponse {
-  ResourceDomain domain = 1;
-  string message = 2;
+  int64  domain_id = 1;
+  string message   = 2;
 }
 
 // SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
@@ -195,8 +197,8 @@ message SetPrimaryResourceDomainRequest {
 
 // SetPrimaryResourceDomainResponse is the response from setting the primary domain.
 message SetPrimaryResourceDomainResponse {
-  ResourceDomain domain = 1;
-  string message = 2;
+  int64  domain_id = 1;
+  string message   = 2;
 }
 
 // RemoveResourceDomainRequest is the request to remove a domain from a resource.

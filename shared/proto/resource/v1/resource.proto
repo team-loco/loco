@@ -262,8 +262,8 @@ message DeleteResourceRequest {
 
 // DeleteResourceResponse is the response from deleting a resource.
 message DeleteResourceResponse {
-  Resource resource = 1;
-  string   message  = 2;
+  int64  resource_id = 1;
+  string message     = 2;
 }
 
 // RegionInfo represents available region information.
@@ -354,7 +354,8 @@ message ScaleResourceRequest {
 
 // ScaleResourceResponse is the response from scaling a resource.
 message ScaleResourceResponse {
-  DeploymentStatus deployment = 1;
+  int64  deployment_id = 1;
+  string message       = 2;
 }
 
 // UpdateResourceEnvRequest is the request to update resource environment variables.
@@ -365,5 +366,6 @@ message UpdateResourceEnvRequest {
 
 // UpdateResourceEnvResponse is the response from updating environment variables.
 message UpdateResourceEnvResponse {
-  DeploymentStatus deployment = 1;
+  int64  deployment_id = 1;
+  string message       = 2;
 }
