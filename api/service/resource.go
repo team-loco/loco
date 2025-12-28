@@ -27,6 +27,7 @@ import (
 
 var (
 	ErrResourceNotFound      = errors.New("resource not found")
+	ErrDomainNotFound        = errors.New("domain not found")
 	ErrResourceNameNotUnique = errors.New("resource name already exists in this workspace")
 	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
 	ErrClusterNotFound       = errors.New("cluster not found")
@@ -456,7 +457,7 @@ func (s *ResourceServer) DeleteResource(
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
-
+	// todo: we need to delete the locoresource here.
 	err = s.queries.DeleteResource(ctx, r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete resource", "error", err)

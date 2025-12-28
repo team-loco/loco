@@ -78,21 +78,11 @@ type TracingSpec struct {
 	Tags       map[string]string `json:"tags,omitempty"`
 }
 
-// DomainSpec contains domain config
-type DomainSpec struct {
-	Domain           string `json:"domain"`                 // full domain name
-	DomainSource     string `json:"domainSource,omitempty"` // platform | custom
-	SubdomainLabel   string `json:"subdomainLabel,omitempty"`
-	PlatformDomainID int64  `json:"platformDomainId,omitempty"`
-	IsPrimary        bool   `json:"isPrimary,omitempty"`
-}
-
 // RoutingSpec contains subdomain, path prefix, port, idle timeout
 type RoutingSpec struct {
-	Subdomain   string      `json:"subdomain"`
-	PathPrefix  string      `json:"pathPrefix,omitempty"`
-	IdleTimeout int32       `json:"idleTimeout,omitempty"` // seconds
-	Domain      *DomainSpec `json:"domain,omitempty"`      // custom or platform-managed domain
+	HostName    string `json:"hostName,omitempty"`
+	PathPrefix  string `json:"pathPrefix,omitempty"`
+	IdleTimeout int32  `json:"idleTimeout,omitempty"` // seconds
 }
 
 // LocoResourceSpec defines the desired state of LocoResource
@@ -107,7 +97,7 @@ type LocoResourceSpec struct {
 	// Only the corresponding TypeSpec field should be populated
 	Type        string `json:"type"`                 // SERVICE, DATABASE, CACHE, QUEUE, BLOB
 	ResourceId  int64  `json:"resourceId,omitempty"` // optional
-	WorkspaceID int64  `json:"workspaceId,omitempty"`
+	WorkspaceId int64  `json:"workspaceId,omitempty"`
 
 	// Type-specific specs (only one populated based on Type)
 	ServiceSpec  *ServiceResourceSpec  `json:"serviceSpec,omitempty"`

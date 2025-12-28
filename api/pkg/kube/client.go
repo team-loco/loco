@@ -9,10 +9,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	crClient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/go-logr/logr"
 	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
@@ -22,6 +24,9 @@ import (
 type Client struct {
 	ClientSet        kubernetes.Interface
 	ControllerClient crClient.Client
+	Manager          controllerruntime.Manager
+	Cache            cache.Cache
+	Config           *rest.Config
 }
 
 // NewClient initializes a new Kubernetes client based on the application environment.
@@ -33,9 +38,13 @@ func NewClient(appEnv string) *Client {
 
 	clientSet := buildKubeClientSet(config)
 	controllerRuntimeClient := buildControllerRuntimeClient(config)
+	manager := buildManager(config)
 	return &Client{
 		ClientSet:        clientSet,
 		ControllerClient: controllerRuntimeClient,
+		Manager:          manager,
+		Cache:            manager.GetCache(),
+		Config:           config,
 	}
 }
 
@@ -94,4 +103,23 @@ func buildControllerRuntimeClient(config *rest.Config) crClient.Client {
 	}
 	slog.Info("controller-runtime client initialized")
 	return crClient
+}
+
+func buildManager(config *rest.Config) controllerruntime.Manager {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(locov1alpha1.AddToScheme(scheme))
+
+	mgr, err := controllerruntime.NewManager(config, controllerruntime.Options{
+		Scheme:                 scheme,
+		Logger:                 logr.FromSlogHandler(slog.Default().Handler()),
+		Metrics:                server.Options{BindAddress: "0"},
+		HealthProbeBindAddress: "0",
+	})
+	if err != nil {
+		slog.Error("failed to create controller-runtime manager", "error", err)
+		panic(err)
+	}
+	slog.Info("controller-runtime manager initialized")
+	return mgr
 }
