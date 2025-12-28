@@ -3,12 +3,15 @@ package docker
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
 
@@ -191,8 +194,16 @@ func (c *DockerClient) ImageTag(ctx context.Context, imageID string) error {
 
 func (c *DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appID int64) string {
 	imageNameBase := imageBase
+	var randSuffix string
+	randBytes := make([]byte, 4)
+	if _, err := rand.Read(randBytes); err != nil {
+		slog.Warn("failed to generate random bytes, using timestamp fallback", "error", err)
+		randSuffix = fmt.Sprintf("%08x", time.Now().UnixNano())
+	} else {
+		randSuffix = hex.EncodeToString(randBytes)
+	}
 
-	tag := fmt.Sprintf("org-%d-wks-%d-app-%d", orgID, workspaceID, appID)
+	tag := fmt.Sprintf("org-%d-wks-%d-app-%d-%s", orgID, workspaceID, appID, randSuffix)
 
 	if !strings.Contains(imageNameBase, ":") {
 		imageNameBase += ":" + tag

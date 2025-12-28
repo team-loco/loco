@@ -106,9 +106,9 @@ func convertPhase(phase string) genDb.DeploymentStatus {
 	case "Idle":
 		return genDb.DeploymentStatusPending
 	case "Deploying":
-		return genDb.DeploymentStatusRunning
+		return genDb.DeploymentStatusPending
 	case "Ready":
-		return genDb.DeploymentStatusSucceeded
+		return genDb.DeploymentStatusRunning
 	case "Failed":
 		return genDb.DeploymentStatusFailed
 	default:

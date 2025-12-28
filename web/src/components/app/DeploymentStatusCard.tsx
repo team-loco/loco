@@ -6,6 +6,7 @@ import { scaleResource } from "@/gen/resource/v1";
 import { DeploymentPhase, type Deployment } from "@/gen/deployment/v1/deployment_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
+import { PHASE_COLOR_MAP } from "@/lib/deployment-constants";
 
 interface DeploymentStatusCardProps {
 	appId: string;
@@ -74,7 +75,10 @@ export function DeploymentStatusCard({
 				<div className="space-y-3">
 					<div className="flex items-center justify-between">
 						<span className="text-sm font-medium text-foreground">Status</span>
-						<Badge variant="secondary" className="bg-blue-100">
+						<Badge
+							variant="default"
+							className={`text-xs ${PHASE_COLOR_MAP[deployment.status]}`}
+						>
 							{DeploymentPhase[deployment.status] || "unknown"}
 						</Badge>
 					</div>

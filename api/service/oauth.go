@@ -93,7 +93,6 @@ var OAuthConf = &oauth2.Config{
 	ClientSecret: os.Getenv("GH_OAUTH_CLIENT_SECRET"),
 	Scopes:       []string{"read:user user:email"},
 	Endpoint:     github.Endpoint,
-	RedirectURL:  os.Getenv("GH_OAUTH_REDIRECT_URL"),
 }
 
 var (

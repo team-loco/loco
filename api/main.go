@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -73,7 +74,15 @@ func newApiConfig() *ApiConfig {
 
 func withCORS(h http.Handler) http.Handler {
 	middleware := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
+		AllowOriginFunc: func(origin string) bool {
+			// Allow all localhost origins
+			u, err := url.Parse(origin)
+			if err != nil {
+				return false
+			}
+			// todo: improve this logic, pull from helm values eventually.
+			return u.Hostname() == "localhost" || u.Hostname() == "loco.deploy-app.com"
+		},
 		AllowedMethods:   connectcors.AllowedMethods(),
 		AllowedHeaders:   connectcors.AllowedHeaders(),
 		ExposedHeaders:   connectcors.ExposedHeaders(),

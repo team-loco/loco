@@ -25,7 +25,7 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Check, Loader, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
@@ -109,7 +109,7 @@ export function CreateApp() {
 				const fullDomain = `${subdomain}.${selectedPlatformDomain}`;
 				const res = await checkSubdomainMutation.mutateAsync({
 					domain: fullDomain,
-				});
+				} as { domain: string });
 				setSubdomainAvailability(res.isAvailable ? "available" : "unavailable");
 			} catch {
 				setSubdomainAvailability("unavailable");
@@ -159,10 +159,10 @@ export function CreateApp() {
 				},
 			});
 
-			if (res.resource?.id) {
+			if (res.resourceId) {
 				toast.success("Resource created successfully");
 				navigate(
-					`/resource/${res.resource.id}${
+					`/resource/${res.resourceId}${
 						workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""
 					}`
 				);

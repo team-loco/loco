@@ -338,7 +338,6 @@ type Deployment struct {
 	ID          int64              `json:"id"`
 	ResourceID  int64              `json:"resourceId"`
 	ClusterID   int64              `json:"clusterId"`
-	Image       string             `json:"image"`
 	Replicas    int32              `json:"replicas"`
 	Status      DeploymentStatus   `json:"status"`
 	IsActive    bool               `json:"isActive"`

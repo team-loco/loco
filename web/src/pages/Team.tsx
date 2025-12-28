@@ -11,7 +11,7 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getColumns } from "./team/columns";
 import { DataTable } from "./team/data-table";
@@ -24,8 +24,7 @@ export function Team() {
 	const [currentPage, setCurrentPage] = useState(0);
 	const ITEMS_PER_PAGE = 10;
 
-	const { data: userRes } = useQuery(getCurrentUser, {});
-	const currentUser = userRes?.user;
+	useQuery(getCurrentUser, {});
 
 	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
@@ -49,13 +48,17 @@ export function Team() {
 		return null;
 	}, [workspaceFromUrl, workspaces]);
 
-	const { data: membersRes, isLoading } = useQuery(
+	const {
+		data: membersRes,
+		isLoading,
+		refetch,
+	} = useQuery(
 		listMembers,
 		firstWorkspaceId
 			? {
 					workspaceId: firstWorkspaceId,
 					limit: ITEMS_PER_PAGE,
-					afterCursor: cursors[currentPage],
+					afterCursor: cursors[currentPage] ?? undefined,
 			  }
 			: undefined,
 		{ enabled: !!firstWorkspaceId }
@@ -64,9 +67,14 @@ export function Team() {
 	const nextCursor = membersRes?.nextCursor ?? null;
 	const hasNextPage = nextCursor !== null;
 
-	// TODO: Get user info for each member (name, email, avatar)
-	const isAdmin =
-		currentUser?.role === "admin" || currentUser?.role === "workspace_admin";
+	useEffect(() => {
+		if (firstWorkspaceId) {
+			refetch();
+		}
+	}, [firstWorkspaceId, refetch]);
+
+	// todo: fix admin checks after tvm
+	const isAdmin = false;
 
 	const { mutate: removeMemberMutation, isPending: isRemoving } = useMutation(
 		removeMember,
@@ -90,7 +98,7 @@ export function Team() {
 		async (userId: bigint) => {
 			if (!firstWorkspaceId) return;
 			try {
-				await removeMemberMutation({
+				removeMemberMutation({
 					workspaceId: firstWorkspaceId,
 					userId,
 				});

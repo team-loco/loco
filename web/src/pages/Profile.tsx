@@ -93,7 +93,7 @@ export function Profile() {
 				<CardContent>
 					<div className="space-y-4">
 						<p className="text-sm text-muted-foreground italic">
-							API token management coming in Phase 6
+							Coming Soon once Aji finishes TVM!!
 						</p>
 						<Button variant="secondary" disabled>
 							Create New Token

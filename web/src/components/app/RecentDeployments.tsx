@@ -2,6 +2,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+	DeploymentPhase,
+	type Deployment,
+} from "@/gen/deployment/v1/deployment_pb";
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -9,12 +13,9 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	DeploymentPhase,
-	type Deployment,
-} from "@/gen/deployment/v1/deployment_pb";
 import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import React, { useState } from "react";
+import { PHASE_COLOR_MAP } from "@/lib/deployment-constants";
 
 interface RecentDeploymentsProps {
 	deployments: Deployment[];
@@ -52,19 +53,8 @@ export function RecentDeployments({
 		}
 	};
 
-	const getPhaseColor = (phase: number): string => {
-		console.log(phase);
-		const colorMap: Record<number, string> = {
-			0: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-			1: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-			2: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-			3: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-			4: "bg-red-400 text-destructive-foreground",
-		};
-		return (
-			colorMap[phase] ||
-			"bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-		);
+	const getPhaseColor = (phase: DeploymentPhase): string => {
+		return PHASE_COLOR_MAP[phase];
 	};
 
 	if (isLoading) {
@@ -199,6 +189,16 @@ export function RecentDeployments({
 														</p>
 													</div>
 												</div>
+												{deployment.message && (
+													<div>
+														<p className="text-xs text-foreground opacity-60 uppercase">
+															Message
+														</p>
+														<p className="text-sm break-all">
+															{deployment.message}
+														</p>
+													</div>
+												)}
 											</div>
 										</TableCell>
 									</TableRow>

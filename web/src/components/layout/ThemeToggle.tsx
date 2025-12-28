@@ -25,7 +25,7 @@ const ThemeToggle = () => {
 			type="button"
 			aria-label={isDark ? "Activate Light Mode" : "Activate Dark Mode"}
 			title={isDark ? "Activate Light Mode" : "Activate Dark Mode"}
-			className="flex items-center gap-4 w-full px-2 py-2 rounded-md hover:bg-sidebar-accent text-sm"
+			className="flex items-center gap-4 w-full px-2 py-2 rounded-md hover:bg-sidebar-accent text-sm cursor-pointer"
 		>
 			{isDark ? (
 				<div className="div-toggle-btn-dark border-0 shadow-none h-4 w-4"></div>
