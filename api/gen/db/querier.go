@@ -21,20 +21,20 @@ type Querier interface {
 	CountOrgsForUser(ctx context.Context, userID int64) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	// Deployment queries
-	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (Deployment, error)
+	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (int64, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
-	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (PlatformDomain, error)
+	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (int64, error)
 	// Resource queries
-	CreateResource(ctx context.Context, arg CreateResourceParams) (Resource, error)
-	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (ResourceDomain, error)
+	CreateResource(ctx context.Context, arg CreateResourceParams) (int64, error)
+	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (int64, error)
 	CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error)
 	// User queries for sqlc
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// Workspace queries
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (Workspace, error)
-	DeactivatePlatformDomain(ctx context.Context, id int64) (PlatformDomain, error)
+	DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error)
 	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID int64) error
 	DeleteOrg(ctx context.Context, id int64) error
 	DeleteOrganization(ctx context.Context, id int64) error
@@ -72,7 +72,7 @@ type Querier interface {
 	GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error)
 	GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([]WorkspaceMember, error)
 	GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error)
-	InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (Workspace, error)
+	InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (int64, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgNameUnique(ctx context.Context, name string) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
@@ -96,22 +96,23 @@ type Querier interface {
 	ListWorkspacesForOrg(ctx context.Context, orgID int64) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, userID int64) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, orgID int64) ([]Workspace, error)
+	MarkDeploymentNotActive(ctx context.Context, id int64) error
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID int64) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID int64) (bool, error)
 	RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error
 	RemoveWorkspace(ctx context.Context, id int64) error
 	RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error
-	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (ResourceDomain, error)
+	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (int64, error)
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)
-	UpdateResource(ctx context.Context, arg UpdateResourceParams) (Resource, error)
-	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (ResourceDomain, error)
+	UpdateResource(ctx context.Context, arg UpdateResourceParams) (int64, error)
+	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (int64, error)
 	UpdateResourceDomainPrimary(ctx context.Context, resourceID int64) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
-	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (Workspace, error)
-	UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (WorkspaceMember, error)
+	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (int64, error)
+	UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

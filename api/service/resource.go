@@ -167,7 +167,7 @@ func (s *ResourceServer) CreateResource(
 		Description: r.GetDescription(),
 	}
 
-	resource, err := s.queries.CreateResource(ctx, params)
+	resourceID, err := s.queries.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -177,7 +177,7 @@ func (s *ResourceServer) CreateResource(
 	for region, regionConfig := range serviceSpec.Regions {
 		isPrimary := regionConfig.Primary
 		_, err := s.queries.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
-			ResourceID: resource.ID,
+			ResourceID: resourceID,
 			Region:     region,
 			IsPrimary:  isPrimary,
 			Status:     genDb.RegionIntentStatusDesired,
@@ -189,7 +189,7 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	domainParams := genDb.CreateResourceDomainParams{
-		ResourceID:       resource.ID,
+		ResourceID:       resourceID,
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
@@ -204,7 +204,7 @@ func (s *ResourceServer) CreateResource(
 	}
 
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{
-		ResourceId: resource.ID,
+		ResourceId: resourceID,
 	}), nil
 }
 
@@ -394,14 +394,14 @@ func (s *ResourceServer) UpdateResource(
 		updateParams.Name = pgtype.Text{String: r.GetName(), Valid: true}
 	}
 
-	resource, err := s.queries.UpdateResource(ctx, updateParams)
+	resourceID, err := s.queries.UpdateResource(ctx, updateParams)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&resourcev1.UpdateResourceResponse{
-		ResourceId: resource.ID,
+		ResourceId: resourceID,
 	}), nil
 }
 
@@ -446,18 +446,11 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	if err := deleteLocoResource(ctx, s.kubeClient, resource.ID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete LocoResource during resource deletion", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup LocoResource: %w", err))
 	}
 
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-	// todo: we need to delete the locoresource here.
 	err = s.queries.DeleteResource(ctx, r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete resource", "error", err)
@@ -465,8 +458,8 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	return connect.NewResponse(&resourcev1.DeleteResourceResponse{
-		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
-		Message:  "Resource deleted successfully",
+		ResourceId: resource.ID,
+		Message:    "Resource deleted successfully",
 	}), nil
 }
 
@@ -862,7 +855,7 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
+	deploymentId, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   1,
 		Replicas:    replicas,
@@ -877,18 +870,9 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	deploymentStatus := &resourcev1.DeploymentStatus{
-		Id:       deployment.ID,
-		Status:   deploymentStatusToProto(deployment.Status),
-		Replicas: deployment.Replicas,
-	}
-
-	if deployment.Message.Valid {
-		deploymentStatus.Message = &deployment.Message.String
-	}
-
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{
-		Deployment: deploymentStatus,
+		DeploymentId: deploymentId,
+		Message:      "Scaling triggered.",
 	}), nil
 }
 
@@ -995,7 +979,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
+	deploymentId, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   1,
 		Replicas:    currentDeployment.Replicas,
@@ -1010,18 +994,9 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	deploymentStatus := &resourcev1.DeploymentStatus{
-		Id:       deployment.ID,
-		Status:   deploymentStatusToProto(deployment.Status),
-		Replicas: deployment.Replicas,
-	}
-
-	if deployment.Message.Valid {
-		deploymentStatus.Message = &deployment.Message.String
-	}
-
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{
-		Deployment: deploymentStatus,
+		DeploymentId: deploymentId,
+		Message:      "Environment variables updated.",
 	}), nil
 }
 
@@ -1070,44 +1045,6 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 		protoDomains = append(protoDomains, domain)
 	}
 	return protoDomains
-}
-
-// resourceDomainToProto converts a database ResourceDomain to the proto ResourceDomain
-func resourceDomainToProto(rd any) *domainv1.ResourceDomain {
-	domain := &domainv1.ResourceDomain{}
-	switch v := rd.(type) {
-	case genDb.ResourceDomain:
-		domain.Id = v.ID
-		domain.Domain = v.Domain
-		domainSource := domainv1.DomainType_USER_PROVIDED
-		if v.DomainSource == genDb.DomainSourcePlatformProvided {
-			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
-		}
-		domain.DomainSource = domainSource
-		if v.SubdomainLabel.Valid {
-			domain.SubdomainLabel = &v.SubdomainLabel.String
-		}
-		if v.PlatformDomainID.Valid {
-			domain.PlatformDomainId = &v.PlatformDomainID.Int64
-		}
-		domain.IsPrimary = v.IsPrimary
-	case genDb.GetDomainByResourceIdRow:
-		domain.Id = v.ID
-		domain.Domain = v.Domain
-		domainSource := domainv1.DomainType_USER_PROVIDED
-		if v.DomainSource == genDb.DomainSourcePlatformProvided {
-			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
-		}
-		domain.DomainSource = domainSource
-		if v.SubdomainLabel.Valid {
-			domain.SubdomainLabel = &v.SubdomainLabel.String
-		}
-		if v.PlatformDomainID.Valid {
-			domain.PlatformDomainId = &v.PlatformDomainID.Int64
-		}
-		domain.IsPrimary = v.IsPrimary
-	}
-	return domain
 }
 
 // dbResourceToProto converts a database Resource to the proto Resource

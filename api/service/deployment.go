@@ -212,7 +212,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
+	deploymentID, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   cluster.ID,
 		Replicas:    replicas,
@@ -236,7 +236,7 @@ func (s *DeploymentServer) CreateDeployment(
 	slog.InfoContext(ctx, "created/updated LocoResource", "resource_id", resource.ID, "resource_name", resource.Name)
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
-		DeploymentId: deployment.ID,
+		DeploymentId: deploymentID,
 		Message:      "Deployment scheduled.",
 	}), nil
 }
@@ -348,6 +348,66 @@ func (s *DeploymentServer) ListDeployments(
 	return connect.NewResponse(&deploymentv1.ListDeploymentsResponse{
 		Deployments: deployments,
 		Total:       total,
+	}), nil
+}
+
+// DeleteDeployment deletes/inactivates a deployment and cleans up its LocoResource
+func (s *DeploymentServer) DeleteDeployment(
+	ctx context.Context,
+	req *connect.Request[deploymentv1.DeleteDeploymentRequest],
+) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
+	r := req.Msg
+
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
+	if !ok {
+		slog.ErrorContext(ctx, "userId not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	deployment, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
+	if err != nil {
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
+	}
+
+	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get resource", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
+		WorkspaceID: resource.WorkspaceID,
+		UserID:      userID,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check workspace membership", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	if !isMember {
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
+		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	}
+
+	// if this is the active deployment, delete the LocoResource
+	if deployment.IsActive {
+		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID); err != nil {
+			slog.ErrorContext(ctx, "failed to delete LocoResource", "error", err, "resource_id", resource.ID)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup LocoResource: %w", err))
+		}
+	}
+
+	// mark deployment as inactive
+	err = s.queries.MarkDeploymentNotActive(ctx, r.DeploymentId)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to mark deployment not active", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	return connect.NewResponse(&deploymentv1.DeleteDeploymentResponse{
+		DeploymentId: r.DeploymentId,
+		Message:      "Deployment deleted.",
 	}), nil
 }
 
@@ -590,4 +650,23 @@ func buildResourcesSpecFromServiceSpec(serviceSpec *resourcev1.ServiceSpec) (*lo
 	}
 
 	return resourcesSpec, nil
+}
+
+// deleteLocoResource deletes a LocoResource from the loco-system namespace
+func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID int64) error {
+	locoRes := &locoControllerV1.LocoResource{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("resource-%d", resourceID),
+			Namespace: "loco-system",
+		},
+	}
+
+	if err := kubeClient.ControllerClient.Delete(ctx, locoRes); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			slog.ErrorContext(ctx, "failed to delete LocoResource", "error", err, "resource_id", resourceID)
+			return err
+		}
+	}
+	slog.InfoContext(ctx, "deleted LocoResource", "resource_id", resourceID)
+	return nil
 }

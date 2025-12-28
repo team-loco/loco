@@ -26,7 +26,7 @@ const createDeployment = `-- name: CreateDeployment :one
 
 INSERT INTO deployments (resource_id, cluster_id, replicas, status, is_active, message, created_by, spec, spec_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, resource_id, cluster_id, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
+RETURNING id
 `
 
 type CreateDeploymentParams struct {
@@ -42,7 +42,7 @@ type CreateDeploymentParams struct {
 }
 
 // Deployment queries
-func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (Deployment, error) {
+func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createDeployment,
 		arg.ResourceID,
 		arg.ClusterID,
@@ -54,24 +54,9 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Spec,
 		arg.SpecVersion,
 	)
-	var i Deployment
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.ClusterID,
-		&i.Replicas,
-		&i.Status,
-		&i.IsActive,
-		&i.Message,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.StartedAt,
-		&i.CompletedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
@@ -181,6 +166,17 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 		return nil, err
 	}
 	return items, nil
+}
+
+const markDeploymentNotActive = `-- name: MarkDeploymentNotActive :exec
+UPDATE deployments
+SET is_active = false, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) MarkDeploymentNotActive(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, markDeploymentNotActive, id)
+	return err
 }
 
 const markPreviousDeploymentsNotActive = `-- name: MarkPreviousDeploymentsNotActive :exec

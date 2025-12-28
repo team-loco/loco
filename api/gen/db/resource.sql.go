@@ -15,7 +15,7 @@ const createResource = `-- name: CreateResource :one
 
 INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at
+RETURNING id
 `
 
 type CreateResourceParams struct {
@@ -30,7 +30,7 @@ type CreateResourceParams struct {
 }
 
 // Resource queries
-func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (Resource, error) {
+func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createResource,
 		arg.WorkspaceID,
 		arg.Name,
@@ -41,21 +41,9 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.SpecVersion,
 		arg.CreatedBy,
 	)
-	var i Resource
-	err := row.Scan(
-		&i.ID,
-		&i.WorkspaceID,
-		&i.Name,
-		&i.Type,
-		&i.Description,
-		&i.Status,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createResourceRegion = `-- name: CreateResourceRegion :one
@@ -360,7 +348,7 @@ UPDATE resources
 SET name = COALESCE($2, name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at
+RETURNING id
 `
 
 type UpdateResourceParams struct {
@@ -368,21 +356,9 @@ type UpdateResourceParams struct {
 	Name pgtype.Text `json:"name"`
 }
 
-func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (Resource, error) {
+func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (int64, error) {
 	row := q.db.QueryRow(ctx, updateResource, arg.ID, arg.Name)
-	var i Resource
-	err := row.Scan(
-		&i.ID,
-		&i.WorkspaceID,
-		&i.Name,
-		&i.Type,
-		&i.Description,
-		&i.Status,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }

@@ -3,7 +3,7 @@
 -- name: CreateResource :one
 INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at;
+RETURNING id;
 
 -- name: GetResourceByID :one
 SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
@@ -26,7 +26,7 @@ UPDATE resources
 SET name = COALESCE(sqlc.narg('name'), name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at;
+RETURNING id;
 
 -- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1;

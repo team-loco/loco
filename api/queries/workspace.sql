@@ -1,7 +1,7 @@
 -- name: InsertWorkspace :one
 INSERT INTO workspaces (org_id, name, description, created_by)
 VALUES ($1, $2, $3, $4)
-RETURNING *;
+RETURNING id;
 
 -- name: GetWorkspaceByIDQuery :one
 SELECT * FROM workspaces WHERE id = $1;
@@ -30,7 +30,7 @@ SET name = COALESCE(sqlc.narg('name'), name),
     description = COALESCE(sqlc.narg('description'), description),
     updated_at = NOW()
 WHERE id = $1
-RETURNING *;
+RETURNING id;
 
 -- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1;
@@ -40,7 +40,7 @@ INSERT INTO workspace_members (workspace_id, user_id, role)
 VALUES ($1, $2, $3)
 ON CONFLICT (workspace_id, user_id)
 DO UPDATE SET role = EXCLUDED.role
-RETURNING *;
+RETURNING user_id;
 
 -- name: GetWorkspaceMemberRole :one
 SELECT role FROM workspace_members
