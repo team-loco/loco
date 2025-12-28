@@ -24,15 +24,14 @@ func (q *Queries) CountDeploymentsForResource(ctx context.Context, resourceID in
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, cluster_id, image, replicas, status, is_active, message, created_by, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, resource_id, cluster_id, image, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
+INSERT INTO deployments (resource_id, cluster_id, replicas, status, is_active, message, created_by, spec, spec_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, resource_id, cluster_id, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at
 `
 
 type CreateDeploymentParams struct {
 	ResourceID  int64            `json:"resourceId"`
 	ClusterID   int64            `json:"clusterId"`
-	Image       string           `json:"image"`
 	Replicas    int32            `json:"replicas"`
 	Status      DeploymentStatus `json:"status"`
 	IsActive    bool             `json:"isActive"`
@@ -47,7 +46,6 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 	row := q.db.QueryRow(ctx, createDeployment,
 		arg.ResourceID,
 		arg.ClusterID,
-		arg.Image,
 		arg.Replicas,
 		arg.Status,
 		arg.IsActive,
@@ -61,7 +59,6 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		&i.ID,
 		&i.ResourceID,
 		&i.ClusterID,
-		&i.Image,
 		&i.Replicas,
 		&i.Status,
 		&i.IsActive,
@@ -78,7 +75,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, cluster_id, image, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, cluster_id, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, error) {
@@ -88,7 +85,6 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 		&i.ID,
 		&i.ResourceID,
 		&i.ClusterID,
-		&i.Image,
 		&i.Replicas,
 		&i.Status,
 		&i.IsActive,
@@ -140,7 +136,7 @@ func (q *Queries) ListActiveDeployments(ctx context.Context) ([]int64, error) {
 }
 
 const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, image, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -165,7 +161,6 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 			&i.ID,
 			&i.ResourceID,
 			&i.ClusterID,
-			&i.Image,
 			&i.Replicas,
 			&i.Status,
 			&i.IsActive,

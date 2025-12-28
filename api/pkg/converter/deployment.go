@@ -125,7 +125,7 @@ func MergeDeploymentSpec(
 
 // ProtoToServiceDeploymentSpec converts a proto DeploymentSpec to a controller ServiceDeploymentSpec
 // This is the canonical conversion from proto (source of truth) to controller CRD types
-func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec, createdBy int64) *locoControllerV1.ServiceDeploymentSpec {
+func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoControllerV1.ServiceDeploymentSpec {
 	if spec == nil {
 		return &locoControllerV1.ServiceDeploymentSpec{}
 	}

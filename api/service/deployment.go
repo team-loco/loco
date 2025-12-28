@@ -52,6 +52,43 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
+func deploymentToProto(d genDb.Deployment) *deploymentv1.Deployment {
+	deployment := &deploymentv1.Deployment{
+		Id:          d.ID,
+		ResourceId:  d.ResourceID,
+		Replicas:    d.Replicas,
+		Status:      parseDeploymentPhase(d.Status),
+		IsActive:    d.IsActive,
+		CreatedBy:   d.CreatedBy,
+		CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+		SpecVersion: d.SpecVersion,
+	}
+
+	if len(d.Spec) > 0 {
+		var spec map[string]any
+		if err := json.Unmarshal(d.Spec, &spec); err == nil {
+			if s, err := structpb.NewStruct(spec); err == nil {
+				deployment.Spec = s
+			}
+		}
+	}
+
+	if d.Message.Valid {
+		deployment.Message = &d.Message.String
+	}
+	if d.StartedAt.Valid {
+		ts := timeutil.ParsePostgresTimestamp(d.StartedAt.Time)
+		deployment.StartedAt = ts
+	}
+	if d.CompletedAt.Valid {
+		ts := timeutil.ParsePostgresTimestamp(d.CompletedAt.Time)
+		deployment.CompletedAt = ts
+	}
+
+	return deployment
+}
+
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
 	db         *pgxpool.Pool
@@ -143,28 +180,21 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	// deserialize resource spec and merge with request spec
-	// this is the API's single source of truth for deployment defaults
-	var mergedSpec *deploymentv1.DeploymentSpec
+	resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec)
+	if deserializeErr != nil {
+		slog.ErrorContext(ctx, deserializeErr.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
+	}
 
-	if len(resource.Spec) > 0 {
-		resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec)
-		if err != nil {
-			slog.ErrorContext(ctx, err.Error())
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", err))
-		}
-
-		mergedSpec, err = converter.MergeDeploymentSpec(resourceSpec, r.Spec)
-		if err != nil {
-			slog.ErrorContext(ctx, err.Error())
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", err))
-		}
-	} else {
-		// no resource spec, use request spec as-is
-		mergedSpec = r.Spec
+	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, r.Spec)
+	if mergeErr != nil {
+		slog.ErrorContext(ctx, mergeErr.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", mergeErr))
 	}
 
 	// create spec copy without env for DB persistence (no plaintext secrets in DB)
 	mergedServiceSpec := mergedSpec.GetService()
+
 	specForDBService := &deploymentv1.ServiceDeploymentSpec{
 		Build:       mergedServiceSpec.Build,
 		HealthCheck: mergedServiceSpec.HealthCheck,
@@ -175,16 +205,11 @@ func (s *DeploymentServer) CreateDeployment(
 		Scalers:     mergedServiceSpec.Scalers,
 		Port:        mergedServiceSpec.Port,
 		Region:      mergedServiceSpec.Region,
-		// Env intentionally omitted (as it can have sensitive information)
+		// Env omitted as it can have sensitive info and should not be stored in the DB
 	}
+	// todo: consider using dedicated secrets management solution.
 
-	specForDB := &deploymentv1.DeploymentSpec{
-		Spec: &deploymentv1.DeploymentSpec_Service{
-			Service: specForDBService,
-		},
-	}
-
-	specJSON, err := json.Marshal(specForDB)
+	specJSON, err := json.Marshal(specForDBService)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal spec", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
@@ -199,7 +224,6 @@ func (s *DeploymentServer) CreateDeployment(
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   cluster.ID,
-		Image:       serviceSpec.Build.Image,
 		Replicas:    replicas,
 		Status:      genDb.DeploymentStatusPending,
 		IsActive:    true,
@@ -213,7 +237,7 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	// create LocoResource in loco-system namespace (pass merged spec WITH env to controller)
-	err = createLocoResource(ctx, s.kubeClient, resource, domain.Domain, mergedSpec, userID)
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
@@ -222,6 +246,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
 		DeploymentId: deployment.ID,
+		Message:      "Deployment scheduled.",
 	}), nil
 }
 
@@ -264,42 +289,8 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	deploymentResp := &deploymentv1.Deployment{
-		Id:          deploymentData.ID,
-		ResourceId:  deploymentData.ResourceID,
-		Image:       deploymentData.Image,
-		Replicas:    deploymentData.Replicas,
-		Status:      parseDeploymentPhase(deploymentData.Status),
-		IsActive:    deploymentData.IsActive,
-		CreatedBy:   deploymentData.CreatedBy,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(deploymentData.UpdatedAt.Time),
-		SpecVersion: deploymentData.SpecVersion,
-	}
-
-	if len(deploymentData.Spec) > 0 {
-		var spec map[string]any
-		if err := json.Unmarshal(deploymentData.Spec, &spec); err == nil {
-			if s, err := structpb.NewStruct(spec); err == nil {
-				deploymentResp.Spec = s
-			}
-		}
-	}
-
-	if deploymentData.Message.Valid {
-		deploymentResp.Message = &deploymentData.Message.String
-	}
-	if deploymentData.StartedAt.Valid {
-		ts := timeutil.ParsePostgresTimestamp(deploymentData.StartedAt.Time)
-		deploymentResp.StartedAt = ts
-	}
-	if deploymentData.CompletedAt.Valid {
-		ts := timeutil.ParsePostgresTimestamp(deploymentData.CompletedAt.Time)
-		deploymentResp.CompletedAt = ts
-	}
-
 	return connect.NewResponse(&deploymentv1.GetDeploymentResponse{
-		Deployment: deploymentResp,
+		Deployment: deploymentToProto(deploymentData),
 	}), nil
 }
 
@@ -360,42 +351,7 @@ func (s *DeploymentServer) ListDeployments(
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
-		deployment := &deploymentv1.Deployment{
-			Id:          d.ID,
-			ResourceId:  d.ResourceID,
-			ClusterId:   d.ClusterID,
-			Image:       d.Image,
-			Replicas:    d.Replicas,
-			Status:      parseDeploymentPhase(d.Status),
-			IsActive:    d.IsActive,
-			CreatedBy:   d.CreatedBy,
-			CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
-			SpecVersion: d.SpecVersion,
-		}
-
-		if len(d.Spec) > 0 {
-			var spec map[string]any
-			if err := json.Unmarshal(d.Spec, &spec); err == nil {
-				if s, err := structpb.NewStruct(spec); err == nil {
-					deployment.Spec = s
-				}
-			}
-		}
-
-		if d.Message.Valid {
-			deployment.Message = &d.Message.String
-		}
-		if d.StartedAt.Valid {
-			ts := timeutil.ParsePostgresTimestamp(d.StartedAt.Time)
-			deployment.StartedAt = ts
-		}
-		if d.CompletedAt.Valid {
-			ts := timeutil.ParsePostgresTimestamp(d.CompletedAt.Time)
-			deployment.CompletedAt = ts
-		}
-
-		deployments = append(deployments, deployment)
+		deployments = append(deployments, deploymentToProto(d))
 	}
 
 	return connect.NewResponse(&deploymentv1.ListDeploymentsResponse{
@@ -517,19 +473,12 @@ func createLocoResource(
 	ctx context.Context,
 	kubeClient *kube.Client,
 	resource genDb.Resource,
+	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
 	spec *deploymentv1.DeploymentSpec,
-	createdBy int64,
 ) error {
-	// deserialize ResourceSpec from database
-	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err, "resource_id", resource.ID)
-		return fmt.Errorf("invalid resource spec: %w", err)
-	}
-
 	// convert proto to controller CRD types (includes all fields: image, replicas, cpu, memory, env, healthCheck, metrics, etc.)
-	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec, createdBy)
+	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec)
 	slog.InfoContext(ctx, "converted deployment spec", "image", crdServiceDeploymentSpec.Image, "port", crdServiceDeploymentSpec.Port)
 
 	locoResourceSpec := locoControllerV1.LocoResourceSpec{
@@ -578,7 +527,7 @@ func createLocoResource(
 	}
 
 	// create or update the LocoResource
-	err = kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
+	err := kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
 		Name:      locoRes.Name,
 		Namespace: locoRes.Namespace,
 	}, locoRes)

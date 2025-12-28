@@ -117,7 +117,6 @@ CREATE TABLE deployments (
     id BIGSERIAL PRIMARY KEY,
     resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE RESTRICT,
-    image TEXT NOT NULL,
     replicas INT NOT NULL,
     status deployment_status NOT NULL,
     is_active BOOLEAN NOT NULL,

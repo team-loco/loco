@@ -202,7 +202,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 														// eslint-disable-next-line @typescript-eslint/no-explicit-any
 														(subItem as any).badge
 															? "cursor-not-allowed opacity-60 hover:bg-transparent"
-															: ""
+															: "cursor-pointer"
 													}`}
 												>
 													<div className="flex items-center gap-2">
@@ -233,9 +233,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 									<SidebarMenuButton
 										onClick={() => navigate(navItem.url)}
 										isActive={isActive(navItem.url)}
-										className={
+										className={`${
 											(navItem.items ?? []).length ? "" : "font-medium"
-										}
+										} cursor-pointer`}
 										tooltip={navItem.title}
 									>
 										<navItem.icon className="size-4" />
@@ -250,6 +250,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 														<SidebarMenuSubButton
 															onClick={() => navigate(navSubItem.url)}
 															isActive={isActive(navSubItem.url)}
+															className="cursor-pointer"
 														>
 															<span>{navSubItem.title}</span>
 														</SidebarMenuSubButton>

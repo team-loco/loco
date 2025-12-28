@@ -235,7 +235,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	slog.InfoContext(ctx, "reconcile complete", "phase", status.Phase, "resource", locoRes.Name)
 	if status.Phase == "Deploying" {
 		// requeue faster while deployment is rolling out
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 	}
 	// Otherwise, rely on watch events
 	return ctrl.Result{}, nil
@@ -794,7 +794,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 						BackendRef: v1Gateway.BackendRef{
 							BackendObjectReference: v1Gateway.BackendObjectReference{
 								Name: v1Gateway.ObjectName(name),
-								Port: backendPort,
+								Port: ptrToPortNumber(80),
 								Kind: ptrToKind("Service"),
 							},
 						},

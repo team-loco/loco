@@ -865,7 +865,6 @@ func (s *ResourceServer) ScaleResource(
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   1,
-		Image:       currentDeployment.Image,
 		Replicas:    replicas,
 		Status:      genDb.DeploymentStatusPending,
 		IsActive:    true,
@@ -999,7 +998,6 @@ func (s *ResourceServer) UpdateResourceEnv(
 	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   1,
-		Image:       currentDeployment.Image,
 		Replicas:    currentDeployment.Replicas,
 		Status:      genDb.DeploymentStatusPending,
 		IsActive:    true,
