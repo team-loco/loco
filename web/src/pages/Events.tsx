@@ -70,6 +70,7 @@ export function Events() {
 	}, [filtered]);
 
 	const handleDismiss = (eventId: string) => {
+		setFilteredEvents((prev) => prev.filter((e) => e.id !== eventId));
 		setEvents((prev) => prev.filter((e) => e.id !== eventId));
 	};
 
@@ -151,7 +152,7 @@ export function Events() {
 					</div>
 				) : (
 					<div className="space-y-3">
-						{filteredEvents.map((event, idx) => {
+						{filteredEvents.map((event) => {
 							const severity = (event.type?.toLowerCase() ||
 								"info") as keyof typeof severityColors;
 							const timestamp = event.timestamp
@@ -167,7 +168,7 @@ export function Events() {
 
 							return (
 								<div
-									key={idx}
+									key={event.id}
 									className={`border-2 border-border rounded-lg p-4 ${
 										severityColors[severity] || ""
 									}`}
@@ -201,7 +202,7 @@ export function Events() {
 										<Button
 											variant="secondary"
 											size="sm"
-											onClick={() => handleDismiss(idx.toString())}
+											onClick={() => handleDismiss(event.id)}
 											className="h-8 w-8 p-0 shrink-0"
 											title="Dismiss event"
 										>

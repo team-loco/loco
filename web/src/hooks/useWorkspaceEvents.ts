@@ -2,10 +2,21 @@ import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { listResources, getEvents } from "@/gen/resource/v1";
 import type { Event } from "@/gen/resource/v1/resource_pb";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
 export interface WorkspaceEventWithResource extends Event {
+	id: string;
 	resourceId: bigint;
 	resourceName: string;
+}
+
+function getTimestampMs(timestamp: Timestamp | undefined): number {
+	if (!timestamp) return 0;
+	const seconds = typeof timestamp.seconds === "bigint" 
+		? Number(timestamp.seconds) 
+		: timestamp.seconds || 0;
+	const nanos = timestamp.nanos || 0;
+	return seconds * 1000 + Math.floor(nanos / 1000000);
 }
 
 export function useWorkspaceEvents(workspaceId: string) {
@@ -34,9 +45,10 @@ export function useWorkspaceEvents(workspaceId: string) {
 		const allEvents: WorkspaceEventWithResource[] = [];
 
 		if (eventsData?.events && firstResource) {
-			eventsData.events.forEach((event) => {
+			eventsData.events.forEach((event, idx) => {
 				allEvents.push({
 					...event,
+					id: `${firstResource.id}-${idx}`,
 					resourceId: firstResource.id,
 					resourceName: firstResource.name,
 				});
@@ -45,12 +57,8 @@ export function useWorkspaceEvents(workspaceId: string) {
 
 		// Sort by timestamp descending (newest first)
 		allEvents.sort((a, b) => {
-			const timeA = a.timestamp
-				? new Date(a.timestamp).getTime()
-				: 0;
-			const timeB = b.timestamp
-				? new Date(b.timestamp).getTime()
-				: 0;
+			const timeA = getTimestampMs(a.timestamp);
+			const timeB = getTimestampMs(b.timestamp);
 			return timeB - timeA;
 		});
 
