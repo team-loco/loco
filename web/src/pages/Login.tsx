@@ -3,8 +3,15 @@ import { Button } from "@/components/ui/button";
 import { OAuthService } from "@/gen/oauth/v1";
 import { createClient } from "@connectrpc/connect";
 import { useState } from "react";
+import { useAuth } from "@/auth/AuthProvider";
+import { Navigate } from "react-router";
 
 export function Login() {
+	const { isAuthenticated } = useAuth();
+
+	if (isAuthenticated) {
+		return <Navigate to="/dashboard" />;
+	}
 
 	const [error, setError] = useState<string | null>(() => {
 		// Check if there's an error from OAuth callback
