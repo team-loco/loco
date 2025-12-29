@@ -1,16 +1,19 @@
-import { ResourceStatus, DeploymentPhase } from "@/gen/resource/v1/resource_pb";
+import { ResourceStatus } from "@/gen/resource/v1/resource_pb";
+import { DeploymentPhase } from "@/gen/deployment/v1/deployment_pb";
 
 export function getStatusLabel(status?: number): string {
 	if (status === undefined || status === null) return "pending";
 	switch (status) {
-		case ResourceStatus.AVAILABLE:
+		case ResourceStatus.HEALTHY:
 			return "running";
-		case ResourceStatus.PROGRESSING:
+		case ResourceStatus.DEPLOYING:
 			return "deploying";
 		case ResourceStatus.DEGRADED:
 			return "degraded";
 		case ResourceStatus.UNAVAILABLE:
 			return "unavailable";
+		case ResourceStatus.SUSPENDED:
+			return "suspended";
 		default:
 			return "pending";
 	}

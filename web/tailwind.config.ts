@@ -7,6 +7,10 @@ export default {
 			fontFamily: {
 				sans: ["Space Grotesk", "Inter", "system-ui", "sans-serif"],
 			},
+			colors: {
+				"success-soft": "#eaf3e6",
+				"success-border": "#b4cea4",
+			},
 		},
 	},
 } satisfies Config;

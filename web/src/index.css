@@ -39,6 +39,8 @@
 	--color-sidebar-border: var(--sidebar-border);
 	--color-success: var(--success);
 	--color-warning: var(--warning);
+	--color-success-soft: var(--success-soft);
+	--color-success-border: var(--success-border);
 }
 
 /* ---------------------------
@@ -79,6 +81,10 @@
 	--destructive: #d1242f;
 	--success: #118122;
 	--warning: #c49617;
+
+	/* Success soft colors for deployment cards */
+	--success-soft: #eaf3e6;
+	--success-border: #b4cea4;
 
 	/* Borders - extremely subtle */
 	--border: #e8eaed;
@@ -131,6 +137,10 @@
 	--success: #51cf66;
 	--warning: #ffd43b;
 
+	/* Success soft colors for deployment cards */
+	--success-soft: #eaf3e6;
+	--success-border: #b4cea4;
+
 	/* Borders in dark */
 	--border: #2a3139;
 	--input: #2a3139;
@@ -155,7 +165,19 @@
 	}
 
 	*:focus-visible {
-		@apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+		@apply outline-none;
+	}
+
+	input,
+	textarea,
+	select {
+		outline: none !important;
+	}
+
+	input:focus-visible,
+	textarea:focus-visible,
+	select:focus-visible {
+		box-shadow: 0 0 0 3px rgba(244, 129, 32, 0.4);
 	}
 
 	html {

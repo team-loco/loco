@@ -2,7 +2,6 @@ import { useAuth } from "@/auth/AuthProvider";
 import { AppCard } from "@/components/AppCard";
 import { EmptyState } from "@/components/EmptyState";
 import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useHeader } from "@/context/HeaderContext";
 import { listResources } from "@/gen/resource/v1";
@@ -10,7 +9,6 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
-import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -64,7 +62,10 @@ export function Home() {
 		{ enabled: !!currentWorkspaceId }
 	);
 
-	const allApps = useMemo(() => listResourcesRes?.resources ?? [], [listResourcesRes?.resources]);
+	const allApps = useMemo(
+		() => listResourcesRes?.resources ?? [],
+		[listResourcesRes?.resources]
+	);
 
 	// Filter apps by search term
 	const filteredApps = useMemo(() => {
@@ -149,20 +150,6 @@ export function Home() {
 
 	return (
 		<div className="space-y-4">
-			{/* Create Button */}
-			{allApps.length > 0 && (
-				<div className="flex justify-end">
-					<Button
-						onClick={() => navigate("/create-app")}
-						size="sm"
-						className="gap-2"
-					>
-						<Plus className="h-4 w-4" />
-						Create App
-					</Button>
-				</div>
-			)}
-
 			{/* Workspace Dashboard Metrics - only show when workspace is selected */}
 			{currentWorkspaceId && (
 				<WorkspaceDashboardMetrics

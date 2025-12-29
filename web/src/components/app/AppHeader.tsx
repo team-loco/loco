@@ -1,5 +1,6 @@
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import type { Resource } from "@/gen/resource/v1/resource_pb";
 import { Copy, ExternalLink, Pencil } from "lucide-react";
@@ -39,17 +40,18 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 	};
 
 	return (
-		<div className="rounded-lg border bg-card p-6 space-y-4">
-			{/* App Name and Status */}
-			<div className="flex items-start justify-between gap-4">
-				<div>
-					<div className="flex items-center gap-3 mb-2">
-						<h1 className="text-3xl font-heading text-foreground">
-							{app.name}
-						</h1>
-						<Badge variant="secondary">{appTypeLabel}</Badge>
-						<StatusBadge status={statusLabel} />
-					</div>
+		<TooltipProvider>
+			<div className="rounded-lg border bg-card p-6 space-y-4">
+				{/* App Name and Status */}
+				<div className="flex items-start justify-between gap-4">
+					<div>
+						<div className="flex items-center gap-3 mb-2">
+							<h1 className="text-3xl font-heading text-foreground">
+								{app.name}
+							</h1>
+							<Badge variant="secondary">{appTypeLabel}</Badge>
+							<StatusBadge status={statusLabel} />
+						</div>
 					<p className="text-sm text-foreground opacity-70">
 						{app.name || "default"}
 					</p>
@@ -83,7 +85,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => navigate(`/resource/${app.id}/settings`)}
+						onClick={() => navigate(`/app/${app.id}/settings`)}
 						className="flex-1 sm:flex-none"
 					>
 						<Pencil className="w-4 h-4 mr-2" />
@@ -92,5 +94,6 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 				</div>
 			</div>
 		</div>
+		</TooltipProvider>
 	);
 }

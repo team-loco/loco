@@ -47,10 +47,8 @@
                  keySplines="0.42 0 0.58 1; 0.42 0 0.58 1"/>
       </feOffset>
       
-      <!-- Displace the graphic -->
       <feDisplacementMap in="SourceGraphic" in2="offset1" scale="100" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
       
-      <!-- Color shifting - this makes colors actually change -->
       <feColorMatrix in="displaced" type="hueRotate" values="0" result="hueShift">
         <animate attributeName="values" 
                  values="0;30;25;0" 
