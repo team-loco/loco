@@ -168,7 +168,7 @@ message Resource {
   repeated loco.domain.v1.ResourceDomain domains      = 5;
   repeated RegionConfig                  regions      = 6;
   ResourceStatus                         status       = 7;
-  optional google.protobuf.Struct        spec         = 8;
+  optional ResourceSpec                  spec         = 8;
   int32                                  spec_version = 9;
   optional string                        description  = 10;
   int64                                  created_by   = 11;
@@ -192,7 +192,7 @@ message CreateResourceRequest {
   string                     name         = 2;
   ResourceType               type         = 3;
   loco.domain.v1.DomainInput domain       = 4;
-  optional ResourceSpec      spec         = 5;
+  ResourceSpec               spec         = 5;
   optional string            description  = 6;
 }
 
