@@ -20,7 +20,7 @@ import (
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
 	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
-	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,6 +39,8 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	switch status {
 	case genDb.DeploymentStatusPending:
 		return deploymentv1.DeploymentPhase_PENDING
+	case genDb.DeploymentStatusDeploying:
+		return deploymentv1.DeploymentPhase_DEPLOYING
 	case genDb.DeploymentStatusRunning:
 		return deploymentv1.DeploymentPhase_RUNNING
 	case genDb.DeploymentStatusSucceeded:
@@ -52,10 +54,11 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
-func deploymentToProto(d genDb.Deployment) *deploymentv1.Deployment {
+func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.Deployment {
 	deployment := &deploymentv1.Deployment{
 		Id:          d.ID,
 		ResourceId:  d.ResourceID,
+		ClusterId:   d.ClusterID,
 		Replicas:    d.Replicas,
 		Status:      parseDeploymentPhase(d.Status),
 		IsActive:    d.IsActive,
@@ -66,12 +69,42 @@ func deploymentToProto(d genDb.Deployment) *deploymentv1.Deployment {
 	}
 
 	if len(d.Spec) > 0 {
-		var spec map[string]any
-		if err := json.Unmarshal(d.Spec, &spec); err == nil {
-			if s, err := structpb.NewStruct(spec); err == nil {
-				deployment.Spec = s
+		spec := &deploymentv1.DeploymentSpec{}
+
+		switch resourceType {
+		case "service":
+			serviceSpec := &deploymentv1.ServiceDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, serviceSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal service deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Service{Service: serviceSpec}
 			}
+		case "database":
+			databaseSpec := &deploymentv1.DatabaseDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, databaseSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal database deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Database{Database: databaseSpec}
+			}
+		case "cache":
+			cacheSpec := &deploymentv1.CacheDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, cacheSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal cache deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Cache{Cache: cacheSpec}
+			}
+		case "queue":
+			queueSpec := &deploymentv1.QueueDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, queueSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal queue deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Queue{Queue: queueSpec}
+			}
+		default:
+			slog.WarnContext(context.Background(), "unknown resource type", "resource_type", resourceType, "deployment_id", d.ID)
 		}
+
+		deployment.Spec = spec
 	}
 
 	if d.Message.Valid {
@@ -281,7 +314,7 @@ func (s *DeploymentServer) GetDeployment(
 	}
 
 	return connect.NewResponse(&deploymentv1.GetDeploymentResponse{
-		Deployment: deploymentToProto(deploymentData),
+		Deployment: deploymentToProto(deploymentData, string(resource.Type)),
 	}), nil
 }
 
@@ -342,7 +375,7 @@ func (s *DeploymentServer) ListDeployments(
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
-		deployments = append(deployments, deploymentToProto(d))
+		deployments = append(deployments, deploymentToProto(d, string(resource.Type)))
 	}
 
 	return connect.NewResponse(&deploymentv1.ListDeploymentsResponse{

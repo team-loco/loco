@@ -1,8 +1,8 @@
 -- Deployment status enum
-CREATE TYPE deployment_status AS ENUM ('pending', 'running', 'succeeded', 'failed', 'canceled');
+CREATE TYPE deployment_status AS ENUM ('pending', 'deploying', 'running', 'succeeded', 'failed', 'canceled');
 
 -- Resource status enum
-CREATE TYPE resource_status AS ENUM ('available', 'progressing', 'degraded', 'unavailable', 'idle');
+CREATE TYPE resource_status AS ENUM ('healthy', 'deploying', 'degraded', 'unavailable', 'suspended');
 
 -- Resource type enum
 CREATE TYPE resource_type AS ENUM ('service', 'worker', 'database', 'cache', 'queue', 'blob');

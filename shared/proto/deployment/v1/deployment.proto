@@ -10,11 +10,18 @@ option go_package = "github.com/loco-team/loco/shared/proto/deployment/v1;deploy
 // DeploymentPhase indicates the current state of a deployment lifecycle.
 enum DeploymentPhase {
   UNSPECIFIED = 0;
-  PENDING     = 1;
-  RUNNING     = 2;
-  SUCCEEDED   = 3;
-  FAILED      = 4;
-  CANCELED    = 5;
+  // Pre-deployment: created in DB, waiting for controller to pick it up
+  PENDING = 1;
+  // Active: controller is actively deploying (pulling image, creating pods, etc)
+  DEPLOYING = 2;
+  // Running: pods are up, healthy, ready to serve traffic
+  RUNNING = 3;
+  // Terminal: one-off jobs completed successfully
+  SUCCEEDED = 4;
+  // Terminal: error during deployment or runtime
+  FAILED = 5;
+  // Terminal: user explicitly cancelled
+  CANCELED = 6;
 }
 
 // DeploymentService manages resource deployments.
@@ -111,18 +118,17 @@ message Deployment {
   int64                              id           = 1;
   int64                              resource_id  = 2;
   int64                              cluster_id   = 3;
-  string                             image        = 4;
-  int32                              replicas     = 5;
-  DeploymentPhase                    status       = 6;
-  bool                               is_active    = 7;
-  optional string                    message      = 8;
-  int64                              created_by   = 9;
-  google.protobuf.Timestamp          created_at   = 10;
-  optional google.protobuf.Timestamp started_at   = 11;
-  optional google.protobuf.Timestamp completed_at = 12;
-  google.protobuf.Timestamp          updated_at   = 13;
-  int32                              spec_version = 14;
-  optional google.protobuf.Struct    spec         = 15;
+  int32                              replicas     = 4;
+  DeploymentPhase                    status       = 5;
+  bool                               is_active    = 6;
+  optional string                    message      = 7;
+  int64                              created_by   = 8;
+  google.protobuf.Timestamp          created_at   = 9;
+  optional google.protobuf.Timestamp started_at   = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+  google.protobuf.Timestamp          updated_at   = 12;
+  int32                              spec_version = 13;
+  DeploymentSpec                     spec         = 14;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.

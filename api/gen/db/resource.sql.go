@@ -229,6 +229,31 @@ func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id int64) (int64, 
 	return workspace_id, err
 }
 
+const listActiveDeploymentsByResourceID = `-- name: ListActiveDeploymentsByResourceID :many
+SELECT status FROM deployments
+WHERE resource_id = $1 AND is_active = true
+`
+
+func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourceID int64) ([]DeploymentStatus, error) {
+	rows, err := q.db.Query(ctx, listActiveDeploymentsByResourceID, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeploymentStatus
+	for rows.Next() {
+		var status DeploymentStatus
+		if err := rows.Scan(&status); err != nil {
+			return nil, err
+		}
+		items = append(items, status)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listClustersActive = `-- name: ListClustersActive :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
@@ -361,4 +386,20 @@ func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) 
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const updateResourceStatus = `-- name: UpdateResourceStatus :exec
+UPDATE resources
+SET status = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateResourceStatusParams struct {
+	ID     int64          `json:"id"`
+	Status ResourceStatus `json:"status"`
+}
+
+func (q *Queries) UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error {
+	_, err := q.db.Exec(ctx, updateResourceStatus, arg.ID, arg.Status)
+	return err
 }

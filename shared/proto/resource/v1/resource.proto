@@ -20,22 +20,13 @@ enum ResourceType {
   BLOB     = 5;
 }
 
-// DeploymentPhase indicates the current state of a deployment.
-enum DeploymentPhase {
-  PENDING   = 0;
-  RUNNING   = 1;
-  SUCCEEDED = 2;
-  FAILED    = 3;
-  CANCELED  = 4;
-}
-
 // ResourceStatus represents the operational status of a resource based on current deployment and health checks.
 enum ResourceStatus {
-  AVAILABLE   = 0;
-  PROGRESSING = 1;
+  HEALTHY     = 0;
+  DEPLOYING   = 1;
   DEGRADED    = 2;
   UNAVAILABLE = 3;
-  IDLE        = 4;
+  SUSPENDED   = 4;
 }
 
 // RegionIntentStatus represents the state of a region intent for a resource.
@@ -289,10 +280,10 @@ message GetResourceStatusRequest {
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
 message DeploymentStatus {
-  int64           id       = 1;
-  DeploymentPhase status   = 2;
-  int32           replicas = 3;
-  optional string message  = 4;
+  int64                        id       = 1;
+  loco.deployment.v1.DeploymentPhase status   = 2;
+  int32                        replicas = 3;
+  optional string              message  = 4;
 }
 
 // GetResourceStatusResponse is the response containing resource status information.

@@ -92,6 +92,11 @@ export function RecentDeployments({
 		return service?.build?.image || "—";
 	};
 
+	const getRegion = (deployment: Deployment): string => {
+		const service = getServiceSpec(deployment);
+		return service?.region || "—";
+	};
+
 	const columns: ColumnDef<Deployment>[] = [
 		{
 			id: "expand",
@@ -177,6 +182,14 @@ export function RecentDeployments({
 				<span className="text-sm">{row.original.replicas || "—"}</span>
 			),
 			size: 100,
+		},
+		{
+			id: "region",
+			header: () => <span>Region</span>,
+			cell: ({ row }) => (
+				<span className="text-sm font-mono">{getRegion(row.original)}</span>
+			),
+			size: 120,
 		},
 		{
 			accessorKey: "createdAt",
@@ -333,13 +346,21 @@ export function RecentDeployments({
 																{getImage(row.original)}
 															</p>
 														</div>
-														<div className="grid grid-cols-2 gap-4">
+														<div className="grid grid-cols-3 gap-4">
 															<div>
 																<p className="text-xs text-foreground opacity-60 uppercase">
 																	Replicas
 																</p>
 																<p className="text-sm">
 																	{row.original.replicas || "—"}
+																</p>
+															</div>
+															<div>
+																<p className="text-xs text-foreground opacity-60 uppercase">
+																	Region
+																</p>
+																<p className="text-sm font-mono">
+																	{getRegion(row.original)}
 																</p>
 															</div>
 															<div>

@@ -214,6 +214,15 @@ export function DeploymentStatusCard({
 							</div>
 						)}
 
+						<div className="flex items-center justify-between">
+							<span className="text-sm font-medium text-foreground">
+								Region
+							</span>
+							<span className="text-sm font-mono text-foreground opacity-70">
+								{getServiceSpec(deployment)?.region || "—"}
+							</span>
+						</div>
+
 						<div className="flex gap-6">
 							<div className="flex flex-col gap-1 flex-1">
 								<span className="text-xs font-medium text-foreground opacity-70 h-4">
@@ -243,8 +252,8 @@ export function DeploymentStatusCard({
 									}
 								</span>
 							</div>
-						</div>
-					</div>
+							</div>
+							</div>
 
 					{/* Scale Button */}
 					{!isEditing && (

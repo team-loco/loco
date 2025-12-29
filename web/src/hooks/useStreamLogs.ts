@@ -38,7 +38,7 @@ export function useStreamLogs(appId: string, tailLimit?: number) {
 					{ signal: abortController.signal }
 				)) {
 					if (!isMounted) break;
-					logsList.push(logEntry);
+					logsList.unshift(logEntry);
 					if (isMounted) {
 						setLogs([...logsList]);
 						if (isFirstUpdate) {

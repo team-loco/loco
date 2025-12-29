@@ -7,13 +7,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	getRecentEvents,
-	subscribeToEvents,
-	type WorkspaceEvent,
-} from "@/lib/events";
 import { AlertCircle, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 const severityColors: Record<string, string> = {
 	error: "border-l-4 border-l-red-500 bg-red-50 dark:bg-red-950",
@@ -24,26 +21,25 @@ const severityColors: Record<string, string> = {
 
 const severityBadgeColors: Record<string, string> = {
 	error: "bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-100",
-	warning: "bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100",
+	warning:
+		"bg-yellow-200 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-100",
 	success: "bg-green-200 text-green-900 dark:bg-green-900 dark:text-green-100",
 	info: "bg-blue-200 text-blue-900 dark:bg-blue-900 dark:text-blue-100",
 };
 
 export function Events() {
-	const initialEvents = getRecentEvents(100);
-	const [events, setEvents] = useState<WorkspaceEvent[]>(() => initialEvents);
-	const [filteredEvents, setFilteredEvents] = useState<WorkspaceEvent[]>(() => initialEvents);
+	const { workspace } = useWorkspace();
+	const { events: backendEvents } = useWorkspaceEvents(
+		workspace?.id.toString() || ""
+	);
+	const [events, setEvents] = useState(backendEvents);
+	const [filteredEvents, setFilteredEvents] = useState(backendEvents);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [severityFilter, setSeverityFilter] = useState<string>("all");
 
 	useEffect(() => {
-		// Subscribe to new events
-		const unsubscribe = subscribeToEvents("workspace", (event) => {
-			setEvents((prev) => [event, ...prev]);
-		});
-
-		return unsubscribe;
-	}, []);
+		setEvents(backendEvents);
+	}, [backendEvents]);
 
 	// useMemo ensures filtering is only recalculated when dependencies change
 	const filtered = useMemo(() => {
@@ -53,13 +49,17 @@ export function Events() {
 			const term = searchTerm.toLowerCase();
 			result = result.filter(
 				(e) =>
-					e.appName.toLowerCase().includes(term) ||
-					e.message.toLowerCase().includes(term)
+					e.resourceName?.toLowerCase().includes(term) ||
+					e.message?.toLowerCase().includes(term) ||
+					e.reason?.toLowerCase().includes(term)
 			);
 		}
 
 		if (severityFilter !== "all") {
-			result = result.filter((e) => e.severity === severityFilter);
+			result = result.filter((e) => {
+				const severity = e.type?.toLowerCase() || "info";
+				return severity.includes(severityFilter);
+			});
 		}
 
 		return result;
@@ -80,7 +80,7 @@ export function Events() {
 	return (
 		<div className="min-h-screen bg-background">
 			{/* Header */}
-			<div className="border-b-2 border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-40">
+			<div className="border-b-2 border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-10">
 				<div className="container px-4 py-4 flex items-center justify-between">
 					<div>
 						<h1 className="text-2xl font-bold">Events</h1>
@@ -127,9 +127,14 @@ export function Events() {
 					</Select>
 				</div>
 
-				{/* Event count */}
-				<div className="text-xs text-foreground opacity-70">
-					Showing {filteredEvents.length} of {events.length} events
+				{/* Event count and info */}
+				<div className="flex items-center justify-between">
+					<div className="text-xs text-foreground opacity-70">
+						Showing {filteredEvents.length} of {events.length} events
+					</div>
+					<div className="text-xs text-foreground opacity-60">
+						Most recent first
+					</div>
 				</div>
 			</div>
 
@@ -146,47 +151,66 @@ export function Events() {
 					</div>
 				) : (
 					<div className="space-y-3">
-						{filteredEvents.map((event) => (
-							<div
-								key={event.id}
-								className={`border-2 border-border rounded-lg p-4 ${
-									severityColors[event.severity] || ""
-								}`}
-							>
-								<div className="flex items-start justify-between gap-4">
-									<div className="flex-1 min-w-0">
-										<div className="flex items-center gap-3 mb-2">
-											<h3 className="font-semibold text-foreground">
-												{event.appName}
-											</h3>
-											<span
-												className={`text-xs px-2 py-1 rounded-full font-medium ${
-													severityBadgeColors[event.severity] || ""
-												}`}
-											>
-												{event.severity.charAt(0).toUpperCase() +
-													event.severity.slice(1)}
-											</span>
+						{filteredEvents.map((event, idx) => {
+							const severity = (event.type?.toLowerCase() ||
+								"info") as keyof typeof severityColors;
+							const timestamp = event.timestamp
+								? new Date(
+										typeof event.timestamp === "object" &&
+										"seconds" in event.timestamp
+											? Number(
+													(event.timestamp as Record<string, unknown>).seconds
+											  ) * 1000
+											: event.timestamp
+								  )
+								: new Date();
+
+							return (
+								<div
+									key={idx}
+									className={`border-2 border-border rounded-lg p-4 ${
+										severityColors[severity] || ""
+									}`}
+								>
+									<div className="flex items-start justify-between gap-4">
+										<div className="flex-1 min-w-0">
+											<div className="flex items-center gap-3 mb-2">
+												<h3 className="font-semibold text-foreground">
+													{(
+														event as typeof event & {
+															resourceName: string;
+														}
+													).resourceName || "Unknown Resource"}
+												</h3>
+												<span
+													className={`text-xs px-2 py-1 rounded-full font-medium ${
+														severityBadgeColors[severity] || ""
+													}`}
+												>
+													{(event.reason || severity).charAt(0).toUpperCase() +
+														(event.reason || severity).slice(1).toLowerCase()}
+												</span>
+											</div>
+											<p className="text-sm text-foreground opacity-80 wrap-break-word mb-2">
+												{event.message}
+											</p>
+											<p className="text-xs text-foreground opacity-60">
+												{formatDateTime(timestamp)}
+											</p>
 										</div>
-										<p className="text-sm text-foreground opacity-80 wrap-break-word mb-2">
-															{event.message}
-														</p>
-										<p className="text-xs text-foreground opacity-60">
-											{formatDateTime(event.timestamp)}
-										</p>
+										<Button
+											variant="secondary"
+											size="sm"
+											onClick={() => handleDismiss(idx.toString())}
+											className="h-8 w-8 p-0 shrink-0"
+											title="Dismiss event"
+										>
+											<X className="h-4 w-4" />
+										</Button>
 									</div>
-									<Button
-										variant="secondary"
-										size="sm"
-										onClick={() => handleDismiss(event.id)}
-										className="h-8 w-8 p-0 shrink-0"
-										title="Dismiss event"
-									>
-										<X className="h-4 w-4" />
-									</Button>
 								</div>
-							</div>
-						))}
+							);
+						})}
 					</div>
 				)}
 			</div>
@@ -194,7 +218,8 @@ export function Events() {
 	);
 }
 
-function formatDateTime(date: Date): string {
+function formatDateTime(date: Date | null | undefined): string {
+	if (!date) return "Unknown";
 	const now = new Date();
 	const diff = now.getTime() - date.getTime();
 	const seconds = Math.floor(diff / 1000);

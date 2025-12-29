@@ -33,6 +33,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 	const appUrl = primaryDomain || "pending deployment";
 	const appTypeLabel = app.type || "SERVICE";
 	const statusLabel = getStatusLabel(app.status);
+	const regions = app.regions || [];
 
 	const handleCopyUrl = () => {
 		navigator.clipboard.writeText(`https://${appUrl}`);
@@ -58,21 +59,22 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 				</div>
 			</div>
 
-			{/* URL and Actions */}
-			<div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-4 border-t">
-				<div className="flex-1 flex items-center gap-2 break-all">
-					<span className="text-sm text-foreground">https://{appUrl}</span>
-					<Button
-						size="sm"
-						onClick={handleCopyUrl}
-						className="h-6 w-6 p-0"
-						aria-label="Copy URL"
-					>
-						<Copy className="w-4 h-4" />
-					</Button>
-				</div>
+			{/* URL and Regions */}
+			<div className="flex flex-col gap-3 pt-4 border-t">
+				<div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+					<div className="flex-1 flex items-center gap-2 break-all">
+						<span className="text-sm text-foreground">https://{appUrl}</span>
+						<Button
+							size="sm"
+							onClick={handleCopyUrl}
+							className="h-6 w-6 p-0"
+							aria-label="Copy URL"
+						>
+							<Copy className="w-4 h-4" />
+						</Button>
+					</div>
 
-				<div className="flex items-center gap-2 w-full sm:w-auto">
+					<div className="flex items-center gap-2 w-full sm:w-auto">
 					<Button
 						variant="outline"
 						size="sm"
@@ -92,6 +94,28 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 						Edit
 					</Button>
 				</div>
+				</div>
+
+				{/* Regions */}
+				{regions.length > 0 && (
+					<div className="flex items-center gap-2">
+						<span className="text-xs font-medium text-foreground opacity-70">
+							Regions:
+						</span>
+						<div className="flex gap-2">
+							{regions.map((region, idx) => (
+								<Badge
+									key={idx}
+									variant="secondary"
+									className="text-xs"
+								>
+									{region.region}
+									{region.isPrimary && " (primary)"}
+								</Badge>
+							))}
+						</div>
+					</div>
+				)}
 			</div>
 		</div>
 		</TooltipProvider>

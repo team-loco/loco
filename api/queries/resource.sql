@@ -70,3 +70,12 @@ FROM clusters
 WHERE is_active = true
 ORDER BY created_at ASC
 LIMIT 1;
+
+-- name: ListActiveDeploymentsByResourceID :many
+SELECT status FROM deployments
+WHERE resource_id = $1 AND is_active = true;
+
+-- name: UpdateResourceStatus :exec
+UPDATE resources
+SET status = $2, updated_at = NOW()
+WHERE id = $1;
