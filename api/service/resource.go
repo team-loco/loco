@@ -18,6 +18,7 @@ import (
 	"github.com/loco-team/loco/api/pkg/klogmux"
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/timeutil"
+	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
 	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
 	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -37,8 +38,8 @@ var (
 
 // computeNamespace derives a Kubernetes namespace from resource ID
 // format: app-{resourceID}
-func computeNamespace(resourceID int64) string {
-	return fmt.Sprintf("app-%d", resourceID)
+func computeNamespace(workspaceID, resourceID int64) string {
+	return fmt.Sprintf("wks-%d-res-%d", workspaceID, resourceID)
 }
 
 type ResourceServer struct {
@@ -150,18 +151,49 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
 	}
 
-	spec, err := protojson.Marshal(r.Spec)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal resource spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+	// save only the oneof spec (e.g., ServiceSpec) to db, not the wrapper
+	var specJSON []byte
+	switch specType := r.Spec.Spec.(type) {
+	case *resourcev1.ResourceSpec_Service:
+		specJSON, err = protojson.Marshal(specType.Service)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal service spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+		}
+	case *resourcev1.ResourceSpec_Database:
+		specJSON, err = protojson.Marshal(specType.Database)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal database spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+		}
+	case *resourcev1.ResourceSpec_Cache:
+		specJSON, err = protojson.Marshal(specType.Cache)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal cache spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+		}
+	case *resourcev1.ResourceSpec_Queue:
+		specJSON, err = protojson.Marshal(specType.Queue)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal queue spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+		}
+	case *resourcev1.ResourceSpec_Blob:
+		specJSON, err = protojson.Marshal(specType.Blob)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal blob spec", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+		}
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown resource spec type"))
 	}
 
 	params := genDb.CreateResourceParams{
 		WorkspaceID: r.WorkspaceId,
 		Name:        r.Name,
 		Type:        genDb.ResourceType(strings.ToLower(r.Type.String())),
-		Status:      genDb.ResourceStatusIdle,
-		Spec:        spec,
+		Status:      genDb.ResourceStatusUnavailable,
+		Spec:        specJSON,
 		SpecVersion: 1,
 		CreatedBy:   userID,
 		Description: r.GetDescription(),
@@ -610,12 +642,13 @@ func (s *ResourceServer) StreamLogs(
 		tailLines = int64(*r.Limit)
 	}
 
-	namespace := computeNamespace(resource.ID)
+	namespace := computeNamespace(resource.WorkspaceID, resource.ID)
 
 	logStream := klogmux.NewBuilder(s.kubeClient.ClientSet).
 		Namespace(namespace).
 		Follow(follow).
 		TailLines(tailLines).
+		Timestamps(true).
 		Build()
 
 	if err := logStream.Start(ctx); err != nil {
@@ -681,7 +714,7 @@ func (s *ResourceServer) GetEvents(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	namespace := computeNamespace(resource.ID)
+	namespace := computeNamespace(resource.WorkspaceID, resource.ID)
 
 	slog.InfoContext(ctx, "fetching events for resource", "resource_id", r.ResourceId, "resource_namespace", namespace)
 
@@ -1000,19 +1033,41 @@ func (s *ResourceServer) UpdateResourceEnv(
 	}), nil
 }
 
+// resourceStatusToProto converts database resource status to proto enum
+func resourceStatusToProto(status genDb.ResourceStatus) resourcev1.ResourceStatus {
+	switch status {
+	case genDb.ResourceStatusHealthy:
+		return resourcev1.ResourceStatus_HEALTHY
+	case genDb.ResourceStatusDeploying:
+		return resourcev1.ResourceStatus_DEPLOYING
+	case genDb.ResourceStatusDegraded:
+		return resourcev1.ResourceStatus_DEGRADED
+	case genDb.ResourceStatusUnavailable:
+		return resourcev1.ResourceStatus_UNAVAILABLE
+	case genDb.ResourceStatusSuspended:
+		return resourcev1.ResourceStatus_SUSPENDED
+	default:
+		return resourcev1.ResourceStatus_HEALTHY
+	}
+}
+
 // deploymentStatusToProto converts database deployment status to proto enum
-func deploymentStatusToProto(status genDb.DeploymentStatus) resourcev1.DeploymentPhase {
+func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
 	case genDb.DeploymentStatusPending:
-		return resourcev1.DeploymentPhase_PENDING
+		return deploymentv1.DeploymentPhase_PENDING
+	case genDb.DeploymentStatusDeploying:
+		return deploymentv1.DeploymentPhase_DEPLOYING
 	case genDb.DeploymentStatusRunning:
-		return resourcev1.DeploymentPhase_RUNNING
+		return deploymentv1.DeploymentPhase_RUNNING
 	case genDb.DeploymentStatusSucceeded:
-		return resourcev1.DeploymentPhase_SUCCEEDED
+		return deploymentv1.DeploymentPhase_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
-		return resourcev1.DeploymentPhase_FAILED
+		return deploymentv1.DeploymentPhase_FAILED
+	case genDb.DeploymentStatusCanceled:
+		return deploymentv1.DeploymentPhase_CANCELED
 	default:
-		return resourcev1.DeploymentPhase_PENDING
+		return deploymentv1.DeploymentPhase_UNSPECIFIED
 	}
 }
 
@@ -1069,7 +1124,7 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		resourceType = resourcev1.ResourceType_SERVICE
 	}
 
-	resourceStatus := resourcev1.ResourceStatus_IDLE
+	resourceStatus := resourceStatusToProto(resource.Status)
 
 	protoRegions := make([]*resourcev1.RegionConfig, len(regions))
 	for i, r := range regions {
@@ -1079,11 +1134,18 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		}
 	}
 
+	// reconstruct oneof spec from stored spec bytes
+	var spec *resourcev1.ResourceSpec
+	if len(resource.Spec) > 0 {
+		spec = reconstructResourceSpec(resource.Type, resource.Spec)
+	}
+
 	result := &resourcev1.Resource{
 		Id:          resource.ID,
 		WorkspaceId: resource.WorkspaceID,
 		Name:        resource.Name,
 		Type:        resourceType,
+		Spec:        spec,
 		Domains:     resourceDomainToListProto(domains),
 		Regions:     protoRegions,
 		CreatedBy:   resource.CreatedBy,
@@ -1094,4 +1156,62 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 	}
 
 	return result
+}
+
+// reconstructResourceSpec deserializes spec bytes and wraps in the appropriate oneof based on resource type
+func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) *resourcev1.ResourceSpec {
+	if len(specBytes) == 0 {
+		return nil
+	}
+
+	switch resourceType {
+	case "service":
+		serviceSpec := &resourcev1.ServiceSpec{}
+		if err := protojson.Unmarshal(specBytes, serviceSpec); err != nil {
+			slog.WarnContext(context.Background(), "failed to unmarshal service spec", "error", err)
+			return nil
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Service{Service: serviceSpec},
+		}
+	case "database":
+		databaseSpec := &resourcev1.DatabaseSpec{}
+		if err := protojson.Unmarshal(specBytes, databaseSpec); err != nil {
+			slog.WarnContext(context.Background(), "failed to unmarshal database spec", "error", err)
+			return nil
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Database{Database: databaseSpec},
+		}
+	case "cache":
+		cacheSpec := &resourcev1.CacheSpec{}
+		if err := protojson.Unmarshal(specBytes, cacheSpec); err != nil {
+			slog.WarnContext(context.Background(), "failed to unmarshal cache spec", "error", err)
+			return nil
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Cache{Cache: cacheSpec},
+		}
+	case "queue":
+		queueSpec := &resourcev1.QueueSpec{}
+		if err := protojson.Unmarshal(specBytes, queueSpec); err != nil {
+			slog.WarnContext(context.Background(), "failed to unmarshal queue spec", "error", err)
+			return nil
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Queue{Queue: queueSpec},
+		}
+	case "blob":
+		blobSpec := &resourcev1.BlobSpec{}
+		if err := protojson.Unmarshal(specBytes, blobSpec); err != nil {
+			slog.WarnContext(context.Background(), "failed to unmarshal blob spec", "error", err)
+			return nil
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Blob{Blob: blobSpec},
+		}
+	default:
+		slog.WarnContext(context.Background(), "unknown resource type", "type", resourceType)
+		return nil
+	}
 }
