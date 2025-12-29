@@ -341,6 +341,7 @@ message ScaleResourceRequest {
   optional int32  replicas    = 2;
   optional string cpu         = 3;
   optional string memory      = 4;
+  optional string region      = 5; // if provided, scale only this region; otherwise scale all regions
 }
 
 // ScaleResourceResponse is the response from scaling a resource.
@@ -353,6 +354,7 @@ message ScaleResourceResponse {
 message UpdateResourceEnvRequest {
   int64               resource_id = 1;
   map<string, string> env         = 2;
+  optional string     region      = 3; // if provided, update only this region; otherwise update all regions
 }
 
 // UpdateResourceEnvResponse is the response from updating environment variables.

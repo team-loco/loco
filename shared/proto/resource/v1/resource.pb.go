@@ -2422,6 +2422,7 @@ type ScaleResourceRequest struct {
 	Replicas      *int32                 `protobuf:"varint,2,opt,name=replicas,proto3,oneof" json:"replicas,omitempty"`
 	Cpu           *string                `protobuf:"bytes,3,opt,name=cpu,proto3,oneof" json:"cpu,omitempty"`
 	Memory        *string                `protobuf:"bytes,4,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
+	Region        *string                `protobuf:"bytes,5,opt,name=region,proto3,oneof" json:"region,omitempty"` // if provided, scale only this region; otherwise scale all regions
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2484,6 +2485,13 @@ func (x *ScaleResourceRequest) GetMemory() string {
 	return ""
 }
 
+func (x *ScaleResourceRequest) GetRegion() string {
+	if x != nil && x.Region != nil {
+		return *x.Region
+	}
+	return ""
+}
+
 // ScaleResourceResponse is the response from scaling a resource.
 type ScaleResourceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2542,6 +2550,7 @@ type UpdateResourceEnvRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Env           map[string]string      `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Region        *string                `protobuf:"bytes,3,opt,name=region,proto3,oneof" json:"region,omitempty"` // if provided, update only this region; otherwise update all regions
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2588,6 +2597,13 @@ func (x *UpdateResourceEnvRequest) GetEnv() map[string]string {
 		return x.Env
 	}
 	return nil
+}
+
+func (x *UpdateResourceEnvRequest) GetRegion() string {
+	if x != nil && x.Region != nil {
+		return *x.Region
+	}
+	return ""
 }
 
 // UpdateResourceEnvResponse is the response from updating environment variables.
@@ -2828,26 +2844,30 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01B\b\n" +
 	"\x06_limit\"D\n" +
 	"\x11GetEventsResponse\x12/\n" +
-	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xac\x01\n" +
+	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xd4\x01\n" +
 	"\x14ScaleResourceRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x1f\n" +
 	"\breplicas\x18\x02 \x01(\x05H\x00R\breplicas\x88\x01\x01\x12\x15\n" +
 	"\x03cpu\x18\x03 \x01(\tH\x01R\x03cpu\x88\x01\x01\x12\x1b\n" +
-	"\x06memory\x18\x04 \x01(\tH\x02R\x06memory\x88\x01\x01B\v\n" +
+	"\x06memory\x18\x04 \x01(\tH\x02R\x06memory\x88\x01\x01\x12\x1b\n" +
+	"\x06region\x18\x05 \x01(\tH\x03R\x06region\x88\x01\x01B\v\n" +
 	"\t_replicasB\x06\n" +
 	"\x04_cpuB\t\n" +
-	"\a_memory\"V\n" +
+	"\a_memoryB\t\n" +
+	"\a_region\"V\n" +
 	"\x15ScaleResourceResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xba\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xe2\x01\n" +
 	"\x18UpdateResourceEnvRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12E\n" +
-	"\x03env\x18\x02 \x03(\v23.loco.resource.v1.UpdateResourceEnvRequest.EnvEntryR\x03env\x1a6\n" +
+	"\x03env\x18\x02 \x03(\v23.loco.resource.v1.UpdateResourceEnvRequest.EnvEntryR\x03env\x12\x1b\n" +
+	"\x06region\x18\x03 \x01(\tH\x00R\x06region\x88\x01\x01\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Z\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
+	"\a_region\"Z\n" +
 	"\x19UpdateResourceEnvResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage*W\n" +
@@ -3046,6 +3066,7 @@ func file_resource_v1_resource_proto_init() {
 	file_resource_v1_resource_proto_msgTypes[32].OneofWrappers = []any{}
 	file_resource_v1_resource_proto_msgTypes[35].OneofWrappers = []any{}
 	file_resource_v1_resource_proto_msgTypes[37].OneofWrappers = []any{}
+	file_resource_v1_resource_proto_msgTypes[39].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

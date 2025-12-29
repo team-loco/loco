@@ -80,6 +80,7 @@ type Querier interface {
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
 	ListActiveDeployments(ctx context.Context) ([]int64, error)
 	ListActiveDeploymentsByResourceID(ctx context.Context, resourceID int64) ([]DeploymentStatus, error)
+	ListActiveDeploymentsForResource(ctx context.Context, resourceID int64) ([]Deployment, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
 	ListClustersActive(ctx context.Context) ([]Cluster, error)

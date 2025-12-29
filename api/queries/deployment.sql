@@ -43,6 +43,11 @@ WHERE resource_id = $1 AND is_active = true;
 -- name: ListActiveDeployments :many
 SELECT resource_id FROM deployments WHERE is_active = true;
 
+-- name: ListActiveDeploymentsForResource :many
+SELECT * FROM deployments
+WHERE resource_id = $1 AND is_active = true
+ORDER BY created_at DESC;
+
 -- name: MarkDeploymentNotActive :exec
 UPDATE deployments
 SET is_active = false, updated_at = NOW()

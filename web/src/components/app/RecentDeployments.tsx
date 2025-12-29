@@ -97,6 +97,16 @@ export function RecentDeployments({
 		return service?.region || "—";
 	};
 
+	const getCpuMemory = (
+		deployment: Deployment
+	): { cpu: string; memory: string } => {
+		const service = getServiceSpec(deployment);
+		return {
+			cpu: service?.cpu || "—",
+			memory: service?.memory || "—",
+		};
+	};
+
 	const columns: ColumnDef<Deployment>[] = [
 		{
 			id: "expand",
@@ -346,7 +356,7 @@ export function RecentDeployments({
 																{getImage(row.original)}
 															</p>
 														</div>
-														<div className="grid grid-cols-3 gap-4">
+														<div className="grid grid-cols-2 gap-4">
 															<div>
 																<p className="text-xs text-foreground opacity-60 uppercase">
 																	Replicas
@@ -357,6 +367,16 @@ export function RecentDeployments({
 															</div>
 															<div>
 																<p className="text-xs text-foreground opacity-60 uppercase">
+																	Status
+																</p>
+																<p className="text-sm">
+																	{DeploymentPhase[row.original.status]}
+																</p>
+															</div>
+														</div>
+														<div className="grid grid-cols-3 gap-4">
+															<div>
+																<p className="text-xs text-foreground opacity-60 uppercase">
 																	Region
 																</p>
 																<p className="text-sm font-mono">
@@ -365,10 +385,18 @@ export function RecentDeployments({
 															</div>
 															<div>
 																<p className="text-xs text-foreground opacity-60 uppercase">
-																	Status
+																	CPU
 																</p>
-																<p className="text-sm">
-																	{DeploymentPhase[row.original.status]}
+																<p className="text-sm font-mono">
+																	{getCpuMemory(row.original).cpu}
+																</p>
+															</div>
+															<div>
+																<p className="text-xs text-foreground opacity-60 uppercase">
+																	Memory
+																</p>
+																<p className="text-sm font-mono">
+																	{getCpuMemory(row.original).memory}
 																</p>
 															</div>
 														</div>

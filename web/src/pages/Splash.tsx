@@ -14,9 +14,9 @@ export function Splash() {
 	const { isAuthenticated } = useAuth();
 
 	return (
-		<div className="min-h-screen bg-linear-to-b from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">
-			<header className="sticky top-0 z-50 w-full bg-linear-to-b from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 backdrop-blur-sm">
-				<div className="px-4 sm:px-6 lg:px-[5%] py-4">
+		<div className="min-h-screen flex flex-col bg-linear-to-b from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">
+			<header className="sticky top-0 z-50 w-full bg-linear-to-b from-orange-50/50 to-amber-50/50 dark:from-orange-950/10 dark:to-amber-950/10 backdrop-blur-md">
+				<div className="mx-auto max-w-[95%] py-2">
 					<div className="flex items-center justify-between">
 						{/* Logo */}
 						<div className="flex items-center gap-3 shrink-0">
@@ -125,8 +125,8 @@ export function Splash() {
 			</header>
 
 			{/* Hero Section with Image */}
-			<section className="relative overflow-hidden px-4 sm:px-6 lg:px-[5%]">
-				<div className="w-full lg:min-h-screen rounded-2xl overflow-hidden relative flex flex-col bg-card dark:bg-card border-2 border-border shadow-sm dark:shadow-[inset_0_0_0_1.5px_rgba(255_255_255/0.05)]">
+			<section className="relative overflow-hidden -mt-20 flex-1 flex flex-col">
+				<div className="w-full flex-1 overflow-hidden relative flex flex-col bg-card dark:bg-card border-b-2 border-border shadow-sm dark:shadow-[inset_0_0_0_1.5px_rgba(255_255_255/0.05)]">
 					{/* Background Image */}
 					<div className="absolute inset-0">
 						<img
@@ -206,10 +206,10 @@ export function Splash() {
 							/>
 						</div>
 					</div>
-				</div>
 
-				{/* Bottom gradient fade - more gradual */}
-				<div className="absolute bottom-0 left-0 right-0 h-64 bg-linear-to-t from-background to-transparent pointer-events-none"></div>
+					{/* Bottom gradient fade - more gradual */}
+					<div className="absolute bottom-0 left-0 right-0 h-64 bg-linear-to-t from-background to-transparent pointer-events-none"></div>
+				</div>
 			</section>
 		</div>
 	);
