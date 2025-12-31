@@ -12,7 +12,7 @@ require (
 	github.com/goccy/go-json v0.10.5
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.8.0
 	github.com/loco-team/loco/shared v0.0.0
 	github.com/rs/cors v1.11.1
 	github.com/team-loco/loco/controller v0.0.0
@@ -36,7 +36,7 @@ require (
 	github.com/prometheus/common v0.67.4 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
-	k8s.io/apiextensions-apiserver v0.34.3 // indirect
+	k8s.io/apiextensions-apiserver v0.35.0 // indirect
 )
 
 require (

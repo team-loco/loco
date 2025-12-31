@@ -431,3 +431,6 @@ clickhouse is named weirdly and so is our controller.
 - {"Spec": {"Service":{}} saved to DB, we should drop it.
 - do all the previous helm secrets and nonsense need to be removed? maybe we max history at 5.
   -add messages even when successful / deploying.
+  make helm charts parametrized.
+  start writing tests even.
+- test scale/env. clean up cli implementation to not require config.
