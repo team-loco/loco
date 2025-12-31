@@ -1,9 +1,5 @@
 # Global configuration (can be overridden by environment-specific values)
 global:
-  namespaces:
-    core: loco-system
-    observability: observability
-
   domain:
     base: deploy-app.com
     wildcard: "*.deploy-app.com"
