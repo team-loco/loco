@@ -5,24 +5,18 @@ metadata:
     labels:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
         app.kubernetes.io/name: controller
-    name: controller-locoresource-editor-role
+    name: controller-application-admin-role
 rules:
     - apiGroups:
-        - loco.loco.deploy-app.com
+        - infra.loco.io
       resources:
-        - locoresources
+        - applications
       verbs:
-        - create
-        - delete
-        - get
-        - list
-        - patch
-        - update
-        - watch
+        - '*'
     - apiGroups:
-        - loco.loco.deploy-app.com
+        - infra.loco.io
       resources:
-        - locoresources/status
+        - applications/status
       verbs:
         - get
 {{- end }}

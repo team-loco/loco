@@ -30,7 +30,7 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
 )
 
-var _ = Describe("LocoResource Controller", func() {
+var _ = Describe("Application Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,13 +40,13 @@ var _ = Describe("LocoResource Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		locoresource := &locov1alpha1.LocoResource{}
+		application := &locov1alpha1.Application{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind LocoResource")
-			err := k8sClient.Get(ctx, typeNamespacedName, locoresource)
+			By("creating the custom resource for the Kind Application")
+			err := k8sClient.Get(ctx, typeNamespacedName, application)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &locov1alpha1.LocoResource{
+				resource := &locov1alpha1.Application{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,11 +59,11 @@ var _ = Describe("LocoResource Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &locov1alpha1.LocoResource{}
+			resource := &locov1alpha1.Application{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance LocoResource")
+			By("Cleanup the specific resource instance Application")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {

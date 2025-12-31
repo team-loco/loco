@@ -9,6 +9,6 @@ roleRef:
     name: controller-metrics-auth-role
 subjects:
     - kind: ServiceAccount
-      name: controller-controller-manager
+      name: controller-loco-manager
       namespace: {{ .Release.Namespace }}
 {{- end }}

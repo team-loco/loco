@@ -481,8 +481,8 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
-		slog.ErrorContext(ctx, "failed to delete LocoResource during resource deletion", "error", err, "resource_id", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup LocoResource: %w", err))
+		slog.ErrorContext(ctx, "failed to delete Application during resource deletion", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup Application: %w", err))
 	}
 
 	err = s.queries.DeleteResource(ctx, r.ResourceId)
@@ -910,10 +910,10 @@ func (s *ResourceServer) ScaleResource(
 
 	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil, s.locoNamespace)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update LocoResource: %w", err))
+		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
 	}
-	slog.InfoContext(ctx, "updated LocoResource after scaling", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
+	slog.InfoContext(ctx, "updated Application after scaling", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
 
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{
 		DeploymentId: deploymentId,
@@ -1056,10 +1056,10 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil, s.locoNamespace)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update LocoResource: %w", err))
+		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
 	}
-	slog.InfoContext(ctx, "updated LocoResource after env update", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate)
+	slog.InfoContext(ctx, "updated Application after env update", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate)
 
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{
 		DeploymentId: deploymentId,

@@ -57,9 +57,9 @@ rules:
         - update
         - watch
     - apiGroups:
-        - loco.loco.deploy-app.com
+        - infra.loco.io
       resources:
-        - locoresources
+        - applications
       verbs:
         - create
         - delete
@@ -69,15 +69,15 @@ rules:
         - update
         - watch
     - apiGroups:
-        - loco.loco.deploy-app.com
+        - infra.loco.io
       resources:
-        - locoresources/finalizers
+        - applications/finalizers
       verbs:
         - update
     - apiGroups:
-        - loco.loco.deploy-app.com
+        - infra.loco.io
       resources:
-        - locoresources/status
+        - applications/status
       verbs:
         - get
         - patch

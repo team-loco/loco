@@ -5,8 +5,8 @@ metadata:
     labels:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
         app.kubernetes.io/name: controller
-        control-plane: controller-manager
-    name: controller-controller-manager-metrics-service
+        control-plane: loco-manager
+    name: controller-loco-manager-metrics-service
     namespace: {{ .Release.Namespace }}
 spec:
     ports:
@@ -16,5 +16,5 @@ spec:
           targetPort: {{ .Values.metrics.port }}
     selector:
         app.kubernetes.io/name: controller
-        control-plane: controller-manager
+        control-plane: loco-manager
 {{- end }}

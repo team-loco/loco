@@ -1,7 +1,7 @@
 # This rule is not used by the project controller itself.
 # It is provided to allow the cluster admin to help manage permissions for users.
 #
-# Grants full permissions ('*') over loco.loco.deploy-app.com.
+# Grants full permissions ('*') over infra.loco.io.
 # This role is intended for users authorized to modify roles and bindings within the cluster,
 # enabling them to delegate specific permissions to other users or groups as needed.
 
@@ -11,17 +11,17 @@ metadata:
   labels:
     app.kubernetes.io/name: controller
     app.kubernetes.io/managed-by: kustomize
-  name: locoresource-admin-role
+  name: application-admin-role
 rules:
-- apiGroups:
-  - loco.loco.deploy-app.com
-  resources:
-  - locoresources
-  verbs:
-  - '*'
-- apiGroups:
-  - loco.loco.deploy-app.com
-  resources:
-  - locoresources/status
-  verbs:
-  - get
+  - apiGroups:
+      - infra.loco.io
+    resources:
+      - applications
+    verbs:
+      - "*"
+  - apiGroups:
+      - infra.loco.io
+    resources:
+      - applications/status
+    verbs:
+      - get

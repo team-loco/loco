@@ -83,7 +83,7 @@ func buildKubeClientSet(config *rest.Config) kubernetes.Interface {
 }
 
 // ControllerRuntimeClient returns a lazy-initialized controller-runtime client.
-// Used for creating custom resources like LocoResource.
+// Used for creating custom resources like Application.
 func buildControllerRuntimeClient(config *rest.Config) crClient.Client {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))

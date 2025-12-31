@@ -4,22 +4,22 @@ metadata:
     labels:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
         app.kubernetes.io/name: controller
-        control-plane: controller-manager
-    name: controller-controller-manager
+        control-plane: loco-manager
+    name: controller-loco-manager
     namespace: {{ .Release.Namespace }}
 spec:
     replicas: 1
     selector:
         matchLabels:
             app.kubernetes.io/name: controller
-            control-plane: controller-manager
+            control-plane: loco-manager
     template:
         metadata:
             annotations:
                 kubectl.kubernetes.io/default-container: manager
             labels:
                 app.kubernetes.io/name: controller
-                control-plane: controller-manager
+                control-plane: loco-manager
         spec:
             containers:
                 - args:
@@ -78,6 +78,6 @@ spec:
               {{- else }}
               {}
               {{- end }}
-            serviceAccountName: controller-controller-manager
+            serviceAccountName: controller-loco-manager
             terminationGracePeriodSeconds: 10
             volumes: []
