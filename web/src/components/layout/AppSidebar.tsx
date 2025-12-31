@@ -33,6 +33,8 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { getCurrentUser } from "@/gen/user/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
+import { useQueries } from "@tanstack/react-query";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -124,11 +126,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { toggleSidebar } = useSidebar();
-	const { data: userRes } = useQuery(getCurrentUser, {});
-	const user = userRes?.user ?? null;
+	const transport = useTransport();
 
-	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
-	const orgs = orgsRes?.orgs ?? [];
+	const [userQuery, orgsQuery] = useQueries({
+		queries: [
+			createQueryOptions(getCurrentUser, {}, { transport }),
+			createQueryOptions(getCurrentUserOrgs, {}, { transport }),
+		],
+	});
+
+	const user = userQuery.data?.user ?? null;
+	const orgs = orgsQuery.data?.orgs ?? [];
 	const firstOrgId = orgs[0]?.id ?? null;
 
 	const { data: workspacesRes } = useQuery(

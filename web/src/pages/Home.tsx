@@ -26,19 +26,16 @@ export function Home() {
 
 	// Fetch all organizations
 	const {
-		data: getCurrentUserOrgsRes,
+		data: orgsQueryRes,
 		isLoading: orgsLoading,
 		error: orgsError,
 	} = useQuery(getCurrentUserOrgs, {});
-	const orgs = useMemo(
-		() => getCurrentUserOrgsRes?.orgs ?? [],
-		[getCurrentUserOrgsRes]
-	);
+	const orgs = useMemo(() => orgsQueryRes?.orgs ?? [], [orgsQueryRes]);
 
 	const currentOrgId = selectedOrgId || (orgs.length > 0 ? orgs[0].id : null);
 
 	// Fetch workspaces for selected org
-	const { data: listWorkspacesRes, isLoading: workspacesLoading } = useQuery(
+	const { data: listWorkspacesRes } = useQuery(
 		listWorkspaces,
 		currentOrgId ? { orgId: currentOrgId } : undefined,
 		{ enabled: !!currentOrgId }
@@ -50,7 +47,7 @@ export function Home() {
 	const currentWorkspaceId =
 		selectedWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
-	// Fetch all resources for selected workspace (only if workspace is selected)
+	// Fetch resources in parallel after we have workspace ID
 	const {
 		data: listResourcesRes,
 		isLoading: appsLoading,
@@ -107,7 +104,7 @@ export function Home() {
 		return unsubscribe;
 	}, [refetchApps]);
 
-	const isLoading = orgsLoading || workspacesLoading || appsLoading;
+	const isLoading = orgsLoading || appsLoading;
 	const error = orgsError || appsError;
 
 	// Handle auth failures by redirecting to login
