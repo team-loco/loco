@@ -65,6 +65,24 @@ func (tvm *VendingMachine) Issue(ctx context.Context, userID int64, entity queri
 	return tvm.issueNoCheck(ctx, entity, entityScopes, duration)
 }
 
+// IssueWithLoginToken issues a TVM token. For more, see [Issue]. The provided token must be a token issued for a user (i.e. a login token).
+func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, token string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
+	// this is meant to issue a token from a user's login token, although an user token could also be used
+	tokenData, err := tvm.queries.GetToken(ctx, token)
+	if err != nil {
+		return "", ErrTokenNotFound
+	}
+	if time.Now().After(tokenData.ExpiresAt) {
+		return "", ErrTokenExpired
+	}
+	if tokenData.EntityType != queries.EntityTypeUser {
+		return "", ErrImproperUsage
+	}
+	userID := tokenData.EntityID
+
+	return tvm.Issue(ctx, userID, entity, entityScopes, duration)
+}
+
 // issueNoCheck issues a token without checking permissions.
 func (tvm *VendingMachine) issueNoCheck(ctx context.Context, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	tk := uuid.Must(uuid.NewV7())
