@@ -149,6 +149,12 @@ func (tq *TestingQueries) RemoveUserScope(ctx context.Context, arg queries.Remov
 func (tq *TestingQueries) GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]string, error) {
 	panic("not implemented")
 }
+func (tq *TestingQueries) GetUserScopesOnOrganization(ctx context.Context, arg queries.GetUserScopesOnOrganizationParams) ([]queries.GetUserScopesOnOrganizationRow, error) {
+	panic("not implemented")
+}
+func (tq *TestingQueries) GetUserScopesOnWorkspace(ctx context.Context, arg queries.GetUserScopesOnWorkspaceParams) ([]queries.GetUserScopesOnWorkspaceRow, error) {
+	panic("not implemented")
+}
 
 func TestingGithubProvider(ctx context.Context, token string) providers.Email {
 	switch token {

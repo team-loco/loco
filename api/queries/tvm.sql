@@ -12,6 +12,75 @@ WHERE u.email = $1;
 -- name: GetUserScopesOnEntity :many
 SELECT scope FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3;
 
+-- name: GetUserScopesOnOrganization :many
+WITH RECURSIVE entity_hierarchy AS (
+    -- Base case: the organization itself
+    SELECT 
+        'organization'::entity_type as entity_type,
+        o.id as entity_id,
+        o.name as entity_name
+    FROM organizations o
+    WHERE o.id = $1
+    
+    UNION ALL
+    
+    -- Workspaces in the organization
+    SELECT 
+        'workspace'::entity_type,
+        w.id,
+        w.name
+    FROM workspaces w
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'organization' AND eh.entity_id = w.org_id
+    
+    UNION ALL
+    
+    -- Apps in the workspaces
+    SELECT 
+        'app'::entity_type,
+        a.id,
+        a.name
+    FROM apps a
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = a.workspace_id
+)
+SELECT DISTINCT
+    us.scope,
+    us.entity_type,
+    us.entity_id,
+    eh.entity_name
+FROM user_scopes us
+INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
+WHERE us.user_id = $2
+ORDER BY us.entity_type, us.entity_id, us.scope;
+
+-- name: GetUserScopesOnWorkspace :many
+WITH RECURSIVE entity_hierarchy AS (
+    -- Base case: the workspace itself
+    SELECT 
+        'workspace'::entity_type as entity_type,
+        w.id as entity_id,
+        w.name as entity_name
+    FROM workspaces w
+    WHERE w.id = $1
+    
+    UNION ALL
+    
+    -- Apps in the workspace
+    SELECT 
+        'app'::entity_type,
+        a.id,
+        a.name
+    FROM apps a
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = a.workspace_id
+)
+SELECT DISTINCT
+    us.scope,
+    us.entity_type,
+    us.entity_id,
+    eh.entity_name
+FROM user_scopes us
+INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
+WHERE us.user_id = $2
+ORDER BY us.entity_type, us.entity_id, us.scope;
 
 -- what users have scope z on entity y?
 -- name: GetUsersWithScopeOnEntity :many

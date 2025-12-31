@@ -200,6 +200,152 @@ func (q *Queries) GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOn
 	return items, nil
 }
 
+const getUserScopesOnOrganization = `-- name: GetUserScopesOnOrganization :many
+WITH RECURSIVE entity_hierarchy AS (
+    -- Base case: the organization itself
+    SELECT 
+        'organization'::entity_type as entity_type,
+        o.id as entity_id,
+        o.name as entity_name
+    FROM organizations o
+    WHERE o.id = $1
+    
+    UNION ALL
+    
+    -- Workspaces in the organization
+    SELECT 
+        'workspace'::entity_type,
+        w.id,
+        w.name
+    FROM workspaces w
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'organization' AND eh.entity_id = w.org_id
+    
+    UNION ALL
+    
+    -- Apps in the workspaces
+    SELECT 
+        'app'::entity_type,
+        a.id,
+        a.name
+    FROM apps a
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = a.workspace_id
+)
+SELECT DISTINCT
+    us.scope,
+    us.entity_type,
+    us.entity_id,
+    eh.entity_name
+FROM user_scopes us
+INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
+WHERE us.user_id = $2
+ORDER BY us.entity_type, us.entity_id, us.scope
+`
+
+type GetUserScopesOnOrganizationParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"userId"`
+}
+
+type GetUserScopesOnOrganizationRow struct {
+	Scope      string     `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
+	EntityName string     `json:"entityName"`
+}
+
+func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]GetUserScopesOnOrganizationRow, error) {
+	rows, err := q.db.Query(ctx, getUserScopesOnOrganization, arg.ID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserScopesOnOrganizationRow
+	for rows.Next() {
+		var i GetUserScopesOnOrganizationRow
+		if err := rows.Scan(
+			&i.Scope,
+			&i.EntityType,
+			&i.EntityID,
+			&i.EntityName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserScopesOnWorkspace = `-- name: GetUserScopesOnWorkspace :many
+WITH RECURSIVE entity_hierarchy AS (
+    -- Base case: the workspace itself
+    SELECT 
+        'workspace'::entity_type as entity_type,
+        w.id as entity_id,
+        w.name as entity_name
+    FROM workspaces w
+    WHERE w.id = $1
+    
+    UNION ALL
+    
+    -- Apps in the workspace
+    SELECT 
+        'app'::entity_type,
+        a.id,
+        a.name
+    FROM apps a
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = a.workspace_id
+)
+SELECT DISTINCT
+    us.scope,
+    us.entity_type,
+    us.entity_id,
+    eh.entity_name
+FROM user_scopes us
+INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
+WHERE us.user_id = $2
+ORDER BY us.entity_type, us.entity_id, us.scope
+`
+
+type GetUserScopesOnWorkspaceParams struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"userId"`
+}
+
+type GetUserScopesOnWorkspaceRow struct {
+	Scope      string     `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
+	EntityName string     `json:"entityName"`
+}
+
+func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]GetUserScopesOnWorkspaceRow, error) {
+	rows, err := q.db.Query(ctx, getUserScopesOnWorkspace, arg.ID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserScopesOnWorkspaceRow
+	for rows.Next() {
+		var i GetUserScopesOnWorkspaceRow
+		if err := rows.Scan(
+			&i.Scope,
+			&i.EntityType,
+			&i.EntityID,
+			&i.EntityName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUsersWithScopeOnEntity = `-- name: GetUsersWithScopeOnEntity :many
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3
 `

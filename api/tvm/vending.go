@@ -24,6 +24,8 @@ type Queries interface {
 	GetUserScopesByEmail(ctx context.Context, email string) ([]queries.UserScope, error)
 	DeleteToken(ctx context.Context, token string) error
 	GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]string, error)
+	GetUserScopesOnOrganization(ctx context.Context, arg queries.GetUserScopesOnOrganizationParams) ([]queries.GetUserScopesOnOrganizationRow, error)
+	GetUserScopesOnWorkspace(ctx context.Context, arg queries.GetUserScopesOnWorkspaceParams) ([]queries.GetUserScopesOnWorkspaceRow, error)
 	AddUserScope(ctx context.Context, arg queries.AddUserScopeParams) error
 	RemoveUserScope(ctx context.Context, arg queries.RemoveUserScopeParams) error
 }
@@ -209,26 +211,112 @@ func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 	return tvm.queries.DeleteToken(ctx, token)
 }
 
-// GetRolesByEntity returns all roles for the given entity and below for the given user.
-func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, userID int64, entity queries.Entity) ([]queries.EntityScope, error) {
-	// returns all roles for the given entity and below (so if entity is org, returns org, workspace, app roles that are explicitly listed)
-	// the token must have read on the given entity
-	scopes, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
-		UserID:     userID,
-		EntityType: entity.Type,
-		EntityID:   entity.ID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("get user scopes on entity: %w", err)
+// GetRoles returns all roles for the given user. The token must have user:read.
+func (tvm *VendingMachine) GetRoles(ctx context.Context, token string, userID int64) ([]queries.EntityScope, error) {
+	if err := tvm.Verify(ctx, token, queries.EntityScope{
+		Entity: queries.Entity{
+			Type: queries.EntityTypeUser,
+			ID:   userID,
+		},
+		Scope: queries.ScopeRead,
+	}); err != nil {
+		return nil, err
 	}
+
+	userScopes, err := tvm.queries.GetUserScopes(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get user scopes: %w", err)
+	}
+
+	// convert userScopes to entityScopes (they're the same thing really)
 	entityScopes := []queries.EntityScope{}
-	for _, scope := range scopes {
+	for _, userScope := range userScopes {
 		entityScopes = append(entityScopes, queries.EntityScope{
-			Entity: entity,
-			Scope:  scope,
+			Entity: queries.Entity{
+				Type: userScope.EntityType,
+				ID:   userScope.EntityID,
+			},
+			Scope: userScope.Scope,
 		})
 	}
+
 	return entityScopes, nil
+}
+
+// GetRolesByEntity returns all roles for the given entity and below for the given user. The token must have read on the given entity.
+func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, userID int64, entity queries.Entity) ([]queries.EntityScope, error) {
+	// returns all roles for the given entity and below (so if entity is org, returns org, workspace, app roles that are explicitly listed)
+
+	// must have read on the entity
+	if err := tvm.Verify(ctx, token, queries.EntityScope{
+		Entity: entity,
+		Scope:  queries.ScopeRead,
+	}); err != nil {
+		return nil, err
+	}
+
+	switch entity.Type {
+	case queries.EntityTypeOrganization:
+		// organization: get all org, workspace, app roles
+		rows, err := tvm.queries.GetUserScopesOnOrganization(ctx, queries.GetUserScopesOnOrganizationParams{
+			UserID: userID,
+			ID:     entity.ID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get user scopes on organization: %w", err)
+		}
+		entityScopes := []queries.EntityScope{}
+		for _, row := range rows {
+			entityScopes = append(entityScopes, queries.EntityScope{
+				Entity: queries.Entity{
+					Type: row.EntityType,
+					ID:   row.EntityID,
+				},
+				Scope: row.Scope,
+			})
+		}
+		return entityScopes, nil
+	case queries.EntityTypeWorkspace:
+		// workspace: get all workspace, app roles
+		rows, err := tvm.queries.GetUserScopesOnWorkspace(ctx, queries.GetUserScopesOnWorkspaceParams{
+			UserID: userID,
+			ID:     entity.ID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get user scopes on workspace: %w", err)
+		}
+		entityScopes := []queries.EntityScope{}
+		for _, row := range rows {
+			entityScopes = append(entityScopes, queries.EntityScope{
+				Entity: queries.Entity{
+					Type: row.EntityType,
+					ID:   row.EntityID,
+				},
+				Scope: row.Scope,
+			})
+		}
+		return entityScopes, nil
+	case queries.EntityTypeApp:
+		// app: just get app roles
+		fallthrough
+	default:
+		userScopes, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
+			UserID:     userID,
+			EntityType: entity.Type,
+			EntityID:   entity.ID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get user scopes on entity: %w", err)
+		}
+		entityScopes := []queries.EntityScope{}
+		for _, scope := range userScopes {
+			entityScopes = append(entityScopes, queries.EntityScope{
+				Entity: entity,
+				Scope:  scope,
+			})
+		}
+		return entityScopes, nil
+	}
 }
 
 // UpdateRoles updates the roles for the given user by adding and removing the given scopes.
