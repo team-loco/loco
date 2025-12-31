@@ -213,6 +213,7 @@ func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 
 // GetRoles returns all roles for the given user. The token must have user:read.
 func (tvm *VendingMachine) GetRoles(ctx context.Context, token string, userID int64) ([]queries.EntityScope, error) {
+	// must have user:read
 	if err := tvm.Verify(ctx, token, queries.EntityScope{
 		Entity: queries.Entity{
 			Type: queries.EntityTypeUser,
@@ -265,6 +266,8 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on organization: %w", err)
 		}
+
+		// convert
 		entityScopes := []queries.EntityScope{}
 		for _, row := range rows {
 			entityScopes = append(entityScopes, queries.EntityScope{
@@ -285,6 +288,8 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)
 		}
+
+		// convert
 		entityScopes := []queries.EntityScope{}
 		for _, row := range rows {
 			entityScopes = append(entityScopes, queries.EntityScope{
@@ -308,6 +313,8 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on entity: %w", err)
 		}
+
+		// convert
 		entityScopes := []queries.EntityScope{}
 		for _, scope := range userScopes {
 			entityScopes = append(entityScopes, queries.EntityScope{
