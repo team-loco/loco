@@ -2,7 +2,6 @@
 package providers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -26,8 +25,8 @@ func NewEmail(address string, err error) Email {
 }
 
 // Github fetches the user's email from GitHub using the provided OAuth token.
-func Github(ctx context.Context, token string) Email {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", nil)
+func Github(token string) Email {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
 		return NewEmail("", err)
 	}
