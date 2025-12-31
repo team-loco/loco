@@ -2,6 +2,7 @@ package statuswatcher
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"reflect"
 
@@ -10,19 +11,22 @@ import (
 	"github.com/loco-team/loco/api/pkg/kube"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
 	"k8s.io/client-go/tools/cache"
+	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type StatusWatcher struct {
-	kubeClient      *kube.Client
-	queries         genDb.Querier
-	lastKnownStatus map[int64]struct{ phase, message string }
+	kubeClient              *kube.Client
+	queries                 genDb.Querier
+	lastKnownStatus         map[int64]struct{ phase, message string }
+	lastKnownResourceStatus map[int64]genDb.ResourceStatus
 }
 
 func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier) *StatusWatcher {
 	return &StatusWatcher{
-		kubeClient:      kubeClient,
-		queries:         queries,
-		lastKnownStatus: make(map[int64]struct{ phase, message string }),
+		kubeClient:              kubeClient,
+		queries:                 queries,
+		lastKnownStatus:         make(map[int64]struct{ phase, message string }),
+		lastKnownResourceStatus: make(map[int64]genDb.ResourceStatus),
 	}
 }
 
@@ -41,7 +45,13 @@ func (w *StatusWatcher) Start(ctx context.Context) error {
 	}
 
 	if !cache.WaitForCacheSync(ctx.Done(), locoInformer.HasSynced) {
+		slog.ErrorContext(ctx, "failed to wait for cache sync")
 		return ctx.Err()
+	}
+
+	if err := w.backfill(ctx); err != nil {
+		slog.ErrorContext(ctx, "backfill failed", "error", err)
+		return err
 	}
 
 	locoInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
@@ -58,6 +68,34 @@ func (w *StatusWatcher) Start(ctx context.Context) error {
 	return ctx.Err()
 }
 
+func (w *StatusWatcher) backfill(ctx context.Context) error {
+	slog.InfoContext(ctx, "backfilling deployment statuses")
+
+	resourceIDs, err := w.queries.ListActiveDeployments(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to list active deployments: %w", err)
+	}
+
+	slog.InfoContext(ctx, "found active deployments", "count", len(resourceIDs))
+
+	for _, resourceID := range resourceIDs {
+		locoRes := &locoControllerV1.LocoResource{}
+		key := crClient.ObjectKey{
+			Name:      fmt.Sprintf("resource-%d", resourceID),
+			Namespace: "loco-system",
+		}
+		if err := w.kubeClient.ControllerClient.Get(ctx, key, locoRes); err != nil {
+			slog.WarnContext(ctx, "failed to get LocoResource", "resourceId", resourceID, "error", err)
+			continue
+		}
+		slog.DebugContext(ctx, "syncing resource", "resourceId", resourceID, "phase", locoRes.Status.Phase)
+		w.syncToDB(ctx, locoRes)
+	}
+
+	slog.InfoContext(ctx, "backfill completed", "count", len(resourceIDs))
+	return nil
+}
+
 func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.LocoResource) {
 	if locoRes.Spec.ResourceId == 0 {
 		slog.WarnContext(ctx, "skipping sync: LocoResource has no resourceId", "name", locoRes.Name)
@@ -65,11 +103,7 @@ func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.
 	}
 
 	status := convertPhase(locoRes.Status.Phase)
-
 	message := locoRes.Status.Message
-	if locoRes.Status.ErrorMessage != "" {
-		message = locoRes.Status.ErrorMessage
-	}
 
 	last, exists := w.lastKnownStatus[locoRes.Spec.ResourceId]
 	if exists && last.phase == locoRes.Status.Phase && last.message == message {
@@ -99,6 +133,82 @@ func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.
 		phase:   locoRes.Status.Phase,
 		message: message,
 	}
+
+	w.syncResourceStatus(ctx, locoRes.Spec.ResourceId)
+}
+
+func (w *StatusWatcher) syncResourceStatus(ctx context.Context, resourceID int64) {
+	deploymentStatuses, err := w.queries.ListActiveDeploymentsByResourceID(ctx, resourceID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list deployments for resource",
+			"error", err,
+			"resourceId", resourceID,
+		)
+		return
+	}
+
+	computedStatus := computeResourceStatus(deploymentStatuses)
+
+	last, exists := w.lastKnownResourceStatus[resourceID]
+	if exists && last == computedStatus {
+		return
+	}
+
+	err = w.queries.UpdateResourceStatus(ctx, genDb.UpdateResourceStatusParams{
+		ID:     resourceID,
+		Status: computedStatus,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update resource status",
+			"error", err,
+			"resourceId", resourceID,
+			"status", computedStatus,
+		)
+		return
+	}
+
+	slog.InfoContext(ctx, "updated resource status",
+		"resourceId", resourceID,
+		"status", computedStatus,
+	)
+
+	w.lastKnownResourceStatus[resourceID] = computedStatus
+}
+
+func computeResourceStatus(deploymentStatuses []genDb.DeploymentStatus) genDb.ResourceStatus {
+	if len(deploymentStatuses) == 0 {
+		return genDb.ResourceStatusHealthy
+	}
+
+	hasRunning := false
+	hasFailed := false
+	hasDeploying := false
+
+	for _, status := range deploymentStatuses {
+		switch status {
+		case genDb.DeploymentStatusFailed:
+			hasFailed = true
+		case genDb.DeploymentStatusDeploying:
+			hasDeploying = true
+		case genDb.DeploymentStatusRunning:
+			hasRunning = true
+		}
+	}
+
+	if hasFailed && !hasRunning {
+		return genDb.ResourceStatusUnavailable
+	}
+	if hasDeploying {
+		return genDb.ResourceStatusDeploying
+	}
+	if hasFailed && hasRunning {
+		return genDb.ResourceStatusDegraded
+	}
+	if hasRunning {
+		return genDb.ResourceStatusHealthy
+	}
+
+	return genDb.ResourceStatusHealthy
 }
 
 func convertPhase(phase string) genDb.DeploymentStatus {
@@ -106,7 +216,7 @@ func convertPhase(phase string) genDb.DeploymentStatus {
 	case "Idle":
 		return genDb.DeploymentStatusPending
 	case "Deploying":
-		return genDb.DeploymentStatusPending
+		return genDb.DeploymentStatusDeploying
 	case "Ready":
 		return genDb.DeploymentStatusRunning
 	case "Failed":

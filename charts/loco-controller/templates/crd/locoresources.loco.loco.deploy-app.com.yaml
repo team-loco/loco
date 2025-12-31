@@ -278,8 +278,6 @@ spec:
                             deployedGeneration:
                                 format: int64
                                 type: integer
-                            errorMessage:
-                                type: string
                             message:
                                 type: string
                             phase:

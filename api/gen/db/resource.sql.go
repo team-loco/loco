@@ -15,7 +15,7 @@ const createResource = `-- name: CreateResource :one
 
 INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at
+RETURNING id
 `
 
 type CreateResourceParams struct {
@@ -30,7 +30,7 @@ type CreateResourceParams struct {
 }
 
 // Resource queries
-func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (Resource, error) {
+func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createResource,
 		arg.WorkspaceID,
 		arg.Name,
@@ -41,21 +41,9 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.SpecVersion,
 		arg.CreatedBy,
 	)
-	var i Resource
-	err := row.Scan(
-		&i.ID,
-		&i.WorkspaceID,
-		&i.Name,
-		&i.Type,
-		&i.Description,
-		&i.Status,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createResourceRegion = `-- name: CreateResourceRegion :one
@@ -241,6 +229,31 @@ func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id int64) (int64, 
 	return workspace_id, err
 }
 
+const listActiveDeploymentsByResourceID = `-- name: ListActiveDeploymentsByResourceID :many
+SELECT status FROM deployments
+WHERE resource_id = $1 AND is_active = true
+`
+
+func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourceID int64) ([]DeploymentStatus, error) {
+	rows, err := q.db.Query(ctx, listActiveDeploymentsByResourceID, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeploymentStatus
+	for rows.Next() {
+		var status DeploymentStatus
+		if err := rows.Scan(&status); err != nil {
+			return nil, err
+		}
+		items = append(items, status)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listClustersActive = `-- name: ListClustersActive :many
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
 FROM clusters
@@ -360,7 +373,7 @@ UPDATE resources
 SET name = COALESCE($2, name),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, type, description, status, spec, spec_version, created_by, created_at, updated_at
+RETURNING id
 `
 
 type UpdateResourceParams struct {
@@ -368,21 +381,25 @@ type UpdateResourceParams struct {
 	Name pgtype.Text `json:"name"`
 }
 
-func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (Resource, error) {
+func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (int64, error) {
 	row := q.db.QueryRow(ctx, updateResource, arg.ID, arg.Name)
-	var i Resource
-	err := row.Scan(
-		&i.ID,
-		&i.WorkspaceID,
-		&i.Name,
-		&i.Type,
-		&i.Description,
-		&i.Status,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const updateResourceStatus = `-- name: UpdateResourceStatus :exec
+UPDATE resources
+SET status = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateResourceStatusParams struct {
+	ID     int64          `json:"id"`
+	Status ResourceStatus `json:"status"`
+}
+
+func (q *Queries) UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error {
+	_, err := q.db.Exec(ctx, updateResourceStatus, arg.ID, arg.Status)
+	return err
 }

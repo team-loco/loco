@@ -15,6 +15,7 @@ type DeploymentStatus string
 
 const (
 	DeploymentStatusPending   DeploymentStatus = "pending"
+	DeploymentStatusDeploying DeploymentStatus = "deploying"
 	DeploymentStatusRunning   DeploymentStatus = "running"
 	DeploymentStatusSucceeded DeploymentStatus = "succeeded"
 	DeploymentStatusFailed    DeploymentStatus = "failed"
@@ -189,11 +190,11 @@ func (ns NullRegionIntentStatus) Value() (driver.Value, error) {
 type ResourceStatus string
 
 const (
-	ResourceStatusAvailable   ResourceStatus = "available"
-	ResourceStatusProgressing ResourceStatus = "progressing"
+	ResourceStatusHealthy     ResourceStatus = "healthy"
+	ResourceStatusDeploying   ResourceStatus = "deploying"
 	ResourceStatusDegraded    ResourceStatus = "degraded"
 	ResourceStatusUnavailable ResourceStatus = "unavailable"
-	ResourceStatusIdle        ResourceStatus = "idle"
+	ResourceStatusSuspended   ResourceStatus = "suspended"
 )
 
 func (e *ResourceStatus) Scan(src interface{}) error {

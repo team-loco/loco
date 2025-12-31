@@ -20,22 +20,13 @@ enum ResourceType {
   BLOB     = 5;
 }
 
-// DeploymentPhase indicates the current state of a deployment.
-enum DeploymentPhase {
-  PENDING   = 0;
-  RUNNING   = 1;
-  SUCCEEDED = 2;
-  FAILED    = 3;
-  CANCELED  = 4;
-}
-
 // ResourceStatus represents the operational status of a resource based on current deployment and health checks.
 enum ResourceStatus {
-  AVAILABLE   = 0;
-  PROGRESSING = 1;
+  HEALTHY     = 0;
+  DEPLOYING   = 1;
   DEGRADED    = 2;
   UNAVAILABLE = 3;
-  IDLE        = 4;
+  SUSPENDED   = 4;
 }
 
 // RegionIntentStatus represents the state of a region intent for a resource.
@@ -177,7 +168,7 @@ message Resource {
   repeated loco.domain.v1.ResourceDomain domains      = 5;
   repeated RegionConfig                  regions      = 6;
   ResourceStatus                         status       = 7;
-  optional google.protobuf.Struct        spec         = 8;
+  optional ResourceSpec                  spec         = 8;
   int32                                  spec_version = 9;
   optional string                        description  = 10;
   int64                                  created_by   = 11;
@@ -201,7 +192,7 @@ message CreateResourceRequest {
   string                     name         = 2;
   ResourceType               type         = 3;
   loco.domain.v1.DomainInput domain       = 4;
-  optional ResourceSpec      spec         = 5;
+  ResourceSpec               spec         = 5;
   optional string            description  = 6;
 }
 
@@ -262,8 +253,8 @@ message DeleteResourceRequest {
 
 // DeleteResourceResponse is the response from deleting a resource.
 message DeleteResourceResponse {
-  Resource resource = 1;
-  string   message  = 2;
+  int64  resource_id = 1;
+  string message     = 2;
 }
 
 // RegionInfo represents available region information.
@@ -289,10 +280,10 @@ message GetResourceStatusRequest {
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
 message DeploymentStatus {
-  int64           id       = 1;
-  DeploymentPhase status   = 2;
-  int32           replicas = 3;
-  optional string message  = 4;
+  int64                        id       = 1;
+  loco.deployment.v1.DeploymentPhase status   = 2;
+  int32                        replicas = 3;
+  optional string              message  = 4;
 }
 
 // GetResourceStatusResponse is the response containing resource status information.
@@ -350,20 +341,24 @@ message ScaleResourceRequest {
   optional int32  replicas    = 2;
   optional string cpu         = 3;
   optional string memory      = 4;
+  optional string region      = 5; // if provided, scale only this region; otherwise scale all regions
 }
 
 // ScaleResourceResponse is the response from scaling a resource.
 message ScaleResourceResponse {
-  DeploymentStatus deployment = 1;
+  int64  deployment_id = 1;
+  string message       = 2;
 }
 
 // UpdateResourceEnvRequest is the request to update resource environment variables.
 message UpdateResourceEnvRequest {
   int64               resource_id = 1;
   map<string, string> env         = 2;
+  optional string     region      = 3; // if provided, update only this region; otherwise update all regions
 }
 
 // UpdateResourceEnvResponse is the response from updating environment variables.
 message UpdateResourceEnvResponse {
-  DeploymentStatus deployment = 1;
+  int64  deployment_id = 1;
+  string message       = 2;
 }

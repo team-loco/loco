@@ -341,7 +341,7 @@ func (x *CreateWorkspaceRequest) GetDescription() string {
 // CreateWorkspaceResponse is the response from creating a workspace.
 type CreateWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -377,11 +377,11 @@ func (*CreateWorkspaceResponse) Descriptor() ([]byte, []int) {
 	return file_workspace_v1_workspace_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CreateWorkspaceResponse) GetWorkspace() *Workspace {
+func (x *CreateWorkspaceResponse) GetWorkspaceId() int64 {
 	if x != nil {
-		return x.Workspace
+		return x.WorkspaceId
 	}
-	return nil
+	return 0
 }
 
 func (x *CreateWorkspaceResponse) GetMessage() string {
@@ -717,7 +717,7 @@ func (x *UpdateWorkspaceRequest) GetDescription() string {
 // UpdateWorkspaceResponse is the response from updating a workspace.
 type UpdateWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -753,11 +753,11 @@ func (*UpdateWorkspaceResponse) Descriptor() ([]byte, []int) {
 	return file_workspace_v1_workspace_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *UpdateWorkspaceResponse) GetWorkspace() *Workspace {
+func (x *UpdateWorkspaceResponse) GetWorkspaceId() int64 {
 	if x != nil {
-		return x.Workspace
+		return x.WorkspaceId
 	}
-	return nil
+	return 0
 }
 
 func (x *UpdateWorkspaceResponse) GetMessage() string {
@@ -823,7 +823,7 @@ func (x *DeleteWorkspaceRequest) GetConfirmDeleteApps() bool {
 // DeleteWorkspaceResponse is the response from deleting a workspace.
 type DeleteWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Workspace     *Workspace             `protobuf:"bytes,1,opt,name=workspace,proto3" json:"workspace,omitempty"`
+	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -859,11 +859,11 @@ func (*DeleteWorkspaceResponse) Descriptor() ([]byte, []int) {
 	return file_workspace_v1_workspace_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *DeleteWorkspaceResponse) GetWorkspace() *Workspace {
+func (x *DeleteWorkspaceResponse) GetWorkspaceId() int64 {
 	if x != nil {
-		return x.Workspace
+		return x.WorkspaceId
 	}
-	return nil
+	return 0
 }
 
 func (x *DeleteWorkspaceResponse) GetMessage() string {
@@ -937,7 +937,8 @@ func (x *AddMemberRequest) GetRole() string {
 // AddMemberResponse is the response from adding a member to a workspace.
 type AddMemberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Member        *WorkspaceMember       `protobuf:"bytes,1,opt,name=member,proto3" json:"member,omitempty"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -972,11 +973,18 @@ func (*AddMemberResponse) Descriptor() ([]byte, []int) {
 	return file_workspace_v1_workspace_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *AddMemberResponse) GetMember() *WorkspaceMember {
+func (x *AddMemberResponse) GetUserId() int64 {
 	if x != nil {
-		return x.Member
+		return x.UserId
 	}
-	return nil
+	return 0
+}
+
+func (x *AddMemberResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
 }
 
 // RemoveMemberRequest is the request to remove a member from a workspace.
@@ -1227,9 +1235,9 @@ const file_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
-	"\f_description\"o\n" +
-	"\x17CreateWorkspaceResponse\x12:\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\x12\x18\n" +
+	"\f_description\"V\n" +
+	"\x17CreateWorkspaceResponse\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"8\n" +
 	"\x13GetWorkspaceRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"R\n" +
@@ -1251,22 +1259,23 @@ const file_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_description\"o\n" +
-	"\x17UpdateWorkspaceResponse\x12:\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\x12\x18\n" +
+	"\f_description\"V\n" +
+	"\x17UpdateWorkspaceResponse\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"k\n" +
 	"\x16DeleteWorkspaceRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12.\n" +
-	"\x13confirm_delete_apps\x18\x02 \x01(\bR\x11confirmDeleteApps\"o\n" +
-	"\x17DeleteWorkspaceResponse\x12:\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\x12\x18\n" +
+	"\x13confirm_delete_apps\x18\x02 \x01(\bR\x11confirmDeleteApps\"V\n" +
+	"\x17DeleteWorkspaceResponse\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"b\n" +
 	"\x10AddMemberRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\"O\n" +
-	"\x11AddMemberResponse\x12:\n" +
-	"\x06member\x18\x01 \x01(\v2\".loco.workspace.v1.WorkspaceMemberR\x06member\"Q\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"F\n" +
+	"\x11AddMemberResponse\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"Q\n" +
 	"\x13RemoveMemberRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"0\n" +
@@ -1335,37 +1344,33 @@ var file_workspace_v1_workspace_proto_depIdxs = []int32{
 	21, // 1: loco.workspace.v1.Workspace.updated_at:type_name -> google.protobuf.Timestamp
 	21, // 2: loco.workspace.v1.WorkspaceMember.created_at:type_name -> google.protobuf.Timestamp
 	21, // 3: loco.workspace.v1.WorkspaceMemberWithUser.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 4: loco.workspace.v1.CreateWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
-	0,  // 5: loco.workspace.v1.GetWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
-	0,  // 6: loco.workspace.v1.GetUserWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	0,  // 7: loco.workspace.v1.ListWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	0,  // 8: loco.workspace.v1.UpdateWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
-	0,  // 9: loco.workspace.v1.DeleteWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
-	1,  // 10: loco.workspace.v1.AddMemberResponse.member:type_name -> loco.workspace.v1.WorkspaceMember
-	2,  // 11: loco.workspace.v1.ListMembersResponse.members:type_name -> loco.workspace.v1.WorkspaceMemberWithUser
-	3,  // 12: loco.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> loco.workspace.v1.CreateWorkspaceRequest
-	5,  // 13: loco.workspace.v1.WorkspaceService.GetWorkspace:input_type -> loco.workspace.v1.GetWorkspaceRequest
-	7,  // 14: loco.workspace.v1.WorkspaceService.GetUserWorkspaces:input_type -> loco.workspace.v1.GetUserWorkspacesRequest
-	9,  // 15: loco.workspace.v1.WorkspaceService.ListWorkspaces:input_type -> loco.workspace.v1.ListWorkspacesRequest
-	11, // 16: loco.workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> loco.workspace.v1.UpdateWorkspaceRequest
-	13, // 17: loco.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> loco.workspace.v1.DeleteWorkspaceRequest
-	15, // 18: loco.workspace.v1.WorkspaceService.AddMember:input_type -> loco.workspace.v1.AddMemberRequest
-	17, // 19: loco.workspace.v1.WorkspaceService.RemoveMember:input_type -> loco.workspace.v1.RemoveMemberRequest
-	19, // 20: loco.workspace.v1.WorkspaceService.ListMembers:input_type -> loco.workspace.v1.ListMembersRequest
-	4,  // 21: loco.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> loco.workspace.v1.CreateWorkspaceResponse
-	6,  // 22: loco.workspace.v1.WorkspaceService.GetWorkspace:output_type -> loco.workspace.v1.GetWorkspaceResponse
-	8,  // 23: loco.workspace.v1.WorkspaceService.GetUserWorkspaces:output_type -> loco.workspace.v1.GetUserWorkspacesResponse
-	10, // 24: loco.workspace.v1.WorkspaceService.ListWorkspaces:output_type -> loco.workspace.v1.ListWorkspacesResponse
-	12, // 25: loco.workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> loco.workspace.v1.UpdateWorkspaceResponse
-	14, // 26: loco.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> loco.workspace.v1.DeleteWorkspaceResponse
-	16, // 27: loco.workspace.v1.WorkspaceService.AddMember:output_type -> loco.workspace.v1.AddMemberResponse
-	18, // 28: loco.workspace.v1.WorkspaceService.RemoveMember:output_type -> loco.workspace.v1.RemoveMemberResponse
-	20, // 29: loco.workspace.v1.WorkspaceService.ListMembers:output_type -> loco.workspace.v1.ListMembersResponse
-	21, // [21:30] is the sub-list for method output_type
-	12, // [12:21] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0,  // 4: loco.workspace.v1.GetWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
+	0,  // 5: loco.workspace.v1.GetUserWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
+	0,  // 6: loco.workspace.v1.ListWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
+	2,  // 7: loco.workspace.v1.ListMembersResponse.members:type_name -> loco.workspace.v1.WorkspaceMemberWithUser
+	3,  // 8: loco.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> loco.workspace.v1.CreateWorkspaceRequest
+	5,  // 9: loco.workspace.v1.WorkspaceService.GetWorkspace:input_type -> loco.workspace.v1.GetWorkspaceRequest
+	7,  // 10: loco.workspace.v1.WorkspaceService.GetUserWorkspaces:input_type -> loco.workspace.v1.GetUserWorkspacesRequest
+	9,  // 11: loco.workspace.v1.WorkspaceService.ListWorkspaces:input_type -> loco.workspace.v1.ListWorkspacesRequest
+	11, // 12: loco.workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> loco.workspace.v1.UpdateWorkspaceRequest
+	13, // 13: loco.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> loco.workspace.v1.DeleteWorkspaceRequest
+	15, // 14: loco.workspace.v1.WorkspaceService.AddMember:input_type -> loco.workspace.v1.AddMemberRequest
+	17, // 15: loco.workspace.v1.WorkspaceService.RemoveMember:input_type -> loco.workspace.v1.RemoveMemberRequest
+	19, // 16: loco.workspace.v1.WorkspaceService.ListMembers:input_type -> loco.workspace.v1.ListMembersRequest
+	4,  // 17: loco.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> loco.workspace.v1.CreateWorkspaceResponse
+	6,  // 18: loco.workspace.v1.WorkspaceService.GetWorkspace:output_type -> loco.workspace.v1.GetWorkspaceResponse
+	8,  // 19: loco.workspace.v1.WorkspaceService.GetUserWorkspaces:output_type -> loco.workspace.v1.GetUserWorkspacesResponse
+	10, // 20: loco.workspace.v1.WorkspaceService.ListWorkspaces:output_type -> loco.workspace.v1.ListWorkspacesResponse
+	12, // 21: loco.workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> loco.workspace.v1.UpdateWorkspaceResponse
+	14, // 22: loco.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> loco.workspace.v1.DeleteWorkspaceResponse
+	16, // 23: loco.workspace.v1.WorkspaceService.AddMember:output_type -> loco.workspace.v1.AddMemberResponse
+	18, // 24: loco.workspace.v1.WorkspaceService.RemoveMember:output_type -> loco.workspace.v1.RemoveMemberResponse
+	20, // 25: loco.workspace.v1.WorkspaceService.ListMembers:output_type -> loco.workspace.v1.ListMembersResponse
+	17, // [17:26] is the sub-list for method output_type
+	8,  // [8:17] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_workspace_v1_workspace_proto_init() }

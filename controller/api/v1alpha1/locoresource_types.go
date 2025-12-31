@@ -189,7 +189,6 @@ type LocoResourceStatus struct {
 	// +kubebuilder:validation:Enum=Idle;Deploying;Ready;Failed
 	Phase               string `json:"phase,omitempty"` // Idle | Deploying | Ready | Failed
 	Message             string `json:"message,omitempty"`
-	ErrorMessage        string `json:"errorMessage,omitempty"`
 	ActiveDeploymentRef string `json:"activeDeploymentRef,omitempty"`
 
 	CreatedAt   *metav1.Time `json:"createdAt,omitempty"`

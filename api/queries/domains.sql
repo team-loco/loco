@@ -8,12 +8,12 @@ INSERT INTO resource_domains (
     is_primary
 )
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING *;
+RETURNING id;
 
 -- name: CreatePlatformDomain :one
 INSERT INTO platform_domains (domain, is_active)
 VALUES ($1, $2)
-RETURNING *;
+RETURNING id;
 
 -- name: GetPlatformDomain :one
 SELECT * FROM platform_domains
@@ -32,7 +32,7 @@ ORDER BY domain;
 UPDATE platform_domains
 SET is_active = false
 WHERE id = $1
-RETURNING *;
+RETURNING id;
 
 -- name: CheckDomainAvailability :one
 SELECT NOT EXISTS(
@@ -102,14 +102,14 @@ WHERE resource_id = $1;
 UPDATE resource_domains
 SET is_primary = true
 WHERE id = $1 AND resource_id = $2
-RETURNING *;
+RETURNING id;
 
 -- name: UpdateResourceDomain :one
 UPDATE resource_domains
 SET domain = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING *;
+RETURNING id;
 
 -- name: DeleteResourceDomain :exec
 DELETE FROM resource_domains WHERE id = $1;

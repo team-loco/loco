@@ -107,7 +107,7 @@ func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error
 const insertWorkspace = `-- name: InsertWorkspace :one
 INSERT INTO workspaces (org_id, name, description, created_by)
 VALUES ($1, $2, $3, $4)
-RETURNING id, org_id, name, description, created_by, created_at, updated_at
+RETURNING id
 `
 
 type InsertWorkspaceParams struct {
@@ -117,24 +117,16 @@ type InsertWorkspaceParams struct {
 	CreatedBy   int64       `json:"createdBy"`
 }
 
-func (q *Queries) InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (Workspace, error) {
+func (q *Queries) InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (int64, error) {
 	row := q.db.QueryRow(ctx, insertWorkspace,
 		arg.OrgID,
 		arg.Name,
 		arg.Description,
 		arg.CreatedBy,
 	)
-	var i Workspace
-	err := row.Scan(
-		&i.ID,
-		&i.OrgID,
-		&i.Name,
-		&i.Description,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const isWorkspaceMember = `-- name: IsWorkspaceMember :one
@@ -315,7 +307,7 @@ SET name = COALESCE($2, name),
     description = COALESCE($3, description),
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, org_id, name, description, created_by, created_at, updated_at
+RETURNING id
 `
 
 type UpdateWorkspaceParams struct {
@@ -324,19 +316,11 @@ type UpdateWorkspaceParams struct {
 	Description pgtype.Text `json:"description"`
 }
 
-func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (Workspace, error) {
+func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (int64, error) {
 	row := q.db.QueryRow(ctx, updateWorkspace, arg.ID, arg.Name, arg.Description)
-	var i Workspace
-	err := row.Scan(
-		&i.ID,
-		&i.OrgID,
-		&i.Name,
-		&i.Description,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const upsertWorkspaceMember = `-- name: UpsertWorkspaceMember :one
@@ -344,7 +328,7 @@ INSERT INTO workspace_members (workspace_id, user_id, role)
 VALUES ($1, $2, $3)
 ON CONFLICT (workspace_id, user_id)
 DO UPDATE SET role = EXCLUDED.role
-RETURNING workspace_id, user_id, role, created_at
+RETURNING user_id
 `
 
 type UpsertWorkspaceMemberParams struct {
@@ -353,14 +337,9 @@ type UpsertWorkspaceMemberParams struct {
 	Role        WorkspaceRole `json:"role"`
 }
 
-func (q *Queries) UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (WorkspaceMember, error) {
+func (q *Queries) UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (int64, error) {
 	row := q.db.QueryRow(ctx, upsertWorkspaceMember, arg.WorkspaceID, arg.UserID, arg.Role)
-	var i WorkspaceMember
-	err := row.Scan(
-		&i.WorkspaceID,
-		&i.UserID,
-		&i.Role,
-		&i.CreatedAt,
-	)
-	return i, err
+	var user_id int64
+	err := row.Scan(&user_id)
+	return user_id, err
 }

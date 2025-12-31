@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Resource } from "@/gen/resource/v1/resource_pb";
 import type { ResourceDomain } from "@/gen/domain/v1/domain_pb";
 import { getStatusLabel } from "@/lib/app-status";
@@ -60,29 +61,30 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 	};
 
 	return (
-		<div
-			onClick={handleCardClick}
-			className="group relative rounded-lg border border-neutral-200 dark:border-neutral-800 bg-background p-5 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-md transition-all cursor-pointer"
-		>
-			{/* Top section: Name and Status */}
-			<div className="flex items-start justify-between gap-3 mb-4">
-				<div className="flex-1 min-w-0">
-					<h3 className="text-base font-semibold text-foreground truncate group-hover:text-accent transition-colors">
-						{app.name}
-					</h3>
+		<TooltipProvider>
+			<div
+				onClick={handleCardClick}
+				className="group relative rounded-lg border border-neutral-200 dark:border-neutral-800 bg-background p-5 hover:border-neutral-300 dark:hover:border-neutral-700 hover:shadow-md transition-all cursor-pointer"
+			>
+				{/* Top section: Name and Status */}
+				<div className="flex items-start justify-between gap-3 mb-4">
+					<div className="flex-1 min-w-0">
+						<h3 className="text-base font-semibold text-foreground truncate group-hover:text-accent transition-colors">
+							{app.name}
+						</h3>
+					</div>
+					<div onClick={(e) => e.stopPropagation()} className="shrink-0">
+						<AppMenu app={app} onAppDeleted={onAppDeleted} />
+					</div>
 				</div>
-				<div onClick={(e) => e.stopPropagation()} className="shrink-0">
-					<AppMenu app={app} onAppDeleted={onAppDeleted} />
-				</div>
-			</div>
 
-			{/* Middle section: Type and Status badges */}
-			<div className="flex items-center gap-2 mb-4">
-				<Badge variant="secondary" className="text-xs">
-					{appTypeLabel}
-				</Badge>
-				<StatusBadge status={getStatusLabel(app.status)} />
-			</div>
+				{/* Middle section: Type and Status badges */}
+				<div className="flex items-center gap-2 mb-4">
+					<Badge variant="secondary" className="text-xs">
+						{appTypeLabel}
+					</Badge>
+					<StatusBadge status={getStatusLabel(app.status)} />
+				</div>
 
 			{/* Domain section */}
 			{(() => {
@@ -99,12 +101,13 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 				);
 			})()}
 
-			{/* Footer: Deployment info */}
-			<div className="pt-3 border-t border-neutral-200 dark:border-neutral-800">
-				<p className="text-xs text-foreground/50">
-					Deployed {getLastDeployedText()}
-				</p>
+				{/* Footer: Deployment info */}
+				<div className="pt-3 border-t border-neutral-200 dark:border-neutral-800">
+					<p className="text-xs text-foreground/50">
+						Deployed {getLastDeployedText()}
+					</p>
+				</div>
 			</div>
-		</div>
+		</TooltipProvider>
 	);
 }

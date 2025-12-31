@@ -1,37 +1,43 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import { useQuery } from "@connectrpc/connect-query";
+import { getCurrentUser, logout as logoutMethod } from "@/gen/user/v1";
+import { useNavigate } from "react-router";
+import type { GetCurrentUserResponse } from "@/gen/user/v1/user_pb";
 
 interface AuthContextType {
-	token: string | null;
-	login: () => void;
-	logout: () => void;
+	user: GetCurrentUserResponse | null;
 	isAuthenticated: boolean;
+	isLoading: boolean;
+	error: Error | null;
+	logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	// With cookie-based auth, we just need to know if user is authenticated
-	// The backend will verify the cookie when we make requests
-	// A non-empty token indicates successful login
-	const [token, setTokenState] = useState<string | null>("cookie-based");
+	const navigate = useNavigate();
 
-	const login = () => {
-		// Token is stored in HTTP-only cookie, not in state
-		setTokenState("cookie-based");
-		console.log("AuthProvider: login successful (token in cookie)");
-	};
+	const { data: user, isLoading, error } = useQuery(getCurrentUser, {});
 
-	const logout = () => {
-		console.log("AuthProvider: logout");
+	const { refetch: performLogout } = useQuery(logoutMethod, {}, { enabled: false });
+
+	const logout = async () => {
+		try {
+			await performLogout();
+			navigate("/");
+		} catch (err) {
+			console.error("Logout failed:", err);
+		}
 	};
 
 	return (
 		<AuthContext.Provider
 			value={{
-				token,
-				login,
+				user: user ?? null,
+				isAuthenticated: !!user?.user,
+				isLoading,
+				error: error instanceof Error ? error : null,
 				logout,
-				isAuthenticated: !!token,
 			}}
 		>
 			{children}

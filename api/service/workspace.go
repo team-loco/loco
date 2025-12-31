@@ -87,7 +87,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
-	ws, err := s.queries.InsertWorkspace(ctx, genDb.InsertWorkspaceParams{
+	wsID, err := s.queries.InsertWorkspace(ctx, genDb.InsertWorkspaceParams{
 		OrgID:       r.OrgId,
 		Name:        r.Name,
 		Description: description,
@@ -99,7 +99,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}
 
 	_, err = s.queries.UpsertWorkspaceMember(ctx, genDb.UpsertWorkspaceMemberParams{
-		WorkspaceID: ws.ID,
+		WorkspaceID: wsID,
 		UserID:      userID,
 		Role:        genDb.WorkspaceRoleAdmin,
 	})
@@ -109,15 +109,8 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}
 
 	return connect.NewResponse(&workspacev1.CreateWorkspaceResponse{
-		Workspace: &workspacev1.Workspace{
-			Id:          ws.ID,
-			OrgId:       ws.OrgID,
-			Name:        ws.Name,
-			Description: ws.Description.String,
-			CreatedBy:   ws.CreatedBy,
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
-		},
+		WorkspaceId: wsID,
+		Message:     "Workspace created successfully.",
 	}), nil
 }
 
@@ -311,7 +304,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
-	ws, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
+	wsID, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
 		ID:          r.WorkspaceId,
 		Name:        name,
 		Description: description,
@@ -322,15 +315,8 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	}
 
 	return connect.NewResponse(&workspacev1.UpdateWorkspaceResponse{
-		Workspace: &workspacev1.Workspace{
-			Id:          ws.ID,
-			OrgId:       ws.OrgID,
-			Name:        ws.Name,
-			Description: ws.Description.String,
-			CreatedBy:   ws.CreatedBy,
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
-		},
+		WorkspaceId: wsID,
+		Message:     "Workspace updated successfully.",
 	}), nil
 }
 
@@ -371,10 +357,8 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{
-		Workspace: &workspacev1.Workspace{
-			Id: r.WorkspaceId,
-		},
-		Message: "Successfully deleted workspace",
+		WorkspaceId: r.WorkspaceId,
+		Message:     "Successfully deleted workspace",
 	}), nil
 }
 
@@ -418,7 +402,7 @@ func (s *WorkspaceServer) AddMember(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceAdmin)
 	}
 
-	member, err := s.queries.UpsertWorkspaceMember(ctx, genDb.UpsertWorkspaceMemberParams{
+	memberId, err := s.queries.UpsertWorkspaceMember(ctx, genDb.UpsertWorkspaceMemberParams{
 		WorkspaceID: r.WorkspaceId,
 		UserID:      r.UserId,
 		Role:        wsRole,
@@ -429,12 +413,8 @@ func (s *WorkspaceServer) AddMember(
 	}
 
 	return connect.NewResponse(&workspacev1.AddMemberResponse{
-		Member: &workspacev1.WorkspaceMember{
-			WorkspaceId: member.WorkspaceID,
-			UserId:      member.UserID,
-			Role:        string(member.Role),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(member.CreatedAt.Time),
-		},
+		UserId:  memberId,
+		Message: "Member added successfully.",
 	}), nil
 }
 
@@ -524,9 +504,9 @@ func (s *WorkspaceServer) ListMembers(
 	}
 
 	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(ctx, genDb.ListWorkspaceMembersWithUserDetailsParams{
-		WorkspaceID:  r.WorkspaceId,
-		Limit:        limit + 1,
-		AfterCursor:  afterCursor,
+		WorkspaceID: r.WorkspaceId,
+		Limit:       limit + 1,
+		AfterCursor: afterCursor,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list members", "error", err)
@@ -543,13 +523,13 @@ func (s *WorkspaceServer) ListMembers(
 	var members []*workspacev1.WorkspaceMemberWithUser
 	for _, member := range memberList {
 		members = append(members, &workspacev1.WorkspaceMemberWithUser{
-			WorkspaceId:    member.WorkspaceID,
-			UserId:         member.UserID,
-			Role:           string(member.Role),
-			CreatedAt:      timeutil.ParsePostgresTimestamp(member.CreatedAt.Time),
-			UserName:       member.Name.String,
-			UserEmail:      member.Email,
-			UserAvatarUrl:  member.AvatarUrl.String,
+			WorkspaceId:   member.WorkspaceID,
+			UserId:        member.UserID,
+			Role:          string(member.Role),
+			CreatedAt:     timeutil.ParsePostgresTimestamp(member.CreatedAt.Time),
+			UserName:      member.Name.String,
+			UserEmail:     member.Email,
+			UserAvatarUrl: member.AvatarUrl.String,
 		})
 	}
 

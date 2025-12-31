@@ -67,8 +67,8 @@ message CreateWorkspaceRequest {
 
 // CreateWorkspaceResponse is the response from creating a workspace.
 message CreateWorkspaceResponse {
-  Workspace workspace = 1;
-  string message = 2;
+  int64  workspace_id = 1;
+  string message      = 2;
 }
 
 // GetWorkspaceRequest is the request to retrieve a workspace.
@@ -108,8 +108,8 @@ message UpdateWorkspaceRequest {
 
 // UpdateWorkspaceResponse is the response from updating a workspace.
 message UpdateWorkspaceResponse {
-  Workspace workspace = 1;
-  string message = 2;
+  int64  workspace_id = 1;
+  string message      = 2;
 }
 
 // DeleteWorkspaceRequest is the request to delete a workspace.
@@ -120,8 +120,8 @@ message DeleteWorkspaceRequest {
 
 // DeleteWorkspaceResponse is the response from deleting a workspace.
 message DeleteWorkspaceResponse {
-  Workspace workspace = 1;
-  string message = 2;
+  int64  workspace_id = 1;
+  string message      = 2;
 }
 
 // AddMemberRequest is the request to add a member to a workspace.
@@ -133,7 +133,8 @@ message AddMemberRequest {
 
 // AddMemberResponse is the response from adding a member to a workspace.
 message AddMemberResponse {
-  WorkspaceMember member = 1;
+  int64  user_id = 1;
+  string message = 2;
 }
 
 // RemoveMemberRequest is the request to remove a member from a workspace.

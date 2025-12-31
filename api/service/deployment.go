@@ -20,7 +20,7 @@ import (
 	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
 	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
-	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,6 +39,8 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	switch status {
 	case genDb.DeploymentStatusPending:
 		return deploymentv1.DeploymentPhase_PENDING
+	case genDb.DeploymentStatusDeploying:
+		return deploymentv1.DeploymentPhase_DEPLOYING
 	case genDb.DeploymentStatusRunning:
 		return deploymentv1.DeploymentPhase_RUNNING
 	case genDb.DeploymentStatusSucceeded:
@@ -52,10 +54,11 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
-func deploymentToProto(d genDb.Deployment) *deploymentv1.Deployment {
+func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.Deployment {
 	deployment := &deploymentv1.Deployment{
 		Id:          d.ID,
 		ResourceId:  d.ResourceID,
+		ClusterId:   d.ClusterID,
 		Replicas:    d.Replicas,
 		Status:      parseDeploymentPhase(d.Status),
 		IsActive:    d.IsActive,
@@ -66,12 +69,42 @@ func deploymentToProto(d genDb.Deployment) *deploymentv1.Deployment {
 	}
 
 	if len(d.Spec) > 0 {
-		var spec map[string]any
-		if err := json.Unmarshal(d.Spec, &spec); err == nil {
-			if s, err := structpb.NewStruct(spec); err == nil {
-				deployment.Spec = s
+		spec := &deploymentv1.DeploymentSpec{}
+
+		switch resourceType {
+		case "service":
+			serviceSpec := &deploymentv1.ServiceDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, serviceSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal service deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Service{Service: serviceSpec}
 			}
+		case "database":
+			databaseSpec := &deploymentv1.DatabaseDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, databaseSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal database deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Database{Database: databaseSpec}
+			}
+		case "cache":
+			cacheSpec := &deploymentv1.CacheDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, cacheSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal cache deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Cache{Cache: cacheSpec}
+			}
+		case "queue":
+			queueSpec := &deploymentv1.QueueDeploymentSpec{}
+			if err := protojson.Unmarshal(d.Spec, queueSpec); err != nil {
+				slog.WarnContext(context.Background(), "failed to unmarshal queue deployment spec", "error", err, "deployment_id", d.ID)
+			} else {
+				spec.Spec = &deploymentv1.DeploymentSpec_Queue{Queue: queueSpec}
+			}
+		default:
+			slog.WarnContext(context.Background(), "unknown resource type", "resource_type", resourceType, "deployment_id", d.ID)
 		}
+
+		deployment.Spec = spec
 	}
 
 	if d.Message.Valid {
@@ -212,7 +245,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	deployment, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
+	deploymentID, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   cluster.ID,
 		Replicas:    replicas,
@@ -236,7 +269,7 @@ func (s *DeploymentServer) CreateDeployment(
 	slog.InfoContext(ctx, "created/updated LocoResource", "resource_id", resource.ID, "resource_name", resource.Name)
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
-		DeploymentId: deployment.ID,
+		DeploymentId: deploymentID,
 		Message:      "Deployment scheduled.",
 	}), nil
 }
@@ -281,7 +314,7 @@ func (s *DeploymentServer) GetDeployment(
 	}
 
 	return connect.NewResponse(&deploymentv1.GetDeploymentResponse{
-		Deployment: deploymentToProto(deploymentData),
+		Deployment: deploymentToProto(deploymentData, string(resource.Type)),
 	}), nil
 }
 
@@ -342,12 +375,72 @@ func (s *DeploymentServer) ListDeployments(
 
 	var deployments []*deploymentv1.Deployment
 	for _, d := range deploymentList {
-		deployments = append(deployments, deploymentToProto(d))
+		deployments = append(deployments, deploymentToProto(d, string(resource.Type)))
 	}
 
 	return connect.NewResponse(&deploymentv1.ListDeploymentsResponse{
 		Deployments: deployments,
 		Total:       total,
+	}), nil
+}
+
+// DeleteDeployment deletes/inactivates a deployment and cleans up its LocoResource
+func (s *DeploymentServer) DeleteDeployment(
+	ctx context.Context,
+	req *connect.Request[deploymentv1.DeleteDeploymentRequest],
+) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
+	r := req.Msg
+
+	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
+	if !ok {
+		slog.ErrorContext(ctx, "userId not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	deployment, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
+	if err != nil {
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
+	}
+
+	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get resource", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
+		WorkspaceID: resource.WorkspaceID,
+		UserID:      userID,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check workspace membership", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	if !isMember {
+		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
+		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	}
+
+	// if this is the active deployment, delete the LocoResource
+	if deployment.IsActive {
+		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID); err != nil {
+			slog.ErrorContext(ctx, "failed to delete LocoResource", "error", err, "resource_id", resource.ID)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup LocoResource: %w", err))
+		}
+	}
+
+	// mark deployment as inactive
+	err = s.queries.MarkDeploymentNotActive(ctx, r.DeploymentId)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to mark deployment not active", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	return connect.NewResponse(&deploymentv1.DeleteDeploymentResponse{
+		DeploymentId: r.DeploymentId,
+		Message:      "Deployment deleted.",
 	}), nil
 }
 
@@ -590,4 +683,23 @@ func buildResourcesSpecFromServiceSpec(serviceSpec *resourcev1.ServiceSpec) (*lo
 	}
 
 	return resourcesSpec, nil
+}
+
+// deleteLocoResource deletes a LocoResource from the loco-system namespace
+func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID int64) error {
+	locoRes := &locoControllerV1.LocoResource{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("resource-%d", resourceID),
+			Namespace: "loco-system",
+		},
+	}
+
+	if err := kubeClient.ControllerClient.Delete(ctx, locoRes); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			slog.ErrorContext(ctx, "failed to delete LocoResource", "error", err, "resource_id", resourceID)
+			return err
+		}
+	}
+	slog.InfoContext(ctx, "deleted LocoResource", "resource_id", resourceID)
+	return nil
 }

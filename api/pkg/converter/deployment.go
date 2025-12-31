@@ -24,6 +24,80 @@ func DeserializeResourceSpec(specBytes []byte) (*resourcev1.ResourceSpec, error)
 	return &spec, nil
 }
 
+// DeserializeDeploymentSpec deserializes a DeploymentSpec from JSON bytes based on the resource type.
+// The specBytes should contain only the inner deployment spec (ServiceDeploymentSpec, etc.), not the wrapper.
+func DeserializeDeploymentSpec(specBytes []byte, resourceType string) (*deploymentv1.DeploymentSpec, error) {
+	if len(specBytes) == 0 {
+		return nil, fmt.Errorf("spec bytes cannot be empty")
+	}
+
+	switch resourceType {
+	case "service":
+		var serviceSpec deploymentv1.ServiceDeploymentSpec
+		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal service deployment spec: %w", err)
+		}
+		return &deploymentv1.DeploymentSpec{
+			Spec: &deploymentv1.DeploymentSpec_Service{Service: &serviceSpec},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown resource type for deployment: %s", resourceType)
+	}
+}
+
+// DeserializeResourceSpecByType deserializes a ResourceSpec from JSON bytes based on the resource type.
+// The specBytes should contain only the inner spec (ServiceSpec, DatabaseSpec, etc.), not the wrapper.
+func DeserializeResourceSpecByType(specBytes []byte, resourceType string) (*resourcev1.ResourceSpec, error) {
+	if len(specBytes) == 0 {
+		return nil, fmt.Errorf("spec bytes cannot be empty")
+	}
+
+	switch resourceType {
+	case "service":
+		var serviceSpec resourcev1.ServiceSpec
+		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal service spec: %w", err)
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Service{Service: &serviceSpec},
+		}, nil
+	case "database":
+		var databaseSpec resourcev1.DatabaseSpec
+		if err := protojson.Unmarshal(specBytes, &databaseSpec); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal database spec: %w", err)
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Database{Database: &databaseSpec},
+		}, nil
+	case "cache":
+		var cacheSpec resourcev1.CacheSpec
+		if err := protojson.Unmarshal(specBytes, &cacheSpec); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal cache spec: %w", err)
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Cache{Cache: &cacheSpec},
+		}, nil
+	case "queue":
+		var queueSpec resourcev1.QueueSpec
+		if err := protojson.Unmarshal(specBytes, &queueSpec); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal queue spec: %w", err)
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Queue{Queue: &queueSpec},
+		}, nil
+	case "blob":
+		var blobSpec resourcev1.BlobSpec
+		if err := protojson.Unmarshal(specBytes, &blobSpec); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal blob spec: %w", err)
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Blob{Blob: &blobSpec},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown resource type: %s", resourceType)
+	}
+}
+
 // MergeDeploymentSpec merges a request DeploymentSpec with resource defaults from ResourceSpec.
 // The request spec takes precedence; missing fields are filled from the resource's primary region.
 // This is the API's single source of truth for deployment defaults.

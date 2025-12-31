@@ -4,7 +4,6 @@ import { EnvironmentVariables } from "@/components/app/EnvironmentVariables";
 import { EventsTimeline } from "@/components/app/EventsTimeline";
 import { LogsViewer } from "@/components/app/LogsViewer";
 import { RecentDeployments } from "@/components/app/RecentDeployments";
-import { ScaleCard } from "@/components/app/ScaleCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAppDetails } from "@/hooks/useAppDetails";
 import { subscribeToEvents } from "@/lib/events";
@@ -13,7 +12,7 @@ import { useParams } from "react-router";
 
 export function AppDetails() {
 	const { appId } = useParams<{ appId: string }>();
-	const { app, status, deployments, isLoading, error } = useAppDetails(appId ?? "");
+	const { app, deployments, isLoading, error } = useAppDetails(appId ?? "");
 
 	// Subscribe to real-time app-specific events
 	useEffect(() => {
@@ -95,29 +94,22 @@ export function AppDetails() {
 			{/* App Header */}
 			<AppHeader app={app} isLoading={isLoading} />
 
-			{/* Deployment Status Card */}
+			{/* Active Deployment Card */}
 			<DeploymentStatusCard
 				appId={appId}
 				deployment={deployments[0]}
 				isLoading={isLoading}
 			/>
 
-			{/* Recent Deployments */}
+			{/* Previous Deployments */}
 			<RecentDeployments
-				deployments={deployments}
+				deployments={deployments.slice(1)}
 				appId={appId}
 				isLoading={isLoading}
 			/>
-
-			{/* Scale Card */}
-			<ScaleCard appId={appId} currentReplicas={status?.replicas} isLoading={isLoading} />
 
 			{/* Environment Variables */}
-			<EnvironmentVariables
-				appId={appId}
-				envVars={[]}
-				isLoading={isLoading}
-			/>
+			<EnvironmentVariables appId={appId} envVars={[]} isLoading={isLoading} />
 
 			{/* Logs Viewer */}
 			<LogsViewer appId={appId} isLoading={isLoading} />

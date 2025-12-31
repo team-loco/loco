@@ -3,7 +3,7 @@
 -- name: CreateDeployment :one
 INSERT INTO deployments (resource_id, cluster_id, replicas, status, is_active, message, created_by, spec, spec_version)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING *;
+RETURNING id;
 
 -- name: GetDeploymentByID :one
 SELECT * FROM deployments WHERE id = $1;
@@ -42,3 +42,13 @@ WHERE resource_id = $1 AND is_active = true;
 
 -- name: ListActiveDeployments :many
 SELECT resource_id FROM deployments WHERE is_active = true;
+
+-- name: ListActiveDeploymentsForResource :many
+SELECT * FROM deployments
+WHERE resource_id = $1 AND is_active = true
+ORDER BY created_at DESC;
+
+-- name: MarkDeploymentNotActive :exec
+UPDATE deployments
+SET is_active = false, updated_at = NOW()
+WHERE id = $1;

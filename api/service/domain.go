@@ -44,7 +44,7 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
 	}
 
-	result, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
+	domainID, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
 		Domain:   r.Domain,
 		IsActive: r.IsActive,
 	})
@@ -55,13 +55,8 @@ func (s *DomainServer) CreatePlatformDomain(
 
 	return &connect.Response[domainv1.CreatePlatformDomainResponse]{
 		Msg: &domainv1.CreatePlatformDomainResponse{
-			PlatformDomain: &domainv1.PlatformDomain{
-				Id:        result.ID,
-				Domain:    result.Domain,
-				IsActive:  result.IsActive,
-				CreatedAt: timestamppb.New(result.CreatedAt.Time),
-				UpdatedAt: timestamppb.New(result.CreatedAt.Time),
-			},
+			DomainId: domainID,
+			Message:  "Platform domain created successfully.",
 		},
 	}, nil
 }
@@ -169,7 +164,7 @@ func (s *DomainServer) DeactivatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	result, err := s.queries.DeactivatePlatformDomain(ctx, r.Id)
+	domainID, err := s.queries.DeactivatePlatformDomain(ctx, r.Id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to deactivate platform domain", "id", r.Id, "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to deactivate platform domain: %w", err))
@@ -177,13 +172,8 @@ func (s *DomainServer) DeactivatePlatformDomain(
 
 	return &connect.Response[domainv1.DeactivatePlatformDomainResponse]{
 		Msg: &domainv1.DeactivatePlatformDomainResponse{
-			PlatformDomain: &domainv1.PlatformDomain{
-				Id:        result.ID,
-				Domain:    result.Domain,
-				IsActive:  result.IsActive,
-				CreatedAt: timestamppb.New(result.CreatedAt.Time),
-				UpdatedAt: timestamppb.New(result.CreatedAt.Time),
-			},
+			DomainId: domainID,
+			Message:  "Platform domain deactivated successfully.",
 		},
 	}, nil
 }
@@ -321,7 +311,7 @@ func (s *DomainServer) AddResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	resourceDomain, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+	domainID, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
 		ResourceID:            r.ResourceId,
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
@@ -335,8 +325,8 @@ func (s *DomainServer) AddResourceDomain(
 
 	return &connect.Response[domainv1.AddResourceDomainResponse]{
 		Msg: &domainv1.AddResourceDomainResponse{
-			Domain:  resourceDomainToProto(resourceDomain),
-			Message: "Domain added successfully",
+			DomainId: domainID,
+			Message:  "Domain added successfully",
 		},
 	}, nil
 }
@@ -386,7 +376,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	// update the domain
-	resourceDomain, err := s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
+	domainID, err := s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
 		ID:     r.DomainId,
 		Domain: r.Domain,
 	})
@@ -397,8 +387,8 @@ func (s *DomainServer) UpdateResourceDomain(
 
 	return &connect.Response[domainv1.UpdateResourceDomainResponse]{
 		Msg: &domainv1.UpdateResourceDomainResponse{
-			Domain:  resourceDomainToProto(resourceDomain),
-			Message: "Domain updated successfully",
+			DomainId: domainID,
+			Message:  "Domain updated successfully",
 		},
 	}, nil
 }
@@ -440,7 +430,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	}
 
 	// set this domain as primary
-	resourceDomain, err := s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
+	domainID, err := s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
 		ID:    r.DomainId,
 		ResourceID: r.ResourceId,
 	})
@@ -450,8 +440,8 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 
 	return &connect.Response[domainv1.SetPrimaryResourceDomainResponse]{
 		Msg: &domainv1.SetPrimaryResourceDomainResponse{
-			Domain:  resourceDomainToProto(resourceDomain),
-			Message: "Primary domain updated successfully",
+			DomainId: domainID,
+			Message:  "Primary domain updated successfully",
 		},
 	}, nil
 }

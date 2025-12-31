@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
 	Card,
 	CardContent,
@@ -13,23 +13,24 @@ import { Slider } from "@/components/ui/slider";
 import { scaleResource } from "@/gen/resource/v1";
 import { useMutation } from "@connectrpc/connect-query";
 import { Loader2, Cpu, HardDrive, Layers } from "lucide-react";
+import type { Deployment } from "@/gen/deployment/v1/deployment_pb";
+import { getServiceSpec } from "@/lib/deployment-utils";
 
 interface ScaleCardProps {
 	appId: string;
 	currentReplicas?: number;
+	deployment?: Deployment;
 	isLoading?: boolean;
 }
 
 export function ScaleCard({
 	appId,
 	currentReplicas = 1,
+	deployment,
 	isLoading = false,
 }: ScaleCardProps) {
-	const [replicas, setReplicas] = useState<number>(currentReplicas);
-	const [cpuIndex, setCpuIndex] = useState<number>(3); // 1000m by default
-	const [memoryIndex, setMemoryIndex] = useState<number>(1); // 512Mi by default
-
 	const cpuOptions = [
+		"100m",
 		"250m",
 		"500m",
 		"750m",
@@ -48,6 +49,46 @@ export function ScaleCard({
 		"1.5Gi",
 		"2Gi",
 	];
+
+	const { cpuIndex: initialCpuIndex, memoryIndex: initialMemoryIndex } =
+		useMemo(() => {
+			let cpu = "1000m";
+			let memory = "512Mi";
+
+			const service = deployment ? getServiceSpec(deployment) : undefined;
+			if (service) {
+				if (service.cpu) cpu = service.cpu;
+				if (service.memory) memory = service.memory;
+			}
+
+			return {
+				cpuIndex: cpuOptions.indexOf(cpu),
+				memoryIndex: memoryOptions.indexOf(memory),
+			};
+		}, [deployment]);
+
+	const [replicas, setReplicas] = useState<number>(currentReplicas);
+	const [cpuIndex, setCpuIndex] = useState<number>(
+		initialCpuIndex >= 0 ? initialCpuIndex : 3
+	);
+	const [memoryIndex, setMemoryIndex] = useState<number>(
+		initialMemoryIndex >= 0 ? initialMemoryIndex : 1
+	);
+
+	const hasChanges = useMemo(() => {
+		return (
+			replicas !== currentReplicas ||
+			cpuIndex !== (initialCpuIndex >= 0 ? initialCpuIndex : 3) ||
+			memoryIndex !== (initialMemoryIndex >= 0 ? initialMemoryIndex : 1)
+		);
+	}, [
+		replicas,
+		cpuIndex,
+		memoryIndex,
+		currentReplicas,
+		initialCpuIndex,
+		initialMemoryIndex,
+	]);
 
 	const { mutate: scale, isPending } = useMutation(scaleResource);
 
@@ -107,7 +148,7 @@ export function ScaleCard({
 					<div className="border-r border-border"></div>
 
 					{/* CPU & Memory */}
-					<div className="flex gap-6 flex-[2]">
+					<div className="flex gap-6 flex-2">
 						{/* CPU */}
 						<div className="space-y-3 flex-1 pr-6">
 							<div className="flex items-center justify-between">
@@ -165,7 +206,7 @@ export function ScaleCard({
 				{/* Action Button */}
 				<Button
 					onClick={handleScale}
-					disabled={isPending || isLoading}
+					disabled={isPending || isLoading || !hasChanges}
 					className="w-full"
 				>
 					{isPending || isLoading ? (

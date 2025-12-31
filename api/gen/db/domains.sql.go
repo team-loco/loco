@@ -28,7 +28,7 @@ func (q *Queries) CheckDomainAvailability(ctx context.Context, domain string) (b
 const createPlatformDomain = `-- name: CreatePlatformDomain :one
 INSERT INTO platform_domains (domain, is_active)
 VALUES ($1, $2)
-RETURNING id, domain, is_active, created_at
+RETURNING id
 `
 
 type CreatePlatformDomainParams struct {
@@ -36,16 +36,11 @@ type CreatePlatformDomainParams struct {
 	IsActive bool   `json:"isActive"`
 }
 
-func (q *Queries) CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (PlatformDomain, error) {
+func (q *Queries) CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createPlatformDomain, arg.Domain, arg.IsActive)
-	var i PlatformDomain
-	err := row.Scan(
-		&i.ID,
-		&i.Domain,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createResourceDomain = `-- name: CreateResourceDomain :one
@@ -58,7 +53,7 @@ INSERT INTO resource_domains (
     is_primary
 )
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, resource_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
+RETURNING id
 `
 
 type CreateResourceDomainParams struct {
@@ -70,7 +65,7 @@ type CreateResourceDomainParams struct {
 	IsPrimary        bool         `json:"isPrimary"`
 }
 
-func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (ResourceDomain, error) {
+func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createResourceDomain,
 		arg.ResourceID,
 		arg.Domain,
@@ -79,38 +74,22 @@ func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDo
 		arg.PlatformDomainID,
 		arg.IsPrimary,
 	)
-	var i ResourceDomain
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Domain,
-		&i.DomainSource,
-		&i.SubdomainLabel,
-		&i.PlatformDomainID,
-		&i.IsPrimary,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const deactivatePlatformDomain = `-- name: DeactivatePlatformDomain :one
 UPDATE platform_domains
 SET is_active = false
 WHERE id = $1
-RETURNING id, domain, is_active, created_at
+RETURNING id
 `
 
-func (q *Queries) DeactivatePlatformDomain(ctx context.Context, id int64) (PlatformDomain, error) {
+func (q *Queries) DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error) {
 	row := q.db.QueryRow(ctx, deactivatePlatformDomain, id)
-	var i PlatformDomain
-	err := row.Scan(
-		&i.ID,
-		&i.Domain,
-		&i.IsActive,
-		&i.CreatedAt,
-	)
-	return i, err
+	err := row.Scan(&id)
+	return id, err
 }
 
 const deleteResourceDomain = `-- name: DeleteResourceDomain :exec
@@ -368,7 +347,7 @@ const setResourceDomainPrimary = `-- name: SetResourceDomainPrimary :one
 UPDATE resource_domains
 SET is_primary = true
 WHERE id = $1 AND resource_id = $2
-RETURNING id, resource_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
+RETURNING id
 `
 
 type SetResourceDomainPrimaryParams struct {
@@ -376,21 +355,11 @@ type SetResourceDomainPrimaryParams struct {
 	ResourceID int64 `json:"resourceId"`
 }
 
-func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (ResourceDomain, error) {
+func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (int64, error) {
 	row := q.db.QueryRow(ctx, setResourceDomainPrimary, arg.ID, arg.ResourceID)
-	var i ResourceDomain
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Domain,
-		&i.DomainSource,
-		&i.SubdomainLabel,
-		&i.PlatformDomainID,
-		&i.IsPrimary,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateResourceDomain = `-- name: UpdateResourceDomain :one
@@ -398,7 +367,7 @@ UPDATE resource_domains
 SET domain = $2,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, resource_id, domain, domain_source, subdomain_label, platform_domain_id, is_primary, created_at, updated_at
+RETURNING id
 `
 
 type UpdateResourceDomainParams struct {
@@ -406,21 +375,11 @@ type UpdateResourceDomainParams struct {
 	Domain string `json:"domain"`
 }
 
-func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (ResourceDomain, error) {
+func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (int64, error) {
 	row := q.db.QueryRow(ctx, updateResourceDomain, arg.ID, arg.Domain)
-	var i ResourceDomain
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Domain,
-		&i.DomainSource,
-		&i.SubdomainLabel,
-		&i.PlatformDomainID,
-		&i.IsPrimary,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const updateResourceDomainPrimary = `-- name: UpdateResourceDomainPrimary :exec

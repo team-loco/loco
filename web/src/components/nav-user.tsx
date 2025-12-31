@@ -25,8 +25,6 @@ import {
 	SidebarMenuItem,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { logout } from "@/gen/user/v1";
-import { useMutation } from "@connectrpc/connect-query";
 import { useAuth } from "@/auth/AuthProvider";
 import { toast } from "sonner";
 
@@ -50,8 +48,7 @@ export function NavUser({
 }) {
 	const { isMobile } = useSidebar();
 	const navigate = useNavigate();
-	const authContext = useAuth();
-	const logoutMutation = useMutation(logout);
+	const { logout } = useAuth();
 
 	return (
 		<SidebarMenu>
@@ -133,13 +130,13 @@ export function NavUser({
 						<DropdownMenuItem
 							onClick={async () => {
 								try {
-									await logoutMutation.mutateAsync({});
+									await logout();
+									navigate("/login", { replace: true });
+									toast.success("Logged out successfully");
 								} catch (error) {
-									console.error("Logout API error:", error);
+									console.error("Logout failed:", error);
+									toast.error("Failed to logout");
 								}
-								authContext.logout();
-								navigate("/login", { replace: true });
-								toast.success("Logged out successfully");
 							}}
 						>
 							<LogOut />
