@@ -135,6 +135,20 @@ func (tq *TestingQueries) GetToken(ctx context.Context, token string) (queries.G
 	return tk, nil
 }
 
+func (tq *TestingQueries) DeleteToken(ctx context.Context, token string) error {
+	delete(tq.tokens, token)
+	return nil
+}
+func (tq *TestingQueries) AddUserScope(ctx context.Context, arg queries.AddUserScopeParams) error {
+	panic("not implemented")
+}
+func (tq *TestingQueries) RemoveUserScope(ctx context.Context, arg queries.RemoveUserScopeParams) error {
+	panic("not implemented")
+}
+func (tq *TestingQueries) GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]string, error) {
+	panic("not implemented")
+}
+
 func TestingGithubProvider(ctx context.Context, token string) (string, error) {
 	switch token {
 	case "github-token-user1":
@@ -153,7 +167,7 @@ func TestingGithubProvider(ctx context.Context, token string) (string, error) {
 
 // user 1 has only self read/write/admin
 func TestUser1Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
@@ -205,7 +219,7 @@ func TestUser1Permissions(t *testing.T) {
 
 // user 2 has org 1 r, w, a
 func TestUser2Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
@@ -287,7 +301,7 @@ func TestUser2Permissions(t *testing.T) {
 
 // user 3 has org 1 r, w
 func TestUser3Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
@@ -389,7 +403,7 @@ func TestUser3Permissions(t *testing.T) {
 
 // user 4 has r or ws 1
 func TestUser4Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
@@ -481,7 +495,7 @@ func TestUser4Permissions(t *testing.T) {
 
 // user 5 has r, w, a of wks 3
 func TestUser5Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})

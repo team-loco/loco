@@ -2,10 +2,12 @@ package tvm
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -20,9 +22,14 @@ type Queries interface {
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error)
 	GetWorkspaceOrganizationIDByAppID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByAppIDRow, error)
 	GetUserScopesByEmail(ctx context.Context, email string) ([]queries.UserScope, error)
+	DeleteToken(ctx context.Context, token string) error
+	GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]string, error)
+	AddUserScope(ctx context.Context, arg queries.AddUserScopeParams) error
+	RemoveUserScope(ctx context.Context, arg queries.RemoveUserScopeParams) error
 }
 
 type VendingMachine struct {
+	pool    *pgxpool.Pool
 	queries Queries
 	cfg     Config
 }
@@ -78,38 +85,46 @@ func (tvm *VendingMachine) issueNoCheck(ctx context.Context, entity queries.Enti
 	return tks, nil
 }
 
-func (tvm *VendingMachine) Verify(ctx context.Context, token string, entityScope queries.EntityScope) error {
+// Verify verifies that the given token has the entityScope required, either explicitly or implicitly. It returns an error if an error
+// occurs, if the entity does not exist [ErrEntityNotFound], or if the token does not have sufficient permissions [ErrInsufficentPermissions].
+// It also returns the entity associated with the token, for example, log in tokens will return the user entity, and tokens issues for an
+// application will return the application entity.
+func (tvm *VendingMachine) VerifyWithEntity(ctx context.Context, token string, entityScope queries.EntityScope) (queries.Entity, error) {
 	tokenData, err := tvm.queries.GetToken(ctx, token)
 	if err != nil {
-		return ErrTokenNotFound
+		return queries.Entity{}, ErrTokenNotFound
 	}
 	if time.Now().After(tokenData.ExpiresAt) {
-		return ErrTokenExpired
+		return queries.Entity{}, ErrTokenExpired
+	}
+	tokenEntity := queries.Entity{
+		Type: tokenData.EntityType,
+		ID:   tokenData.EntityID,
 	}
 
 	// hot path: check if token has the entityScope required or has sys:scope
 	for _, scope := range tokenData.Scopes {
 		if scope == entityScope { // the token directly has the scope needed
-			return nil
+			return tokenEntity, nil
 		}
 		// for example: if operation requires workspace:write and user has sys:write
 		// it should allow the operation. this function still does not allow access
 		// for someone with something like sys:read to workspace:write.
 		if scope.Entity.Type == queries.EntityTypeSystem && scope.Scope == entityScope.Scope {
-			return nil
+			return tokenEntity, nil
 		}
 	}
 	// not so hot path: if the token has an entityScope that is *implied*
 	var otherEntityScopes []queries.EntityScope
 	switch entityScope.Entity.Type {
 	case queries.EntityTypeOrganization, queries.EntityTypeUser:
-		return ErrInsufficentPermissions // there is nothing higher to check. if doesn't have org or sys permissions for scope on an org, you don't have enough perms.
+		return tokenEntity, ErrInsufficentPermissions // there is nothing higher to check. if doesn't have org or sys permissions for scope on an org, you don't have enough perms.
 	case queries.EntityTypeWorkspace:
 		// lookup the org id for the workspace
 		org_id, err := tvm.queries.GetOrganizationIDByWorkspaceID(ctx, entityScope.Entity.ID)
 		if err != nil {
 			// note: this could be another error
-			return ErrEntityNotFound
+			return tokenEntity, ErrEntityNotFound
 		}
 
 		// check for org:scope
@@ -127,7 +142,7 @@ func (tvm *VendingMachine) Verify(ctx context.Context, token string, entityScope
 		ids, err := tvm.queries.GetWorkspaceOrganizationIDByAppID(ctx, entityScope.Entity.ID)
 		if err != nil {
 			// note: again this could be another eror
-			return ErrEntityNotFound
+			return tokenEntity, ErrEntityNotFound
 		}
 		wks_id := ids.WorkspaceID
 		org_id := ids.OrgID
@@ -150,22 +165,114 @@ func (tvm *VendingMachine) Verify(ctx context.Context, token string, entityScope
 			},
 		}
 	default:
-		return ErrEntityNotFound // unknown entity type
+		return tokenEntity, ErrEntityNotFound // unknown entity type
 	}
 
 	// check otherentityscopes. note: someone see if this can be optimized
 	for _, oes := range otherEntityScopes {
 		// if token has any of the implied scopes, allow
 		if slices.Contains(tokenData.Scopes, oes) {
-			return nil
+			return tokenEntity, nil
 		}
 	}
 
-	return ErrInsufficentPermissions
+	return tokenEntity, ErrInsufficentPermissions
 }
 
-func NewVendingMachine(queries Queries, cfg Config) *VendingMachine {
+// Verify verifies that the given token has the entityScope required, either explicitly or implicitly. It returns an error if an error
+// occurs, if the entity does not exist [ErrEntityNotFound], or if the token does not have sufficient permissions [ErrInsufficentPermissions].
+func (tvm *VendingMachine) Verify(ctx context.Context, token string, entityScope queries.EntityScope) error {
+	_, err := tvm.VerifyWithEntity(ctx, token, entityScope)
+	return err
+}
+
+// Revoke deletes the given token, effectively immediately revoking it.
+func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
+	return tvm.queries.DeleteToken(ctx, token)
+}
+
+func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, userID int64, entity queries.Entity) ([]queries.EntityScope, error) {
+	// returns all roles for the given entity and below (so if entity is org, returns org, workspace, app roles that are explicitly listed)
+	// the token must have read on the given entity
+	scopes, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
+		UserID:     userID,
+		EntityType: entity.Type,
+		EntityID:   entity.ID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get user scopes on entity: %w", err)
+	}
+	entityScopes := []queries.EntityScope{}
+	for _, scope := range scopes {
+		entityScopes = append(entityScopes, queries.EntityScope{
+			Entity: entity,
+			Scope:  scope,
+		})
+	}
+	return entityScopes, nil
+}
+
+func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID int64, addScopes []queries.EntityScope, removeScopes []queries.EntityScope) error {
+	// find each entity being added and removed
+	// make sure the token has admin, explicitly or implicitly, on all of these entities by calling Verify
+	// if ALL checks pass, update the scopes in the database
+	// if any checks fail, return ErrInsufficentPermissions
+
+	entities := []queries.Entity{}
+
+	// collect unique entities that the token is requesting to add or remove scopes
+	for _, es := range append(addScopes, removeScopes...) {
+		if !slices.Contains(entities, es.Entity) {
+			entities = append(entities, es.Entity)
+		}
+	}
+	// verify that the token has admin on all of these entities
+	for _, entity := range entities {
+		err := tvm.Verify(ctx, token, queries.EntityScope{
+			Entity: entity,
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != nil { // insufficient permissions or other error, bye bye no update 4 u
+			return err
+		}
+	}
+	// token has admin on all entities, proceed with update
+
+	tx, err := tvm.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	for _, es := range addScopes {
+		if err := tvm.queries.AddUserScope(ctx, queries.AddUserScopeParams{
+			UserID:     userID,
+			EntityType: es.Entity.Type,
+			EntityID:   es.Entity.ID,
+			Scope:      es.Scope,
+		}); err != nil {
+			return fmt.Errorf("add user scope: %w", err)
+		}
+	}
+	for _, es := range removeScopes {
+		if err := tvm.queries.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
+			UserID:     userID,
+			EntityType: es.Entity.Type,
+			EntityID:   es.Entity.ID,
+			Scope:      es.Scope,
+		}); err != nil {
+			return fmt.Errorf("remove user scope: %w", err)
+		}
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+	return nil
+}
+
+func NewVendingMachine(pool *pgxpool.Pool, queries Queries, cfg Config) *VendingMachine {
 	return &VendingMachine{
+		pool:    pool,
 		queries: queries,
 		cfg:     cfg,
 	}
