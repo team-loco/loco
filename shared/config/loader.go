@@ -19,6 +19,9 @@ var AllowedSchemaVersions = []string{
 }
 
 // BannedSubdomains are reserved subdomains that cannot be used
+// todo: user-hosted domain is different from loco's real domain.
+// this avoids conflict instead of a hardcoded list.
+// todo: remove this once we have separate domains
 var BannedSubdomains = []string{
 	"api", "admin", "dashboard", "console",
 	"login", "auth", "user", "users", "support", "help", "loco", "monitoring",

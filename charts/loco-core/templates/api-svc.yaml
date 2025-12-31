@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-api
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-api
+  replicas: {{ .Values.global.replicas.api }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-api
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: {{ .Release.Name }}-api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.imagePullPolicy }}
+          env:
+            - name: LOCO_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LOCO_DOMAIN_BASE
+              value: {{ .Values.global.domain.base | quote }}
+            - name: LOCO_DOMAIN_API
+              value: {{ .Values.global.domain.api | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-env
+          ports:
+            - containerPort: {{ .Values.global.ports.api }}
+          resources:
+            {{- toYaml .Values.global.resources.api | nindent 12 }}
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-api
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+    - name: {{ .Release.Name }}-api
+      protocol: TCP
+      port: 80
+      targetPort: {{ .Values.global.ports.api }}

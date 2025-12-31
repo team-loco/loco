@@ -1,19 +1,19 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-    name: loco-cert
-    namespace: loco-system
+    name: {{ .Release.Name }}-cert
+    namespace: {{ .Release.Namespace }}
 spec:
-    secretName: loco-tls
+    secretName: {{ .Release.Name }}-tls
     issuerRef:
-        name: letsencrypt-prod
+        name: {{ .Values.certManager.issuer.name }}
         kind: ClusterIssuer
-    commonName: "*.deploy-app.com"
+    commonName: {{ .Values.global.domain.wildcard | quote }}
     dnsNames:
-        - "*.deploy-app.com"
-        - "*.us-east-1.deploy-app.com"
-        - "*.eu-west-1.deploy-app.com"
-        - "*.staging.us-east-1.deploy-app.com"
-        - "*.prod.us-east-1.deploy-app.com"
-        - "*.staging.eu-west-1.deploy-app.com"
-        - "*.prod.eu-west-1.deploy-app.com"
+        - {{ .Values.global.domain.wildcard | quote }}
+        - "*.us-east-1.{{ .Values.global.domain.base }}"
+        - "*.eu-west-1.{{ .Values.global.domain.base }}"
+        - "*.staging.us-east-1.{{ .Values.global.domain.base }}"
+        - "*.prod.us-east-1.{{ .Values.global.domain.base }}"
+        - "*.staging.eu-west-1.{{ .Values.global.domain.base }}"
+        - "*.prod.eu-west-1.{{ .Values.global.domain.base }}"

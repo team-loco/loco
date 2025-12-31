@@ -1,14 +1,14 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-    name: letsencrypt-prod
+    name: {{ .Values.certManager.issuer.name }}
     namespace: cert-manager
 spec:
     acme:
-        email: nikumar1202@gmail.com
-        server: https://acme-v02.api.letsencrypt.org/directory
+        email: {{ .Values.certManager.issuer.email | required "certManager.issuer.email is required" }}
+        server: {{ .Values.certManager.issuer.server }}
         privateKeySecretRef:
-            name: letsencrypt-prod-key
+            name: {{ .Values.certManager.issuer.name }}-key
         solvers:
             - dns01:
                   cloudflare:

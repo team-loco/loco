@@ -1,0 +1,15 @@
+# Production environment values for loco-obs chart
+
+# Gateway namespace where the Envoy Gateway is deployed
+gatewayNamespace: loco-system
+
+# Grafana credentials from environment variables
+grafana:
+  adminUser: {{ env "GRAFANA_ADMIN_USER" | default "admin" }}
+  adminPassword: {{ requiredEnv "GRAFANA_ADMIN_PASSWORD" }}
+
+# ClickHouse configuration for production
+clickhouse:
+  enabled: true
+  defaultUser:
+    password: {{ requiredEnv "CLICKHOUSE_PASSWORD" }}

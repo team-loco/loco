@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: loco-api-cluster-role
+  name: {{ .Release.Name }}-cluster-role
 rules:
   - apiGroups: ["*"]
     resources: ["*"]
@@ -13,8 +13,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: loco-api-secrets-role
-  namespace: loco-system
+  name: {{ .Release.Name }}-secrets-role
+  namespace: {{ .Release.Namespace }}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -23,32 +23,32 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name:  loco-api
-  namespace: loco-system
+  name: {{ .Release.Name }}-sa
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: loco-api-cluster-role-binding
+  name: {{ .Release.Name }}-cluster-role-binding
 subjects:
   - kind: ServiceAccount
-    name: loco-api
-    namespace: loco-system
+    name: {{ .Release.Name }}-sa
+    namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: loco-api-cluster-role
+  name: {{ .Release.Name }}-cluster-role
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: loco-api-secrets-binding
-  namespace: loco-system
+  name: {{ .Release.Name }}-secrets-binding
+  namespace: {{ .Release.Namespace }}
 subjects:
   - kind: ServiceAccount
-    name: loco-api
-    namespace: loco-system
+    name: {{ .Release.Name }}-sa
+    namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
-  name: loco-api-secrets-role
+  name: {{ .Release.Name }}-secrets-role
   apiGroup: rbac.authorization.k8s.io

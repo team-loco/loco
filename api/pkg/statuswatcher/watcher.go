@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"reflect"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -19,6 +20,7 @@ type StatusWatcher struct {
 	queries                 genDb.Querier
 	lastKnownStatus         map[int64]struct{ phase, message string }
 	lastKnownResourceStatus map[int64]genDb.ResourceStatus
+	locoNamespace           string
 }
 
 func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier) *StatusWatcher {
@@ -27,6 +29,7 @@ func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier) *StatusWat
 		queries:                 queries,
 		lastKnownStatus:         make(map[int64]struct{ phase, message string }),
 		lastKnownResourceStatus: make(map[int64]genDb.ResourceStatus),
+		locoNamespace:           os.Getenv("LOCO_NAMESPACE"),
 	}
 }
 
@@ -82,7 +85,7 @@ func (w *StatusWatcher) backfill(ctx context.Context) error {
 		locoRes := &locoControllerV1.LocoResource{}
 		key := crClient.ObjectKey{
 			Name:      fmt.Sprintf("resource-%d", resourceID),
-			Namespace: "loco-system",
+			Namespace: w.locoNamespace,
 		}
 		if err := w.kubeClient.ControllerClient.Get(ctx, key, locoRes); err != nil {
 			slog.WarnContext(ctx, "failed to get LocoResource", "resourceId", resourceID, "error", err)

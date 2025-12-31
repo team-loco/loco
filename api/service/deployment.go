@@ -124,17 +124,19 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
-	db         *pgxpool.Pool
-	queries    genDb.Querier
-	kubeClient *kube.Client
+	db            *pgxpool.Pool
+	queries       genDb.Querier
+	kubeClient    *kube.Client
+	locoNamespace string
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client, locoNamespace string) *DeploymentServer {
 	return &DeploymentServer{
-		db:         db,
-		queries:    queries,
-		kubeClient: kubeClient,
+		db:            db,
+		queries:       queries,
+		kubeClient:    kubeClient,
+		locoNamespace: locoNamespace,
 	}
 }
 
@@ -261,7 +263,7 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	// create LocoResource in loco-system namespace (pass merged spec WITH env to controller)
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec)
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec, s.locoNamespace)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
@@ -425,7 +427,7 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	// if this is the active deployment, delete the LocoResource
 	if deployment.IsActive {
-		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID); err != nil {
+		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
 			slog.ErrorContext(ctx, "failed to delete LocoResource", "error", err, "resource_id", resource.ID)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup LocoResource: %w", err))
 		}
@@ -560,6 +562,7 @@ func createLocoResource(
 	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
 	spec *deploymentv1.DeploymentSpec,
+	locoNamespace string,
 ) error {
 	// convert proto to controller CRD types (includes all fields: image, replicas, cpu, memory, env, healthCheck, metrics, etc.)
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec)
@@ -604,7 +607,7 @@ func createLocoResource(
 	locoRes := &locoControllerV1.LocoResource{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%d", resource.ID),
-			Namespace: "loco-system",
+			Namespace: locoNamespace,
 			Labels:    map[string]string{},
 		},
 		Spec: locoResourceSpec,
@@ -686,11 +689,11 @@ func buildResourcesSpecFromServiceSpec(serviceSpec *resourcev1.ServiceSpec) (*lo
 }
 
 // deleteLocoResource deletes a LocoResource from the loco-system namespace
-func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID int64) error {
+func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID int64, locoNamespace string) error {
 	locoRes := &locoControllerV1.LocoResource{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%d", resourceID),
-			Namespace: "loco-system",
+			Namespace: locoNamespace,
 		},
 	}
 

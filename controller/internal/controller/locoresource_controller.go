@@ -59,6 +59,7 @@ type LocoResourceReconciler struct {
 	gitlabPAT         string
 	gitlabProjectID   string
 	gitlabRegistryURL string
+	locoNamespace     string
 	secretRefreshers  map[string]context.CancelFunc
 
 	// reconcile can be called concurrently, so protect map access.
@@ -751,7 +752,6 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 	routeName := fmt.Sprintf("%s-route", name)
 	pathType := v1Gateway.PathMatchPathPrefix
-	gatewayNamespace := "loco-system"
 	pathValue := "/"
 	var backendPort *v1Gateway.PortNumber
 
@@ -786,7 +786,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 			// todo: remove the hardooded gateway name and namespace.
 			{
 				Name:      v1Gateway.ObjectName("eg"),
-				Namespace: (*v1Gateway.Namespace)(&gatewayNamespace),
+				Namespace: (*v1Gateway.Namespace)(&r.locoNamespace),
 			},
 		}
 		route.Spec.Rules = []v1Gateway.HTTPRouteRule{
@@ -1056,6 +1056,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.gitlabPAT = os.Getenv("GITLAB_PAT")
 	r.gitlabProjectID = os.Getenv("GITLAB_PROJECT_ID")
 	r.gitlabRegistryURL = os.Getenv("GITLAB_REGISTRY_URL")
+	r.locoNamespace = os.Getenv("LOCO_NAMESPACE")
 
 	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {
 		slog.Error("missing required gitlab environment variables")

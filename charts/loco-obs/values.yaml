@@ -1,6 +1,14 @@
+global:
+  domain:
+    dashboards: dashboards.deploy-app.com
+
+# Gateway namespace where the Envoy Gateway is deployed
+gatewayNamespace: envoy-gateway-system
+
 clickhouse:
   enabled: true
   nameOverride: "clickhouse"
+  # Note: The service name will be auto-generated as: clickhouse-{{ .Release.Name }}-clickhouse
   clickhouse:
     antiAffinity: true
     persistence:
@@ -98,7 +106,8 @@ otel-col-daemon:
         limit_mib: 2048
     exporters:
       clickhouse:
-        endpoint: tcp://clickhouse-loco-obs-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
+        endpoint: tcp://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
         username: default
         password: ""
         traces_table_name: otel_traces
@@ -153,7 +162,8 @@ otel-col-deploy:
             endpoint: 0.0.0.0:4318
     exporters:
       clickhouse:
-        endpoint: tcp://clickhouse-loco-obs-clickhouse.observability.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
+        endpoint: tcp://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
         username: default
         password: ""
         traces_table_name: otel_traces
@@ -173,8 +183,8 @@ otel-col-deploy:
 grafana:
   enabled: true
   fullnameOverride: grafana
-  adminUser: admin
-  adminPassword: supersecret
+  adminUser: "" # Override in environment-specific values
+  adminPassword: "" # Override in environment-specific values
   persistence:
     enabled: true
     type: pvc
@@ -193,7 +203,8 @@ grafana:
           type: grafana-clickhouse-datasource
           jsonData:
             port: 9000
-            host: clickhouse-loco-obs-clickhouse.observability.svc.cluster.local
+            # Host will be dynamically constructed as: clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local
+            host: clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local
             defaultDatabase: default
             username: default
             tlsSkipVerify: true

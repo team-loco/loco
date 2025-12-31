@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: loco-ui
-  namespace: loco-system
+  name: {{ .Release.Name }}-ui
+  namespace: {{ .Release.Namespace }}
   labels:
-    app: loco-ui
+    app: {{ .Release.Name }}-ui
 spec:
   selector:
     matchLabels:
-      app: loco-ui
-  replicas: 1
+      app: {{ .Release.Name }}-ui
+  replicas: {{ .Values.global.replicas.ui }}
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,20 +18,15 @@ spec:
   template:
     metadata:
       labels:
-        app: loco-ui
+        app: {{ .Release.Name }}-ui
     spec:
-      serviceAccountName: loco-api
+      serviceAccountName: {{ .Release.Name }}-sa
       containers:
-        - name: loco-ui
+        - name: {{ .Release.Name }}-ui
           image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
-          imagePullPolicy: "{{ .Values.ui.imagePullPolicy }}"
+          imagePullPolicy: {{ .Values.ui.imagePullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.global.ports.ui }}
           resources:
-            requests:
-              cpu: 100m
-              memory: 128Mi
-            limits:
-              cpu: 250m
-              memory: 256Mi
+            {{- toYaml .Values.global.resources.ui | nindent 12 }}
       restartPolicy: Always

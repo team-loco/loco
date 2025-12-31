@@ -46,6 +46,9 @@ type ApiConfig struct {
 	Port            string
 	JwtSecret       string
 	RegistryTag     string
+	LocoNamespace   string // Loco system namespace
+	LocoDomainBase  string // Base domain (e.g., deploy-app.com)
+	LocoDomainAPI   string // API domain (e.g., api.deploy-app.com)
 }
 
 func newApiConfig() *ApiConfig {
@@ -69,29 +72,39 @@ func newApiConfig() *ApiConfig {
 		LogLevel:        logLevel,
 		JwtSecret:       os.Getenv("JWT_SECRET"),
 		RegistryTag:     os.Getenv("REGISTRY_TAG"),
+		LocoNamespace:   os.Getenv("LOCO_NAMESPACE"),
+		LocoDomainBase:  os.Getenv("LOCO_DOMAIN_BASE"),
+		LocoDomainAPI:   os.Getenv("LOCO_DOMAIN_API"),
 	}
 }
 
-func withCORS(h http.Handler) http.Handler {
-	middleware := cors.New(cors.Options{
-		AllowOriginFunc: func(origin string) bool {
-			// Allow all localhost origins
-			u, err := url.Parse(origin)
-			if err != nil {
-				return false
-			}
-			// todo: improve this logic, pull from helm values eventually.
-			return u.Hostname() == "localhost" || u.Hostname() == "loco.deploy-app.com"
-		},
-		AllowedMethods:   connectcors.AllowedMethods(),
-		AllowedHeaders:   connectcors.AllowedHeaders(),
-		ExposedHeaders:   connectcors.ExposedHeaders(),
-		AllowCredentials: true,
-		// AllowOriginFunc: func(origin string) bool {
-		// 	return true
-		// },
-	})
-	return middleware.Handler(h)
+func isAllowedOrigin(hostname, baseDomain string) bool {
+	if hostname == "localhost" {
+		return true
+	}
+	if baseDomain == "" {
+		return false
+	}
+	return hostname == baseDomain || hostname == "www."+baseDomain
+}
+
+func withCORS(baseDomain string) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		middleware := cors.New(cors.Options{
+			AllowOriginFunc: func(origin string) bool {
+				u, err := url.Parse(origin)
+				if err != nil {
+					return false
+				}
+				return isAllowedOrigin(u.Hostname(), baseDomain)
+			},
+			AllowedMethods:   connectcors.AllowedMethods(),
+			AllowedHeaders:   connectcors.AllowedHeaders(),
+			ExposedHeaders:   connectcors.ExposedHeaders(),
+			AllowCredentials: true,
+		})
+		return middleware.Handler(h)
+	}
 }
 
 func main() {
@@ -143,8 +156,8 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries)
 	orgServiceHandler := service.NewOrgServer(pool, queries)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, kubeClient)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, kubeClient)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, kubeClient, ac.LocoNamespace)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, kubeClient, ac.LocoNamespace)
 	domainServiceHandler := service.NewDomainServer(pool, queries)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
@@ -240,7 +253,7 @@ func main() {
 	mux.Handle(domainPath, domainHandler)
 	mux.Handle(registryPath, registryHandler)
 
-	muxWCors := withCORS(mux)
+	muxWCors := withCORS(ac.LocoDomainBase)(mux)
 	muxWTiming := middleware.Timing(muxWCors)
 	muxWContext := middleware.SetContext(muxWTiming)
 
