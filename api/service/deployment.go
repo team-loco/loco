@@ -124,17 +124,19 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
-	db         *pgxpool.Pool
-	queries    genDb.Querier
-	kubeClient *kube.Client
+	db            *pgxpool.Pool
+	queries       genDb.Querier
+	kubeClient    *kube.Client
+	locoNamespace string
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client, locoNamespace string) *DeploymentServer {
 	return &DeploymentServer{
-		db:         db,
-		queries:    queries,
-		kubeClient: kubeClient,
+		db:            db,
+		queries:       queries,
+		kubeClient:    kubeClient,
+		locoNamespace: locoNamespace,
 	}
 }
 
@@ -260,13 +262,13 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	// create LocoResource in loco-system namespace (pass merged spec WITH env to controller)
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec)
+	// create Application in loco-system namespace (pass merged spec WITH env to controller)
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec, s.locoNamespace)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create LocoResource: %w", err))
+		slog.ErrorContext(ctx, "failed to create Application", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create Application: %w", err))
 	}
-	slog.InfoContext(ctx, "created/updated LocoResource", "resource_id", resource.ID, "resource_name", resource.Name)
+	slog.InfoContext(ctx, "created/updated Application", "resource_id", resource.ID, "resource_name", resource.Name)
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{
 		DeploymentId: deploymentID,
@@ -384,7 +386,7 @@ func (s *DeploymentServer) ListDeployments(
 	}), nil
 }
 
-// DeleteDeployment deletes/inactivates a deployment and cleans up its LocoResource
+// DeleteDeployment deletes/inactivates a deployment and cleans up its Application
 func (s *DeploymentServer) DeleteDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.DeleteDeploymentRequest],
@@ -423,11 +425,11 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	// if this is the active deployment, delete the LocoResource
+	// if this is the active deployment, delete the Application
 	if deployment.IsActive {
-		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID); err != nil {
-			slog.ErrorContext(ctx, "failed to delete LocoResource", "error", err, "resource_id", resource.ID)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup LocoResource: %w", err))
+		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
+			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resource_id", resource.ID)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup Application: %w", err))
 		}
 	}
 
@@ -552,7 +554,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	return nil
 }
 
-// createLocoResource creates a LocoResource in the loco-system namespace
+// createLocoResource creates a Application in the loco-system namespace
 func createLocoResource(
 	ctx context.Context,
 	kubeClient *kube.Client,
@@ -560,12 +562,13 @@ func createLocoResource(
 	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
 	spec *deploymentv1.DeploymentSpec,
+	locoNamespace string,
 ) error {
 	// convert proto to controller CRD types (includes all fields: image, replicas, cpu, memory, env, healthCheck, metrics, etc.)
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec)
 	slog.InfoContext(ctx, "converted deployment spec", "image", crdServiceDeploymentSpec.Image, "port", crdServiceDeploymentSpec.Port)
 
-	locoResourceSpec := locoControllerV1.LocoResourceSpec{
+	locoResourceSpec := locoControllerV1.ApplicationSpec{
 		ResourceId:  resource.ID,
 		WorkspaceId: resource.WorkspaceID,
 	}
@@ -577,7 +580,7 @@ func createLocoResource(
 		if err != nil {
 			return fmt.Errorf("failed to build resources spec: %w", err)
 		}
-		locoResourceSpec.ServiceSpec = &locoControllerV1.ServiceResourceSpec{
+		locoResourceSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  resourcesSpec,
 			Obs:        converter.ProtoToObsSpec(specType.Service.GetObservability()),
@@ -600,17 +603,17 @@ func createLocoResource(
 		return fmt.Errorf("unknown or unset resource spec type")
 	}
 
-	// build LocoResource
-	locoRes := &locoControllerV1.LocoResource{
+	// build Application
+	locoRes := &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%d", resource.ID),
-			Namespace: "loco-system",
+			Namespace: locoNamespace,
 			Labels:    map[string]string{},
 		},
 		Spec: locoResourceSpec,
 	}
 
-	// create or update the LocoResource
+	// create or update the Application
 	err := kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
 		Name:      locoRes.Name,
 		Namespace: locoRes.Namespace,
@@ -619,20 +622,20 @@ func createLocoResource(
 	if err == nil {
 		// resource exists, update it
 		if err := kubeClient.ControllerClient.Update(ctx, locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
+			slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
 			return err
 		}
-		slog.InfoContext(ctx, "updated existing LocoResource", "resource_id", resource.ID)
+		slog.InfoContext(ctx, "updated existing Application", "resource_id", resource.ID)
 	} else if client.IgnoreNotFound(err) == nil {
 		// resource does not exist, create it
 		if err := kubeClient.ControllerClient.Create(ctx, locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to create LocoResource", "error", err, "resource_id", resource.ID)
+			slog.ErrorContext(ctx, "failed to create Application", "error", err, "resource_id", resource.ID)
 			return err
 		}
-		slog.InfoContext(ctx, "created new LocoResource", "resource_id", resource.ID)
+		slog.InfoContext(ctx, "created new Application", "resource_id", resource.ID)
 	} else {
 		// some other error occurred
-		slog.ErrorContext(ctx, "failed to check if LocoResource exists", "error", err, "resource_id", resource.ID)
+		slog.ErrorContext(ctx, "failed to check if Application exists", "error", err, "resource_id", resource.ID)
 		return err
 	}
 
@@ -685,21 +688,21 @@ func buildResourcesSpecFromServiceSpec(serviceSpec *resourcev1.ServiceSpec) (*lo
 	return resourcesSpec, nil
 }
 
-// deleteLocoResource deletes a LocoResource from the loco-system namespace
-func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID int64) error {
-	locoRes := &locoControllerV1.LocoResource{
+// deleteLocoResource deletes a Application from the loco-system namespace
+func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID int64, locoNamespace string) error {
+	locoRes := &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%d", resourceID),
-			Namespace: "loco-system",
+			Namespace: locoNamespace,
 		},
 	}
 
 	if err := kubeClient.ControllerClient.Delete(ctx, locoRes); err != nil {
 		if client.IgnoreNotFound(err) != nil {
-			slog.ErrorContext(ctx, "failed to delete LocoResource", "error", err, "resource_id", resourceID)
+			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resource_id", resourceID)
 			return err
 		}
 	}
-	slog.InfoContext(ctx, "deleted LocoResource", "resource_id", resourceID)
+	slog.InfoContext(ctx, "deleted Application", "resource_id", resourceID)
 	return nil
 }

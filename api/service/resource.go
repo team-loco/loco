@@ -43,18 +43,20 @@ func computeNamespace(workspaceID, resourceID int64) string {
 }
 
 type ResourceServer struct {
-	db         *pgxpool.Pool
-	queries    genDb.Querier
-	kubeClient *kube.Client
+	db            *pgxpool.Pool
+	queries       genDb.Querier
+	kubeClient    *kube.Client
+	locoNamespace string
 }
 
 // NewResourceServer creates a new ResourceServer instance
-func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client) *ResourceServer {
+func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client, locoNamespace string) *ResourceServer {
 	// todo: move this out.
 	return &ResourceServer{
-		db:         db,
-		queries:    queries,
-		kubeClient: kubeClient,
+		db:            db,
+		queries:       queries,
+		kubeClient:    kubeClient,
+		locoNamespace: locoNamespace,
 	}
 }
 
@@ -478,9 +480,9 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	if err := deleteLocoResource(ctx, s.kubeClient, resource.ID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete LocoResource during resource deletion", "error", err, "resource_id", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup LocoResource: %w", err))
+	if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
+		slog.ErrorContext(ctx, "failed to delete Application during resource deletion", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup Application: %w", err))
 	}
 
 	err = s.queries.DeleteResource(ctx, r.ResourceId)
@@ -906,12 +908,12 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil)
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil, s.locoNamespace)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update LocoResource: %w", err))
+		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
 	}
-	slog.InfoContext(ctx, "updated LocoResource after scaling", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
+	slog.InfoContext(ctx, "updated Application after scaling", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
 
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{
 		DeploymentId: deploymentId,
@@ -1052,12 +1054,12 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil)
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil, s.locoNamespace)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update LocoResource: %w", err))
+		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
 	}
-	slog.InfoContext(ctx, "updated LocoResource after env update", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate)
+	slog.InfoContext(ctx, "updated Application after env update", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate)
 
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{
 		DeploymentId: deploymentId,

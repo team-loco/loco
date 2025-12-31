@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"reflect"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -19,6 +20,7 @@ type StatusWatcher struct {
 	queries                 genDb.Querier
 	lastKnownStatus         map[int64]struct{ phase, message string }
 	lastKnownResourceStatus map[int64]genDb.ResourceStatus
+	locoNamespace           string
 }
 
 func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier) *StatusWatcher {
@@ -27,6 +29,7 @@ func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier) *StatusWat
 		queries:                 queries,
 		lastKnownStatus:         make(map[int64]struct{ phase, message string }),
 		lastKnownResourceStatus: make(map[int64]genDb.ResourceStatus),
+		locoNamespace:           os.Getenv("LOCO_NAMESPACE"),
 	}
 }
 
@@ -39,7 +42,7 @@ func (w *StatusWatcher) Start(ctx context.Context) error {
 		}
 	}()
 
-	locoInformer, err := w.kubeClient.Cache.GetInformer(ctx, &locoControllerV1.LocoResource{})
+	locoInformer, err := w.kubeClient.Cache.GetInformer(ctx, &locoControllerV1.Application{})
 	if err != nil {
 		return err
 	}
@@ -56,8 +59,8 @@ func (w *StatusWatcher) Start(ctx context.Context) error {
 
 	locoInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj any) {
-			oldLR := oldObj.(*locoControllerV1.LocoResource)
-			newLR := newObj.(*locoControllerV1.LocoResource)
+			oldLR := oldObj.(*locoControllerV1.Application)
+			newLR := newObj.(*locoControllerV1.Application)
 			if !reflect.DeepEqual(oldLR.Status, newLR.Status) {
 				w.syncToDB(ctx, newLR)
 			}
@@ -79,13 +82,13 @@ func (w *StatusWatcher) backfill(ctx context.Context) error {
 	slog.InfoContext(ctx, "found active deployments", "count", len(resourceIDs))
 
 	for _, resourceID := range resourceIDs {
-		locoRes := &locoControllerV1.LocoResource{}
+		locoRes := &locoControllerV1.Application{}
 		key := crClient.ObjectKey{
 			Name:      fmt.Sprintf("resource-%d", resourceID),
-			Namespace: "loco-system",
+			Namespace: w.locoNamespace,
 		}
 		if err := w.kubeClient.ControllerClient.Get(ctx, key, locoRes); err != nil {
-			slog.WarnContext(ctx, "failed to get LocoResource", "resourceId", resourceID, "error", err)
+			slog.WarnContext(ctx, "failed to get Application", "resourceId", resourceID, "error", err)
 			continue
 		}
 		slog.DebugContext(ctx, "syncing resource", "resourceId", resourceID, "phase", locoRes.Status.Phase)
@@ -96,9 +99,9 @@ func (w *StatusWatcher) backfill(ctx context.Context) error {
 	return nil
 }
 
-func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.LocoResource) {
+func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.Application) {
 	if locoRes.Spec.ResourceId == 0 {
-		slog.WarnContext(ctx, "skipping sync: LocoResource has no resourceId", "name", locoRes.Name)
+		slog.WarnContext(ctx, "skipping sync: Application has no resourceId", "name", locoRes.Name)
 		return
 	}
 

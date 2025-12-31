@@ -1,7 +1,7 @@
 # This rule is not used by the project controller itself.
 # It is provided to allow the cluster admin to help manage permissions for users.
 #
-# Grants permissions to create, update, and delete resources within the loco.loco.deploy-app.com.
+# Grants permissions to create, update, and delete resources within the infra.loco.io.
 # This role is intended for users who need to manage these resources
 # but should not control RBAC or manage permissions for others.
 
@@ -11,23 +11,23 @@ metadata:
   labels:
     app.kubernetes.io/name: controller
     app.kubernetes.io/managed-by: kustomize
-  name: locoresource-editor-role
+  name: application-editor-role
 rules:
-- apiGroups:
-  - loco.loco.deploy-app.com
-  resources:
-  - locoresources
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - loco.loco.deploy-app.com
-  resources:
-  - locoresources/status
-  verbs:
-  - get
+  - apiGroups:
+      - infra.loco.io
+    resources:
+      - applications
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - infra.loco.io
+    resources:
+      - applications/status
+    verbs:
+      - get

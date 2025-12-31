@@ -11,5 +11,5 @@ roleRef:
     name: controller-manager-role
 subjects:
     - kind: ServiceAccount
-      name: controller-controller-manager
+      name: controller-loco-manager
       namespace: {{ .Release.Namespace }}

@@ -9,11 +9,13 @@ apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
   name: eg
-  namespace: loco-system
+  namespace: {{ .Release.Namespace }}
 spec:
   infrastructure:
+    {{- if .Values.global.cloudProvider.annotations }}
     annotations:
-      service.beta.kubernetes.io/do-loadbalancer-type: "REGIONAL_NETWORK"
+      {{- toYaml .Values.global.cloudProvider.annotations | nindent 6 }}
+    {{- end }}
     parametersRef:
       group: gateway.envoyproxy.io
       kind: EnvoyProxy
@@ -21,7 +23,7 @@ spec:
   gatewayClassName: eg
   listeners:
     - name: https
-      hostname: "*.deploy-app.com"
+      hostname: {{ .Values.global.domain.wildcard | quote }}
       protocol: HTTPS
       port: 443
       allowedRoutes:
@@ -30,11 +32,11 @@ spec:
       tls:
         mode: Terminate
         certificateRefs:
-          - name: loco-tls
+          - name: {{ .Release.Name }}-tls
             kind: Secret
             group: ""
     - name: http
-      hostname: "*.deploy-app.com"
+      hostname: {{ .Values.global.domain.wildcard | quote }}
       protocol: HTTP
       port: 80
       allowedRoutes:
@@ -45,7 +47,7 @@ apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
   name: envoy-proxy
-  namespace: loco-system
+  namespace: {{ .Release.Namespace }}
 spec:
   telemetry:
     metrics:
@@ -56,14 +58,14 @@ spec:
       sinks:
         - type: OpenTelemetry
           openTelemetry:
-            host: otel-col-deploy.observability.svc.cluster.local
+            host: {{ .Values.global.observability.otelCollectorDeployment }}.{{ .Values.global.observability.namespace }}.svc.cluster.local
             port: 4317
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: ClientTrafficPolicy
 metadata:
   name: enable-http3
-  namespace: loco-system
+  namespace: {{ .Release.Namespace }}
 spec:
   http3: {}
   targetRefs:

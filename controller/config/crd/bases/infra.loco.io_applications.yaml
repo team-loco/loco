@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: locoresources.loco.loco.deploy-app.com
+  name: applications.infra.loco.io
 spec:
-  group: loco.loco.deploy-app.com
+  group: infra.loco.io
   names:
-    kind: LocoResource
-    listKind: LocoResourceList
-    plural: locoresources
-    singular: locoresource
+    kind: Application
+    listKind: ApplicationList
+    plural: applications
+    singular: application
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: LocoResource is the Schema for the locoresources API
+        description: Application is the Schema for the applications API
         properties:
           apiVersion:
             description: |-
@@ -37,23 +37,20 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of LocoResource
+            description: spec defines the desired state of Application
             properties:
               blobSpec:
-                description: BlobResourceSpec is a placeholder for future BLOB type
-                  resources
+                description: BlobSpec is a placeholder for future BLOB type resources
                 type: object
               cacheSpec:
-                description: CacheResourceSpec is a placeholder for future CACHE type
-                  resources
+                description: CacheSpec is a placeholder for future CACHE type resources
                 type: object
               databaseSpec:
-                description: DatabaseResourceSpec is a placeholder for future DATABASE
-                  type resources
+                description: DatabaseSpec is a placeholder for future DATABASE type
+                  resources
                 type: object
               queueSpec:
-                description: QueueResourceSpec is a placeholder for future QUEUE type
-                  resources
+                description: QueueSpec is a placeholder for future QUEUE type resources
                 type: object
               resourceId:
                 format: int64
@@ -215,7 +212,7 @@ spec:
             - type
             type: object
           status:
-            description: status defines the observed state of LocoResource
+            description: status defines the observed state of Application
             properties:
               activeDeploymentRef:
                 type: string

@@ -55,7 +55,7 @@ AGENTS.md
 # local helm charts and values
 **/values/local.yaml
 charts/loco-*/charts/
-env/local.yaml.gotmpl
+env/local/
 env/local-controller.yaml.gotmpl
 
 # full helm chart references.

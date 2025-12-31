@@ -49,7 +49,7 @@ const (
 	finalizerSecretRefresher = "loco.dev/secret-refresher"
 )
 
-// LocoResourceReconciler reconciles a LocoResource object
+// LocoResourceReconciler reconciles a Application object
 type LocoResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -59,15 +59,16 @@ type LocoResourceReconciler struct {
 	gitlabPAT         string
 	gitlabProjectID   string
 	gitlabRegistryURL string
+	locoNamespace     string
 	secretRefreshers  map[string]context.CancelFunc
 
 	// reconcile can be called concurrently, so protect map access.
 	secretRefreshersMux sync.Mutex
 }
 
-// +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=loco.loco.deploy-app.com,resources=locoresources/finalizers,verbs=update
+// +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=infra.loco.io,resources=applications/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=infra.loco.io,resources=applications/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch
@@ -81,18 +82,18 @@ type LocoResourceReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	slog.InfoContext(ctx, "reconciling locoresource", "namespace", req.Namespace, "name", req.Name)
+	slog.InfoContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
 
-	// fetch the LocoResource
-	var locoRes locov1alpha1.LocoResource
+	// fetch the Application
+	var locoRes locov1alpha1.Application
 	if err := r.Get(ctx, req.NamespacedName, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "unable to fetch LocoResource", "error", err)
+		slog.ErrorContext(ctx, "unable to fetch Application", "error", err)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// validate spec early to prevent nil panics
 	if err := r.validateLocoResource(&locoRes); err != nil {
-		slog.ErrorContext(ctx, "invalid LocoResource spec", "error", err)
+		slog.ErrorContext(ctx, "invalid Application spec", "error", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("validation failed: %v", err)); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
 		}
@@ -247,8 +248,8 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return ctrl.Result{}, nil
 }
 
-// updatePhase updates the LocoResource status with phase and message, then flushes to K8s API
-func (r *LocoResourceReconciler) updatePhase(ctx context.Context, locoRes *locov1alpha1.LocoResource, phase, message string) error {
+// updatePhase updates the Application status with phase and message, then flushes to K8s API
+func (r *LocoResourceReconciler) updatePhase(ctx context.Context, locoRes *locov1alpha1.Application, phase, message string) error {
 	locoRes.Status.Phase = phase
 	locoRes.Status.Message = message
 	now := &metav1.Time{Time: time.Now()}
@@ -260,7 +261,7 @@ func (r *LocoResourceReconciler) updatePhase(ctx context.Context, locoRes *locov
 }
 
 // handleDeletion cancels the secret refresher goroutine, deletes the namespace, and removes the finalizer
-func (r *LocoResourceReconciler) handleDeletion(ctx context.Context, locoRes *locov1alpha1.LocoResource) (ctrl.Result, error) {
+func (r *LocoResourceReconciler) handleDeletion(ctx context.Context, locoRes *locov1alpha1.Application) (ctrl.Result, error) {
 	namespace := getNamespace(locoRes)
 	resourceKey := fmt.Sprintf("%s/%s", namespace, getName(locoRes))
 
@@ -294,23 +295,23 @@ func (r *LocoResourceReconciler) handleDeletion(ctx context.Context, locoRes *lo
 	return ctrl.Result{}, nil
 }
 
-// getName derives the app name from the LocoResource
-func getName(locoRes *locov1alpha1.LocoResource) string {
+// getName derives the app name from the Application
+func getName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("resource-%d", locoRes.Spec.ResourceId)
 }
 
-// getNamespace derives the namespace from the LocoResource
-func getNamespace(locoRes *locov1alpha1.LocoResource) string {
+// getNamespace derives the namespace from the Application
+func getNamespace(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("wks-%d-res-%d", locoRes.Spec.WorkspaceId, locoRes.Spec.ResourceId)
 }
 
-func getImageSecretName(locoRes *locov1alpha1.LocoResource) string {
+func getImageSecretName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-image-pull", getName(locoRes))
 }
 
 // getContainerPort extracts the container port from routing or deployment config
 // Prefers routing port, falls back to deployment port, defaults to 8000
-func getContainerPort(locoRes *locov1alpha1.LocoResource) int32 {
+func getContainerPort(locoRes *locov1alpha1.Application) int32 {
 	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
 		return locoRes.Spec.ServiceSpec.Deployment.Port
 	}
@@ -319,7 +320,7 @@ func getContainerPort(locoRes *locov1alpha1.LocoResource) int32 {
 }
 
 // ensureNamespace ensures the application namespace exists and is configured
-func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.Application) error {
 	namespace := getNamespace(locoRes)
 	slog.InfoContext(ctx, "ensuring namespace", "namespace", namespace)
 
@@ -348,7 +349,7 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 }
 
 // ensureEnvSecret ensures all required secrets exist in the app namespace
-func ensureEnvSecret(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.LocoResource) error {
+func ensureEnvSecret(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	slog.InfoContext(ctx, "ensuring secrets", "namespace", namespace, "name", name)
@@ -389,7 +390,7 @@ func ensureEnvSecret(ctx context.Context, kubeClient client.Client, locoRes *loc
 }
 
 // ensureImagePullSecret creates or updates the image pull secret for GitLab registry
-func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, locoRes *locov1alpha1.LocoResource) error {
+func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	secretName := getImageSecretName(locoRes)
@@ -457,7 +458,7 @@ func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, loco
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
-func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoRes *locov1alpha1.LocoResource) error {
+func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	secretName := getImageSecretName(locoRes)
@@ -495,7 +496,7 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 }
 
 // ensureRoleAndBinding ensures the RBAC role and role binding exist
-func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoRes *locov1alpha1.LocoResource) error {
+func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	slog.InfoContext(ctx, "ensuring role and role binding", "namespace", namespace, "name", name)
@@ -567,7 +568,7 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 }
 
 // ensureService ensures the Kubernetes service exists for the deployment
-func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *locov1alpha1.LocoResource) error {
+func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	containerPort := getContainerPort(locoRes)
@@ -610,7 +611,7 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 
 // ensureDeployment ensures the Kubernetes deployment exists and is configured with the spec
 // Returns the deployment if it exists or was created, or nil if skipped
-func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *locov1alpha1.LocoResource) (*appsv1.Deployment, error) {
+func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *locov1alpha1.Application) (*appsv1.Deployment, error) {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	image := ""
@@ -743,7 +744,7 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 }
 
 // ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)
-func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *locov1alpha1.LocoResource) error {
+func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 
@@ -751,7 +752,6 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 	routeName := fmt.Sprintf("%s-route", name)
 	pathType := v1Gateway.PathMatchPathPrefix
-	gatewayNamespace := "loco-system"
 	pathValue := "/"
 	var backendPort *v1Gateway.PortNumber
 
@@ -786,7 +786,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 			// todo: remove the hardooded gateway name and namespace.
 			{
 				Name:      v1Gateway.ObjectName("eg"),
-				Namespace: (*v1Gateway.Namespace)(&gatewayNamespace),
+				Namespace: (*v1Gateway.Namespace)(&r.locoNamespace),
 			},
 		}
 		route.Spec.Rules = []v1Gateway.HTTPRouteRule{
@@ -823,15 +823,15 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 	return nil
 }
 
-// updateLRStatus writes the observed status back to the LocoResource status subresource
+// updateLRStatus writes the observed status back to the Application status subresource
 func (r *LocoResourceReconciler) updateLRStatus(
 	ctx context.Context,
-	locoRes *locov1alpha1.LocoResource,
-	status *locov1alpha1.LocoResourceStatus,
+	locoRes *locov1alpha1.Application,
+	status *locov1alpha1.ApplicationStatus,
 ) error {
 	locoRes.Status = *status
 	if err := r.Status().Update(ctx, locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to update LocoResource status", "error", err)
+		slog.ErrorContext(ctx, "failed to update Application status", "error", err)
 		return err
 	}
 	return nil
@@ -855,7 +855,7 @@ func ptrToKind(k string) *v1Gateway.Kind {
 }
 
 // startSecretRefresherGoroutine starts a goroutine to refresh the image pull secret token
-func (r *LocoResourceReconciler) startSecretRefresherGoroutine(ctx context.Context, locoRes *locov1alpha1.LocoResource) {
+func (r *LocoResourceReconciler) startSecretRefresherGoroutine(ctx context.Context, locoRes *locov1alpha1.Application) {
 	resourceKey := fmt.Sprintf("%s/%s", getNamespace(locoRes), getName(locoRes))
 
 	r.secretRefreshersMux.Lock()
@@ -872,7 +872,7 @@ func (r *LocoResourceReconciler) startSecretRefresherGoroutine(ctx context.Conte
 }
 
 // secretRefresher periodically refreshes the image pull secret token
-func (r *LocoResourceReconciler) secretRefresher(ctx context.Context, locoRes *locov1alpha1.LocoResource, resourceKey string) {
+func (r *LocoResourceReconciler) secretRefresher(ctx context.Context, locoRes *locov1alpha1.Application, resourceKey string) {
 	defer func() {
 		r.secretRefreshersMux.Lock()
 		delete(r.secretRefreshers, resourceKey)
@@ -894,7 +894,7 @@ func (r *LocoResourceReconciler) secretRefresher(ctx context.Context, locoRes *l
 }
 
 // refreshImagePullSecret refreshes the image pull secret token if it's about to expire
-func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, locoRes *locov1alpha1.LocoResource) {
+func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, locoRes *locov1alpha1.Application) {
 	namespace := getNamespace(locoRes)
 	secretName := getImageSecretName(locoRes)
 
@@ -1030,7 +1030,7 @@ func buildDockerConfig(registryURL, username, token string) ([]byte, error) {
 }
 
 // validateLocoResource validates that required fields exist in the spec
-func (r *LocoResourceReconciler) validateLocoResource(locoRes *locov1alpha1.LocoResource) error {
+func (r *LocoResourceReconciler) validateLocoResource(locoRes *locov1alpha1.Application) error {
 	if locoRes.Spec.ServiceSpec == nil {
 		return fmt.Errorf("ServiceSpec is required")
 	}
@@ -1056,6 +1056,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.gitlabPAT = os.Getenv("GITLAB_PAT")
 	r.gitlabProjectID = os.Getenv("GITLAB_PROJECT_ID")
 	r.gitlabRegistryURL = os.Getenv("GITLAB_REGISTRY_URL")
+	r.locoNamespace = os.Getenv("LOCO_NAMESPACE")
 
 	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {
 		slog.Error("missing required gitlab environment variables")
@@ -1063,7 +1064,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&locov1alpha1.LocoResource{}).
-		Named("locoresource").
+		For(&locov1alpha1.Application{}).
+		Named("application").
 		Complete(r)
 }

@@ -4,5 +4,5 @@ metadata:
     labels:
         app.kubernetes.io/managed-by: {{ .Release.Service }}
         app.kubernetes.io/name: controller
-    name: controller-controller-manager
+    name: controller-loco-manager
     namespace: {{ .Release.Namespace }}

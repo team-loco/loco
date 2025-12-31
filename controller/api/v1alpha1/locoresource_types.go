@@ -85,9 +85,9 @@ type RoutingSpec struct {
 	IdleTimeout int32  `json:"idleTimeout,omitempty"` // seconds
 }
 
-// LocoResourceSpec defines the desired state of LocoResource
+// ApplicationSpec defines the desired state of Application
 // Uses a type discriminator with type-specific specs to support multiple resource types
-type LocoResourceSpec struct {
+type ApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	// The following markers will use OpenAPI v3 schema to validate the value
@@ -100,15 +100,15 @@ type LocoResourceSpec struct {
 	WorkspaceId int64  `json:"workspaceId,omitempty"`
 
 	// Type-specific specs (only one populated based on Type)
-	ServiceSpec  *ServiceResourceSpec  `json:"serviceSpec,omitempty"`
-	DatabaseSpec *DatabaseResourceSpec `json:"databaseSpec,omitempty"`
-	CacheSpec    *CacheResourceSpec    `json:"cacheSpec,omitempty"`
-	QueueSpec    *QueueResourceSpec    `json:"queueSpec,omitempty"`
-	BlobSpec     *BlobResourceSpec     `json:"blobSpec,omitempty"`
+	ServiceSpec  *ServiceSpec  `json:"serviceSpec,omitempty"`
+	DatabaseSpec *DatabaseSpec `json:"databaseSpec,omitempty"`
+	CacheSpec    *CacheSpec    `json:"cacheSpec,omitempty"`
+	QueueSpec    *QueueSpec    `json:"queueSpec,omitempty"`
+	BlobSpec     *BlobSpec     `json:"blobSpec,omitempty"`
 }
 
-// ServiceResourceSpec contains service-specific deployment and resource configuration
-type ServiceResourceSpec struct {
+// ServiceSpec contains service-specific deployment and resource configuration
+type ServiceSpec struct {
 	// Deployment info (current or requested)
 	Deployment *ServiceDeploymentSpec `json:"deployment,omitempty"`
 
@@ -144,8 +144,8 @@ type ServiceDeploymentSpec struct {
 	Env         map[string]string `json:"env,omitempty"`
 }
 
-// DatabaseResourceSpec is a placeholder for future DATABASE type resources
-type DatabaseResourceSpec struct {
+// DatabaseSpec is a placeholder for future DATABASE type resources
+type DatabaseSpec struct {
 	// TODO: Add when implementing database support
 	// Engine      string `json:"engine,omitempty"`      // "postgres", "mysql"
 	// Version     string `json:"version,omitempty"`     // "15"
@@ -153,30 +153,30 @@ type DatabaseResourceSpec struct {
 	// Replication *ReplicationSpec `json:"replication,omitempty"`
 }
 
-// CacheResourceSpec is a placeholder for future CACHE type resources
-type CacheResourceSpec struct {
+// CacheSpec is a placeholder for future CACHE type resources
+type CacheSpec struct {
 	// TODO: Add when implementing cache support
 }
 
-// QueueResourceSpec is a placeholder for future QUEUE type resources
-type QueueResourceSpec struct {
+// QueueSpec is a placeholder for future QUEUE type resources
+type QueueSpec struct {
 	// TODO: Add when implementing queue support
 }
 
-// BlobResourceSpec is a placeholder for future BLOB type resources
-type BlobResourceSpec struct {
+// BlobSpec is a placeholder for future BLOB type resources
+type BlobSpec struct {
 	// TODO: Add when implementing blob storage support
 }
 
-// LocoResourceStatus defines the observed state of LocoResource.
-type LocoResourceStatus struct {
+// ApplicationStatus defines the observed state of Application.
+type ApplicationStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// For Kubernetes API conventions, see:
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
-	// conditions represent the current state of the LocoResource resource.
+	// conditions represent the current state of the Application resource.
 	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
 	//
 	// Standard condition types include:
@@ -207,32 +207,32 @@ type LocoResourceStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// LocoResource is the Schema for the locoresources API
-type LocoResource struct {
+// Application is the Schema for the applications API
+type Application struct {
 	metav1.TypeMeta `json:",inline"`
 
 	// metadata is a standard object metadata
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitzero"`
 
-	// spec defines the desired state of LocoResource
+	// spec defines the desired state of Application
 	// +required
-	Spec LocoResourceSpec `json:"spec"`
+	Spec ApplicationSpec `json:"spec"`
 
-	// status defines the observed state of LocoResource
+	// status defines the observed state of Application
 	// +optional
-	Status LocoResourceStatus `json:"status,omitzero"`
+	Status ApplicationStatus `json:"status,omitzero"`
 }
 
 // +kubebuilder:object:root=true
 
-// LocoResourceList contains a list of LocoResource
-type LocoResourceList struct {
+// ApplicationList contains a list of Application
+type ApplicationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitzero"`
-	Items           []LocoResource `json:"items"`
+	Items           []Application `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&LocoResource{}, &LocoResourceList{})
+	SchemeBuilder.Register(&Application{}, &ApplicationList{})
 }
