@@ -170,3 +170,7 @@ func NewVendingMachine(queries Queries, cfg Config) *VendingMachine {
 		cfg:     cfg,
 	}
 }
+
+// verifywithidentity returns identity and error
+// revoketoken revokes a token
+// updaterole

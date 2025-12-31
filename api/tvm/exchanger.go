@@ -9,10 +9,13 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
+// machine.VerifyWithIdentity(ctx, token, action.New(action.ReadWorkspace, workspaceID)) -> (err error)
+// tvm.Exchange(ctx, tvm.Github, githubToken) -> (token string, err error)
+
 // EmailProvider returns the email associated with an external provider (e.g. email from github token).
 type EmailProvider func(ctx context.Context, token string) (string, error)
 
-func GithubProvider(ctx context.Context, token string) (string, error) {
+func Github(ctx context.Context, token string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", nil)
 	if err != nil {
 		slog.Error("github token exchange: new request", "error", err)

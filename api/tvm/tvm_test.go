@@ -151,188 +151,462 @@ func TestingGithubProvider(ctx context.Context, token string) (string, error) {
 	return "", tvm.ErrUserNotFound
 }
 
-func TestExchangeAndVerify1(t *testing.T) {
+// user 1 has only self read/write/admin
+func TestUser1Permissions(t *testing.T) {
 	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
-	token, err := machine.Exchange(t.Context(), TestingGithubProvider, "github-token-user1")
+	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user1")
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{
-		Entity: queries.Entity{
-			Type: queries.EntityTypeOrganization,
-			ID:   1,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("denied org 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Log("t1: correctly denied access for user1 (org 1 read by user1)")
-	} else if err != nil {
-		t.Fatalf("t1: unexpected error during verify: %v", err)
-	} else {
-		t.Fatalf("t1: expected insufficent permissions error but got no error (uh oh twin ur fried)")
-	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{
-		Entity: queries.Entity{
-			Type: queries.EntityTypeWorkspace,
-			ID:   1,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("denied workspace 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Log("t2: correctly denied access for user1 (ws 1 read by user1)")
-	} else if err != nil {
-		t.Fatalf("t2: unexpected error during verify: %v", err)
-	} else {
-		t.Fatalf("t2: expected insufficent permissions error but got no error (you, YES YOU, are cooked vrotato chip)")
-	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{
-		Entity: queries.Entity{
-			Type: queries.EntityTypeUser,
-			ID:   1,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("granted self read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeUser, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for self read, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Fatalf("t3: incorrectly denied access: %v", err)
-	} else if err != nil {
-		t.Fatalf("t3: unexpected error during verify: %v", err)
-	} else {
-		t.Log("t3: correctly granted access for user1 (user 1 read where user1 has read scope on self)")
-	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{
-		Entity: queries.Entity{
-			Type: queries.EntityTypeUser,
-			ID:   2,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("denied other user read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeUser, ID: 2},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Log("t4: correctly denied access for user1 (user 2 read by user1)")
-	} else if err != nil {
-		t.Fatalf("t4: unexpected error during verify: %v", err)
-	} else {
-		t.Fatalf("t4: expected insufficent permissions error but got no error (you are a baked potato now)")
-	}
 }
 
-func TestExchangeAndVerify2(t *testing.T) {
+// user 2 has org 1 r, w, a
+func TestUser2Permissions(t *testing.T) {
 	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
-	token, err := machine.Exchange(t.Context(), TestingGithubProvider, "github-token-user2")
+	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user2")
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
-	err = machine.Verify(t.Context(), token, queries.EntityScope{
-		Entity: queries.Entity{
-			Type: queries.EntityTypeOrganization,
-			ID:   1,
-		},
-		Scope: queries.ScopeAdmin,
+
+	t.Run("granted org 1 admin", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != nil {
+			t.Errorf("expected no error for org 1 admin, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Fatalf("t1: incorrectly denied access: %v", err)
-	} else if err != nil {
-		t.Fatalf("t1: unexpected error during verify: %v", err)
-	} else {
-		t.Log("t1: correctly granted access for user2 (org 1 admin by user2)")
+
+	t.Run("granted org 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for org 1 read, got: %v", err)
+		}
+	})
+
+	t.Run("granted workspace 2 write via org 1", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 2},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != nil {
+			t.Errorf("expected no error for workspace 2 write via org 1, got: %v", err)
+		}
+	})
+
+	t.Run("denied workspace 3 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 3},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("denied org 2 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 2},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("granted app 2 write via org 1", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 2},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != nil {
+			t.Errorf("expected no error for app 2 write via org 1, got: %v", err)
+		}
+	})
+
+	t.Run("denied app 3 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 3},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+}
+
+// user 3 has org 1 r, w
+func TestUser3Permissions(t *testing.T) {
+	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+		MaxTokenDuration:   24 * time.Hour,
+		LoginTokenDuration: 15 * time.Minute,
+	})
+	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user3")
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
 	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{ // *implied* access via org 1 write
-		Entity: queries.Entity{
-			Type: queries.EntityTypeWorkspace,
-			ID:   2,
-		},
-		Scope: queries.ScopeWrite,
+	t.Run("granted org 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for org 1 read, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Fatalf("t2: incorrectly denied access: %v", err)
-	} else if err != nil {
-		t.Fatalf("t2: unexpected error during verify: %v", err)
-	} else {
-		t.Log("t2: correctly granted access for user2 (ws 2 write by user2 via org 1 write)")
+
+	t.Run("granted org 1 write", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != nil {
+			t.Errorf("expected no error for org 1 write, got: %v", err)
+		}
+	})
+
+	t.Run("denied org 1 admin", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error for org 1 admin, got: %v", err)
+		}
+	})
+
+	t.Run("granted workspace 1 write via org 1", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 1},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != nil {
+			t.Errorf("expected no error for workspace 1 write via org 1, got: %v", err)
+		}
+	})
+
+	t.Run("granted workspace 2 read via org 1", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 2},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for workspace 2 read via org 1, got: %v", err)
+		}
+	})
+
+	t.Run("denied workspace 3 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 3},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("granted app 1 write via org 1", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 1},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != nil {
+			t.Errorf("expected no error for app 1 write via org 1, got: %v", err)
+		}
+	})
+
+	t.Run("denied app 3 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 3},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("denied org 2 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 2},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+}
+
+// user 4 has r or ws 1
+func TestUser4Permissions(t *testing.T) {
+	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+		MaxTokenDuration:   24 * time.Hour,
+		LoginTokenDuration: 15 * time.Minute,
+	})
+	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user4")
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
 	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{ // no access
-		Entity: queries.Entity{
-			Type: queries.EntityTypeWorkspace,
-			ID:   3,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("granted workspace 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for workspace 1 read, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Log("t3: correctly denied access for user2 (ws 3 read by user2)")
-	} else if err != nil {
-		t.Fatalf("t3: unexpected error during verify: %v", err)
-	} else {
-		t.Fatalf("t3: expected insufficent permissions error but got no error (you are now a french fry)")
+
+	t.Run("denied workspace 1 write", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 1},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error for workspace 1 write, got: %v", err)
+		}
+	})
+
+	t.Run("denied workspace 1 admin", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 1},
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error for workspace 1 admin, got: %v", err)
+		}
+	})
+
+	t.Run("denied workspace 2 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 2},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("denied org 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("granted app 1 read via workspace 1", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for app 1 read via workspace 1, got: %v", err)
+		}
+	})
+
+	t.Run("denied app 1 write", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 1},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error for app 1 write, got: %v", err)
+		}
+	})
+
+	t.Run("denied app 2 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 2},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+}
+
+// user 5 has r, w, a of wks 3
+func TestUser5Permissions(t *testing.T) {
+	machine := tvm.NewVendingMachine(&TestingQueries{tokens: make(map[string]queries.GetTokenRow)}, tvm.Config{
+		MaxTokenDuration:   24 * time.Hour,
+		LoginTokenDuration: 15 * time.Minute,
+	})
+	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user5")
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
 	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{ // direct access
-		Entity: queries.Entity{
-			Type: queries.EntityTypeOrganization,
-			ID:   1,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("granted workspace 3 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 3},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for workspace 3 read, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Fatalf("t4: incorrectly denied access: %v", err)
-	} else if err != nil {
-		t.Fatalf("t4: unexpected error during verify: %v", err)
-	} else {
-		t.Log("t4: correctly granted access for user2 (org 1 read by user2)")
-	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{ // access another org?
-		Entity: queries.Entity{
-			Type: queries.EntityTypeOrganization,
-			ID:   2,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("granted workspace 3 write", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 3},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != nil {
+			t.Errorf("expected no error for workspace 3 write, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Log("t5: correctly denied access for user2 (org 2 read by user2)")
-	} else if err != nil {
-		t.Fatalf("t5: unexpected error during verify: %v", err)
-	} else {
-		t.Fatalf("t5: expected insufficent permissions error but got no error (you are now a potato wedge)")
-	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{ // access an app from my org
-		Entity: queries.Entity{
-			Type: queries.EntityTypeApp,
-			ID:   2,
-		},
-		Scope: queries.ScopeWrite,
+	t.Run("granted workspace 3 admin", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 3},
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != nil {
+			t.Errorf("expected no error for workspace 3 admin, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Fatalf("t6: incorrectly denied access: %v", err)
-	} else if err != nil {
-		t.Fatalf("t6: unexpected error during verify: %v", err)
-	} else {
-		t.Log("t6: correctly granted access for user2 (app 2 write by user2 via org 1 write)")
-	}
 
-	err = machine.Verify(t.Context(), token, queries.EntityScope{ // access an app from another org
-		Entity: queries.Entity{
-			Type: queries.EntityTypeApp,
-			ID:   3,
-		},
-		Scope: queries.ScopeRead,
+	t.Run("denied workspace 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeWorkspace, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
 	})
-	if err == tvm.ErrInsufficentPermissions {
-		t.Log("t7: correctly denied access for user2 (app 3 read by user2)")
-	} else if err != nil {
-		t.Fatalf("t7: unexpected error during verify: %v", err)
-	} else {
-		t.Fatalf("t7: expected insufficent permissions error but got no error (you are now a tater tot)")
-	}
+
+	t.Run("denied org 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("denied org 2 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 2},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("denied org 2 admin", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 2},
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("denied org 1 admin", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeOrganization, ID: 1},
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
+
+	t.Run("granted app 3 read via workspace 3", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 3},
+			Scope:  queries.ScopeRead,
+		})
+		if err != nil {
+			t.Errorf("expected no error for app 3 read via workspace 3, got: %v", err)
+		}
+	})
+
+	t.Run("granted app 3 write via workspace 3", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 3},
+			Scope:  queries.ScopeWrite,
+		})
+		if err != nil {
+			t.Errorf("expected no error for app 3 write via workspace 3, got: %v", err)
+		}
+	})
+
+	t.Run("granted app 3 admin via workspace 3", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 3},
+			Scope:  queries.ScopeAdmin,
+		})
+		if err != nil {
+			t.Errorf("expected no error for app 3 admin via workspace 3, got: %v", err)
+		}
+	})
+
+	t.Run("denied app 1 read", func(t *testing.T) {
+		err := machine.Verify(context.Background(), token, queries.EntityScope{
+			Entity: queries.Entity{Type: queries.EntityTypeApp, ID: 1},
+			Scope:  queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			t.Errorf("expected insufficient permissions error, got: %v", err)
+		}
+	})
 }
