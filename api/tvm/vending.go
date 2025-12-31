@@ -191,6 +191,7 @@ func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 	return tvm.queries.DeleteToken(ctx, token)
 }
 
+// GetRolesByEntity returns all roles for the given entity and below for the given user.
 func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, userID int64, entity queries.Entity) ([]queries.EntityScope, error) {
 	// returns all roles for the given entity and below (so if entity is org, returns org, workspace, app roles that are explicitly listed)
 	// the token must have read on the given entity
@@ -212,6 +213,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 	return entityScopes, nil
 }
 
+// UpdateRoles updates the roles for the given user by adding and removing the given scopes.
 func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID int64, addScopes []queries.EntityScope, removeScopes []queries.EntityScope) error {
 	// find each entity being added and removed
 	// make sure the token has admin, explicitly or implicitly, on all of these entities by calling Verify

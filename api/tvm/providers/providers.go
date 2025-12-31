@@ -1,0 +1,58 @@
+// providers implements various email providers for identifying users.
+package providers
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+)
+
+var (
+	ErrGithubExchange = errors.New("an issue occured while exchanging the github token")
+)
+
+type Email struct {
+	address string
+	err     error
+}
+
+func (e Email) Address() (string, error) {
+	return e.address, e.err
+}
+
+func NewEmail(address string, err error) Email {
+	return Email{address: address, err: err}
+}
+
+// Github fetches the user's email from GitHub using the provided OAuth token.
+func Github(ctx context.Context, token string) Email {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return NewEmail("", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Add("Accept", "application/vnd.github+json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return NewEmail("", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return NewEmail("", err)
+	}
+
+	type githubUserResponse struct {
+		Email string `json:"email"` // this is the only field we care about (here, at least)
+	}
+	var guResp githubUserResponse
+
+	err = json.NewDecoder(resp.Body).Decode(&guResp)
+	if err != nil {
+		return NewEmail("", err)
+	}
+
+	return NewEmail(guResp.Email, nil)
+}

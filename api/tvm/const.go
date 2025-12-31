@@ -67,9 +67,9 @@ var (
 	ErrInsufficentPermissions    = errors.New("insufficient permissions")
 	ErrStoreToken                = errors.New("unable to store issued token")
 
-	ErrTokenExpired   = errors.New("token has expired")
-	ErrTokenNotFound  = errors.New("token not found")
-	ErrGithubExchange = errors.New("an issue occured while exchanging the github token")
+	ErrTokenExpired  = errors.New("token has expired")
+	ErrTokenNotFound = errors.New("token not found")
+	ErrExchange      = errors.New("exchange with external provider failed")
 
 	ErrUserNotFound   = errors.New("user not found")
 	ErrEntityNotFound = errors.New("entity not found or invalid entity")

@@ -7,6 +7,7 @@ import (
 
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/providers"
 )
 
 type TestingQueries struct {
@@ -149,20 +150,20 @@ func (tq *TestingQueries) GetUserScopesOnEntity(ctx context.Context, arg queries
 	panic("not implemented")
 }
 
-func TestingGithubProvider(ctx context.Context, token string) (string, error) {
+func TestingGithubProvider(ctx context.Context, token string) providers.Email {
 	switch token {
 	case "github-token-user1":
-		return "user1@loco-testing.com", nil
+		return providers.NewEmail("user1@loco-testing.com", nil)
 	case "github-token-user2":
-		return "user2@loco-testing.com", nil
+		return providers.NewEmail("user2@loco-testing.com", nil)
 	case "github-token-user3":
-		return "user3@loco-testing.com", nil
+		return providers.NewEmail("user3@loco-testing.com", nil)
 	case "github-token-user4":
-		return "user4@loco-testing.com", nil
+		return providers.NewEmail("user4@loco-testing.com", nil)
 	case "github-token-user5":
-		return "user5@loco-testing.com", nil
+		return providers.NewEmail("user5@loco-testing.com", nil)
 	}
-	return "", tvm.ErrUserNotFound
+	return providers.NewEmail("", tvm.ErrUserNotFound)
 }
 
 // user 1 has only self read/write/admin
@@ -171,7 +172,7 @@ func TestUser1Permissions(t *testing.T) {
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
-	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user1")
+	token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user1"))
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -223,7 +224,7 @@ func TestUser2Permissions(t *testing.T) {
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
-	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user2")
+	token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user2"))
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -305,7 +306,7 @@ func TestUser3Permissions(t *testing.T) {
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
-	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user3")
+	token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user3"))
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -407,7 +408,7 @@ func TestUser4Permissions(t *testing.T) {
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
-	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user4")
+	token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user4"))
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -499,7 +500,7 @@ func TestUser5Permissions(t *testing.T) {
 		MaxTokenDuration:   24 * time.Hour,
 		LoginTokenDuration: 15 * time.Minute,
 	})
-	token, err := machine.Exchange(context.Background(), TestingGithubProvider, "github-token-user5")
+	token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user5"))
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
