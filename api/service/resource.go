@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/loco-team/loco/api/contextkeys"
 	genDb "github.com/loco-team/loco/api/gen/db"
+	"github.com/loco-team/loco/api/pkg/converter"
 	"github.com/loco-team/loco/api/pkg/klogmux"
 	"github.com/loco-team/loco/api/pkg/kube"
 	"github.com/loco-team/loco/api/timeutil"
@@ -799,87 +799,78 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID: r.ResourceId,
-		Limit:      1,
-		Offset:     0,
-	})
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, r.ResourceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	var regionsToScale []string
+	if r.GetRegion() != "" {
+		regionFound := false
+		for _, rr := range resourceRegions {
+			if rr.Region == r.GetRegion() {
+				regionFound = true
+				break
+			}
+		}
+		if !regionFound {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("region '%s' not found for this resource", r.GetRegion()))
+		}
+		regionsToScale = []string{r.GetRegion()}
+	} else {
+		for _, rr := range resourceRegions {
+			regionsToScale = append(regionsToScale, rr.Region)
+		}
+	}
+
+	if len(regionsToScale) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("no regions found for resource"))
+	}
+
+	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, r.ResourceId)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if len(deploymentList) == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no existing deployment found for resource"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active deployment found for resource"))
 	}
 
 	currentDeployment := deploymentList[0]
-
-	var config map[string]any
-	if len(currentDeployment.Spec) > 0 {
-		if err := json.Unmarshal(currentDeployment.Spec, &config); err != nil {
-			slog.ErrorContext(ctx, "failed to parse deployment spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	} else {
-		config = make(map[string]any)
+	if len(currentDeployment.Spec) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("previous deployment has no spec"))
 	}
 
-	var env map[string]string
-	if envData, ok := config["env"].(map[string]any); ok {
-		env = make(map[string]string)
-		for k, v := range envData {
-			env[k] = v.(string)
-		}
-	} else {
-		env = make(map[string]string)
+	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(resource.Type))
+	if deserializeErr != nil {
+		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", deserializeErr)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", deserializeErr))
 	}
 
-	var cpu, memory *string
-	if resourceData, ok := config["resources"].(map[string]any); ok {
-		if cpuVal, ok := resourceData["cpu"].(string); ok && cpuVal != "" {
-			cpu = &cpuVal
-		}
-		if memoryVal, ok := resourceData["memory"].(string); ok && memoryVal != "" {
-			memory = &memoryVal
-		}
+	serviceDeploymentSpec := deploymentSpec.GetService()
+	if serviceDeploymentSpec == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are supported for scaling"))
 	}
 
-	var ports []any
-	if portData, ok := config["ports"].([]any); ok {
-		ports = portData
+	if r.Cpu != nil {
+		serviceDeploymentSpec.Cpu = r.Cpu
+	}
+
+	if r.Memory != nil {
+		serviceDeploymentSpec.Memory = r.Memory
+	}
+
+	specJson, err := protojson.Marshal(serviceDeploymentSpec)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
 	replicas := currentDeployment.Replicas
 	if r.Replicas != nil {
 		replicas = *r.Replicas
-	}
-
-	if r.Cpu != nil {
-		cpu = r.Cpu
-	}
-
-	if r.Memory != nil {
-		memory = r.Memory
-	}
-
-	resources := map[string]any{}
-	if cpu != nil {
-		resources["cpu"] = *cpu
-	}
-	if memory != nil {
-		resources["memory"] = *memory
-	}
-
-	updatedConfig := map[string]any{
-		"env":       env,
-		"ports":     ports,
-		"resources": resources,
-	}
-	specJson, err := json.Marshal(updatedConfig)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal config", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
 	}
 
 	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
@@ -902,6 +893,25 @@ func (s *ResourceServer) ScaleResource(
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
+
+	domain, err := s.queries.GetDomainByResourceId(ctx, r.ResourceId)
+	if err != nil {
+		slog.WarnContext(ctx, "domain not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+	}
+
+	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(resource.Spec, string(resource.Type))
+	if deserializeErr != nil {
+		slog.ErrorContext(ctx, deserializeErr.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
+	}
+
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update LocoResource: %w", err))
+	}
+	slog.InfoContext(ctx, "updated LocoResource after scaling", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
 
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{
 		DeploymentId: deploymentId,
@@ -946,64 +956,67 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID: r.ResourceId,
-		Limit:      1,
-		Offset:     0,
-	})
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, r.ResourceId)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	var regionsToUpdate []string
+	if r.GetRegion() != "" {
+		regionFound := false
+		for _, rr := range resourceRegions {
+			if rr.Region == r.GetRegion() {
+				regionFound = true
+				break
+			}
+		}
+		if !regionFound {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("region '%s' not found for this resource", r.GetRegion()))
+		}
+		regionsToUpdate = []string{r.GetRegion()}
+	} else {
+		for _, rr := range resourceRegions {
+			regionsToUpdate = append(regionsToUpdate, rr.Region)
+		}
+	}
+
+	if len(regionsToUpdate) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("no regions found for resource"))
+	}
+
+	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, r.ResourceId)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if len(deploymentList) == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no existing deployment found for resource"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active deployment found for resource"))
 	}
 
 	currentDeployment := deploymentList[0]
-
-	var config map[string]any
-	if len(currentDeployment.Spec) > 0 {
-		if err := json.Unmarshal(currentDeployment.Spec, &config); err != nil {
-			slog.ErrorContext(ctx, "failed to parse deployment spec", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-		}
-	} else {
-		config = make(map[string]any)
+	if len(currentDeployment.Spec) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("previous deployment has no spec"))
 	}
 
-	var cpu, memory *string
-	if resourceData, ok := config["resources"].(map[string]any); ok {
-		if cpuVal, ok := resourceData["cpu"].(string); ok && cpuVal != "" {
-			cpu = &cpuVal
-		}
-		if memoryVal, ok := resourceData["memory"].(string); ok && memoryVal != "" {
-			memory = &memoryVal
-		}
+	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(resource.Type))
+	if deserializeErr != nil {
+		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", deserializeErr)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", deserializeErr))
 	}
 
-	var ports []any
-	if portData, ok := config["ports"].([]any); ok {
-		ports = portData
+	serviceDeploymentSpec := deploymentSpec.GetService()
+	if serviceDeploymentSpec == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are supported for env updates"))
 	}
 
-	resources := map[string]any{}
-	if cpu != nil {
-		resources["cpu"] = *cpu
-	}
-	if memory != nil {
-		resources["memory"] = *memory
-	}
+	serviceDeploymentSpec.Env = r.Env
 
-	updatedConfig := map[string]any{
-		"env":       r.Env,
-		"ports":     ports,
-		"resources": resources,
-	}
-	specJson, err := json.Marshal(updatedConfig)
+	specJson, err := protojson.Marshal(serviceDeploymentSpec)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal config", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid config: %w", err))
+		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
 	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
@@ -1026,6 +1039,25 @@ func (s *ResourceServer) UpdateResourceEnv(
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
+
+	domain, err := s.queries.GetDomainByResourceId(ctx, r.ResourceId)
+	if err != nil {
+		slog.WarnContext(ctx, "domain not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+	}
+
+	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(resource.Spec, string(resource.Type))
+	if deserializeErr != nil {
+		slog.ErrorContext(ctx, deserializeErr.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
+	}
+
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update LocoResource", "error", err, "resource_id", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update LocoResource: %w", err))
+	}
+	slog.InfoContext(ctx, "updated LocoResource after env update", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate)
 
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{
 		DeploymentId: deploymentId,
