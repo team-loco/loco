@@ -229,19 +229,7 @@ func (tvm *VendingMachine) GetRoles(ctx context.Context, token string, userID in
 		return nil, fmt.Errorf("get user scopes: %w", err)
 	}
 
-	// convert userScopes to entityScopes (they're the same thing really)
-	entityScopes := []queries.EntityScope{}
-	for _, userScope := range userScopes {
-		entityScopes = append(entityScopes, queries.EntityScope{
-			Entity: queries.Entity{
-				Type: userScope.EntityType,
-				ID:   userScope.EntityID,
-			},
-			Scope: userScope.Scope,
-		})
-	}
-
-	return entityScopes, nil
+	return queries.EntityScopesFromUserScopes(userScopes), nil
 }
 
 // GetRolesByEntity returns all roles for the given entity and below for the given user. The token must have read on the given entity.
@@ -266,19 +254,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on organization: %w", err)
 		}
-
-		// convert
-		entityScopes := []queries.EntityScope{}
-		for _, row := range rows {
-			entityScopes = append(entityScopes, queries.EntityScope{
-				Entity: queries.Entity{
-					Type: row.EntityType,
-					ID:   row.EntityID,
-				},
-				Scope: row.Scope,
-			})
-		}
-		return entityScopes, nil
+		return queries.EntityScopesFromGetUserScopesOnOrganizationRow(rows), nil
 	case queries.EntityTypeWorkspace:
 		// workspace: get all workspace, app roles
 		rows, err := tvm.queries.GetUserScopesOnWorkspace(ctx, queries.GetUserScopesOnWorkspaceParams{
@@ -289,18 +265,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)
 		}
 
-		// convert
-		entityScopes := []queries.EntityScope{}
-		for _, row := range rows {
-			entityScopes = append(entityScopes, queries.EntityScope{
-				Entity: queries.Entity{
-					Type: row.EntityType,
-					ID:   row.EntityID,
-				},
-				Scope: row.Scope,
-			})
-		}
-		return entityScopes, nil
+		return queries.EntityScopesFromGetUserScopesOnWorkspaceRow(rows), nil
 	case queries.EntityTypeApp:
 		// app: just get app roles
 		fallthrough
@@ -314,7 +279,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 			return nil, fmt.Errorf("get user scopes on entity: %w", err)
 		}
 
-		// convert
+		// assemble entity scopes with entity and the returned scopes
 		entityScopes := []queries.EntityScope{}
 		for _, scope := range userScopes {
 			entityScopes = append(entityScopes, queries.EntityScope{
