@@ -12,6 +12,7 @@ import { useAuth } from "@/auth/AuthProvider";
 
 export function Splash() {
 	const { isAuthenticated } = useAuth();
+	console.log("component mountded", isAuthenticated);
 
 	return (
 		<div className="min-h-screen flex flex-col bg-linear-to-b from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">

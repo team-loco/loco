@@ -13,6 +13,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import Loader from "@/assets/loader.svg?react";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -35,8 +36,8 @@ export function DataTable<TData, TValue>({
 		return (
 			<div className="flex items-center justify-center py-12">
 				<div className="text-center">
-					<div className="inline-flex gap-2 items-center">
-						<div className="w-4 h-4 bg-main rounded-full animate-pulse"></div>
+					<div className="flex flex-col gap-2 items-center">
+						<Loader className="w-6 h-6" />
 						<p className="text-foreground">Loading members...</p>
 					</div>
 				</div>

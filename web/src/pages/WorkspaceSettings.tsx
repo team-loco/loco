@@ -14,6 +14,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
+import Loader from "@/assets/loader.svg?react";
 
 export function WorkspaceSettings() {
 	const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -47,7 +48,14 @@ export function WorkspaceSettings() {
 	};
 
 	if (wsLoading || !workspace) {
-		return <div>Loading...</div>;
+		return (
+			<div className="flex items-center justify-center min-h-96">
+				<div className="text-center flex flex-col gap-2 items-center">
+					<Loader className="w-8 h-8" />
+					<p className="text-foreground font-base">Loading...</p>
+				</div>
+			</div>
+		);
 	}
 
 	return (

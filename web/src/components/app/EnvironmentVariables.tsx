@@ -13,6 +13,7 @@ import { useMutation } from "@connectrpc/connect-query";
 import { updateResourceEnv } from "@/gen/resource/v1";
 import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
+import Loader from "@/assets/loader.svg?react";
 
 interface EnvVar {
 	key: string;
@@ -182,7 +183,14 @@ export function EnvironmentVariables({
 								disabled={!hasChanges || updateEnvMutation.isPending}
 								className="flex-1"
 							>
-								{updateEnvMutation.isPending ? "Saving..." : "Save"}
+								{updateEnvMutation.isPending ? (
+									<>
+										<Loader className="w-4 h-4 mr-2" />
+										Saving...
+									</>
+								) : (
+									"Save"
+								)}
 							</Button>
 						</div>
 					</div>

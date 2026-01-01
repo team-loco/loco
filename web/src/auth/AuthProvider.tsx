@@ -1,7 +1,6 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode, useState } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { getCurrentUser, logout as logoutMethod } from "@/gen/user/v1";
-import { useNavigate } from "react-router";
 import type { GetCurrentUserResponse } from "@/gen/user/v1/user_pb";
 
 interface AuthContextType {
@@ -15,16 +14,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const navigate = useNavigate();
-
 	const { data: user, isLoading, error } = useQuery(getCurrentUser, {});
+	const [isLoggedOut, setIsLoggedOut] = useState(false);
 
-	const { refetch: performLogout } = useQuery(logoutMethod, {}, { enabled: false });
+	const { refetch: performLogout } = useQuery(
+		logoutMethod,
+		{},
+		{ enabled: false }
+	);
 
 	const logout = async () => {
 		try {
 			await performLogout();
-			navigate("/");
+			setIsLoggedOut(true);
 		} catch (err) {
 			console.error("Logout failed:", err);
 		}
@@ -34,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		<AuthContext.Provider
 			value={{
 				user: user ?? null,
-				isAuthenticated: !!user?.user,
+				isAuthenticated: !isLoggedOut && !!user?.user,
 				isLoading,
 				error: error instanceof Error ? error : null,
 				logout,
