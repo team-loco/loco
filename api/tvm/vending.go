@@ -16,16 +16,19 @@ import (
 // Queries is the interface of queries that the Token Vending Machine relies on.
 // Usually, *queries.Queries or a fake test database.
 type Queries interface {
-	GetUserScopes(ctx context.Context, userID int64) ([]queries.UserScope, error)
-	StoreToken(ctx context.Context, arg queries.StoreTokenParams) error
 	GetToken(ctx context.Context, token string) (queries.GetTokenRow, error)
+	StoreToken(ctx context.Context, arg queries.StoreTokenParams) error
+	DeleteToken(ctx context.Context, token string) error
+
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error)
 	GetWorkspaceOrganizationIDByAppID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByAppIDRow, error)
+
+	GetUserScopes(ctx context.Context, userID int64) ([]queries.UserScope, error)
 	GetUserScopesByEmail(ctx context.Context, email string) ([]queries.UserScope, error)
-	DeleteToken(ctx context.Context, token string) error
-	GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]string, error)
-	GetUserScopesOnOrganization(ctx context.Context, arg queries.GetUserScopesOnOrganizationParams) ([]queries.GetUserScopesOnOrganizationRow, error)
-	GetUserScopesOnWorkspace(ctx context.Context, arg queries.GetUserScopesOnWorkspaceParams) ([]queries.GetUserScopesOnWorkspaceRow, error)
+	GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]queries.UserScope, error)
+	GetUserScopesOnOrganization(ctx context.Context, arg queries.GetUserScopesOnOrganizationParams) ([]queries.UserScope, error)
+	GetUserScopesOnWorkspace(ctx context.Context, arg queries.GetUserScopesOnWorkspaceParams) ([]queries.UserScope, error)
+
 	AddUserScope(ctx context.Context, arg queries.AddUserScopeParams) error
 	RemoveUserScope(ctx context.Context, arg queries.RemoveUserScopeParams) error
 }
@@ -263,7 +266,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on organization: %w", err)
 		}
-		return queries.EntityScopesFromGetUserScopesOnOrganizationRow(rows), nil
+		return queries.EntityScopesFromUserScopes(rows), nil
 	case queries.EntityTypeWorkspace:
 		// workspace: get all workspace, app roles
 		rows, err := tvm.queries.GetUserScopesOnWorkspace(ctx, queries.GetUserScopesOnWorkspaceParams{
@@ -274,7 +277,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)
 		}
 
-		return queries.EntityScopesFromGetUserScopesOnWorkspaceRow(rows), nil
+		return queries.EntityScopesFromUserScopes(rows), nil
 	case queries.EntityTypeApp:
 		// app: just get app roles
 		fallthrough
@@ -288,15 +291,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 			return nil, fmt.Errorf("get user scopes on entity: %w", err)
 		}
 
-		// assemble entity scopes with entity and the returned scopes
-		entityScopes := []queries.EntityScope{}
-		for _, scope := range userScopes {
-			entityScopes = append(entityScopes, queries.EntityScope{
-				Entity: entity,
-				Scope:  scope,
-			})
-		}
-		return entityScopes, nil
+		return queries.EntityScopesFromUserScopes(userScopes), nil
 	}
 }
 
@@ -366,7 +361,3 @@ func NewVendingMachine(pool *pgxpool.Pool, queries Queries, cfg Config) *Vending
 		cfg:     cfg,
 	}
 }
-
-// verifywithidentity returns identity and error
-// revoketoken revokes a token
-// updaterole

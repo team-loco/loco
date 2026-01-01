@@ -7,9 +7,6 @@ import (
 	"github.com/team-loco/loco/api/tvm/providers"
 )
 
-// machine.VerifyWithIdentity(ctx, token, action.New(action.ReadWorkspace, workspaceID)) -> (err error)
-// tvm.Exchange(ctx, tvm.Github, githubToken) -> (token string, err error)
-
 // Exchange returns a token for the user with the given email. It is expected that the email has been
 // provided by a provider in a trusted manner (e.g. )
 func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.Email) (string, error) {

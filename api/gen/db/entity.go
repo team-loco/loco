@@ -40,38 +40,6 @@ func EntityScopesFromUserScopes(uss []UserScope) []EntityScope {
 	return ess
 }
 
-// EntityScopesFromGetUserScopesOnOrganizationRow converts a slice of
-// GetUserScopesOnOrganizationRow to a slice of EntityScope.
-func EntityScopesFromGetUserScopesOnOrganizationRow(rows []GetUserScopesOnOrganizationRow) []EntityScope {
-	entityScopes := []EntityScope{}
-	for _, row := range rows {
-		entityScopes = append(entityScopes, EntityScope{
-			Entity: Entity{
-				Type: row.EntityType,
-				ID:   row.EntityID,
-			},
-			Scope: row.Scope,
-		})
-	}
-	return entityScopes
-}
-
-// EntityScopesFromGetUserScopesOnWorkspaceRow converts a slice of
-// GetUserScopesOnWorkspaceRow to a slice of EntityScope.
-func EntityScopesFromGetUserScopesOnWorkspaceRow(rows []GetUserScopesOnWorkspaceRow) []EntityScope {
-	entityScopes := []EntityScope{}
-	for _, row := range rows {
-		entityScopes = append(entityScopes, EntityScope{
-			Entity: Entity{
-				Type: row.EntityType,
-				ID:   row.EntityID,
-			},
-			Scope: row.Scope,
-		})
-	}
-	return entityScopes
-}
-
 type Scope = string
 
 const (

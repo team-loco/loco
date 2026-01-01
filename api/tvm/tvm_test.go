@@ -26,42 +26,42 @@ func (*TestingQueries) GetUserScopes(ctx context.Context, userID int64) ([]queri
 	switch userID {
 	case 1:
 		return []queries.UserScope{
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 1, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 1, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 1, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
 		}, nil
 	case 2:
 		return []queries.UserScope{
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: 1},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: 1},
-			{UserID: userID, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeOrganization, EntityID: 1},
+			{UserID: 2, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 2, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 2, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 2, Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: 1},
+			{UserID: 2, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: 1},
+			{UserID: 2, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeOrganization, EntityID: 1},
 		}, nil
 	case 3:
 		return []queries.UserScope{
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: 1},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: 1},
+			{UserID: 3, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 3, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 3, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 3, Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: 1},
+			{UserID: 3, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: 1},
 		}, nil
 	case 4:
 		return []queries.UserScope{
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: 1},
+			{UserID: 4, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 4, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 4, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 4, Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: 1},
 		}, nil
 	case 5:
 		return []queries.UserScope{
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{UserID: userID, Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
-			{UserID: userID, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
-			{UserID: userID, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
+			{UserID: 5, Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 5, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 5, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{UserID: 5, Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
+			{UserID: 5, Scope: queries.ScopeWrite, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
+			{UserID: 5, Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
 		}, nil
 	default:
 		return nil, tvm.ErrUserNotFound
@@ -146,13 +146,13 @@ func (tq *TestingQueries) AddUserScope(ctx context.Context, arg queries.AddUserS
 func (tq *TestingQueries) RemoveUserScope(ctx context.Context, arg queries.RemoveUserScopeParams) error {
 	panic("not implemented")
 }
-func (tq *TestingQueries) GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]string, error) {
+func (tq *TestingQueries) GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]queries.UserScope, error) {
 	panic("not implemented")
 }
-func (tq *TestingQueries) GetUserScopesOnOrganization(ctx context.Context, arg queries.GetUserScopesOnOrganizationParams) ([]queries.GetUserScopesOnOrganizationRow, error) {
+func (tq *TestingQueries) GetUserScopesOnOrganization(ctx context.Context, arg queries.GetUserScopesOnOrganizationParams) ([]queries.UserScope, error) {
 	panic("not implemented")
 }
-func (tq *TestingQueries) GetUserScopesOnWorkspace(ctx context.Context, arg queries.GetUserScopesOnWorkspaceParams) ([]queries.GetUserScopesOnWorkspaceRow, error) {
+func (tq *TestingQueries) GetUserScopesOnWorkspace(ctx context.Context, arg queries.GetUserScopesOnWorkspaceParams) ([]queries.UserScope, error) {
 	panic("not implemented")
 }
 
