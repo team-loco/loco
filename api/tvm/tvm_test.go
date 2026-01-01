@@ -156,7 +156,7 @@ func (tq *TestingQueries) GetUserScopesOnWorkspace(ctx context.Context, arg quer
 	panic("not implemented")
 }
 
-func TestingGithubProvider(ctx context.Context, token string) providers.Email {
+func TestingGithubProvider(ctx context.Context, token string) providers.EmailResponse {
 	switch token {
 	case "github-token-user1":
 		return providers.NewEmail("user1@loco-testing.com", nil)

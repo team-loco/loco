@@ -26,8 +26,5 @@ CREATE UNLOGGED TABLE tokens (
     expires_at TIMESTAMPTZ NOT NULL
 );
 
--- what scopes are associated with token x?
-CREATE INDEX tokens_scopes_idx ON tokens (token);
-
 -- which tokens exist on behalf of entity y?
 CREATE INDEX tokens_entity_idx ON tokens (entity_type, entity_id);

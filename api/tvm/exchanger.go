@@ -9,7 +9,7 @@ import (
 
 // Exchange returns a token for the user with the given email. It is expected that the email has been
 // provided by a provider in a trusted manner (e.g. )
-func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.Email) (string, error) {
+func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse) (string, error) {
 	address, err := email.Address()
 	if err != nil {
 		return "", ErrExchange

@@ -11,21 +11,21 @@ var (
 	ErrGithubExchange = errors.New("an issue occured while exchanging the github token")
 )
 
-type Email struct {
+type EmailResponse struct {
 	address string
 	err     error
 }
 
-func (e Email) Address() (string, error) {
+func (e EmailResponse) Address() (string, error) {
 	return e.address, e.err
 }
 
-func NewEmail(address string, err error) Email {
-	return Email{address: address, err: err}
+func NewEmail(address string, err error) EmailResponse {
+	return EmailResponse{address: address, err: err}
 }
 
 // Github fetches the user's email from GitHub using the provided OAuth token.
-func Github(token string) Email {
+func Github(token string) EmailResponse {
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
 		return NewEmail("", err)
