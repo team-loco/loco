@@ -1,4 +1,4 @@
-package action
+package actions
 
 import "github.com/team-loco/loco/api/gen/db"
 
@@ -245,4 +245,12 @@ var (
 	// }
 )
 
-func New()
+func New(a Action, entityID int64) db.EntityScope {
+	return db.EntityScope{
+		Entity: db.Entity{
+			Type: a.entityType,
+			ID:   entityID,
+		},
+		Scope: a.scope,
+	}
+}
