@@ -613,7 +613,6 @@ func createLocoResource(
 		},
 		Spec: locoResourceSpec,
 	}
-	slog.Info("print what is locoNameSpace", "locoNamespace", locoNamespace, "locores", locoRes.Namespace)
 
 	// create or update the Application
 	err := kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
