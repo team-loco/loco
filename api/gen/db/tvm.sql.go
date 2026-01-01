@@ -41,11 +41,11 @@ func (q *Queries) DeleteExpiredTokens(ctx context.Context) error {
 }
 
 const deleteToken = `-- name: DeleteToken :exec
-DELETE FROM tokens WHERE token = $1
+DELETE FROM tokens WHERE name = $1
 `
 
-func (q *Queries) DeleteToken(ctx context.Context, token string) error {
-	_, err := q.db.Exec(ctx, deleteToken, token)
+func (q *Queries) DeleteToken(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, deleteToken, name)
 	return err
 }
 
@@ -64,13 +64,14 @@ func (q *Queries) DeleteTokensForEntity(ctx context.Context, arg DeleteTokensFor
 }
 
 const getToken = `-- name: GetToken :one
-SELECT token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1 AND expires_at > NOW()
+SELECT name, token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1 AND expires_at > NOW()
 `
 
 func (q *Queries) GetToken(ctx context.Context, token string) (Token, error) {
 	row := q.db.QueryRow(ctx, getToken, token)
 	var i Token
 	err := row.Scan(
+		&i.Name,
 		&i.Token,
 		&i.Scopes,
 		&i.EntityType,
@@ -308,7 +309,7 @@ func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWit
 }
 
 const listTokensForEntity = `-- name: ListTokensForEntity :many
-SELECT token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE entity_type = $1 AND entity_id = $2
+SELECT (name, entity_type, entity_id, scopes, expires_at)::token_head FROM tokens WHERE entity_type = $1 AND entity_id = $2
 `
 
 type ListTokensForEntityParams struct {
@@ -317,25 +318,19 @@ type ListTokensForEntityParams struct {
 }
 
 // which tokens exist on behalf of entity y?
-func (q *Queries) ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]Token, error) {
+func (q *Queries) ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]TokenHead, error) {
 	rows, err := q.db.Query(ctx, listTokensForEntity, arg.EntityType, arg.EntityID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Token
+	var items []TokenHead
 	for rows.Next() {
-		var i Token
-		if err := rows.Scan(
-			&i.Token,
-			&i.Scopes,
-			&i.EntityType,
-			&i.EntityID,
-			&i.ExpiresAt,
-		); err != nil {
+		var column_1 TokenHead
+		if err := rows.Scan(&column_1); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, column_1)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -394,10 +389,11 @@ func (q *Queries) RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams
 }
 
 const storeToken = `-- name: StoreToken :exec
-INSERT INTO tokens (token, entity_type, entity_id, scopes, expires_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING
+INSERT INTO tokens (name, token, entity_type, entity_id, scopes, expires_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING
 `
 
 type StoreTokenParams struct {
+	Name       string        `json:"name"`
 	Token      string        `json:"token"`
 	EntityType EntityType    `json:"entityType"`
 	EntityID   int64         `json:"entityId"`
@@ -407,6 +403,7 @@ type StoreTokenParams struct {
 
 func (q *Queries) StoreToken(ctx context.Context, arg StoreTokenParams) error {
 	_, err := q.db.Exec(ctx, storeToken,
+		arg.Name,
 		arg.Token,
 		arg.EntityType,
 		arg.EntityID,

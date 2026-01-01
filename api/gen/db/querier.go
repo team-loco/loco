@@ -42,7 +42,7 @@ type Querier interface {
 	DeleteOrganization(ctx context.Context, id int64) error
 	DeleteResource(ctx context.Context, id int64) error
 	DeleteResourceDomain(ctx context.Context, id int64) error
-	DeleteToken(ctx context.Context, token string) error
+	DeleteToken(ctx context.Context, name string) error
 	DeleteTokensForEntity(ctx context.Context, arg DeleteTokensForEntityParams) error
 	DeleteUser(ctx context.Context, id int64) error
 	DeleteWorkspace(ctx context.Context, id int64) error
@@ -106,7 +106,7 @@ type Querier interface {
 	ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, workspaceID int64) ([]Resource, error)
 	// which tokens exist on behalf of entity y?
-	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]Token, error)
+	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]TokenHead, error)
 	ListUserOrganizations(ctx context.Context, userID int64) ([]Organization, error)
 	ListUserWorkspaces(ctx context.Context, userID int64) ([]Workspace, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)

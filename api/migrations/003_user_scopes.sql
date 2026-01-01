@@ -22,17 +22,34 @@ CREATE INDEX user_scopes_entity_scope_idx ON user_scopes (entity_type, entity_id
 -- what scopes does user x have?
 CREATE INDEX user_scopes_user_idx ON user_scopes (user_id);
 
+-- token without the actual token string
+CREATE TYPE token_head AS (
+    name TEXT,
+    entity_type entity_type,
+    entity_id BIGINT,
+    scopes JSONB,
+    expires_at TIMESTAMPTZ
+);
+
 -- "cost-saving measure"
 CREATE UNLOGGED TABLE tokens (
+    name TEXT NOT NULL,
     token TEXT PRIMARY KEY,
     scopes JSONB NOT NULL, -- list of entity scopes associated with the token
     entity_type entity_type NOT NULL, --  e.g. 'organization', 'workspace', 'app', 'user'
     entity_id BIGINT NOT NULL, -- on behalf of which entity the token is issued (e.g. organization_id or workspace_id)
-    expires_at TIMESTAMPTZ NOT NULL
+    expires_at TIMESTAMPTZ NOT NULL,
+    UNIQUE (name, entity_type, entity_id)
 );
 
 -- which tokens exist on behalf of entity y?
 CREATE INDEX tokens_entity_idx ON tokens (entity_type, entity_id);
+
+-- to quickly find tokens by their token name and entity
+CREATE INDEX tokens_name_idx ON tokens (name, entity_type, entity_id);
+ 
+-- to quickly find expired tokens
+CREATE INDEX tokens_expires_at_idx ON tokens (expires_at);
 
 CREATE VIEW user_with_scopes_view AS
 SELECT 

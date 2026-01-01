@@ -26,6 +26,10 @@ sql:
             go_type:
               import: "time"
               type: "Time"
+          - db_type: "token_head"
+            go_type:
+              import: ""
+              type: "TokenHead"
           - db_type: "entity_scope"
             go_type:
               import: ""

@@ -415,6 +415,7 @@ type ResourceRegion struct {
 }
 
 type Token struct {
+	Name       string        `json:"name"`
 	Token      string        `json:"token"`
 	Scopes     []EntityScope `json:"scopes"`
 	EntityType EntityType    `json:"entityType"`

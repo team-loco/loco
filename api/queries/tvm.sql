@@ -82,11 +82,11 @@ ORDER BY us.entity_type, us.entity_id, us.scope;
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3;
 
 -- name: GetToken :one
-SELECT token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1 AND expires_at > NOW();
+SELECT name, token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1 AND expires_at > NOW();
 
 -- which tokens exist on behalf of entity y?
 -- name: ListTokensForEntity :many
-SELECT * FROM tokens WHERE entity_type = $1 AND entity_id = $2;
+SELECT (name, entity_type, entity_id, scopes, expires_at)::token_head FROM tokens WHERE entity_type = $1 AND entity_id = $2;
 
 -- name: AddUserScope :exec
 INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;
@@ -104,10 +104,10 @@ DELETE FROM user_scopes WHERE entity_type = $1 AND entity_id = $2;
 DELETE FROM user_scopes WHERE user_id = $1;
 
 -- name: StoreToken :exec
-INSERT INTO tokens (token, entity_type, entity_id, scopes, expires_at) VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING;
+INSERT INTO tokens (name, token, entity_type, entity_id, scopes, expires_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;
 
 -- name: DeleteToken :exec
-DELETE FROM tokens WHERE token = $1;
+DELETE FROM tokens WHERE name = $1;
 
 -- name: DeleteTokensForEntity :exec
 DELETE FROM tokens WHERE entity_type = $1 AND entity_id = $2;
