@@ -113,11 +113,25 @@ func withCORS(baseDomain string) func(http.Handler) http.Handler {
 func main() {
 	ac := newApiConfig()
 
+	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dbConn.Close()
+
+	pool := dbConn.Pool()
+	queries := genDb.New(pool)
+
+	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+		MaxTokenDuration:   time.Hour * 24 * 30,
+		LoginTokenDuration: time.Hour * 1,
+	})
+
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor())
+	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -131,19 +145,6 @@ func main() {
 
 	kubeClient := kube.NewClient(ac.Env)
 
-	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer dbConn.Close()
-
-	pool := dbConn.Pool()
-	queries := genDb.New(pool)
-
-	tvm.NewVendingMachine(pool, queries, tvm.Config{
-		MaxTokenDuration:   time.Hour * 24 * 30,
-		LoginTokenDuration: time.Hour * 1,
-	})
 	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries)
 	watcherCtx, watcherCancel := context.WithCancel(context.Background())
 	defer watcherCancel()
@@ -156,7 +157,7 @@ func main() {
 
 	httpClient := shared.NewHTTPClient()
 
-	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient)
+	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, machine)
 	if err != nil {
 		log.Fatal(err)
 	}

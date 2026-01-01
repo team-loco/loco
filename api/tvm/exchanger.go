@@ -9,25 +9,33 @@ import (
 
 // Exchange returns a token for the user with the given email. It is expected that the email has been
 // provided by a provider in a trusted manner (e.g. )
-func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse) (string, error) {
+func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse) (queries.User, string, error) {
 	address, err := email.Address()
 	if err != nil {
-		return "", ErrExchange
+		return queries.User{}, "", ErrExchange
 	}
 
-	// look up the user by email
-	userScopes, err := tvm.queries.GetUserScopesByEmail(ctx, address)
+	// get the user and their scopes by their email
+	userWithScopes, err := tvm.queries.GetUserWithScopesByEmail(ctx, address)
 	if err != nil {
-		return "", ErrUserNotFound
+		return queries.User{}, "", ErrUserNotFound
 	}
-	if len(userScopes) == 0 { // either user not found or has no scopes
-		return "", ErrUserNotFound
+
+	// construct user object
+	user := queries.User{
+		ID:        userWithScopes.ID,
+		Email:     userWithScopes.Email,
+		Name:      userWithScopes.Name,
+		AvatarUrl: userWithScopes.AvatarUrl,
+		CreatedAt: userWithScopes.CreatedAt,
+		UpdatedAt: userWithScopes.UpdatedAt,
 	}
-	userID := userScopes[0].UserID
 
 	// issue the token
-	return tvm.issueNoCheck(ctx, queries.Entity{
+	token, err := tvm.issueNoCheck(ctx, queries.Entity{
 		Type: queries.EntityTypeUser,
-		ID:   userID,
-	}, queries.EntityScopesFromUserScopes(userScopes), tvm.cfg.LoginTokenDuration)
+		ID:   user.ID,
+	}, userWithScopes.Scopes, tvm.cfg.LoginTokenDuration)
+
+	return user, token, err
 }

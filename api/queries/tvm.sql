@@ -1,16 +1,13 @@
 -- what scopes does user x have?
 -- name: GetUserScopes :many
-SELECT user_id, scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1;
+SELECT (scope, entity_type, entity_id)::entity_scope FROM user_scopes WHERE user_id = $1;
 
--- name: GetUserScopesByEmail :many
-SELECT us.user_id, us.scope, us.entity_type, us.entity_id
-FROM user_scopes us
-JOIN users u ON us.user_id = u.id
-WHERE u.email = $1;
+-- name: GetUserWithScopesByEmail :one
+SELECT * FROM user_with_scopes_view WHERE email = $1;
 
 -- what scopes does user x have on entity y?
 -- name: GetUserScopesOnEntity :many
-SELECT user_id, scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3;
+SELECT (scope, entity_type, entity_id)::entity_scope FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3;
 
 -- name: GetUserScopesOnOrganization :many
 WITH RECURSIVE entity_hierarchy AS (
@@ -43,10 +40,9 @@ WITH RECURSIVE entity_hierarchy AS (
     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
 SELECT DISTINCT
-    us.user_id,
-    us.scope,
+    (us.scope,
     us.entity_type,
-    us.entity_id
+    us.entity_id)::entity_scope
 FROM user_scopes us
 INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
 WHERE us.user_id = $2
@@ -73,10 +69,9 @@ WITH RECURSIVE entity_hierarchy AS (
     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
 SELECT DISTINCT
-    us.user_id,
-    us.scope,
+    (us.scope,
     us.entity_type,
-    us.entity_id
+    us.entity_id)::entity_scope
 FROM user_scopes us
 INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
 WHERE us.user_id = $2
@@ -87,11 +82,11 @@ ORDER BY us.entity_type, us.entity_id, us.scope;
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3;
 
 -- name: GetToken :one
-SELECT scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1;
+SELECT token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1 AND expires_at > NOW();
 
 -- which tokens exist on behalf of entity y?
--- name: GetTokensForEntity :many
-SELECT token FROM tokens WHERE entity_type = $1 AND entity_id = $2;
+-- name: ListTokensForEntity :many
+SELECT * FROM tokens WHERE entity_type = $1 AND entity_id = $2;
 
 -- name: AddUserScope :exec
 INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;

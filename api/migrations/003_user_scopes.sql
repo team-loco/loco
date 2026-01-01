@@ -1,4 +1,9 @@
 CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'app', 'user');
+CREATE TYPE entity_scope AS (
+    scope TEXT,
+    entity_type entity_type,
+    entity_id INTEGER
+);
 
 CREATE TABLE user_scopes (
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -28,3 +33,26 @@ CREATE UNLOGGED TABLE tokens (
 
 -- which tokens exist on behalf of entity y?
 CREATE INDEX tokens_entity_idx ON tokens (entity_type, entity_id);
+
+CREATE VIEW user_with_scopes_view AS
+SELECT 
+    u.id,
+    u.external_id,
+    u.email,
+    u.name,
+    u.avatar_url,
+    u.created_at,
+    u.updated_at,
+    COALESCE(
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'scope', us.scope,
+                'entity_type', us.entity_type,
+                'entity_id', us.entity_id
+            )
+        ) FILTER (WHERE us.user_id IS NOT NULL),
+        '[]'
+    ) AS scopes
+FROM users u
+LEFT JOIN user_scopes us ON u.id = us.user_id
+GROUP BY u.id, u.external_id, u.email, u.name, u.avatar_url, u.created_at, u.updated_at;

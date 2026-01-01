@@ -434,9 +434,20 @@ type User struct {
 
 type UserScope struct {
 	UserID     int64      `json:"userId"`
-	Scope      string     `json:"scope"`
+	Scope      Scope      `json:"scope"`
 	EntityType EntityType `json:"entityType"`
 	EntityID   int64      `json:"entityId"`
+}
+
+type UserWithScopesView struct {
+	ID         int64              `json:"id"`
+	ExternalID string             `json:"externalId"`
+	Email      string             `json:"email"`
+	Name       pgtype.Text        `json:"name"`
+	AvatarUrl  pgtype.Text        `json:"avatarUrl"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
+	Scopes     []EntityScope      `json:"scopes"`
 }
 
 type Workspace struct {

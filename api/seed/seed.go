@@ -217,64 +217,64 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, us
 func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs []int64) ([]int64, error) {
 	var appIDs []int64
 
-	if app1, err := queries.CreateApp(ctx, db.CreateAppParams{
+	if app1ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],              // wks 1
 		Name:        "My First Application", // app 1
 		CreatedBy:   userIDs[2],             // user 3
 	}); err != nil {
 		return nil, err
 	} else {
-		appIDs = append(appIDs, app1.ID)
+		appIDs = append(appIDs, app1ID)
 	}
 
-	if app2, err := queries.CreateApp(ctx, db.CreateAppParams{
+	if app2ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],               // wks 1
 		Name:        "My Second Application", // app 2
 		CreatedBy:   userIDs[0],              // user 1
 	}); err != nil {
 		return nil, err
 	} else {
-		appIDs = append(appIDs, app2.ID)
+		appIDs = append(appIDs, app2ID)
 	}
 
-	if app3, err := queries.CreateApp(ctx, db.CreateAppParams{
+	if app3ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[1],              // wks 2
 		Name:        "My Third Application", // app 3
 		CreatedBy:   userIDs[2],             // user 3
 	}); err != nil {
 		return nil, err
 	} else {
-		appIDs = append(appIDs, app3.ID)
+		appIDs = append(appIDs, app3ID)
 	}
 
-	if app4, err := queries.CreateApp(ctx, db.CreateAppParams{
+	if app4ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[1],               // wks 2
 		Name:        "My Fourth Application", // app 4
 		CreatedBy:   userIDs[0],              // user 1
 	}); err != nil {
 		return nil, err
 	} else {
-		appIDs = append(appIDs, app4.ID)
+		appIDs = append(appIDs, app4ID)
 	}
 
-	if app5, err := queries.CreateApp(ctx, db.CreateAppParams{
+	if app5ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[2],              // wks 3
 		Name:        "My Fifth Application", // app 5
 		CreatedBy:   userIDs[3],             // user 4
 	}); err != nil {
 		return nil, err
 	} else {
-		appIDs = append(appIDs, app5.ID)
+		appIDs = append(appIDs, app5ID)
 	}
 
-	if app6, err := queries.CreateApp(ctx, db.CreateAppParams{
+	if app6ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[3],              // wks 4
 		Name:        "My Sixth Application", // app 6
 		CreatedBy:   userIDs[1],             // user 2
 	}); err != nil {
 		return nil, err
 	} else {
-		appIDs = append(appIDs, app6.ID)
+		appIDs = append(appIDs, app6ID)
 	}
 
 	return appIDs, nil

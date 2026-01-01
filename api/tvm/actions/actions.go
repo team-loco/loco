@@ -151,12 +151,6 @@ var (
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeRead,
 	}
-	// // UpdateOrgMemberRole requires organization:admin.
-	// tvm will verify role updates instead of the api.
-	// UpdateOrgMemberRole = Action{
-	// 	entityType: db.EntityTypeOrganization,
-	// 	scope:      db.ScopeAdmin,
-	// }
 
 	// users
 
@@ -237,20 +231,12 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
-	// // UpdateWorkspaceMemberRole requires workspace:admin.
-	// tvm will verify role updates instead of the api.
-	// UpdateWorkspaceMemberRole = Action{
-	// 	entityType: db.EntityTypeWorkspace,
-	// 	scope:      db.ScopeAdmin,
-	// }
 )
 
 func New(a Action, entityID int64) db.EntityScope {
 	return db.EntityScope{
-		Entity: db.Entity{
-			Type: a.entityType,
-			ID:   entityID,
-		},
-		Scope: a.scope,
+		EntityType: a.entityType,
+		EntityID:   entityID,
+		Scope:      a.scope,
 	}
 }

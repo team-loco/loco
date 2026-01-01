@@ -67,19 +67,17 @@ type Querier interface {
 	GetResourceDomainByID(ctx context.Context, id int64) (ResourceDomain, error)
 	GetResourceDomainCount(ctx context.Context, resourceID int64) (int64, error)
 	GetResourceWorkspaceID(ctx context.Context, id int64) (int64, error)
-	GetToken(ctx context.Context, token string) (GetTokenRow, error)
-	// which tokens exist on behalf of entity y?
-	GetTokensForEntity(ctx context.Context, arg GetTokensForEntityParams) ([]string, error)
+	GetToken(ctx context.Context, token string) (Token, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByExternalID(ctx context.Context, externalID string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	// what scopes does user x have?
-	GetUserScopes(ctx context.Context, userID int64) ([]UserScope, error)
-	GetUserScopesByEmail(ctx context.Context, email string) ([]UserScope, error)
+	GetUserScopes(ctx context.Context, userID int64) ([]EntityScope, error)
 	// what scopes does user x have on entity y?
-	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]UserScope, error)
-	GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]UserScope, error)
-	GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]UserScope, error)
+	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]EntityScope, error)
+	GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]EntityScope, error)
+	GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]EntityScope, error)
+	GetUserWithScopesByEmail(ctx context.Context, email string) (UserWithScopesView, error)
 	// what users have scope z on entity y?
 	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]int64, error)
 	GetWorkspaceByID(ctx context.Context, id int64) (Workspace, error)
@@ -107,6 +105,8 @@ type Querier interface {
 	ListResourceDomains(ctx context.Context, resourceID int64) ([]ResourceDomain, error)
 	ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, workspaceID int64) ([]Resource, error)
+	// which tokens exist on behalf of entity y?
+	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]Token, error)
 	ListUserOrganizations(ctx context.Context, userID int64) ([]Organization, error)
 	ListUserWorkspaces(ctx context.Context, userID int64) ([]Workspace, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
