@@ -24,14 +24,10 @@ CREATE TABLE IF NOT EXISTS organizations (
 CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations (name);
 CREATE INDEX IF NOT EXISTS idx_organizations_created_by ON organizations (created_by);
 
--- Organization roles enum
-CREATE TYPE organization_role AS ENUM ('admin', 'member');
-
 -- Organization members table
 CREATE TABLE IF NOT EXISTS organization_members (
     organization_id BIGINT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role organization_role NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (organization_id, user_id)
 );

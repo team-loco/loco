@@ -12,18 +12,17 @@ import (
 )
 
 const addOrgMember = `-- name: AddOrgMember :exec
-INSERT INTO organization_members (organization_id, user_id, role)
-VALUES ($1, $2, $3)
+INSERT INTO organization_members (organization_id, user_id)
+VALUES ($1, $2)
 `
 
 type AddOrgMemberParams struct {
-	OrganizationID int64            `json:"organizationId"`
-	UserID         int64            `json:"userId"`
-	Role           OrganizationRole `json:"role"`
+	OrganizationID int64 `json:"organizationId"`
+	UserID         int64 `json:"userId"`
 }
 
 func (q *Queries) AddOrgMember(ctx context.Context, arg AddOrgMemberParams) error {
-	_, err := q.db.Exec(ctx, addOrgMember, arg.OrganizationID, arg.UserID, arg.Role)
+	_, err := q.db.Exec(ctx, addOrgMember, arg.OrganizationID, arg.UserID)
 	return err
 }
 
@@ -116,23 +115,6 @@ func (q *Queries) GetOrgByName(ctx context.Context, name string) (Organization, 
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const getOrgMemberRole = `-- name: GetOrgMemberRole :one
-SELECT role FROM organization_members
-WHERE organization_id = $1 AND user_id = $2
-`
-
-type GetOrgMemberRoleParams struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
-}
-
-func (q *Queries) GetOrgMemberRole(ctx context.Context, arg GetOrgMemberRoleParams) (OrganizationRole, error) {
-	row := q.db.QueryRow(ctx, getOrgMemberRole, arg.OrganizationID, arg.UserID)
-	var role OrganizationRole
-	err := row.Scan(&role)
-	return role, err
 }
 
 const isOrgMember = `-- name: IsOrgMember :one

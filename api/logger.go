@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/loco-team/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/contextkeys"
 )
 
 type CustomHandler struct {

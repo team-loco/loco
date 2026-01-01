@@ -8,10 +8,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/loco-team/loco/api/contextkeys"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/timeutil"
-	orgv1 "github.com/loco-team/loco/shared/proto/org/v1"
+	"github.com/team-loco/loco/api/contextkeys"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/timeutil"
+	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
 )
 
 var (

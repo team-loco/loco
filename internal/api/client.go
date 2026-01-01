@@ -8,7 +8,7 @@ import (
 	"time"
 
 	json "github.com/goccy/go-json"
-	"github.com/loco-team/loco/shared"
+	"github.com/team-loco/loco/shared"
 )
 
 type Client struct {
