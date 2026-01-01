@@ -18,7 +18,14 @@ export function getServiceSpec(
 	return undefined;
 }
 
-export function getPhaseTooltip(phase: DeploymentPhase): string {
+export function getPhaseTooltip(deployment: Deployment): string {
+	if (deployment.status === DeploymentPhase.RUNNING && deployment.isActive) {
+		const spec = getServiceSpec(deployment);
+		const region = spec?.region || "this region";
+		console.log("what is region", region);
+		return `Live and healthy. App traffic to ${region} points to this deployment.`;
+	}
+
 	const tooltips: Record<DeploymentPhase, string> = {
 		[DeploymentPhase.UNSPECIFIED]: "Unknown status",
 		[DeploymentPhase.PENDING]:
@@ -34,15 +41,18 @@ export function getPhaseTooltip(phase: DeploymentPhase): string {
 		[DeploymentPhase.CANCELED]:
 			"Stopped by you. This deployment was manually cancelled.",
 	};
-	return tooltips[phase] || "Unknown status";
+	return tooltips[deployment.status] || "Unknown status";
 }
 
 export function getResourceStatusTooltip(statusLabel: string): string {
 	const tooltips: Record<string, string> = {
 		running: "Your app is live and healthy. It's up and serving traffic.",
-		deploying: "Your app is being deployed. We're pulling the image and creating pods.",
-		degraded: "Your app has issues but is still partially operational. Check the logs for details.",
-		unavailable: "Your app is currently unavailable. A deployment may be in progress or an error occurred.",
+		deploying:
+			"Your app is being deployed. We're pulling the image and creating pods.",
+		degraded:
+			"Your app has issues but is still partially operational. Check the logs for details.",
+		unavailable:
+			"Your app is currently unavailable. A deployment may be in progress or an error occurred.",
 		stopped: "Your app is stopped and not running.",
 		pending: "Waiting to deploy. Your app is queued.",
 		failed: "Deployment failed. Check the logs for more information.",

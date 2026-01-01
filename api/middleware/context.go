@@ -11,7 +11,10 @@ import (
 
 func SetContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.Debug("adding additional request context")
+		slog.Info("adding additional request context",
+			slog.String("user-agent", r.Header.Get("User-Agent")),
+			slog.String("content-type", r.Header.Get("Content-Type")),
+		)
 
 		requestHeader := w.Header().Get("X-Loco-Request-Id")
 

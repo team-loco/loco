@@ -28,7 +28,13 @@ import {
 	type ColumnDef,
 	type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, RotateCcw, ArrowUpDown } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronUp,
+	RotateCcw,
+	ArrowUpDown,
+	Dot,
+} from "lucide-react";
 import React, { useState } from "react";
 import { PHASE_COLOR_MAP } from "@/lib/deployment-constants";
 import { getServiceSpec, getPhaseTooltip } from "@/lib/deployment-utils";
@@ -112,22 +118,38 @@ export function RecentDeployments({
 			id: "expand",
 			header: () => null,
 			cell: ({ row }) => (
-				<button
-					onClick={() =>
-						setExpandedId(
-							expandedId === row.original.id ? null : row.original.id
-						)
-					}
-					className="p-0 h-6 w-6 flex items-center justify-center hover:bg-accent/50 rounded transition-colors"
-				>
-					{expandedId === row.original.id ? (
-						<ChevronUp className="w-4 h-4" />
-					) : (
-						<ChevronDown className="w-4 h-4" />
-					)}
-				</button>
+				<div className="flex items-center gap-1">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Dot
+								className={`shrink-0 ${
+									row.original.isActive
+										? "w-3 h-3 fill-green-500 text-green-500"
+										: "w-8 h-8 fill-gray-400 text-gray-400"
+								}`}
+							/>
+						</TooltipTrigger>
+						<TooltipContent>
+							{row.original.isActive ? "Active" : "Inactive"}
+						</TooltipContent>
+					</Tooltip>
+					<button
+						onClick={() =>
+							setExpandedId(
+								expandedId === row.original.id ? null : row.original.id
+							)
+						}
+						className="p-0 h-6 w-6 flex items-center justify-center hover:bg-accent/50 rounded transition-colors"
+					>
+						{expandedId === row.original.id ? (
+							<ChevronUp className="w-4 h-4" />
+						) : (
+							<ChevronDown className="w-4 h-4" />
+						)}
+					</button>
+				</div>
 			),
-			size: 40,
+			size: 60,
 		},
 		{
 			accessorKey: "id",
@@ -169,8 +191,8 @@ export function RecentDeployments({
 								{DeploymentPhase[row.original.status]}
 							</Badge>
 						</TooltipTrigger>
-						<TooltipContent>
-							{getPhaseTooltip(row.original.status)}
+						<TooltipContent className="max-w-xs">
+							<p>{getPhaseTooltip(row.original)}</p>
 						</TooltipContent>
 					</Tooltip>
 				</TooltipProvider>
@@ -342,14 +364,6 @@ export function RecentDeployments({
 													<div className="p-4 space-y-3">
 														<div>
 															<p className="text-xs text-foreground opacity-60 uppercase">
-																ID
-															</p>
-															<p className="text-sm font-mono">
-																{row.original.id.toString()}
-															</p>
-														</div>
-														<div>
-															<p className="text-xs text-foreground opacity-60 uppercase">
 																Image
 															</p>
 															<p className="text-sm font-mono break-all">
@@ -357,32 +371,6 @@ export function RecentDeployments({
 															</p>
 														</div>
 														<div className="grid grid-cols-2 gap-4">
-															<div>
-																<p className="text-xs text-foreground opacity-60 uppercase">
-																	Replicas
-																</p>
-																<p className="text-sm">
-																	{row.original.replicas || "—"}
-																</p>
-															</div>
-															<div>
-																<p className="text-xs text-foreground opacity-60 uppercase">
-																	Status
-																</p>
-																<p className="text-sm">
-																	{DeploymentPhase[row.original.status]}
-																</p>
-															</div>
-														</div>
-														<div className="grid grid-cols-3 gap-4">
-															<div>
-																<p className="text-xs text-foreground opacity-60 uppercase">
-																	Region
-																</p>
-																<p className="text-sm font-mono">
-																	{getRegion(row.original)}
-																</p>
-															</div>
 															<div>
 																<p className="text-xs text-foreground opacity-60 uppercase">
 																	CPU

@@ -2,11 +2,15 @@ package statuswatcher
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"reflect"
+	"strconv"
+	"time"
 
+	"github.com/allegro/bigcache/v3"
 	"github.com/jackc/pgx/v5/pgtype"
 	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/pkg/kube"
@@ -18,17 +22,20 @@ import (
 type StatusWatcher struct {
 	kubeClient              *kube.Client
 	queries                 genDb.Querier
-	lastKnownStatus         map[int64]struct{ phase, message string }
-	lastKnownResourceStatus map[int64]genDb.ResourceStatus
+	lastKnownStatus         *bigcache.BigCache
+	lastKnownResourceStatus *bigcache.BigCache
 	locoNamespace           string
 }
 
 func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier) *StatusWatcher {
+	statusCache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(24*time.Hour))
+	resourceStatusCache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(24*time.Hour))
+
 	return &StatusWatcher{
 		kubeClient:              kubeClient,
 		queries:                 queries,
-		lastKnownStatus:         make(map[int64]struct{ phase, message string }),
-		lastKnownResourceStatus: make(map[int64]genDb.ResourceStatus),
+		lastKnownStatus:         statusCache,
+		lastKnownResourceStatus: resourceStatusCache,
 		locoNamespace:           os.Getenv("LOCO_NAMESPACE"),
 	}
 }
@@ -39,6 +46,7 @@ func (w *StatusWatcher) Start(ctx context.Context) error {
 	go func() {
 		if err := w.kubeClient.Manager.Start(ctx); err != nil {
 			slog.ErrorContext(ctx, "manager start error", "error", err)
+			panic(err)
 		}
 	}()
 
@@ -108,12 +116,18 @@ func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.
 	status := convertPhase(locoRes.Status.Phase)
 	message := locoRes.Status.Message
 
-	last, exists := w.lastKnownStatus[locoRes.Spec.ResourceId]
-	if exists && last.phase == locoRes.Status.Phase && last.message == message {
-		return
+	key := strconv.FormatInt(locoRes.Spec.ResourceId, 10)
+	cached, err := w.lastKnownStatus.Get(key)
+	if err == nil {
+		var last struct{ phase, message string }
+		if json.Unmarshal(cached, &last) == nil {
+			if last.phase == locoRes.Status.Phase && last.message == message {
+				return
+			}
+		}
 	}
 
-	err := w.queries.UpdateActiveDeploymentStatus(ctx, genDb.UpdateActiveDeploymentStatusParams{
+	err = w.queries.UpdateActiveDeploymentStatus(ctx, genDb.UpdateActiveDeploymentStatusParams{
 		ResourceID: locoRes.Spec.ResourceId,
 		Status:     status,
 		Message:    pgtype.Text{String: message, Valid: message != ""},
@@ -132,10 +146,11 @@ func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.
 		"phase", locoRes.Status.Phase,
 	)
 
-	w.lastKnownStatus[locoRes.Spec.ResourceId] = struct{ phase, message string }{
+	data, _ := json.Marshal(struct{ phase, message string }{
 		phase:   locoRes.Status.Phase,
 		message: message,
-	}
+	})
+	w.lastKnownStatus.Set(key, data)
 
 	w.syncResourceStatus(ctx, locoRes.Spec.ResourceId)
 }
@@ -152,9 +167,12 @@ func (w *StatusWatcher) syncResourceStatus(ctx context.Context, resourceID int64
 
 	computedStatus := computeResourceStatus(deploymentStatuses)
 
-	last, exists := w.lastKnownResourceStatus[resourceID]
-	if exists && last == computedStatus {
-		return
+	key := strconv.FormatInt(resourceID, 10)
+	cached, err := w.lastKnownResourceStatus.Get(key)
+	if err == nil {
+		if string(cached) == string(computedStatus) {
+			return
+		}
 	}
 
 	err = w.queries.UpdateResourceStatus(ctx, genDb.UpdateResourceStatusParams{
@@ -175,7 +193,7 @@ func (w *StatusWatcher) syncResourceStatus(ctx context.Context, resourceID int64
 		"status", computedStatus,
 	)
 
-	w.lastKnownResourceStatus[resourceID] = computedStatus
+	w.lastKnownResourceStatus.Set(key, []byte(computedStatus))
 }
 
 func computeResourceStatus(deploymentStatuses []genDb.DeploymentStatus) genDb.ResourceStatus {
