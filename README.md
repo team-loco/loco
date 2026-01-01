@@ -74,7 +74,7 @@ You must first reach out to me, nikumar1206, if you would like to deploy on this
 
 ## Documentation
 
-To be added later.
+- **API Documentation:** [https://buf.build/team-loco/loco](https://buf.build/team-loco/loco) - Browse proto files, generate client SDKs, and view API documentation.
 
 ## Contributing
 
