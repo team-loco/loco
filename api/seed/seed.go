@@ -7,10 +7,14 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/gen/db"
+	queries "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/providers"
 )
 
 // the database we're seeding:
@@ -18,11 +22,15 @@ import (
 // - 2 organizations (org 1 and org 2)
 // - 4 workspaces (wks 1,2 in org 1, wks 3,4 in org 2)
 // - 6 apps (app 1,2 in wks 1; app 3,4 in wks 2; app 5 in wks 3; app 6 in wks 4)
+// app 1,2,3,4 -> org 1
+// app 5,6 -> org 2
 // user 1 has org 1 r/w/a
 // user 2 has org 2 r/w/a
 // user 3 has org:r/w for org 1 and org 2 and app:rwa for app 1 and app 3
 // user 4 has wks:read/write for wks 3
 // user 5 has app:read for app 5 and app 6
+// all users have r/w/a on themselves
+// note: no testing of a user w/o r/w/a/ on themselves
 // the createdby fields are not set accordingly and they're irrelevant
 
 var specExample, _ = os.ReadFile("spec_example.json")
@@ -39,26 +47,26 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 		return err
 	}
 	defer tx.Rollback(ctx)
-	queries := db.New(tx)
+	q := queries.New(tx)
 
 	// perform seeding operations here
 	var userIDs []int64 // len 5
 	var orgIDs []int64  // len 2
 	var wksIDs []int64  // len 4
 	var appIDs []int64  // len 6
-	if userIDs, err = seedUsers(ctx, queries); err != nil {
+	if userIDs, err = seedUsers(ctx, q); err != nil {
 		return err
 	}
-	if orgIDs, err = seedOrganizations(ctx, queries, userIDs); err != nil {
+	if orgIDs, err = seedOrganizations(ctx, q, userIDs); err != nil {
 		return err
 	}
-	if wksIDs, err = seedWorkspaces(ctx, queries, orgIDs, userIDs); err != nil {
+	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
 		return err
 	}
-	if appIDs, err = seedApps(ctx, queries, wksIDs, userIDs); err != nil {
+	if appIDs, err = seedApps(ctx, q, wksIDs, userIDs); err != nil {
 		return err
 	}
-	if err := seedUserScopes(ctx, queries, orgIDs, wksIDs, appIDs, userIDs); err != nil {
+	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, appIDs, userIDs); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -335,6 +343,24 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			EntityID:   orgIDs[0],
 			Scope:      db.ScopeAdmin,
 		},
+		{
+			UserID:     userIDs[0],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[0],
+			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[0],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[0],
+			Scope:      db.ScopeWrite,
+		},
+		{
+			UserID:     userIDs[0],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[0],
+			Scope:      db.ScopeAdmin,
+		},
 	}
 	// user 2: org 2 r/w/a
 	user2Scopes := []db.AddUserScopeParams{
@@ -354,6 +380,24 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			UserID:     userIDs[1],
 			EntityType: db.EntityTypeOrganization,
 			EntityID:   orgIDs[1],
+			Scope:      db.ScopeAdmin,
+		},
+		{
+			UserID:     userIDs[1],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[1],
+			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[1],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[1],
+			Scope:      db.ScopeWrite,
+		},
+		{
+			UserID:     userIDs[1],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[1],
 			Scope:      db.ScopeAdmin,
 		},
 	}
@@ -423,6 +467,24 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			EntityID:   appIDs[2],
 			Scope:      db.ScopeAdmin,
 		},
+		{
+			UserID:     userIDs[2],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[2],
+			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[2],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[2],
+			Scope:      db.ScopeWrite,
+		},
+		{
+			UserID:     userIDs[2],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[2],
+			Scope:      db.ScopeAdmin,
+		},
 	}
 	// user 4: wks 3 r/w
 	user4Scopes := []db.AddUserScopeParams{
@@ -438,6 +500,24 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			EntityID:   wksIDs[2],
 			Scope:      db.ScopeWrite,
 		},
+		{
+			UserID:     userIDs[3],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[3],
+			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[3],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[3],
+			Scope:      db.ScopeWrite,
+		},
+		{
+			UserID:     userIDs[3],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[3],
+			Scope:      db.ScopeAdmin,
+		},
 	}
 	// user 5: app 5 r, app 6 r
 	user5Scopes := []db.AddUserScopeParams{
@@ -452,6 +532,24 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			EntityType: db.EntityTypeApp,
 			EntityID:   appIDs[5],
 			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[4],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[4],
+			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[4],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[4],
+			Scope:      db.ScopeWrite,
+		},
+		{
+			UserID:     userIDs[4],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[4],
+			Scope:      db.ScopeAdmin,
 		},
 	}
 
@@ -491,4 +589,1018 @@ func main() {
 	if err := Seed(context.Background(), pool, strings.Split(migrationFiles, ",")); err != nil {
 		slog.Error("seeding failed", "error", err)
 	}
+
+	if err := tvmtestuser1(pool); err != nil {
+		slog.Error("tvm test user 1 failed", "error", err)
+	}
+	if err := tvmtestuser2(pool); err != nil {
+		slog.Error("tvm test user 2 failed", "error", err)
+	}
+	if err := tvmtestuser3(pool); err != nil {
+		slog.Error("tvm test user 3 failed", "error", err)
+	}
+	if err := tvmtestuser4(pool); err != nil {
+		slog.Error("tvm test user 4 failed", "error", err)
+	}
+	if err := tvmtestuser5(pool); err != nil {
+		slog.Error("tvm test user 5 failed", "error", err)
+	}
+}
+
+func subtest(ctx context.Context, name string, f func(context.Context) error) {
+	if ctx.Err() != nil {
+		fmt.Println("⏭️", name, "skipped due to parent context error:", ctx.Err())
+		return
+	}
+
+	t := time.Now()
+	if err := f(ctx); err != nil {
+		fmt.Println("❌", name, "failed:", err.Error(), "duration", time.Since(t))
+		return
+	}
+	fmt.Println("✅", "name", name, "duration", time.Since(t))
+}
+
+// user 1 has org 1 r/w/a
+func tvmtestuser1(pool *pgxpool.Pool) error {
+	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
+		MaxTokenDuration:   24 * time.Hour * 365,
+		LoginTokenDuration: 24 * time.Hour,
+	})
+
+	ctx := context.Background()
+	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user1@example.com", nil))
+	if err != nil {
+		return fmt.Errorf("exchange failed: %v", err)
+	}
+
+	fmt.Printf("\n=== Testing User 1 (ID: %d) - org 1 r/w/a ===\n", user.ID)
+
+	subtest(ctx, "exchange successful", func(ctx context.Context) error {
+		if user.ID != 1 {
+			return fmt.Errorf("expected user ID 1, got %d", user.ID)
+		}
+		if token == "" {
+			return fmt.Errorf("token is empty")
+		}
+		return nil
+	})
+
+	// Org 1 permissions - should have full access
+	subtest(ctx, "granted org 1 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted org 1 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "granted org 1 admin", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeAdmin,
+		})
+	})
+
+	// Org 2 - should be denied
+	subtest(ctx, "denied org 2 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Workspaces via org 1 inheritance (assuming ws 1,2 are in org 1)
+	subtest(ctx, "granted workspace 1 read via org 1", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted workspace 1 write via org 1", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "granted workspace 2 admin via org 1", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   2,
+			Scope:      queries.ScopeAdmin,
+		})
+	})
+
+	// Workspace 3 should be denied (different org)
+	subtest(ctx, "denied workspace 3 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Apps via org 1 inheritance
+	subtest(ctx, "granted app 1 read via org 1", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted app 2 write via org 1", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   2,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	// Self access
+	subtest(ctx, "granted self read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeUser,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "denied other user read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeUser,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	return nil
+}
+
+// user 2 has org 2 r/w/a
+func tvmtestuser2(pool *pgxpool.Pool) error {
+	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
+		MaxTokenDuration:   24 * time.Hour * 365,
+		LoginTokenDuration: 24 * time.Hour,
+	})
+
+	ctx := context.Background()
+	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user2@example.com", nil))
+	if err != nil {
+		return fmt.Errorf("exchange failed: %v", err)
+	}
+
+	fmt.Printf("\n=== Testing User 2 (ID: %d) - org 2 r/w/a ===\n", user.ID)
+
+	subtest(ctx, "exchange successful", func(ctx context.Context) error {
+		if user.ID != 2 {
+			return fmt.Errorf("expected user ID 2, got %d", user.ID)
+		}
+		if token == "" {
+			return fmt.Errorf("token is empty")
+		}
+		return nil
+	})
+
+	// Org 2 permissions - should have full access
+	subtest(ctx, "granted org 2 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted org 2 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "granted org 2 admin", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeAdmin,
+		})
+	})
+
+	// Org 1 - should be denied
+	subtest(ctx, "denied org 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Workspace 3 via org 2 (assuming ws 3 is in org 2)
+	subtest(ctx, "granted workspace 3 read via org 2", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted workspace 3 write via org 2", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "granted workspace 3 admin via org 2", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeAdmin,
+		})
+	})
+
+	// Workspace 1 should be denied (org 1)
+	subtest(ctx, "denied workspace 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Apps via org 2
+	subtest(ctx, "granted app 5 admin via org 2", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeAdmin,
+		})
+	})
+
+	subtest(ctx, "granted app 6 write via org 2", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   6,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	// apps not via org 2
+	subtest(ctx, "denied app 3 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied app 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Self access
+	subtest(ctx, "granted self read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeUser,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	return nil
+}
+
+// user 3 has org:r/w for org 1 and org 2 and app:rwa for app 1 and app 3
+func tvmtestuser3(pool *pgxpool.Pool) error {
+	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
+		MaxTokenDuration:   24 * time.Hour * 365,
+		LoginTokenDuration: 24 * time.Hour,
+	})
+
+	ctx := context.Background()
+	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user3@example.com", nil))
+	if err != nil {
+		return fmt.Errorf("exchange failed: %v", err)
+	}
+
+	fmt.Printf("\n=== Testing User 3 (ID: %d) - org 1&2 r/w, app 1&3 r/w/a ===\n", user.ID)
+
+	subtest(ctx, "exchange successful", func(ctx context.Context) error {
+		if user.ID != 3 {
+			return fmt.Errorf("expected user ID 3, got %d", user.ID)
+		}
+		if token == "" {
+			return fmt.Errorf("token is empty")
+		}
+		return nil
+	})
+
+	// Org 1 - read/write only, no admin
+	subtest(ctx, "granted org 1 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted org 1 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied org 1 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Org 2 - read/write only, no admin
+	subtest(ctx, "granted org 2 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted org 2 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied org 2 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Workspaces via org permissions
+	subtest(ctx, "granted workspace 1 read via org 1", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted workspace 1 write via org 1", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied workspace 1 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "granted workspace 3 read via org 2", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted workspace 3 write via org 2", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	// apps: r/w/a for app 1, r/w for app 2, r/w/a for app 3, r/w for app 4, r/w for app 5, r/w for app 6
+	subtest(ctx, "granted app 1 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted app 1 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   1,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "granted app 1 admin", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   1,
+			Scope:      queries.ScopeAdmin,
+		})
+	})
+
+	subtest(ctx, "granted app 2 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted app 2 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   2,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied app 2 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   2,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "granted app 3 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted app 3 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   3,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "granted app 3 admin", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   3,
+			Scope:      queries.ScopeAdmin,
+		})
+	})
+
+	subtest(ctx, "granted app 4 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   4,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted app 4 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   4,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied app 4 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   4,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "granted app 5 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted app 5 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied app 5 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "granted app 6 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   6,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted app 6 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   6,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied app 6 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   6,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	return nil
+}
+
+// user 4 has wks:read/write for wks 3
+func tvmtestuser4(pool *pgxpool.Pool) error {
+	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
+		MaxTokenDuration:   24 * time.Hour * 365,
+		LoginTokenDuration: 24 * time.Hour,
+	})
+
+	ctx := context.Background()
+	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user4@example.com", nil))
+	if err != nil {
+		return fmt.Errorf("exchange failed: %v", err)
+	}
+
+	fmt.Printf("\n=== Testing User 4 (ID: %d) - wks 3 r/w ===\n", user.ID)
+
+	subtest(ctx, "exchange successful", func(ctx context.Context) error {
+		if user.ID != 4 {
+			return fmt.Errorf("expected user ID 4, got %d", user.ID)
+		}
+		if token == "" {
+			return fmt.Errorf("token is empty")
+		}
+		return nil
+	})
+
+	// Workspace 3 - read/write only
+	subtest(ctx, "granted workspace 3 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "granted workspace 3 write", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+
+	subtest(ctx, "denied workspace 3 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Other workspaces - denied
+	subtest(ctx, "denied workspace 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied workspace 2 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Organizations - denied
+	subtest(ctx, "denied org 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied org 2 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// App 5 via workspace 3 (read/write inherited)
+	subtest(ctx, "granted app 5 read via workspace 3", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeRead,
+		})
+	})
+	subtest(ctx, "granted app 5 write via workspace 3", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeWrite,
+		})
+	})
+	subtest(ctx, "denied app 5 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied app 3 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+	subtest(ctx, "denied app 3 write via workspace 3", func(ctx context.Context) error {
+		if err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   3,
+			Scope:      queries.ScopeWrite,
+		}); err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied app 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Self access
+	subtest(ctx, "granted self read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeUser,
+			EntityID:   4,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	return nil
+}
+
+// user 5 has app:read for app 5 and app 6
+func tvmtestuser5(pool *pgxpool.Pool) error {
+	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
+		MaxTokenDuration:   24 * time.Hour * 365,
+		LoginTokenDuration: 24 * time.Hour,
+	})
+
+	ctx := context.Background()
+	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user5@example.com", nil))
+	if err != nil {
+		return fmt.Errorf("exchange failed: %v", err)
+	}
+
+	fmt.Printf("\n=== Testing User 5 (ID: %d) - app 5&6 r ===\n", user.ID)
+
+	subtest(ctx, "exchange successful", func(ctx context.Context) error {
+		if user.ID != 5 {
+			return fmt.Errorf("expected user ID 5, got %d", user.ID)
+		}
+		if token == "" {
+			return fmt.Errorf("token is empty")
+		}
+		return nil
+	})
+
+	// App 5 - read only
+	subtest(ctx, "granted app 5 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "denied app 5 write", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeWrite,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied app 5 admin", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   5,
+			Scope:      queries.ScopeAdmin,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// App 6 - read only
+	subtest(ctx, "granted app 6 read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   6,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	subtest(ctx, "denied app 6 write", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   6,
+			Scope:      queries.ScopeWrite,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Other apps - denied
+	subtest(ctx, "denied app 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied app 2 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied app 3 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeApp,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Organizations - denied
+	subtest(ctx, "denied org 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied org 2 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeOrganization,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Workspaces - denied
+	subtest(ctx, "denied workspace 1 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   1,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied workspace 2 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   2,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	subtest(ctx, "denied workspace 3 read", func(ctx context.Context) error {
+		err := machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeWorkspace,
+			EntityID:   3,
+			Scope:      queries.ScopeRead,
+		})
+		if err != tvm.ErrInsufficentPermissions {
+			return fmt.Errorf("expected insufficient permissions, got: %v", err)
+		}
+		return nil
+	})
+
+	// Self access
+	subtest(ctx, "granted self read", func(ctx context.Context) error {
+		return machine.Verify(ctx, token, queries.EntityScope{
+			EntityType: queries.EntityTypeUser,
+			EntityID:   5,
+			Scope:      queries.ScopeRead,
+		})
+	})
+
+	return nil
+}
+
+func RunAllTests(pool *pgxpool.Pool) {
+	fmt.Println("🚀 Starting TVM Live Permission Tests")
+	fmt.Println("======================================")
+
+	if err := tvmtestuser1(pool); err != nil {
+		fmt.Printf("User 1 test suite failed: %v\n", err)
+	}
+
+	if err := tvmtestuser2(pool); err != nil {
+		fmt.Printf("User 2 test suite failed: %v\n", err)
+	}
+
+	if err := tvmtestuser3(pool); err != nil {
+		fmt.Printf("User 3 test suite failed: %v\n", err)
+	}
+
+	if err := tvmtestuser4(pool); err != nil {
+		fmt.Printf("User 4 test suite failed: %v\n", err)
+	}
+
+	if err := tvmtestuser5(pool); err != nil {
+		fmt.Printf("User 5 test suite failed: %v\n", err)
+	}
+
+	fmt.Println("\n======================================")
+	fmt.Println("✨ All test suites completed")
 }
