@@ -22,7 +22,7 @@ type Queries interface {
 	DeleteExpiredTokens(ctx context.Context) error
 
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error)
-	GetWorkspaceOrganizationIDByAppID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByAppIDRow, error)
+	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error)
 
 	GetUserScopes(ctx context.Context, userID int64) ([]queries.UserScope, error)
 	GetUserScopesByEmail(ctx context.Context, email string) ([]queries.UserScope, error)
@@ -163,7 +163,7 @@ func (tvm *VendingMachine) VerifyWithEntity(ctx context.Context, token string, e
 		}
 	case queries.EntityTypeApp:
 		// lookup the workspace and org id for the app
-		ids, err := tvm.queries.GetWorkspaceOrganizationIDByAppID(ctx, entityScope.Entity.ID)
+		ids, err := tvm.queries.GetWorkspaceOrganizationIDByResourceID(ctx, entityScope.Entity.ID)
 		if err != nil {
 			// note: again this could be another eror
 			return tokenEntity, ErrEntityNotFound

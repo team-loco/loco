@@ -15,8 +15,8 @@ import (
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
-	appv1 "github.com/team-loco/loco/shared/proto/app/v1"
-	appv1connect "github.com/team-loco/loco/shared/proto/app/v1/appv1connect"
+	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
 )
 
 var envCmd = &cobra.Command{
@@ -71,14 +71,14 @@ func envCmdFunc(cmd *cobra.Command) error {
 	envVars := make(map[string]string)
 
 	if envFile != "" {
-		f, err := os.Open(envFile)
-		if err != nil {
-			return fmt.Errorf("failed to open env file %s: %w", envFile, err)
+		f, openErr := os.Open(envFile)
+		if openErr != nil {
+			return fmt.Errorf("failed to open env file %s: %w", envFile, openErr)
 		}
 		defer f.Close()
-		parsed, err := godotenv.Parse(f)
-		if err != nil {
-			return fmt.Errorf("failed to parse env file %s: %w", envFile, err)
+		parsed, parseErr := godotenv.Parse(f)
+		if parseErr != nil {
+			return fmt.Errorf("failed to parse env file %s: %w", envFile, parseErr)
 		}
 		maps.Copy(envVars, parsed)
 	}
@@ -100,23 +100,23 @@ func envCmdFunc(cmd *cobra.Command) error {
 		return ErrLoginRequired
 	}
 
-	appClient := appv1connect.NewAppServiceClient(shared.NewHTTPClient(), host)
+	resourceClient := resourcev1connect.NewResourceServiceClient(shared.NewHTTPClient(), host)
 
 	slog.Debug("fetching app by name", "workspaceId", workspaceID, "app_name", appName)
 
-	getAppByNameReq := connect.NewRequest(&appv1.GetAppByNameRequest{
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
 		WorkspaceId: workspaceID,
 		Name:        appName,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := appClient.GetAppByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
 	if err != nil {
 		slog.Debug("failed to get app by name", "error", err)
 		return fmt.Errorf("failed to get app '%s': %w", appName, err)
 	}
 
-	appID := getAppByNameResp.Msg.App.Id
+	appID := getAppByNameResp.Msg.Resource.Id
 	slog.Debug("found app by name", "app_name", appName, "app_id", appID)
 
 	apiClient := client.NewClient(host, locoToken.Token)

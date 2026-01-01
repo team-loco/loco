@@ -1,7 +1,7 @@
 -- name: InsertWorkspace :one
 INSERT INTO workspaces (org_id, name, description, created_by)
 VALUES ($1, $2, $3, $4)
-RETURNING *;
+RETURNING id;
 
 -- name: GetWorkspaceByIDQuery :one
 SELECT * FROM workspaces WHERE id = $1;
@@ -33,7 +33,7 @@ SET name = COALESCE(sqlc.narg('name'), name),
     description = COALESCE(sqlc.narg('description'), description),
     updated_at = NOW()
 WHERE id = $1
-RETURNING *;
+RETURNING id;
 
 -- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1;
@@ -43,7 +43,7 @@ INSERT INTO workspace_members (workspace_id, user_id, role)
 VALUES ($1, $2, $3)
 ON CONFLICT (workspace_id, user_id)
 DO UPDATE SET role = EXCLUDED.role
-RETURNING *;
+RETURNING user_id;
 
 -- name: GetWorkspaceMemberRole :one
 SELECT role FROM workspace_members
@@ -64,9 +64,16 @@ SELECT workspace_id, user_id, role, created_at
 FROM workspace_members
 WHERE workspace_id = $1;
 
--- TODO: Uncomment when apps table exists
--- -- name: CountAppsInWorkspace :one
--- SELECT COUNT(*) FROM apps WHERE workspace_id = $1;
+-- name: ListWorkspaceMembersWithUserDetails :many
+SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
+       u.name, u.email, u.avatar_url
+FROM workspace_members wm
+JOIN users u ON wm.user_id = u.id
+WHERE wm.workspace_id = $1
+  AND (sqlc.narg('after_cursor')::bigint IS NULL OR wm.user_id > sqlc.narg('after_cursor')::bigint)
+ORDER BY wm.user_id ASC
+LIMIT $2;
+
 
 -- name: GetWorkspaceOrgID :one
 SELECT org_id FROM workspaces WHERE id = $1;

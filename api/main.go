@@ -6,32 +6,38 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
 	charmLog "github.com/charmbracelet/log"
+
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/middleware"
 	"github.com/team-loco/loco/api/pkg/kube"
+	"github.com/team-loco/loco/api/pkg/statuswatcher"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/shared"
-	"github.com/team-loco/loco/shared/proto/app/v1/appv1connect"
 	"github.com/team-loco/loco/shared/proto/deployment/v1/deploymentv1connect"
+	"github.com/team-loco/loco/shared/proto/domain/v1/domainv1connect"
 	"github.com/team-loco/loco/shared/proto/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
 	"github.com/team-loco/loco/shared/proto/registry/v1/registryv1connect"
+	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
 	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
 
-type AppConfig struct {
+type ApiConfig struct {
 	Env             string // Environment (e.g., dev, prod)
 	ProjectID       string // GitLab project ID
 	GitlabURL       string // Container registry URL
@@ -43,9 +49,12 @@ type AppConfig struct {
 	Port            string
 	JwtSecret       string
 	RegistryTag     string
+	LocoNamespace   string // Loco system namespace
+	LocoDomainBase  string // Base domain (e.g., deploy-app.com)
+	LocoDomainAPI   string // API domain (e.g., api.deploy-app.com)
 }
 
-func newAppConfig() *AppConfig {
+func newApiConfig() *ApiConfig {
 	logLevelStr := os.Getenv("LOG_LEVEL")
 	logLevel := slog.LevelInfo
 	if logLevelStr != "" {
@@ -54,7 +63,7 @@ func newAppConfig() *AppConfig {
 		}
 	}
 
-	return &AppConfig{
+	return &ApiConfig{
 		Env:             os.Getenv("APP_ENV"),
 		ProjectID:       os.Getenv("GITLAB_PROJECT_ID"),
 		GitlabURL:       os.Getenv("GITLAB_URL"),
@@ -66,25 +75,43 @@ func newAppConfig() *AppConfig {
 		LogLevel:        logLevel,
 		JwtSecret:       os.Getenv("JWT_SECRET"),
 		RegistryTag:     os.Getenv("REGISTRY_TAG"),
+		LocoNamespace:   os.Getenv("LOCO_NAMESPACE"),
+		LocoDomainBase:  os.Getenv("LOCO_DOMAIN_BASE"),
+		LocoDomainAPI:   os.Getenv("LOCO_DOMAIN_API"),
 	}
 }
 
-func withCORS(h http.Handler) http.Handler {
-	middleware := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"},
-		AllowedMethods:   connectcors.AllowedMethods(),
-		AllowedHeaders:   connectcors.AllowedHeaders(),
-		ExposedHeaders:   connectcors.ExposedHeaders(),
-		AllowCredentials: true,
-		// AllowOriginFunc: func(origin string) bool {
-		// 	return true
-		// },
-	})
-	return middleware.Handler(h)
+func isAllowedOrigin(hostname, baseDomain string) bool {
+	if hostname == "localhost" {
+		return true
+	}
+	if baseDomain == "" {
+		return false
+	}
+	return hostname == baseDomain || hostname == "www."+baseDomain
+}
+
+func withCORS(baseDomain string) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		middleware := cors.New(cors.Options{
+			AllowOriginFunc: func(origin string) bool {
+				u, err := url.Parse(origin)
+				if err != nil {
+					return false
+				}
+				return isAllowedOrigin(u.Hostname(), baseDomain)
+			},
+			AllowedMethods:   connectcors.AllowedMethods(),
+			AllowedHeaders:   connectcors.AllowedHeaders(),
+			ExposedHeaders:   connectcors.ExposedHeaders(),
+			AllowCredentials: true,
+		})
+		return middleware.Handler(h)
+	}
 }
 
 func main() {
-	ac := newAppConfig()
+	ac := newApiConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
@@ -113,6 +140,20 @@ func main() {
 	pool := dbConn.Pool()
 	queries := genDb.New(pool)
 
+	tvm.NewVendingMachine(pool, queries, tvm.Config{
+		MaxTokenDuration:   time.Hour * 24 * 30,
+		LoginTokenDuration: time.Hour * 1,
+	})
+	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries)
+	watcherCtx, watcherCancel := context.WithCancel(context.Background())
+	defer watcherCancel()
+
+	go func() {
+		if err := watcher.Start(watcherCtx); err != nil {
+			slog.Error("status watcher failed", "error", err)
+		}
+	}()
+
 	httpClient := shared.NewHTTPClient()
 
 	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient)
@@ -122,8 +163,9 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries)
 	orgServiceHandler := service.NewOrgServer(pool, queries)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
-	appServiceHandler := service.NewAppServer(pool, queries, kubeClient)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, kubeClient)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, kubeClient, ac.LocoNamespace)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, kubeClient, ac.LocoNamespace)
+	domainServiceHandler := service.NewDomainServer(pool, queries)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,
@@ -139,8 +181,9 @@ func main() {
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, interceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, interceptors)
 	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(workspaceServiceHandler, interceptors)
-	appPath, appHandler := appv1connect.NewAppServiceHandler(appServiceHandler, interceptors)
+	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(resourceServiceHandler, interceptors)
 	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(deploymentServiceHandler, interceptors)
+	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, interceptors)
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
@@ -178,19 +221,27 @@ func main() {
 		workspacev1connect.WorkspaceServiceRemoveMemberProcedure,
 		workspacev1connect.WorkspaceServiceListMembersProcedure,
 
-		// app service
-		appv1connect.AppServiceCreateAppProcedure,
-		appv1connect.AppServiceGetAppProcedure,
-		appv1connect.AppServiceListAppsProcedure,
-		appv1connect.AppServiceUpdateAppProcedure,
-		appv1connect.AppServiceDeleteAppProcedure,
-		appv1connect.AppServiceCheckSubdomainAvailabilityProcedure,
+		// resource service
+		resourcev1connect.ResourceServiceCreateResourceProcedure,
+		resourcev1connect.ResourceServiceGetResourceProcedure,
+		resourcev1connect.ResourceServiceListResourcesProcedure,
+		resourcev1connect.ResourceServiceUpdateResourceProcedure,
+		resourcev1connect.ResourceServiceDeleteResourceProcedure,
 
 		// deployment service
 		deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
 		deploymentv1connect.DeploymentServiceGetDeploymentProcedure,
 		deploymentv1connect.DeploymentServiceListDeploymentsProcedure,
 		deploymentv1connect.DeploymentServiceStreamDeploymentProcedure,
+
+		// domain service
+		domainv1connect.DomainServiceCreatePlatformDomainProcedure,
+		domainv1connect.DomainServiceGetPlatformDomainProcedure,
+		domainv1connect.DomainServiceGetPlatformDomainByNameProcedure,
+		domainv1connect.DomainServiceListActivePlatformDomainsProcedure,
+		domainv1connect.DomainServiceDeactivatePlatformDomainProcedure,
+		domainv1connect.DomainServiceCheckDomainAvailabilityProcedure,
+		domainv1connect.DomainServiceListAllLocoOwnedDomainsProcedure,
 
 		// registry service
 		registryv1connect.RegistryServiceGitlabTokenProcedure,
@@ -204,11 +255,12 @@ func main() {
 	mux.Handle(userPath, userHandler)
 	mux.Handle(orgPath, orgHandler)
 	mux.Handle(workspacePath, workspaceHandler)
-	mux.Handle(appPath, appHandler)
+	mux.Handle(resourcePath, resourceHandler)
 	mux.Handle(deploymentPath, deploymentHandler)
+	mux.Handle(domainPath, domainHandler)
 	mux.Handle(registryPath, registryHandler)
 
-	muxWCors := withCORS(mux)
+	muxWCors := withCORS(ac.LocoDomainBase)(mux)
 	muxWTiming := middleware.Timing(muxWCors)
 	muxWContext := middleware.SetContext(muxWTiming)
 
@@ -218,7 +270,7 @@ func main() {
 	))
 }
 
-func getLoggerHandler(ac *AppConfig) slog.Handler {
+func getLoggerHandler(ac *ApiConfig) slog.Handler {
 	if ac.Env == "PRODUCTION" {
 		return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level:     ac.LogLevel,

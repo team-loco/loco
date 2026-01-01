@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+    name: {{ .Release.Name }}-cert
+    namespace: {{ .Release.Namespace }}
+spec:
+    secretName: {{ .Release.Name }}-tls
+    issuerRef:
+        name: {{ .Values.certManager.issuer.name }}
+        kind: ClusterIssuer
+    commonName: {{ .Values.global.domain.wildcard | quote }}
+    dnsNames:
+        - {{ .Values.global.domain.wildcard | quote }}
+        - "*.us-east-1.{{ .Values.global.domain.base }}"
+        - "*.eu-west-1.{{ .Values.global.domain.base }}"
+        - "*.staging.us-east-1.{{ .Values.global.domain.base }}"
+        - "*.prod.us-east-1.{{ .Values.global.domain.base }}"
+        - "*.staging.eu-west-1.{{ .Values.global.domain.base }}"
+        - "*.prod.eu-west-1.{{ .Values.global.domain.base }}"

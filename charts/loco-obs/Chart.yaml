@@ -1,0 +1,42 @@
+apiVersion: v2
+name: loco-obs
+description: Helm chart for deploying Loco observability stack
+type: application
+
+version: 0.0.0
+appVersion: "latest"
+
+dependencies:
+  - name: clickhouse
+    version: 0.3.4
+    repository: https://helm.altinity.com
+    condition: clickhouse.enabled
+  - name: opentelemetry-operator
+    version: 0.99.2
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    condition: opentelemetry-operator.enabled
+  - name: opentelemetry-collector
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: 0.140.1
+    alias: otel-col-daemon
+    condition: otel-col-daemon.enabled
+  - name: opentelemetry-collector
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: 0.140.1
+    alias: otel-col-deploy
+    condition: otel-col-deploy.enabled
+  - name: grafana
+    repository: https://grafana.github.io/helm-charts
+    version: 10.3.0
+    condition: grafana.enabled
+
+maintainers:
+  - name: Nikhil
+
+sources:
+  - https://github.com/team-loco/loco
+
+keywords:
+  - loco
+  - kubernetes
+  - observability

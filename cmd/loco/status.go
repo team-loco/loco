@@ -13,8 +13,8 @@ import (
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
-	appv1 "github.com/team-loco/loco/shared/proto/app/v1"
-	appv1connect "github.com/team-loco/loco/shared/proto/app/v1/appv1connect"
+	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
 )
 
 var statusCmd = &cobra.Command{
@@ -56,23 +56,23 @@ func statusCmdFunc(cmd *cobra.Command) error {
 		return ErrLoginRequired
 	}
 
-	appClient := appv1connect.NewAppServiceClient(shared.NewHTTPClient(), host)
+	resourceClient := resourcev1connect.NewResourceServiceClient(shared.NewHTTPClient(), host)
 
 	slog.Debug("fetching app by name", "workspaceId", workspaceID, "app_name", appName)
 
-	getAppByNameReq := connect.NewRequest(&appv1.GetAppByNameRequest{
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
 		WorkspaceId: workspaceID,
 		Name:        appName,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := appClient.GetAppByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
 	if err != nil {
 		logRequestID(ctx, err, "get app by name")
 		return fmt.Errorf("failed to get app '%s': %w", appName, err)
 	}
 
-	appID := getAppByNameResp.Msg.App.Id
+	appID := getAppByNameResp.Msg.Resource.Id
 	slog.Debug("found app by name", "app_name", appName, "app_id", appID)
 
 	apiClient := client.NewClient(host, locoToken.Token)
@@ -91,7 +91,7 @@ func statusCmdFunc(cmd *cobra.Command) error {
 		return encoder.Encode(statusResp)
 	}
 
-	m := newStatusModel(statusResp)
+	m := newStatusModel(appName, statusResp)
 	fmt.Println(m.View())
 	return nil
 }
@@ -105,11 +105,12 @@ func init() {
 }
 
 type statusModel struct {
-	response *appv1.GetAppStatusResponse
+	response *resourcev1.GetResourceStatusResponse
+	appName  string
 }
 
-func newStatusModel(resp *appv1.GetAppStatusResponse) statusModel {
-	return statusModel{response: resp}
+func newStatusModel(appName string, resp *resourcev1.GetResourceStatusResponse) statusModel {
+	return statusModel{response: resp, appName: appName}
 }
 
 func (m statusModel) View() string {
@@ -132,29 +133,18 @@ func (m statusModel) View() string {
 		Padding(1, 2).
 		Margin(1, 2)
 
-	appName := m.response.App.Name
-	var status, replicas, subdomain, domain, deploymentID string
+	var status, replicas string
 
-	if m.response.CurrentDeployment != nil {
-		status = m.response.CurrentDeployment.Status.String()
-		replicas = fmt.Sprintf("%d", m.response.CurrentDeployment.Replicas)
-		deploymentID = fmt.Sprintf("%d", m.response.CurrentDeployment.Id)
-	} else {
-		status = "no deployment"
-		replicas = "0"
-		deploymentID = "N/A"
-	}
+	status = m.response.CurrentDeployment.Status.String()
+	replicas = fmt.Sprintf("%d", m.response.CurrentDeployment.Replicas)
 
-	subdomain = m.response.App.Subdomain
-	domain = m.response.App.Domain
-	url := fmt.Sprintf("%s.%s", subdomain, domain)
+	url := "hostname management pending"
 
 	content := fmt.Sprintf(
-		"%s %s\n%s %s\n%s %s\n%s %s\n%s %s",
-		labelStyle.Render("App:"), valueStyle.Render(appName),
+		"%s %s\n%s %s\n%s %s\n%s %s",
+		labelStyle.Render("App:"), valueStyle.Render(m.appName),
 		labelStyle.Render("Status:"), valueStyle.Render(status),
 		labelStyle.Render("Replicas:"), valueStyle.Render(replicas),
-		labelStyle.Render("Deployment ID:"), valueStyle.Render(deploymentID),
 		labelStyle.Render("URL:"), valueStyle.Render(url),
 	)
 

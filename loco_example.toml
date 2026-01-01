@@ -3,19 +3,7 @@ ConfigVersion = "0.1" # Version of the loco.toml config. Required: yes. No defau
 Description = "Optional description about the application" # Short description of the app. Required: no. Default: ""
 Name = "myapp" # Name of the application. Required: yes. No default.
 Type = "SERVICE" # App type (SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB). Required: no. Default: "SERVICE"
-
-[Resources]
-CPU = "100m" # CPU request for the container. Required: no. Default: "100m"
-Memory = "256Mi" # Memory request for the container. Required: no. Default: "256Mi"
-
-[Resources.Replicas]
-Max = 1 # Maximum number of replicas. Required: no. Default: 1
-Min = 1 # Minimum number of replicas. Required: no. Default 1
-
-[Resources.Scalers]
-CPUTarget = 0 # Target CPU percentage for autoscaling. 0 means disabled. Required: no. Default: 0
-Enabled = false # Whether autoscaling is enabled. Required: no. Default: false
-MemoryTarget = 0 # Target memory percentage for autoscaling. 0 means disabled. Required: no. Default: 0
+Region = "us-east-1" # Deployment region. Must match a key in RegionConfig. Required: yes. No default.
 
 [Build]
 DockerfilePath = "Dockerfile" # Path to the Dockerfile. Required: no. Default: "Dockerfile"
@@ -23,9 +11,36 @@ type = "docker" # Build type. Required: no. Default: "docker"
 
 [Routing]
 IdleTimeout = 60 # Idle timeout in seconds before shutting down a pod. Required: no. Default: 60
-PathPrefix = "/api" # Path prefix for routing requests. Required: no. Default: "/"
+PathPrefix = "/" # Path prefix for routing requests. Required: no. Default: "/"
 Port = 8000 # Port the app listens on. Required: yes. No default.
-Subdomain = "myapp" # Subdomain for the app. Required: yes. No default.
+
+[DomainConfig]
+Type = "platform" # Domain type: "platform" (Loco-provided, default) or "custom" (user-provided). Required: no. Default: "platform"
+Hostname = "myapp.deploy-app.com" # Full resolvable hostname for the app. Required: yes. No default.
+
+# Regional configuration: each region specifies its own resources (CPU, Memory, Replicas, Scalers)
+# Subdomain is derived from Hostname (leftmost label)
+[RegionConfig."us-east-1"]
+CPU = "100m" # CPU request for this region. Required: yes. No default.
+Memory = "256Mi" # Memory request for this region. Required: yes. No default.
+
+[RegionConfig."us-east-1".Replicas]
+Min = 1 # Minimum number of replicas for this region. Required: yes. No default.
+Max = 1 # Maximum number of replicas for this region. Required: yes. No default.
+
+[RegionConfig."us-east-1".Scalers]
+Enabled = false # Whether autoscaling is enabled for this region. Required: no. Default: false
+CPUTarget = 0 # Target CPU percentage for autoscaling. 0 means disabled. Required: no. Default: 0
+MemoryTarget = 0 # Target memory percentage for autoscaling. 0 means disabled. Required: no. Default: 0
+
+# Optional: add more regions with their own resource overrides
+[RegionConfig."us-west-1"]
+CPU = "200m"
+Memory = "512Mi"
+
+[RegionConfig."us-west-1".Replicas]
+Min = 1
+Max = 2
 
 [Health]
 FailThreshold = 3 # Number of failed healthchecks before restarting. Required: no. Default: 3
@@ -36,7 +51,7 @@ Timeout = 5 # Timeout in seconds for healthcheck response. Required: no. Default
 
 [Env]
 File = ".env" # Path to environment variables file. Required: no. Default: ""
-Variables = {LOG_LEVEL = "info", FEATURE_FLAG_X = "true"}# Inline env variables. Required: no. Default: {}      
+Variables = {LOG_LEVEL = "info", FEATURE_FLAG_X = "true"} # Inline env variables. Required: no. Default: {}
 
 [Obs.Logging]
 Enabled = true # Enable log retention. Required: no. Default: true
@@ -51,4 +66,4 @@ Port = 9090 # Port for metrics scraping. Required: no. Default: 9090
 [Obs.Tracing]
 Enabled = true # Enable distributed tracing. Required: no. Default: false
 SampleRate = 0.1 # Fraction of requests to sample for tracing. Required: no. Default: 0.1
-Tags = {env = "us-east-1"}# Key/value tags added to all traces. Required: no. Default: {}
+Tags = {env = "us-east-1"} # Key/value tags added to all traces. Required: no. Default: {}

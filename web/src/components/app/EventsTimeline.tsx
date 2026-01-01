@@ -2,20 +2,47 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useStreamEvents } from "@/hooks/useStreamEvents";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { ConnectError } from "@connectrpc/connect";
+import { formatErrorMessage } from "@/lib/error-handler";
 
 interface EventsTimelineProps {
 	appId: string;
 	isLoading?: boolean;
 }
 
+function getErrorMessage(error: unknown): string {
+	if (error instanceof ConnectError) {
+		return formatErrorMessage(error.rawMessage);
+	} else if (error instanceof Error) {
+		return formatErrorMessage(error.message);
+	}
+	return formatErrorMessage("Failed to load events");
+}
+
 export function EventsTimeline({ appId, isLoading = false }: EventsTimelineProps) {
-	const { events } = useStreamEvents(appId);
+	const { events, error } = useStreamEvents(appId);
 
 	if (isLoading) {
 		return (
 			<Card className="animate-pulse">
 				<CardContent className="p-6">
 					<div className="h-6 bg-main/20 rounded w-1/4"></div>
+				</CardContent>
+			</Card>
+		);
+	}
+
+	if (error) {
+		return (
+			<Card className="border-2 border-destructive/50">
+				<CardHeader>
+					<CardTitle>Events</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="flex items-center gap-2 text-sm text-destructive">
+						<AlertCircle className="w-5 h-5 shrink-0" />
+						<p>{getErrorMessage(error)}</p>
+					</div>
 				</CardContent>
 			</Card>
 		);
@@ -50,7 +77,7 @@ export function EventsTimeline({ appId, isLoading = false }: EventsTimelineProps
 										{event.eventType}
 									</p>
 									<Badge
-										variant="neutral"
+										variant="secondary"
 										className="text-xs"
 									>
 										{new Date(event.timestamp).toLocaleTimeString()}

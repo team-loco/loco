@@ -36,20 +36,20 @@ FROM workspaces
 WHERE org_id = $1
 ORDER BY created_at DESC;
 
--- name: OrgHasWorkspacesWithApps :one
+-- name: OrgHasWorkspacesWithResources :one
 SELECT EXISTS(
   SELECT 1 FROM workspaces w
   WHERE w.org_id = $1
   AND EXISTS(
-    SELECT 1 FROM apps a WHERE a.workspace_id = w.id
+    SELECT 1 FROM resources r WHERE r.workspace_id = w.id
   )
-) as has_apps_in_workspaces;
+) as has_resources_in_workspaces;
 
 -- name: DeleteEmptyWorkspacesForOrg :exec
 DELETE FROM workspaces
 WHERE org_id = $1
 AND NOT EXISTS (
-  SELECT 1 FROM apps WHERE workspace_id = workspaces.id
+  SELECT 1 FROM resources WHERE workspace_id = workspaces.id
 );
 
 -- name: IsOrgNameUnique :one

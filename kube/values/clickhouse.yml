@@ -1,7 +1,0 @@
-clickhouse:
-    enabled: true
-    persistence:
-        enabled: true
-
-otel:
-    enabled: true

@@ -5,13 +5,12 @@
 package orgv1connect
 
 import (
+	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
+	v1 "github.com/team-loco/loco/shared/proto/org/v1"
 	http "net/http"
 	strings "strings"
-
-	connect "connectrpc.com/connect"
-	v1 "github.com/team-loco/loco/shared/proto/org/v1"
 )
 
 // This is a compile-time assertion to ensure that this generated file and the connect package are
@@ -54,12 +53,19 @@ const (
 
 // OrgServiceClient is a client for the loco.org.v1.OrgService service.
 type OrgServiceClient interface {
+	// CreateOrg creates a new organization.
 	CreateOrg(context.Context, *connect.Request[v1.CreateOrgRequest]) (*connect.Response[v1.CreateOrgResponse], error)
+	// GetOrg retrieves an organization by ID.
 	GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.GetOrgResponse], error)
+	// GetCurrentUserOrgs retrieves all organizations for the current user.
 	GetCurrentUserOrgs(context.Context, *connect.Request[v1.GetCurrentUserOrgsRequest]) (*connect.Response[v1.GetCurrentUserOrgsResponse], error)
+	// ListOrgs lists organizations for a user.
 	ListOrgs(context.Context, *connect.Request[v1.ListOrgsRequest]) (*connect.Response[v1.ListOrgsResponse], error)
+	// UpdateOrg updates organization information.
 	UpdateOrg(context.Context, *connect.Request[v1.UpdateOrgRequest]) (*connect.Response[v1.UpdateOrgResponse], error)
+	// DeleteOrg deletes an organization.
 	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error)
+	// IsUniqueOrgName checks if an organization name is unique.
 	IsUniqueOrgName(context.Context, *connect.Request[v1.IsUniqueOrgNameRequest]) (*connect.Response[v1.IsUniqueOrgNameResponse], error)
 }
 
@@ -167,12 +173,19 @@ func (c *orgServiceClient) IsUniqueOrgName(ctx context.Context, req *connect.Req
 
 // OrgServiceHandler is an implementation of the loco.org.v1.OrgService service.
 type OrgServiceHandler interface {
+	// CreateOrg creates a new organization.
 	CreateOrg(context.Context, *connect.Request[v1.CreateOrgRequest]) (*connect.Response[v1.CreateOrgResponse], error)
+	// GetOrg retrieves an organization by ID.
 	GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.GetOrgResponse], error)
+	// GetCurrentUserOrgs retrieves all organizations for the current user.
 	GetCurrentUserOrgs(context.Context, *connect.Request[v1.GetCurrentUserOrgsRequest]) (*connect.Response[v1.GetCurrentUserOrgsResponse], error)
+	// ListOrgs lists organizations for a user.
 	ListOrgs(context.Context, *connect.Request[v1.ListOrgsRequest]) (*connect.Response[v1.ListOrgsResponse], error)
+	// UpdateOrg updates organization information.
 	UpdateOrg(context.Context, *connect.Request[v1.UpdateOrgRequest]) (*connect.Response[v1.UpdateOrgResponse], error)
+	// DeleteOrg deletes an organization.
 	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error)
+	// IsUniqueOrgName checks if an organization name is unique.
 	IsUniqueOrgName(context.Context, *connect.Request[v1.IsUniqueOrgNameRequest]) (*connect.Response[v1.IsUniqueOrgNameResponse], error)
 }
 

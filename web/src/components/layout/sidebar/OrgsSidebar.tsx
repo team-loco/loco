@@ -25,8 +25,8 @@ export function OrgsSidebar({
 		<div className="space-y-1">
 			{orgs.length === 0 ? (
 				<>
-					<Skeleton className="h-8 w-full rounded-neo" />
-					<Skeleton className="h-8 w-full rounded-neo" />
+					<Skeleton className="h-8 w-full rounded-lg" />
+					<Skeleton className="h-8 w-full rounded-lg" />
 				</>
 			) : (
 				orgs.map((org) => (
@@ -82,7 +82,7 @@ function OrgItem({
 		<div key={org.id.toString()} className="space-y-1">
 			<button
 				onClick={onExpand}
-				className="w-full flex items-center justify-between px-3 py-2 rounded-neo text-sm font-base hover:bg-secondary-background transition-colors"
+				className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-base hover:bg-secondary-background transition-colors"
 			>
 				<span className="font-heading truncate">{org.name}</span>
 				<ChevronDown
@@ -96,8 +96,8 @@ function OrgItem({
 				<div className="pl-4 space-y-1">
 					{isLoading ? (
 						<>
-							<Skeleton className="h-7 w-full rounded-neo" />
-							<Skeleton className="h-7 w-full rounded-neo" />
+							<Skeleton className="h-7 w-full rounded-lg" />
+							<Skeleton className="h-7 w-full rounded-lg" />
 						</>
 					) : (
 						workspaces.map((ws) => (
@@ -107,7 +107,7 @@ function OrgItem({
 									onWorkspaceClick(ws.id);
 									onWorkspaceNameChange(ws.name);
 								}}
-								className={`w-full text-left px-3 py-1.5 rounded-neo text-sm transition-colors ${
+								className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
 									activeWorkspaceId === ws.id
 										? "bg-main text-main-foreground"
 										: "hover:bg-secondary-background"

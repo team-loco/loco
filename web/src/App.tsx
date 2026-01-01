@@ -13,9 +13,16 @@ import { OAuthCallback } from "@/pages/OAuthCallback";
 import { Onboarding } from "@/pages/Onboarding";
 import { OrgSettings } from "@/pages/OrgSettings";
 import { Profile } from "@/pages/Profile";
+import { Splash } from "@/pages/Splash";
+import { Team } from "@/pages/Team";
 import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
 import { TransportProvider } from "@connectrpc/connect-query";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	PersistQueryClientProvider,
+	type AsyncStorage,
+} from "@tanstack/react-query-persist-client";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { createTransport } from "./auth/connect-transport";
 
@@ -24,6 +31,8 @@ const queryClient = new QueryClient({
 		queries: {
 			refetchOnWindowFocus: false,
 			retry: false,
+			staleTime: 1000 * 60 * 60, // 1 hour - data is fresh for 1 hour
+			gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep cached data for 24 hours
 		},
 		mutations: {
 			retry: false,
@@ -31,50 +40,67 @@ const queryClient = new QueryClient({
 	},
 });
 
+// Async wrapper around localStorage for the persister
+const asyncLocalStorage: AsyncStorage = {
+	getItem: (key: string) => Promise.resolve(localStorage.getItem(key)),
+	setItem: (key: string, value: string) =>
+		Promise.resolve(localStorage.setItem(key, value)),
+	removeItem: (key: string) => Promise.resolve(localStorage.removeItem(key)),
+};
+
+const persister = createAsyncStoragePersister({
+	storage: asyncLocalStorage,
+	key: "locoCache",
+});
+
+function AppRoutes() {
+	return (
+		<Routes>
+			{/* Public routes */}
+			<Route path="/" element={<Splash />} />
+			<Route path="/login" element={<Login />} />
+			<Route path="/oauth/callback" element={<OAuthCallback />} />
+			<Route path="/onboarding" element={<Onboarding />} />
+
+			{/* Protected routes */}
+			<Route element={<ProtectedRoute />}>
+				<Route path="/dashboard" element={<Home />} />
+				<Route path="/app/:appId" element={<AppDetails />} />
+				<Route path="/app/:appId/settings" element={<AppSettings />} />
+				<Route path="/create-app" element={<CreateApp />} />
+				<Route path="/events" element={<Events />} />
+				<Route path="/team" element={<Team />} />
+				<Route path="/profile" element={<Profile />} />
+				<Route path="/org/:orgId/settings" element={<OrgSettings />} />
+				<Route
+					path="/workspace/:workspaceId/settings"
+					element={<WorkspaceSettings />}
+				/>
+			</Route>
+
+			{/* Default redirect */}
+			<Route path="*" element={<Navigate to="/" />} />
+		</Routes>
+	);
+}
+
 export default function App() {
 	return (
 		<ThemeProvider>
 			<BrowserRouter>
-				<AuthProvider>
-					<HeaderProvider>
-						<TransportProvider transport={createTransport()}>
-							<QueryClientProvider client={queryClient}>
+				<TransportProvider transport={createTransport()}>
+					<PersistQueryClientProvider
+						client={queryClient}
+						persistOptions={{ persister }}
+					>
+						<AuthProvider>
+							<HeaderProvider>
 								<Toaster />
-								<Routes>
-									{/* Public routes */}
-									<Route path="/login" element={<Login />} />
-									<Route path="/oauth/callback" element={<OAuthCallback />} />
-									<Route path="/onboarding" element={<Onboarding />} />
-
-									{/* Protected routes */}
-									<Route element={<ProtectedRoute />}>
-										<Route path="/dashboard" element={<Home />} />
-										<Route path="/app/:appId" element={<AppDetails />} />
-										<Route
-											path="/app/:appId/settings"
-											element={<AppSettings />}
-										/>
-										<Route path="/create-app" element={<CreateApp />} />
-										<Route path="/events" element={<Events />} />
-										<Route path="/profile" element={<Profile />} />
-										<Route
-											path="/org/:orgId/settings"
-											element={<OrgSettings />}
-										/>
-										<Route
-											path="/workspace/:workspaceId/settings"
-											element={<WorkspaceSettings />}
-										/>
-									</Route>
-
-									{/* Default redirect */}
-									<Route path="/" element={<Navigate to="/dashboard" />} />
-									<Route path="*" element={<Navigate to="/dashboard" />} />
-								</Routes>
-							</QueryClientProvider>
-						</TransportProvider>
-					</HeaderProvider>
-				</AuthProvider>
+								<AppRoutes />
+							</HeaderProvider>
+						</AuthProvider>
+					</PersistQueryClientProvider>
+				</TransportProvider>
 			</BrowserRouter>
 		</ThemeProvider>
 	);

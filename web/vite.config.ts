@@ -1,13 +1,51 @@
-import path from 'path'
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react-swc'
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
+import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-})
+	plugins: [
+		react({
+			babel: {
+				plugins: ["babel-plugin-react-compiler"],
+			},
+		}),
+		tailwindcss(),
+	],
+	resolve: {
+		alias: {
+			"@": path.resolve(__dirname, "./src"),
+		},
+	},
+	build: {
+		rollupOptions: {
+			output: {
+				manualChunks(id) {
+					if (id.includes("node_modules/react/")) {
+						return "vendor-react-core";
+					}
+					if (id.includes("node_modules/react-dom/")) {
+						return "vendor-react-dom";
+					}
+
+					// Radix UI components
+					if (id.includes("@radix-ui")) {
+						return "vendor-radix";
+					}
+
+					// Tanstack libraries
+					if (id.includes("@tanstack")) {
+						return "vendor-tanstack";
+					}
+
+					// Other node_modules
+					if (id.includes("node_modules")) {
+						return "vendor-other";
+					}
+				},
+			},
+		},
+		chunkSizeWarningLimit: 1000,
+	},
+});

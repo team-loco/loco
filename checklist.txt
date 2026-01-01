@@ -1,0 +1,116 @@
+# Loco Roadmap Checklist
+
+Phase I
+
+[ ] Add network policies restricting cross-workspace traffic / intro in-cluster communication.
+
+[ ] Add network policies restricting cross-workspace traffic / intro in-cluster communication.
+
+[ ] OpenTelemetry Optimization
+
+[ ] Create metric processor to drop unnecessary/high-cardinality metrics.
+
+[ ] Ensure we are only grabbing logs from the necessary resources.
+
+[ ] Validate dashboard accuracy.
+
+[ ] Come up with a valid dashboarding solution, either on the UI or link to Grafana.
+
+[ ] Logs if tail come directly from cluster, otherwise are always from clickhouse.
+
+[ ] Implement proper ttl-ing for data.
+
+[ ] Inject important env variables into the app.
+
+[ ] Add support for non-interactive deploy.
+    Dependant on tvm
+
+[ ] Cleanup partial resources on failure.
+
+[ ] Proper secrets management.
+
+[ ] Never return internal db errors back to the user.
+
+[ ] Reduce GitHub OAuth token longevity.
+
+[ ] Actual unit tests in critical parts of the codebase.
+
+[ ] Initial load testing / benchmarking.
+
+[ ] Deploy to either cevo.do.gke
+
+[ ] App Configs need to be versioned.
+
+[ ] Add request data validation across all endpoints.
+
+[ ] Add invitations service.
+
+[ ] Add emailing service.
+
+[ ] Add billing service.
+
+[ ] Add notification service.
+
+[ ] Build logs microservice.
+
+[✅] Package loco as a Helm chart.
+    - initial implementation done.
+    - need something to manage crd lifecycle.
+
+[ ] Deploy app entirely without loco.toml.
+
+[ ] Full data deletion on user/app deletion.
+
+[ ] Publish Loco documentation
+
+Phase II
+
+[ ] Make Loco multi-cluster.
+
+[ ] Integrate certificate management, especially with multi-cluster support.
+
+[ ] Tracing.
+
+[ ] Different environments.
+
+[ ] Make deployment of services async.
+
+[ ] Allow control over egress to the internet.
+
+[ ] Add support for custom domain names.
+
+[ ] Docker preflight checks (running daemon, socket connectivity).
+
+[ ] Scan docker images for vulnerabilities.
+
+[ ] Custom container registry.
+
+[ ] Org/Workspace/App management for CLI
+
+[ ] Resurrector Service
+
+[ ] App Sleep Mode (auto and user defined.)
+
+[ ] Global health endpoint: `status.deploy-app.com`
+
+[ ] Loco Admin Dashboard (also other APIs)
+
+[ ] Test even the UI using playright. (do not use unit tests)
+
+[ ] Audit/Events table.
+
+[ ] Evaluate the other TOML parser.
+
+[ ] Loco Packages (bundle deployments)
+
+[ ] Recursive CLI deploy `-r`.
+
+[ ] Advanced app types (DB, cache, blob).
+
+[ ] Dedicated per-service disks.
+
+[ ] Full infra patch management strategy.
+
+[ ] One-click deletes.
+
+[ ] Ensure metrics/logs are deleted when apps/workspaces are deleted.

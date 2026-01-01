@@ -28,11 +28,11 @@ var (
 // UserServer implements the UserService gRPC server
 type UserServer struct {
 	db      *pgxpool.Pool
-	queries *genDb.Queries
+	queries genDb.Querier
 }
 
 // NewUserServer creates a new UserServer instance
-func NewUserServer(db *pgxpool.Pool, queries *genDb.Queries) *UserServer {
+func NewUserServer(db *pgxpool.Pool, queries genDb.Querier) *UserServer {
 	return &UserServer{db: db, queries: queries}
 }
 

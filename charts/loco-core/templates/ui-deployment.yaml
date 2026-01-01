@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ui
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-ui
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-ui
+  replicas: {{ .Values.global.replicas.ui }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-ui
+    spec:
+      serviceAccountName: {{ .Release.Name }}-sa
+      containers:
+        - name: {{ .Release.Name }}-ui
+          image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag }}"
+          imagePullPolicy: {{ .Values.ui.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.global.ports.ui }}
+          resources:
+            {{- toYaml .Values.global.resources.ui | nindent 12 }}
+      restartPolicy: Always

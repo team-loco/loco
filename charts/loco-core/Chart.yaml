@@ -1,0 +1,24 @@
+apiVersion: v2
+name: loco-core
+description: Helm chart for deploying the Loco Service and UI.
+type: application
+
+version: 0.0.0
+appVersion: "latest"
+
+dependencies:
+  - name: gateway-helm
+    version: 1.6.1
+    repository: oci://docker.io/envoyproxy
+    condition: gateway-helm.enabled
+
+maintainers:
+  - name: Nikhil
+
+sources:
+  - https://github.com/team-loco/loco
+
+keywords:
+  - loco
+  - kubernetes
+  - core

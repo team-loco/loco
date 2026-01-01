@@ -1,0 +1,53 @@
+# Production environment values for loco-core chart
+
+ui:
+  image:
+    tag: sha-{{ .Env.GH_SHA }}
+
+api:
+  image:
+    tag: sha-{{ .Env.GH_SHA }}
+
+# Cert-manager configuration for production
+certManager:
+  issuer:
+    email: {{ requiredEnv "CERT_MANAGER_EMAIL" }}
+
+# Domain configuration for production
+global:
+  domain:
+    base: deploy-app.com
+    wildcard: "*.deploy-app.com"
+    api: api.deploy-app.com
+    ui: deploy-app.com
+
+  cloudProvider:
+    type: digitalocean
+    annotations:
+      service.beta.kubernetes.io/do-loadbalancer-type: "REGIONAL_NETWORK"
+
+secrets:
+  cloudflareToken: {{ requiredEnv "CLOUDFLARE_TOKEN" }}
+env:
+  GITLAB_PAT: {{ requiredEnv "GITLAB_PAT" }}
+  GITLAB_PROJECT_ID: {{ requiredEnv "GITLAB_PROJECT_ID" }}
+  GITLAB_TOKEN_NAME: {{ requiredEnv "GITLAB_TOKEN_NAME" }}
+  GITLAB_URL: {{ requiredEnv "GITLAB_URL" }}
+  GITLAB_REGISTRY_URL: {{ requiredEnv "GITLAB_REGISTRY_URL" }}
+  GITLAB_DEPLOY_TOKEN_NAME: {{ requiredEnv "GITLAB_DEPLOY_TOKEN_NAME" }}
+
+  GH_OAUTH_CLIENT_ID: {{ requiredEnv "GH_OAUTH_CLIENT_ID" }}
+  GH_OAUTH_CLIENT_SECRET: {{ requiredEnv "GH_OAUTH_CLIENT_SECRET" }}
+  GH_OAUTH_STATE: {{ requiredEnv "GH_OAUTH_STATE" }}
+
+  APP_ENV: {{ requiredEnv "APP_ENV" }}
+  LOG_LEVEL: {{ requiredEnv "LOG_LEVEL" }}
+  PORT: {{ requiredEnv "PORT" }}
+  # DATABASE_URL format: postgresql://user:password@host:port/dbname?sslmode=require
+  DATABASE_URL: {{ requiredEnv "DATABASE_URL" }}
+  JWT_SECRET: {{ requiredEnv "JWT_SECRET" }}
+
+  REGISTRY_TAG: {{ requiredEnv "REGISTRY_TAG" }}
+
+gateway-helm:
+  enabled: true

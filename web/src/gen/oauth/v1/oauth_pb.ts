@@ -10,15 +10,19 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file oauth/v1/oauth.proto.
  */
 export const file_oauth_v1_oauth: GenFile = /*@__PURE__*/
-  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSIbChlHaXRodWJPQXV0aERldGFpbHNSZXF1ZXN0IkIKGkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEiXAoaRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QSGwoTZ2l0aHViX2FjY2Vzc190b2tlbhgBIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAIgASgIImgKG0V4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSDwoHdXNlcl9pZBgDIAEoAxIQCgh1c2VybmFtZRgEIAEoCSJHCiBHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVxdWVzdBINCgVzdGF0ZRgBIAEoCRIUCgxyZWRpcmVjdF91cmkYAiABKAkiTQohR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlc3BvbnNlEhkKEWF1dGhvcml6YXRpb25fdXJsGAEgASgJEg0KBXN0YXRlGAIgASgJIk4KGUV4Y2hhbmdlR2l0aHViQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiZwoaRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2USEgoKbG9jb190b2tlbhgBIAEoCRISCgpleHBpcmVzX2luGAIgASgDEg8KB3VzZXJfaWQYAyABKAMSEAoIdXNlcm5hbWUYBiABKAky2QMKDE9BdXRoU2VydmljZRJrChJHaXRodWJPQXV0aERldGFpbHMSKC5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1JlcXVlc3QaKS5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlIgASbAoTRXhjaGFuZ2VHaXRodWJUb2tlbhIpLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QaKi5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRKAAQoZR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTBIvLmxvY28ub2F1dGgudjEuR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlcXVlc3QaMC5sb2NvLm9hdXRoLnYxLkdldEdpdGh1YkF1dGhvcml6YXRpb25VUkxSZXNwb25zZSIAEmsKEkV4Y2hhbmdlR2l0aHViQ29kZRIoLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVxdWVzdBopLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2UiAEI5WjdnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM");
+  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSIbChlHaXRodWJPQXV0aERldGFpbHNSZXF1ZXN0IkIKGkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEiXAoaRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QSGwoTZ2l0aHViX2FjY2Vzc190b2tlbhgBIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAIgASgIImgKG0V4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSDwoHdXNlcl9pZBgDIAEoAxIQCgh1c2VybmFtZRgEIAEoCSJHCiBHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVxdWVzdBINCgVzdGF0ZRgBIAEoCRIUCgxyZWRpcmVjdF91cmkYAiABKAkiTQohR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlc3BvbnNlEhkKEWF1dGhvcml6YXRpb25fdXJsGAEgASgJEg0KBXN0YXRlGAIgASgJIk4KGUV4Y2hhbmdlR2l0aHViQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiZwoaRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2USEgoKbG9jb190b2tlbhgBIAEoCRISCgpleHBpcmVzX2luGAIgASgDEg8KB3VzZXJfaWQYAyABKAMSEAoIdXNlcm5hbWUYBiABKAky2QMKDE9BdXRoU2VydmljZRJrChJHaXRodWJPQXV0aERldGFpbHMSKC5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1JlcXVlc3QaKS5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlIgASbAoTRXhjaGFuZ2VHaXRodWJUb2tlbhIpLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QaKi5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRKAAQoZR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTBIvLmxvY28ub2F1dGgudjEuR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlcXVlc3QaMC5sb2NvLm9hdXRoLnYxLkdldEdpdGh1YkF1dGhvcml6YXRpb25VUkxSZXNwb25zZSIAEmsKEkV4Y2hhbmdlR2l0aHViQ29kZRIoLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVxdWVzdBopLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2UiAEI5WjdnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3NoYXJlZC9wcm90by9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM");
 
 /**
+ * GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration for client setup.
+ *
  * @generated from message loco.oauth.v1.GithubOAuthDetailsRequest
  */
 export type GithubOAuthDetailsRequest = Message<"loco.oauth.v1.GithubOAuthDetailsRequest"> & {
 };
 
 /**
+ * GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration for client setup.
+ *
  * @generated from message loco.oauth.v1.GithubOAuthDetailsRequest
  */
 export type GithubOAuthDetailsRequestJson = {
@@ -32,6 +36,8 @@ export const GithubOAuthDetailsRequestSchema: GenMessage<GithubOAuthDetailsReque
   messageDesc(file_oauth_v1_oauth, 0);
 
 /**
+ * GithubOAuthDetailsResponse contains GitHub OAuth configuration details needed for client-side OAuth flow.
+ *
  * @generated from message loco.oauth.v1.GithubOAuthDetailsResponse
  */
 export type GithubOAuthDetailsResponse = Message<"loco.oauth.v1.GithubOAuthDetailsResponse"> & {
@@ -47,6 +53,8 @@ export type GithubOAuthDetailsResponse = Message<"loco.oauth.v1.GithubOAuthDetai
 };
 
 /**
+ * GithubOAuthDetailsResponse contains GitHub OAuth configuration details needed for client-side OAuth flow.
+ *
  * @generated from message loco.oauth.v1.GithubOAuthDetailsResponse
  */
 export type GithubOAuthDetailsResponseJson = {
@@ -69,6 +77,8 @@ export const GithubOAuthDetailsResponseSchema: GenMessage<GithubOAuthDetailsResp
   messageDesc(file_oauth_v1_oauth, 1);
 
 /**
+ * ExchangeGithubTokenRequest exchanges a GitHub access token for a Loco authentication token.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubTokenRequest
  */
 export type ExchangeGithubTokenRequest = Message<"loco.oauth.v1.ExchangeGithubTokenRequest"> & {
@@ -84,6 +94,8 @@ export type ExchangeGithubTokenRequest = Message<"loco.oauth.v1.ExchangeGithubTo
 };
 
 /**
+ * ExchangeGithubTokenRequest exchanges a GitHub access token for a Loco authentication token.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubTokenRequest
  */
 export type ExchangeGithubTokenRequestJson = {
@@ -106,6 +118,8 @@ export const ExchangeGithubTokenRequestSchema: GenMessage<ExchangeGithubTokenReq
   messageDesc(file_oauth_v1_oauth, 2);
 
 /**
+ * ExchangeGithubTokenResponse contains the Loco token and user info from GitHub token exchange.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubTokenResponse
  */
 export type ExchangeGithubTokenResponse = Message<"loco.oauth.v1.ExchangeGithubTokenResponse"> & {
@@ -133,6 +147,8 @@ export type ExchangeGithubTokenResponse = Message<"loco.oauth.v1.ExchangeGithubT
 };
 
 /**
+ * ExchangeGithubTokenResponse contains the Loco token and user info from GitHub token exchange.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubTokenResponse
  */
 export type ExchangeGithubTokenResponseJson = {
@@ -167,6 +183,8 @@ export const ExchangeGithubTokenResponseSchema: GenMessage<ExchangeGithubTokenRe
   messageDesc(file_oauth_v1_oauth, 3);
 
 /**
+ * GetGithubAuthorizationURLRequest is the request to initiate GitHub OAuth authorization flow.
+ *
  * @generated from message loco.oauth.v1.GetGithubAuthorizationURLRequest
  */
 export type GetGithubAuthorizationURLRequest = Message<"loco.oauth.v1.GetGithubAuthorizationURLRequest"> & {
@@ -182,6 +200,8 @@ export type GetGithubAuthorizationURLRequest = Message<"loco.oauth.v1.GetGithubA
 };
 
 /**
+ * GetGithubAuthorizationURLRequest is the request to initiate GitHub OAuth authorization flow.
+ *
  * @generated from message loco.oauth.v1.GetGithubAuthorizationURLRequest
  */
 export type GetGithubAuthorizationURLRequestJson = {
@@ -204,6 +224,8 @@ export const GetGithubAuthorizationURLRequestSchema: GenMessage<GetGithubAuthori
   messageDesc(file_oauth_v1_oauth, 4);
 
 /**
+ * GetGithubAuthorizationURLResponse contains the GitHub authorization URL for client redirect.
+ *
  * @generated from message loco.oauth.v1.GetGithubAuthorizationURLResponse
  */
 export type GetGithubAuthorizationURLResponse = Message<"loco.oauth.v1.GetGithubAuthorizationURLResponse"> & {
@@ -219,6 +241,8 @@ export type GetGithubAuthorizationURLResponse = Message<"loco.oauth.v1.GetGithub
 };
 
 /**
+ * GetGithubAuthorizationURLResponse contains the GitHub authorization URL for client redirect.
+ *
  * @generated from message loco.oauth.v1.GetGithubAuthorizationURLResponse
  */
 export type GetGithubAuthorizationURLResponseJson = {
@@ -241,6 +265,8 @@ export const GetGithubAuthorizationURLResponseSchema: GenMessage<GetGithubAuthor
   messageDesc(file_oauth_v1_oauth, 5);
 
 /**
+ * ExchangeGithubCodeRequest exchanges a GitHub authorization code for authentication tokens.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubCodeRequest
  */
 export type ExchangeGithubCodeRequest = Message<"loco.oauth.v1.ExchangeGithubCodeRequest"> & {
@@ -261,6 +287,8 @@ export type ExchangeGithubCodeRequest = Message<"loco.oauth.v1.ExchangeGithubCod
 };
 
 /**
+ * ExchangeGithubCodeRequest exchanges a GitHub authorization code for authentication tokens.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubCodeRequest
  */
 export type ExchangeGithubCodeRequestJson = {
@@ -288,6 +316,8 @@ export const ExchangeGithubCodeRequestSchema: GenMessage<ExchangeGithubCodeReque
   messageDesc(file_oauth_v1_oauth, 6);
 
 /**
+ * ExchangeGithubCodeResponse contains the Loco token and user info from GitHub code exchange.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubCodeResponse
  */
 export type ExchangeGithubCodeResponse = Message<"loco.oauth.v1.ExchangeGithubCodeResponse"> & {
@@ -313,6 +343,8 @@ export type ExchangeGithubCodeResponse = Message<"loco.oauth.v1.ExchangeGithubCo
 };
 
 /**
+ * ExchangeGithubCodeResponse contains the Loco token and user info from GitHub code exchange.
+ *
  * @generated from message loco.oauth.v1.ExchangeGithubCodeResponse
  */
 export type ExchangeGithubCodeResponseJson = {
@@ -345,10 +377,14 @@ export const ExchangeGithubCodeResponseSchema: GenMessage<ExchangeGithubCodeResp
   messageDesc(file_oauth_v1_oauth, 7);
 
 /**
+ * OAuthService handles OAuth authentication flows.
+ *
  * @generated from service loco.oauth.v1.OAuthService
  */
 export const OAuthService: GenService<{
   /**
+   * GithubOAuthDetails retrieves GitHub OAuth configuration.
+   *
    * @generated from rpc loco.oauth.v1.OAuthService.GithubOAuthDetails
    */
   githubOAuthDetails: {
@@ -357,6 +393,8 @@ export const OAuthService: GenService<{
     output: typeof GithubOAuthDetailsResponseSchema;
   },
   /**
+   * ExchangeGithubToken exchanges a GitHub token for a Loco token.
+   *
    * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubToken
    */
   exchangeGithubToken: {
@@ -365,6 +403,8 @@ export const OAuthService: GenService<{
     output: typeof ExchangeGithubTokenResponseSchema;
   },
   /**
+   * GetGithubAuthorizationURL generates a GitHub authorization URL.
+   *
    * @generated from rpc loco.oauth.v1.OAuthService.GetGithubAuthorizationURL
    */
   getGithubAuthorizationURL: {
@@ -373,6 +413,8 @@ export const OAuthService: GenService<{
     output: typeof GetGithubAuthorizationURLResponseSchema;
   },
   /**
+   * ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
+   *
    * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubCode
    */
   exchangeGithubCode: {

@@ -8,11 +8,24 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AppType, createApp } from "@/gen/app/v1";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { ResourceType, createResource } from "@/gen/resource/v1";
+import {
+	checkDomainAvailability,
+	DomainType,
+	listActivePlatformDomains,
+} from "@/gen/domain/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { useState } from "react";
+import { Check, Loader, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
@@ -34,6 +47,13 @@ export function CreateApp() {
 	const [appName, setAppName] = useState("");
 	const [appType, setAppType] = useState("SERVICE");
 	const [subdomain, setSubdomain] = useState("");
+	const [selectedPlatformDomain, setSelectedPlatformDomain] =
+		useState<string>("");
+	const [subdomainAvailability, setSubdomainAvailability] = useState<
+		"available" | "unavailable" | "checking" | null
+	>(null);
+	const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const hasUserEditedSubdomain = useRef(false);
 
 	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
 	const orgs = orgsRes?.orgs ?? [];
@@ -48,7 +68,64 @@ export function CreateApp() {
 	const workspaceId =
 		paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
-	const createAppMutation = useMutation(createApp);
+	const { data: platformDomainsRes } = useQuery(listActivePlatformDomains, {});
+	const platformDomains = useMemo(
+		() => platformDomainsRes?.platformDomains ?? [],
+		[platformDomainsRes?.platformDomains]
+	);
+
+	const createResourceMutation = useMutation(createResource);
+	const checkSubdomainMutation = useMutation(checkDomainAvailability);
+
+	// Set default platform domain on load
+	useEffect(() => {
+		if (platformDomains.length > 0 && !selectedPlatformDomain) {
+			setSelectedPlatformDomain(platformDomains[0].domain);
+		}
+	}, [platformDomains, selectedPlatformDomain]);
+
+	// Auto-fill subdomain from app name (only if user hasn't manually edited it)
+	useEffect(() => {
+		if (hasUserEditedSubdomain.current) return;
+
+		const sanitized = appName
+			.toLowerCase()
+			.replace(/[^a-z0-9-]/g, "")
+			.replace(/^-+|-+$/g, "");
+		setSubdomain(sanitized);
+	}, [appName]);
+
+	// Debounced subdomain availability check
+	useEffect(() => {
+		if (!subdomain.trim() || !selectedPlatformDomain) {
+			setSubdomainAvailability(null);
+			return;
+		}
+
+		if (debounceTimer.current) {
+			clearTimeout(debounceTimer.current);
+		}
+
+		setSubdomainAvailability("checking");
+		debounceTimer.current = setTimeout(async () => {
+			try {
+				const fullDomain = `${subdomain}.${selectedPlatformDomain}`;
+				const res = await checkSubdomainMutation.mutateAsync({
+					domain: fullDomain,
+				} as { domain: string });
+				setSubdomainAvailability(res.isAvailable ? "available" : "unavailable");
+			} catch {
+				setSubdomainAvailability("unavailable");
+			}
+		}, 500);
+
+		return () => {
+			if (debounceTimer.current) {
+				clearTimeout(debounceTimer.current);
+			}
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [subdomain, selectedPlatformDomain]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -63,44 +140,61 @@ export function CreateApp() {
 			return;
 		}
 
+		if (subdomainAvailability === "unavailable") {
+			toast.error("The chosen subdomain is not available");
+			return;
+		}
+
 		try {
-			const res = await createAppMutation.mutateAsync({
+			const platformDomain = platformDomains.find(
+				(d) => d.domain === selectedPlatformDomain
+			);
+
+			const res = await createResourceMutation.mutateAsync({
 				name: appName,
 				workspaceId:
 					typeof workspaceId === "string" ? BigInt(workspaceId) : workspaceId,
-				type: AppType[appType as keyof typeof AppType],
-				subdomain: subdomain || undefined,
+				type: ResourceType[appType as keyof typeof ResourceType],
+				domain: {
+					domainSource: DomainType.PLATFORM_PROVIDED,
+					subdomain: subdomain,
+					platformDomainId: platformDomain?.id || BigInt(0),
+				},
 			});
 
-			if (res.app?.id) {
-				toast.success("App created successfully");
-				navigate(`/app/${res.app.id}${workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""}`);
+			if (res.resourceId) {
+				toast.success("Resource created successfully");
+				navigate(
+					`/resource/${res.resourceId}${
+						workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""
+					}`
+				);
 			} else {
-				toast.error("Failed to create app");
+				toast.error("Failed to create resource");
 			}
 		} catch (error) {
 			const message =
-				error instanceof Error ? error.message : "Failed to create app";
+				error instanceof Error ? error.message : "Failed to create resource";
 			toast.error(message);
 		}
 	};
 
 	return (
-		<div className="max-w-2xl mx-auto py-8">
+		<div className=" mx-auto">
 			<div className="mb-8">
 				<h1 className="text-3xl font-heading text-foreground mb-2">
-					Create App
+					Create Resource
 				</h1>
 				<p className="text-muted-foreground">
-					Set up a new application or service
+					Set up a new resource or service
 				</p>
 			</div>
 
 			<form onSubmit={handleSubmit} className="space-y-6">
-				{/* App Name */}
+				{/* Resource Name */}
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-lg">App Name</CardTitle>
+						<CardTitle className="text-lg">Resource Name</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<Label htmlFor="app-name" className="text-sm mb-2 block">
@@ -116,12 +210,12 @@ export function CreateApp() {
 					</CardContent>
 				</Card>
 
-				{/* App Type */}
+				{/* Resource Type */}
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-lg">App Type</CardTitle>
+						<CardTitle className="text-lg">Resource Type</CardTitle>
 						<CardDescription>
-							Choose what kind of app you're deploying
+							Choose what kind of resource you're deploying
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -131,7 +225,7 @@ export function CreateApp() {
 									key={type.value}
 									type="button"
 									onClick={() => setAppType(type.value)}
-									className={`p-4 rounded-neo border-2 text-left transition-all ${
+									className={`p-4 rounded-lg border-2 text-left transition-all ${
 										appType === type.value
 											? "border-main bg-main/5"
 											: "border-border hover:border-main/50"
@@ -149,27 +243,80 @@ export function CreateApp() {
 					</CardContent>
 				</Card>
 
-				{/* Subdomain */}
+				{/* Platform Domain & Subdomain */}
 				<Card>
 					<CardHeader>
-						<CardTitle className="text-lg">Subdomain</CardTitle>
-						<CardDescription>Your app's URL on deploy-app.com</CardDescription>
+						<CardTitle className="text-lg">Domain</CardTitle>
+						<CardDescription>Your resource's URL</CardDescription>
 					</CardHeader>
-					<CardContent>
-						<div className="flex gap-2">
-							<Input
-								placeholder="my-app"
-								value={subdomain}
-								onChange={(e) =>
-									setSubdomain(
-										e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
-									)
-								}
-								className="border-border flex-1"
-							/>
-							<div className="flex items-center px-3 bg-secondary rounded-neo border border-border text-sm text-muted-foreground shrink-0">
-								.deploy-app.com
+					<CardContent className="space-y-4">
+						{/* Platform Domain Selection */}
+						<div className="space-y-2">
+							<Label htmlFor="platform-domain" className="text-sm">
+								Platform Domain
+							</Label>
+							<Select
+								value={selectedPlatformDomain}
+								onValueChange={setSelectedPlatformDomain}
+							>
+								<SelectTrigger id="platform-domain" className="border-border">
+									<SelectValue placeholder="Select a platform domain" />
+								</SelectTrigger>
+								<SelectContent>
+									{platformDomains.map((domain) => (
+										<SelectItem key={domain.id} value={domain.domain}>
+											{domain.domain}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* Subdomain Input */}
+						<div className="space-y-2">
+							<Label htmlFor="subdomain" className="text-sm">
+								Subdomain
+							</Label>
+							<div className="flex gap-2">
+								<Input
+									id="subdomain"
+									placeholder="my-app"
+									value={subdomain}
+									onChange={(e) => {
+										hasUserEditedSubdomain.current = true;
+										setSubdomain(
+											e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
+										);
+									}}
+									className="border-border flex-1"
+								/>
+								<div className="flex items-center px-3 bg-secondary rounded-lg border border-border text-sm text-muted-foreground shrink-0">
+									.{selectedPlatformDomain}
+								</div>
+								{subdomainAvailability && (
+									<div className="flex items-center px-3">
+										{subdomainAvailability === "checking" && (
+											<Loader className="h-4 w-4 animate-spin text-foreground" />
+										)}
+										{subdomainAvailability === "available" && (
+											<Check className="h-4 w-4 text-success-text" />
+										)}
+										{subdomainAvailability === "unavailable" && (
+											<X className="h-4 w-4 text-error-text" />
+										)}
+									</div>
+								)}
 							</div>
+							{subdomainAvailability === "unavailable" && (
+								<p className="text-xs text-error-text">
+									This domain is not available
+								</p>
+							)}
+							{subdomainAvailability === "available" && (
+								<p className="text-xs text-success-text">
+									This domain is available
+								</p>
+							)}
 						</div>
 					</CardContent>
 				</Card>
@@ -178,16 +325,26 @@ export function CreateApp() {
 				<div className="flex gap-3 justify-end">
 					<Button
 						type="button"
-						variant="neutral"
+						variant="secondary"
 						onClick={() => navigate("/dashboard")}
 					>
 						Cancel
 					</Button>
 					<Button
 						type="submit"
-						disabled={createAppMutation.isPending || !appName.trim()}
+						disabled={
+							!!(
+								createResourceMutation.isPending ||
+								!appName.trim() ||
+								(subdomain.trim() !== "" &&
+									(subdomainAvailability === "unavailable" ||
+										subdomainAvailability === "checking"))
+							)
+						}
 					>
-						{createAppMutation.isPending ? "Creating..." : "Create App"}
+						{createResourceMutation.isPending
+							? "Creating..."
+							: "Create Resource"}
 					</Button>
 				</div>
 			</form>

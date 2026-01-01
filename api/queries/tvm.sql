@@ -34,13 +34,13 @@ WITH RECURSIVE entity_hierarchy AS (
     
     UNION ALL
     
-    -- Apps in the workspaces
+    -- Resources in the workspaces
     SELECT 
-        'app'::entity_type,
-        a.id,
-        a.name
-    FROM apps a
-    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = a.workspace_id
+        'resource'::entity_type,
+        r.id,
+        r.name
+    FROM resources r
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
 SELECT DISTINCT
     us.user_id,
@@ -64,13 +64,13 @@ WITH RECURSIVE entity_hierarchy AS (
     
     UNION ALL
     
-    -- Apps in the workspace
+    -- Resources in the workspace
     SELECT 
-        'app'::entity_type,
-        a.id,
-        a.name
-    FROM apps a
-    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = a.workspace_id
+        'resource'::entity_type,
+        r.id,
+        r.name
+    FROM resources r
+    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
 SELECT DISTINCT
     us.user_id,

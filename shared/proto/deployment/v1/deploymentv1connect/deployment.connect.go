@@ -5,13 +5,12 @@
 package deploymentv1connect
 
 import (
+	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
+	v1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 	http "net/http"
 	strings "strings"
-
-	connect "connectrpc.com/connect"
-	v1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 )
 
 // This is a compile-time assertion to ensure that this generated file and the connect package are
@@ -46,14 +45,23 @@ const (
 	// DeploymentServiceStreamDeploymentProcedure is the fully-qualified name of the DeploymentService's
 	// StreamDeployment RPC.
 	DeploymentServiceStreamDeploymentProcedure = "/loco.deployment.v1.DeploymentService/StreamDeployment"
+	// DeploymentServiceDeleteDeploymentProcedure is the fully-qualified name of the DeploymentService's
+	// DeleteDeployment RPC.
+	DeploymentServiceDeleteDeploymentProcedure = "/loco.deployment.v1.DeploymentService/DeleteDeployment"
 )
 
 // DeploymentServiceClient is a client for the loco.deployment.v1.DeploymentService service.
 type DeploymentServiceClient interface {
+	// CreateDeployment creates a new deployment for a resource.
 	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error)
+	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *connect.Request[v1.GetDeploymentRequest]) (*connect.Response[v1.GetDeploymentResponse], error)
+	// ListDeployments lists deployments for a resource.
 	ListDeployments(context.Context, *connect.Request[v1.ListDeploymentsRequest]) (*connect.Response[v1.ListDeploymentsResponse], error)
+	// StreamDeployment streams deployment events in real-time.
 	StreamDeployment(context.Context, *connect.Request[v1.StreamDeploymentRequest]) (*connect.ServerStreamForClient[v1.DeploymentEvent], error)
+	// DeleteDeployment deletes/inactivates a deployment.
+	DeleteDeployment(context.Context, *connect.Request[v1.DeleteDeploymentRequest]) (*connect.Response[v1.DeleteDeploymentResponse], error)
 }
 
 // NewDeploymentServiceClient constructs a client for the loco.deployment.v1.DeploymentService
@@ -91,6 +99,12 @@ func NewDeploymentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(deploymentServiceMethods.ByName("StreamDeployment")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteDeployment: connect.NewClient[v1.DeleteDeploymentRequest, v1.DeleteDeploymentResponse](
+			httpClient,
+			baseURL+DeploymentServiceDeleteDeploymentProcedure,
+			connect.WithSchema(deploymentServiceMethods.ByName("DeleteDeployment")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -100,6 +114,7 @@ type deploymentServiceClient struct {
 	getDeployment    *connect.Client[v1.GetDeploymentRequest, v1.GetDeploymentResponse]
 	listDeployments  *connect.Client[v1.ListDeploymentsRequest, v1.ListDeploymentsResponse]
 	streamDeployment *connect.Client[v1.StreamDeploymentRequest, v1.DeploymentEvent]
+	deleteDeployment *connect.Client[v1.DeleteDeploymentRequest, v1.DeleteDeploymentResponse]
 }
 
 // CreateDeployment calls loco.deployment.v1.DeploymentService.CreateDeployment.
@@ -122,13 +137,24 @@ func (c *deploymentServiceClient) StreamDeployment(ctx context.Context, req *con
 	return c.streamDeployment.CallServerStream(ctx, req)
 }
 
+// DeleteDeployment calls loco.deployment.v1.DeploymentService.DeleteDeployment.
+func (c *deploymentServiceClient) DeleteDeployment(ctx context.Context, req *connect.Request[v1.DeleteDeploymentRequest]) (*connect.Response[v1.DeleteDeploymentResponse], error) {
+	return c.deleteDeployment.CallUnary(ctx, req)
+}
+
 // DeploymentServiceHandler is an implementation of the loco.deployment.v1.DeploymentService
 // service.
 type DeploymentServiceHandler interface {
+	// CreateDeployment creates a new deployment for a resource.
 	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error)
+	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *connect.Request[v1.GetDeploymentRequest]) (*connect.Response[v1.GetDeploymentResponse], error)
+	// ListDeployments lists deployments for a resource.
 	ListDeployments(context.Context, *connect.Request[v1.ListDeploymentsRequest]) (*connect.Response[v1.ListDeploymentsResponse], error)
+	// StreamDeployment streams deployment events in real-time.
 	StreamDeployment(context.Context, *connect.Request[v1.StreamDeploymentRequest], *connect.ServerStream[v1.DeploymentEvent]) error
+	// DeleteDeployment deletes/inactivates a deployment.
+	DeleteDeployment(context.Context, *connect.Request[v1.DeleteDeploymentRequest]) (*connect.Response[v1.DeleteDeploymentResponse], error)
 }
 
 // NewDeploymentServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -162,6 +188,12 @@ func NewDeploymentServiceHandler(svc DeploymentServiceHandler, opts ...connect.H
 		connect.WithSchema(deploymentServiceMethods.ByName("StreamDeployment")),
 		connect.WithHandlerOptions(opts...),
 	)
+	deploymentServiceDeleteDeploymentHandler := connect.NewUnaryHandler(
+		DeploymentServiceDeleteDeploymentProcedure,
+		svc.DeleteDeployment,
+		connect.WithSchema(deploymentServiceMethods.ByName("DeleteDeployment")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.deployment.v1.DeploymentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DeploymentServiceCreateDeploymentProcedure:
@@ -172,6 +204,8 @@ func NewDeploymentServiceHandler(svc DeploymentServiceHandler, opts ...connect.H
 			deploymentServiceListDeploymentsHandler.ServeHTTP(w, r)
 		case DeploymentServiceStreamDeploymentProcedure:
 			deploymentServiceStreamDeploymentHandler.ServeHTTP(w, r)
+		case DeploymentServiceDeleteDeploymentProcedure:
+			deploymentServiceDeleteDeploymentHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -195,4 +229,8 @@ func (UnimplementedDeploymentServiceHandler) ListDeployments(context.Context, *c
 
 func (UnimplementedDeploymentServiceHandler) StreamDeployment(context.Context, *connect.Request[v1.StreamDeploymentRequest], *connect.ServerStream[v1.DeploymentEvent]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.deployment.v1.DeploymentService.StreamDeployment is not implemented"))
+}
+
+func (UnimplementedDeploymentServiceHandler) DeleteDeployment(context.Context, *connect.Request[v1.DeleteDeploymentRequest]) (*connect.Response[v1.DeleteDeploymentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.deployment.v1.DeploymentService.DeleteDeployment is not implemented"))
 }

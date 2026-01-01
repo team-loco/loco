@@ -1,0 +1,7 @@
+# Production environment values for loco-networking chart
+
+cilium:
+  enabled: true
+  # Production k8s API server should be provided via environment variables
+  k8sServiceHost: {{ requiredEnv "K8S_SERVICE_HOST" }}
+  k8sServicePort: {{ requiredEnv "K8S_SERVICE_PORT" }}

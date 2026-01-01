@@ -5,46 +5,64 @@
 import { WorkspaceService } from "./workspace_pb";
 
 /**
+ * CreateWorkspace creates a new workspace.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.CreateWorkspace
  */
 export const createWorkspace = WorkspaceService.method.createWorkspace;
 
 /**
+ * GetWorkspace retrieves a workspace by ID.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.GetWorkspace
  */
 export const getWorkspace = WorkspaceService.method.getWorkspace;
 
 /**
+ * GetUserWorkspaces retrieves all workspaces for the current user.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.GetUserWorkspaces
  */
 export const getUserWorkspaces = WorkspaceService.method.getUserWorkspaces;
 
 /**
+ * ListWorkspaces lists all workspaces in an organization.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.ListWorkspaces
  */
 export const listWorkspaces = WorkspaceService.method.listWorkspaces;
 
 /**
+ * UpdateWorkspace updates workspace information.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.UpdateWorkspace
  */
 export const updateWorkspace = WorkspaceService.method.updateWorkspace;
 
 /**
+ * DeleteWorkspace deletes a workspace and optionally its applications.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.DeleteWorkspace
  */
 export const deleteWorkspace = WorkspaceService.method.deleteWorkspace;
 
 /**
+ * AddMember adds a user to a workspace with a specified role.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.AddMember
  */
 export const addMember = WorkspaceService.method.addMember;
 
 /**
+ * RemoveMember removes a user from a workspace.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.RemoveMember
  */
 export const removeMember = WorkspaceService.method.removeMember;
 
 /**
+ * ListMembers lists all members of a workspace with pagination.
+ *
  * @generated from rpc loco.workspace.v1.WorkspaceService.ListMembers
  */
 export const listMembers = WorkspaceService.method.listMembers;

@@ -1,35 +1,49 @@
-import { getApp, getAppStatus } from "@/gen/app/v1";
+import { getResource, getResourceStatus } from "@/gen/resource/v1";
 import { listDeployments } from "@/gen/deployment/v1";
-import { useQuery } from "@connectrpc/connect-query";
+import { useQueries } from "@tanstack/react-query";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 
 export function useAppDetails(appId: string) {
-	const {
-		data: appRes,
-		isLoading: appLoading,
-		error: appError,
-	} = useQuery(getApp, appId ? { appId: BigInt(appId) } : undefined, { enabled: !!appId });
+	const transport = useTransport();
 
-	const {
-		data: statusRes,
-		isLoading: statusLoading,
-		error: statusError,
-	} = useQuery(getAppStatus, { appId: BigInt(appId) }, { enabled: !!appId });
+	const [appQuery, statusQuery, deploymentsQuery] = useQueries({
+		queries: [
+			createQueryOptions(
+				getResource,
+				{ resourceId: BigInt(appId) },
+				{ transport }
+			),
+			createQueryOptions(
+				getResourceStatus,
+				{ resourceId: BigInt(appId) },
+				{ transport }
+			),
+			createQueryOptions(
+				listDeployments,
+				{ limit: 10, resourceId: BigInt(appId) },
+				{ transport }
+			),
+		],
+	});
 
-	const {
-		data: deploymentsRes,
-		isLoading: deploymentsLoading,
-		error: deploymentsError,
-	} = useQuery(
-		listDeployments,
-		{ limit: 10, appId: BigInt(appId) },
-		{ enabled: !!appId }
-	);
+	// Disable queries if no appId
+	const isEnabled = !!appId;
 
 	return {
-		app: appRes?.app ?? null,
-		status: statusRes?.currentDeployment ?? null,
-		deployments: deploymentsRes?.deployments ?? [],
-		isLoading: appLoading || statusLoading || deploymentsLoading,
-		error: appError || statusError || deploymentsError,
+		app: isEnabled && appQuery.data ? appQuery.data.resource : null,
+		status:
+			isEnabled && statusQuery.data ? statusQuery.data.currentDeployment : null,
+		deployments:
+			isEnabled && deploymentsQuery.data
+				? deploymentsQuery.data.deployments
+				: [],
+		isLoading:
+			isEnabled &&
+			(appQuery.isLoading ||
+				statusQuery.isLoading ||
+				deploymentsQuery.isLoading),
+		error: isEnabled
+			? appQuery.error || statusQuery.error || deploymentsQuery.error
+			: null,
 	};
 }

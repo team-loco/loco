@@ -1,0 +1,226 @@
+global:
+  domain:
+    dashboards: dashboards.deploy-app.com
+
+# Gateway namespace where the Envoy Gateway is deployed
+gatewayNamespace: envoy-gateway-system
+
+clickhouse:
+  enabled: true
+  nameOverride: "clickhouse"
+  # Note: The service name will be auto-generated as: clickhouse-{{ .Release.Name }}-clickhouse
+  clickhouse:
+    antiAffinity: true
+    persistence:
+      enabled: true
+      storageClass: ""
+      # extraConfig: |
+      #   <clickhouse>
+      #   </clickhouse>
+    defaultUser:
+      allowExternalAccess: true
+
+opentelemetry-operator:
+  fullnameOverride: "otel-operator"
+  enabled: true
+
+otel-col-daemon:
+  enabled: true
+  fullnameOverride: "otel-col-daemon"
+  mode: daemonset
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "0.142.0"
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups:
+          - ""
+        resources:
+          - nodes/proxy
+          - nodes/stats
+          - endpoints
+          - services
+          - pods
+        verbs: ["get", "watch", "list"]
+  presets:
+    logsCollection:
+      enabled: true
+    hostMetrics:
+      enabled: true
+    kubernetesAttributes:
+      enabled: true
+      extractAllPodLabels: true
+      extractAllPodAnnotations: true
+  config:
+    receivers:
+      kubeletstats:
+        collection_interval: 20s
+        auth_type: "serviceAccount"
+        endpoint: "https://${env:K8S_NODE_NAME}:10250"
+        insecure_skip_verify: true
+        node: "${env:K8S_NODE_NAME}"
+        k8s_api_config:
+          auth_type: serviceAccount
+        collect_all_network_interfaces:
+          pod: true
+        metrics:
+          k8s.pod.cpu_limit_utilization:
+            enabled: true
+          k8s.pod.cpu_request_utilization:
+            enabled: true
+          k8s.pod.memory_limit_utilization:
+            enabled: true
+          k8s.pod.memory_request_utilization:
+            enabled: true
+          k8s.pod.uptime:
+            enabled: true
+          k8s.node.uptime:
+            enabled: true
+          k8s.container.cpu_limit_utilization:
+            enabled: true
+          k8s.container.cpu_request_utilization:
+            enabled: true
+          k8s.container.memory_limit_utilization:
+            enabled: true
+          k8s.container.memory_request_utilization:
+            enabled: true
+          container.uptime:
+            enabled: true
+          k8s.node.network.io:
+            enabled: true
+          k8s.pod.network.io:
+            enabled: true
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 100
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 2048
+    exporters:
+      clickhouse:
+        # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
+        endpoint: tcp://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        username: default
+        password: ""
+        traces_table_name: otel_traces
+        logs_table_name: otel_logs
+        create_schema: false
+        timeout: 5s
+        database: default
+    service:
+      pipelines:
+        logs:
+          exporters: [clickhouse]
+          processors: [batch, memory_limiter]
+        metrics:
+          receivers: [kubeletstats]
+          processors: [batch, memory_limiter]
+          exporters: [clickhouse]
+
+otel-col-deploy:
+  enabled: true
+  fullnameOverride: otel-col-deploy
+  mode: deployment
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "0.142.0"
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+  replicaCount: 1
+  presets:
+    kubernetesAttributes:
+      enabled: true
+      extractAllPodLabels: true
+      extractAllPodAnnotations: true
+    kubernetesEvents:
+      enabled: true
+    clusterMetrics:
+      enabled: true
+  config:
+    processors:
+      resource/set_service_name:
+        attributes:
+          - action: insert
+            key: service.name
+            from_attribute: app.kubernetes.io/name
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    exporters:
+      clickhouse:
+        # Endpoint will be dynamically constructed as: tcp://clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local:9000
+        endpoint: tcp://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000?dial_timeout=10s&compress=lz4&async_insert=1
+        username: default
+        password: ""
+        traces_table_name: otel_traces
+        logs_table_name: otel_logs
+        create_schema: true
+        timeout: 5s
+        database: default
+    service:
+      pipelines:
+        logs:
+          exporters: [clickhouse]
+        metrics:
+          receivers: [otlp]
+          processors: [resource/set_service_name]
+          exporters: [clickhouse]
+
+grafana:
+  enabled: true
+  fullnameOverride: grafana
+  adminUser: "" # Override in environment-specific values
+  adminPassword: "" # Override in environment-specific values
+  persistence:
+    enabled: true
+    type: pvc
+    accessModes:
+      - ReadWriteOnce
+    size: 2Gi
+    finalizers:
+      - kubernetes.io/pvc-protection
+  plugins:
+    - grafana-clickhouse-datasource
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: ClickHouse
+          type: grafana-clickhouse-datasource
+          jsonData:
+            port: 9000
+            # Host will be dynamically constructed as: clickhouse-{release-name}-{nameOverride}.{namespace}.svc.cluster.local
+            host: clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local
+            defaultDatabase: default
+            username: default
+            tlsSkipVerify: true
+          secureJsonData:
+            password: ""
+  dashboards:
+    default:
+      general:
+        gnetId: 1860
+        revision: 29
+        datasource: ClickHouse
+  initChownData:
+    securityContext:
+      capabilities:
+        add:
+          - CHOWN
+          - DAC_OVERRIDE
+        drop:
+          - ALL

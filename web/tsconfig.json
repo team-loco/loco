@@ -7,6 +7,12 @@
 	"compilerOptions": {
 		"paths": {
 			"@/*": ["./src/*"]
-		}
+		},
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noEmitOnError": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"exactOptionalPropertyTypes": true
 	}
 }

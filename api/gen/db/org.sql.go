@@ -65,7 +65,7 @@ const deleteEmptyWorkspacesForOrg = `-- name: DeleteEmptyWorkspacesForOrg :exec
 DELETE FROM workspaces
 WHERE org_id = $1
 AND NOT EXISTS (
-  SELECT 1 FROM apps WHERE workspace_id = workspaces.id
+  SELECT 1 FROM resources WHERE workspace_id = workspaces.id
 )
 `
 
@@ -230,21 +230,21 @@ func (q *Queries) ListWorkspacesForOrg(ctx context.Context, orgID int64) ([]List
 	return items, nil
 }
 
-const orgHasWorkspacesWithApps = `-- name: OrgHasWorkspacesWithApps :one
+const orgHasWorkspacesWithResources = `-- name: OrgHasWorkspacesWithResources :one
 SELECT EXISTS(
   SELECT 1 FROM workspaces w
   WHERE w.org_id = $1
   AND EXISTS(
-    SELECT 1 FROM apps a WHERE a.workspace_id = w.id
+    SELECT 1 FROM resources r WHERE r.workspace_id = w.id
   )
-) as has_apps_in_workspaces
+) as has_resources_in_workspaces
 `
 
-func (q *Queries) OrgHasWorkspacesWithApps(ctx context.Context, orgID int64) (bool, error) {
-	row := q.db.QueryRow(ctx, orgHasWorkspacesWithApps, orgID)
-	var has_apps_in_workspaces bool
-	err := row.Scan(&has_apps_in_workspaces)
-	return has_apps_in_workspaces, err
+func (q *Queries) OrgHasWorkspacesWithResources(ctx context.Context, orgID int64) (bool, error) {
+	row := q.db.QueryRow(ctx, orgHasWorkspacesWithResources, orgID)
+	var has_resources_in_workspaces bool
+	err := row.Scan(&has_resources_in_workspaces)
+	return has_resources_in_workspaces, err
 }
 
 const updateOrgName = `-- name: UpdateOrgName :one

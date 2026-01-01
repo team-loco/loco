@@ -1,13 +1,21 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@connectrpc/connect";
-import { AppService } from "@/gen/app/v1/app_pb";
-import type { LogEntry } from "@/gen/app/v1/app_pb";
+import { ResourceService } from "@/gen/resource/v1/resource_pb";
+import type { LogEntry } from "@/gen/resource/v1/resource_pb";
 import { createTransport } from "@/auth/connect-transport";
 
-export function useStreamLogs(appId: string) {
+export function useStreamLogs(appId: string, tailLimit?: number) {
 	const [logs, setLogs] = useState<LogEntry[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
+	const [refreshKey, setRefreshKey] = useState(0);
+
+	const refetch = useCallback(() => {
+		setRefreshKey((prev) => prev + 1);
+		setLogs([]);
+		setIsLoading(true);
+		setError(null);
+	}, []);
 
 	useEffect(() => {
 		if (!appId) {
@@ -20,30 +28,32 @@ export function useStreamLogs(appId: string) {
 
 		const streamLogs = async () => {
 			try {
-				const client = createClient(AppService, createTransport());
+				const client = createClient(ResourceService, createTransport());
 				const logsList: LogEntry[] = [];
+				let isFirstUpdate = true;
 
 				// Stream logs from the server
 				for await (const logEntry of client.streamLogs(
-					{ appId: BigInt(appId) },
+					{ resourceId: BigInt(appId), limit: tailLimit },
 					{ signal: abortController.signal }
 				)) {
 					if (!isMounted) break;
-					logsList.push(logEntry);
+					logsList.unshift(logEntry);
 					if (isMounted) {
 						setLogs([...logsList]);
+						if (isFirstUpdate) {
+							setIsLoading(false);
+							isFirstUpdate = false;
+						}
 					}
-				}
-
-				if (isMounted) {
-					setIsLoading(false);
 				}
 			} catch (err) {
 				if (!isMounted) return;
 				if (err instanceof Error && err.name === "AbortError") {
 					return;
 				}
-				const errorMsg = err instanceof Error ? err.message : "Failed to stream logs";
+				const errorMsg =
+					err instanceof Error ? err.message : "Failed to stream logs";
 				setError(err instanceof Error ? err : new Error(errorMsg));
 				setIsLoading(false);
 			}
@@ -55,11 +65,12 @@ export function useStreamLogs(appId: string) {
 			isMounted = false;
 			abortController.abort();
 		};
-	}, [appId]);
+	}, [appId, refreshKey, tailLimit]);
 
 	return {
 		logs,
 		isLoading,
 		error,
+		refetch,
 	};
 }

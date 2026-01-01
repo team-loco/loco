@@ -3,16 +3,20 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateDeploymentRequest, CreateDeploymentResponse, DeploymentEvent, GetDeploymentRequest, GetDeploymentResponse, ListDeploymentsRequest, ListDeploymentsResponse, StreamDeploymentRequest } from "./deployment_pb";
+import { CreateDeploymentRequest, CreateDeploymentResponse, DeleteDeploymentRequest, DeleteDeploymentResponse, DeploymentEvent, GetDeploymentRequest, GetDeploymentResponse, ListDeploymentsRequest, ListDeploymentsResponse, StreamDeploymentRequest } from "./deployment_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * DeploymentService manages resource deployments.
+ *
  * @generated from service loco.deployment.v1.DeploymentService
  */
 export const DeploymentService = {
   typeName: "loco.deployment.v1.DeploymentService",
   methods: {
     /**
+     * CreateDeployment creates a new deployment for a resource.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.CreateDeployment
      */
     createDeployment: {
@@ -22,6 +26,8 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetDeployment retrieves a deployment by ID.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.GetDeployment
      */
     getDeployment: {
@@ -31,6 +37,8 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListDeployments lists deployments for a resource.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.ListDeployments
      */
     listDeployments: {
@@ -40,6 +48,8 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
+     * StreamDeployment streams deployment events in real-time.
+     *
      * @generated from rpc loco.deployment.v1.DeploymentService.StreamDeployment
      */
     streamDeployment: {
@@ -47,6 +57,17 @@ export const DeploymentService = {
       I: StreamDeploymentRequest,
       O: DeploymentEvent,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * DeleteDeployment deletes/inactivates a deployment.
+     *
+     * @generated from rpc loco.deployment.v1.DeploymentService.DeleteDeployment
+     */
+    deleteDeployment: {
+      name: "DeleteDeployment",
+      I: DeleteDeploymentRequest,
+      O: DeleteDeploymentResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

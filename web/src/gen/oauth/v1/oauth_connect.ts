@@ -7,12 +7,16 @@ import { ExchangeGithubCodeRequest, ExchangeGithubCodeResponse, ExchangeGithubTo
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * OAuthService handles OAuth authentication flows.
+ *
  * @generated from service loco.oauth.v1.OAuthService
  */
 export const OAuthService = {
   typeName: "loco.oauth.v1.OAuthService",
   methods: {
     /**
+     * GithubOAuthDetails retrieves GitHub OAuth configuration.
+     *
      * @generated from rpc loco.oauth.v1.OAuthService.GithubOAuthDetails
      */
     githubOAuthDetails: {
@@ -22,6 +26,8 @@ export const OAuthService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ExchangeGithubToken exchanges a GitHub token for a Loco token.
+     *
      * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubToken
      */
     exchangeGithubToken: {
@@ -31,6 +37,8 @@ export const OAuthService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetGithubAuthorizationURL generates a GitHub authorization URL.
+     *
      * @generated from rpc loco.oauth.v1.OAuthService.GetGithubAuthorizationURL
      */
     getGithubAuthorizationURL: {
@@ -40,6 +48,8 @@ export const OAuthService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
+     *
      * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubCode
      */
     exchangeGithubCode: {

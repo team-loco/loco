@@ -157,7 +157,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		if finalM.tokenResp != nil {
-			slog.Debug("received auth token from github oauth", "token", finalM.tokenResp.AccessToken)
+			slog.Debug("received auth token from github oauth")
 		}
 
 		if finalM.tokenResp == nil {
@@ -182,8 +182,8 @@ var loginCmd = &cobra.Command{
 
 		// use existing scope if it exists.
 		if existingCfg != nil {
-			scope, err := existingCfg.GetScope()
-			if err == nil {
+			scope, scopeErr := existingCfg.GetScope()
+			if scopeErr == nil {
 				keychain.SetLocoToken(user.Name, keychain.UserToken{
 					Token: locoResp.Msg.LocoToken,
 					// sub 10 mins
@@ -252,28 +252,23 @@ var loginCmd = &cobra.Command{
 			}
 
 			workspaceName := "default"
-			wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
+			wsClientNew := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 			createWSReq := connect.NewRequest(&workspacev1.CreateWorkspaceRequest{
 				OrgId: createdOrg.Id,
 				Name:  workspaceName,
 			})
 			createWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-			createWSResp, err := wsClient.CreateWorkspace(context.Background(), createWSReq)
+			createWSResp, err := wsClientNew.CreateWorkspace(context.Background(), createWSReq)
 			if err != nil {
 				slog.Debug("failed to create workspace", "error", err)
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
 
-			createdWS := createWSResp.Msg.GetWorkspace()
-			if createdWS == nil {
-				return fmt.Errorf("workspace creation returned empty response")
-			}
-
 			cfg := config.NewSessionConfig()
 			if err := cfg.SetDefaultScope(
 				config.SimpleOrg{ID: createdOrg.Id, Name: createdOrg.Name},
-				config.SimpleWorkspace{ID: createdWS.Id, Name: createdWS.Name},
+				config.SimpleWorkspace{ID: createWSResp.Msg.WorkspaceId, Name: createWSReq.Msg.Name},
 			); err != nil {
 				slog.Error(err.Error())
 				return err
@@ -288,7 +283,7 @@ var loginCmd = &cobra.Command{
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
 			orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", createdOrg.Name))
-			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", createdWS.Name))
+			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", createWSReq.Msg.Name))
 			fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 			return nil
@@ -436,13 +431,13 @@ func waitForError(errorChan <-chan error) tea.Cmd {
 }
 
 type model struct {
+	tokenResp       *AuthTokenResponse
+	tokenChan       <-chan AuthTokenResponse
+	errorChan       <-chan error
 	loadingFrames   []string
 	userCode        string
 	verificationURI string
 	err             error
-	tokenChan       <-chan AuthTokenResponse
-	errorChan       <-chan error
-	tokenResp       *AuthTokenResponse
 	frameIndex      int
 	polling         bool
 	done            bool

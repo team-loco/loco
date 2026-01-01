@@ -1,14 +1,15 @@
 package config
 
-// AppConfig represents the full configuration from loco.toml
-type AppConfig struct {
-	Metadata  Metadata  `json:"metadata" toml:"Metadata"`
-	Resources Resources `json:"resources" toml:"Resources"`
-	Build     Build     `json:"build" toml:"Build"`
-	Routing   Routing   `json:"routing" toml:"Routing"`
-	Health    Health    `json:"health" toml:"Health"`
-	Env       Env       `json:"env,omitzero" toml:"Env"`
-	Obs       Obs       `json:"obs,omitzero" toml:"Obs"`
+// LocoConfig represents the full configuration from loco.toml
+type LocoConfig struct {
+	Metadata     Metadata             `json:"metadata" toml:"Metadata"`
+	Build        Build                `json:"build" toml:"Build"`
+	Routing      Routing              `json:"routing" toml:"Routing"`
+	DomainConfig DomainConfig         `json:"domainConfig" toml:"DomainConfig"`
+	RegionConfig map[string]Resources `json:"regionConfig" toml:"RegionConfig"`
+	Health       Health               `json:"health" toml:"Health"`
+	Env          Env                  `json:"env,omitzero" toml:"Env"`
+	Obs          Obs                  `json:"obs,omitzero" toml:"Obs"`
 }
 
 type Metadata struct {
@@ -16,24 +17,17 @@ type Metadata struct {
 	Description   string `json:"description,omitempty" toml:"Description"`
 	Name          string `json:"name" toml:"Name"`
 	Type          string `json:"type,omitempty" toml:"Type"`
+	Region        string `json:"region" toml:"Region"` // deployment region
 }
 
 type Resources struct {
-	CPU      string   `json:"cpu" toml:"CPU"`
-	Memory   string   `json:"memory" toml:"Memory"`
-	Replicas Replicas `json:"replicas" toml:"Replicas"`
-	Scalers  Scalers  `json:"scalers,omitzero" toml:"Scalers"`
-}
-
-type Replicas struct {
-	Min int32 `json:"min" toml:"Min"`
-	Max int32 `json:"max" toml:"Max"`
-}
-
-type Scalers struct {
-	Enabled      bool  `json:"enabled" toml:"Enabled"`
-	CPUTarget    int32 `json:"cpuTarget,omitempty" toml:"CPUTarget"`
-	MemoryTarget int32 `json:"memoryTarget,omitempty" toml:"MemoryTarget"`
+	CPU               string `json:"cpu" toml:"CPU"`
+	Memory            string `json:"memory" toml:"Memory"`
+	ReplicasMin       int32  `json:"replicas_min" toml:"ReplicasMin"`
+	ReplicasMax       int32  `json:"replicas_max" toml:"ReplicasMax"`
+	EnableAutoScaling bool   `json:"scalers_enabled,omitempty" toml:"EnableAutoScaling"`
+	CPUTarget         int32  `json:"scalers_cpu_target,omitempty" toml:"CPUTarget"`
+	ScalersMemTarget  int32  `json:"scalers_mem_target,omitempty" toml:"MemoryTarget"`
 }
 
 type Build struct {
@@ -43,9 +37,13 @@ type Build struct {
 
 type Routing struct {
 	Port        int32  `json:"port" toml:"Port"`
-	Subdomain   string `json:"subdomain" toml:"Subdomain"`
 	PathPrefix  string `json:"pathPrefix,omitempty" toml:"PathPrefix"`
 	IdleTimeout int32  `json:"idleTimeout,omitempty" toml:"IdleTimeout"`
+}
+
+type DomainConfig struct {
+	Type     string `json:"type,omitempty" toml:"Type"` // "platform" (default) or "custom"
+	Hostname string `json:"hostname" toml:"Hostname"`   // full resolvable hostname (e.g., "myapp.deploy-app.com")
 }
 
 type Health struct {

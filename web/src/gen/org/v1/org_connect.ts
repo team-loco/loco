@@ -7,12 +7,16 @@ import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgRespons
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * OrgService manages organizations.
+ *
  * @generated from service loco.org.v1.OrgService
  */
 export const OrgService = {
   typeName: "loco.org.v1.OrgService",
   methods: {
     /**
+     * CreateOrg creates a new organization.
+     *
      * @generated from rpc loco.org.v1.OrgService.CreateOrg
      */
     createOrg: {
@@ -22,6 +26,8 @@ export const OrgService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetOrg retrieves an organization by ID.
+     *
      * @generated from rpc loco.org.v1.OrgService.GetOrg
      */
     getOrg: {
@@ -31,6 +37,8 @@ export const OrgService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetCurrentUserOrgs retrieves all organizations for the current user.
+     *
      * @generated from rpc loco.org.v1.OrgService.GetCurrentUserOrgs
      */
     getCurrentUserOrgs: {
@@ -40,6 +48,8 @@ export const OrgService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListOrgs lists organizations for a user.
+     *
      * @generated from rpc loco.org.v1.OrgService.ListOrgs
      */
     listOrgs: {
@@ -49,6 +59,8 @@ export const OrgService = {
       kind: MethodKind.Unary,
     },
     /**
+     * UpdateOrg updates organization information.
+     *
      * @generated from rpc loco.org.v1.OrgService.UpdateOrg
      */
     updateOrg: {
@@ -58,6 +70,8 @@ export const OrgService = {
       kind: MethodKind.Unary,
     },
     /**
+     * DeleteOrg deletes an organization.
+     *
      * @generated from rpc loco.org.v1.OrgService.DeleteOrg
      */
     deleteOrg: {
@@ -67,6 +81,8 @@ export const OrgService = {
       kind: MethodKind.Unary,
     },
     /**
+     * IsUniqueOrgName checks if an organization name is unique.
+     *
      * @generated from rpc loco.org.v1.OrgService.IsUniqueOrgName
      */
     isUniqueOrgName: {

@@ -15,21 +15,21 @@ import (
 )
 
 var (
-	ErrOrgNotFound              = errors.New("organization not found")
-	ErrOrgNameNotUnique         = errors.New("organization name already exists")
-	ErrOrgHasWorkspacesWithApps = errors.New("organization has workspaces with apps")
-	ErrNotOrgMember             = errors.New("user is not a member of this organization")
-	ErrNotOrgAdmin              = errors.New("user is not an admin of this organization")
+	ErrOrgNotFound                   = errors.New("organization not found")
+	ErrOrgNameNotUnique              = errors.New("organization name already exists")
+	ErrOrgHasWorkspacesWithResources = errors.New("organization has workspaces with apps")
+	ErrNotOrgMember                  = errors.New("user is not a member of this organization")
+	ErrNotOrgAdmin                   = errors.New("user is not an admin of this organization")
 )
 
 // OrgServer implements the OrgService gRPC server
 type OrgServer struct {
 	db      *pgxpool.Pool
-	queries *genDb.Queries
+	queries genDb.Querier
 }
 
 // NewOrgServer creates a new OrgServer instance
-func NewOrgServer(db *pgxpool.Pool, queries *genDb.Queries) *OrgServer {
+func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier) *OrgServer {
 	return &OrgServer{db: db, queries: queries}
 }
 
@@ -79,7 +79,6 @@ func (s *OrgServer) CreateOrg(
 	err = s.queries.AddOrgMember(ctx, genDb.AddOrgMemberParams{
 		OrganizationID: org.ID,
 		UserID:         userID,
-		Role:           genDb.OrganizationRoleAdmin,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to add organization member", "error", err)
@@ -232,25 +231,12 @@ func (s *OrgServer) UpdateOrg(
 ) (*connect.Response[orgv1.UpdateOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
+	_, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-
-	role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{
-		OrganizationID: r.OrgId,
-		UserID:         userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
-	}
-
-	if role != genDb.OrganizationRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.OrgId, "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgAdmin)
-	}
+	// todo: check tvm role.
 
 	isUnique, err := s.queries.IsOrgNameUnique(ctx, r.NewName)
 	if err != nil {
@@ -293,29 +279,29 @@ func (s *OrgServer) DeleteOrg(
 ) (*connect.Response[orgv1.DeleteOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
+	_, ok := ctx.Value(contextkeys.UserIDKey).(int64)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{
-		OrganizationID: r.OrgId,
-		UserID:         userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
-	}
+	// role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{
+	// 	OrganizationID: r.OrgId,
+	// 	UserID:         userID,
+	// })
+	// if err != nil {
+	// 	slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
+	// 	return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
+	// }
 
-	if role != genDb.OrganizationRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.OrgId, "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgAdmin)
-	}
+	// if role != genDb.OrganizationRoleAdmin {
+	// 	slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.OrgId, "userId", userID, "role", string(role))
+	// 	return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgAdmin)
+	// }
 
 	// TODO: Check if org has workspaces with apps or not.
 	// var hasApps bool
-	hasApps, err := s.queries.OrgHasWorkspacesWithApps(ctx, r.OrgId)
+	hasApps, err := s.queries.OrgHasWorkspacesWithResources(ctx, r.OrgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for apps in workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -323,7 +309,7 @@ func (s *OrgServer) DeleteOrg(
 
 	if hasApps {
 		slog.WarnContext(ctx, "org has workspaces with apps", "orgId", r.OrgId)
-		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithApps)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
 	}
 
 	err = s.queries.DeleteOrg(ctx, r.OrgId)

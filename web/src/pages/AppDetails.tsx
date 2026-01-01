@@ -1,26 +1,37 @@
-import { useParams } from "react-router";
-import { useEffect } from "react";
-import { useAppDetails } from "@/hooks/useAppDetails";
 import { AppHeader } from "@/components/app/AppHeader";
 import { DeploymentStatusCard } from "@/components/app/DeploymentStatusCard";
-import { RecentDeployments } from "@/components/app/RecentDeployments";
 import { EnvironmentVariables } from "@/components/app/EnvironmentVariables";
-import { LogsViewer } from "@/components/app/LogsViewer";
 import { EventsTimeline } from "@/components/app/EventsTimeline";
+import { LogsViewer } from "@/components/app/LogsViewer";
+import { RecentDeployments } from "@/components/app/RecentDeployments";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAppDetails } from "@/hooks/useAppDetails";
 import { subscribeToEvents } from "@/lib/events";
+import { useEffect } from "react";
+import { useParams } from "react-router";
 
 export function AppDetails() {
 	const { appId } = useParams<{ appId: string }>();
+	const { app, deployments, isLoading, error } = useAppDetails(appId ?? "");
+
+	// Subscribe to real-time app-specific events
+	useEffect(() => {
+		if (!appId) return;
+
+		const unsubscribe = subscribeToEvents(`app:${appId}`, (event) => {
+			// Event subscription triggers refetches via the hook's internal logic
+			console.log(`[App ${appId}] Event: ${event.type}`);
+		});
+
+		return unsubscribe;
+	}, [appId]);
 
 	if (!appId) {
 		return (
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-2">
-							Invalid App ID
-						</p>
+						<p className="text-destructive font-heading mb-2">Invalid App ID</p>
 						<p className="text-sm text-foreground opacity-70">
 							The app ID is missing from the URL
 						</p>
@@ -29,18 +40,6 @@ export function AppDetails() {
 			</div>
 		);
 	}
-
-	const { app, status, deployments, isLoading, error } = useAppDetails(appId);
-
-	// Subscribe to real-time app-specific events
-	useEffect(() => {
-		const unsubscribe = subscribeToEvents(`app:${appId}`, (event) => {
-			// Event subscription triggers refetches via the hook's internal logic
-			console.log(`[App ${appId}] Event: ${event.type}`);
-		});
-
-		return unsubscribe;
-	}, [appId]);
 
 	if (isLoading) {
 		return (
@@ -80,9 +79,7 @@ export function AppDetails() {
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-2">
-							App Not Found
-						</p>
+						<p className="text-destructive font-heading mb-2">App Not Found</p>
 						<p className="text-sm text-foreground opacity-70">
 							The app with ID {appId} does not exist
 						</p>
@@ -97,31 +94,22 @@ export function AppDetails() {
 			{/* App Header */}
 			<AppHeader app={app} isLoading={isLoading} />
 
-			{/* Deployment Status Card */}
+			{/* Active Deployment Card */}
 			<DeploymentStatusCard
 				appId={appId}
-				status={status}
+				deployment={deployments[0]}
 				isLoading={isLoading}
 			/>
 
-			{/* Recent Deployments */}
+			{/* Previous Deployments */}
 			<RecentDeployments
-				deployments={deployments}
+				deployments={deployments.slice(1)}
 				appId={appId}
 				isLoading={isLoading}
 			/>
 
 			{/* Environment Variables */}
-			<EnvironmentVariables
-				appId={appId}
-				envVars={
-					app.envVars?.map((v: any) => ({
-						key: v.key,
-						value: v.value,
-					})) ?? []
-				}
-				isLoading={isLoading}
-			/>
+			<EnvironmentVariables appId={appId} envVars={[]} isLoading={isLoading} />
 
 			{/* Logs Viewer */}
 			<LogsViewer appId={appId} isLoading={isLoading} />

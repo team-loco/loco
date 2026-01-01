@@ -5,13 +5,12 @@
 package workspacev1connect
 
 import (
+	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
+	v1 "github.com/team-loco/loco/shared/proto/workspace/v1"
 	http "net/http"
 	strings "strings"
-
-	connect "connectrpc.com/connect"
-	v1 "github.com/team-loco/loco/shared/proto/workspace/v1"
 )
 
 // This is a compile-time assertion to ensure that this generated file and the connect package are
@@ -65,14 +64,23 @@ const (
 
 // WorkspaceServiceClient is a client for the loco.workspace.v1.WorkspaceService service.
 type WorkspaceServiceClient interface {
+	// CreateWorkspace creates a new workspace.
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
+	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.GetWorkspaceResponse], error)
+	// GetUserWorkspaces retrieves all workspaces for the current user.
 	GetUserWorkspaces(context.Context, *connect.Request[v1.GetUserWorkspacesRequest]) (*connect.Response[v1.GetUserWorkspacesResponse], error)
+	// ListWorkspaces lists all workspaces in an organization.
 	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
+	// UpdateWorkspace updates workspace information.
 	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
+	// DeleteWorkspace deletes a workspace and optionally its applications.
 	DeleteWorkspace(context.Context, *connect.Request[v1.DeleteWorkspaceRequest]) (*connect.Response[v1.DeleteWorkspaceResponse], error)
+	// AddMember adds a user to a workspace with a specified role.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
+	// RemoveMember removes a user from a workspace.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
+	// ListMembers lists all members of a workspace with pagination.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 }
 
@@ -204,14 +212,23 @@ func (c *workspaceServiceClient) ListMembers(ctx context.Context, req *connect.R
 
 // WorkspaceServiceHandler is an implementation of the loco.workspace.v1.WorkspaceService service.
 type WorkspaceServiceHandler interface {
+	// CreateWorkspace creates a new workspace.
 	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
+	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.GetWorkspaceResponse], error)
+	// GetUserWorkspaces retrieves all workspaces for the current user.
 	GetUserWorkspaces(context.Context, *connect.Request[v1.GetUserWorkspacesRequest]) (*connect.Response[v1.GetUserWorkspacesResponse], error)
+	// ListWorkspaces lists all workspaces in an organization.
 	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
+	// UpdateWorkspace updates workspace information.
 	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
+	// DeleteWorkspace deletes a workspace and optionally its applications.
 	DeleteWorkspace(context.Context, *connect.Request[v1.DeleteWorkspaceRequest]) (*connect.Response[v1.DeleteWorkspaceResponse], error)
+	// AddMember adds a user to a workspace with a specified role.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
+	// RemoveMember removes a user from a workspace.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
+	// ListMembers lists all members of a workspace with pagination.
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 }
 

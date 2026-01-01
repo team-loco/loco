@@ -1,0 +1,28 @@
+{{- if .Values.rbacHelpers.enable }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+    labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service }}
+        app.kubernetes.io/name: controller
+    name: controller-application-editor-role
+rules:
+    - apiGroups:
+        - infra.loco.io
+      resources:
+        - applications
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - infra.loco.io
+      resources:
+        - applications/status
+      verbs:
+        - get
+{{- end }}

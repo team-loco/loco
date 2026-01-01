@@ -12,55 +12,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type AppStatus string
-
-const (
-	AppStatusAvailable   AppStatus = "available"
-	AppStatusProgressing AppStatus = "progressing"
-	AppStatusDegraded    AppStatus = "degraded"
-	AppStatusUnavailable AppStatus = "unavailable"
-	AppStatusIdle        AppStatus = "idle"
-)
-
-func (e *AppStatus) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = AppStatus(s)
-	case string:
-		*e = AppStatus(s)
-	default:
-		return fmt.Errorf("unsupported scan type for AppStatus: %T", src)
-	}
-	return nil
-}
-
-type NullAppStatus struct {
-	AppStatus AppStatus `json:"appStatus"`
-	Valid     bool      `json:"valid"` // Valid is true if AppStatus is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullAppStatus) Scan(value interface{}) error {
-	if value == nil {
-		ns.AppStatus, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.AppStatus.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullAppStatus) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.AppStatus), nil
-}
-
 type DeploymentStatus string
 
 const (
 	DeploymentStatusPending   DeploymentStatus = "pending"
+	DeploymentStatusDeploying DeploymentStatus = "deploying"
 	DeploymentStatusRunning   DeploymentStatus = "running"
 	DeploymentStatusSucceeded DeploymentStatus = "succeeded"
 	DeploymentStatusFailed    DeploymentStatus = "failed"
@@ -100,6 +56,48 @@ func (ns NullDeploymentStatus) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.DeploymentStatus), nil
+}
+
+type DomainSource string
+
+const (
+	DomainSourcePlatformProvided DomainSource = "platform_provided"
+	DomainSourceUserProvided     DomainSource = "user_provided"
+)
+
+func (e *DomainSource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DomainSource(s)
+	case string:
+		*e = DomainSource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DomainSource: %T", src)
+	}
+	return nil
+}
+
+type NullDomainSource struct {
+	DomainSource DomainSource `json:"domainSource"`
+	Valid        bool         `json:"valid"` // Valid is true if DomainSource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDomainSource) Scan(value interface{}) error {
+	if value == nil {
+		ns.DomainSource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DomainSource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDomainSource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DomainSource), nil
 }
 
 type EntityType string
@@ -147,6 +145,143 @@ func (ns NullEntityType) Value() (driver.Value, error) {
 	return string(ns.EntityType), nil
 }
 
+type RegionIntentStatus string
+
+const (
+	RegionIntentStatusDesired      RegionIntentStatus = "desired"
+	RegionIntentStatusProvisioning RegionIntentStatus = "provisioning"
+	RegionIntentStatusActive       RegionIntentStatus = "active"
+	RegionIntentStatusDegraded     RegionIntentStatus = "degraded"
+	RegionIntentStatusRemoving     RegionIntentStatus = "removing"
+	RegionIntentStatusFailed       RegionIntentStatus = "failed"
+)
+
+func (e *RegionIntentStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = RegionIntentStatus(s)
+	case string:
+		*e = RegionIntentStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for RegionIntentStatus: %T", src)
+	}
+	return nil
+}
+
+type NullRegionIntentStatus struct {
+	RegionIntentStatus RegionIntentStatus `json:"regionIntentStatus"`
+	Valid              bool               `json:"valid"` // Valid is true if RegionIntentStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullRegionIntentStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.RegionIntentStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.RegionIntentStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullRegionIntentStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.RegionIntentStatus), nil
+}
+
+type ResourceStatus string
+
+const (
+	ResourceStatusHealthy     ResourceStatus = "healthy"
+	ResourceStatusDeploying   ResourceStatus = "deploying"
+	ResourceStatusDegraded    ResourceStatus = "degraded"
+	ResourceStatusUnavailable ResourceStatus = "unavailable"
+	ResourceStatusSuspended   ResourceStatus = "suspended"
+)
+
+func (e *ResourceStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ResourceStatus(s)
+	case string:
+		*e = ResourceStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ResourceStatus: %T", src)
+	}
+	return nil
+}
+
+type NullResourceStatus struct {
+	ResourceStatus ResourceStatus `json:"resourceStatus"`
+	Valid          bool           `json:"valid"` // Valid is true if ResourceStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullResourceStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ResourceStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ResourceStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullResourceStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ResourceStatus), nil
+}
+
+type ResourceType string
+
+const (
+	ResourceTypeService  ResourceType = "service"
+	ResourceTypeWorker   ResourceType = "worker"
+	ResourceTypeDatabase ResourceType = "database"
+	ResourceTypeCache    ResourceType = "cache"
+	ResourceTypeQueue    ResourceType = "queue"
+	ResourceTypeBlob     ResourceType = "blob"
+)
+
+func (e *ResourceType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ResourceType(s)
+	case string:
+		*e = ResourceType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ResourceType: %T", src)
+	}
+	return nil
+}
+
+type NullResourceType struct {
+	ResourceType ResourceType `json:"resourceType"`
+	Valid        bool         `json:"valid"` // Valid is true if ResourceType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullResourceType) Scan(value interface{}) error {
+	if value == nil {
+		ns.ResourceType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ResourceType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullResourceType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ResourceType), nil
+}
+
 type WorkspaceRole string
 
 const (
@@ -190,52 +325,35 @@ func (ns NullWorkspaceRole) Value() (driver.Value, error) {
 	return string(ns.WorkspaceRole), nil
 }
 
-type App struct {
-	ID          int64              `json:"id"`
-	WorkspaceID int64              `json:"workspaceId"`
-	ClusterID   int64              `json:"clusterId"`
-	Name        string             `json:"name"`
-	Namespace   string             `json:"namespace"`
-	Type        int32              `json:"type"`
-	Subdomain   string             `json:"subdomain"`
-	Domain      string             `json:"domain"`
-	Status      NullAppStatus      `json:"status"`
-	CreatedBy   int64              `json:"createdBy"`
-	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
-}
-
 type Cluster struct {
 	ID              int64              `json:"id"`
 	Name            string             `json:"name"`
 	Region          string             `json:"region"`
 	Provider        string             `json:"provider"`
-	IsActive        pgtype.Bool        `json:"isActive"`
+	IsActive        bool               `json:"isActive"`
+	IsDefault       bool               `json:"isDefault"`
 	Endpoint        pgtype.Text        `json:"endpoint"`
 	HealthStatus    pgtype.Text        `json:"healthStatus"`
 	LastHealthCheck pgtype.Timestamptz `json:"lastHealthCheck"`
 	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
-	CreatedBy       int64              `json:"createdBy"`
 }
 
 type Deployment struct {
-	ID            int64              `json:"id"`
-	AppID         int64              `json:"appId"`
-	ClusterID     int64              `json:"clusterId"`
-	Image         string             `json:"image"`
-	Replicas      int32              `json:"replicas"`
-	Status        DeploymentStatus   `json:"status"`
-	IsCurrent     bool               `json:"isCurrent"`
-	ErrorMessage  pgtype.Text        `json:"errorMessage"`
-	Message       pgtype.Text        `json:"message"`
-	Config        []byte             `json:"config"`
-	SchemaVersion pgtype.Int4        `json:"schemaVersion"`
-	CreatedBy     int64              `json:"createdBy"`
-	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
-	StartedAt     pgtype.Timestamptz `json:"startedAt"`
-	CompletedAt   pgtype.Timestamptz `json:"completedAt"`
-	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+	ID          int64              `json:"id"`
+	ResourceID  int64              `json:"resourceId"`
+	ClusterID   int64              `json:"clusterId"`
+	Replicas    int32              `json:"replicas"`
+	Status      DeploymentStatus   `json:"status"`
+	IsActive    bool               `json:"isActive"`
+	Message     pgtype.Text        `json:"message"`
+	Spec        []byte             `json:"spec"`
+	SpecVersion int32              `json:"specVersion"`
+	CreatedBy   int64              `json:"createdBy"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	StartedAt   pgtype.Timestamptz `json:"startedAt"`
+	CompletedAt pgtype.Timestamptz `json:"completedAt"`
+	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type Organization struct {
@@ -250,6 +368,50 @@ type OrganizationMember struct {
 	OrganizationID int64              `json:"organizationId"`
 	UserID         int64              `json:"userId"`
 	CreatedAt      pgtype.Timestamptz `json:"createdAt"`
+}
+
+type PlatformDomain struct {
+	ID        int64              `json:"id"`
+	Domain    string             `json:"domain"`
+	IsActive  bool               `json:"isActive"`
+	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+}
+
+type Resource struct {
+	ID          int64              `json:"id"`
+	WorkspaceID int64              `json:"workspaceId"`
+	Name        string             `json:"name"`
+	Type        ResourceType       `json:"type"`
+	Description string             `json:"description"`
+	Status      ResourceStatus     `json:"status"`
+	Spec        []byte             `json:"spec"`
+	SpecVersion int32              `json:"specVersion"`
+	CreatedBy   int64              `json:"createdBy"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type ResourceDomain struct {
+	ID               int64              `json:"id"`
+	ResourceID       int64              `json:"resourceId"`
+	Domain           string             `json:"domain"`
+	DomainSource     DomainSource       `json:"domainSource"`
+	SubdomainLabel   pgtype.Text        `json:"subdomainLabel"`
+	PlatformDomainID pgtype.Int8        `json:"platformDomainId"`
+	IsPrimary        bool               `json:"isPrimary"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type ResourceRegion struct {
+	ID         int64              `json:"id"`
+	ResourceID int64              `json:"resourceId"`
+	Region     string             `json:"region"`
+	IsPrimary  bool               `json:"isPrimary"`
+	Status     RegionIntentStatus `json:"status"`
+	LastError  pgtype.Text        `json:"lastError"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type Token struct {

@@ -1,362 +1,308 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+	Activity,
+	BookOpen,
+	Calendar,
+	CheckCircle,
+	Home,
+	Key,
+	Package,
+	TrendingUp,
+	Users,
+	Zap,
+} from "lucide-react";
+import * as React from "react";
+
+import { NavUser } from "@/components/nav-user";
+import { Badge } from "@/components/ui/badge";
 import {
 	Sidebar,
 	SidebarContent,
-	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarMenuSub,
+	SidebarMenuSubButton,
+	SidebarMenuSubItem,
+	SidebarRail,
+	useSidebar,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { listApps } from "@/gen/app/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
-import { getCurrentUser, logout } from "@/gen/user/v1";
+import { getCurrentUser } from "@/gen/user/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { useHeader } from "@/context/HeaderContext";
-import {
-	ArrowRight,
-	Bell,
-	ChevronDown,
-	ChevronsUpDown,
-	Grid,
-	Home,
-	Plus,
-	Settings,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { toast } from "sonner";
+import { useQuery } from "@connectrpc/connect-query";
+import { useQueries } from "@tanstack/react-query";
+import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
+import { useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "./ThemeToggle";
 
-export function AppSidebar() {
+type NavItemBase = {
+	title: string;
+	url: string;
+	icon: React.ComponentType<{ className?: string }>;
+};
+
+type SectionNavItem = {
+	section: string;
+	items: Array<NavItemBase & { badge?: string }>;
+};
+
+type RegularNavItem = NavItemBase & {
+	items: Array<{ title: string; url: string }>;
+};
+
+const data = {
+	navMain: [
+		{
+			title: "Dashboard",
+			url: "/dashboard",
+			icon: Home,
+			items: [],
+		},
+		{
+			title: "Apps",
+			url: "/apps",
+			icon: Package,
+			items: [],
+		},
+		{
+			title: "Observability",
+			url: "/observability",
+			icon: Activity,
+			items: [],
+		},
+		{
+			title: "Events",
+			url: "/events",
+			icon: Calendar,
+			items: [],
+		},
+		{
+			title: "Usage",
+			url: "/usage",
+			icon: TrendingUp,
+			items: [],
+		},
+		{
+			title: "Tokens",
+			url: "/tokens",
+			icon: Key,
+			items: [],
+		},
+		{
+			title: "Team",
+			url: "/team",
+			icon: Users,
+			items: [],
+		},
+		{
+			section: "Resources",
+			items: [
+				{
+					title: "Docs",
+					url: "/docs",
+					icon: BookOpen,
+				},
+				{
+					title: "Packages",
+					url: "/packages",
+					icon: Package,
+					badge: "Coming Soon",
+				},
+				{
+					title: "Status Page",
+					url: "#",
+					icon: CheckCircle,
+					badge: "Coming Soon",
+				},
+			],
+		},
+	],
+};
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { setHeader } = useHeader();
-	const [searchParams] = useSearchParams();
-	const workspaceFromUrl = searchParams.get("workspace");
-	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
+	const { toggleSidebar } = useSidebar();
+	const transport = useTransport();
 
-	const appIdMatch = location.pathname.match(/\/app\/(\d+)/);
-	const activeAppId = appIdMatch ? BigInt(appIdMatch[1]) : null;
-	const { mutate: logoutMutation } = useMutation(logout);
-	const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(
-		null
-	);
-	const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<bigint>>(
-		new Set(activeWorkspaceId ? [activeWorkspaceId] : [])
-	);
-	const [selectedOrgId, setSelectedOrgId] = useState<bigint | null>(null);
-	const [eventCount] = useState(0);
+	const [userQuery, orgsQuery] = useQueries({
+		queries: [
+			createQueryOptions(getCurrentUser, {}, { transport }),
+			createQueryOptions(getCurrentUserOrgs, {}, { transport }),
+		],
+	});
 
-	const toggleWorkspaceExpansion = (workspaceId: bigint) => {
-		setExpandedWorkspaces((prev) => {
-			const next = new Set(prev);
-			if (next.has(workspaceId)) {
-				next.delete(workspaceId);
-			} else {
-				next.add(workspaceId);
-			}
-			return next;
-		});
-	};
-
-	const { data: userRes } = useQuery(getCurrentUser, {});
-	const user = userRes?.user ?? null;
-
-	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
-
-	const orgs = orgsRes?.orgs ?? [];
+	const user = userQuery.data?.user ?? null;
+	const orgs = orgsQuery.data?.orgs ?? [];
 	const firstOrgId = orgs[0]?.id ?? null;
 
-	// Get workspaces for first org
 	const { data: workspacesRes } = useQuery(
 		listWorkspaces,
 		firstOrgId ? { orgId: firstOrgId } : undefined,
 		{ enabled: !!firstOrgId }
 	);
-
 	const workspaces = workspacesRes?.workspaces ?? [];
 
-	// Get apps for active workspace
-	const appsQuery = useQuery(
-		listApps,
-		{ workspaceId: activeWorkspaceId ?? 0n },
-		{ enabled: !!activeWorkspaceId }
-	);
+	const activeWorkspaceId = new URLSearchParams(location.search).get(
+		"workspace"
+	)
+		? BigInt(new URLSearchParams(location.search).get("workspace") || "0")
+		: null;
 
-	// Update header based on current route
-	useEffect(() => {
-		const appName = appsQuery.data?.apps?.find((app) => app.id === activeAppId)?.name;
-		
-		if (activeAppId && appName) {
-			setHeader(
-				<div className="flex flex-col">
-					<h1 className="text-2xl font-heading">{appName}</h1>
-				</div>
-			);
-		} else if (activeWorkspaceId) {
-			const workspaceName = workspaces.find((ws) => ws.id === activeWorkspaceId)?.name;
-			if (workspaceName) {
-				setHeader(
-					<div className="flex flex-col">
-						<h1 className="text-2xl font-heading">{workspaceName}</h1>
-					</div>
-				);
+	const isActive = (url: string) => {
+		if (url === "#") return false;
+		return location.pathname === url || location.pathname.startsWith(url + "/");
+	};
+
+	React.useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+			const isToggleKey = e.key === "b" || e.key === "B";
+			const isCorrectModifier = isMac ? e.metaKey : e.ctrlKey;
+
+			if (isToggleKey && isCorrectModifier && !e.shiftKey && !e.altKey) {
+				e.preventDefault();
+				toggleSidebar();
 			}
-		} else {
-			setHeader(
-				<div className="flex flex-col">
-					<h1 className="text-2xl font-heading">Dashboard</h1>
-				</div>
-			);
-		}
-	}, [activeAppId, activeWorkspaceId, appsQuery.data?.apps, workspaces, setHeader]);
+		};
 
-	const handleLogout = () => {
-		logoutMutation(
-			{},
-			{
-				onSuccess: () => {
-					toast.success("Logged out successfully");
-					navigate("/login");
-				},
-				onError: () => {
-					toast.error("Failed to logout");
-				},
-			}
-		);
-	};
-
-	const handleWorkspaceClick = (workspaceId: bigint) => {
-		navigate(`/dashboard?workspace=${workspaceId}`);
-	};
-
-	const handleAppClick = (appId: bigint) => {
-		navigate(`/app/${appId}${activeWorkspaceId ? `?workspace=${activeWorkspaceId}` : ""}`);
-	};
-
-	const activeOrg = orgs.find((org) => org.id === (selectedOrgId || orgs[0]?.id));
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [toggleSidebar]);
 
 	return (
-		<Sidebar className="border-r-2 border-border">
-			<SidebarHeader>
+		<Sidebar {...props}>
+			<SidebarHeader className="pt-14">
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<DropdownMenu>
-							<DropdownMenuTrigger className="focus-visible:ring-0" asChild>
-								<SidebarMenuButton
-									size="lg"
-									className="data-[state=open]:bg-main data-[state=open]:text-main-foreground data-[state=open]:outline-border data-[state=open]:outline-2"
-								>
-									<div className="flex items-center gap-2 flex-1">
-										<span className="font-heading truncate">{activeOrg?.name}</span>
-									</div>
-									<ChevronsUpDown className="ml-auto" />
-								</SidebarMenuButton>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent
-								className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-base"
-								align="start"
-								side="right"
-								sideOffset={4}
+						<SidebarMenuButton
+							size="lg"
+							asChild
+							className="hover:bg-transparent active:bg-transparent focus-visible:bg-transparent data-[state=open]:bg-transparent"
+						>
+							<a
+								href="/dashboard"
+								onClick={(e) => e.preventDefault()}
+								className="cursor-default"
 							>
-								<DropdownMenuLabel className="text-sm font-heading">
-									Organizations
-								</DropdownMenuLabel>
-								{orgs.map((org) => (
-									<DropdownMenuItem
-										key={org.id.toString()}
-										onClick={() => setSelectedOrgId(org.id)}
-										className="gap-2 p-1.5"
-									>
-										<span>{org.name}</span>
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
+								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+									<Zap className="size-4" />
+								</div>
+								<div className="flex flex-col gap-0.5 leading-none">
+									<span className="font-medium">Loco</span>
+									<span className="text-xs">Deploy & Scale</span>
+								</div>
+							</a>
+						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarHeader>
-			<SidebarContent className="space-y-0">
-				{/* Dashboard Quick Access */}
-				<SidebarGroup>
-					<SidebarMenu>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								asChild
-								onClick={() => navigate("/dashboard")}
-								className="h-10"
-							>
-								<button className="flex items-center gap-2">
-									<Home className="h-4 w-4" />
-									<span>Dashboard</span>
-								</button>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					</SidebarMenu>
-				</SidebarGroup>
 
-				{/* Workspaces & Apps Tree */}
-				<SidebarGroup>
-					<SidebarGroupLabel>Workspaces</SidebarGroupLabel>
-					<SidebarMenu className="space-y-1 pl-4">
-						{workspaces.length === 0 ? (
-							<>
-								<Skeleton className="h-8 w-full rounded-neo" />
-								<Skeleton className="h-8 w-full rounded-neo" />
-							</>
-						) : (
-							workspaces.map((ws) => (
-								<div key={ws.id.toString()}>
-									<SidebarMenuItem>
-										<div className="flex items-center w-full">
-											<button
-												onClick={() => toggleWorkspaceExpansion(ws.id)}
-												className="p-1 -ml-2 hover:bg-secondary-background rounded"
-											>
-												<ChevronDown
-													className={`h-4 w-4 transition-transform ${
-														expandedWorkspaces.has(ws.id) ? "" : "-rotate-90"
+			<SidebarContent>
+				{data.navMain.map((item, idx) => {
+					if ("section" in item) {
+						const sectionItem = item as SectionNavItem;
+						return (
+							<SidebarGroup key={sectionItem.section}>
+								<SidebarGroupLabel>{sectionItem.section}</SidebarGroupLabel>
+								<SidebarMenu>
+									{sectionItem.items.map(
+										(subItem: (typeof sectionItem.items)[0]) => (
+											<SidebarMenuItem key={subItem.title}>
+												<SidebarMenuButton
+													onClick={() => {
+														if (!subItem.badge) {
+															navigate(subItem.url);
+														}
+													}}
+													isActive={isActive(subItem.url)}
+													className={`flex items-center justify-between ${
+														subItem.badge
+															? "cursor-not-allowed opacity-60 hover:bg-transparent"
+															: "cursor-pointer"
 													}`}
-												/>
-											</button>
-											<SidebarMenuButton
-												onClick={() => {
-													handleWorkspaceClick(ws.id);
-													setActiveWorkspaceName(ws.name);
-												}}
-												isActive={activeWorkspaceId === ws.id && !activeAppId}
-												className="flex-1"
-											>
-												<span>{ws.name}</span>
-											</SidebarMenuButton>
-										</div>
-									</SidebarMenuItem>
-
-									{/* Apps under this workspace */}
-									{activeWorkspaceId === ws.id && expandedWorkspaces.has(ws.id) && (
-										<div className="space-y-1 mt-1">
-											<div className="flex items-center justify-between px-4 py-1">
-												<span className="text-xs font-heading">Apps</span>
-												<button
-													onClick={() => navigate("/create-app")}
-													className="p-0.5 hover:bg-secondary-background rounded-neo"
-													title="Create App"
 												>
-													<Plus className="h-3 w-3" />
-												</button>
-											</div>
-											<SidebarMenu className="space-y-1 pl-4">
-												{appsQuery.isLoading ? (
-													<>
-														<Skeleton className="h-7 w-full rounded-neo" />
-														<Skeleton className="h-7 w-full rounded-neo" />
-													</>
-												) : appsQuery.data?.apps && appsQuery.data.apps.length > 0 ? (
-													appsQuery.data.apps.map((app) => (
-														<SidebarMenuItem key={app.id.toString()}>
-															<SidebarMenuButton
-																asChild
-																onClick={() => handleAppClick(app.id)}
-																isActive={activeAppId === app.id}
-															>
-																<button className="flex items-center gap-2 text-sm">
-																	<Grid className="h-4 w-4 shrink-0" />
-																	<span className="truncate">{app.name}</span>
-																</button>
-															</SidebarMenuButton>
-														</SidebarMenuItem>
-													))
-												) : (
-													<p className="text-xs text-foreground opacity-50 px-3 py-1">
-														No apps yet
-													</p>
-												)}
-											</SidebarMenu>
-										</div>
+													<div className="flex items-center gap-2">
+														<subItem.icon className="size-4" />
+														<span>{subItem.title}</span>
+													</div>
+													{subItem.badge && (
+														<Badge className="bg-yellow-500 border-0 text-xs font-mono">
+															{subItem.badge}
+														</Badge>
+													)}
+												</SidebarMenuButton>
+											</SidebarMenuItem>
+										)
 									)}
-								</div>
-							))
-						)}
-					</SidebarMenu>
-				</SidebarGroup>
+								</SidebarMenu>
+							</SidebarGroup>
+						);
+					}
+
+					const navItem = item as RegularNavItem;
+					return (
+						<SidebarGroup key={navItem.title || idx}>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										onClick={() => navigate(navItem.url)}
+										isActive={isActive(navItem.url)}
+										className={`${
+											(navItem.items ?? []).length ? "" : "font-medium"
+										} cursor-pointer`}
+										tooltip={navItem.title}
+									>
+										<navItem.icon className="size-4" />
+										<span>{navItem.title}</span>
+									</SidebarMenuButton>
+
+									{(navItem.items ?? []).length > 0 ? (
+										<SidebarMenuSub>
+											{navItem.items?.map(
+												(navSubItem: (typeof navItem.items)[0]) => (
+													<SidebarMenuSubItem key={navSubItem.title}>
+														<SidebarMenuSubButton
+															onClick={() => navigate(navSubItem.url)}
+															isActive={isActive(navSubItem.url)}
+															className="cursor-pointer"
+														>
+															<span>{navSubItem.title}</span>
+														</SidebarMenuSubButton>
+													</SidebarMenuSubItem>
+												)
+											)}
+										</SidebarMenuSub>
+									) : null}
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroup>
+					);
+				})}
 			</SidebarContent>
 
-			{/* Footer with User Menu & Theme Toggle */}
-			<SidebarFooter className="border-t-2 border-border">
-				<ThemeToggle />
+			<SidebarGroup className="mt-auto border-t ">
+				<div className="border-b pb-1 pt-1">
+					<ThemeToggle />
+				</div>
+				<NavUser
+					user={{
+						name: user?.name || "User",
+						email: user?.email || "",
+						avatar: user?.avatarUrl || "",
+					}}
+					workspaces={workspaces.map((ws) => ({
+						id: ws.id,
+						name: ws.name,
+					}))}
+					activeWorkspaceId={activeWorkspaceId}
+				/>
+			</SidebarGroup>
 
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<button className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-neo hover:bg-secondary-background transition-colors">
-							<div className="flex items-center gap-2 min-w-0">
-								<Avatar className="h-8 w-8">
-									<AvatarImage src={user?.avatarUrl} alt={user?.name} />
-									<AvatarFallback>
-										{user?.name?.charAt(0).toUpperCase()}
-									</AvatarFallback>
-								</Avatar>
-								<div className="hidden sm:block min-w-0 text-left">
-									<p className="text-xs font-heading truncate">{user?.name}</p>
-									<p className="text-xs opacity-75 truncate">{user?.email}</p>
-								</div>
-							</div>
-							<ChevronsUpDown className="h-4 w-4 shrink-0" />
-						</button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent
-						align="end"
-						className="w-80 max-h-96 overflow-y-auto"
-					>
-						<DropdownMenuLabel className="font-heading">
-							{user?.name}
-						</DropdownMenuLabel>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							onClick={() => navigate("/events")}
-							className="cursor-pointer"
-						>
-							<Bell className="h-4 w-4 mr-2" />
-							<div className="flex items-center gap-2">
-								<span>Recent Events</span>
-								{eventCount > 0 && (
-									<span className="ml-auto text-xs bg-destructive text-white px-2 py-0.5 rounded-full">
-										{eventCount > 9 ? "9+" : eventCount}
-									</span>
-								)}
-								<ArrowRight className="h-4 w-4" />
-							</div>
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							onClick={() => navigate("/profile")}
-							className="cursor-pointer"
-						>
-							<Settings className="h-4 w-4 mr-2" />
-							<span>Profile Settings</span>
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							onClick={handleLogout}
-							className="cursor-pointer text-error-text"
-						>
-							<span>Logout</span>
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			</SidebarFooter>
+			<SidebarRail />
 		</Sidebar>
 	);
 }

@@ -1,0 +1,54 @@
+[Metadata]
+ConfigVersion = "0.1"
+Description = "Default Loco app configuration"
+Name = "foo"
+Type = "SERVICE"
+Region = "us-east-1"
+
+[Build]
+DockerfilePath = "Dockerfile"
+Type = "docker"
+
+[Routing]
+IdleTimeout = 60
+PathPrefix = "/"
+Port = 8000
+
+[DomainConfig]
+Hostname = "foo.deploy-app.com"
+Type = "platform"
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+CPUTarget = 0
+EnableAutoScaling = false
+Memory = "256Mi"
+MemoryTarget = 0
+ReplicasMax = 1
+ReplicasMin = 1
+
+[Health]
+FailThreshold = 3
+Interval = 30
+Path = "/health"
+StartupGracePeriod = 0
+Timeout = 5
+
+[Env]
+File = ""
+[Env.Variables]
+
+[Obs]
+[Obs.Logging]
+Enabled = true
+RetentionPeriod = "7d"
+Structured = false
+[Obs.Metrics]
+Enabled = false
+Path = "/metrics"
+Port = 9090
+[Obs.Tracing]
+Enabled = false
+SampleRate = 0.1
+[Obs.Tracing.Tags]

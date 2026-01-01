@@ -23,6 +23,7 @@ import (
 )
 
 // OAuthStateCache uses bigcache for storing OAuth state tokens
+// todo: this is a temporary in-memory solution; we will eventually move to distributed cache
 type OAuthStateCache struct {
 	cache *bigcache.BigCache
 }
@@ -72,7 +73,7 @@ func (c *OAuthStateCache) Close() error {
 
 type OAuthServer struct {
 	db         *pgxpool.Pool
-	queries    *genDb.Queries
+	queries    genDb.Querier
 	httpClient *http.Client
 	stateCache *OAuthStateCache
 }
@@ -91,7 +92,6 @@ var OAuthConf = &oauth2.Config{
 	ClientSecret: os.Getenv("GH_OAUTH_CLIENT_SECRET"),
 	Scopes:       []string{"read:user user:email"},
 	Endpoint:     github.Endpoint,
-	RedirectURL:  os.Getenv("GH_OAUTH_REDIRECT_URL"),
 }
 
 var (
@@ -107,7 +107,7 @@ func generateSecureRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func NewOAuthServer(db *pgxpool.Pool, queries *genDb.Queries, httpClient *http.Client) (*OAuthServer, error) {
+func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Client) (*OAuthServer, error) {
 	stateCache, err := NewOAuthStateCache(OAuthStateTTL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create oauth state cache: %w", err)

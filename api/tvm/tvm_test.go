@@ -96,25 +96,25 @@ func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id in
 	}
 }
 
-func (*TestingQueries) GetWorkspaceOrganizationIDByAppID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByAppIDRow, error) {
+func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error) {
 	switch id {
 	case 1:
-		return queries.GetWorkspaceOrganizationIDByAppIDRow{
+		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
 			WorkspaceID: 1,
 			OrgID:       1,
 		}, nil
 	case 2:
-		return queries.GetWorkspaceOrganizationIDByAppIDRow{
+		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
 			WorkspaceID: 2,
 			OrgID:       1,
 		}, nil
 	case 3:
-		return queries.GetWorkspaceOrganizationIDByAppIDRow{
+		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
 			WorkspaceID: 3,
 			OrgID:       2,
 		}, nil
 	default:
-		return queries.GetWorkspaceOrganizationIDByAppIDRow{}, tvm.ErrEntityNotFound
+		return queries.GetWorkspaceOrganizationIDByResourceIDRow{}, tvm.ErrEntityNotFound
 	}
 }
 
@@ -135,10 +135,12 @@ func (tq *TestingQueries) GetToken(ctx context.Context, token string) (queries.G
 	}
 	return tk, nil
 }
+
 func (tq *TestingQueries) DeleteToken(ctx context.Context, token string) error {
 	delete(tq.tokens, token)
 	return nil
 }
+
 func (tq *TestingQueries) DeleteExpiredTokens(ctx context.Context) error {
 	now := time.Now()
 	for token, tk := range tq.tokens {
@@ -148,18 +150,23 @@ func (tq *TestingQueries) DeleteExpiredTokens(ctx context.Context) error {
 	}
 	return nil
 }
+
 func (tq *TestingQueries) AddUserScope(ctx context.Context, arg queries.AddUserScopeParams) error {
 	panic("not implemented")
 }
+
 func (tq *TestingQueries) RemoveUserScope(ctx context.Context, arg queries.RemoveUserScopeParams) error {
 	panic("not implemented")
 }
+
 func (tq *TestingQueries) GetUserScopesOnEntity(ctx context.Context, arg queries.GetUserScopesOnEntityParams) ([]queries.UserScope, error) {
 	panic("not implemented")
 }
+
 func (tq *TestingQueries) GetUserScopesOnOrganization(ctx context.Context, arg queries.GetUserScopesOnOrganizationParams) ([]queries.UserScope, error) {
 	panic("not implemented")
 }
+
 func (tq *TestingQueries) GetUserScopesOnWorkspace(ctx context.Context, arg queries.GetUserScopesOnWorkspaceParams) ([]queries.UserScope, error) {
 	panic("not implemented")
 }

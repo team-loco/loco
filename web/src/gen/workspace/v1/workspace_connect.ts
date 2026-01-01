@@ -7,12 +7,16 @@ import { AddMemberRequest, AddMemberResponse, CreateWorkspaceRequest, CreateWork
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * WorkspaceService manages workspaces and their members.
+ *
  * @generated from service loco.workspace.v1.WorkspaceService
  */
 export const WorkspaceService = {
   typeName: "loco.workspace.v1.WorkspaceService",
   methods: {
     /**
+     * CreateWorkspace creates a new workspace.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.CreateWorkspace
      */
     createWorkspace: {
@@ -22,6 +26,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetWorkspace retrieves a workspace by ID.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.GetWorkspace
      */
     getWorkspace: {
@@ -31,6 +37,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * GetUserWorkspaces retrieves all workspaces for the current user.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.GetUserWorkspaces
      */
     getUserWorkspaces: {
@@ -40,6 +48,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListWorkspaces lists all workspaces in an organization.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.ListWorkspaces
      */
     listWorkspaces: {
@@ -49,6 +59,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * UpdateWorkspace updates workspace information.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.UpdateWorkspace
      */
     updateWorkspace: {
@@ -58,6 +70,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * DeleteWorkspace deletes a workspace and optionally its applications.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.DeleteWorkspace
      */
     deleteWorkspace: {
@@ -67,6 +81,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * AddMember adds a user to a workspace with a specified role.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.AddMember
      */
     addMember: {
@@ -76,6 +92,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * RemoveMember removes a user from a workspace.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.RemoveMember
      */
     removeMember: {
@@ -85,6 +103,8 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
+     * ListMembers lists all members of a workspace with pagination.
+     *
      * @generated from rpc loco.workspace.v1.WorkspaceService.ListMembers
      */
     listMembers: {

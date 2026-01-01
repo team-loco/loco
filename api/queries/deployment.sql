@@ -1,29 +1,29 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (app_id, cluster_id, image, replicas, status, is_current, message, created_by, config, schema_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING *;
+INSERT INTO deployments (resource_id, cluster_id, replicas, status, is_active, message, created_by, spec, spec_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id;
 
 -- name: GetDeploymentByID :one
 SELECT * FROM deployments WHERE id = $1;
 
--- name: ListDeploymentsForApp :many
+-- name: ListDeploymentsForResource :many
 SELECT * FROM deployments
-WHERE app_id = $1
+WHERE resource_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
 
--- name: CountDeploymentsForApp :one
-SELECT COUNT(*) FROM deployments WHERE app_id = $1;
+-- name: CountDeploymentsForResource :one
+SELECT COUNT(*) FROM deployments WHERE resource_id = $1;
 
--- name: MarkPreviousDeploymentsNotCurrent :exec
+-- name: MarkPreviousDeploymentsNotActive :exec
 UPDATE deployments
-SET is_current = false, updated_at = NOW()
-WHERE app_id = $1 AND is_current = true;
+SET is_active = false, updated_at = NOW()
+WHERE resource_id = $1 AND is_active = true;
 
--- name: GetDeploymentAppID :one
-SELECT app_id FROM deployments WHERE id = $1;
+-- name: GetDeploymentResourceID :one
+SELECT resource_id FROM deployments WHERE id = $1;
 
 -- name: UpdateDeploymentStatus :exec
 UPDATE deployments
@@ -33,4 +33,22 @@ WHERE id = $1;
 -- name: UpdateDeploymentStatusWithMessage :exec
 UPDATE deployments
 SET status = $2, message = $3, updated_at = NOW()
+WHERE id = $1;
+
+-- name: UpdateActiveDeploymentStatus :exec
+UPDATE deployments
+SET status = $2, message = $3, updated_at = NOW()
+WHERE resource_id = $1 AND is_active = true;
+
+-- name: ListActiveDeployments :many
+SELECT resource_id FROM deployments WHERE is_active = true;
+
+-- name: ListActiveDeploymentsForResource :many
+SELECT * FROM deployments
+WHERE resource_id = $1 AND is_active = true
+ORDER BY created_at DESC;
+
+-- name: MarkDeploymentNotActive :exec
+UPDATE deployments
+SET is_active = false, updated_at = NOW()
 WHERE id = $1;

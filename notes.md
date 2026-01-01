@@ -1,9 +1,3 @@
-- Make loco multi-tenant, multi-app setup thats backed by a database.
-
-  - currently everything is stored in k8s; this needs to be moved to a Postgres or similar.
-  - db will source of truth, instead of checking whats deployed on the cluster every single time.
-  - will reduce load on etcd and the kube api-server, which is not designed for repititive abuse from APIs
-
 - Make loco work multi-cluster
 
   - currently loco-api gets deployed into a cluster and manipulates kubernetes thru there
@@ -14,6 +8,7 @@
 
 - should certficates be created and managed in the region they are deployed?
 - this should technically also be a 1-time process as well; how do we manage that.
+- potential fix for this is to maybe have a designated cluster/ perhaps per region that manages stuff like this. aka the 'leader'
 
 - Metrics/Logging/Tracing
 
@@ -24,9 +19,7 @@
   - accuracy of dashboards is not clear.
   - need to create a separate admin dashboard, or use something out of the box?
   - metrics need multi-tenant support.
-
-    - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
-
+  - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
   - can potentially create dashboards dynamically, or atleast pull the data down.
   - deploy a self-hosted instance on monitoring.loco.deploy-app.com
   - tracing will be a to-do
@@ -52,7 +45,7 @@
 
 - Health Checks
 
-  - support non http health checks?
+  - should eventually support non-http health checks.
 
 - GRPC Support
 
@@ -388,4 +381,55 @@ Phase I ends Here
 - eventually use.go should be able to switch between different scopes.
 - we should have a way to list all the scopes and switch between them.
 
-- connect does not hve any out of the box validation for requests coming in. we need to manually all incoming params
+- connect does not have any out of the box validation for requests coming in. we need to manually all incoming params
+
+- create a logs service that can get logs from clickhouse or live tail the application.
+- need an invitations microservice alongside an emailing microservice.
+- helm chart for loco. and make loco deploy as the chart instead.
+- never return db errors directly to client, we need to clean that logic up and return a generic error message only for now.
+- missing concept of schema versioning for the app config that should be scoped inside DB
+- potentially setup umami for analytics on the frontend?
+- whereever we make these multi saves, we need to run as a transaction.
+- on the UI, if API returns a message, we need to read that.
+
+missing a proper deployment interface as in whats happening inside allocateResources. we need a simple way to start, execute, and watch these changes.
+
+potentially loco-api chats with loco-controller eventually.
+controller-runtime would be cool.
+
+next major todos:
+lets actually finish the allocate. so the api needs to take in config of map[string][any] and we use it upstream to build the app as is.
+
+things that are fully growing and will need a ttl:
+the configmaps for apps/deployments
+the data in clickhouse
+the audit events.
+
+rename loco_example to loco_full_example
+make deploying user apps, an all or nothing approach.
+is it all or nothing to deploy a single app in one region?
+have a full kubernetes export function where users can literally take their loco.toml config and convert to a kubernetes yaml.
+create loco resource will need to handle loco spec versions.
+fully update the helm charts to be parametrized instead of using hardcoded values.
+potentially use the kubernetes dashboard for admin view.
+
+deployment defaults should come from where?
+the resource, the last deployment?
+for rolling back, we will need to persist the env someplace. and unfortunately, we cannot persist in postgres.
+for rolling back, how do we decide whcih deployment to push it back to? rollbacks will need to be regional
+clickhouse is named weirdly and so is our controller.
+
+- resourcespec needs to be different per type of resoure. the current one works specifically for services.
+- what is this locoresourcespec man.
+- whenever we crud on any resource, we should just return the id. not the resource itself. it can be requiried to fetch the data.
+- owner reference?
+- cmd/deploy.go has become lost in the sauce. we need to clean it up.
+- do we need tls in-cluster communication?
+- api needs to set and validate defaults before firing to locoresource.
+- make controller an all or nothing approach.
+- mark previous deployments as inactive or something before creating the next deployment. do this transactionally.
+- do all the previous helm secrets and nonsense need to be removed? maybe we max history at 5.
+  -add messages even when successful / deploying.
+  make helm charts parametrized.
+  start writing tests even.
+- test scale/env. clean up cli implementation to not require config.

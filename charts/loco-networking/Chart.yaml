@@ -1,0 +1,24 @@
+apiVersion: v2
+name: loco-networking
+description: Helm chart for deploying Loco networking (Cilium)
+type: application
+
+version: 0.0.0
+appVersion: "latest"
+
+dependencies:
+  - name: cilium
+    version: 1.18.4
+    repository: https://helm.cilium.io/
+    condition: cilium.enabled
+
+maintainers:
+  - name: Nikhil
+
+sources:
+  - https://github.com/team-loco/loco
+
+keywords:
+  - loco
+  - kubernetes
+  - networking

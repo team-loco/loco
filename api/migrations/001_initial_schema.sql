@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
     id BIGSERIAL PRIMARY KEY,
     org_id BIGINT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    description TEXT DEFAULT '',
+    description TEXT,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -57,7 +57,7 @@ CREATE TYPE workspace_role AS ENUM ('admin', 'deploy', 'read');
 CREATE TABLE IF NOT EXISTS workspace_members (
     workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role workspace_role NOT NULL DEFAULT 'read',
+    role workspace_role NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (workspace_id, user_id)
 );

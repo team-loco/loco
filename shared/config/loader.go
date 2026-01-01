@@ -19,6 +19,9 @@ var AllowedSchemaVersions = []string{
 }
 
 // BannedSubdomains are reserved subdomains that cannot be used
+// todo: user-hosted domain is different from loco's real domain.
+// this avoids conflict instead of a hardcoded list.
+// todo: remove this once we have separate domains
 var BannedSubdomains = []string{
 	"api", "admin", "dashboard", "console",
 	"login", "auth", "user", "users", "support", "help", "loco", "monitoring",
@@ -26,26 +29,14 @@ var BannedSubdomains = []string{
 	"config", "configuration", "settings", "setup", "install", "uninstall",
 }
 
-// Default provides sensible defaults for a new AppConfig
-var Default = &AppConfig{
+// Default provides sensible defaults for a new LocoConfig
+var Default = &LocoConfig{
 	Metadata: Metadata{
 		ConfigVersion: "0.1",
 		Description:   "Default Loco app configuration",
 		Name:          "<ENTER_APP_NAME>",
 		Type:          "SERVICE",
-	},
-	Resources: Resources{
-		CPU:    "100m",
-		Memory: "256Mi",
-		Replicas: Replicas{
-			Min: 1,
-			Max: 1,
-		},
-		Scalers: Scalers{
-			Enabled:      false,
-			CPUTarget:    0,
-			MemoryTarget: 0,
-		},
+		Region:        "us-east-1",
 	},
 	Build: Build{
 		DockerfilePath: "Dockerfile",
@@ -83,22 +74,19 @@ var Default = &AppConfig{
 			Tags:       map[string]string{},
 		},
 	},
+	DomainConfig: DomainConfig{
+		Type:     "platform",
+		Hostname: "loco.deploy-app.com",
+	},
 }
 
 // FillSensibleDefaults applies defaults to a config where values are not set
-func FillSensibleDefaults(cfg *AppConfig) {
+func FillSensibleDefaults(cfg *LocoConfig) {
 	if cfg.Build.DockerfilePath == "" {
 		cfg.Build.DockerfilePath = Default.Build.DockerfilePath
 	}
 	if cfg.Build.Type == "" {
 		cfg.Build.Type = Default.Build.Type
-	}
-
-	if cfg.Resources.CPU == "" {
-		cfg.Resources.CPU = Default.Resources.CPU
-	}
-	if cfg.Resources.Memory == "" {
-		cfg.Resources.Memory = Default.Resources.Memory
 	}
 
 	if cfg.Routing.PathPrefix == "" {
@@ -129,8 +117,8 @@ func FillSensibleDefaults(cfg *AppConfig) {
 	}
 }
 
-// Validate ensures the AppConfig is valid according to the schema
-func Validate(cfg *AppConfig) error {
+// Validate ensures the LocoConfig is valid according to the schema
+func Validate(cfg *LocoConfig) error {
 	if cfg.Metadata.ConfigVersion == "" {
 		return fmt.Errorf("metadata.configVersion must be set")
 	}
@@ -142,12 +130,16 @@ func Validate(cfg *AppConfig) error {
 		return fmt.Errorf("metadata.name must be set")
 	}
 
-	if cfg.Routing.Subdomain == "" {
-		return fmt.Errorf("routing.subdomain must be set")
+	if cfg.DomainConfig.Hostname == "" {
+		return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.deploy-app.com')")
 	}
 
-	if isBannedSubdomain(cfg.Routing.Subdomain) {
-		return fmt.Errorf("routing.subdomain %q is reserved and cannot be used", cfg.Routing.Subdomain)
+	if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != "platform" && cfg.DomainConfig.Type != "custom" {
+		return fmt.Errorf("domainConfig.type must be 'platform' or 'custom', got %q", cfg.DomainConfig.Type)
+	}
+
+	if cfg.DomainConfig.Type == "" {
+		cfg.DomainConfig.Type = "platform"
 	}
 
 	if cfg.Routing.Port <= 1023 || cfg.Routing.Port > 65535 {
@@ -175,38 +167,52 @@ func Validate(cfg *AppConfig) error {
 		return fmt.Errorf("build.type %q is not supported. only 'docker' is allowed", cfg.Build.Type)
 	}
 
-	if cfg.Resources.CPU == "" {
-		return fmt.Errorf("resources.cpu must be set (e.g. '100m')")
-	}
-	if cfg.Resources.Memory == "" {
-		return fmt.Errorf("resources.memory must be set (e.g. '512Mi')")
+	if len(cfg.RegionConfig) == 0 {
+		return fmt.Errorf("regionConfig must have at least one region configured")
 	}
 
-	if cfg.Resources.Replicas.Min <= 0 {
-		return fmt.Errorf("resources.replicas.min must be greater than 0")
-	}
-	if cfg.Resources.Replicas.Max <= 0 {
-		return fmt.Errorf("resources.replicas.max must be greater than 0")
-	}
-	if cfg.Resources.Replicas.Max < cfg.Resources.Replicas.Min {
-		return fmt.Errorf("resources.replicas.max must be greater than or equal to min")
-	}
-	if cfg.Resources.Replicas.Max > 3 {
-		return fmt.Errorf("resources.replicas.max cannot exceed 3 replicas")
+	if cfg.Metadata.Region == "" {
+		return fmt.Errorf("metadata.region must be set and match one of the configured regions")
 	}
 
-	if cfg.Resources.Scalers.Enabled {
-		if cfg.Resources.Scalers.CPUTarget == 0 && cfg.Resources.Scalers.MemoryTarget == 0 {
-			return fmt.Errorf("when resources.scalers.enabled=true, either cpuTarget or memoryTarget must be provided (non-zero)")
+	if _, exists := cfg.RegionConfig[cfg.Metadata.Region]; !exists {
+		return fmt.Errorf("metadata.region %q is not configured in regionConfig", cfg.Metadata.Region)
+	}
+
+	for region, resources := range cfg.RegionConfig {
+		if resources.CPU == "" {
+			return fmt.Errorf("regionConfig.%s.cpu must be set (e.g. '100m')", region)
 		}
-		if cfg.Resources.Scalers.CPUTarget != 0 && cfg.Resources.Scalers.MemoryTarget != 0 {
-			return fmt.Errorf("only one of resources.scalers.cpuTarget or resources.scalers.memoryTarget should be provided")
+		if resources.Memory == "" {
+			return fmt.Errorf("regionConfig.%s.memory must be set (e.g. '512Mi')", region)
 		}
-		if cfg.Resources.Scalers.CPUTarget != 0 && (cfg.Resources.Scalers.CPUTarget < 1 || cfg.Resources.Scalers.CPUTarget > 100) {
-			return fmt.Errorf("resources.scalers.cpuTarget must be between 1 and 100 (0 means disabled)")
+
+		if resources.ReplicasMin <= 0 {
+			return fmt.Errorf("regionConfig.%s.replicas_min must be greater than 0", region)
 		}
-		if cfg.Resources.Scalers.MemoryTarget != 0 && (cfg.Resources.Scalers.MemoryTarget < 1 || cfg.Resources.Scalers.MemoryTarget > 100) {
-			return fmt.Errorf("resources.scalers.memoryTarget must be between 1 and 100 (0 means disabled)")
+		if resources.ReplicasMax <= 0 {
+			return fmt.Errorf("regionConfig.%s.replicas_max must be greater than 0", region)
+		}
+		if resources.ReplicasMax < resources.ReplicasMin {
+			return fmt.Errorf("regionConfig.%s.replicas_max must be greater than or equal to replicas_min", region)
+		}
+		if resources.ReplicasMax > 3 {
+			return fmt.Errorf("regionConfig.%s.replicas_max cannot exceed 3 replicas", region)
+		}
+
+		if resources.EnableAutoScaling {
+			if resources.CPUTarget == 0 && resources.ScalersMemTarget == 0 {
+				return fmt.Errorf("regionConfig.%s: when scalers_enabled=true, either scalers_cpu_target or scalers_memory_target must be provided (non-zero)", region)
+			}
+			if resources.CPUTarget != 0 && resources.ScalersMemTarget != 0 {
+				return fmt.Errorf("regionConfig.%s: only one of scalers_cpu_target or scalers_memory_target should be provided", region)
+			}
+			if resources.CPUTarget != 0 && (resources.CPUTarget < 1 || resources.CPUTarget > 100) {
+				return fmt.Errorf("regionConfig.%s.scalers_cpu_target must be between 1 and 100 (0 means disabled)", region)
+			}
+			if resources.ScalersMemTarget != 0 && (resources.ScalersMemTarget < 1 || resources.ScalersMemTarget > 100) {
+				return fmt.Errorf("regionConfig.%s.scalers_memory_target must be between 1 and 100 (0 means disabled)", region)
+			}
 		}
 	}
 
@@ -280,7 +286,21 @@ func parseRetention(value string) (time.Duration, error) {
 	return time.ParseDuration(value)
 }
 
+// ExtractSubdomainFromHostname extracts the leftmost label from a hostname
+// e.g., "myapp.deploy-app.com" -> "myapp"
+func ExtractSubdomainFromHostname(hostname string) string {
+	if hostname == "" {
+		return ""
+	}
+	parts := strings.Split(hostname, ".")
+	if len(parts) > 0 {
+		return parts[0]
+	}
+	return hostname
+}
+
 // isBannedSubdomain checks if a subdomain is in the banned list
+// todo: revisit, we no longer keep subdomains around.
 func isBannedSubdomain(subdomain string) bool {
 	for _, banned := range BannedSubdomains {
 		if strings.EqualFold(subdomain, banned) {
@@ -310,7 +330,7 @@ func resolvePath(path, baseDir string) string {
 }
 
 // ResolveConfigPaths resolves relative paths in the config to absolute paths
-func ResolveConfigPaths(cfg *AppConfig, cfgPath string) error {
+func ResolveConfigPaths(cfg *LocoConfig, cfgPath string) error {
 	cfgPathAbs, err := filepath.Abs(cfgPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve config path: %w", err)
@@ -324,7 +344,7 @@ func ResolveConfigPaths(cfg *AppConfig, cfgPath string) error {
 
 // LoadedConfig represents a loaded configuration with its project path
 type LoadedConfig struct {
-	Config      *AppConfig
+	Config      *LocoConfig
 	ProjectPath string
 }
 
@@ -345,7 +365,7 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 	}
 	defer file.Close()
 
-	var cfg AppConfig
+	var cfg LocoConfig
 	decoder := toml.NewDecoder(file)
 	if _, err := decoder.Decode(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse loco.toml: %w", err)
@@ -361,8 +381,8 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 	}, nil
 }
 
-// Create writes a AppConfig to a loco.toml file at the specified path
-func Create(cfg *AppConfig, outputPath string) error {
+// Create writes a LocoConfig to a loco.toml file at the specified path
+func Create(cfg *LocoConfig, outputPath string) error {
 	var filePath string
 	fileInfo, err := os.Stat(outputPath)
 	if err == nil && fileInfo.IsDir() {
@@ -386,11 +406,20 @@ func Create(cfg *AppConfig, outputPath string) error {
 }
 
 // CreateDefault creates a new loco.toml file with sensible defaults
-// appName is used as the application name and subdomain
+// appName is used as the application name and hostname
 func CreateDefault(appName string) error {
 	cfg := *Default // Copy the default config
 	cfg.Metadata.Name = appName
-	cfg.Routing.Subdomain = appName
+	cfg.Metadata.Region = "us-east-1"
+	cfg.DomainConfig.Hostname = appName + ".deploy-app.com"
+	cfg.RegionConfig = map[string]Resources{
+		"us-east-1": {
+			CPU:         "100m",
+			Memory:      "256Mi",
+			ReplicasMin: 1,
+			ReplicasMax: 1,
+		},
+	}
 
 	return Create(&cfg, "loco.toml")
 }
