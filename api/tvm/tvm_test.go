@@ -188,17 +188,17 @@ func (tq *TestingQueries) DeleteExpiredTokens(ctx context.Context) error {
 func TestingGithubProvider(ctx context.Context, token string) providers.EmailResponse {
 	switch token {
 	case "github-token-user1":
-		return providers.NewEmail("user1@loco-testing.com", nil)
+		return providers.NewEmailResponse("user1@loco-testing.com", nil)
 	case "github-token-user2":
-		return providers.NewEmail("user2@loco-testing.com", nil)
+		return providers.NewEmailResponse("user2@loco-testing.com", nil)
 	case "github-token-user3":
-		return providers.NewEmail("user3@loco-testing.com", nil)
+		return providers.NewEmailResponse("user3@loco-testing.com", nil)
 	case "github-token-user4":
-		return providers.NewEmail("user4@loco-testing.com", nil)
+		return providers.NewEmailResponse("user4@loco-testing.com", nil)
 	case "github-token-user5":
-		return providers.NewEmail("user5@loco-testing.com", nil)
+		return providers.NewEmailResponse("user5@loco-testing.com", nil)
 	}
-	return providers.NewEmail("", tvm.ErrUserNotFound)
+	return providers.NewEmailResponse("", tvm.ErrUserNotFound)
 }
 
 // user 1 has only self read/write/admin

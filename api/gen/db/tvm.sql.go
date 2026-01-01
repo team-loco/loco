@@ -82,7 +82,13 @@ func (q *Queries) GetToken(ctx context.Context, token string) (Token, error) {
 }
 
 const getUserScopes = `-- name: GetUserScopes :many
-SELECT (scope, entity_type, entity_id)::entity_scope FROM user_scopes WHERE user_id = $1
+SELECT jsonb_build_object(
+    'scope', scope,
+    'entity_type', entity_type,
+    'entity_id', entity_id
+)::entity_scope
+FROM user_scopes
+WHERE user_id = $1
 `
 
 // what scopes does user x have?
@@ -107,7 +113,12 @@ func (q *Queries) GetUserScopes(ctx context.Context, userID int64) ([]EntityScop
 }
 
 const getUserScopesOnEntity = `-- name: GetUserScopesOnEntity :many
-SELECT (scope, entity_type, entity_id)::entity_scope FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3
+SELECT jsonb_build_object(
+    'scope', scope,
+    'entity_type', entity_type,
+    'entity_id', entity_id
+)::entity_scope
+FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3
 `
 
 type GetUserScopesOnEntityParams struct {
@@ -168,9 +179,11 @@ WITH RECURSIVE entity_hierarchy AS (
     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
 SELECT DISTINCT
-    (us.scope,
-    us.entity_type,
-    us.entity_id)::entity_scope
+    jsonb_build_object(
+        'scope', us.scope,
+        'entity_type', us.entity_type,
+        'entity_id', us.entity_id
+    )::entity_scope
 FROM user_scopes us
 INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
 WHERE us.user_id = $2
@@ -223,9 +236,11 @@ WITH RECURSIVE entity_hierarchy AS (
     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
 SELECT DISTINCT
-    (us.scope,
-    us.entity_type,
-    us.entity_id)::entity_scope
+    jsonb_build_object(
+        'scope', us.scope,
+        'entity_type', us.entity_type,
+        'entity_id', us.entity_id
+    )::entity_scope
 FROM user_scopes us
 INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
 WHERE us.user_id = $2
@@ -309,7 +324,7 @@ func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWit
 }
 
 const listTokensForEntity = `-- name: ListTokensForEntity :many
-SELECT (name, entity_type, entity_id, scopes, expires_at)::token_head FROM tokens WHERE entity_type = $1 AND entity_id = $2
+SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE entity_type = $1 AND entity_id = $2
 `
 
 type ListTokensForEntityParams struct {
@@ -317,20 +332,34 @@ type ListTokensForEntityParams struct {
 	EntityID   int64      `json:"entityId"`
 }
 
+type ListTokensForEntityRow struct {
+	Name       string        `json:"name"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   int64         `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
+}
+
 // which tokens exist on behalf of entity y?
-func (q *Queries) ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]TokenHead, error) {
+func (q *Queries) ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]ListTokensForEntityRow, error) {
 	rows, err := q.db.Query(ctx, listTokensForEntity, arg.EntityType, arg.EntityID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []TokenHead
+	var items []ListTokensForEntityRow
 	for rows.Next() {
-		var column_1 TokenHead
-		if err := rows.Scan(&column_1); err != nil {
+		var i ListTokensForEntityRow
+		if err := rows.Scan(
+			&i.Name,
+			&i.EntityType,
+			&i.EntityID,
+			&i.Scopes,
+			&i.ExpiresAt,
+		); err != nil {
 			return nil, err
 		}
-		items = append(items, column_1)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -106,7 +106,7 @@ type Querier interface {
 	ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, workspaceID int64) ([]Resource, error)
 	// which tokens exist on behalf of entity y?
-	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]TokenHead, error)
+	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]ListTokensForEntityRow, error)
 	ListUserOrganizations(ctx context.Context, userID int64) ([]Organization, error)
 	ListUserWorkspaces(ctx context.Context, userID int64) ([]Workspace, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)

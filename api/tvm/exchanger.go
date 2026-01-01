@@ -2,6 +2,8 @@ package tvm
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm/providers"
@@ -32,7 +34,7 @@ func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailRe
 	}
 
 	// issue the token
-	token, err := tvm.issueNoCheck(ctx, queries.Entity{
+	token, err := tvm.issueNoCheck(ctx, fmt.Sprintf("login token for user %d created at %s", user.ID, time.Now().Format(time.RFC1123)), queries.Entity{
 		Type: queries.EntityTypeUser,
 		ID:   user.ID,
 	}, userWithScopes.Scopes, tvm.cfg.LoginTokenDuration)

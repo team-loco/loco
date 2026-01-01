@@ -20,7 +20,7 @@ func (e EmailResponse) Address() (string, error) {
 	return e.address, e.err
 }
 
-func NewEmail(address string, err error) EmailResponse {
+func NewEmailResponse(address string, err error) EmailResponse {
 	return EmailResponse{address: address, err: err}
 }
 
@@ -28,19 +28,19 @@ func NewEmail(address string, err error) EmailResponse {
 func Github(token string) EmailResponse {
 	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
 	if err != nil {
-		return NewEmail("", err)
+		return NewEmailResponse("", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Add("Accept", "application/vnd.github+json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return NewEmail("", err)
+		return NewEmailResponse("", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return NewEmail("", err)
+		return NewEmailResponse("", err)
 	}
 
 	type githubUserResponse struct {
@@ -50,8 +50,8 @@ func Github(token string) EmailResponse {
 
 	err = json.NewDecoder(resp.Body).Decode(&guResp)
 	if err != nil {
-		return NewEmail("", err)
+		return NewEmailResponse("", err)
 	}
 
-	return NewEmail(guResp.Email, nil)
+	return NewEmailResponse(guResp.Email, nil)
 }

@@ -26,7 +26,7 @@ func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 
 // ListTokensForEntity lists all tokens associated with the given entity. This function does not check the permissions of the caller.
 // It is expected that the caller has already verified that the caller has sufficient permissions to list the tokens for the given entity.
-func (tvm *VendingMachine) ListTokensForEntity(ctx context.Context, entity queries.Entity) ([]queries.TokenHead, error) {
+func (tvm *VendingMachine) ListTokensForEntity(ctx context.Context, entity queries.Entity) ([]queries.ListTokensForEntityRow, error) {
 	return tvm.queries.ListTokensForEntity(ctx, queries.ListTokensForEntityParams{
 		EntityType: entity.Type,
 		EntityID:   entity.ID,

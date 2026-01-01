@@ -12,7 +12,7 @@ import (
 // The user must have sufficient permissions to issue a token with the requested scopes, or an error [ErrInsufficentPermissions] is returned.
 // It is important to note that this function does NOT verify that whatever is requesting the token is the user with the given userID. It is expected that the caller
 // has already verified this.
-func (tvm *VendingMachine) Issue(ctx context.Context, userID int64, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
+func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID int64, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	// gotta make sure the requested duration does not exceed the max allowed duration
 	if duration > tvm.cfg.MaxTokenDuration {
 		return "", ErrDurationExceedsMaxAllowed
@@ -31,13 +31,13 @@ func (tvm *VendingMachine) Issue(ctx context.Context, userID int64, entity queri
 		}
 	}
 
-	return tvm.issueNoCheck(ctx, entity, entityScopes, duration)
+	return tvm.issueNoCheck(ctx, name, entity, entityScopes, duration)
 }
 
 // IssueWithLoginToken issues a token associated with the given entity and scopes for the given duration, using a login token for authentication. The login token must be
 // associated with a user, and that user must have sufficient permissions to issue a token with the requested scopes, or an error [ErrInsufficentPermissions] is returned.
 // Unlike [Issue], this function uses a token to authenticate the user, rather than taking a userID directly.
-func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, token string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
+func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, name string, token string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	// this is meant to issue a token from a user's login token, although an user token could also be used
 	tokenData, err := tvm.queries.GetToken(ctx, token)
 	if err != nil {
@@ -51,16 +51,17 @@ func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, token string
 	}
 	userID := tokenData.EntityID
 
-	return tvm.Issue(ctx, userID, entity, entityScopes, duration)
+	return tvm.Issue(ctx, name, userID, entity, entityScopes, duration)
 }
 
 // issueNoCheck issues a token without checking permissions.
-func (tvm *VendingMachine) issueNoCheck(ctx context.Context, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
+func (tvm *VendingMachine) issueNoCheck(ctx context.Context, name string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	tk := uuid.Must(uuid.NewV7())
 	tks := tk.String()
 
 	// issue the token
 	err := tvm.queries.StoreToken(ctx, queries.StoreTokenParams{
+		Name:       name,
 		Token:      tks,
 		EntityType: queries.EntityType(entity.Type),
 		EntityID:   entity.ID,
