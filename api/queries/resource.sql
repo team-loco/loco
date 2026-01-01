@@ -79,3 +79,6 @@ WHERE resource_id = $1 AND is_active = true;
 UPDATE resources
 SET status = $2, updated_at = NOW()
 WHERE id = $1;
+
+-- name: GetWorkspaceOrganizationIDByResourceID :one
+SELECT workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;

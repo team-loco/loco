@@ -57,20 +57,6 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
 	}
 
-	role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{
-		OrganizationID: r.OrgId,
-		UserID:         userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
-	}
-
-	if role != genDb.OrganizationRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.OrgId, "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgAdmin)
-	}
-
 	isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
 		OrgID: r.OrgId,
 		Name:  r.Name,

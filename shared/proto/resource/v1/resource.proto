@@ -5,10 +5,10 @@ package loco.resource.v1;
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
-import "domain/v1/domain.proto";
 import "deployment/v1/deployment.proto";
+import "domain/v1/domain.proto";
 
-option go_package = "github.com/loco-team/loco/shared/proto/resource/v1;resourcev1";
+option go_package = "github.com/team-loco/loco/shared/proto/resource/v1;resourcev1";
 
 // ResourceType categorizes the type of resource being deployed.
 enum ResourceType {
@@ -110,21 +110,21 @@ message ObservabilityConfig {
 
 // RegionTarget defines the desired state for a specific region.
 message RegionTarget {
-  bool                          enabled      = 1;
-  bool                          primary      = 2;
-  string                        cpu          = 3; // e.g., "100m"
-  string                        memory       = 4; // e.g., "256Mi"
-  int32                         min_replicas = 5;
-  int32                         max_replicas = 6;
-  optional loco.deployment.v1.Scalers scalers = 7; // autoscaling config
+  bool                                enabled      = 1;
+  bool                                primary      = 2;
+  string                              cpu          = 3; // e.g., "100m"
+  string                              memory       = 4; // e.g., "256Mi"
+  int32                               min_replicas = 5;
+  int32                               max_replicas = 6;
+  optional loco.deployment.v1.Scalers scalers      = 7; // autoscaling config
 }
 
 // ServiceSpec is the resource specification for SERVICE type resources.
 message ServiceSpec {
-  RoutingConfig                       routing       = 1;
-  ObservabilityConfig                 observability = 2;
-  map<string, RegionTarget>           regions       = 3; // key = region name
-  optional loco.deployment.v1.HealthCheckConfig health_check = 4; // health check defaults
+  RoutingConfig                                 routing       = 1;
+  ObservabilityConfig                           observability = 2;
+  map<string, RegionTarget>                     regions       = 3; // key = region name
+  optional loco.deployment.v1.HealthCheckConfig health_check  = 4; // health check defaults
 }
 
 // DatabaseSpec is a placeholder for DATABASE type resources (future implementation).
@@ -151,11 +151,11 @@ message BlobSpec {
 // Uses oneof to support different resource types.
 message ResourceSpec {
   oneof spec {
-    ServiceSpec   service   = 1;
-    DatabaseSpec  database  = 2;
-    CacheSpec     cache     = 3;
-    QueueSpec     queue     = 4;
-    BlobSpec      blob      = 5;
+    ServiceSpec  service  = 1;
+    DatabaseSpec database = 2;
+    CacheSpec    cache    = 3;
+    QueueSpec    queue    = 4;
+    BlobSpec     blob     = 5;
   }
 }
 
@@ -280,10 +280,10 @@ message GetResourceStatusRequest {
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
 message DeploymentStatus {
-  int64                        id       = 1;
+  int64                              id       = 1;
   loco.deployment.v1.DeploymentPhase status   = 2;
-  int32                        replicas = 3;
-  optional string              message  = 4;
+  int32                              replicas = 3;
+  optional string                    message  = 4;
 }
 
 // GetResourceStatusResponse is the response containing resource status information.

@@ -7,8 +7,8 @@
 package resourcev1
 
 import (
-	v1 "github.com/loco-team/loco/shared/proto/deployment/v1"
-	v11 "github.com/loco-team/loco/shared/proto/domain/v1"
+	v1 "github.com/team-loco/loco/shared/proto/deployment/v1"
+	v11 "github.com/team-loco/loco/shared/proto/domain/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	_ "google.golang.org/protobuf/types/known/structpb"
@@ -2663,7 +2663,7 @@ var File_resource_v1_resource_proto protoreflect.FileDescriptor
 
 const file_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
-	"\x1aresource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16domain/v1/domain.proto\x1a\x1edeployment/v1/deployment.proto\"g\n" +
+	"\x1aresource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1edeployment/v1/deployment.proto\x1a\x16domain/v1/domain.proto\"g\n" +
 	"\rRoutingConfig\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1f\n" +
 	"\vpath_prefix\x18\x02 \x01(\tR\n" +
@@ -2904,7 +2904,7 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"StreamLogs\x12#.loco.resource.v1.StreamLogsRequest\x1a\x1a.loco.resource.v1.LogEntry0\x01\x12T\n" +
 	"\tGetEvents\x12\".loco.resource.v1.GetEventsRequest\x1a#.loco.resource.v1.GetEventsResponse\x12`\n" +
 	"\rScaleResource\x12&.loco.resource.v1.ScaleResourceRequest\x1a'.loco.resource.v1.ScaleResourceResponse\x12l\n" +
-	"\x11UpdateResourceEnv\x12*.loco.resource.v1.UpdateResourceEnvRequest\x1a+.loco.resource.v1.UpdateResourceEnvResponseB?Z=github.com/loco-team/loco/shared/proto/resource/v1;resourcev1b\x06proto3"
+	"\x11UpdateResourceEnv\x12*.loco.resource.v1.UpdateResourceEnvRequest\x1a+.loco.resource.v1.UpdateResourceEnvResponseB?Z=github.com/team-loco/loco/shared/proto/resource/v1;resourcev1b\x06proto3"
 
 var (
 	file_resource_v1_resource_proto_rawDescOnce sync.Once

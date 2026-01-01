@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
@@ -22,11 +23,14 @@ import (
 	"github.com/team-loco/loco/api/pkg/kube"
 	"github.com/team-loco/loco/api/pkg/statuswatcher"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/shared"
 	"github.com/team-loco/loco/shared/proto/deployment/v1/deploymentv1connect"
+	"github.com/team-loco/loco/shared/proto/domain/v1/domainv1connect"
 	"github.com/team-loco/loco/shared/proto/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
 	"github.com/team-loco/loco/shared/proto/registry/v1/registryv1connect"
+	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
 	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
@@ -136,6 +140,10 @@ func main() {
 	pool := dbConn.Pool()
 	queries := genDb.New(pool)
 
+	tvm.NewVendingMachine(pool, queries, tvm.Config{
+		MaxTokenDuration:   time.Hour * 24 * 30,
+		LoginTokenDuration: time.Hour * 1,
+	})
 	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries)
 	watcherCtx, watcherCancel := context.WithCancel(context.Background())
 	defer watcherCancel()

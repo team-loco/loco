@@ -1561,7 +1561,7 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"\x18SetPrimaryResourceDomain\x12/.loco.domain.v1.SetPrimaryResourceDomainRequest\x1a0.loco.domain.v1.SetPrimaryResourceDomainResponse\x12q\n" +
 	"\x14RemoveResourceDomain\x12+.loco.domain.v1.RemoveResourceDomainRequest\x1a,.loco.domain.v1.RemoveResourceDomainResponse\x12z\n" +
 	"\x17CheckDomainAvailability\x12..loco.domain.v1.CheckDomainAvailabilityRequest\x1a/.loco.domain.v1.CheckDomainAvailabilityResponse\x12z\n" +
-	"\x17ListAllLocoOwnedDomains\x12..loco.domain.v1.ListAllLocoOwnedDomainsRequest\x1a/.loco.domain.v1.ListAllLocoOwnedDomainsResponseB;Z9github.com/loco-team/loco/shared/proto/domain/v1;domainv1b\x06proto3"
+	"\x17ListAllLocoOwnedDomains\x12..loco.domain.v1.ListAllLocoOwnedDomainsRequest\x1a/.loco.domain.v1.ListAllLocoOwnedDomainsResponseB;Z9github.com/team-loco/loco/shared/proto/domain/v1;domainv1b\x06proto3"
 
 var (
 	file_domain_v1_domain_proto_rawDescOnce sync.Once

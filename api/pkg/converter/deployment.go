@@ -3,9 +3,9 @@ package converter
 import (
 	"fmt"
 
-	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
-	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 

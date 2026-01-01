@@ -12,6 +12,7 @@ type Querier interface {
 	AddOrgMember(ctx context.Context, arg AddOrgMemberParams) error
 	// Organization members queries
 	AddOrganizationMember(ctx context.Context, arg AddOrganizationMemberParams) (AddOrganizationMemberRow, error)
+	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
 	// Workspace members queries
 	AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) (AddWorkspaceMemberRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
@@ -36,10 +37,13 @@ type Querier interface {
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (Workspace, error)
 	DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error)
 	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID int64) error
+	DeleteExpiredTokens(ctx context.Context) error
 	DeleteOrg(ctx context.Context, id int64) error
 	DeleteOrganization(ctx context.Context, id int64) error
 	DeleteResource(ctx context.Context, id int64) error
 	DeleteResourceDomain(ctx context.Context, id int64) error
+	DeleteToken(ctx context.Context, token string) error
+	DeleteTokensForEntity(ctx context.Context, arg DeleteTokensForEntityParams) error
 	DeleteUser(ctx context.Context, id int64) error
 	DeleteWorkspace(ctx context.Context, id int64) error
 	DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error
@@ -52,9 +56,9 @@ type Querier interface {
 	GetFirstActiveCluster(ctx context.Context) (Cluster, error)
 	GetOrgByID(ctx context.Context, id int64) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
-	GetOrgMemberRole(ctx context.Context, arg GetOrgMemberRoleParams) (OrganizationRole, error)
 	GetOrganizationByID(ctx context.Context, id int64) (Organization, error)
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
+	GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error)
 	GetOrganizationMember(ctx context.Context, arg GetOrganizationMemberParams) (GetOrganizationMemberRow, error)
 	GetPlatformDomain(ctx context.Context, id int64) (PlatformDomain, error)
 	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
@@ -63,15 +67,28 @@ type Querier interface {
 	GetResourceDomainByID(ctx context.Context, id int64) (ResourceDomain, error)
 	GetResourceDomainCount(ctx context.Context, resourceID int64) (int64, error)
 	GetResourceWorkspaceID(ctx context.Context, id int64) (int64, error)
+	GetToken(ctx context.Context, token string) (GetTokenRow, error)
+	// which tokens exist on behalf of entity y?
+	GetTokensForEntity(ctx context.Context, arg GetTokensForEntityParams) ([]string, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByExternalID(ctx context.Context, externalID string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
+	// what scopes does user x have?
+	GetUserScopes(ctx context.Context, userID int64) ([]UserScope, error)
+	GetUserScopesByEmail(ctx context.Context, email string) ([]UserScope, error)
+	// what scopes does user x have on entity y?
+	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]UserScope, error)
+	GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]UserScope, error)
+	GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]UserScope, error)
+	// what users have scope z on entity y?
+	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]int64, error)
 	GetWorkspaceByID(ctx context.Context, id int64) (Workspace, error)
 	GetWorkspaceByIDQuery(ctx context.Context, id int64) (Workspace, error)
 	GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error)
 	GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error)
 	GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([]WorkspaceMember, error)
 	GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error)
+	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (int64, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgNameUnique(ctx context.Context, name string) (bool, error)
@@ -101,10 +118,14 @@ type Querier interface {
 	MarkDeploymentNotActive(ctx context.Context, id int64) error
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID int64) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID int64) (bool, error)
+	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
+	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
 	RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error
+	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id int64) error
 	RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (int64, error)
+	StoreToken(ctx context.Context, arg StoreTokenParams) error
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error
