@@ -123,99 +123,87 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	slog.InfoContext(ctx, "initializing status", "phase", locoRes.Status.Phase)
 
+	// Track status locally - only update at the end
+	currentPhase := "Deploying"
+	currentMessage := "Reconciling resources..."
+
 	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Ensuring namespace..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	if err := ensureNamespace(ctx, r.Client, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure namespace", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure namespace: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure namespace: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after namespace error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Ensuring environment secrets..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	if err := ensureEnvSecret(ctx, r.Client, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure secrets", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure secrets: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure secrets: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after secrets error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Ensuring image pull secret..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	if err := r.ensureImagePullSecret(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure image pull secret", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure image pull secret: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure image pull secret: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after image pull secret error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Ensuring service account..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	if err := r.ensureServiceAccount(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure service account", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure service account: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure service account: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after service account error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Ensuring RBAC..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	if err := r.ensureRoleAndBinding(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure role & binding", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure role & binding: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure role & binding: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after role & binding error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Creating deployment..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	dep, err := r.ensureDeployment(ctx, &locoRes)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to ensure deployment", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure deployment: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure deployment: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after deployment error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Creating service..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	if err := r.ensureService(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure service", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure service: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure service: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after service error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
 
-	if err := r.updatePhase(ctx, &locoRes, "Deploying", "Creating HTTP route..."); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		return ctrl.Result{}, err
-	}
 	if err := r.ensureHTTPRoute(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure HTTP route", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("failed to ensure HTTP route: %v", err)); statusErr != nil {
+		currentPhase = "Failed"
+		currentMessage = fmt.Sprintf("failed to ensure HTTP route: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after HTTP route error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
@@ -225,16 +213,18 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if dep != nil {
 		replicas := int32(1)
 		if dep.Status.ReadyReplicas < replicas {
-			if err := r.updatePhase(ctx, &locoRes, "Deploying", "Waiting for pods to be ready..."); err != nil {
-				slog.ErrorContext(ctx, "failed to update status", "error", err)
-				return ctrl.Result{}, err
-			}
+			currentPhase = "Deploying"
+			currentMessage = "Waiting for pods to be ready..."
 		} else {
-			if err := r.updatePhase(ctx, &locoRes, "Ready", "Deployment ready"); err != nil {
-				slog.ErrorContext(ctx, "failed to update status", "error", err)
-				return ctrl.Result{}, err
-			}
+			currentPhase = "Ready"
+			currentMessage = "Deployment ready"
 		}
+	}
+
+	// Single status update at the end
+	if err := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); err != nil {
+		slog.ErrorContext(ctx, "failed to update status", "error", err)
+		// Don't return error - reconciliation work succeeded, status update can retry next reconcile
 	}
 
 	r.startSecretRefresherGoroutine(ctx, &locoRes)

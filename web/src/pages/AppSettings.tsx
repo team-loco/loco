@@ -9,6 +9,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import Loader from "@/assets/loader.svg?react";
 import {
 	ResourceStatus,
 	deleteResource,
@@ -217,8 +218,8 @@ export function AppSettings() {
 		return (
 			<div className="flex items-center justify-center min-h-96">
 				<div className="text-center">
-					<div className="inline-flex gap-2 items-center">
-						<div className="w-4 h-4 bg-main rounded-full animate-pulse"></div>
+					<div className="flex flex-col gap-2 items-center">
+						<Loader className="w-8 h-8" />
 						<p className="text-foreground font-base">Loading...</p>
 					</div>
 				</div>
@@ -278,8 +279,15 @@ export function AppSettings() {
 						<Button
 							onClick={handleSave}
 							disabled={!hasChanges || updateResourceMutation.isPending}
-							>
-							{updateResourceMutation.isPending ? "Saving..." : "Save Changes"}
+						>
+							{updateResourceMutation.isPending ? (
+								<>
+									<Loader className="w-4 h-4 mr-2" />
+									Saving...
+								</>
+							) : (
+								"Save Changes"
+							)}
 						</Button>
 					</div>
 				</CardContent>
@@ -460,7 +468,14 @@ export function AppSettings() {
 								addDomainMutation.isPending
 							}
 						>
-							{addDomainMutation.isPending ? "Adding..." : "Add Domain"}
+							{addDomainMutation.isPending ? (
+								<>
+									<Loader className="w-4 h-4 mr-2" />
+									Adding...
+								</>
+							) : (
+								"Add Domain"
+							)}
 						</Button>
 					</div>
 				</CardContent>

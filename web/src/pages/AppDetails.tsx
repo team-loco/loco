@@ -9,6 +9,7 @@ import { useAppDetails } from "@/hooks/useAppDetails";
 import { subscribeToEvents } from "@/lib/events";
 import { useEffect } from "react";
 import { useParams } from "react-router";
+import Loader from "@/assets/loader.svg?react";
 
 export function AppDetails() {
 	const { appId } = useParams<{ appId: string }>();
@@ -45,8 +46,8 @@ export function AppDetails() {
 		return (
 			<div className="flex items-center justify-center min-h-96">
 				<div className="text-center">
-					<div className="inline-flex gap-2 items-center">
-						<div className="w-4 h-4 bg-main rounded-full animate-pulse"></div>
+					<div className="inline-flex gap-2 items-center flex-col">
+						<Loader className="w-8 h-8" />
 						<p className="text-foreground font-base">Loading app...</p>
 					</div>
 				</div>
