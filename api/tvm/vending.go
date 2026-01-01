@@ -211,20 +211,29 @@ func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 	return tvm.queries.DeleteToken(ctx, token)
 }
 
-// GetRoles returns all roles for the given user. The token must have user:read.
-func (tvm *VendingMachine) GetRoles(ctx context.Context, token string, userID int64) ([]queries.EntityScope, error) {
-	// must have user:read
-	if err := tvm.Verify(ctx, token, queries.EntityScope{
-		Entity: queries.Entity{
-			Type: queries.EntityTypeUser,
-			ID:   userID,
-		},
-		Scope: queries.ScopeRead,
-	}); err != nil {
-		return nil, err
+// GetRoles returns all roles for the given user associated with the given token. The token must have user:read for the user the token is associated with.
+func (tvm *VendingMachine) GetRoles(ctx context.Context, token string) ([]queries.EntityScope, error) {
+	tokenData, err := tvm.queries.GetToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("get user scopes: %w", err)
+	}
+	if tokenData.EntityType != queries.EntityTypeUser {
+		return nil, ErrImproperUsage
 	}
 
-	userScopes, err := tvm.queries.GetUserScopes(ctx, userID)
+	canRead := false
+	for _, scope := range tokenData.Scopes {
+		if scope.Entity.Type == queries.EntityTypeUser && scope.Entity.ID == tokenData.EntityID && scope.Scope == queries.ScopeRead {
+			// token has user:read, proceed
+			canRead = true
+			break
+		}
+	}
+	if !canRead {
+		return nil, ErrInsufficentPermissions
+	}
+
+	userScopes, err := tvm.queries.GetUserScopes(ctx, tokenData.EntityID)
 	if err != nil {
 		return nil, fmt.Errorf("get user scopes: %w", err)
 	}

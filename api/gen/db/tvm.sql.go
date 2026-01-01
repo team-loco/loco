@@ -108,25 +108,26 @@ func (q *Queries) GetTokensForEntity(ctx context.Context, arg GetTokensForEntity
 }
 
 const getUserScopes = `-- name: GetUserScopes :many
-SELECT user_id, scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1
+SELECT scope, entity_type, entity_id FROM user_scopes WHERE user_id = $1
 `
 
+type GetUserScopesRow struct {
+	Scope      string     `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
+}
+
 // what scopes does user x have?
-func (q *Queries) GetUserScopes(ctx context.Context, userID int64) ([]UserScope, error) {
+func (q *Queries) GetUserScopes(ctx context.Context, userID int64) ([]GetUserScopesRow, error) {
 	rows, err := q.db.Query(ctx, getUserScopes, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []UserScope
+	var items []GetUserScopesRow
 	for rows.Next() {
-		var i UserScope
-		if err := rows.Scan(
-			&i.UserID,
-			&i.Scope,
-			&i.EntityType,
-			&i.EntityID,
-		); err != nil {
+		var i GetUserScopesRow
+		if err := rows.Scan(&i.Scope, &i.EntityType, &i.EntityID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -138,27 +139,28 @@ func (q *Queries) GetUserScopes(ctx context.Context, userID int64) ([]UserScope,
 }
 
 const getUserScopesByEmail = `-- name: GetUserScopesByEmail :many
-SELECT us.user_id, us.scope, us.entity_type, us.entity_id
+SELECT us.scope, us.entity_type, us.entity_id
 FROM user_scopes us
 JOIN users u ON us.user_id = u.id
 WHERE u.email = $1
 `
 
-func (q *Queries) GetUserScopesByEmail(ctx context.Context, email string) ([]UserScope, error) {
+type GetUserScopesByEmailRow struct {
+	Scope      string     `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
+}
+
+func (q *Queries) GetUserScopesByEmail(ctx context.Context, email string) ([]GetUserScopesByEmailRow, error) {
 	rows, err := q.db.Query(ctx, getUserScopesByEmail, email)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []UserScope
+	var items []GetUserScopesByEmailRow
 	for rows.Next() {
-		var i UserScope
-		if err := rows.Scan(
-			&i.UserID,
-			&i.Scope,
-			&i.EntityType,
-			&i.EntityID,
-		); err != nil {
+		var i GetUserScopesByEmailRow
+		if err := rows.Scan(&i.Scope, &i.EntityType, &i.EntityID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
