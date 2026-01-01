@@ -116,3 +116,6 @@ DELETE FROM tokens WHERE token = $1;
 
 -- name: DeleteTokensForEntity :exec
 DELETE FROM tokens WHERE entity_type = $1 AND entity_id = $2;
+
+-- name: DeleteExpiredTokens :exec
+DELETE FROM tokens WHERE expires_at < NOW();

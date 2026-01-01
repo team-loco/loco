@@ -19,6 +19,7 @@ type Queries interface {
 	GetToken(ctx context.Context, token string) (queries.GetTokenRow, error)
 	StoreToken(ctx context.Context, arg queries.StoreTokenParams) error
 	DeleteToken(ctx context.Context, token string) error
+	DeleteExpiredTokens(ctx context.Context) error
 
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error)
 	GetWorkspaceOrganizationIDByAppID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByAppIDRow, error)
@@ -354,10 +355,17 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID
 	return nil
 }
 
-func NewVendingMachine(pool *pgxpool.Pool, queries Queries, cfg Config) *VendingMachine {
+func NewVendingMachine(pool *pgxpool.Pool, q Queries, cfg Config) *VendingMachine {
+	// low cost pg cron
+	go func() {
+		ctx := context.Background()
+		for range time.Tick(time.Minute) {
+			q.DeleteExpiredTokens(ctx)
+		}
+	}()
 	return &VendingMachine{
 		pool:    pool,
-		queries: queries,
+		queries: q,
 		cfg:     cfg,
 	}
 }

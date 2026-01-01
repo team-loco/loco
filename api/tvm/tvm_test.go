@@ -135,9 +135,17 @@ func (tq *TestingQueries) GetToken(ctx context.Context, token string) (queries.G
 	}
 	return tk, nil
 }
-
 func (tq *TestingQueries) DeleteToken(ctx context.Context, token string) error {
 	delete(tq.tokens, token)
+	return nil
+}
+func (tq *TestingQueries) DeleteExpiredTokens(ctx context.Context) error {
+	now := time.Now()
+	for token, tk := range tq.tokens {
+		if tk.ExpiresAt.Before(now) {
+			delete(tq.tokens, token)
+		}
+	}
 	return nil
 }
 func (tq *TestingQueries) AddUserScope(ctx context.Context, arg queries.AddUserScopeParams) error {

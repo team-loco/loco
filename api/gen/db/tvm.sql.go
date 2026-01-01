@@ -31,6 +31,15 @@ func (q *Queries) AddUserScope(ctx context.Context, arg AddUserScopeParams) erro
 	return err
 }
 
+const deleteExpiredTokens = `-- name: DeleteExpiredTokens :exec
+DELETE FROM tokens WHERE expires_at < NOW()
+`
+
+func (q *Queries) DeleteExpiredTokens(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredTokens)
+	return err
+}
+
 const deleteToken = `-- name: DeleteToken :exec
 DELETE FROM tokens WHERE token = $1
 `
