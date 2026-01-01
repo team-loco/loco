@@ -25,9 +25,13 @@ import (
 // user 5 has app:read for app 5 and app 6
 // the createdby fields are not set accordingly and they're irrelevant
 
+var specExample, _ = os.ReadFile("spec_example.json")
+
 func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) error {
 	// run migrations
-	runMigrations(ctx, pool, migrationFiles)
+	if err := runMigrations(ctx, pool, migrationFiles); err != nil {
+		return fmt.Errorf("running migrations: %w", err)
+	}
 
 	// start a transaction
 	tx, err := pool.Begin(ctx)
@@ -93,7 +97,7 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 		ExternalID: "github-user1",
 		AvatarUrl:  opttext("https://example.com/avatar1.png"),
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating user 1: %w", err)
 	} else {
 		userIDs = append(userIDs, user1.ID)
 	}
@@ -103,7 +107,7 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 		ExternalID: "github-user2",
 		AvatarUrl:  opttext("https://example.com/avatar2.png"),
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating user 2: %w", err)
 	} else {
 		userIDs = append(userIDs, user2.ID)
 	}
@@ -113,7 +117,7 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 		ExternalID: "github-user3",
 		AvatarUrl:  opttext("https://example.com/avatar3.png"),
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating user 3: %w", err)
 	} else {
 		userIDs = append(userIDs, user3.ID)
 	}
@@ -123,7 +127,7 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 		ExternalID: "github-user4",
 		AvatarUrl:  opttext("https://example.com/avatar4.png"),
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating user 4: %w", err)
 	} else {
 		userIDs = append(userIDs, user4.ID)
 	}
@@ -133,7 +137,7 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 		ExternalID: "github-user5",
 		AvatarUrl:  opttext("https://example.com/avatar5.png"),
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating user 5: %w", err)
 	} else {
 		userIDs = append(userIDs, user5.ID)
 	}
@@ -147,7 +151,7 @@ func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []int64
 		Name:      "Alpha Org",
 		CreatedBy: userIDs[0], // user 1 created org 1
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating org 1: %w", err)
 	} else {
 		orgIDs = append(orgIDs, org1.ID)
 	}
@@ -156,7 +160,7 @@ func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []int64
 		Name:      "Beta Org",
 		CreatedBy: userIDs[1], // user 2 created org 2
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating org 2: %w", err)
 	} else {
 		orgIDs = append(orgIDs, org2.ID)
 	}
@@ -173,7 +177,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, us
 		Description: opttext("alpha org's first workspace"),
 		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating wks 1: %w", err)
 	} else {
 		wksIDs = append(wksIDs, wks1.ID)
 	}
@@ -184,7 +188,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, us
 		Description: opttext("alpha org's second workspace"),
 		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating wks 2: %w", err)
 	} else {
 		wksIDs = append(wksIDs, wks2.ID)
 	}
@@ -195,7 +199,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, us
 		Description: opttext("beta org's first workspace"),
 		CreatedBy:   userIDs[1], // user 2
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating wks 3: %w", err)
 	} else {
 		wksIDs = append(wksIDs, wks3.ID)
 	}
@@ -206,7 +210,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, us
 		Description: opttext("beta org's second workspace"),
 		CreatedBy:   userIDs[1], // user 2
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating wks 4: %w", err)
 	} else {
 		wksIDs = append(wksIDs, wks4.ID)
 	}
@@ -220,9 +224,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 	if app1ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],              // wks 1
 		Name:        "My First Application", // app 1
-		CreatedBy:   userIDs[2],             // user 3
+		Type:        db.ResourceTypeService,
+		Description: "This is my first application",
+		Status:      db.ResourceStatusHealthy,
+		Spec:        specExample,
+		SpecVersion: 1,
+		CreatedBy:   userIDs[2], // user 3
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating app 1: %w", err)
 	} else {
 		appIDs = append(appIDs, app1ID)
 	}
@@ -230,9 +239,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 	if app2ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],               // wks 1
 		Name:        "My Second Application", // app 2
-		CreatedBy:   userIDs[0],              // user 1
+		Type:        db.ResourceTypeService,
+		Description: "This is my second application",
+		Status:      db.ResourceStatusHealthy,
+		Spec:        specExample,
+		SpecVersion: 1,
+		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating app 2: %w", err)
 	} else {
 		appIDs = append(appIDs, app2ID)
 	}
@@ -240,9 +254,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 	if app3ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[1],              // wks 2
 		Name:        "My Third Application", // app 3
-		CreatedBy:   userIDs[2],             // user 3
+		Type:        db.ResourceTypeService,
+		Description: "This is my third application",
+		Status:      db.ResourceStatusHealthy,
+		Spec:        specExample,
+		SpecVersion: 1,
+		CreatedBy:   userIDs[2], // user 3
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating app 3: %w", err)
 	} else {
 		appIDs = append(appIDs, app3ID)
 	}
@@ -250,9 +269,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 	if app4ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[1],               // wks 2
 		Name:        "My Fourth Application", // app 4
-		CreatedBy:   userIDs[0],              // user 1
+		Type:        db.ResourceTypeService,
+		Description: "This is my fourth application",
+		Status:      db.ResourceStatusHealthy,
+		Spec:        specExample,
+		SpecVersion: 1,
+		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating app 4: %w", err)
 	} else {
 		appIDs = append(appIDs, app4ID)
 	}
@@ -260,9 +284,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 	if app5ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[2],              // wks 3
 		Name:        "My Fifth Application", // app 5
-		CreatedBy:   userIDs[3],             // user 4
+		Type:        db.ResourceTypeService,
+		Description: "This is my fifth application",
+		Status:      db.ResourceStatusHealthy,
+		Spec:        specExample,
+		SpecVersion: 1,
+		CreatedBy:   userIDs[3], // user 4
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating app 5: %w", err)
 	} else {
 		appIDs = append(appIDs, app5ID)
 	}
@@ -270,9 +299,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 	if app6ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[3],              // wks 4
 		Name:        "My Sixth Application", // app 6
-		CreatedBy:   userIDs[1],             // user 2
+		Type:        db.ResourceTypeService,
+		Description: "This is my sixth application",
+		Status:      db.ResourceStatusHealthy,
+		Spec:        specExample,
+		SpecVersion: 1,
+		CreatedBy:   userIDs[1], // user 2
 	}); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating app 6: %w", err)
 	} else {
 		appIDs = append(appIDs, app6ID)
 	}
