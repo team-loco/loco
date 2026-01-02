@@ -215,7 +215,7 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	// deserialize resource spec and merge with request spec
-	resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec)
+	resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 	if deserializeErr != nil {
 		slog.ErrorContext(ctx, deserializeErr.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
@@ -604,6 +604,7 @@ func createLocoResource(
 	}
 
 	// build Application
+
 	locoRes := &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%d", resource.ID),

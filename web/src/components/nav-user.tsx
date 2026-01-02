@@ -131,7 +131,7 @@ export function NavUser({
 							onClick={async () => {
 								try {
 									await logout();
-									navigate("/login", { replace: true });
+									navigate("/");
 									toast.success("Logged out successfully");
 								} catch (error) {
 									console.error("Logout failed:", error);

@@ -3,6 +3,7 @@ import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
+import Loader from "@/assets/loader.svg?react";
 
 export function OAuthCallback() {
 	const navigate = useNavigate();
@@ -97,8 +98,8 @@ export function OAuthCallback() {
 
 	return (
 		<div className="min-h-screen bg-background flex items-center justify-center px-6">
-			<div className="inline-flex gap-2 items-center mb-4">
-				<div className="w-4 h-4 bg-main rounded-full animate-pulse"></div>
+			<div className="flex flex-col gap-2 items-center">
+				<Loader className="w-16 h-16" />
 				<p className="text-foreground font-base">Authenticating...</p>
 			</div>
 		</div>

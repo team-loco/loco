@@ -14,6 +14,7 @@ import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
+import Loader from "@/assets/loader.svg?react";
 
 export function OrgSettings() {
 	const { orgId } = useParams<{ orgId: string }>();
@@ -35,7 +36,7 @@ export function OrgSettings() {
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 
-	const { mutate: mutateUpdateOrg, isPending } = useMutation(updateOrg);
+	const { mutate: mutateUpdateOrg, isPending: isUpdatePending } = useMutation(updateOrg);
 
 	// Update orgName when org data loads
 	if (org && !orgName && !isEditing) {
@@ -61,7 +62,14 @@ export function OrgSettings() {
 	};
 
 	if (orgLoading || !org) {
-		return <div>Loading...</div>;
+		return (
+			<div className="flex items-center justify-center min-h-96">
+				<div className="text-center flex flex-col gap-2 items-center">
+					<Loader className="w-8 h-8" />
+					<p className="text-foreground font-base">Loading...</p>
+				</div>
+			</div>
+		);
 	}
 
 	return (
@@ -127,12 +135,19 @@ export function OrgSettings() {
 										setIsEditing(false);
 										setOrgName(org.name);
 									}}
-									disabled={isPending}
+									disabled={isUpdatePending}
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleSave} disabled={isPending}>
-									{isPending ? "Saving..." : "Save Changes"}
+								<Button onClick={handleSave} disabled={isUpdatePending}>
+									{isUpdatePending ? (
+										<>
+											<Loader className="w-4 h-4 mr-2" />
+											Saving...
+										</>
+									) : (
+										"Save Changes"
+									)}
 								</Button>
 							</>
 						)}

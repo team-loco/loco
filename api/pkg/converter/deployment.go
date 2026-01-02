@@ -3,6 +3,7 @@ package converter
 import (
 	"fmt"
 
+	genDb "github.com/team-loco/loco/api/gen/db"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
 	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
@@ -10,18 +11,23 @@ import (
 )
 
 // DeserializeResourceSpec deserializes a ResourceSpec from JSON bytes (as stored in DB).
-func DeserializeResourceSpec(specBytes []byte) (*resourcev1.ResourceSpec, error) {
+func DeserializeResourceSpec(specBytes []byte, resourceType genDb.ResourceType) (*resourcev1.ResourceSpec, error) {
 	if len(specBytes) == 0 {
 		return nil, fmt.Errorf("spec bytes cannot be empty")
 	}
 
-	var spec resourcev1.ResourceSpec
-	err := protojson.Unmarshal(specBytes, &spec)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal resource spec: %w", err)
+	switch resourceType {
+	case genDb.ResourceTypeService:
+		var serviceSpec resourcev1.ServiceSpec
+		if err := protojson.Unmarshal(specBytes, &serviceSpec); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal service deployment spec: %w", err)
+		}
+		return &resourcev1.ResourceSpec{
+			Spec: &resourcev1.ResourceSpec_Service{Service: &serviceSpec},
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown resource type for deployment: %s", resourceType)
 	}
-
-	return &spec, nil
 }
 
 // DeserializeDeploymentSpec deserializes a DeploymentSpec from JSON bytes based on the resource type.
