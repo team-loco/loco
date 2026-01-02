@@ -76,7 +76,6 @@ env:
   GH_OAUTH_CLIENT_SECRET: ""
   GH_OAUTH_STATE: ""
   DATABASE_URL: ""
-  JWT_SECRET: ""
   REGISTRY_TAG: ""
 
 gateway-helm:

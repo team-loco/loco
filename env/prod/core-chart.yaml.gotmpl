@@ -45,7 +45,6 @@ env:
   PORT: {{ requiredEnv "PORT" }}
   # DATABASE_URL format: postgresql://user:password@host:port/dbname?sslmode=require
   DATABASE_URL: {{ requiredEnv "DATABASE_URL" }}
-  JWT_SECRET: {{ requiredEnv "JWT_SECRET" }}
 
   REGISTRY_TAG: {{ requiredEnv "REGISTRY_TAG" }}
 

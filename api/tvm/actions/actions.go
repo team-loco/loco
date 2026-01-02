@@ -37,14 +37,30 @@ var (
 		scope:      db.ScopeRead,
 	}
 	// StreamLogs requires app:read.
-	StreamLogs = Action{
+	StreamAppLogs = Action{
 		entityType: db.EntityTypeApp,
 		scope:      db.ScopeRead,
 	}
 	// GetEvents requires app:read.
-	GetEvents = Action{
+	GetAppEvents = Action{
 		entityType: db.EntityTypeApp,
 		scope:      db.ScopeRead,
+	}
+	AddDomain = Action{
+		entityType: db.EntityTypeApp,
+		scope:      db.ScopeWrite,
+	}
+	UpdateDomain = Action{
+		entityType: db.EntityTypeApp,
+		scope:      db.ScopeWrite,
+	}
+	RemoveDomain = Action{
+		entityType: db.EntityTypeApp,
+		scope:      db.ScopeWrite,
+	}
+	SetPrimaryDomain = Action{
+		entityType: db.EntityTypeApp,
+		scope:      db.ScopeWrite,
 	}
 	// UpdateApp requires app:write.
 	UpdateApp = Action{
@@ -106,6 +122,11 @@ var (
 	}
 	// CreateDeployment requires app:write.
 	CreateDeployment = Action{
+		entityType: db.EntityTypeApp,
+		scope:      db.ScopeWrite,
+	}
+	// DeleteDeployment requires app:write
+	DeleteDeployment = Action{
 		entityType: db.EntityTypeApp,
 		scope:      db.ScopeWrite,
 	}

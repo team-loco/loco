@@ -22,8 +22,7 @@ func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 	method := ctx.Value(contextkeys.MethodKey).(string)
 
 	// can be null on routes where oAuth Middleware is skipped.
-	user := ctx.Value(contextkeys.UserKey)
-	userId := ctx.Value(contextkeys.UserIDKey)
+	entity := ctx.Value(contextkeys.EntityKey)
 
 	requestGroup := slog.Group(
 		"request",
@@ -31,8 +30,7 @@ func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		slog.String("sourceIp", sourceIp),
 		slog.String("method", method),
 		slog.String("path", path),
-		slog.Any("user", user),
-		slog.Any("userId", userId),
+		slog.Any("entity", entity),
 	)
 
 	r.AddAttrs(requestGroup)

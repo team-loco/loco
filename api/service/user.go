@@ -138,18 +138,18 @@ func (s *UserServer) GetUser(
 	}), nil
 }
 
-// GetCurrentUser retrieves the current user from JWT
+// GetCurrentUser retrieves the current user from loco token
 func (s *UserServer) GetCurrentUser(
 	ctx context.Context,
 	req *connect.Request[userv1.GetCurrentUserRequest],
 ) (*connect.Response[userv1.GetCurrentUserResponse], error) {
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	user, err := s.getUserByID(ctx, userID)
+	user, err := s.getUserByID(ctx, entity.ID)
 	if err != nil {
 		return nil, err
 	}

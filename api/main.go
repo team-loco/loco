@@ -47,7 +47,6 @@ type ApiConfig struct {
 	DatabaseURL     string // PostgreSQL connection string
 	LogLevel        slog.Level
 	Port            string
-	JwtSecret       string
 	RegistryTag     string
 	LocoNamespace   string // Loco system namespace
 	LocoDomainBase  string // Base domain (e.g., deploy-app.com)
@@ -73,7 +72,6 @@ func newApiConfig() *ApiConfig {
 		DatabaseURL:     os.Getenv("DATABASE_URL"),
 		Port:            os.Getenv("PORT"),
 		LogLevel:        logLevel,
-		JwtSecret:       os.Getenv("JWT_SECRET"),
 		RegistryTag:     os.Getenv("REGISTRY_TAG"),
 		LocoNamespace:   os.Getenv("LOCO_NAMESPACE"),
 		LocoDomainBase:  os.Getenv("LOCO_DOMAIN_BASE"),
@@ -162,11 +160,11 @@ func main() {
 		log.Fatal(err)
 	}
 	userServiceHandler := service.NewUserServer(pool, queries)
-	orgServiceHandler := service.NewOrgServer(pool, queries)
-	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, kubeClient, ac.LocoNamespace)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, kubeClient, ac.LocoNamespace)
-	domainServiceHandler := service.NewDomainServer(pool, queries)
+	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
+	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
+	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,

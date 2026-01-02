@@ -9,12 +9,11 @@ require (
 	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/charmbracelet/log v0.4.2
 	github.com/go-logr/logr v1.4.3
-	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/team-loco/loco/shared v0.0.0
 	github.com/rs/cors v1.11.1
 	github.com/team-loco/loco/controller v0.0.0
+	github.com/team-loco/loco/shared v0.0.0
 	golang.org/x/oauth2 v0.34.0
 	k8s.io/api v0.35.0
 	k8s.io/apimachinery v0.35.0

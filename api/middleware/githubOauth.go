@@ -9,14 +9,20 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/contextkeys"
-	"github.com/team-loco/loco/api/jwtutil"
+	"github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 )
 
-type githubAuthInterceptor struct{}
+// TODO: repeated code !!
 
-func NewGithubAuthInterceptor(tvm *tvm.VendingMachine) *githubAuthInterceptor {
-	return &githubAuthInterceptor{}
+type githubAuthInterceptor struct {
+	machine *tvm.VendingMachine
+}
+
+func NewGithubAuthInterceptor(machine *tvm.VendingMachine) *githubAuthInterceptor {
+	return &githubAuthInterceptor{
+		machine: machine,
+	}
 }
 
 func extractToken(header http.Header) (string, error) {
@@ -60,20 +66,19 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 			return nil, connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		claims, err := jwtutil.ValidateLocoJWT(token)
+		entity, scopes, err := i.machine.GetToken(ctx, token)
 		if err != nil {
 			slog.Error(err.Error())
-			return nil, connect.NewError(
-				connect.CodeUnauthenticated,
-				err,
-			)
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("userId", claims.UserId))
+		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("userId", entity.ID))
 
-		c := context.WithValue(ctx, contextkeys.UserKey, claims.Username)
-		c = context.WithValue(c, contextkeys.UserIDKey, claims.UserId)
-		c = context.WithValue(c, contextkeys.ExternalUsernameKey, claims.ExternalUsername)
+		c := context.WithValue(ctx, contextkeys.EntityKey, db.Entity{
+			Type: entity.Type,
+			ID:   entity.ID,
+		})
+		c = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
 
 		return next(c, req)
 	})
@@ -109,17 +114,19 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		claims, err := jwtutil.ValidateLocoJWT(token)
+		entity, scopes, err := i.machine.GetToken(ctx, token)
 		if err != nil {
 			slog.Error(err.Error())
 			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		slog.Info("claims validated; populating ctx", slog.Int64("userId", claims.UserId))
+		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("userId", entity.ID))
 
-		c := context.WithValue(ctx, contextkeys.UserKey, claims.Username)
-		c = context.WithValue(c, contextkeys.UserIDKey, claims.UserId)
-		c = context.WithValue(c, contextkeys.ExternalUsernameKey, claims.ExternalUsername)
+		c := context.WithValue(ctx, contextkeys.EntityKey, db.Entity{
+			Type: entity.Type,
+			ID:   entity.ID,
+		})
+		c = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
 
 		return next(c, conn)
 	})
