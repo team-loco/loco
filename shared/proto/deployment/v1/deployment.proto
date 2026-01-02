@@ -121,7 +121,7 @@ message Deployment {
   int32                              replicas     = 5;
   DeploymentPhase                    status       = 6;
   bool                               is_active    = 7;
-  optional string                    message      = 8;
+  string                             message      = 8;
   int64                              created_by   = 9;
   google.protobuf.Timestamp          created_at   = 10;
   optional google.protobuf.Timestamp started_at   = 11;

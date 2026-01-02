@@ -98,11 +98,6 @@ export function RecentDeployments({
 		return service?.build?.image || "—";
 	};
 
-	const getRegion = (deployment: Deployment): string => {
-		const service = getServiceSpec(deployment);
-		return service?.region || "—";
-	};
-
 	const getCpuMemory = (
 		deployment: Deployment
 	): { cpu: string; memory: string } => {
@@ -219,7 +214,7 @@ export function RecentDeployments({
 			id: "region",
 			header: () => <span>Region</span>,
 			cell: ({ row }) => (
-				<span className="text-sm font-mono">{getRegion(row.original)}</span>
+				<span className="text-sm font-mono">{row.original.region}</span>
 			),
 			size: 120,
 		},

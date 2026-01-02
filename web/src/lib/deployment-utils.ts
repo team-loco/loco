@@ -20,8 +20,7 @@ export function getServiceSpec(
 
 export function getPhaseTooltip(deployment: Deployment): string {
 	if (deployment.status === DeploymentPhase.RUNNING && deployment.isActive) {
-		const spec = getServiceSpec(deployment);
-		const region = spec?.region || "this region";
+		const region = deployment.region;
 		console.log("what is region", region);
 		return `Live and healthy. App traffic to ${region} points to this deployment.`;
 	}

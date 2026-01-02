@@ -243,7 +243,7 @@ export function DeploymentStatusCard({
 								Region
 							</span>
 							<span className="text-sm font-mono text-foreground opacity-70">
-								{getServiceSpec(deployment)?.region || "—"}
+								{deployment.region || "—"}
 							</span>
 						</div>
 

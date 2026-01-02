@@ -742,7 +742,7 @@ type Deployment struct {
 	Replicas      int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	IsActive      bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	Message       *string                `protobuf:"bytes,8,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	Message       string                 `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
 	CreatedBy     int64                  `protobuf:"varint,9,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
@@ -834,8 +834,8 @@ func (x *Deployment) GetIsActive() bool {
 }
 
 func (x *Deployment) GetMessage() string {
-	if x != nil && x.Message != nil {
-		return *x.Message
+	if x != nil {
+		return x.Message
 	}
 	return ""
 }
@@ -1486,7 +1486,7 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
 	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
 	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\xa9\x05\n" +
+	"\x04spec\"\x98\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
@@ -1497,22 +1497,20 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x06region\x18\x04 \x01(\tR\x06region\x12\x1a\n" +
 	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
 	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
-	"\tis_active\x18\a \x01(\bR\bisActive\x12\x1d\n" +
-	"\amessage\x18\b \x01(\tH\x00R\amessage\x88\x01\x01\x12\x1d\n" +
+	"\tis_active\x18\a \x01(\bR\bisActive\x12\x18\n" +
+	"\amessage\x18\b \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\t \x01(\x03R\tcreatedBy\x129\n" +
 	"\n" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
-	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x01R\tstartedAt\x88\x01\x01\x12B\n" +
-	"\fcompleted_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x02R\vcompletedAt\x88\x01\x01\x129\n" +
+	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x00R\tstartedAt\x88\x01\x01\x12B\n" +
+	"\fcompleted_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcompletedAt\x88\x01\x01\x129\n" +
 	"\n" +
 	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
 	"\fspec_version\x18\x0e \x01(\x05R\vspecVersion\x126\n" +
-	"\x04spec\x18\x0f \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04specB\n" +
-	"\n" +
-	"\b_messageB\r\n" +
+	"\x04spec\x18\x0f \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04specB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_at\"\xa9\x01\n" +
 	"\x17CreateDeploymentRequest\x12\x1f\n" +
