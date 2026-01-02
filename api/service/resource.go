@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +17,8 @@ import (
 	"github.com/team-loco/loco/api/pkg/klogmux"
 	"github.com/team-loco/loco/api/pkg/kube"
 	"github.com/team-loco/loco/api/timeutil"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/actions"
 	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
@@ -45,16 +46,18 @@ func computeNamespace(workspaceID, resourceID int64) string {
 type ResourceServer struct {
 	db            *pgxpool.Pool
 	queries       genDb.Querier
+	machine       *tvm.VendingMachine
 	kubeClient    *kube.Client
 	locoNamespace string
 }
 
 // NewResourceServer creates a new ResourceServer instance
-func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client, locoNamespace string) *ResourceServer {
+func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, kubeClient *kube.Client, locoNamespace string) *ResourceServer {
 	// todo: move this out.
 	return &ResourceServer{
 		db:            db,
 		queries:       queries,
+		machine:       machine,
 		kubeClient:    kubeClient,
 		locoNamespace: locoNamespace,
 	}
@@ -67,25 +70,9 @@ func (s *ResourceServer) CreateResource(
 ) (*connect.Response[resourcev1.CreateResourceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	// todo: let tvm handle future validation.
-	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: r.WorkspaceId,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
-	if role != "admin" && role != "deploy" {
-		slog.WarnContext(ctx, "user does not have permission to create resource", "workspaceId", r.WorkspaceId, "userId", userID, "role", role)
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateApp, r.WorkspaceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create resource", "workspaceId", r.WorkspaceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	if r.Spec == nil {
@@ -197,7 +184,8 @@ func (s *ResourceServer) CreateResource(
 		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
 		SpecVersion: 1,
-		CreatedBy:   userID,
+		// TODO PRIORITY: change createby to entity
+		CreatedBy:   0,
 		Description: r.GetDescription(),
 	}
 
@@ -249,26 +237,15 @@ func (s *ResourceServer) GetResource(
 ) (*connect.Response[resourcev1.GetResourceResponse], error) {
 	r := req.Msg
 
-	// todo: role checks should actually be done first.
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetApp, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "id", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
@@ -295,21 +272,6 @@ func (s *ResourceServer) GetResourceByName(
 ) (*connect.Response[resourcev1.GetResourceByNameResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	_, err := s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: r.WorkspaceId,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
 	resource, err := s.queries.GetResourceByNameAndWorkspace(ctx, genDb.GetResourceByNameAndWorkspaceParams{
 		WorkspaceID: r.WorkspaceId,
 		Name:        r.Name,
@@ -317,6 +279,11 @@ func (s *ResourceServer) GetResourceByName(
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "workspaceId", r.WorkspaceId, "resource_name", r.Name)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetApp, resource.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", resource.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
@@ -344,19 +311,9 @@ func (s *ResourceServer) ListResources(
 	r := req.Msg
 
 	slog.InfoContext(ctx, "received req to list resources", "workspaceId", r.WorkspaceId)
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	_, err := s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: r.WorkspaceId,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", r.WorkspaceId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListApps, r.WorkspaceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list resources", "workspaceId", r.WorkspaceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, r.WorkspaceId)
@@ -392,32 +349,9 @@ func (s *ResourceServer) UpdateResource(
 ) (*connect.Response[resourcev1.UpdateResourceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", fmt.Sprintf("%d", workspaceID), "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
-	if role != genDb.WorkspaceRoleAdmin && role != genDb.WorkspaceRoleDeploy {
-		slog.WarnContext(ctx, "user does not have permission to update resource", "workspaceId", fmt.Sprintf("%d", workspaceID), "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or deploy role to update resource"))
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateApp, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update resource", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	updateParams := genDb.UpdateResourceParams{
@@ -446,32 +380,9 @@ func (s *ResourceServer) DeleteResource(
 ) (*connect.Response[resourcev1.DeleteResourceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", fmt.Sprintf("%d", workspaceID), "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
-	if role != genDb.WorkspaceRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of workspace", "workspaceId", fmt.Sprintf("%d", workspaceID), "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin to delete resource"))
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteApp, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete resource", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
@@ -504,25 +415,15 @@ func (s *ResourceServer) GetResourceStatus(
 ) (*connect.Response[resourcev1.GetResourceStatusResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetAppStatus, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get resource status", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
@@ -611,25 +512,15 @@ func (s *ResourceServer) StreamLogs(
 ) error {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.StreamAppLogs, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to stream logs for resource", "resourceId", r.ResourceId)
+		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
 		return connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	slog.InfoContext(ctx, "fetching logs for resource", "resource_id", r.ResourceId)
@@ -695,25 +586,15 @@ func (s *ResourceServer) GetEvents(
 ) (*connect.Response[resourcev1.GetEventsResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetAppEvents, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get events for resource", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of resource's workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	namespace := computeNamespace(resource.WorkspaceID, resource.ID)
@@ -767,10 +648,9 @@ func (s *ResourceServer) ScaleResource(
 ) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ScaleApp, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to scale resource", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	if r.Replicas == nil && r.Cpu == nil && r.Memory == nil {
@@ -785,20 +665,6 @@ func (s *ResourceServer) ScaleResource(
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-	workspaceID := resource.WorkspaceID
-
-	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", workspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
-	if role != genDb.WorkspaceRoleAdmin && role != genDb.WorkspaceRoleDeploy {
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
 	resourceRegions, err := s.queries.ListResourceRegions(ctx, r.ResourceId)
@@ -882,12 +748,13 @@ func (s *ResourceServer) ScaleResource(
 	}
 
 	deploymentId, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		ResourceID:  r.ResourceId,
-		ClusterID:   1,
-		Replicas:    replicas,
-		Status:      genDb.DeploymentStatusPending,
-		IsActive:    true,
-		CreatedBy:   userID,
+		ResourceID: r.ResourceId,
+		ClusterID:  1,
+		Replicas:   replicas,
+		Status:     genDb.DeploymentStatusPending,
+		IsActive:   true,
+		// TODO PRIORITY: change createby to entity
+		CreatedBy:   0,
 		Spec:        specJson,
 		SpecVersion: 1,
 	})
@@ -928,10 +795,9 @@ func (s *ResourceServer) UpdateResourceEnv(
 ) (*connect.Response[resourcev1.UpdateResourceEnvResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateAppEnv, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update resource env", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	if len(r.Env) == 0 {
@@ -942,20 +808,6 @@ func (s *ResourceServer) UpdateResourceEnv(
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-	workspaceID := resource.WorkspaceID
-
-	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", workspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
-	if role != genDb.WorkspaceRoleAdmin && role != genDb.WorkspaceRoleDeploy {
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
 	resourceRegions, err := s.queries.ListResourceRegions(ctx, r.ResourceId)
@@ -1028,12 +880,13 @@ func (s *ResourceServer) UpdateResourceEnv(
 	}
 
 	deploymentId, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		ResourceID:  r.ResourceId,
-		ClusterID:   1,
-		Replicas:    currentDeployment.Replicas,
-		Status:      genDb.DeploymentStatusPending,
-		IsActive:    true,
-		CreatedBy:   userID,
+		ResourceID: r.ResourceId,
+		ClusterID:  1,
+		Replicas:   currentDeployment.Replicas,
+		Status:     genDb.DeploymentStatusPending,
+		IsActive:   true,
+		// TODO PRIORITY: change createby to entity
+		CreatedBy:   0,
 		Spec:        specJson,
 		SpecVersion: 1,
 	})

@@ -11,6 +11,8 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/actions"
 	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
 )
 
@@ -26,10 +28,11 @@ var (
 type OrgServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	machine *tvm.VendingMachine
 }
 
 // NewOrgServer creates a new OrgServer instance
-func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier) *OrgServer {
+func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *OrgServer {
 	return &OrgServer{db: db, queries: queries}
 }
 
@@ -40,20 +43,25 @@ func (s *OrgServer) CreateOrg(
 ) (*connect.Response[orgv1.CreateOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	username, ok := ctx.Value(contextkeys.UserKey).(string)
-	if !ok {
-		slog.ErrorContext(ctx, "username not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	// make sure that requester is a user and has permission to create orgs (user:write on oneself)
+	if entity.Type != genDb.EntityTypeUser {
+		slog.WarnContext(ctx, "only users can create organizations", "entityId", entity.ID, "entityType", entity.Type)
+		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
 	}
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateOrg, entity.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create org", "entityId", entity.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	user, err := s.queries.GetUserByID(ctx, entity.ID)
 
 	orgName := r.GetName()
 	if orgName == "" {
-		orgName = fmt.Sprintf("%s's Organization", username)
+		orgName = fmt.Sprintf("%s's Organization", user.Name.String)
 	}
 
 	isUnique, err := s.queries.IsOrgNameUnique(ctx, orgName)
@@ -69,7 +77,7 @@ func (s *OrgServer) CreateOrg(
 
 	org, err := s.queries.CreateOrg(ctx, genDb.CreateOrgParams{
 		Name:      orgName,
-		CreatedBy: userID,
+		CreatedBy: entity.ID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create organization", "error", err)
@@ -78,7 +86,7 @@ func (s *OrgServer) CreateOrg(
 
 	err = s.queries.AddOrgMember(ctx, genDb.AddOrgMemberParams{
 		OrganizationID: org.ID,
-		UserID:         userID,
+		UserID:         entity.ID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to add organization member", "error", err)
@@ -103,24 +111,9 @@ func (s *OrgServer) GetOrg(
 ) (*connect.Response[orgv1.GetOrgResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	isMember, err := s.queries.IsOrgMember(ctx, genDb.IsOrgMemberParams{
-		OrganizationID: r.OrgId,
-		UserID:         userID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check org membership", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetOrg, r.OrgId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get org", "orgId", r.OrgId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	org, err := s.queries.GetOrgByID(ctx, r.OrgId)
@@ -145,13 +138,16 @@ func (s *OrgServer) GetCurrentUserOrgs(
 	ctx context.Context,
 	req *connect.Request[orgv1.GetCurrentUserOrgsRequest],
 ) (*connect.Response[orgv1.GetCurrentUserOrgsResponse], error) {
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "userId not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-
-	orgs, err := s.queries.ListUserOrganizations(ctx, userID)
+	if entity.Type != genDb.EntityTypeUser {
+		slog.WarnContext(ctx, "improper entity type for this endpoint", "entityId", entity.ID, "entityType", entity.Type)
+		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
+	}
+	orgs, err := s.queries.ListUserOrganizations(ctx, entity.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list orgs for user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -231,12 +227,10 @@ func (s *OrgServer) UpdateOrg(
 ) (*connect.Response[orgv1.UpdateOrgResponse], error) {
 	r := req.Msg
 
-	_, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateOrg, r.OrgId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update org", "orgId", r.OrgId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	// todo: check tvm role.
 
 	isUnique, err := s.queries.IsOrgNameUnique(ctx, r.NewName)
 	if err != nil {
@@ -279,10 +273,9 @@ func (s *OrgServer) DeleteOrg(
 ) (*connect.Response[orgv1.DeleteOrgResponse], error) {
 	r := req.Msg
 
-	_, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteOrg, r.OrgId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete org", "orgId", r.OrgId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{

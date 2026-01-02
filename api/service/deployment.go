@@ -17,6 +17,8 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/kube"
 	timeutil "github.com/team-loco/loco/api/timeutil"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/actions"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
 	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
@@ -128,15 +130,17 @@ type DeploymentServer struct {
 	queries       genDb.Querier
 	kubeClient    *kube.Client
 	locoNamespace string
+	machine       *tvm.VendingMachine
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, kubeClient *kube.Client, locoNamespace string) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, kubeClient *kube.Client, locoNamespace string) *DeploymentServer {
 	return &DeploymentServer{
 		db:            db,
 		queries:       queries,
 		kubeClient:    kubeClient,
 		locoNamespace: locoNamespace,
+		machine:       machine,
 	}
 }
 
@@ -147,10 +151,15 @@ func (s *DeploymentServer) CreateDeployment(
 ) (*connect.Response[deploymentv1.CreateDeploymentResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
+	if err != nil {
+		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateDeployment, r.ResourceId)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.ResourceId)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// todo: move below validations to a dedicated validation package.
@@ -180,31 +189,10 @@ func (s *DeploymentServer) CreateDeployment(
 
 	replicas := serviceSpec.GetMinReplicas()
 
-	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-	workspaceID := resource.WorkspaceID
-
 	domain, err := s.queries.GetDomainByResourceId(ctx, r.ResourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "domain not found", "resource_id", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
-	}
-
-	// todo: move membership check higher.
-	role, err := s.queries.GetWorkspaceMemberRole(ctx, genDb.GetWorkspaceMemberRoleParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", workspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
-	if role != genDb.WorkspaceRoleAdmin && role != genDb.WorkspaceRoleDeploy {
-		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
 	// get active cluster
@@ -248,12 +236,13 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	deploymentID, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
-		ResourceID:  r.ResourceId,
-		ClusterID:   cluster.ID,
-		Replicas:    replicas,
-		Status:      genDb.DeploymentStatusPending,
-		IsActive:    true,
-		CreatedBy:   userID,
+		ResourceID: r.ResourceId,
+		ClusterID:  cluster.ID,
+		Replicas:   replicas,
+		Status:     genDb.DeploymentStatusPending,
+		IsActive:   true,
+		// TODO PRIORITY: this field should be removed and replaced with entity
+		CreatedBy:   0,
 		Spec:        specJSON,
 		SpecVersion: 1,
 	})
@@ -283,12 +272,6 @@ func (s *DeploymentServer) GetDeployment(
 ) (*connect.Response[deploymentv1.GetDeploymentResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
@@ -301,18 +284,10 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check workspace membership", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	// check if user has permission to get deployment (resource:read)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetDeployment, resource.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get deployment", "resourceId", resource.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	return connect.NewResponse(&deploymentv1.GetDeploymentResponse{
@@ -327,30 +302,15 @@ func (s *DeploymentServer) ListDeployments(
 ) (*connect.Response[deploymentv1.ListDeploymentsResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	// check if requester has permission to list deployments (resource:read)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListDeployments, r.ResourceId)); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check workspace membership", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
 	limit := r.GetLimit()
@@ -393,12 +353,6 @@ func (s *DeploymentServer) DeleteDeployment(
 ) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
 	deployment, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
@@ -411,18 +365,9 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check workspace membership", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteDeployment, resource.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", resource.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// if this is the active deployment, delete the Application
@@ -454,12 +399,6 @@ func (s *DeploymentServer) StreamDeployment(
 ) error {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, r.DeploymentId)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
@@ -472,18 +411,9 @@ func (s *DeploymentServer) StreamDeployment(
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	isMember, err := s.queries.IsWorkspaceMember(ctx, genDb.IsWorkspaceMemberParams{
-		WorkspaceID: resource.WorkspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check workspace membership", "error", err)
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	if !isMember {
-		slog.WarnContext(ctx, "user is not a member of workspace", "workspaceId", resource.WorkspaceID, "userId", userID)
-		return connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.StreamDeployment, resource.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resource.ID)
+		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	lastStatus := ""

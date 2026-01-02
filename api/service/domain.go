@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/actions"
 	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -26,10 +27,11 @@ var (
 type DomainServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	machine *tvm.VendingMachine
 }
 
-func NewDomainServer(db *pgxpool.Pool, queries genDb.Querier) *DomainServer {
-	return &DomainServer{db: db, queries: queries}
+func NewDomainServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *DomainServer {
+	return &DomainServer{db: db, queries: queries, machine: machine}
 }
 
 // CreatePlatformDomain creates a new platform domain
@@ -239,29 +241,9 @@ func (s *DomainServer) AddResourceDomain(
 ) (*connect.Response[domainv1.AddResourceDomainResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.AddDomain, r.ResourceId)); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-
-	// verify app exists and user has access
-	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("app not found"))
-		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
-	}
-
 	if r.Domain == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain input is required"))
 	}
@@ -338,12 +320,6 @@ func (s *DomainServer) UpdateResourceDomain(
 ) (*connect.Response[domainv1.UpdateResourceDomainResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
 	// get the domain to check its app
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.DomainId)
 	if err != nil {
@@ -351,17 +327,8 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	// verify user has access to this app
-	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, domainRow.ResourceID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateDomain, domainRow.ResourceID)); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// check if new domain is available (unless it's the same domain)
@@ -400,31 +367,12 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 ) (*connect.Response[domainv1.SetPrimaryResourceDomainResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
-	// verify app exists and user has access
-	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, r.ResourceId)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, connect.NewError(connect.CodeNotFound, errors.New("app not found"))
-		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.SetPrimaryDomain, r.ResourceId)); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// unset primary on all other domains
-	err = s.queries.UpdateResourceDomainPrimary(ctx, r.ResourceId)
+	err := s.queries.UpdateResourceDomainPrimary(ctx, r.ResourceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
@@ -453,30 +401,14 @@ func (s *DomainServer) RemoveResourceDomain(
 ) (*connect.Response[domainv1.RemoveResourceDomainResponse], error) {
 	r := req.Msg
 
-	userID, ok := ctx.Value(contextkeys.UserIDKey).(int64)
-	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
-	}
-
 	// get the domain to check its app and whether it's primary
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.DomainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
 
-	// verify user has access to this app
-	workspaceID, err := s.queries.GetResourceWorkspaceID(ctx, domainRow.ResourceID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	_, err = s.queries.GetWorkspaceMember(ctx, genDb.GetWorkspaceMemberParams{
-		WorkspaceID: workspaceID,
-		UserID:      userID,
-	})
-	if err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.RemoveDomain, domainRow.ResourceID)); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// cannot remove primary domain

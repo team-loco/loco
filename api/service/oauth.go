@@ -339,7 +339,7 @@ func (s *OAuthServer) ExchangeGithubCode(
 		Name:      user.Name.String,
 	})
 
-	// set jwt as http-only cookie
+	// set loco token as http-only cookie
 	res.Header().Set("Set-Cookie", fmt.Sprintf(
 		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax",
 		locoToken,

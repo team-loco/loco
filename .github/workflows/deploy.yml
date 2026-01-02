@@ -99,7 +99,6 @@ jobs:
       LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
       PORT: ${{ secrets.PORT }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
       REGISTRY_TAG: ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
       GH_SHA: ${{ github.sha }}
