@@ -7,12 +7,12 @@ import (
 	"os/user"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/loco-team/loco/internal/client"
-	"github.com/loco-team/loco/internal/config"
-	"github.com/loco-team/loco/internal/keychain"
-	"github.com/loco-team/loco/internal/ui"
-	userv1 "github.com/loco-team/loco/shared/proto/user/v1"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/internal/ui"
+	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
 )
 
 func init() {

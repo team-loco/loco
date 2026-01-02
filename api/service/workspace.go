@@ -10,10 +10,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/loco-team/loco/api/contextkeys"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/timeutil"
-	workspacev1 "github.com/loco-team/loco/shared/proto/workspace/v1"
+	"github.com/team-loco/loco/api/contextkeys"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/timeutil"
+	workspacev1 "github.com/team-loco/loco/shared/proto/workspace/v1"
 )
 
 var (
@@ -55,20 +55,6 @@ func (s *WorkspaceServer) CreateWorkspace(
 	if !workspaceNamePattern.MatchString(r.Name) {
 		slog.WarnContext(ctx, "invalid workspace name", "name", r.Name)
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
-	}
-
-	role, err := s.queries.GetOrgMemberRole(ctx, genDb.GetOrgMemberRoleParams{
-		OrganizationID: r.OrgId,
-		UserID:         userID,
-	})
-	if err != nil {
-		slog.WarnContext(ctx, "user is not a member of org", "orgId", r.OrgId, "userId", userID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgMember)
-	}
-
-	if role != genDb.OrganizationRoleAdmin {
-		slog.WarnContext(ctx, "user is not an admin of org", "orgId", r.OrgId, "userId", userID, "role", string(role))
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrNotOrgAdmin)
 	}
 
 	isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{

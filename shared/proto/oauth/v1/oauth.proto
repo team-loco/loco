@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package loco.oauth.v1;
 
-option go_package = "github.com/loco-team/loco/shared/proto/oauth/v1;oauthv1";
+option go_package = "github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1";
 
 // GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration for client setup.
 message GithubOAuthDetailsRequest {}
@@ -24,7 +24,7 @@ message ExchangeGithubTokenResponse {
   string loco_token = 1;
   int64 expires_in = 2; // seconds
   int64 user_id = 3;
-  string username = 4;
+  string name = 4;
 }
 
 // GetGithubAuthorizationURLRequest is the request to initiate GitHub OAuth authorization flow.
@@ -48,10 +48,9 @@ message ExchangeGithubCodeRequest {
 
 // ExchangeGithubCodeResponse contains the Loco token and user info from GitHub code exchange.
 message ExchangeGithubCodeResponse {
-  string loco_token = 1;
-  int64 expires_in = 2;
-  int64 user_id = 3;
-  string username = 6;
+  int64 expires_in = 1;
+  int64 user_id = 2;
+  string name = 3;
 }
 
 // OAuthService handles OAuth authentication flows.

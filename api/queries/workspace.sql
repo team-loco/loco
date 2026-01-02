@@ -6,6 +6,9 @@ RETURNING id;
 -- name: GetWorkspaceByIDQuery :one
 SELECT * FROM workspaces WHERE id = $1;
 
+-- name: GetOrganizationIDByWorkspaceID :one
+SELECT org_id FROM workspaces WHERE id = $1;
+
 -- name: ListWorkspacesForUser :many
 SELECT DISTINCT w.*
 FROM workspaces w

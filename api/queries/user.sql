@@ -84,17 +84,17 @@ WHERE id = $1;
 -- Organization members queries
 
 -- name: AddOrganizationMember :one
-INSERT INTO organization_members (organization_id, user_id, role)
-VALUES ($1, $2, $3)
-RETURNING organization_id, user_id, role;
+INSERT INTO organization_members (organization_id, user_id)
+VALUES ($1, $2)
+RETURNING organization_id, user_id;
 
 -- name: GetOrganizationMember :one
-SELECT organization_id, user_id, role
+SELECT organization_id, user_id
 FROM organization_members
 WHERE organization_id = $1 AND user_id = $2;
 
 -- name: ListOrganizationMembers :many
-SELECT organization_id, user_id, role
+SELECT organization_id, user_id
 FROM organization_members
 WHERE organization_id = $1
 ORDER BY created_at DESC;
@@ -106,17 +106,17 @@ WHERE organization_id = $1 AND user_id = $2;
 -- Workspace members queries
 
 -- name: AddWorkspaceMember :one
-INSERT INTO workspace_members (workspace_id, user_id, role)
-VALUES ($1, $2, $3)
-RETURNING workspace_id, user_id, role;
+INSERT INTO workspace_members (workspace_id, user_id)
+VALUES ($1, $2)
+RETURNING workspace_id, user_id;
 
 -- name: GetWorkspaceMember :one
-SELECT workspace_id, user_id, role
+SELECT workspace_id, user_id
 FROM workspace_members
 WHERE workspace_id = $1 AND user_id = $2;
 
 -- name: ListWorkspaceMembers :many
-SELECT workspace_id, user_id, role
+SELECT workspace_id, user_id
 FROM workspace_members
 WHERE workspace_id = $1
 ORDER BY created_at DESC;

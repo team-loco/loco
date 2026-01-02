@@ -16,9 +16,10 @@ import (
 	"github.com/goccy/go-json"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/jwtutil"
-	oAuth "github.com/loco-team/loco/shared/proto/oauth/v1"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/providers"
+	oAuth "github.com/team-loco/loco/shared/proto/oauth/v1"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 )
@@ -77,6 +78,7 @@ type OAuthServer struct {
 	queries    genDb.Querier
 	httpClient *http.Client
 	stateCache *OAuthStateCache
+	machine    *tvm.VendingMachine
 }
 
 // GithubUser is the response structure from GitHub's user endpoint
@@ -108,7 +110,7 @@ func generateSecureRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Client) (*OAuthServer, error) {
+func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Client, machine *tvm.VendingMachine) (*OAuthServer, error) {
 	stateCache, err := NewOAuthStateCache(OAuthStateTTL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create oauth state cache: %w", err)
@@ -119,6 +121,7 @@ func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Cl
 		queries:    queries,
 		httpClient: httpClient,
 		stateCache: stateCache,
+		machine:    machine,
 	}, nil
 }
 
@@ -170,36 +173,21 @@ func (s *OAuthServer) ExchangeGithubToken(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("github_access_token is required"))
 	}
 
-	// todo: only create user if they don't already exist.
-	// todo: ctx should be first param
-	githubUser, err := isValidGithubUser(s.httpClient, ctx, req.Msg.GetGithubAccessToken())
+	// initiate login
+	user, token, err := s.machine.Exchange(ctx, providers.Github(githubToken))
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to validate github token", "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid github token: %w", err))
-	}
-
-	// todo: should we be creating user here?
-	userID, _, err := s.createOrGetUser(ctx, githubUser)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create/get user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to set up user: %w", err))
-	}
-
-	externalUsername := "github:" + githubUser.Login
-	locoJWT, err := jwtutil.GenerateLocoJWT(userID, githubUser.Login, externalUsername, OAuthTokenTTL)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate loco jwt", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate token: %w", err))
+		slog.ErrorContext(ctx, "exchange github token", "error", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("exchange token: %w", err))
 	}
 
 	res := connect.NewResponse(&oAuth.ExchangeGithubTokenResponse{
-		LocoToken: locoJWT,
+		LocoToken: token,
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
-		UserId:    userID,
-		Username:  githubUser.Login,
+		UserId:    user.ID,
+		Name:      user.Name.String,
 	})
 
-	slog.InfoContext(ctx, "exchanged github token for loco token", "userId", userID)
+	slog.InfoContext(ctx, "exchanged github token for loco token", "userId", user.ID)
 	return res, nil
 }
 
@@ -343,50 +331,21 @@ func (s *OAuthServer) ExchangeGithubCode(
 		)
 	}
 
-	// fetch user info from github using access token
-	githubUser, err := isValidGithubUser(s.httpClient, ctx, token.AccessToken)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to fetch github user", "error", err)
-		return nil, connect.NewError(
-			connect.CodeUnauthenticated,
-			fmt.Errorf("failed to fetch user info: %w", err),
-		)
-	}
-
-	// create or retrieve user in database
-	userID, _, err := s.createOrGetUser(ctx, githubUser)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create/get user", "error", err)
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("failed to set up user: %w", err),
-		)
-	}
-
-	// generate loco jwt token
-	externalUsername := "github:" + githubUser.Login
-	locoJWT, err := jwtutil.GenerateLocoJWT(userID, githubUser.Login, externalUsername, OAuthTokenTTL)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate loco jwt", "error", err)
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("failed to generate token: %w", err),
-		)
-	}
+	user, locoToken, err := s.machine.Exchange(ctx, providers.Github(token.AccessToken))
 
 	res := connect.NewResponse(&oAuth.ExchangeGithubCodeResponse{
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
-		UserId:    userID,
-		Username:  githubUser.Login,
+		UserId:    user.ID,
+		Name:      user.Name.String,
 	})
 
 	// set jwt as http-only cookie
 	res.Header().Set("Set-Cookie", fmt.Sprintf(
 		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax",
-		locoJWT,
+		locoToken,
 		int(OAuthTokenTTL.Seconds()),
 	))
 
-	slog.InfoContext(ctx, "exchanged github code for loco token", "userId", userID, "method", "cookie")
+	slog.InfoContext(ctx, "exchanged github code for loco token", "userId", user.ID, "method", "cookie")
 	return res, nil
 }

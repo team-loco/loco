@@ -7,11 +7,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/loco-team/loco/internal/ui"
-	"github.com/loco-team/loco/shared"
-	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
-	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/ui"
+	"github.com/team-loco/loco/shared"
+	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
 )
 
 func init() {

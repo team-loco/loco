@@ -3,9 +3,9 @@ package loco
 import (
 	"fmt"
 
-	deploymentv1 "github.com/loco-team/loco/shared/proto/deployment/v1"
-	resourcev1 "github.com/loco-team/loco/shared/proto/resource/v1"
-	"github.com/loco-team/loco/shared/config"
+	"github.com/team-loco/loco/shared/config"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
 )
 
 // configToResourceSpec converts a LocoConfig to a proto ResourceSpec.

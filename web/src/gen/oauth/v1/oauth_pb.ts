@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file oauth/v1/oauth.proto.
  */
 export const file_oauth_v1_oauth: GenFile = /*@__PURE__*/
-  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSIbChlHaXRodWJPQXV0aERldGFpbHNSZXF1ZXN0IkIKGkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEiXAoaRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QSGwoTZ2l0aHViX2FjY2Vzc190b2tlbhgBIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAIgASgIImgKG0V4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSDwoHdXNlcl9pZBgDIAEoAxIQCgh1c2VybmFtZRgEIAEoCSJHCiBHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVxdWVzdBINCgVzdGF0ZRgBIAEoCRIUCgxyZWRpcmVjdF91cmkYAiABKAkiTQohR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlc3BvbnNlEhkKEWF1dGhvcml6YXRpb25fdXJsGAEgASgJEg0KBXN0YXRlGAIgASgJIk4KGUV4Y2hhbmdlR2l0aHViQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiZwoaRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2USEgoKbG9jb190b2tlbhgBIAEoCRISCgpleHBpcmVzX2luGAIgASgDEg8KB3VzZXJfaWQYAyABKAMSEAoIdXNlcm5hbWUYBiABKAky2QMKDE9BdXRoU2VydmljZRJrChJHaXRodWJPQXV0aERldGFpbHMSKC5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1JlcXVlc3QaKS5sb2NvLm9hdXRoLnYxLkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlIgASbAoTRXhjaGFuZ2VHaXRodWJUb2tlbhIpLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QaKi5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRKAAQoZR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTBIvLmxvY28ub2F1dGgudjEuR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlcXVlc3QaMC5sb2NvLm9hdXRoLnYxLkdldEdpdGh1YkF1dGhvcml6YXRpb25VUkxSZXNwb25zZSIAEmsKEkV4Y2hhbmdlR2l0aHViQ29kZRIoLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVxdWVzdBopLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJDb2RlUmVzcG9uc2UiAEI5WjdnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM");
+  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSIbChlHaXRodWJPQXV0aERldGFpbHNSZXF1ZXN0IkIKGkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEiXAoaRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QSGwoTZ2l0aHViX2FjY2Vzc190b2tlbhgBIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAIgASgIImQKG0V4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSDwoHdXNlcl9pZBgDIAEoAxIMCgRuYW1lGAQgASgJIkcKIEdldEdpdGh1YkF1dGhvcml6YXRpb25VUkxSZXF1ZXN0Eg0KBXN0YXRlGAEgASgJEhQKDHJlZGlyZWN0X3VyaRgCIAEoCSJNCiFHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkSDQoFc3RhdGUYAiABKAkiTgoZRXhjaGFuZ2VHaXRodWJDb2RlUmVxdWVzdBIMCgRjb2RlGAEgASgJEg0KBXN0YXRlGAIgASgJEhQKDHJlZGlyZWN0X3VyaRgDIAEoCSJPChpFeGNoYW5nZUdpdGh1YkNvZGVSZXNwb25zZRISCgpleHBpcmVzX2luGAEgASgDEg8KB3VzZXJfaWQYAiABKAMSDAoEbmFtZRgDIAEoCTLZAwoMT0F1dGhTZXJ2aWNlEmsKEkdpdGh1Yk9BdXRoRGV0YWlscxIoLmxvY28ub2F1dGgudjEuR2l0aHViT0F1dGhEZXRhaWxzUmVxdWVzdBopLmxvY28ub2F1dGgudjEuR2l0aHViT0F1dGhEZXRhaWxzUmVzcG9uc2UiABJsChNFeGNoYW5nZUdpdGh1YlRva2VuEikubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YlRva2VuUmVxdWVzdBoqLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJUb2tlblJlc3BvbnNlEoABChlHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMEi8ubG9jby5vYXV0aC52MS5HZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVxdWVzdBowLmxvY28ub2F1dGgudjEuR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlc3BvbnNlIgASawoSRXhjaGFuZ2VHaXRodWJDb2RlEigubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YkNvZGVSZXF1ZXN0GikubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YkNvZGVSZXNwb25zZSIAQjlaN2dpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL29hdXRoL3YxO29hdXRodjFiBnByb3RvMw");
 
 /**
  * GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration for client setup.
@@ -141,9 +141,9 @@ export type ExchangeGithubTokenResponse = Message<"loco.oauth.v1.ExchangeGithubT
   userId: bigint;
 
   /**
-   * @generated from field: string username = 4;
+   * @generated from field: string name = 4;
    */
-  username: string;
+  name: string;
 };
 
 /**
@@ -170,9 +170,9 @@ export type ExchangeGithubTokenResponseJson = {
   userId?: string;
 
   /**
-   * @generated from field: string username = 4;
+   * @generated from field: string name = 4;
    */
-  username?: string;
+  name?: string;
 };
 
 /**
@@ -322,24 +322,19 @@ export const ExchangeGithubCodeRequestSchema: GenMessage<ExchangeGithubCodeReque
  */
 export type ExchangeGithubCodeResponse = Message<"loco.oauth.v1.ExchangeGithubCodeResponse"> & {
   /**
-   * @generated from field: string loco_token = 1;
-   */
-  locoToken: string;
-
-  /**
-   * @generated from field: int64 expires_in = 2;
+   * @generated from field: int64 expires_in = 1;
    */
   expiresIn: bigint;
 
   /**
-   * @generated from field: int64 user_id = 3;
+   * @generated from field: int64 user_id = 2;
    */
   userId: bigint;
 
   /**
-   * @generated from field: string username = 6;
+   * @generated from field: string name = 3;
    */
-  username: string;
+  name: string;
 };
 
 /**
@@ -349,24 +344,19 @@ export type ExchangeGithubCodeResponse = Message<"loco.oauth.v1.ExchangeGithubCo
  */
 export type ExchangeGithubCodeResponseJson = {
   /**
-   * @generated from field: string loco_token = 1;
-   */
-  locoToken?: string;
-
-  /**
-   * @generated from field: int64 expires_in = 2;
+   * @generated from field: int64 expires_in = 1;
    */
   expiresIn?: string;
 
   /**
-   * @generated from field: int64 user_id = 3;
+   * @generated from field: int64 user_id = 2;
    */
   userId?: string;
 
   /**
-   * @generated from field: string username = 6;
+   * @generated from field: string name = 3;
    */
-  username?: string;
+  name?: string;
 };
 
 /**

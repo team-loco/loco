@@ -7,6 +7,7 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -99,46 +100,49 @@ func (ns NullDomainSource) Value() (driver.Value, error) {
 	return string(ns.DomainSource), nil
 }
 
-type OrganizationRole string
+type EntityType string
 
 const (
-	OrganizationRoleAdmin  OrganizationRole = "admin"
-	OrganizationRoleMember OrganizationRole = "member"
+	EntityTypeSystem       EntityType = "system"
+	EntityTypeOrganization EntityType = "organization"
+	EntityTypeWorkspace    EntityType = "workspace"
+	EntityTypeApp          EntityType = "app"
+	EntityTypeUser         EntityType = "user"
 )
 
-func (e *OrganizationRole) Scan(src interface{}) error {
+func (e *EntityType) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = OrganizationRole(s)
+		*e = EntityType(s)
 	case string:
-		*e = OrganizationRole(s)
+		*e = EntityType(s)
 	default:
-		return fmt.Errorf("unsupported scan type for OrganizationRole: %T", src)
+		return fmt.Errorf("unsupported scan type for EntityType: %T", src)
 	}
 	return nil
 }
 
-type NullOrganizationRole struct {
-	OrganizationRole OrganizationRole `json:"organizationRole"`
-	Valid            bool             `json:"valid"` // Valid is true if OrganizationRole is not NULL
+type NullEntityType struct {
+	EntityType EntityType `json:"entityType"`
+	Valid      bool       `json:"valid"` // Valid is true if EntityType is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullOrganizationRole) Scan(value interface{}) error {
+func (ns *NullEntityType) Scan(value interface{}) error {
 	if value == nil {
-		ns.OrganizationRole, ns.Valid = "", false
+		ns.EntityType, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.OrganizationRole.Scan(value)
+	return ns.EntityType.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullOrganizationRole) Value() (driver.Value, error) {
+func (ns NullEntityType) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.OrganizationRole), nil
+	return string(ns.EntityType), nil
 }
 
 type RegionIntentStatus string
@@ -363,7 +367,6 @@ type Organization struct {
 type OrganizationMember struct {
 	OrganizationID int64              `json:"organizationId"`
 	UserID         int64              `json:"userId"`
-	Role           OrganizationRole   `json:"role"`
 	CreatedAt      pgtype.Timestamptz `json:"createdAt"`
 }
 
@@ -411,6 +414,15 @@ type ResourceRegion struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
 }
 
+type Token struct {
+	Name       string        `json:"name"`
+	Token      string        `json:"token"`
+	Scopes     []EntityScope `json:"scopes"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   int64         `json:"entityId"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
+}
+
 type User struct {
 	ID         int64              `json:"id"`
 	ExternalID string             `json:"externalId"`
@@ -419,6 +431,24 @@ type User struct {
 	AvatarUrl  pgtype.Text        `json:"avatarUrl"`
 	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
+}
+
+type UserScope struct {
+	UserID     int64      `json:"userId"`
+	Scope      Scope      `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
+}
+
+type UserWithScopesView struct {
+	ID         int64              `json:"id"`
+	ExternalID string             `json:"externalId"`
+	Email      string             `json:"email"`
+	Name       pgtype.Text        `json:"name"`
+	AvatarUrl  pgtype.Text        `json:"avatarUrl"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
+	Scopes     []EntityScope      `json:"scopes"`
 }
 
 type Workspace struct {

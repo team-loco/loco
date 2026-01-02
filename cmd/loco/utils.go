@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/loco-team/loco/internal/client"
-	"github.com/loco-team/loco/internal/config"
-	"github.com/loco-team/loco/internal/keychain"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/keychain"
 )
 
 const locoProdHost = "https://loco.deploy-app.com"

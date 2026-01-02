@@ -40,7 +40,7 @@ linters:
         - "fmt.Fprint"
         - "fmt.Fprintln"
         - "fmt.Fprintf"
-        - "github.com/loco-team/loco/internal/keychain.SetLocoToken"
+        - "github.com/team-loco/loco/internal/keychain.SetLocoToken"
 
     errchkjson:
       report-no-exported: true
