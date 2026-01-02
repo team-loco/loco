@@ -40,7 +40,7 @@ export const listWorkspaces = WorkspaceService.method.listWorkspaces;
 export const updateWorkspace = WorkspaceService.method.updateWorkspace;
 
 /**
- * DeleteWorkspace deletes a workspace and optionally its applications.
+ * DeleteWorkspace deletes a workspace and optionally its resources.
  *
  * @generated from rpc loco.workspace.v1.WorkspaceService.DeleteWorkspace
  */

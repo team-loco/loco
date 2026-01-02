@@ -106,7 +106,7 @@ const (
 	EntityTypeSystem       EntityType = "system"
 	EntityTypeOrganization EntityType = "organization"
 	EntityTypeWorkspace    EntityType = "workspace"
-	EntityTypeApp          EntityType = "app"
+	EntityTypeResource     EntityType = "resource"
 	EntityTypeUser         EntityType = "user"
 )
 

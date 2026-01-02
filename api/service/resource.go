@@ -74,7 +74,7 @@ func (s *ResourceServer) CreateResource(
 ) (*connect.Response[resourcev1.CreateResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateApp, r.WorkspaceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateResource, r.WorkspaceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create resource", "workspaceId", r.WorkspaceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -241,7 +241,7 @@ func (s *ResourceServer) GetResource(
 ) (*connect.Response[resourcev1.GetResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetApp, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResource, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -285,7 +285,7 @@ func (s *ResourceServer) GetResourceByName(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetApp, resource.ID)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResource, resource.ID)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -315,7 +315,7 @@ func (s *ResourceServer) ListResources(
 	r := req.Msg
 
 	slog.InfoContext(ctx, "received req to list resources", "workspaceId", r.WorkspaceId)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListApps, r.WorkspaceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListResources, r.WorkspaceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list resources", "workspaceId", r.WorkspaceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -353,7 +353,7 @@ func (s *ResourceServer) UpdateResource(
 ) (*connect.Response[resourcev1.UpdateResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateApp, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateResource, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update resource", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -384,7 +384,7 @@ func (s *ResourceServer) DeleteResource(
 ) (*connect.Response[resourcev1.DeleteResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteApp, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteResource, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete resource", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -419,7 +419,7 @@ func (s *ResourceServer) GetResourceStatus(
 ) (*connect.Response[resourcev1.GetResourceStatusResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetAppStatus, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResourceStatus, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource status", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -514,7 +514,7 @@ func (s *ResourceServer) StreamLogs(
 ) error {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.StreamAppLogs, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.StreamResourceLogs, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to stream logs for resource", "resourceId", r.ResourceId)
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -588,7 +588,7 @@ func (s *ResourceServer) GetEvents(
 ) (*connect.Response[resourcev1.GetEventsResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetAppEvents, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResourceEvents, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get events for resource", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -650,7 +650,7 @@ func (s *ResourceServer) ScaleResource(
 ) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ScaleApp, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ScaleResource, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to scale resource", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -845,7 +845,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 ) (*connect.Response[resourcev1.UpdateResourceEnvResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateAppEnv, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateResourceEnv, r.ResourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update resource env", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}

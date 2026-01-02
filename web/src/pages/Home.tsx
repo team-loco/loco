@@ -162,7 +162,7 @@ export function Home() {
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<h3 className="text-2xl font-heading">
-						{searchTerm ? "Search Results" : "Applications"}
+						{searchTerm ? "Search Results" : "Resources"}
 					</h3>
 					{allApps.length > 0 && (
 						<p className="text-sm text-foreground opacity-60">
@@ -185,15 +185,15 @@ export function Home() {
 				) : allApps.length > 0 ? (
 					<EmptyState
 						title="No Results"
-						description={`No apps match "${searchTerm}"`}
+						description={`No resources match "${searchTerm}"`}
 					/>
 				) : (
 					<EmptyState
-						title="No Applications Yet"
-						description="Create your first application to get started with Loco"
+						title="No Resources Yet"
+						description="Create your first resource to get started with Loco"
 						action={{
-							label: "Create Your First App",
-							onClick: () => navigate("/create-app"),
+							label: "Create Your First Resource",
+							onClick: () => navigate("/create-resource"),
 						}}
 					/>
 				)}

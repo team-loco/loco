@@ -45,23 +45,20 @@ export function NavMenu() {
 				<NavigationMenuItem>
 					<NavigationMenuLink
 						onClick={() => navigate("/dashboard")}
-						className={cn(
-							navigationMenuTriggerStyle(),
-							"cursor-pointer"
-						)}
+						className={cn(navigationMenuTriggerStyle(), "cursor-pointer")}
 					>
 						Dashboard
 					</NavigationMenuLink>
 				</NavigationMenuItem>
 
 				<NavigationMenuItem>
-					<NavigationMenuTrigger>Apps</NavigationMenuTrigger>
+					<NavigationMenuTrigger>Resources</NavigationMenuTrigger>
 					<NavigationMenuContent>
 						<ul className="grid gap-3 p-4 w-[300px]">
-							<ListItem href="/dashboard" title="All Apps">
-								View and manage all your applications
+							<ListItem href="/dashboard" title="All Resources">
+								View and manage all your resources
 							</ListItem>
-							<ListItem href="/create-app" title="Create App">
+							<ListItem href="/create-resource" title="Create App">
 								Deploy a new application to Loco
 							</ListItem>
 						</ul>

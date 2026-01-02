@@ -24,20 +24,20 @@ service OrgService {
   rpc IsUniqueOrgName(IsUniqueOrgNameRequest) returns (IsUniqueOrgNameResponse);
 }
 
-// Organization represents a top-level organization container for users, workspaces, and applications.
+// Organization represents a top-level organization container for users, workspaces, and resources.
 message Organization {
-  int64 id = 1;
-  string name = 2;
-  int64 created_by = 3;
+  int64                     id         = 1;
+  string                    name       = 2;
+  int64                     created_by = 3;
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp updated_at = 5;
 }
 
 // WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
 message WorkspaceSummary {
-  int64 id = 1;
-  string name = 2;
-  int64 created_by = 3;
+  int64                     id         = 1;
+  string                    name       = 2;
+  int64                     created_by = 3;
   google.protobuf.Timestamp created_at = 4;
 }
 
@@ -48,8 +48,8 @@ message CreateOrgRequest {
 
 // CreateOrgResponse is the response from creating an organization.
 message CreateOrgResponse {
-  Organization org = 1;
-  string message = 2;
+  Organization org     = 1;
+  string       message = 2;
 }
 
 // GetOrgRequest is the request to retrieve an organization.
@@ -73,26 +73,26 @@ message GetCurrentUserOrgsResponse {
 // ListOrgsRequest is the request to list organizations.
 message ListOrgsRequest {
   int64 user_id = 1;
-  int32 limit = 2;
-  int32 offset = 3;
+  int32 limit   = 2;
+  int32 offset  = 3;
 }
 
 // ListOrgsResponse is the response containing organization list.
 message ListOrgsResponse {
-  repeated Organization orgs = 1;
-  int64 total_count = 2;
+  repeated Organization orgs        = 1;
+  int64                 total_count = 2;
 }
 
 // UpdateOrgRequest is the request to update an organization.
 message UpdateOrgRequest {
-  int64 org_id = 1;
+  int64  org_id   = 1;
   string new_name = 2;
 }
 
 // UpdateOrgResponse is the response from updating an organization.
 message UpdateOrgResponse {
-  Organization org = 1;
-  string message = 2;
+  Organization org     = 1;
+  string       message = 2;
 }
 
 // DeleteOrgRequest is the request to delete an organization.
@@ -102,13 +102,13 @@ message DeleteOrgRequest {
 
 // DeleteOrgResponse is the response from deleting an organization.
 message DeleteOrgResponse {
-  Organization org = 1;
-  string message = 2;
+  Organization org     = 1;
+  string       message = 2;
 }
 
 // IsUniqueOrgNameRequest is the request to check organization name uniqueness.
 message IsUniqueOrgNameRequest {
-  string name = 1;
+  string         name           = 1;
   optional int64 exclude_org_id = 2;
 }
 

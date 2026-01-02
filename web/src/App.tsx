@@ -67,7 +67,7 @@ function AppRoutes() {
 				<Route path="/dashboard" element={<Home />} />
 				<Route path="/app/:appId" element={<AppDetails />} />
 				<Route path="/app/:appId/settings" element={<AppSettings />} />
-				<Route path="/create-app" element={<CreateApp />} />
+				<Route path="/create-resource" element={<CreateApp />} />
 				<Route path="/events" element={<Events />} />
 				<Route path="/team" element={<Team />} />
 				<Route path="/profile" element={<Profile />} />

@@ -59,18 +59,12 @@ export function BreadcrumbNav() {
 
 		// Profile: /profile
 		if (pathname === "/profile") {
-			return [
-				{ label: "Dashboard", href: "/" },
-				{ label: "Profile" },
-			];
+			return [{ label: "Dashboard", href: "/" }, { label: "Profile" }];
 		}
 
-		// Create app: /create-app
-		if (pathname === "/create-app") {
-			return [
-				{ label: "Dashboard", href: "/" },
-				{ label: "Create App" },
-			];
+		// Create app: /create-resource
+		if (pathname === "/create-resource") {
+			return [{ label: "Dashboard", href: "/" }, { label: "Create App" }];
 		}
 
 		// Default fallback

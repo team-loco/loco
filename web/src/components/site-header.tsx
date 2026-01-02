@@ -38,7 +38,9 @@ export function SiteHeader() {
 	const workspaceName = workspacesRes?.workspaces?.find(
 		(ws) => ws.id === activeWorkspaceId
 	)?.name;
-	const appName = resourcesRes?.resources?.find((app) => app.id === activeAppId)?.name;
+	const appName = resourcesRes?.resources?.find(
+		(app) => app.id === activeAppId
+	)?.name;
 
 	return (
 		<header className="bg-white dark:bg-[oklch(0.2553_0.0226_262.4337)] fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700 dark:text-white">
@@ -84,7 +86,7 @@ export function SiteHeader() {
 					)}
 				</nav>
 				<Button
-					onClick={() => navigate("/create-app")}
+					onClick={() => navigate("/create-resource")}
 					className="ml-auto"
 					size="sm"
 					variant="default"
