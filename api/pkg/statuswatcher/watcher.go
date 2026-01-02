@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/allegro/bigcache/v3"
-	"github.com/jackc/pgx/v5/pgtype"
 	genDb "github.com/loco-team/loco/api/gen/db"
 	"github.com/loco-team/loco/api/pkg/kube"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
@@ -130,7 +129,7 @@ func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.
 	err = w.queries.UpdateActiveDeploymentStatus(ctx, genDb.UpdateActiveDeploymentStatusParams{
 		ResourceID: locoRes.Spec.ResourceId,
 		Status:     status,
-		Message:    pgtype.Text{String: message, Valid: message != ""},
+		Message:    message,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update deployment status",

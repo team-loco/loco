@@ -44,6 +44,7 @@ type Querier interface {
 	DeleteWorkspace(ctx context.Context, id int64) error
 	DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error
 	GetActiveClusterByRegion(ctx context.Context, region string) (Cluster, error)
+	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error)
 	GetDeploymentByID(ctx context.Context, id int64) (Deployment, error)
 	GetDeploymentResourceID(ctx context.Context, id int64) (int64, error)
@@ -62,6 +63,7 @@ type Querier interface {
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
 	GetResourceDomainByID(ctx context.Context, id int64) (ResourceDomain, error)
 	GetResourceDomainCount(ctx context.Context, resourceID int64) (int64, error)
+	GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error)
 	GetResourceWorkspaceID(ctx context.Context, id int64) (int64, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByExternalID(ctx context.Context, externalID string) (User, error)
@@ -107,6 +109,7 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (int64, error)
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
+	UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error
 	UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)
 	UpdateResource(ctx context.Context, arg UpdateResourceParams) (int64, error)

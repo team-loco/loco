@@ -42,6 +42,11 @@ FROM resource_regions
 WHERE resource_id = $1
 ORDER BY is_primary DESC, region ASC;
 
+-- name: GetResourceRegionByResourceAndRegion :one
+SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+FROM resource_regions
+WHERE resource_id = $1 AND region = $2;
+
 -- name: GetClusterDetails :one
 SELECT id, is_active, health_status
 FROM clusters

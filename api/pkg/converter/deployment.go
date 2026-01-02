@@ -110,12 +110,16 @@ func DeserializeResourceSpecByType(specBytes []byte, resourceType string) (*reso
 func MergeDeploymentSpec(
 	resourceSpec *resourcev1.ResourceSpec,
 	requestSpec *deploymentv1.DeploymentSpec,
+	region string,
 ) (*deploymentv1.DeploymentSpec, error) {
 	if resourceSpec == nil {
 		return nil, fmt.Errorf("resourceSpec cannot be nil")
 	}
 	if requestSpec == nil {
 		return nil, fmt.Errorf("requestSpec cannot be nil")
+	}
+	if region == "" {
+		return nil, fmt.Errorf("region is required")
 	}
 
 	// extract ServiceSpec from resourceSpec oneof
@@ -130,25 +134,20 @@ func MergeDeploymentSpec(
 		return nil, fmt.Errorf("deployment spec must contain a service spec")
 	}
 
-	// find requested region
-	if requestServiceSpec.GetRegion() == "" {
-		return nil, fmt.Errorf("region is required in deployment spec")
-	}
-
-	regionTarget, ok := resourceServiceSpec.Regions[requestServiceSpec.GetRegion()]
+	// find requested region in resource spec
+	regionTarget, ok := resourceServiceSpec.Regions[region]
 	if !ok {
-		return nil, fmt.Errorf("region %s not found in resource spec", requestServiceSpec.GetRegion())
+		return nil, fmt.Errorf("region %s not found in resource spec", region)
 	}
 	if !regionTarget.Enabled {
-		return nil, fmt.Errorf("region %s is not enabled", requestServiceSpec.GetRegion())
+		return nil, fmt.Errorf("region %s is not enabled", region)
 	}
 
 	// merge build (from request, always required)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Build:  requestServiceSpec.Build,
-		Port:   requestServiceSpec.Port,
-		Env:    requestServiceSpec.Env,
-		Region: requestServiceSpec.Region,
+		Build: requestServiceSpec.Build,
+		Port:  requestServiceSpec.Port,
+		Env:   requestServiceSpec.Env,
 	}
 
 	// merge CPU (request > resource default)
