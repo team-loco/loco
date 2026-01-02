@@ -6,7 +6,6 @@ nodes:
   - role: worker
   - role: worker
 networking:
-  ipFamily: ipv6
   apiServerAddress: 127.0.0.1
   disableDefaultCNI: true
   kubeProxyMode: "none"

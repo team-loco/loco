@@ -408,7 +408,6 @@ type ServiceDeploymentSpec struct {
 	Scalers       *Scalers               `protobuf:"bytes,7,opt,name=scalers,proto3,oneof" json:"scalers,omitempty"`                             // autoscaling config (defaults from resource if omitted)
 	Env           map[string]string      `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Port          int32                  `protobuf:"varint,9,opt,name=port,proto3" json:"port,omitempty"`
-	Region        string                 `protobuf:"bytes,10,opt,name=region,proto3" json:"region,omitempty"` // region name for deployment
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -504,13 +503,6 @@ func (x *ServiceDeploymentSpec) GetPort() int32 {
 		return x.Port
 	}
 	return 0
-}
-
-func (x *ServiceDeploymentSpec) GetRegion() string {
-	if x != nil {
-		return x.Region
-	}
-	return ""
 }
 
 // DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
@@ -746,17 +738,18 @@ type Deployment struct {
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	ResourceId    int64                  `protobuf:"varint,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	ClusterId     int64                  `protobuf:"varint,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	Replicas      int32                  `protobuf:"varint,4,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	Status        DeploymentPhase        `protobuf:"varint,5,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
-	IsActive      bool                   `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	Message       *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
-	CreatedBy     int64                  `protobuf:"varint,8,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
-	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	SpecVersion   int32                  `protobuf:"varint,13,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
-	Spec          *DeploymentSpec        `protobuf:"bytes,14,opt,name=spec,proto3" json:"spec,omitempty"`
+	Region        string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
+	Replicas      int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
+	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
+	IsActive      bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	Message       string                 `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
+	CreatedBy     int64                  `protobuf:"varint,9,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SpecVersion   int32                  `protobuf:"varint,14,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
+	Spec          *DeploymentSpec        `protobuf:"bytes,15,opt,name=spec,proto3" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -812,6 +805,13 @@ func (x *Deployment) GetClusterId() int64 {
 	return 0
 }
 
+func (x *Deployment) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
 func (x *Deployment) GetReplicas() int32 {
 	if x != nil {
 		return x.Replicas
@@ -834,8 +834,8 @@ func (x *Deployment) GetIsActive() bool {
 }
 
 func (x *Deployment) GetMessage() string {
-	if x != nil && x.Message != nil {
-		return *x.Message
+	if x != nil {
+		return x.Message
 	}
 	return ""
 }
@@ -894,7 +894,8 @@ type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	ClusterId     int64                  `protobuf:"varint,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	Spec          *DeploymentSpec        `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec,omitempty"`
+	Region        string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
+	Spec          *DeploymentSpec        `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -941,6 +942,13 @@ func (x *CreateDeploymentRequest) GetClusterId() int64 {
 		return x.ClusterId
 	}
 	return 0
+}
+
+func (x *CreateDeploymentRequest) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
 }
 
 func (x *CreateDeploymentRequest) GetSpec() *DeploymentSpec {
@@ -1449,7 +1457,7 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image\x12,\n" +
 	"\x0fdockerfile_path\x18\x03 \x01(\tH\x00R\x0edockerfilePath\x88\x01\x01B\x12\n" +
-	"\x10_dockerfile_path\"\xd9\x04\n" +
+	"\x10_dockerfile_path\"\xc1\x04\n" +
 	"\x15ServiceDeploymentSpec\x125\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceR\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x15\n" +
@@ -1459,9 +1467,7 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x06 \x01(\x05H\x04R\vmaxReplicas\x88\x01\x01\x12:\n" +
 	"\ascalers\x18\a \x01(\v2\x1b.loco.deployment.v1.ScalersH\x05R\ascalers\x88\x01\x01\x12D\n" +
 	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12\x12\n" +
-	"\x04port\x18\t \x01(\x05R\x04port\x12\x16\n" +
-	"\x06region\x18\n" +
-	" \x01(\tR\x06region\x1a6\n" +
+	"\x04port\x18\t \x01(\x05R\x04port\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
@@ -1480,40 +1486,40 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
 	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
 	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\x91\x05\n" +
+	"\x04spec\"\x98\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\x03R\n" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x03 \x01(\x03R\tclusterId\x12\x1a\n" +
-	"\breplicas\x18\x04 \x01(\x05R\breplicas\x12;\n" +
-	"\x06status\x18\x05 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
-	"\tis_active\x18\x06 \x01(\bR\bisActive\x12\x1d\n" +
-	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12\x1d\n" +
+	"cluster_id\x18\x03 \x01(\x03R\tclusterId\x12\x16\n" +
+	"\x06region\x18\x04 \x01(\tR\x06region\x12\x1a\n" +
+	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
+	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
+	"\tis_active\x18\a \x01(\bR\bisActive\x12\x18\n" +
+	"\amessage\x18\b \x01(\tR\amessage\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\b \x01(\x03R\tcreatedBy\x129\n" +
+	"created_by\x18\t \x01(\x03R\tcreatedBy\x129\n" +
 	"\n" +
-	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
+	"created_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
-	"started_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampH\x01R\tstartedAt\x88\x01\x01\x12B\n" +
-	"\fcompleted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x02R\vcompletedAt\x88\x01\x01\x129\n" +
+	"started_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x00R\tstartedAt\x88\x01\x01\x12B\n" +
+	"\fcompleted_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcompletedAt\x88\x01\x01\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
-	"\fspec_version\x18\r \x01(\x05R\vspecVersion\x126\n" +
-	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04specB\n" +
-	"\n" +
-	"\b_messageB\r\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
+	"\fspec_version\x18\x0e \x01(\x05R\vspecVersion\x126\n" +
+	"\x04spec\x18\x0f \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04specB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\x91\x01\n" +
+	"\r_completed_at\"\xa9\x01\n" +
 	"\x17CreateDeploymentRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x126\n" +
-	"\x04spec\x18\x03 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"Y\n" +
+	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x12\x16\n" +
+	"\x06region\x18\x03 \x01(\tR\x06region\x126\n" +
+	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"Y\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\";\n" +

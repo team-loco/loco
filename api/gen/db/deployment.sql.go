@@ -7,8 +7,6 @@ package db
 
 import (
 	"context"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countDeploymentsForResource = `-- name: CountDeploymentsForResource :one
@@ -24,28 +22,32 @@ func (q *Queries) CountDeploymentsForResource(ctx context.Context, resourceID in
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, cluster_id, replicas, status, is_active, message, created_by, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, created_by, spec, spec_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING id
 `
 
 type CreateDeploymentParams struct {
-	ResourceID  int64            `json:"resourceId"`
-	ClusterID   int64            `json:"clusterId"`
-	Replicas    int32            `json:"replicas"`
-	Status      DeploymentStatus `json:"status"`
-	IsActive    bool             `json:"isActive"`
-	Message     pgtype.Text      `json:"message"`
-	CreatedBy   int64            `json:"createdBy"`
-	Spec        []byte           `json:"spec"`
-	SpecVersion int32            `json:"specVersion"`
+	ResourceID       int64            `json:"resourceId"`
+	ResourceRegionID int64            `json:"resourceRegionId"`
+	ClusterID        int64            `json:"clusterId"`
+	Region           string           `json:"region"`
+	Replicas         int32            `json:"replicas"`
+	Status           DeploymentStatus `json:"status"`
+	IsActive         bool             `json:"isActive"`
+	Message          string           `json:"message"`
+	CreatedBy        int64            `json:"createdBy"`
+	Spec             []byte           `json:"spec"`
+	SpecVersion      int32            `json:"specVersion"`
 }
 
 // Deployment queries
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createDeployment,
 		arg.ResourceID,
+		arg.ResourceRegionID,
 		arg.ClusterID,
+		arg.Region,
 		arg.Replicas,
 		arg.Status,
 		arg.IsActive,
@@ -59,8 +61,44 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 	return id, err
 }
 
+const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+WHERE resource_id = $1 AND region = $2 AND is_active = true
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetActiveDeploymentForResourceAndRegionParams struct {
+	ResourceID int64  `json:"resourceId"`
+	Region     string `json:"region"`
+}
+
+func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error) {
+	row := q.db.QueryRow(ctx, getActiveDeploymentForResourceAndRegion, arg.ResourceID, arg.Region)
+	var i Deployment
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.ResourceRegionID,
+		&i.ClusterID,
+		&i.Region,
+		&i.Replicas,
+		&i.Status,
+		&i.IsActive,
+		&i.Message,
+		&i.Spec,
+		&i.SpecVersion,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, cluster_id, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, error) {
@@ -69,7 +107,9 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id int64) (Deployment, 
 	err := row.Scan(
 		&i.ID,
 		&i.ResourceID,
+		&i.ResourceRegionID,
 		&i.ClusterID,
+		&i.Region,
 		&i.Replicas,
 		&i.Status,
 		&i.IsActive,
@@ -121,7 +161,7 @@ func (q *Queries) ListActiveDeployments(ctx context.Context) ([]int64, error) {
 }
 
 const listActiveDeploymentsForResource = `-- name: ListActiveDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC
 `
@@ -138,7 +178,9 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 		if err := rows.Scan(
 			&i.ID,
 			&i.ResourceID,
+			&i.ResourceRegionID,
 			&i.ClusterID,
+			&i.Region,
 			&i.Replicas,
 			&i.Status,
 			&i.IsActive,
@@ -162,7 +204,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 }
 
 const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_by, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -186,7 +228,9 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 		if err := rows.Scan(
 			&i.ID,
 			&i.ResourceID,
+			&i.ResourceRegionID,
 			&i.ClusterID,
+			&i.Region,
 			&i.Replicas,
 			&i.Status,
 			&i.IsActive,
@@ -240,7 +284,7 @@ WHERE resource_id = $1 AND is_active = true
 type UpdateActiveDeploymentStatusParams struct {
 	ResourceID int64            `json:"resourceId"`
 	Status     DeploymentStatus `json:"status"`
-	Message    pgtype.Text      `json:"message"`
+	Message    string           `json:"message"`
 }
 
 func (q *Queries) UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error {
@@ -264,6 +308,23 @@ func (q *Queries) UpdateDeploymentStatus(ctx context.Context, arg UpdateDeployme
 	return err
 }
 
+const updateDeploymentStatusAndActive = `-- name: UpdateDeploymentStatusAndActive :exec
+UPDATE deployments
+SET status = $2, is_active = $3, updated_at = NOW()
+WHERE id = $1
+`
+
+type UpdateDeploymentStatusAndActiveParams struct {
+	ID       int64            `json:"id"`
+	Status   DeploymentStatus `json:"status"`
+	IsActive bool             `json:"isActive"`
+}
+
+func (q *Queries) UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error {
+	_, err := q.db.Exec(ctx, updateDeploymentStatusAndActive, arg.ID, arg.Status, arg.IsActive)
+	return err
+}
+
 const updateDeploymentStatusWithMessage = `-- name: UpdateDeploymentStatusWithMessage :exec
 UPDATE deployments
 SET status = $2, message = $3, updated_at = NOW()
@@ -273,7 +334,7 @@ WHERE id = $1
 type UpdateDeploymentStatusWithMessageParams struct {
 	ID      int64            `json:"id"`
 	Status  DeploymentStatus `json:"status"`
-	Message pgtype.Text      `json:"message"`
+	Message string           `json:"message"`
 }
 
 func (q *Queries) UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error {

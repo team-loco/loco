@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"os"
 	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/docker"
@@ -423,6 +426,25 @@ func deployApp(ctx context.Context,
 		}
 	}
 
+	env := make(map[string]string)
+
+	if cfg.Env.File != "" {
+		f, openErr := os.Open(cfg.Env.File)
+		if openErr != nil {
+			return fmt.Errorf("failed to open env file %s: %w", cfg.Env.File, openErr)
+		}
+		defer f.Close()
+		parsed, parseErr := godotenv.Parse(f)
+		if parseErr != nil {
+			return fmt.Errorf("failed to parse env file %s: %w", cfg.Env.File, parseErr)
+		}
+		maps.Copy(env, parsed)
+	}
+
+	if cfg.Env.Variables != nil {
+		maps.Copy(env, cfg.Env.Variables)
+	}
+
 	serviceDeploymentSpec := &deploymentv1.ServiceDeploymentSpec{
 		Build:       buildSource,
 		HealthCheck: healthCheck,
@@ -432,7 +454,7 @@ func deployApp(ctx context.Context,
 		MinReplicas: &primaryRegion.ReplicasMin,
 		MaxReplicas: &primaryRegion.ReplicasMax,
 		Scalers:     scalers,
-		Region:      cfg.Metadata.Region,
+		Env:         env,
 	}
 
 	deploymentSpec := &deploymentv1.DeploymentSpec{

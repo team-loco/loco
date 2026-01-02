@@ -51,6 +51,8 @@ spec:
                             queueSpec:
                                 description: QueueSpec is a placeholder for future QUEUE type resources
                                 type: object
+                            region:
+                                type: string
                             resourceId:
                                 format: int64
                                 type: integer
@@ -63,7 +65,7 @@ spec:
                                             buildType:
                                                 type: string
                                             cpu:
-                                                description: Resource requests (defaults from resource if omitted)
+                                                description: Deployment-time resource overrides (takes precedence over ResourcesSpec)
                                                 type: string
                                             dockerfilePath:
                                                 type: string
@@ -97,14 +99,12 @@ spec:
                                             memory:
                                                 type: string
                                             minReplicas:
-                                                description: Replica configuration (defaults from resource if omitted)
                                                 format: int32
                                                 type: integer
                                             port:
                                                 format: int32
                                                 type: integer
                                             scalers:
-                                                description: Autoscaling (defaults from resource if omitted)
                                                 properties:
                                                     cpuTarget:
                                                         format: int32

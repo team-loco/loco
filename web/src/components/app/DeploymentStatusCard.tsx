@@ -17,7 +17,7 @@ import {
 } from "@/gen/deployment/v1/deployment_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState, useMemo } from "react";
-import { PHASE_COLOR_MAP } from "@/lib/deployment-constants";
+import { PHASE_COLOR_MAP, BADGE_COLOR_MAP } from "@/lib/deployment-constants";
 import { getPhaseTooltip, getServiceSpec } from "@/lib/deployment-utils";
 import { Cpu, HardDrive } from "lucide-react";
 
@@ -157,9 +157,33 @@ export function DeploymentStatusCard({
 		return null;
 	}
 
+	const phaseColors = PHASE_COLOR_MAP[deployment.status];
+	const getBgColor = (): string => {
+		const baseColors = phaseColors.split(" ");
+		const bgColor = baseColors.find((c) => c.startsWith("bg-"));
+		const bgMap: Record<string, string> = {
+			"bg-gray-100":
+				"border-gray-300 bg-gray-50 dark:bg-gray-950/30 dark:border-gray-900/50",
+			"bg-yellow-100":
+				"border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-900/50",
+			"bg-blue-100":
+				"border-blue-300 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-900/50",
+			"bg-green-100":
+				"border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-900/50",
+			"bg-red-100":
+				"border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-900/50",
+			"bg-red-400":
+				"border-red-600 bg-red-400/20 dark:bg-red-950/30 dark:border-red-900/50",
+		};
+		return (
+			bgMap[bgColor || ""] ||
+			"border-success-border bg-success-soft dark:bg-green-950/30 dark:border-green-900/50"
+		);
+	};
+
 	return (
 		<TooltipProvider>
-			<Card className="border-2 border-success-border bg-success-soft dark:bg-green-950/30 dark:border-green-900/50">
+			<Card className={`border-2 ${getBgColor()}`}>
 				<CardHeader>
 					<CardTitle>Active Deployment</CardTitle>
 				</CardHeader>
@@ -174,14 +198,14 @@ export function DeploymentStatusCard({
 								<TooltipTrigger asChild>
 									<Badge
 										variant="default"
-										className={`text-xs ${PHASE_COLOR_MAP[deployment.status]}`}
+										className={`text-xs font-semibold ${
+											BADGE_COLOR_MAP[deployment.status]
+										}`}
 									>
 										{DeploymentPhase[deployment.status] || "unknown"}
 									</Badge>
 								</TooltipTrigger>
-								<TooltipContent>
-									{getPhaseTooltip(deployment.status)}
-								</TooltipContent>
+								<TooltipContent>{getPhaseTooltip(deployment)}</TooltipContent>
 							</Tooltip>
 						</div>
 
@@ -219,7 +243,7 @@ export function DeploymentStatusCard({
 								Region
 							</span>
 							<span className="text-sm font-mono text-foreground opacity-70">
-								{getServiceSpec(deployment)?.region || "—"}
+								{deployment.region || "—"}
 							</span>
 						</div>
 
@@ -252,8 +276,8 @@ export function DeploymentStatusCard({
 									}
 								</span>
 							</div>
-							</div>
-							</div>
+						</div>
+					</div>
 
 					{/* Scale Button */}
 					{!isEditing && (
