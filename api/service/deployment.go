@@ -20,6 +20,7 @@ import (
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
 	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,6 +60,7 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		Id:          d.ID,
 		ResourceId:  d.ResourceID,
 		ClusterId:   d.ClusterID,
+		Region:      d.Region,
 		Replicas:    d.Replicas,
 		Status:      parseDeploymentPhase(d.Status),
 		IsActive:    d.IsActive,
@@ -66,6 +68,7 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
 		SpecVersion: d.SpecVersion,
+		Message:     d.Message,
 	}
 
 	if len(d.Spec) > 0 {
@@ -107,9 +110,6 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		deployment.Spec = spec
 	}
 
-	if d.Message.Valid {
-		deployment.Message = &d.Message.String
-	}
 	if d.StartedAt.Valid {
 		ts := timeutil.ParsePostgresTimestamp(d.StartedAt.Time)
 		deployment.StartedAt = ts
@@ -207,11 +207,17 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("must be workspace admin or have deploy role"))
 	}
 
-	// get active cluster
-	cluster, err := s.queries.GetFirstActiveCluster(ctx)
+	// Validate and get region
+	region := r.GetRegion()
+	if region == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("region is required"))
+	}
+
+	// Get active cluster for the specified region
+	cluster, err := s.queries.GetActiveClusterByRegion(ctx, region)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active cluster", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active clusters available: %w", err))
+		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", region, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s: %w", region, err))
 	}
 
 	// deserialize resource spec and merge with request spec
@@ -221,7 +227,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, r.Spec)
+	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, r.Spec, region)
 	if mergeErr != nil {
 		slog.ErrorContext(ctx, mergeErr.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", mergeErr))
@@ -241,21 +247,18 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to mark previous deployments not active", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	deploymentID, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
+	// Create deployment transactionally, finalizing previous deployments in the same region
+	deploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
 		ClusterID:   cluster.ID,
+		Region:      region,
 		Replicas:    replicas,
 		Status:      genDb.DeploymentStatusPending,
 		IsActive:    true,
+		Message:     "Scheduling deployment",
 		CreatedBy:   userID,
 		Spec:        specJSON,
-		SpecVersion: 1,
+		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -263,7 +266,7 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	// create Application in loco-system namespace (pass merged spec WITH env to controller)
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec, s.locoNamespace)
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec, s.locoNamespace, region)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create Application", "error", err, "resource_id", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create Application: %w", err))
@@ -530,10 +533,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 
 	statusPhase := parseDeploymentPhase(deployment.Status)
 	statusStr := string(deployment.Status)
-	message := ""
-	if deployment.Message.Valid {
-		message = deployment.Message.String
-	}
+	message := deployment.Message
 
 	if statusStr != *lastStatus {
 		event := &deploymentv1.DeploymentEvent{
@@ -561,46 +561,57 @@ func createLocoResource(
 	resource genDb.Resource,
 	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
-	spec *deploymentv1.DeploymentSpec,
+	deploymentSpec *deploymentv1.DeploymentSpec,
 	locoNamespace string,
+	region string,
 ) error {
-	// convert proto to controller CRD types (includes all fields: image, replicas, cpu, memory, env, healthCheck, metrics, etc.)
-	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(spec)
+	// convert proto to controller CRD types
+	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
 	slog.InfoContext(ctx, "converted deployment spec", "image", crdServiceDeploymentSpec.Image, "port", crdServiceDeploymentSpec.Port)
 
 	locoResourceSpec := locoControllerV1.ApplicationSpec{
 		ResourceId:  resource.ID,
 		WorkspaceId: resource.WorkspaceID,
+		Region:      region,
 	}
 
-	switch specType := resourceSpec.Spec.(type) {
-	case *resourcev1.ResourceSpec_Service:
+	switch resource.Type {
+	case genDb.ResourceTypeService:
+		if resourceSpec.GetService() == nil {
+			return fmt.Errorf("resource spec missing service configuration")
+		}
 		locoResourceSpec.Type = "SERVICE"
-		resourcesSpec, err := buildResourcesSpecFromServiceSpec(specType.Service)
+		resourcesSpec, err := buildResourcesSpec(resourceSpec.GetService(), deploymentSpec, region)
 		if err != nil {
 			return fmt.Errorf("failed to build resources spec: %w", err)
 		}
 		locoResourceSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  resourcesSpec,
-			Obs:        converter.ProtoToObsSpec(specType.Service.GetObservability()),
-			Routing:    converter.ProtoToRoutingSpec(specType.Service.GetRouting(), hostname),
+			Obs:        converter.ProtoToObsSpec(resourceSpec.GetService().GetObservability()),
+			Routing:    converter.ProtoToRoutingSpec(resourceSpec.GetService().GetRouting(), hostname),
 		}
 
-	case *resourcev1.ResourceSpec_Database:
+	case genDb.ResourceTypeDatabase:
 		// TODO: implement database resource type
 		return fmt.Errorf("database resource type not yet implemented")
-	case *resourcev1.ResourceSpec_Cache:
+	case genDb.ResourceTypeCache:
 		// TODO: implement cache resource type
 		return fmt.Errorf("cache resource type not yet implemented")
-	case *resourcev1.ResourceSpec_Queue:
+	case genDb.ResourceTypeQueue:
 		// TODO: implement queue resource type
 		return fmt.Errorf("queue resource type not yet implemented")
-	case *resourcev1.ResourceSpec_Blob:
+	case genDb.ResourceTypeBlob:
 		// TODO: implement blob resource type
 		return fmt.Errorf("blob resource type not yet implemented")
 	default:
-		return fmt.Errorf("unknown or unset resource spec type")
+		return fmt.Errorf("unknown resource type: %s", resource.Type)
+	}
+
+	// validate the ApplicationSpec before creating/updating
+	if err := locoResourceSpec.Validate(); err != nil {
+		slog.ErrorContext(ctx, "failed to validate application spec", "error", err)
+		return fmt.Errorf("invalid application spec: %w", err)
 	}
 
 	// build Application
@@ -613,6 +624,9 @@ func createLocoResource(
 		},
 		Spec: locoResourceSpec,
 	}
+
+	specJSON, _ := json.MarshalIndent(locoResourceSpec, "", "  ")
+	slog.InfoContext(ctx, "building Application", "resource_id", resource.ID, "spec", string(specJSON))
 
 	// create or update the Application
 	err := kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
@@ -643,46 +657,68 @@ func createLocoResource(
 	return nil
 }
 
-// buildResourcesSpecFromServiceSpec extracts ResourcesSpec from ServiceSpec defaults
-// This extracts the default resource configuration (CPU, Memory, Replicas, Scalers)
-// which can be overridden at deployment time via DeploymentSpec
-func buildResourcesSpecFromServiceSpec(serviceSpec *resourcev1.ServiceSpec) (*locoControllerV1.ResourcesSpec, error) {
+// buildResourcesSpec builds ResourcesSpec, using deployment-time
+// overrides if present, otherwise falling back to the target region's defaults from ServiceSpec
+func buildResourcesSpec(
+	serviceSpec *resourcev1.ServiceSpec,
+	deploymentSpec *deploymentv1.DeploymentSpec,
+	targetRegion string,
+) (*locoControllerV1.ResourcesSpec, error) {
 	if serviceSpec == nil {
 		return nil, fmt.Errorf("service spec is required")
 	}
 
-	// NOTE: Observability settings (Logging, Metrics, Tracing) from ServiceSpec are currently
-	// not propagated to the controller. They can be added to LocoResourceSpec if needed.
+	// Get the target region to extract default resources
+	regionTarget, ok := serviceSpec.GetRegions()[targetRegion]
+	if !ok {
+		return nil, fmt.Errorf("target region %s not found in service spec", targetRegion)
+	}
 
-	// Get the primary region to extract default resources
-	var primaryRegion *resourcev1.RegionTarget
-	for _, region := range serviceSpec.GetRegions() {
-		if region.Primary {
-			primaryRegion = region
-			break
+	// Start with region-specific defaults
+	cpu := regionTarget.Cpu
+	memory := regionTarget.Memory
+	minReplicas := regionTarget.MinReplicas
+	maxReplicas := regionTarget.MaxReplicas
+	scalers := regionTarget.Scalers
+
+	// Override with deployment-time values if provided
+	if deploymentSpec != nil {
+		deploymentSvc := deploymentSpec.GetService()
+		if deploymentSvc != nil {
+			if deploymentSvc.Cpu != nil && *deploymentSvc.Cpu != "" {
+				cpu = *deploymentSvc.Cpu
+			}
+			if deploymentSvc.Memory != nil && *deploymentSvc.Memory != "" {
+				memory = *deploymentSvc.Memory
+			}
+			if deploymentSvc.MinReplicas != nil && *deploymentSvc.MinReplicas > 0 {
+				minReplicas = *deploymentSvc.MinReplicas
+			}
+			if deploymentSvc.MaxReplicas != nil && *deploymentSvc.MaxReplicas > 0 {
+				maxReplicas = *deploymentSvc.MaxReplicas
+			}
+			if deploymentSvc.Scalers != nil {
+				scalers = deploymentSvc.Scalers
+			}
 		}
 	}
 
-	if primaryRegion == nil {
-		return nil, fmt.Errorf("primary region not found in service spec")
-	}
-
-	// Build ResourcesSpec from primary region defaults
+	// Build ResourcesSpec with merged values
 	resourcesSpec := &locoControllerV1.ResourcesSpec{
-		CPU:    primaryRegion.Cpu,
-		Memory: primaryRegion.Memory,
+		CPU:    cpu,
+		Memory: memory,
 		Replicas: locoControllerV1.ReplicasSpec{
-			Min: primaryRegion.MinReplicas,
-			Max: primaryRegion.MaxReplicas,
+			Min: minReplicas,
+			Max: maxReplicas,
 		},
 	}
 
 	// Add scalers if configured
-	if primaryRegion.Scalers != nil {
+	if scalers != nil {
 		resourcesSpec.Scalers = locoControllerV1.ScalersSpec{
-			Enabled:      primaryRegion.Scalers.GetEnabled(),
-			CPUTarget:    primaryRegion.Scalers.GetCpuTarget(),
-			MemoryTarget: primaryRegion.Scalers.GetMemoryTarget(),
+			Enabled:      scalers.GetEnabled(),
+			CPUTarget:    scalers.GetCpuTarget(),
+			MemoryTarget: scalers.GetMemoryTarget(),
 		}
 	}
 

@@ -340,20 +340,22 @@ type Cluster struct {
 }
 
 type Deployment struct {
-	ID          int64              `json:"id"`
-	ResourceID  int64              `json:"resourceId"`
-	ClusterID   int64              `json:"clusterId"`
-	Replicas    int32              `json:"replicas"`
-	Status      DeploymentStatus   `json:"status"`
-	IsActive    bool               `json:"isActive"`
-	Message     pgtype.Text        `json:"message"`
-	Spec        []byte             `json:"spec"`
-	SpecVersion int32              `json:"specVersion"`
-	CreatedBy   int64              `json:"createdBy"`
-	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
-	StartedAt   pgtype.Timestamptz `json:"startedAt"`
-	CompletedAt pgtype.Timestamptz `json:"completedAt"`
-	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
+	ID               int64              `json:"id"`
+	ResourceID       int64              `json:"resourceId"`
+	ResourceRegionID int64              `json:"resourceRegionId"`
+	ClusterID        int64              `json:"clusterId"`
+	Region           string             `json:"region"`
+	Replicas         int32              `json:"replicas"`
+	Status           DeploymentStatus   `json:"status"`
+	IsActive         bool               `json:"isActive"`
+	Message          string             `json:"message"`
+	Spec             []byte             `json:"spec"`
+	SpecVersion      int32              `json:"specVersion"`
+	CreatedBy        int64              `json:"createdBy"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	StartedAt        pgtype.Timestamptz `json:"startedAt"`
+	CompletedAt      pgtype.Timestamptz `json:"completedAt"`
+	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type Organization struct {

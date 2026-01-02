@@ -116,11 +116,13 @@ CREATE UNIQUE INDEX uniq_platform_subdomain
 CREATE TABLE deployments (
     id BIGSERIAL PRIMARY KEY,
     resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    resource_region_id BIGINT NOT NULL REFERENCES resource_regions(id) ON DELETE RESTRICT,
     cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE RESTRICT,
+    region TEXT NOT NULL,
     replicas INT NOT NULL,
     status deployment_status NOT NULL,
     is_active BOOLEAN NOT NULL,
-    message TEXT,
+    message TEXT NOT NULL,
     spec JSONB NOT NULL,
     spec_version INT NOT NULL,
     created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -131,6 +133,9 @@ CREATE TABLE deployments (
 );
 
 CREATE INDEX idx_deployments_resource_id ON deployments (resource_id);
+CREATE INDEX idx_deployments_resource_region_id ON deployments (resource_region_id);
 CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
+CREATE INDEX idx_deployments_region ON deployments (region);
 CREATE INDEX idx_deployments_is_active ON deployments (resource_id, is_active) WHERE is_active = true;
+CREATE INDEX idx_deployments_resource_region_active ON deployments (resource_id, region, is_active) WHERE is_active = true;
 CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);

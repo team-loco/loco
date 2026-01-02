@@ -98,6 +98,7 @@ type ApplicationSpec struct {
 	Type        string `json:"type"`                 // SERVICE, DATABASE, CACHE, QUEUE, BLOB
 	ResourceId  int64  `json:"resourceId,omitempty"` // optional
 	WorkspaceId int64  `json:"workspaceId,omitempty"`
+	Region      string `json:"region,omitempty"`
 
 	// Type-specific specs (only one populated based on Type)
 	ServiceSpec  *ServiceSpec  `json:"serviceSpec,omitempty"`
@@ -123,22 +124,19 @@ type ServiceSpec struct {
 }
 
 // ServiceDeploymentSpec contains service deployment-specific configuration
+// Includes deployment-time resource overrides that take precedence over ResourcesSpec
 type ServiceDeploymentSpec struct {
 	Image          string `json:"image,omitempty"`
 	Port           int32  `json:"port,omitempty"`
 	DockerfilePath string `json:"dockerfilePath,omitempty"`
 	BuildType      string `json:"buildType,omitempty"` // docker, buildpack, etc
 
-	// Resource requests (defaults from resource if omitted)
-	CPU    string `json:"cpu,omitempty"`
-	Memory string `json:"memory,omitempty"`
-
-	// Replica configuration (defaults from resource if omitted)
-	MinReplicas int32 `json:"minReplicas,omitempty"`
-	MaxReplicas int32 `json:"maxReplicas,omitempty"`
-
-	// Autoscaling (defaults from resource if omitted)
-	Scalers *ScalersSpec `json:"scalers,omitempty"`
+	// Deployment-time resource overrides (takes precedence over ResourcesSpec)
+	CPU         string       `json:"cpu,omitempty"`
+	Memory      string       `json:"memory,omitempty"`
+	MinReplicas int32        `json:"minReplicas,omitempty"`
+	MaxReplicas int32        `json:"maxReplicas,omitempty"`
+	Scalers     *ScalersSpec `json:"scalers,omitempty"`
 
 	HealthCheck *HealthCheckSpec  `json:"healthCheck,omitempty"`
 	Env         map[string]string `json:"env,omitempty"`

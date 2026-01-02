@@ -218,6 +218,33 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 	return i, err
 }
 
+const getResourceRegionByResourceAndRegion = `-- name: GetResourceRegionByResourceAndRegion :one
+SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+FROM resource_regions
+WHERE resource_id = $1 AND region = $2
+`
+
+type GetResourceRegionByResourceAndRegionParams struct {
+	ResourceID int64  `json:"resourceId"`
+	Region     string `json:"region"`
+}
+
+func (q *Queries) GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error) {
+	row := q.db.QueryRow(ctx, getResourceRegionByResourceAndRegion, arg.ResourceID, arg.Region)
+	var i ResourceRegion
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.Region,
+		&i.IsPrimary,
+		&i.Status,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getResourceWorkspaceID = `-- name: GetResourceWorkspaceID :one
 SELECT workspace_id FROM resources WHERE id = $1
 `

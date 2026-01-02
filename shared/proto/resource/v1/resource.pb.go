@@ -1978,7 +1978,7 @@ type DeploymentStatus struct {
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	Status        v1.DeploymentPhase     `protobuf:"varint,2,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	Replicas      int32                  `protobuf:"varint,3,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	Message       *string                `protobuf:"bytes,4,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2035,8 +2035,8 @@ func (x *DeploymentStatus) GetReplicas() int32 {
 }
 
 func (x *DeploymentStatus) GetMessage() string {
-	if x != nil && x.Message != nil {
-		return *x.Message
+	if x != nil {
+		return x.Message
 	}
 	return ""
 }
@@ -2807,14 +2807,12 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\aregions\x18\x01 \x03(\v2\x1c.loco.resource.v1.RegionInfoR\aregions\";\n" +
 	"\x18GetResourceStatusRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
-	"resourceId\"\xa6\x01\n" +
+	"resourceId\"\x95\x01\n" +
 	"\x10DeploymentStatus\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12;\n" +
 	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1a\n" +
-	"\breplicas\x18\x03 \x01(\x05R\breplicas\x12\x1d\n" +
-	"\amessage\x18\x04 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
-	"\n" +
-	"\b_message\"\xa6\x01\n" +
+	"\breplicas\x18\x03 \x01(\x05R\breplicas\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\"\xa6\x01\n" +
 	"\x19GetResourceStatusResponse\x126\n" +
 	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\x12Q\n" +
 	"\x12current_deployment\x18\x02 \x01(\v2\".loco.resource.v1.DeploymentStatusR\x11currentDeployment\"\x81\x01\n" +
@@ -3062,7 +3060,6 @@ func file_resource_v1_resource_proto_init() {
 	file_resource_v1_resource_proto_msgTypes[13].OneofWrappers = []any{}
 	file_resource_v1_resource_proto_msgTypes[14].OneofWrappers = []any{}
 	file_resource_v1_resource_proto_msgTypes[22].OneofWrappers = []any{}
-	file_resource_v1_resource_proto_msgTypes[30].OneofWrappers = []any{}
 	file_resource_v1_resource_proto_msgTypes[32].OneofWrappers = []any{}
 	file_resource_v1_resource_proto_msgTypes[35].OneofWrappers = []any{}
 	file_resource_v1_resource_proto_msgTypes[37].OneofWrappers = []any{}

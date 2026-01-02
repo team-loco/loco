@@ -21,8 +21,10 @@ import (
 	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
 	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -34,6 +36,8 @@ var (
 	ErrClusterNotFound       = errors.New("cluster not found")
 	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
 	ErrInvalidResourceType   = errors.New("invalid resource type")
+	ErrInvalidCPU            = errors.New("invalid CPU format")
+	ErrInvalidMemory         = errors.New("invalid memory format")
 )
 
 // computeNamespace derives a Kubernetes namespace from resource ID
@@ -196,7 +200,7 @@ func (s *ResourceServer) CreateResource(
 		Type:        genDb.ResourceType(strings.ToLower(r.Type.String())),
 		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
-		SpecVersion: 1,
+		SpecVersion: version.SpecVersionV1,
 		CreatedBy:   userID,
 		Description: r.GetDescription(),
 	}
@@ -481,7 +485,7 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
-		slog.ErrorContext(ctx, "failed to delete Application during resource deletion", "error", err, "resource_id", resource.ID)
+		slog.ErrorContext(ctx, "failed to delete Application during resource deletion", "error", err, "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup Application: %w", err))
 	}
 
@@ -512,7 +516,7 @@ func (s *ResourceServer) GetResourceStatus(
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "resource not found", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
@@ -542,9 +546,7 @@ func (s *ResourceServer) GetResourceStatus(
 			Id:       deployment.ID,
 			Status:   deploymentStatusToProto(deployment.Status),
 			Replicas: deployment.Replicas,
-		}
-		if deployment.Message.Valid {
-			deploymentStatus.Message = &deployment.Message.String
+			Message:  deployment.Message,
 		}
 	}
 
@@ -619,7 +621,7 @@ func (s *ResourceServer) StreamLogs(
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "resource not found", "resourceId", r.ResourceId)
 		return connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
@@ -632,7 +634,7 @@ func (s *ResourceServer) StreamLogs(
 		return connect.NewError(connect.CodePermissionDenied, ErrNotWorkspaceMember)
 	}
 
-	slog.InfoContext(ctx, "fetching logs for resource", "resource_id", r.ResourceId)
+	slog.InfoContext(ctx, "fetching logs for resource", "resourceId", r.ResourceId)
 
 	follow := false
 	if r.Follow != nil {
@@ -703,7 +705,7 @@ func (s *ResourceServer) GetEvents(
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "resource not found", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
@@ -718,7 +720,7 @@ func (s *ResourceServer) GetEvents(
 
 	namespace := computeNamespace(resource.WorkspaceID, resource.ID)
 
-	slog.InfoContext(ctx, "fetching events for resource", "resource_id", r.ResourceId, "resource_namespace", namespace)
+	slog.InfoContext(ctx, "fetching events for resource", "resourceId", r.ResourceId, "resource_namespace", namespace)
 
 	eventList, err := s.kubeClient.ClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -753,7 +755,7 @@ func (s *ResourceServer) GetEvents(
 		protoEvents = protoEvents[:*r.Limit]
 	}
 
-	slog.DebugContext(ctx, "fetched events for resource", "resource_id", r.ResourceId, "event_count", len(protoEvents))
+	slog.DebugContext(ctx, "fetched events for resource", "resourceId", r.ResourceId, "event_count", len(protoEvents))
 
 	return connect.NewResponse(&resourcev1.GetEventsResponse{
 		Events: protoEvents,
@@ -781,9 +783,23 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidReplicas)
 	}
 
+	if r.Cpu != nil && *r.Cpu != "" {
+		if _, err := resource.ParseQuantity(*r.Cpu); err != nil {
+			slog.WarnContext(ctx, "invalid cpu format", "cpu", *r.Cpu, "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: %s", ErrInvalidCPU, *r.Cpu))
+		}
+	}
+
+	if r.Memory != nil && *r.Memory != "" {
+		if _, err := resource.ParseQuantity(*r.Memory); err != nil {
+			slog.WarnContext(ctx, "invalid memory format", "memory", *r.Memory, "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: %s", ErrInvalidMemory, *r.Memory))
+		}
+	}
+
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "resource not found", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 	workspaceID := resource.WorkspaceID
@@ -856,6 +872,29 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are supported for scaling"))
 	}
 
+	// Check if any values are actually changing
+	hasChanges := false
+
+	if r.Cpu != nil {
+		if serviceDeploymentSpec.Cpu == nil || *r.Cpu != *serviceDeploymentSpec.Cpu {
+			hasChanges = true
+		}
+	}
+
+	if r.Memory != nil {
+		if serviceDeploymentSpec.Memory == nil || *r.Memory != *serviceDeploymentSpec.Memory {
+			hasChanges = true
+		}
+	}
+
+	if r.Replicas != nil && *r.Replicas != currentDeployment.Replicas {
+		hasChanges = true
+	}
+
+	if !hasChanges {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scaling values must be different from current deployment"))
+	}
+
 	if r.Cpu != nil {
 		serviceDeploymentSpec.Cpu = r.Cpu
 	}
@@ -875,21 +914,28 @@ func (s *ResourceServer) ScaleResource(
 		replicas = *r.Replicas
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
+	// Get the region to scale (use current deployment's region)
+	regionToScale := currentDeployment.Region
+
+	// Get the cluster for the region
+	cluster, err := s.queries.GetActiveClusterByRegion(ctx, regionToScale)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to mark previous deployments not active", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToScale, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s: %w", regionToScale, err))
 	}
 
-	deploymentId, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
+	// Create deployment transactionally, finalizing previous deployments in the same region
+	deploymentId, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
-		ClusterID:   1,
+		ClusterID:   cluster.ID,
+		Region:      regionToScale,
 		Replicas:    replicas,
 		Status:      genDb.DeploymentStatusPending,
 		IsActive:    true,
+		Message:     "Scheduled scaling event.",
 		CreatedBy:   userID,
 		Spec:        specJson,
-		SpecVersion: 1,
+		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -898,7 +944,7 @@ func (s *ResourceServer) ScaleResource(
 
 	domain, err := s.queries.GetDomainByResourceId(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "domain not found", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
@@ -908,12 +954,18 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil, s.locoNamespace)
+	updatedDeploymentSpec := &deploymentv1.DeploymentSpec{
+		Spec: &deploymentv1.DeploymentSpec_Service{
+			Service: serviceDeploymentSpec,
+		},
+	}
+
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, updatedDeploymentSpec, s.locoNamespace, regionToScale)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
+		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
 	}
-	slog.InfoContext(ctx, "updated Application after scaling", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
+	slog.InfoContext(ctx, "updated Application after scaling", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
 
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{
 		DeploymentId: deploymentId,
@@ -940,7 +992,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "resource not found", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 	workspaceID := resource.WorkspaceID
@@ -1021,21 +1073,28 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
-	err = s.queries.MarkPreviousDeploymentsNotActive(ctx, r.ResourceId)
+	// Get the region to update (use current deployment's region)
+	regionToUpdate := currentDeployment.Region
+
+	// Get the cluster for the region
+	cluster, err := s.queries.GetActiveClusterByRegion(ctx, regionToUpdate)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to mark previous deployments not active", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToUpdate, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s: %w", regionToUpdate, err))
 	}
 
-	deploymentId, err := s.queries.CreateDeployment(ctx, genDb.CreateDeploymentParams{
+	// Create deployment transactionally, finalizing previous deployments in the same region
+	deploymentId, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
 		ResourceID:  r.ResourceId,
-		ClusterID:   1,
+		ClusterID:   cluster.ID,
+		Region:      regionToUpdate,
 		Replicas:    currentDeployment.Replicas,
 		Status:      genDb.DeploymentStatusPending,
 		IsActive:    true,
+		Message:     "Scheduled environment update",
 		CreatedBy:   userID,
 		Spec:        specJson,
-		SpecVersion: 1,
+		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -1044,7 +1103,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	domain, err := s.queries.GetDomainByResourceId(ctx, r.ResourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "domain not found", "resourceId", r.ResourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
@@ -1054,12 +1113,18 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, nil, s.locoNamespace)
+	updatedDeploymentSpec := &deploymentv1.DeploymentSpec{
+		Spec: &deploymentv1.DeploymentSpec_Service{
+			Service: serviceDeploymentSpec,
+		},
+	}
+
+	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, updatedDeploymentSpec, s.locoNamespace, regionToUpdate)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
+		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
 	}
-	slog.InfoContext(ctx, "updated Application after env update", "resource_id", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate)
+	slog.InfoContext(ctx, "updated Application after env update", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate)
 
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{
 		DeploymentId: deploymentId,
@@ -1248,4 +1313,114 @@ func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) 
 		slog.WarnContext(context.Background(), "unknown resource type", "type", resourceType)
 		return nil
 	}
+}
+
+// createDeploymentWithCleanup creates a new deployment and finalizes previous active deployments in the same region
+// within a transaction to ensure consistency.
+func createDeploymentWithCleanup(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	queries genDb.Querier,
+	params genDb.CreateDeploymentParams,
+) (int64, error) {
+	slog.InfoContext(ctx, "starting deployment creation with cleanup",
+		"resourceId", params.ResourceID,
+		"region", params.Region,
+		"replicas", params.Replicas)
+
+	// Get resource_region_id first (outside transaction since it's a read)
+	resourceRegion, err := queries.GetResourceRegionByResourceAndRegion(ctx, genDb.GetResourceRegionByResourceAndRegionParams{
+		ResourceID: params.ResourceID,
+		Region:     params.Region,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get resource region",
+			"resourceId", params.ResourceID,
+			"region", params.Region,
+			"error", err)
+		return 0, fmt.Errorf("failed to get resource region: %w", err)
+	}
+	params.ResourceRegionID = resourceRegion.ID
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	// Find active deployment in the same region for this resource (should only be one)
+	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(ctx, genDb.GetActiveDeploymentForResourceAndRegionParams{
+		ResourceID: params.ResourceID,
+		Region:     params.Region,
+	})
+
+	hadPreviousDeployment := false
+	if err != nil && err.Error() != "no rows in result set" {
+		slog.ErrorContext(ctx, "failed to get active deployment",
+			"resourceId", params.ResourceID,
+			"region", params.Region,
+			"error", err)
+		return 0, fmt.Errorf("failed to get active deployment: %w", err)
+	}
+
+	// Finalize the previous deployment if it exists
+	if err == nil {
+		hadPreviousDeployment = true
+
+		// Determine new status based on current status
+		var newStatus genDb.DeploymentStatus
+		switch activeDeployment.Status {
+		case genDb.DeploymentStatusPending, genDb.DeploymentStatusDeploying:
+			newStatus = genDb.DeploymentStatusCanceled
+		case genDb.DeploymentStatusRunning:
+			newStatus = genDb.DeploymentStatusSucceeded
+		default:
+			// Keep existing status for terminal states
+			newStatus = activeDeployment.Status
+		}
+
+		slog.InfoContext(ctx, "finalizing previous deployment",
+			"deploymentId", activeDeployment.ID,
+			"oldStatus", activeDeployment.Status,
+			"newStatus", newStatus)
+
+		if err := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
+			ID:       activeDeployment.ID,
+			Status:   newStatus,
+			IsActive: false,
+		}); err != nil {
+			slog.ErrorContext(ctx, "failed to finalize deployment",
+				"deploymentId", activeDeployment.ID,
+				"error", err)
+			return 0, fmt.Errorf("failed to finalize deployment %d: %w", activeDeployment.ID, err)
+		}
+	}
+
+	// Create the new deployment
+	deploymentID, err := qtx.CreateDeployment(ctx, params)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create deployment",
+			"resourceId", params.ResourceID,
+			"region", params.Region,
+			"error", err)
+		return 0, fmt.Errorf("failed to create deployment: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit transaction",
+			"deploymentId", deploymentID,
+			"error", err)
+		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	slog.InfoContext(ctx, "successfully created deployment with cleanup",
+		"deployment_id", deploymentID,
+		"resourceId", params.ResourceID,
+		"region", params.Region,
+		"hadPreviousDeployment", hadPreviousDeployment)
+
+	return deploymentID, nil
 }
