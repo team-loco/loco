@@ -125,7 +125,6 @@ CREATE TABLE deployments (
     message TEXT NOT NULL,
     spec JSONB NOT NULL,
     spec_version INT NOT NULL,
-    created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,

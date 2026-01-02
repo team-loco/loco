@@ -122,13 +122,12 @@ message Deployment {
   DeploymentPhase                    status       = 6;
   bool                               is_active    = 7;
   string                             message      = 8;
-  int64                              created_by   = 9;
-  google.protobuf.Timestamp          created_at   = 10;
-  optional google.protobuf.Timestamp started_at   = 11;
-  optional google.protobuf.Timestamp completed_at = 12;
-  google.protobuf.Timestamp          updated_at   = 13;
-  int32                              spec_version = 14;
-  DeploymentSpec                     spec         = 15;
+  google.protobuf.Timestamp          created_at   = 9;
+  optional google.protobuf.Timestamp started_at   = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+  google.protobuf.Timestamp          updated_at   = 12;
+  int32                              spec_version = 13;
+  DeploymentSpec                     spec         = 14;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.

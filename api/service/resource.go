@@ -447,7 +447,7 @@ func (s *ResourceServer) GetResourceStatus(
 			Id:       deployment.ID,
 			Status:   deploymentStatusToProto(deployment.Status),
 			Replicas: deployment.Replicas,
-			Message:  deployment.Message,
+			Message:  &deployment.Message,
 		}
 	}
 
@@ -799,9 +799,7 @@ func (s *ResourceServer) ScaleResource(
 		Status:     genDb.DeploymentStatusPending,
 		IsActive:   true,
 		Message:    "Scheduled scaling event.",
-		// TODO PRIORITY: change createby to entity
-		CreatedBy:   0,
-		Spec:        specJson,
+		Spec:       specJson,
 		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
@@ -944,9 +942,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		Status:     genDb.DeploymentStatusPending,
 		IsActive:   true,
 		Message:    "Scheduled environment update",
-		// TODO PRIORITY: change createby to entity
-		CreatedBy:   0,
-		Spec:        specJson,
+		Spec:       specJson,
 		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
