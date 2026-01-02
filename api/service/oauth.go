@@ -125,7 +125,6 @@ func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Cl
 func (s *OAuthServer) GithubOAuthDetails(
 	ctx context.Context, req *connect.Request[oAuth.GithubOAuthDetailsRequest],
 ) (*connect.Response[oAuth.GithubOAuthDetailsResponse], error) {
-	slog.InfoContext(ctx, "Request headers: ", slog.Any("headers", req.Header()))
 	res := connect.NewResponse(&oAuth.GithubOAuthDetailsResponse{
 		ClientId: OAuthConf.ClientID,
 		TokenTtl: OAuthTokenTTL.Seconds(),
