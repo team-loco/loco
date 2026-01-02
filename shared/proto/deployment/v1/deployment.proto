@@ -84,7 +84,6 @@ message ServiceDeploymentSpec {
   optional Scalers           scalers      = 7; // autoscaling config (defaults from resource if omitted)
   map<string, string>        env          = 8;
   int32                      port         = 9;
-  string                     region       = 10; // region name for deployment
 }
 
 // DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
@@ -106,10 +105,10 @@ message QueueDeploymentSpec {
 // Uses oneof to support different resource types.
 message DeploymentSpec {
   oneof spec {
-    ServiceDeploymentSpec   service   = 1;
-    DatabaseDeploymentSpec  database  = 2;
-    CacheDeploymentSpec     cache     = 3;
-    QueueDeploymentSpec     queue     = 4;
+    ServiceDeploymentSpec  service  = 1;
+    DatabaseDeploymentSpec database = 2;
+    CacheDeploymentSpec    cache    = 3;
+    QueueDeploymentSpec    queue    = 4;
   }
 }
 
@@ -118,24 +117,26 @@ message Deployment {
   int64                              id           = 1;
   int64                              resource_id  = 2;
   int64                              cluster_id   = 3;
-  int32                              replicas     = 4;
-  DeploymentPhase                    status       = 5;
-  bool                               is_active    = 6;
-  optional string                    message      = 7;
-  int64                              created_by   = 8;
-  google.protobuf.Timestamp          created_at   = 9;
-  optional google.protobuf.Timestamp started_at   = 10;
-  optional google.protobuf.Timestamp completed_at = 11;
-  google.protobuf.Timestamp          updated_at   = 12;
-  int32                              spec_version = 13;
-  DeploymentSpec                     spec         = 14;
+  string                             region       = 4;
+  int32                              replicas     = 5;
+  DeploymentPhase                    status       = 6;
+  bool                               is_active    = 7;
+  optional string                    message      = 8;
+  int64                              created_by   = 9;
+  google.protobuf.Timestamp          created_at   = 10;
+  optional google.protobuf.Timestamp started_at   = 11;
+  optional google.protobuf.Timestamp completed_at = 12;
+  google.protobuf.Timestamp          updated_at   = 13;
+  int32                              spec_version = 14;
+  DeploymentSpec                     spec         = 15;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
   int64          resource_id = 1;
   int64          cluster_id  = 2;
-  DeploymentSpec spec        = 3;
+  string         region      = 3;
+  DeploymentSpec spec        = 4;
 }
 
 // CreateDeploymentResponse is the response from creating a deployment.

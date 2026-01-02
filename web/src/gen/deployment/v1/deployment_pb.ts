@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file deployment/v1/deployment.proto.
  */
 export const file_deployment_v1_deployment: GenFile = /*@__PURE__*/
-  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSKOAQoRSGVhbHRoQ2hlY2tDb25maWcSDAoEcGF0aBgBIAEoCRIdChVpbml0aWFsX2RlbGF5X3NlY29uZHMYAiABKAUSGAoQaW50ZXJ2YWxfc2Vjb25kcxgDIAEoBRIXCg90aW1lb3V0X3NlY29uZHMYBCABKAUSGQoRZmFpbHVyZV90aHJlc2hvbGQYBSABKAUicAoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEhcKCmNwdV90YXJnZXQYAiABKAVIAIgBARIaCg1tZW1vcnlfdGFyZ2V0GAMgASgFSAGIAQFCDQoLX2NwdV90YXJnZXRCEAoOX21lbW9yeV90YXJnZXQiXAoLQnVpbGRTb3VyY2USDAoEdHlwZRgBIAEoCRINCgVpbWFnZRgCIAEoCRIcCg9kb2NrZXJmaWxlX3BhdGgYAyABKAlIAIgBAUISChBfZG9ja2VyZmlsZV9wYXRoIvYDChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSLgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2USQAoMaGVhbHRoX2NoZWNrGAIgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnSACIAQESEAoDY3B1GAMgASgJSAGIAQESEwoGbWVtb3J5GAQgASgJSAKIAQESGQoMbWluX3JlcGxpY2FzGAUgASgFSAOIAQESGQoMbWF4X3JlcGxpY2FzGAYgASgFSASIAQESMQoHc2NhbGVycxgHIAEoCzIbLmxvY28uZGVwbG95bWVudC52MS5TY2FsZXJzSAWIAQESPwoDZW52GAggAygLMjIubG9jby5kZXBsb3ltZW50LnYxLlNlcnZpY2VEZXBsb3ltZW50U3BlYy5FbnZFbnRyeRIMCgRwb3J0GAkgASgFEg4KBnJlZ2lvbhgKIAEoCRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQg8KDV9oZWFsdGhfY2hlY2tCBgoEX2NwdUIJCgdfbWVtb3J5Qg8KDV9taW5fcmVwbGljYXNCDwoNX21heF9yZXBsaWNhc0IKCghfc2NhbGVycyIYChZEYXRhYmFzZURlcGxveW1lbnRTcGVjIhUKE0NhY2hlRGVwbG95bWVudFNwZWMiFQoTUXVldWVEZXBsb3ltZW50U3BlYyKKAgoORGVwbG95bWVudFNwZWMSPAoHc2VydmljZRgBIAEoCzIpLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlRGVwbG95bWVudFNwZWNIABI+CghkYXRhYmFzZRgCIAEoCzIqLmxvY28uZGVwbG95bWVudC52MS5EYXRhYmFzZURlcGxveW1lbnRTcGVjSAASOAoFY2FjaGUYAyABKAsyJy5sb2NvLmRlcGxveW1lbnQudjEuQ2FjaGVEZXBsb3ltZW50U3BlY0gAEjgKBXF1ZXVlGAQgASgLMicubG9jby5kZXBsb3ltZW50LnYxLlF1ZXVlRGVwbG95bWVudFNwZWNIAEIGCgRzcGVjIoUECgpEZXBsb3ltZW50EgoKAmlkGAEgASgDEhMKC3Jlc291cmNlX2lkGAIgASgDEhIKCmNsdXN0ZXJfaWQYAyABKAMSEAoIcmVwbGljYXMYBCABKAUSMwoGc3RhdHVzGAUgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIRCglpc19hY3RpdmUYBiABKAgSFAoHbWVzc2FnZRgHIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYnkYCCABKAMSLgoKY3JlYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoKc3RhcnRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBARI1Cgxjb21wbGV0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESLgoKdXBkYXRlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMc3BlY192ZXJzaW9uGA0gASgFEjAKBHNwZWMYDiABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWNCCgoIX21lc3NhZ2VCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdCJ0ChdDcmVhdGVEZXBsb3ltZW50UmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgpjbHVzdGVyX2lkGAIgASgDEjAKBHNwZWMYAyABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWMiQgoYQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEhUKDWRlcGxveW1lbnRfaWQYASABKAMSDwoHbWVzc2FnZRgCIAEoCSItChRHZXREZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQiawoWTGlzdERlcGxveW1lbnRzUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBEhMKBm9mZnNldBgDIAEoBUgBiAEBQggKBl9saW1pdEIJCgdfb2Zmc2V0Il0KF0xpc3REZXBsb3ltZW50c1Jlc3BvbnNlEjMKC2RlcGxveW1lbnRzGAEgAygLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQSDQoFdG90YWwYAiABKAMiMAoXU3RyZWFtRGVwbG95bWVudFJlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoAyKdAQoPRGVwbG95bWVudEV2ZW50EhUKDWRlcGxveW1lbnRfaWQYASABKAMSMwoGc3RhdHVzGAIgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIPCgdtZXNzYWdlGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiMAoXRGVsZXRlRGVwbG95bWVudFJlcXVlc3QSFQoNZGVwbG95bWVudF9pZBgBIAEoAyJCChhEZWxldGVEZXBsb3ltZW50UmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoAxIPCgdtZXNzYWdlGAIgASgJKnQKD0RlcGxveW1lbnRQaGFzZRIPCgtVTlNQRUNJRklFRBAAEgsKB1BFTkRJTkcQARINCglERVBMT1lJTkcQAhILCgdSVU5OSU5HEAMSDQoJU1VDQ0VFREVEEAQSCgoGRkFJTEVEEAUSDAoIQ0FOQ0VMRUQQBjKrBAoRRGVwbG95bWVudFNlcnZpY2USbQoQQ3JlYXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5DcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USZAoNR2V0RGVwbG95bWVudBIoLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVxdWVzdBopLmxvY28uZGVwbG95bWVudC52MS5HZXREZXBsb3ltZW50UmVzcG9uc2USagoPTGlzdERlcGxveW1lbnRzEioubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1JlcXVlc3QaKy5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVzcG9uc2USZgoQU3RyZWFtRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5TdHJlYW1EZXBsb3ltZW50UmVxdWVzdBojLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50RXZlbnQwARJtChBEZWxldGVEZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLkRlbGV0ZURlcGxveW1lbnRSZXF1ZXN0GiwubG9jby5kZXBsb3ltZW50LnYxLkRlbGV0ZURlcGxveW1lbnRSZXNwb25zZUJDWkFnaXRodWIuY29tL2xvY28tdGVhbS9sb2NvL3NoYXJlZC9wcm90by9kZXBsb3ltZW50L3YxO2RlcGxveW1lbnR2MWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Ch5kZXBsb3ltZW50L3YxL2RlcGxveW1lbnQucHJvdG8SEmxvY28uZGVwbG95bWVudC52MSImCgRQb3J0EgwKBHBvcnQYASABKAUSEAoIcHJvdG9jb2wYAiABKAkiSAoMUmVzb3VyY2VTcGVjEhAKA2NwdRgBIAEoCUgAiAEBEhMKBm1lbW9yeRgCIAEoCUgBiAEBQgYKBF9jcHVCCQoHX21lbW9yeSKOAQoRSGVhbHRoQ2hlY2tDb25maWcSDAoEcGF0aBgBIAEoCRIdChVpbml0aWFsX2RlbGF5X3NlY29uZHMYAiABKAUSGAoQaW50ZXJ2YWxfc2Vjb25kcxgDIAEoBRIXCg90aW1lb3V0X3NlY29uZHMYBCABKAUSGQoRZmFpbHVyZV90aHJlc2hvbGQYBSABKAUicAoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEhcKCmNwdV90YXJnZXQYAiABKAVIAIgBARIaCg1tZW1vcnlfdGFyZ2V0GAMgASgFSAGIAQFCDQoLX2NwdV90YXJnZXRCEAoOX21lbW9yeV90YXJnZXQiXAoLQnVpbGRTb3VyY2USDAoEdHlwZRgBIAEoCRINCgVpbWFnZRgCIAEoCRIcCg9kb2NrZXJmaWxlX3BhdGgYAyABKAlIAIgBAUISChBfZG9ja2VyZmlsZV9wYXRoIuYDChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSLgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2USQAoMaGVhbHRoX2NoZWNrGAIgASgLMiUubG9jby5kZXBsb3ltZW50LnYxLkhlYWx0aENoZWNrQ29uZmlnSACIAQESEAoDY3B1GAMgASgJSAGIAQESEwoGbWVtb3J5GAQgASgJSAKIAQESGQoMbWluX3JlcGxpY2FzGAUgASgFSAOIAQESGQoMbWF4X3JlcGxpY2FzGAYgASgFSASIAQESMQoHc2NhbGVycxgHIAEoCzIbLmxvY28uZGVwbG95bWVudC52MS5TY2FsZXJzSAWIAQESPwoDZW52GAggAygLMjIubG9jby5kZXBsb3ltZW50LnYxLlNlcnZpY2VEZXBsb3ltZW50U3BlYy5FbnZFbnRyeRIMCgRwb3J0GAkgASgFGioKCEVudkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDwoNX2hlYWx0aF9jaGVja0IGCgRfY3B1QgkKB19tZW1vcnlCDwoNX21pbl9yZXBsaWNhc0IPCg1fbWF4X3JlcGxpY2FzQgoKCF9zY2FsZXJzIhgKFkRhdGFiYXNlRGVwbG95bWVudFNwZWMiFQoTQ2FjaGVEZXBsb3ltZW50U3BlYyIVChNRdWV1ZURlcGxveW1lbnRTcGVjIooCCg5EZXBsb3ltZW50U3BlYxI8CgdzZXJ2aWNlGAEgASgLMikubG9jby5kZXBsb3ltZW50LnYxLlNlcnZpY2VEZXBsb3ltZW50U3BlY0gAEj4KCGRhdGFiYXNlGAIgASgLMioubG9jby5kZXBsb3ltZW50LnYxLkRhdGFiYXNlRGVwbG95bWVudFNwZWNIABI4CgVjYWNoZRgDIAEoCzInLmxvY28uZGVwbG95bWVudC52MS5DYWNoZURlcGxveW1lbnRTcGVjSAASOAoFcXVldWUYBCABKAsyJy5sb2NvLmRlcGxveW1lbnQudjEuUXVldWVEZXBsb3ltZW50U3BlY0gAQgYKBHNwZWMilQQKCkRlcGxveW1lbnQSCgoCaWQYASABKAMSEwoLcmVzb3VyY2VfaWQYAiABKAMSEgoKY2x1c3Rlcl9pZBgDIAEoAxIOCgZyZWdpb24YBCABKAkSEAoIcmVwbGljYXMYBSABKAUSMwoGc3RhdHVzGAYgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIRCglpc19hY3RpdmUYByABKAgSFAoHbWVzc2FnZRgIIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYnkYCSABKAMSLgoKY3JlYXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoKc3RhcnRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBARI1Cgxjb21wbGV0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESLgoKdXBkYXRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFAoMc3BlY192ZXJzaW9uGA4gASgFEjAKBHNwZWMYDyABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFNwZWNCCgoIX21lc3NhZ2VCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdCKEAQoXQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSEgoKY2x1c3Rlcl9pZBgCIAEoAxIOCgZyZWdpb24YAyABKAkSMAoEc3BlYxgEIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3BlYyJCChhDcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoAxIPCgdtZXNzYWdlGAIgASgJIi0KFEdldERlcGxveW1lbnRSZXF1ZXN0EhUKDWRlcGxveW1lbnRfaWQYASABKAMiSwoVR2V0RGVwbG95bWVudFJlc3BvbnNlEjIKCmRlcGxveW1lbnQYASABKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudCJrChZMaXN0RGVwbG95bWVudHNSZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQESEwoGb2Zmc2V0GAMgASgFSAGIAQFCCAoGX2xpbWl0QgkKB19vZmZzZXQiXQoXTGlzdERlcGxveW1lbnRzUmVzcG9uc2USMwoLZGVwbG95bWVudHMYASADKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudBINCgV0b3RhbBgCIAEoAyIwChdTdHJlYW1EZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIp0BCg9EZXBsb3ltZW50RXZlbnQSFQoNZGVwbG95bWVudF9pZBgBIAEoAxIzCgZzdGF0dXMYAiABKA4yIy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFBoYXNlEg8KB21lc3NhZ2UYAyABKAkSLQoJdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIwChdEZWxldGVEZXBsb3ltZW50UmVxdWVzdBIVCg1kZXBsb3ltZW50X2lkGAEgASgDIkIKGERlbGV0ZURlcGxveW1lbnRSZXNwb25zZRIVCg1kZXBsb3ltZW50X2lkGAEgASgDEg8KB21lc3NhZ2UYAiABKAkqdAoPRGVwbG95bWVudFBoYXNlEg8KC1VOU1BFQ0lGSUVEEAASCwoHUEVORElORxABEg0KCURFUExPWUlORxACEgsKB1JVTk5JTkcQAxINCglTVUNDRUVERUQQBBIKCgZGQUlMRUQQBRIMCghDQU5DRUxFRBAGMqsEChFEZXBsb3ltZW50U2VydmljZRJtChBDcmVhdGVEZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXF1ZXN0GiwubG9jby5kZXBsb3ltZW50LnYxLkNyZWF0ZURlcGxveW1lbnRSZXNwb25zZRJkCg1HZXREZXBsb3ltZW50EigubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXF1ZXN0GikubG9jby5kZXBsb3ltZW50LnYxLkdldERlcGxveW1lbnRSZXNwb25zZRJqCg9MaXN0RGVwbG95bWVudHMSKi5sb2NvLmRlcGxveW1lbnQudjEuTGlzdERlcGxveW1lbnRzUmVxdWVzdBorLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXNwb25zZRJmChBTdHJlYW1EZXBsb3ltZW50EisubG9jby5kZXBsb3ltZW50LnYxLlN0cmVhbURlcGxveW1lbnRSZXF1ZXN0GiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRFdmVudDABEm0KEERlbGV0ZURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuRGVsZXRlRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuRGVsZXRlRGVwbG95bWVudFJlc3BvbnNlQkNaQWdpdGh1Yi5jb20vbG9jby10ZWFtL2xvY28vc2hhcmVkL3Byb3RvL2RlcGxveW1lbnQvdjE7ZGVwbG95bWVudHYxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * Port defines a network port configuration.
@@ -361,13 +361,6 @@ export type ServiceDeploymentSpec = Message<"loco.deployment.v1.ServiceDeploymen
    * @generated from field: int32 port = 9;
    */
   port: number;
-
-  /**
-   * region name for deployment
-   *
-   * @generated from field: string region = 10;
-   */
-  region: string;
 };
 
 /**
@@ -430,13 +423,6 @@ export type ServiceDeploymentSpecJson = {
    * @generated from field: int32 port = 9;
    */
   port?: number;
-
-  /**
-   * region name for deployment
-   *
-   * @generated from field: string region = 10;
-   */
-  region?: string;
 };
 
 /**
@@ -621,57 +607,62 @@ export type Deployment = Message<"loco.deployment.v1.Deployment"> & {
   clusterId: bigint;
 
   /**
-   * @generated from field: int32 replicas = 4;
+   * @generated from field: string region = 4;
+   */
+  region: string;
+
+  /**
+   * @generated from field: int32 replicas = 5;
    */
   replicas: number;
 
   /**
-   * @generated from field: loco.deployment.v1.DeploymentPhase status = 5;
+   * @generated from field: loco.deployment.v1.DeploymentPhase status = 6;
    */
   status: DeploymentPhase;
 
   /**
-   * @generated from field: bool is_active = 6;
+   * @generated from field: bool is_active = 7;
    */
   isActive: boolean;
 
   /**
-   * @generated from field: optional string message = 7;
+   * @generated from field: optional string message = 8;
    */
   message?: string;
 
   /**
-   * @generated from field: int64 created_by = 8;
+   * @generated from field: int64 created_by = 9;
    */
   createdBy: bigint;
 
   /**
-   * @generated from field: google.protobuf.Timestamp created_at = 9;
+   * @generated from field: google.protobuf.Timestamp created_at = 10;
    */
   createdAt?: Timestamp;
 
   /**
-   * @generated from field: optional google.protobuf.Timestamp started_at = 10;
+   * @generated from field: optional google.protobuf.Timestamp started_at = 11;
    */
   startedAt?: Timestamp;
 
   /**
-   * @generated from field: optional google.protobuf.Timestamp completed_at = 11;
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 12;
    */
   completedAt?: Timestamp;
 
   /**
-   * @generated from field: google.protobuf.Timestamp updated_at = 12;
+   * @generated from field: google.protobuf.Timestamp updated_at = 13;
    */
   updatedAt?: Timestamp;
 
   /**
-   * @generated from field: int32 spec_version = 13;
+   * @generated from field: int32 spec_version = 14;
    */
   specVersion: number;
 
   /**
-   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 14;
+   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 15;
    */
   spec?: DeploymentSpec;
 };
@@ -698,57 +689,62 @@ export type DeploymentJson = {
   clusterId?: string;
 
   /**
-   * @generated from field: int32 replicas = 4;
+   * @generated from field: string region = 4;
+   */
+  region?: string;
+
+  /**
+   * @generated from field: int32 replicas = 5;
    */
   replicas?: number;
 
   /**
-   * @generated from field: loco.deployment.v1.DeploymentPhase status = 5;
+   * @generated from field: loco.deployment.v1.DeploymentPhase status = 6;
    */
   status?: DeploymentPhaseJson;
 
   /**
-   * @generated from field: bool is_active = 6;
+   * @generated from field: bool is_active = 7;
    */
   isActive?: boolean;
 
   /**
-   * @generated from field: optional string message = 7;
+   * @generated from field: optional string message = 8;
    */
   message?: string;
 
   /**
-   * @generated from field: int64 created_by = 8;
+   * @generated from field: int64 created_by = 9;
    */
   createdBy?: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp created_at = 9;
+   * @generated from field: google.protobuf.Timestamp created_at = 10;
    */
   createdAt?: TimestampJson;
 
   /**
-   * @generated from field: optional google.protobuf.Timestamp started_at = 10;
+   * @generated from field: optional google.protobuf.Timestamp started_at = 11;
    */
   startedAt?: TimestampJson;
 
   /**
-   * @generated from field: optional google.protobuf.Timestamp completed_at = 11;
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 12;
    */
   completedAt?: TimestampJson;
 
   /**
-   * @generated from field: google.protobuf.Timestamp updated_at = 12;
+   * @generated from field: google.protobuf.Timestamp updated_at = 13;
    */
   updatedAt?: TimestampJson;
 
   /**
-   * @generated from field: int32 spec_version = 13;
+   * @generated from field: int32 spec_version = 14;
    */
   specVersion?: number;
 
   /**
-   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 14;
+   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 15;
    */
   spec?: DeploymentSpecJson;
 };
@@ -777,7 +773,12 @@ export type CreateDeploymentRequest = Message<"loco.deployment.v1.CreateDeployme
   clusterId: bigint;
 
   /**
-   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 3;
+   * @generated from field: string region = 3;
+   */
+  region: string;
+
+  /**
+   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 4;
    */
   spec?: DeploymentSpec;
 };
@@ -799,7 +800,12 @@ export type CreateDeploymentRequestJson = {
   clusterId?: string;
 
   /**
-   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 3;
+   * @generated from field: string region = 3;
+   */
+  region?: string;
+
+  /**
+   * @generated from field: loco.deployment.v1.DeploymentSpec spec = 4;
    */
   spec?: DeploymentSpecJson;
 };
