@@ -7,14 +7,6 @@ type Entity struct {
 	ID   int64      // unique identifier for the entity
 }
 
-func (e Entity) WithScope(scope Scope) EntityScope {
-	return EntityScope{
-		EntityType: e.Type,
-		EntityID:   e.ID,
-		Scope:      scope,
-	}
-}
-
 type EntityScope struct {
 	EntityType EntityType `json:"entity_type"`
 	EntityID   int64      `json:"entity_id"`
