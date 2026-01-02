@@ -351,7 +351,6 @@ type Deployment struct {
 	Message          string             `json:"message"`
 	Spec             []byte             `json:"spec"`
 	SpecVersion      int32              `json:"specVersion"`
-	CreatedBy        int64              `json:"createdBy"`
 	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
 	StartedAt        pgtype.Timestamptz `json:"startedAt"`
 	CompletedAt      pgtype.Timestamptz `json:"completedAt"`

@@ -99,6 +99,13 @@ helm-uninstall-all: ## Uninstall all releases
 helm-fix-clickhouse: ## Remove clickhouse finalizer if stuck
 	kubectl -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge
 
+upgrade-rpc:
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	go install github.com/bufbuild/buf/cmd/buf@latest
+	go install github.com/bufbuild/buf/cmd/buf@latest
+	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
+	npm install -g @connectrpc/protoc-gen-connect-query @bufbuild/protoc-gen-es
 lint: clean
 	@(golangci-lint run)
 

@@ -66,7 +66,6 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		Replicas:    d.Replicas,
 		Status:      parseDeploymentPhase(d.Status),
 		IsActive:    d.IsActive,
-		CreatedBy:   d.CreatedBy,
 		CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
 		SpecVersion: d.SpecVersion,
@@ -243,9 +242,7 @@ func (s *DeploymentServer) CreateDeployment(
 		Status:     genDb.DeploymentStatusPending,
 		IsActive:   true,
 		Message:    "Scheduling deployment",
-		// TODO PRIORITY: this field should be removed and replaced with entity
-		CreatedBy:   0,
-		Spec:        specJSON,
+		Spec:       specJSON,
 		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
