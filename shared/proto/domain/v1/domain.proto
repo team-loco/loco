@@ -4,44 +4,44 @@ package loco.domain.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/loco-team/loco/shared/proto/domain/v1;domainv1";
+option go_package = "github.com/team-loco/loco/shared/proto/domain/v1;domainv1";
 
 // DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {
   PLATFORM_PROVIDED = 0;
-  USER_PROVIDED = 1;
+  USER_PROVIDED     = 1;
 }
 
 // --- Messages ---
 
 // PlatformDomain represents a platform-provided domain.
 message PlatformDomain {
-  int64 id = 1;
-  string domain = 2;
-  bool is_active = 3;
+  int64                     id         = 1;
+  string                    domain     = 2;
+  bool                      is_active  = 3;
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp updated_at = 5;
 }
 
 // DomainInput specifies domain configuration for a resource.
 message DomainInput {
-  DomainType domain_source = 1;
-  optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
-  optional int64 platform_domain_id = 3; // for PLATFORM_PROVIDED: id of the platform domain
-  optional string domain = 4; // for USER_PROVIDED: full custom domain
+  DomainType      domain_source      = 1;
+  optional string subdomain          = 2; // for PLATFORM_PROVIDED: "myapp"
+  optional int64  platform_domain_id = 3; // for PLATFORM_PROVIDED: id of the platform domain
+  optional string domain             = 4; // for USER_PROVIDED: full custom domain
 }
 
 // ResourceDomain represents a domain assigned to a resource.
 message ResourceDomain {
-  int64 id = 1;
-  int64 resource_id = 2;
-  string domain = 3;
-  DomainType domain_source = 4;
-  optional string subdomain_label = 5;
-  optional int64 platform_domain_id = 6;
-  bool is_primary = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  int64                     id                 = 1;
+  int64                     resource_id        = 2;
+  string                    domain             = 3;
+  DomainType                domain_source      = 4;
+  optional string           subdomain_label    = 5;
+  optional int64            platform_domain_id = 6;
+  bool                      is_primary         = 7;
+  google.protobuf.Timestamp created_at         = 8;
+  google.protobuf.Timestamp updated_at         = 9;
 }
 
 // --- Service ---
@@ -83,8 +83,8 @@ service DomainService {
 
 // CreatePlatformDomainRequest is the request to create a platform domain.
 message CreatePlatformDomainRequest {
-  string domain = 1;
-  bool is_active = 2;
+  string domain    = 1;
+  bool   is_active = 2;
 }
 
 // CreatePlatformDomainResponse is the response from creating a platform domain.
@@ -148,10 +148,10 @@ message CheckDomainAvailabilityResponse {
 
 // LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
 message LocoOwnedDomain {
-  int64 id = 1;
-  string domain = 2;
-  string resource_name = 3;
-  int64 resource_id = 4;
+  int64  id              = 1;
+  string domain          = 2;
+  string resource_name   = 3;
+  int64  resource_id     = 4;
   string platform_domain = 5;
 }
 
@@ -167,8 +167,8 @@ message ListAllLocoOwnedDomainsResponse {
 
 // AddResourceDomainRequest is the request to add a domain to a resource.
 message AddResourceDomainRequest {
-  int64 resource_id = 1;
-  DomainInput domain = 2;
+  int64       resource_id = 1;
+  DomainInput domain      = 2;
 }
 
 // AddResourceDomainResponse is the response from adding a domain to a resource.
@@ -179,8 +179,8 @@ message AddResourceDomainResponse {
 
 // UpdateResourceDomainRequest is the request to update a resource's domain.
 message UpdateResourceDomainRequest {
-  int64 domain_id = 1;
-  string domain = 2;
+  int64  domain_id = 1;
+  string domain    = 2;
 }
 
 // UpdateResourceDomainResponse is the response from updating a resource's domain.
@@ -192,7 +192,7 @@ message UpdateResourceDomainResponse {
 // SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
 message SetPrimaryResourceDomainRequest {
   int64 resource_id = 1;
-  int64 domain_id = 2;
+  int64 domain_id   = 2;
 }
 
 // SetPrimaryResourceDomainResponse is the response from setting the primary domain.

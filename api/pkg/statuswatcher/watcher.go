@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/allegro/bigcache/v3"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/pkg/kube"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/kube"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
 	"k8s.io/client-go/tools/cache"
 	crClient "sigs.k8s.io/controller-runtime/pkg/client"

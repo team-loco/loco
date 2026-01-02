@@ -9,10 +9,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/loco-team/loco/api/client"
-	"github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/contextkeys"
-	registryv1 "github.com/loco-team/loco/shared/proto/registry/v1"
+	"github.com/team-loco/loco/api/client"
+	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/gen/db"
+	registryv1 "github.com/team-loco/loco/shared/proto/registry/v1"
 )
 
 // RegistryServer implements the RegistryService

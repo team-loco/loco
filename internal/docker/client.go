@@ -21,8 +21,8 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
-	"github.com/loco-team/loco/shared/config"
 	"github.com/moby/go-archive"
+	"github.com/team-loco/loco/shared/config"
 )
 
 // MINIMUM_DOCKER_ENGINE_VERSION is the lowest allowed docker version.

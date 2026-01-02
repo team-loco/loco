@@ -8,13 +8,14 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/loco-team/loco/api/contextkeys"
-	"github.com/loco-team/loco/api/jwtutil"
+	"github.com/team-loco/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/jwtutil"
+	"github.com/team-loco/loco/api/tvm"
 )
 
 type githubAuthInterceptor struct{}
 
-func NewGithubAuthInterceptor() *githubAuthInterceptor {
+func NewGithubAuthInterceptor(tvm *tvm.VendingMachine) *githubAuthInterceptor {
 	return &githubAuthInterceptor{}
 }
 

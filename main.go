@@ -1,6 +1,6 @@
 package main
 
-import "github.com/loco-team/loco/cmd/loco"
+import "github.com/team-loco/loco/cmd/loco"
 
 func main() {
 	loco.Cli()

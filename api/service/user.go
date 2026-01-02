@@ -9,10 +9,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/contextkeys"
-	"github.com/loco-team/loco/api/timeutil"
-	userv1 "github.com/loco-team/loco/shared/proto/user/v1"
+	"github.com/team-loco/loco/api/contextkeys"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/timeutil"
+	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
 )
 
 var (

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/loco-team/loco/api/contextkeys"
+	"github.com/team-loco/loco/api/contextkeys"
 )
 
 func SetContext(next http.Handler) http.Handler {

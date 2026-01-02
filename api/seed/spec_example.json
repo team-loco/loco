@@ -1,0 +1,24 @@
+{
+  "service": {
+    "build": {
+      "type": "docker",
+      "image": "registry.gitlab.com/locomotive-group/loco-ecr:org-1-wks-1-app-1-8bfff123",
+      "dockerfilePath": "/Users/nikhil/Documents/loco/examples/test-api/backend/Dockerfile"
+    },
+    "healthCheck": {
+      "path": "/api/health",
+      "intervalSeconds": 30,
+      "timeoutSeconds": 5,
+      "failureThreshold": 3,
+      "successThreshold": 1
+    },
+    "resources": {
+      "cpu": "100m",
+      "memory": "128Mi"
+    },
+    "minReplicas": 1,
+    "maxReplicas": 1,
+    "port": 8000,
+    "region": "us-east-1"
+  }
+}

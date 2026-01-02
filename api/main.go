@@ -9,27 +9,30 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
 	charmLog "github.com/charmbracelet/log"
-	"github.com/loco-team/loco/api/db"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	"github.com/loco-team/loco/api/middleware"
-	"github.com/loco-team/loco/api/pkg/kube"
-	"github.com/loco-team/loco/api/pkg/statuswatcher"
-	"github.com/loco-team/loco/api/service"
-	"github.com/loco-team/loco/shared"
-	"github.com/loco-team/loco/shared/proto/deployment/v1/deploymentv1connect"
-	"github.com/loco-team/loco/shared/proto/domain/v1/domainv1connect"
-	"github.com/loco-team/loco/shared/proto/oauth/v1/oauthv1connect"
-	"github.com/loco-team/loco/shared/proto/org/v1/orgv1connect"
-	"github.com/loco-team/loco/shared/proto/registry/v1/registryv1connect"
-	"github.com/loco-team/loco/shared/proto/resource/v1/resourcev1connect"
-	"github.com/loco-team/loco/shared/proto/user/v1/userv1connect"
-	"github.com/loco-team/loco/shared/proto/workspace/v1/workspacev1connect"
+
 	"github.com/rs/cors"
+	"github.com/team-loco/loco/api/db"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/middleware"
+	"github.com/team-loco/loco/api/pkg/kube"
+	"github.com/team-loco/loco/api/pkg/statuswatcher"
+	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/shared"
+	"github.com/team-loco/loco/shared/proto/deployment/v1/deploymentv1connect"
+	"github.com/team-loco/loco/shared/proto/domain/v1/domainv1connect"
+	"github.com/team-loco/loco/shared/proto/oauth/v1/oauthv1connect"
+	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
+	"github.com/team-loco/loco/shared/proto/registry/v1/registryv1connect"
+	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
+	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -110,11 +113,25 @@ func withCORS(baseDomain string) func(http.Handler) http.Handler {
 func main() {
 	ac := newApiConfig()
 
+	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dbConn.Close()
+
+	pool := dbConn.Pool()
+	queries := genDb.New(pool)
+
+	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+		MaxTokenDuration:   time.Hour * 24 * 30,
+		LoginTokenDuration: time.Hour * 1,
+	})
+
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor())
+	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -128,15 +145,6 @@ func main() {
 
 	kubeClient := kube.NewClient(ac.Env)
 
-	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer dbConn.Close()
-
-	pool := dbConn.Pool()
-	queries := genDb.New(pool)
-
 	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries)
 	watcherCtx, watcherCancel := context.WithCancel(context.Background())
 	defer watcherCancel()
@@ -149,7 +157,7 @@ func main() {
 
 	httpClient := shared.NewHTTPClient()
 
-	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient)
+	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, machine)
 	if err != nil {
 		log.Fatal(err)
 	}

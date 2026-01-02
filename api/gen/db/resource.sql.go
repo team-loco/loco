@@ -256,6 +256,22 @@ func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id int64) (int64, 
 	return workspace_id, err
 }
 
+const getWorkspaceOrganizationIDByResourceID = `-- name: GetWorkspaceOrganizationIDByResourceID :one
+SELECT workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1
+`
+
+type GetWorkspaceOrganizationIDByResourceIDRow struct {
+	WorkspaceID int64 `json:"workspaceId"`
+	OrgID       int64 `json:"orgId"`
+}
+
+func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (GetWorkspaceOrganizationIDByResourceIDRow, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceOrganizationIDByResourceID, id)
+	var i GetWorkspaceOrganizationIDByResourceIDRow
+	err := row.Scan(&i.WorkspaceID, &i.OrgID)
+	return i, err
+}
+
 const listActiveDeploymentsByResourceID = `-- name: ListActiveDeploymentsByResourceID :many
 SELECT status FROM deployments
 WHERE resource_id = $1 AND is_active = true

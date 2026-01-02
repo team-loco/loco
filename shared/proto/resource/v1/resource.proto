@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 import "deployment/v1/deployment.proto";
 import "domain/v1/domain.proto";
 
-option go_package = "github.com/loco-team/loco/shared/proto/resource/v1;resourcev1";
+option go_package = "github.com/team-loco/loco/shared/proto/resource/v1;resourcev1";
 
 // ResourceType categorizes the type of resource being deployed.
 enum ResourceType {
@@ -283,7 +283,7 @@ message DeploymentStatus {
   int64                              id       = 1;
   loco.deployment.v1.DeploymentPhase status   = 2;
   int32                              replicas = 3;
-  string                             message  = 4;
+  optional string                    message  = 4;
 }
 
 // GetResourceStatusResponse is the response containing resource status information.

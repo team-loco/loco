@@ -10,9 +10,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/loco-team/loco/api/contextkeys"
-	genDb "github.com/loco-team/loco/api/gen/db"
-	domainv1 "github.com/loco-team/loco/shared/proto/domain/v1"
+	"github.com/team-loco/loco/api/contextkeys"
+	genDb "github.com/team-loco/loco/api/gen/db"
+	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -219,8 +219,8 @@ func (s *DomainServer) ListAllLocoOwnedDomains(
 		domains[i] = &domainv1.LocoOwnedDomain{
 			Id:             result.ID,
 			Domain:         result.Domain,
-			ResourceName:        result.ResourceName,
-			ResourceId:          result.ResourceID,
+			ResourceName:   result.ResourceName,
+			ResourceId:     result.ResourceID,
 			PlatformDomain: result.PlatformDomain,
 		}
 	}
@@ -312,7 +312,7 @@ func (s *DomainServer) AddResourceDomain(
 	}
 
 	domainID, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-		ResourceID:            r.ResourceId,
+		ResourceID:       r.ResourceId,
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
@@ -431,7 +431,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 
 	// set this domain as primary
 	domainID, err := s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
-		ID:    r.DomainId,
+		ID:         r.DomainId,
 		ResourceID: r.ResourceId,
 	})
 	if err != nil {
