@@ -175,12 +175,16 @@ func (s *OAuthServer) ExchangeGithubToken(
 
 	// initiate login
 	user, token, err := s.machine.Exchange(ctx, providers.Github(githubToken))
+	if err != nil {
+		slog.ErrorContext(ctx, "exchange github token", "error", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("exchange token: %w", err))
+	}
 
 	res := connect.NewResponse(&oAuth.ExchangeGithubTokenResponse{
 		LocoToken: token,
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
 		UserId:    user.ID,
-		Username:  user.Name,
+		Name:      user.Name.String,
 	})
 
 	slog.InfoContext(ctx, "exchanged github token for loco token", "userId", user.ID)
@@ -327,50 +331,21 @@ func (s *OAuthServer) ExchangeGithubCode(
 		)
 	}
 
-	// fetch user info from github using access token
-	githubUser, err := isValidGithubUser(s.httpClient, ctx, token.AccessToken)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to fetch github user", "error", err)
-		return nil, connect.NewError(
-			connect.CodeUnauthenticated,
-			fmt.Errorf("failed to fetch user info: %w", err),
-		)
-	}
-
-	// create or retrieve user in database
-	userID, _, err := s.createOrGetUser(ctx, githubUser)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create/get user", "error", err)
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("failed to set up user: %w", err),
-		)
-	}
-
-	// generate loco jwt token
-	externalUsername := "github:" + githubUser.Login
-	locoJWT, err := jwtutil.GenerateLocoJWT(userID, githubUser.Login, externalUsername, OAuthTokenTTL)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to generate loco jwt", "error", err)
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("failed to generate token: %w", err),
-		)
-	}
+	user, locoToken, err := s.machine.Exchange(ctx, providers.Github(token.AccessToken))
 
 	res := connect.NewResponse(&oAuth.ExchangeGithubCodeResponse{
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
-		UserId:    userID,
-		Username:  githubUser.Login,
+		UserId:    user.ID,
+		Name:      user.Name.String,
 	})
 
 	// set jwt as http-only cookie
 	res.Header().Set("Set-Cookie", fmt.Sprintf(
 		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax",
-		locoJWT,
+		locoToken,
 		int(OAuthTokenTTL.Seconds()),
 	))
 
-	slog.InfoContext(ctx, "exchanged github code for loco token", "userId", userID, "method", "cookie")
+	slog.InfoContext(ctx, "exchanged github code for loco token", "userId", user.ID, "method", "cookie")
 	return res, nil
 }
