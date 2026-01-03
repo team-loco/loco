@@ -24,14 +24,14 @@ export function BreadcrumbNav() {
 			return [{ label: "Dashboard" }];
 		}
 
-		// App details: /app/:appId
-		const appMatch = pathname.match(/^\/app\/([^/]+)(?:\/settings)?$/);
-		if (appMatch) {
-			const appId = appMatch[1];
+		// Resource details: /resource/:resourceId
+		const resourceMatch = pathname.match(/^\/resource\/([^/]+)(?:\/settings)?$/);
+		if (resourceMatch) {
+			const resourceId = resourceMatch[1];
 			const isSettings = pathname.endsWith("/settings");
 			const breadcrumbs: BreadcrumbSegment[] = [
 				{ label: "Dashboard", href: "/" },
-				{ label: "App", href: `/app/${appId}` },
+				{ label: "Resource", href: `/resource/${resourceId}` },
 			];
 			if (isSettings) {
 				breadcrumbs.push({ label: "Settings" });
@@ -59,18 +59,12 @@ export function BreadcrumbNav() {
 
 		// Profile: /profile
 		if (pathname === "/profile") {
-			return [
-				{ label: "Dashboard", href: "/" },
-				{ label: "Profile" },
-			];
+			return [{ label: "Dashboard", href: "/" }, { label: "Profile" }];
 		}
 
-		// Create app: /create-app
-		if (pathname === "/create-app") {
-			return [
-				{ label: "Dashboard", href: "/" },
-				{ label: "Create App" },
-			];
+		// Create resource: /create-resource
+		if (pathname === "/create-resource") {
+			return [{ label: "Dashboard", href: "/" }, { label: "Create Resource" }];
 		}
 
 		// Default fallback

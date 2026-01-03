@@ -3,9 +3,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/ui/sonner";
 import { HeaderProvider } from "@/context/HeaderContext";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { AppDetails } from "@/pages/AppDetails";
-import { AppSettings } from "@/pages/AppSettings";
-import { CreateApp } from "@/pages/CreateApp";
+import { ResourceDetails } from "@/pages/ResourceDetails";
+import { ResourceSettings } from "@/pages/ResourceSettings";
+import { CreateResource } from "@/pages/CreateResource";
 import { Events } from "@/pages/Events";
 import { Home } from "@/pages/Home";
 import { Login } from "@/pages/Login";
@@ -65,9 +65,9 @@ function AppRoutes() {
 			{/* Protected routes */}
 			<Route element={<ProtectedRoute />}>
 				<Route path="/dashboard" element={<Home />} />
-				<Route path="/app/:appId" element={<AppDetails />} />
-				<Route path="/app/:appId/settings" element={<AppSettings />} />
-				<Route path="/create-app" element={<CreateApp />} />
+				<Route path="/resource/:resourceId" element={<ResourceDetails />} />
+				<Route path="/resource/:resourceId/settings" element={<ResourceSettings />} />
+				<Route path="/create-resource" element={<CreateResource />} />
 				<Route path="/events" element={<Events />} />
 				<Route path="/team" element={<Team />} />
 				<Route path="/profile" element={<Profile />} />

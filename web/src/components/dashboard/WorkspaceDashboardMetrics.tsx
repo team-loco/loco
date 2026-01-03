@@ -146,8 +146,8 @@ export function WorkspaceDashboardMetrics({
 function RecentDeploymentsTable() {
 	const navigate = useNavigate();
 	const recentDeployments: Array<{
-		appId: bigint;
-		appName: string;
+		resourceId: bigint;
+		resourceName: string;
 		deploymentId: bigint;
 		status: number;
 		replicas: number;
@@ -181,7 +181,7 @@ function RecentDeploymentsTable() {
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead>App Name</TableHead>
+								<TableHead>Resource Name</TableHead>
 								<TableHead>Status</TableHead>
 								<TableHead>Replicas</TableHead>
 								<TableHead>Created</TableHead>
@@ -192,9 +192,9 @@ function RecentDeploymentsTable() {
 								<TableRow
 									key={d.deploymentId.toString()}
 									className="cursor-pointer"
-									onClick={() => navigate(`/app/${d.appId}`)}
+									onClick={() => navigate(`/resource/${d.resourceId}`)}
 								>
-									<TableCell>{d.appName}</TableCell>
+									<TableCell>{d.resourceName}</TableCell>
 									<TableCell>
 										<Badge
 											className={`text-xs ${statusColors[d.status]}`}

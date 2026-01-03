@@ -3,8 +3,8 @@
 
 export interface WorkspaceEvent {
 	id: string;
-	appId: string;
-	appName: string;
+	resourceId: string;
+	resourceName: string;
 	type:
 		| "deployment_started"
 		| "deployment_completed"
@@ -27,7 +27,7 @@ const recentEvents: WorkspaceEvent[] = [];
 const MAX_STORED_EVENTS = 50;
 
 /**
- * Subscribe to events for a specific app or workspace
+ * Subscribe to events for a specific resource or workspace
  */
 export function subscribeToEvents(
 	key: string,
@@ -63,10 +63,10 @@ export function emitEvent(event: WorkspaceEvent): void {
 		workspaceListeners.forEach((listener) => listener(event));
 	}
 
-	// Notify app-specific listeners
-	const appListeners = eventListeners.get(`app:${event.appId}`);
-	if (appListeners) {
-		appListeners.forEach((listener) => listener(event));
+	// Notify resource-specific listeners
+	const resourceListeners = eventListeners.get(`resource:${event.resourceId}`);
+	if (resourceListeners) {
+		resourceListeners.forEach((listener) => listener(event));
 	}
 }
 

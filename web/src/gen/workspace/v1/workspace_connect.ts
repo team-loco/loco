@@ -70,7 +70,7 @@ export const WorkspaceService = {
       kind: MethodKind.Unary,
     },
     /**
-     * DeleteWorkspace deletes a workspace and optionally its applications.
+     * DeleteWorkspace deletes a workspace and optionally its resources.
      *
      * @generated from rpc loco.workspace.v1.WorkspaceService.DeleteWorkspace
      */

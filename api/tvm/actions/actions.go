@@ -14,120 +14,120 @@ type Action struct {
 // - CreateUser
 // - Logout
 var (
-	// apps
+	// resources
 
-	// ListApps requires workspace:read
-	ListApps = Action{
+	// ListResources requires workspace:read
+	ListResources = Action{
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
-	// CreateApp requires workspace:write.
-	CreateApp = Action{
+	// CreateResource requires workspace:write.
+	CreateResource = Action{
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeWrite,
 	}
-	// GetApp requires app:read.
-	GetApp = Action{
-		entityType: db.EntityTypeApp,
+	// GetResource requires resource:read.
+	GetResource = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// GetAppStatus requires app:read.
-	GetAppStatus = Action{
-		entityType: db.EntityTypeApp,
+	// GetResourceStatus requires resource:read.
+	GetResourceStatus = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// StreamLogs requires app:read.
-	StreamAppLogs = Action{
-		entityType: db.EntityTypeApp,
+	// StreamResourceLogs requires resource:read.
+	StreamResourceLogs = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// GetEvents requires app:read.
-	GetAppEvents = Action{
-		entityType: db.EntityTypeApp,
+	// GetResourceEvents requires resource:read.
+	GetResourceEvents = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
 	AddDomain = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
 	UpdateDomain = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
 	RemoveDomain = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
 	SetPrimaryDomain = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// UpdateApp requires app:write.
-	UpdateApp = Action{
-		entityType: db.EntityTypeApp,
+	// UpdateResource requires resource:write.
+	UpdateResource = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// UpdateAppEnv requires app:write.
-	UpdateAppEnv = Action{
-		entityType: db.EntityTypeApp,
+	// UpdateResourceEnv requires resource:write.
+	UpdateResourceEnv = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// DeployApp requires app:write.
-	DeployApp = Action{
-		entityType: db.EntityTypeApp,
+	// DeployResource requires resource:write.
+	DeployResource = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// ScaleApp requires app:write.
-	ScaleApp = Action{
-		entityType: db.EntityTypeApp,
+	// ScaleResource requires resource:write.
+	ScaleResource = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// UpdateDeploymentStatus requires app:write.
+	// UpdateDeploymentStatus requires resource:write.
 	UpdateDeploymentStatus = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// RestartApp requires app:write.
-	RestartApp = Action{
-		entityType: db.EntityTypeApp,
+	// RestartResource requires resource:write.
+	RestartResource = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// StopApp requires app:write.
-	StopApp = Action{
-		entityType: db.EntityTypeApp,
+	// StopResource requires resource:write.
+	StopResource = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// DeleteApp requires app:admin.
-	DeleteApp = Action{
-		entityType: db.EntityTypeApp,
+	// DeleteResource requires resource:admin.
+	DeleteResource = Action{
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeAdmin,
 	}
 
 	// deployments
 
-	// ListDeployments requires app:read.
+	// ListDeployments requires resource:read.
 	ListDeployments = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// GetDeployment requires app:read.
+	// GetDeployment requires resource:read.
 	GetDeployment = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// StreamDeployment requires app:read.
+	// StreamDeployment requires resource:read.
 	StreamDeployment = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// CreateDeployment requires app:write.
+	// CreateDeployment requires resource:write.
 	CreateDeployment = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// DeleteDeployment requires app:write
+	// DeleteDeployment requires resource:write
 	DeleteDeployment = Action{
-		entityType: db.EntityTypeApp,
+		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
 

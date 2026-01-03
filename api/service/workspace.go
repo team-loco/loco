@@ -24,7 +24,7 @@ var (
 	ErrInvalidWorkspaceName   = errors.New("workspace name must be DNS-safe: lowercase alphanumeric and hyphens only")
 	ErrNotWorkspaceMember     = errors.New("user is not a member of this workspace")
 	ErrNotWorkspaceAdmin      = errors.New("user is not an admin of this workspace")
-	ErrWorkspaceHasApps       = errors.New("workspace has apps - must confirm deletion")
+	ErrWorkspaceHasResources  = errors.New("workspace has resources - must confirm deletion")
 	ErrInvalidRole            = errors.New("invalid role - must be admin, deploy, or read")
 )
 
@@ -131,7 +131,7 @@ func (s *WorkspaceServer) GetUserWorkspaces(
 ) (*connect.Response[workspacev1.GetUserWorkspacesResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
+		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	if entity.Type != genDb.EntityTypeUser {
@@ -281,7 +281,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	// TODO: Check if workspace has apps (when apps table exists)
+	// TODO: Check if workspace has resources (when resources table exists)
 	// For now, skip this check
 
 	err := s.queries.RemoveWorkspace(ctx, r.WorkspaceId)
@@ -334,7 +334,7 @@ func (s *WorkspaceServer) RemoveMember(
 
 	// entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	// if !ok {
-	// 	slog.ErrorContext(ctx, "userId not found in context")
+	// 	slog.ErrorContext(ctx, "entity not found in context")
 	// 	return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	// }
 

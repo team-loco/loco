@@ -74,7 +74,7 @@ type WorkspaceServiceClient interface {
 	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
 	// UpdateWorkspace updates workspace information.
 	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
-	// DeleteWorkspace deletes a workspace and optionally its applications.
+	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *connect.Request[v1.DeleteWorkspaceRequest]) (*connect.Response[v1.DeleteWorkspaceResponse], error)
 	// AddMember adds a user to a workspace with a specified role.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
@@ -222,7 +222,7 @@ type WorkspaceServiceHandler interface {
 	ListWorkspaces(context.Context, *connect.Request[v1.ListWorkspacesRequest]) (*connect.Response[v1.ListWorkspacesResponse], error)
 	// UpdateWorkspace updates workspace information.
 	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
-	// DeleteWorkspace deletes a workspace and optionally its applications.
+	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *connect.Request[v1.DeleteWorkspaceRequest]) (*connect.Response[v1.DeleteWorkspaceResponse], error)
 	// AddMember adds a user to a workspace with a specified role.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)

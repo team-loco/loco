@@ -3,6 +3,7 @@ package tvm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	queries "github.com/team-loco/loco/api/gen/db"
@@ -14,12 +15,14 @@ import (
 func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse) (queries.User, string, error) {
 	address, err := email.Address()
 	if err != nil {
+		slog.Error(err.Error())
 		return queries.User{}, "", ErrExchange
 	}
 
 	// get the user and their scopes by their email
 	userWithScopes, err := tvm.queries.GetUserWithScopesByEmail(ctx, address)
 	if err != nil {
+		slog.Error(err.Error())
 		return queries.User{}, "", ErrUserNotFound
 	}
 

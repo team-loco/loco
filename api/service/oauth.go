@@ -91,7 +91,7 @@ type GithubUser struct {
 var OAuthConf = &oauth2.Config{
 	ClientID:     os.Getenv("GH_OAUTH_CLIENT_ID"),
 	ClientSecret: os.Getenv("GH_OAUTH_CLIENT_SECRET"),
-	Scopes:       []string{"read:user user:email"},
+	Scopes:       []string{"read:user", "user:email"},
 	Endpoint:     github.Endpoint,
 }
 
@@ -189,7 +189,7 @@ func (s *OAuthServer) GetGithubAuthorizationURL(
 		State:            state,
 	})
 
-	slog.InfoContext(ctx, "generated github authorization url", "state", state, "authUrl", authURL)
+	slog.InfoContext(ctx, "generated github authorization url")
 	return res, nil
 }
 
@@ -230,6 +230,10 @@ func (s *OAuthServer) ExchangeGithubCode(
 	}
 
 	user, locoToken, err := s.machine.Exchange(ctx, providers.Github(token.AccessToken))
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to exchange token", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 
 	res := connect.NewResponse(&oAuth.ExchangeGithubCodeResponse{
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),

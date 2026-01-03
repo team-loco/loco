@@ -12,8 +12,8 @@ import (
 
 type TestingQueries struct {
 	// here's the database:
-	// org 1, workspace 1, 2, app 1 in ws 1, app 2 in ws 2
-	// org 2, workspace 3, app 3 in ws 3
+	// org 1, workspace 1, 2, resource 1 in ws 1, resource 2 in ws 2
+	// org 2, workspace 3, resource 3 in ws 3
 	// user 1 user1@loco-testing.com: has no scopes
 	// user 2 user2@loco-testing.com: r, w, a of org 1
 	// user 3 user3@loco-testing.com: r, w of org 1
@@ -39,6 +39,7 @@ func (*TestingQueries) GetUserByEmail(ctx context.Context, email string) (querie
 		return queries.User{}, tvm.ErrUserNotFound
 	}
 }
+
 func (*TestingQueries) GetUserScopes(ctx context.Context, userID int64) ([]queries.EntityScope, error) {
 	switch userID {
 	case 1:
@@ -84,6 +85,7 @@ func (*TestingQueries) GetUserScopes(ctx context.Context, userID int64) ([]queri
 		return nil, tvm.ErrUserNotFound
 	}
 }
+
 func (tq *TestingQueries) GetUserScopesByEmail(ctx context.Context, email string) ([]queries.EntityScope, error) {
 	switch email {
 	case "user1@loco-testing.com":
@@ -100,6 +102,7 @@ func (tq *TestingQueries) GetUserScopesByEmail(ctx context.Context, email string
 		return nil, tvm.ErrUserNotFound
 	}
 }
+
 func (tq *TestingQueries) GetUserWithScopesByEmail(ctx context.Context, email string) (queries.UserWithScopesView, error) {
 	user, err := tq.GetUserByEmail(ctx, email)
 	if err != nil {
@@ -185,6 +188,7 @@ func (tq *TestingQueries) DeleteExpiredTokens(ctx context.Context) error {
 	}
 	return nil
 }
+
 func TestingGithubProvider(ctx context.Context, token string) providers.EmailResponse {
 	switch token {
 	case "github-token-user1":
@@ -323,20 +327,20 @@ func TestUser2Permissions(t *testing.T) {
 		}
 	})
 
-	t.Run("granted app 2 write via org 1", func(t *testing.T) {
+	t.Run("granted resource 2 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   2,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
-			t.Errorf("expected no error for app 2 write via org 1, got: %v", err)
+			t.Errorf("expected no error for resource 2 write via org 1, got: %v", err)
 		}
 	})
 
-	t.Run("denied app 3 read", func(t *testing.T) {
+	t.Run("denied resource 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeRead,
 		})
@@ -423,20 +427,20 @@ func TestUser3Permissions(t *testing.T) {
 		}
 	})
 
-	t.Run("granted app 1 write via org 1", func(t *testing.T) {
+	t.Run("granted resource 1 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
-			t.Errorf("expected no error for app 1 write via org 1, got: %v", err)
+			t.Errorf("expected no error for resource 1 write via org 1, got: %v", err)
 		}
 	})
 
-	t.Run("denied app 3 read", func(t *testing.T) {
+	t.Run("denied resource 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeRead,
 		})
@@ -523,31 +527,31 @@ func TestUser4Permissions(t *testing.T) {
 		}
 	})
 
-	t.Run("granted app 1 read via workspace 1", func(t *testing.T) {
+	t.Run("granted resource 1 read via workspace 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
-			t.Errorf("expected no error for app 1 read via workspace 1, got: %v", err)
+			t.Errorf("expected no error for resource 1 read via workspace 1, got: %v", err)
 		}
 	})
 
-	t.Run("denied app 1 write", func(t *testing.T) {
+	t.Run("denied resource 1 write", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != tvm.ErrInsufficentPermissions {
-			t.Errorf("expected insufficient permissions error for app 1 write, got: %v", err)
+			t.Errorf("expected insufficient permissions error for resource 1 write, got: %v", err)
 		}
 	})
 
-	t.Run("denied app 2 read", func(t *testing.T) {
+	t.Run("denied resource 2 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   2,
 			Scope:      queries.ScopeRead,
 		})
@@ -656,42 +660,42 @@ func TestUser5Permissions(t *testing.T) {
 		}
 	})
 
-	t.Run("granted app 3 read via workspace 3", func(t *testing.T) {
+	t.Run("granted resource 3 read via workspace 3", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
-			t.Errorf("expected no error for app 3 read via workspace 3, got: %v", err)
+			t.Errorf("expected no error for resource 3 read via workspace 3, got: %v", err)
 		}
 	})
 
-	t.Run("granted app 3 write via workspace 3", func(t *testing.T) {
+	t.Run("granted resource 3 write via workspace 3", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
-			t.Errorf("expected no error for app 3 write via workspace 3, got: %v", err)
+			t.Errorf("expected no error for resource 3 write via workspace 3, got: %v", err)
 		}
 	})
 
-	t.Run("granted app 3 admin via workspace 3", func(t *testing.T) {
+	t.Run("granted resource 3 admin via workspace 3", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != nil {
-			t.Errorf("expected no error for app 3 admin via workspace 3, got: %v", err)
+			t.Errorf("expected no error for resource 3 admin via workspace 3, got: %v", err)
 		}
 	})
 
-	t.Run("denied app 1 read", func(t *testing.T) {
+	t.Run("denied resource 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeRead,
 		})

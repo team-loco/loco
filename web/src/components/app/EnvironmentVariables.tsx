@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { useMutation } from "@connectrpc/connect-query";
 import { updateResourceEnv } from "@/gen/resource/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
 import Loader from "@/assets/loader.svg?react";
@@ -21,13 +22,13 @@ interface EnvVar {
 }
 
 interface EnvironmentVariablesProps {
-	appId: string;
+	resourceId: string;
 	envVars?: EnvVar[];
 	isLoading?: boolean;
 }
 
 export function EnvironmentVariables({
-	appId,
+	resourceId,
 	envVars = [],
 	isLoading = false,
 }: EnvironmentVariablesProps) {
@@ -61,12 +62,12 @@ export function EnvironmentVariables({
 				{} as { [key: string]: string }
 			);
 			await updateEnvMutation.mutateAsync({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				env: envMap,
 			});
 			setIsEditing(false);
 		} catch (error) {
-			console.error("Failed to update env vars:", error);
+			toastConnectError(error, "Failed to update environment variables");
 		}
 	};
 

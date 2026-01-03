@@ -9,11 +9,6 @@ import Loader from "@/assets/loader.svg?react";
 
 export function Login() {
 	const { isAuthenticated } = useAuth();
-
-	if (isAuthenticated) {
-		return <Navigate to="/dashboard" />;
-	}
-
 	const [error, setError] = useState<string | null>(() => {
 		// Check if there's an error from OAuth callback
 		const oauthError = sessionStorage.getItem("oauth_error");
@@ -49,6 +44,9 @@ export function Login() {
 		}
 	};
 
+	if (isAuthenticated) {
+		return <Navigate to="/dashboard" />;
+	}
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-2 min-h-screen bg-white">
 			{/* Left Side - Form */}

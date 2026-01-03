@@ -9,8 +9,8 @@ import { StatusBadge } from "./StatusBadge";
 import { AppMenu } from "./dashboard/AppMenu";
 
 interface AppCardProps {
-	app: Resource;
-	onAppDeleted?: () => void;
+	resource: Resource;
+	onResourceDeleted?: () => void;
 	workspaceId?: bigint;
 }
 
@@ -19,28 +19,28 @@ function getPrimaryDomain(domains?: ResourceDomain[]): ResourceDomain | null {
 	return domains.find((d) => d.isPrimary) || domains[0];
 }
 
-export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
+export function AppCard({ resource, onResourceDeleted, workspaceId }: AppCardProps) {
 	const navigate = useNavigate();
 
 	const handleCardClick = () => {
-		navigate(`/app/${app.id}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
+		navigate(`/resource/${resource.id}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
 	};
 
-	// Format app type for display
-	const appTypeLabel = app.type || "SERVICE";
+	// Format resource type for display
+	const resourceTypeLabel = resource.type || "SERVICE";
 
 	// Format last deployed timestamp
 	const getLastDeployedText = (): string => {
-		if (!app.createdAt) {
+		if (!resource.createdAt) {
 			return "never";
 		}
 
 		try {
 			let timestamp: number;
-			if (typeof app.createdAt === "object" && "seconds" in app.createdAt) {
-				timestamp = Number(app.createdAt.seconds) * 1000;
-			} else if (typeof app.createdAt === "number") {
-				timestamp = app.createdAt;
+			if (typeof resource.createdAt === "object" && "seconds" in resource.createdAt) {
+				timestamp = Number(resource.createdAt.seconds) * 1000;
+			} else if (typeof resource.createdAt === "number") {
+				timestamp = resource.createdAt;
 			} else {
 				return "unknown";
 			}
@@ -70,25 +70,25 @@ export function AppCard({ app, onAppDeleted, workspaceId }: AppCardProps) {
 				<div className="flex items-start justify-between gap-3 mb-4">
 					<div className="flex-1 min-w-0">
 						<h3 className="text-base font-semibold text-foreground truncate group-hover:text-accent transition-colors">
-							{app.name}
+							{resource.name}
 						</h3>
 					</div>
 					<div onClick={(e) => e.stopPropagation()} className="shrink-0">
-						<AppMenu app={app} onAppDeleted={onAppDeleted} />
+						<AppMenu resource={resource} onResourceDeleted={onResourceDeleted} />
 					</div>
 				</div>
 
 				{/* Middle section: Type and Status badges */}
 				<div className="flex items-center gap-2 mb-4">
 					<Badge variant="secondary" className="text-xs">
-						{appTypeLabel}
+						{resourceTypeLabel}
 					</Badge>
-					<StatusBadge status={getStatusLabel(app.status)} />
+					<StatusBadge status={getStatusLabel(resource.status)} />
 				</div>
 
 			{/* Domain section */}
 			{(() => {
-				const primaryDomain = getPrimaryDomain(app.domains);
+				const primaryDomain = getPrimaryDomain(resource.domains);
 				return (
 					primaryDomain && (
 						<div className="mb-4 flex items-center gap-2 group/link cursor-pointer hover:opacity-80 transition-opacity">

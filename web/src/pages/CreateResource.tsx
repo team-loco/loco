@@ -23,13 +23,14 @@ import {
 } from "@/gen/domain/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
+import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Check, Loader, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 
-const APP_TYPES = [
+const RESOURCE_TYPES = [
 	{ value: "SERVICE", label: "Service", description: "Backend service or API" },
 	{ value: "DATABASE", label: "Database", description: "Managed database" },
 	{ value: "FUNCTION", label: "Function", description: "Serverless function" },
@@ -38,14 +39,14 @@ const APP_TYPES = [
 	{ value: "BLOB", label: "Blob Storage", description: "Object storage" },
 ];
 
-export function CreateApp() {
+export function CreateResource() {
 	const navigate = useNavigate();
 	const { workspaceId: paramWorkspaceId } = useParams();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 
-	const [appName, setAppName] = useState("");
-	const [appType, setAppType] = useState("SERVICE");
+	const [resourceName, setResourceName] = useState("");
+	const [resourceType, setResourceType] = useState("SERVICE");
 	const [subdomain, setSubdomain] = useState("");
 	const [selectedPlatformDomain, setSelectedPlatformDomain] =
 		useState<string>("");
@@ -84,16 +85,16 @@ export function CreateApp() {
 		}
 	}, [platformDomains, selectedPlatformDomain]);
 
-	// Auto-fill subdomain from app name (only if user hasn't manually edited it)
+	// Auto-fill subdomain from resource name (only if user hasn't manually edited it)
 	useEffect(() => {
 		if (hasUserEditedSubdomain.current) return;
 
-		const sanitized = appName
+		const sanitized = resourceName
 			.toLowerCase()
 			.replace(/[^a-z0-9-]/g, "")
 			.replace(/^-+|-+$/g, "");
 		setSubdomain(sanitized);
-	}, [appName]);
+	}, [resourceName]);
 
 	// Debounced subdomain availability check
 	useEffect(() => {
@@ -130,8 +131,8 @@ export function CreateApp() {
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
-		if (!appName.trim()) {
-			toast.error("App name is required");
+		if (!resourceName.trim()) {
+			toast.error("Resource name is required");
 			return;
 		}
 
@@ -151,10 +152,10 @@ export function CreateApp() {
 			);
 
 			const res = await createResourceMutation.mutateAsync({
-				name: appName,
+				name: resourceName,
 				workspaceId:
 					typeof workspaceId === "string" ? BigInt(workspaceId) : workspaceId,
-				type: ResourceType[appType as keyof typeof ResourceType],
+				type: ResourceType[resourceType as keyof typeof ResourceType],
 				domain: {
 					domainSource: DomainType.PLATFORM_PROVIDED,
 					subdomain: subdomain,
@@ -173,9 +174,7 @@ export function CreateApp() {
 				toast.error("Failed to create resource");
 			}
 		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : "Failed to create resource";
-			toast.error(message);
+			toast.error(getErrorMessage(error, "Failed to create resource"));
 		}
 	};
 
@@ -197,14 +196,14 @@ export function CreateApp() {
 						<CardTitle className="text-lg">Resource Name</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<Label htmlFor="app-name" className="text-sm mb-2 block">
+						<Label htmlFor="resource-name" className="text-sm mb-2 block">
 							Name
 						</Label>
 						<Input
-							id="app-name"
+							id="resource-name"
 							placeholder="e.g., API v2, Database, Worker"
-							value={appName}
-							onChange={(e) => setAppName(e.target.value)}
+							value={resourceName}
+							onChange={(e) => setResourceName(e.target.value)}
 							className="border-border"
 						/>
 					</CardContent>
@@ -220,13 +219,13 @@ export function CreateApp() {
 					</CardHeader>
 					<CardContent>
 						<div className="grid grid-cols-2 gap-3">
-							{APP_TYPES.map((type) => (
+							{RESOURCE_TYPES.map((type) => (
 								<button
 									key={type.value}
 									type="button"
-									onClick={() => setAppType(type.value)}
+									onClick={() => setResourceType(type.value)}
 									className={`p-4 rounded-lg border-2 text-left transition-all ${
-										appType === type.value
+										resourceType === type.value
 											? "border-main bg-main/5"
 											: "border-border hover:border-main/50"
 									}`}
@@ -335,7 +334,7 @@ export function CreateApp() {
 						disabled={
 							!!(
 								createResourceMutation.isPending ||
-								!appName.trim() ||
+								!resourceName.trim() ||
 								(subdomain.trim() !== "" &&
 									(subdomainAvailability === "unavailable" ||
 										subdomainAvailability === "checking"))

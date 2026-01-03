@@ -15,6 +15,7 @@ import {
 	DeploymentPhase,
 	type Deployment,
 } from "@/gen/deployment/v1/deployment_pb";
+import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState, useMemo } from "react";
 import { PHASE_COLOR_MAP, BADGE_COLOR_MAP } from "@/lib/deployment-constants";
@@ -22,13 +23,13 @@ import { getPhaseTooltip, getServiceSpec } from "@/lib/deployment-utils";
 import { Cpu, HardDrive } from "lucide-react";
 
 interface DeploymentStatusCardProps {
-	appId: string;
+	resourceId: string;
 	deployment?: Deployment;
 	isLoading?: boolean;
 }
 
 export function DeploymentStatusCard({
-	appId,
+	resourceId,
 	deployment,
 	isLoading = false,
 }: DeploymentStatusCardProps) {
@@ -131,14 +132,14 @@ export function DeploymentStatusCard({
 	const handleApply = async () => {
 		try {
 			await scaleResourceMutation.mutateAsync({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				replicas,
 				cpu: cpuOptions[cpuIndex],
 				memory: memoryOptions[memoryIndex],
 			});
 			setIsEditing(false);
 		} catch (error) {
-			console.error("Failed to scale resource:", error);
+			toastConnectError(error, "Failed to scale resource");
 		}
 	};
 

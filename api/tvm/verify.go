@@ -45,8 +45,8 @@ func (tvm *VendingMachine) VerifyWithGivenEntityScopes(ctx context.Context, give
 				Scope:      entityScope.Scope,
 			},
 		}
-	case queries.EntityTypeApp:
-		// lookup the workspace and org id for the app
+	case queries.EntityTypeResource:
+		// lookup the workspace and org id for the resource
 		ids, err := tvm.queries.GetWorkspaceOrganizationIDByResourceID(ctx, entityScope.EntityID)
 		if err != nil {
 			// note: again this could be another eror
@@ -86,7 +86,7 @@ func (tvm *VendingMachine) VerifyWithGivenEntityScopes(ctx context.Context, give
 // Verify verifies that the given token has the entityScope required, either explicitly or implicitly. It returns an error if an error
 // occurs, if the entity does not exist [ErrEntityNotFound], or if the token does not have sufficient permissions [ErrInsufficentPermissions].
 // It also returns the entity associated with the token, for example, log in tokens will return the user entity, and tokens issues for an
-// application will return the application entity.
+// Resource will return the resource entity.
 func (tvm *VendingMachine) VerifyWithEntity(ctx context.Context, token string, entityScope queries.EntityScope) (queries.Entity, error) {
 	tokenData, err := tvm.queries.GetToken(ctx, token)
 	if err != nil {

@@ -3,7 +3,7 @@ package db
 import "time"
 
 type Entity struct {
-	Type EntityType // e.g. "user", "app", "workspace", "organization"
+	Type EntityType // e.g. "user", "resource", "workspace", "organization"
 	ID   int64      // unique identifier for the entity
 }
 

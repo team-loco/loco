@@ -9,11 +9,11 @@ import { toast } from "sonner";
 import { getStatusLabel } from "@/lib/app-status";
 
 interface AppHeaderProps {
-	app: Resource | null;
+	resource: Resource | null;
 	isLoading?: boolean;
 }
 
-export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
+export function AppHeader({ resource, isLoading = false }: AppHeaderProps) {
 	const navigate = useNavigate();
 
 	if (isLoading) {
@@ -25,36 +25,36 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 		);
 	}
 
-	if (!app) {
+	if (!resource) {
 		return null;
 	}
 
-	const primaryDomain = app.domains?.[0]?.domain;
-	const appUrl = primaryDomain || "pending deployment";
-	const appTypeLabel = app.type || "SERVICE";
-	const statusLabel = getStatusLabel(app.status);
-	const regions = app.regions || [];
+	const primaryDomain = resource.domains?.[0]?.domain;
+	const resourceUrl = primaryDomain || "pending deployment";
+	const resourceTypeLabel = resource.type || "SERVICE";
+	const statusLabel = getStatusLabel(resource.status);
+	const regions = resource.regions || [];
 
 	const handleCopyUrl = () => {
-		navigator.clipboard.writeText(`https://${appUrl}`);
+		navigator.clipboard.writeText(`https://${resourceUrl}`);
 		toast.success("URL copied to clipboard");
 	};
 
 	return (
 		<TooltipProvider>
 			<div className="rounded-lg border bg-card p-6 space-y-4">
-				{/* App Name and Status */}
+				{/* Resource Name and Status */}
 				<div className="flex items-start justify-between gap-4">
 					<div>
 						<div className="flex items-center gap-3 mb-2">
 							<h1 className="text-3xl font-heading text-foreground">
-								{app.name}
+								{resource.name}
 							</h1>
-							<Badge variant="secondary">{appTypeLabel}</Badge>
+							<Badge variant="secondary">{resourceTypeLabel}</Badge>
 							<StatusBadge status={statusLabel} />
 						</div>
 					<p className="text-sm text-foreground opacity-70">
-						{app.name || "default"}
+						{resource.name || "default"}
 					</p>
 				</div>
 			</div>
@@ -63,7 +63,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 			<div className="flex flex-col gap-3 pt-4 border-t">
 				<div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
 					<div className="flex-1 flex items-center gap-2 break-all">
-						<span className="text-sm text-foreground">https://{appUrl}</span>
+						<span className="text-sm text-foreground">https://{resourceUrl}</span>
 						<Button
 							size="sm"
 							onClick={handleCopyUrl}
@@ -78,7 +78,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => window.open(`https://${appUrl}`, "_blank")}
+						onClick={() => window.open(`https://${resourceUrl}`, "_blank")}
 						className="flex-1 sm:flex-none"
 					>
 						<ExternalLink className="w-4 h-4 mr-2" />
@@ -87,7 +87,7 @@ export function AppHeader({ app, isLoading = false }: AppHeaderProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => navigate(`/app/${app.id}/settings`)}
+						onClick={() => navigate(`/resource/${resource.id}/settings`)}
 						className="flex-1 sm:flex-none"
 					>
 						<Pencil className="w-4 h-4 mr-2" />

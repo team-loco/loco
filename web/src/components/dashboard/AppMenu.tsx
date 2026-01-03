@@ -10,14 +10,15 @@ import { useNavigate } from "react-router";
 import type { Resource } from "@/gen/resource/v1/resource_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { deleteResource } from "@/gen/resource/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import { useState } from "react";
 
 interface AppMenuProps {
-	app: Resource;
-	onAppDeleted?: () => void;
+	resource: Resource;
+	onResourceDeleted?: () => void;
 }
 
-export function AppMenu({ app, onAppDeleted }: AppMenuProps) {
+export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 	const navigate = useNavigate();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -25,11 +26,11 @@ export function AppMenu({ app, onAppDeleted }: AppMenuProps) {
 
 	const handleDelete = async () => {
 		try {
-			await deleteResourceMutation.mutateAsync({ resourceId: app.id });
+			await deleteResourceMutation.mutateAsync({ resourceId: resource.id });
 			setShowDeleteConfirm(false);
-			onAppDeleted?.();
+			onResourceDeleted?.();
 		} catch (error) {
-			console.error("Failed to delete resource:", error);
+			toastConnectError(error, "Failed to delete resource");
 		}
 	};
 
@@ -50,7 +51,7 @@ export function AppMenu({ app, onAppDeleted }: AppMenuProps) {
 					<DropdownMenuItem
 						onClick={(e) => {
 							e.stopPropagation();
-							navigate(`/resource/${app.id}/settings`);
+							navigate(`/resource/${resource.id}/settings`);
 						}}
 					>
 						Settings
@@ -65,16 +66,16 @@ export function AppMenu({ app, onAppDeleted }: AppMenuProps) {
 						<Trash2 className="h-4 w-4 mr-2" />
 						Delete
 					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+					</DropdownMenuContent>
+					</DropdownMenu>
 
-			{/* Delete Confirmation Dialog */}
-			{showDeleteConfirm && (
-				<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+					{/* Delete Confirmation Dialog */}
+					{showDeleteConfirm && (
+					<div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
 					<div className="bg-background border-2 border-border rounded-lg p-6 max-w-sm">
 						<h3 className="text-lg font-heading mb-2">Delete Resource</h3>
 						<p className="text-sm text-foreground opacity-70 mb-4">
-							Are you sure you want to delete <strong>{app.name}</strong>? This
+							Are you sure you want to delete <strong>{resource.name}</strong>? This
 							action cannot be undone.
 						</p>
 						<div className="flex gap-2 justify-end">

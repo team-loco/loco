@@ -47,7 +47,7 @@ func (tvm *VendingMachine) GetRoles(ctx context.Context, token string) ([]querie
 
 // GetRolesByEntity returns all roles for the given entity and below for the given user. The token must have read on the given entity.
 func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, userID int64, entity queries.Entity) ([]queries.EntityScope, error) {
-	// returns all roles for the given entity and below (so if entity is org, returns org, workspace, app roles that are explicitly listed)
+	// returns all roles for the given entity and below (so if entity is org, returns org, workspace, resource roles that are explicitly listed)
 
 	// must have read on the entity
 	if err := tvm.Verify(ctx, token, queries.EntityScope{
@@ -60,7 +60,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 
 	switch entity.Type {
 	case queries.EntityTypeOrganization:
-		// organization: get all org, workspace, app roles
+		// organization: get all org, workspace, resource roles
 		rows, err := tvm.queries.GetUserScopesOnOrganization(ctx, queries.GetUserScopesOnOrganizationParams{
 			UserID: userID,
 			ID:     entity.ID,
@@ -70,7 +70,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		}
 		return rows, nil
 	case queries.EntityTypeWorkspace:
-		// workspace: get all workspace, app roles
+		// workspace: get all workspace, resource roles
 		rows, err := tvm.queries.GetUserScopesOnWorkspace(ctx, queries.GetUserScopesOnWorkspaceParams{
 			UserID: userID,
 			ID:     entity.ID,
@@ -79,8 +79,8 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)
 		}
 		return rows, nil
-	case queries.EntityTypeApp, queries.EntityTypeUser, queries.EntityTypeSystem:
-		// app or user: only get roles on that entity
+	case queries.EntityTypeResource, queries.EntityTypeUser, queries.EntityTypeSystem:
+		// resource or user: only get roles on that entity
 		userScopes, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
 			UserID:     userID,
 			EntityType: entity.Type,

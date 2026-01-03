@@ -11,20 +11,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { scaleResource } from "@/gen/resource/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { Loader2, Cpu, HardDrive, Layers } from "lucide-react";
 import type { Deployment } from "@/gen/deployment/v1/deployment_pb";
 import { getServiceSpec } from "@/lib/deployment-utils";
 
 interface ScaleCardProps {
-	appId: string;
+	resourceId: string;
 	currentReplicas?: number;
 	deployment?: Deployment;
 	isLoading?: boolean;
 }
 
 export function ScaleCard({
-	appId,
+	resourceId,
 	currentReplicas = 1,
 	deployment,
 	isLoading = false,
@@ -95,13 +96,13 @@ export function ScaleCard({
 	const handleScale = async () => {
 		try {
 			await scale({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				replicas,
 				cpu: cpuOptions[cpuIndex],
 				memory: memoryOptions[memoryIndex],
 			});
 		} catch (error) {
-			console.error("Failed to scale resource:", error);
+			toastConnectError(error, "Failed to scale resource");
 		}
 	};
 

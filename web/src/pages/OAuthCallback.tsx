@@ -1,5 +1,6 @@
 import { exchangeGithubCode } from "@/gen/oauth/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
+import { getErrorMessage } from "@/lib/error-handler";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
@@ -32,7 +33,7 @@ export function OAuthCallback() {
 	);
 
 	// After exchange, check if user has orgs
-	const { data: orgsRes, isLoading: orgsLoading } = useQuery(
+	const { data: orgsRes, isLoading: orgsLoading, error: orgsError } = useQuery(
 		getCurrentUserOrgs,
 		{},
 		{ enabled: !isLoading && !!exchangeRes }
@@ -53,9 +54,16 @@ export function OAuthCallback() {
 		}
 
 		if (queryError) {
-			const errorMsg =
-				queryError.message || "Failed to exchange authorization code";
+			const errorMsg = getErrorMessage(queryError, "Failed to exchange authorization code");
 			console.error("OAuthCallback: Exchange error:", errorMsg);
+			sessionStorage.setItem("oauth_error", errorMsg);
+			navigate("/login");
+			return;
+		}
+
+		if (orgsError) {
+			const errorMsg = getErrorMessage(orgsError, "Failed to load user organizations");
+			console.error("OAuthCallback: Orgs error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
 			navigate("/login");
 			return;
@@ -93,6 +101,7 @@ export function OAuthCallback() {
 		exchangeRes,
 		orgsLoading,
 		orgsRes,
+		orgsError,
 		navigate,
 	]);
 

@@ -21,14 +21,14 @@ import (
 // - 5 users
 // - 2 organizations (org 1 and org 2)
 // - 4 workspaces (wks 1,2 in org 1, wks 3,4 in org 2)
-// - 6 apps (app 1,2 in wks 1; app 3,4 in wks 2; app 5 in wks 3; app 6 in wks 4)
-// app 1,2,3,4 -> org 1
-// app 5,6 -> org 2
+// - 6 apps (resource 1,2 in wks 1; resource 3,4 in wks 2; resource 5 in wks 3; resource 6 in wks 4)
+// Resource 1,2,3,4 -> org 1
+// Resource 5,6 -> org 2
 // user 1 has org 1 r/w/a
 // user 2 has org 2 r/w/a
-// user 3 has org:r/w for org 1 and org 2 and app:rwa for app 1 and app 3
+// user 3 has org:r/w for org 1 and org 2 and resource:rwa for resource 1 and resource 3
 // user 4 has wks:read/write for wks 3
-// user 5 has app:read for app 5 and app 6
+// user 5 has resource:read for resource 5 and resource 6
 // all users have r/w/a on themselves
 // note: no testing of a user w/o r/w/a/ on themselves
 // the createdby fields are not set accordingly and they're irrelevant
@@ -50,10 +50,10 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	q := queries.New(tx)
 
 	// perform seeding operations here
-	var userIDs []int64 // len 5
-	var orgIDs []int64  // len 2
-	var wksIDs []int64  // len 4
-	var appIDs []int64  // len 6
+	var userIDs []int64     // len 5
+	var orgIDs []int64      // len 2
+	var wksIDs []int64      // len 4
+	var resourceIds []int64 // len 6
 	if userIDs, err = seedUsers(ctx, q); err != nil {
 		return err
 	}
@@ -63,10 +63,10 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
 		return err
 	}
-	if appIDs, err = seedApps(ctx, q, wksIDs, userIDs); err != nil {
+	if resourceIds, err = seedResources(ctx, q, wksIDs, userIDs); err != nil {
 		return err
 	}
-	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, appIDs, userIDs); err != nil {
+	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, resourceIds, userIDs); err != nil {
 		return err
 	}
 	return tx.Commit(ctx)
@@ -149,6 +149,16 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 	} else {
 		userIDs = append(userIDs, user5.ID)
 	}
+	if user6, err := queries.CreateUser(ctx, db.CreateUserParams{
+		Name:       opttext("Nikhil Kumar"),
+		Email:      "nikumar1206@gmail.com",
+		ExternalID: "github-nikumar1206",
+		AvatarUrl:  opttext("https://avatars.githubusercontent.com/u/96546721?v=4"),
+	}); err != nil {
+		return nil, fmt.Errorf("creating user 6: %w", err)
+	} else {
+		userIDs = append(userIDs, user6.ID)
+	}
 	return userIDs, nil
 }
 
@@ -226,12 +236,12 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, us
 	return wksIDs, nil
 }
 
-func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs []int64) ([]int64, error) {
-	var appIDs []int64
+func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs []int64) ([]int64, error) {
+	var resourceIds []int64
 
-	if app1ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
+	if resource1Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],              // wks 1
-		Name:        "My First Application", // app 1
+		Name:        "My First Application", // Resource 1
 		Type:        db.ResourceTypeService,
 		Description: "This is my first application",
 		Status:      db.ResourceStatusHealthy,
@@ -239,14 +249,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 		SpecVersion: 1,
 		CreatedBy:   userIDs[2], // user 3
 	}); err != nil {
-		return nil, fmt.Errorf("creating app 1: %w", err)
+		return nil, fmt.Errorf("creating resource 1: %w", err)
 	} else {
-		appIDs = append(appIDs, app1ID)
+		resourceIds = append(resourceIds, resource1Id)
 	}
 
-	if app2ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
+	if resource2Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],               // wks 1
-		Name:        "My Second Application", // app 2
+		Name:        "My Second Application", // Resource 2
 		Type:        db.ResourceTypeService,
 		Description: "This is my second application",
 		Status:      db.ResourceStatusHealthy,
@@ -254,14 +264,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 		SpecVersion: 1,
 		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
-		return nil, fmt.Errorf("creating app 2: %w", err)
+		return nil, fmt.Errorf("creating resource 2: %w", err)
 	} else {
-		appIDs = append(appIDs, app2ID)
+		resourceIds = append(resourceIds, resource2Id)
 	}
 
-	if app3ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
+	if resource3Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[1],              // wks 2
-		Name:        "My Third Application", // app 3
+		Name:        "My Third Application", // Resource 3
 		Type:        db.ResourceTypeService,
 		Description: "This is my third application",
 		Status:      db.ResourceStatusHealthy,
@@ -269,14 +279,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 		SpecVersion: 1,
 		CreatedBy:   userIDs[2], // user 3
 	}); err != nil {
-		return nil, fmt.Errorf("creating app 3: %w", err)
+		return nil, fmt.Errorf("creating resource 3: %w", err)
 	} else {
-		appIDs = append(appIDs, app3ID)
+		resourceIds = append(resourceIds, resource3Id)
 	}
 
-	if app4ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
+	if resource4ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[1],               // wks 2
-		Name:        "My Fourth Application", // app 4
+		Name:        "My Fourth Application", // Resource 4
 		Type:        db.ResourceTypeService,
 		Description: "This is my fourth application",
 		Status:      db.ResourceStatusHealthy,
@@ -284,14 +294,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 		SpecVersion: 1,
 		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
-		return nil, fmt.Errorf("creating app 4: %w", err)
+		return nil, fmt.Errorf("creating resource 4: %w", err)
 	} else {
-		appIDs = append(appIDs, app4ID)
+		resourceIds = append(resourceIds, resource4ID)
 	}
 
-	if app5ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
+	if resource5ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[2],              // wks 3
-		Name:        "My Fifth Application", // app 5
+		Name:        "My Fifth Application", // Resource 5
 		Type:        db.ResourceTypeService,
 		Description: "This is my fifth application",
 		Status:      db.ResourceStatusHealthy,
@@ -299,14 +309,14 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 		SpecVersion: 1,
 		CreatedBy:   userIDs[3], // user 4
 	}); err != nil {
-		return nil, fmt.Errorf("creating app 5: %w", err)
+		return nil, fmt.Errorf("creating resource 5: %w", err)
 	} else {
-		appIDs = append(appIDs, app5ID)
+		resourceIds = append(resourceIds, resource5ID)
 	}
 
-	if app6ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
+	if resource6ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[3],              // wks 4
-		Name:        "My Sixth Application", // app 6
+		Name:        "My Sixth Application", // Resource 6
 		Type:        db.ResourceTypeService,
 		Description: "This is my sixth application",
 		Status:      db.ResourceStatusHealthy,
@@ -314,15 +324,15 @@ func seedApps(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs 
 		SpecVersion: 1,
 		CreatedBy:   userIDs[1], // user 2
 	}); err != nil {
-		return nil, fmt.Errorf("creating app 6: %w", err)
+		return nil, fmt.Errorf("creating resource 6: %w", err)
 	} else {
-		appIDs = append(appIDs, app6ID)
+		resourceIds = append(resourceIds, resource6ID)
 	}
 
-	return appIDs, nil
+	return resourceIds, nil
 }
 
-func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, appIDs, userIDs []int64) error {
+func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, resourceIds, userIDs []int64) error {
 	// user 1: org 1 r/w/a
 	user1Scopes := []db.AddUserScopeParams{
 		{
@@ -401,7 +411,7 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			Scope:      db.ScopeAdmin,
 		},
 	}
-	// user 3: org 1 r/w, org 2 r/w, app 1 r/w/a, app 3 r/w/a
+	// user 3: org 1 r/w, org 2 r/w, resource 1 r/w/a, resource 3 r/w/a
 	user3Scopes := []db.AddUserScopeParams{
 		// org 1 r/w
 		{
@@ -429,42 +439,42 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			EntityID:   orgIDs[1],
 			Scope:      db.ScopeWrite,
 		},
-		// app 1 r/w/a
+		// resource 1 r/w/a
 		{
 			UserID:     userIDs[2],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[0],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[0],
 			Scope:      db.ScopeRead,
 		},
 		{
 			UserID:     userIDs[2],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[0],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[0],
 			Scope:      db.ScopeWrite,
 		},
 		{
 			UserID:     userIDs[2],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[0],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[0],
 			Scope:      db.ScopeAdmin,
 		},
-		// app 3 r/w/a
+		// resource 3 r/w/a
 		{
 			UserID:     userIDs[2],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[2],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[2],
 			Scope:      db.ScopeRead,
 		},
 		{
 			UserID:     userIDs[2],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[2],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[2],
 			Scope:      db.ScopeWrite,
 		},
 		{
 			UserID:     userIDs[2],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[2],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[2],
 			Scope:      db.ScopeAdmin,
 		},
 		{
@@ -519,18 +529,18 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			Scope:      db.ScopeAdmin,
 		},
 	}
-	// user 5: app 5 r, app 6 r
+	// user 5: resource 5 r, resource 6 r
 	user5Scopes := []db.AddUserScopeParams{
 		{
 			UserID:     userIDs[4],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[4],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[4],
 			Scope:      db.ScopeRead,
 		},
 		{
 			UserID:     userIDs[4],
-			EntityType: db.EntityTypeApp,
-			EntityID:   appIDs[5],
+			EntityType: db.EntityTypeResource,
+			EntityID:   resourceIds[5],
 			Scope:      db.ScopeRead,
 		},
 		{
@@ -552,8 +562,28 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 			Scope:      db.ScopeAdmin,
 		},
 	}
+	user6Scopes := []db.AddUserScopeParams{
+		{
+			UserID:     userIDs[5],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[5],
+			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[5],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[5],
+			Scope:      db.ScopeWrite,
+		},
+		{
+			UserID:     userIDs[5],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[5],
+			Scope:      db.ScopeAdmin,
+		},
+	}
 
-	allScopes := slices.Concat(user1Scopes, user2Scopes, user3Scopes, user4Scopes, user5Scopes)
+	allScopes := slices.Concat(user1Scopes, user2Scopes, user3Scopes, user4Scopes, user5Scopes, user6Scopes)
 	for _, scope := range allScopes {
 		if err := queries.AddUserScope(ctx, scope); err != nil {
 			// addiing organization_1:read for user with id 1: bla bla bla
@@ -562,6 +592,10 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, ap
 	}
 	return nil
 }
+
+// func seedClusters(ctx context.Context, q *db.Queries) error {
+// 	q.Clu
+// }
 
 func opttext(s string) pgtype.Text {
 	return pgtype.Text{Valid: true, String: s}
@@ -722,18 +756,18 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	// Apps via org 1 inheritance
-	subtest(ctx, "granted app 1 read via org 1", func(ctx context.Context) error {
+	// Resources via org 1 inheritance
+	subtest(ctx, "granted resource 1 read via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "granted app 2 write via org 1", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 2 write via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   2,
 			Scope:      queries.ScopeWrite,
 		})
@@ -864,27 +898,27 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	// Apps via org 2
-	subtest(ctx, "granted app 5 admin via org 2", func(ctx context.Context) error {
+	// Resources via org 2
+	subtest(ctx, "granted resource 5 admin via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeAdmin,
 		})
 	})
 
-	subtest(ctx, "granted app 6 write via org 2", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 6 write via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   6,
 			Scope:      queries.ScopeWrite,
 		})
 	})
 
-	// apps not via org 2
-	subtest(ctx, "denied app 3 read", func(ctx context.Context) error {
+	// Resources not via org 2
+	subtest(ctx, "denied resource 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeRead,
 		})
@@ -894,9 +928,9 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "denied app 1 read", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeRead,
 		})
@@ -918,7 +952,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	return nil
 }
 
-// user 3 has org:r/w for org 1 and org 2 and app:rwa for app 1 and app 3
+// user 3 has org:r/w for org 1 and org 2 and resource:rwa for resource 1 and resource 3
 func tvmtestuser3(pool *pgxpool.Pool) error {
 	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
 		MaxTokenDuration:   24 * time.Hour * 365,
@@ -931,7 +965,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
 
-	fmt.Printf("\n=== Testing User 3 (ID: %d) - org 1&2 r/w, app 1&3 r/w/a ===\n", user.ID)
+	fmt.Printf("\n=== Testing User 3 (ID: %d) - org 1&2 r/w, resource 1&3 r/w/a ===\n", user.ID)
 
 	subtest(ctx, "exchange successful", func(ctx context.Context) error {
 		if user.ID != 3 {
@@ -1046,50 +1080,50 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 		})
 	})
 
-	// apps: r/w/a for app 1, r/w for app 2, r/w/a for app 3, r/w for app 4, r/w for app 5, r/w for app 6
-	subtest(ctx, "granted app 1 read", func(ctx context.Context) error {
+	// Resources: r/w/a for resource 1, r/w for resource 2, r/w/a for resource 3, r/w for resource 4, r/w for resource 5, r/w for resource 6
+	subtest(ctx, "granted resource 1 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "granted app 1 write", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 1 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeWrite,
 		})
 	})
 
-	subtest(ctx, "granted app 1 admin", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 1 admin", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeAdmin,
 		})
 	})
 
-	subtest(ctx, "granted app 2 read", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 2 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   2,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "granted app 2 write", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 2 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   2,
 			Scope:      queries.ScopeWrite,
 		})
 	})
 
-	subtest(ctx, "denied app 2 admin", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 2 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   2,
 			Scope:      queries.ScopeAdmin,
 		})
@@ -1099,49 +1133,49 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "granted app 3 read", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 3 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "granted app 3 write", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 3 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeWrite,
 		})
 	})
 
-	subtest(ctx, "granted app 3 admin", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 3 admin", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeAdmin,
 		})
 	})
 
-	subtest(ctx, "granted app 4 read", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 4 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   4,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "granted app 4 write", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 4 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   4,
 			Scope:      queries.ScopeWrite,
 		})
 	})
 
-	subtest(ctx, "denied app 4 admin", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 4 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   4,
 			Scope:      queries.ScopeAdmin,
 		})
@@ -1151,25 +1185,25 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "granted app 5 read", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 5 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "granted app 5 write", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 5 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeWrite,
 		})
 	})
 
-	subtest(ctx, "denied app 5 admin", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 5 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeAdmin,
 		})
@@ -1179,25 +1213,25 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "granted app 6 read", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 6 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   6,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "granted app 6 write", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 6 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   6,
 			Scope:      queries.ScopeWrite,
 		})
 	})
 
-	subtest(ctx, "denied app 6 admin", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 6 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   6,
 			Scope:      queries.ScopeAdmin,
 		})
@@ -1314,24 +1348,24 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	// App 5 via workspace 3 (read/write inherited)
-	subtest(ctx, "granted app 5 read via workspace 3", func(ctx context.Context) error {
+	// Resource 5 via workspace 3 (read/write inherited)
+	subtest(ctx, "granted resource 5 read via workspace 3", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeRead,
 		})
 	})
-	subtest(ctx, "granted app 5 write via workspace 3", func(ctx context.Context) error {
+	subtest(ctx, "granted resource 5 write via workspace 3", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeWrite,
 		})
 	})
-	subtest(ctx, "denied app 5 admin", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 5 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeAdmin,
 		})
@@ -1341,9 +1375,9 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "denied app 3 read", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeRead,
 		})
@@ -1352,9 +1386,9 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 		}
 		return nil
 	})
-	subtest(ctx, "denied app 3 write via workspace 3", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 3 write via workspace 3", func(ctx context.Context) error {
 		if err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeWrite,
 		}); err != tvm.ErrInsufficentPermissions {
@@ -1363,9 +1397,9 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "denied app 1 read", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeRead,
 		})
@@ -1387,7 +1421,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	return nil
 }
 
-// user 5 has app:read for app 5 and app 6
+// user 5 has resource:read for resource 5 and resource 6
 func tvmtestuser5(pool *pgxpool.Pool) error {
 	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
 		MaxTokenDuration:   24 * time.Hour * 365,
@@ -1400,7 +1434,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
 
-	fmt.Printf("\n=== Testing User 5 (ID: %d) - app 5&6 r ===\n", user.ID)
+	fmt.Printf("\n=== Testing User 5 (ID: %d) - resource 5&6 r ===\n", user.ID)
 
 	subtest(ctx, "exchange successful", func(ctx context.Context) error {
 		if user.ID != 5 {
@@ -1412,18 +1446,18 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	// App 5 - read only
-	subtest(ctx, "granted app 5 read", func(ctx context.Context) error {
+	// Resource 5 - read only
+	subtest(ctx, "granted resource 5 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "denied app 5 write", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 5 write", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeWrite,
 		})
@@ -1433,9 +1467,9 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "denied app 5 admin", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 5 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   5,
 			Scope:      queries.ScopeAdmin,
 		})
@@ -1445,18 +1479,18 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	// App 6 - read only
-	subtest(ctx, "granted app 6 read", func(ctx context.Context) error {
+	// Resource 6 - read only
+	subtest(ctx, "granted resource 6 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   6,
 			Scope:      queries.ScopeRead,
 		})
 	})
 
-	subtest(ctx, "denied app 6 write", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 6 write", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   6,
 			Scope:      queries.ScopeWrite,
 		})
@@ -1467,9 +1501,9 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	})
 
 	// Other apps - denied
-	subtest(ctx, "denied app 1 read", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   1,
 			Scope:      queries.ScopeRead,
 		})
@@ -1479,9 +1513,9 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "denied app 2 read", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 2 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   2,
 			Scope:      queries.ScopeRead,
 		})
@@ -1491,9 +1525,9 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 		return nil
 	})
 
-	subtest(ctx, "denied app 3 read", func(ctx context.Context) error {
+	subtest(ctx, "denied resource 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
-			EntityType: queries.EntityTypeApp,
+			EntityType: queries.EntityTypeResource,
 			EntityID:   3,
 			Scope:      queries.ScopeRead,
 		})

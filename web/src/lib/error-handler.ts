@@ -17,14 +17,16 @@ export function formatErrorMessage(message: string): string {
 	return formatted;
 }
 
-export function toastConnectError(error: unknown): void {
+export function getErrorMessage(error: unknown, fallback = "An error occurred"): string {
 	if (error instanceof ConnectError) {
-		const message = formatErrorMessage(error.rawMessage);
-		toast.error(message);
+		return formatErrorMessage(error.rawMessage || fallback);
 	} else if (error instanceof Error) {
-		const message = formatErrorMessage(error.message);
-		toast.error(message);
-	} else {
-		toast.error("An unexpected error occurred.");
+		return formatErrorMessage(error.message || fallback);
 	}
+	return formatErrorMessage(fallback);
+}
+
+export function toastConnectError(error: unknown, fallback = "An unexpected error occurred."): void {
+	const message = getErrorMessage(error, fallback);
+	toast.error(message);
 }

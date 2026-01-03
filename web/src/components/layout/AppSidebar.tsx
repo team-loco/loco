@@ -62,8 +62,8 @@ const data = {
 			items: [],
 		},
 		{
-			title: "Apps",
-			url: "/apps",
+			title: "Resources",
+			url: "/resources",
 			icon: Package,
 			items: [],
 		},

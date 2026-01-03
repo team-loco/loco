@@ -4,7 +4,7 @@ import { ResourceService } from "@/gen/resource/v1/resource_pb";
 import type { LogEntry } from "@/gen/resource/v1/resource_pb";
 import { createTransport } from "@/auth/connect-transport";
 
-export function useStreamLogs(appId: string, tailLimit?: number) {
+export function useStreamLogs(resourceId: string, tailLimit?: number) {
 	const [logs, setLogs] = useState<LogEntry[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
@@ -18,7 +18,7 @@ export function useStreamLogs(appId: string, tailLimit?: number) {
 	}, []);
 
 	useEffect(() => {
-		if (!appId) {
+		if (!resourceId) {
 			setIsLoading(false);
 			return;
 		}
@@ -34,7 +34,7 @@ export function useStreamLogs(appId: string, tailLimit?: number) {
 
 				// Stream logs from the server
 				for await (const logEntry of client.streamLogs(
-					{ resourceId: BigInt(appId), limit: tailLimit },
+					{ resourceId: BigInt(resourceId), limit: tailLimit },
 					{ signal: abortController.signal }
 				)) {
 					if (!isMounted) break;
@@ -65,7 +65,7 @@ export function useStreamLogs(appId: string, tailLimit?: number) {
 			isMounted = false;
 			abortController.abort();
 		};
-	}, [appId, refreshKey, tailLimit]);
+	}, [resourceId, refreshKey, tailLimit]);
 
 	return {
 		logs,
