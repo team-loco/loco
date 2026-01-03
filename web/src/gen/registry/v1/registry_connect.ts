@@ -15,12 +15,12 @@ export const RegistryService = {
   typeName: "loco.registry.v1.RegistryService",
   methods: {
     /**
-     * GitlabToken retrieves GitLab registry credentials.
+     * GetGitlabToken retrieves GitLab registry credentials.
      *
-     * @generated from rpc loco.registry.v1.RegistryService.GitlabToken
+     * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
      */
-    gitlabToken: {
-      name: "GitlabToken",
+    getGitlabToken: {
+      name: "GetGitlabToken",
       I: GitlabTokenRequest,
       O: GitlabTokenResponse,
       kind: MethodKind.Unary,

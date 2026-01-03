@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateDeploymentRequest, CreateDeploymentResponse, DeleteDeploymentRequest, DeleteDeploymentResponse, DeploymentEvent, GetDeploymentRequest, GetDeploymentResponse, ListDeploymentsRequest, ListDeploymentsResponse, StreamDeploymentRequest } from "./deployment_pb";
-import { MethodKind } from "@bufbuild/protobuf";
+import { CreateDeploymentRequest, DeleteDeploymentRequest, Deployment, DeploymentEvent, GetDeploymentRequest, ListDeploymentsRequest, ListDeploymentsResponse, WatchDeploymentRequest } from "./deployment_pb";
+import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * DeploymentService manages resource deployments.
@@ -22,7 +22,7 @@ export const DeploymentService = {
     createDeployment: {
       name: "CreateDeployment",
       I: CreateDeploymentRequest,
-      O: CreateDeploymentResponse,
+      O: Deployment,
       kind: MethodKind.Unary,
     },
     /**
@@ -33,7 +33,7 @@ export const DeploymentService = {
     getDeployment: {
       name: "GetDeployment",
       I: GetDeploymentRequest,
-      O: GetDeploymentResponse,
+      O: Deployment,
       kind: MethodKind.Unary,
     },
     /**
@@ -48,13 +48,13 @@ export const DeploymentService = {
       kind: MethodKind.Unary,
     },
     /**
-     * StreamDeployment streams deployment events in real-time.
+     * WatchDeployment streams deployment events in real-time.
      *
-     * @generated from rpc loco.deployment.v1.DeploymentService.StreamDeployment
+     * @generated from rpc loco.deployment.v1.DeploymentService.WatchDeployment
      */
-    streamDeployment: {
-      name: "StreamDeployment",
-      I: StreamDeploymentRequest,
+    watchDeployment: {
+      name: "WatchDeployment",
+      I: WatchDeploymentRequest,
       O: DeploymentEvent,
       kind: MethodKind.ServerStreaming,
     },
@@ -66,7 +66,7 @@ export const DeploymentService = {
     deleteDeployment: {
       name: "DeleteDeployment",
       I: DeleteDeploymentRequest,
-      O: DeleteDeploymentResponse,
+      O: Empty,
       kind: MethodKind.Unary,
     },
   }

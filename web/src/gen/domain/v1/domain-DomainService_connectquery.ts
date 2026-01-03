@@ -13,40 +13,40 @@ import { DomainService } from "./domain_pb";
 export const createPlatformDomain = DomainService.method.createPlatformDomain;
 
 /**
- * GetPlatformDomain retrieves a platform domain by ID.
+ * GetPlatformDomain retrieves a platform domain by ID or name.
  *
  * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
  */
 export const getPlatformDomain = DomainService.method.getPlatformDomain;
 
 /**
- * GetPlatformDomainByName retrieves a platform domain by name.
+ * ListPlatformDomains lists platform domains with optional filters.
  *
- * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomainByName
+ * @generated from rpc loco.domain.v1.DomainService.ListPlatformDomains
  */
-export const getPlatformDomainByName = DomainService.method.getPlatformDomainByName;
+export const listPlatformDomains = DomainService.method.listPlatformDomains;
 
 /**
- * ListActivePlatformDomains lists all active platform domains.
+ * UpdatePlatformDomain updates a platform domain.
  *
- * @generated from rpc loco.domain.v1.DomainService.ListActivePlatformDomains
+ * @generated from rpc loco.domain.v1.DomainService.UpdatePlatformDomain
  */
-export const listActivePlatformDomains = DomainService.method.listActivePlatformDomains;
+export const updatePlatformDomain = DomainService.method.updatePlatformDomain;
 
 /**
- * DeactivatePlatformDomain deactivates a platform domain.
+ * DeletePlatformDomain deletes a platform domain.
  *
- * @generated from rpc loco.domain.v1.DomainService.DeactivatePlatformDomain
+ * @generated from rpc loco.domain.v1.DomainService.DeletePlatformDomain
  */
-export const deactivatePlatformDomain = DomainService.method.deactivatePlatformDomain;
+export const deletePlatformDomain = DomainService.method.deletePlatformDomain;
 
 /**
  * Resource Domain Management
- * AddResourceDomain assigns a domain to a resource.
+ * CreateResourceDomain assigns a domain to a resource.
  *
- * @generated from rpc loco.domain.v1.DomainService.AddResourceDomain
+ * @generated from rpc loco.domain.v1.DomainService.CreateResourceDomain
  */
-export const addResourceDomain = DomainService.method.addResourceDomain;
+export const createResourceDomain = DomainService.method.createResourceDomain;
 
 /**
  * UpdateResourceDomain updates a resource's domain configuration.
@@ -63,24 +63,16 @@ export const updateResourceDomain = DomainService.method.updateResourceDomain;
 export const setPrimaryResourceDomain = DomainService.method.setPrimaryResourceDomain;
 
 /**
- * RemoveResourceDomain removes a domain from a resource.
+ * DeleteResourceDomain removes a domain from a resource.
  *
- * @generated from rpc loco.domain.v1.DomainService.RemoveResourceDomain
+ * @generated from rpc loco.domain.v1.DomainService.DeleteResourceDomain
  */
-export const removeResourceDomain = DomainService.method.removeResourceDomain;
-
-/**
- * Domain Availability
- * CheckDomainAvailability checks if a domain is available.
- *
- * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
- */
-export const checkDomainAvailability = DomainService.method.checkDomainAvailability;
+export const deleteResourceDomain = DomainService.method.deleteResourceDomain;
 
 /**
  * Queries
- * ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
+ * ListLocoOwnedDomains lists all domains owned by Loco with resources.
  *
- * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
+ * @generated from rpc loco.domain.v1.DomainService.ListLocoOwnedDomains
  */
-export const listAllLocoOwnedDomains = DomainService.method.listAllLocoOwnedDomains;
+export const listLocoOwnedDomains = DomainService.method.listLocoOwnedDomains;

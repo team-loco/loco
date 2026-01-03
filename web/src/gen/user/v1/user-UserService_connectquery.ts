@@ -19,11 +19,11 @@ export const createUser = UserService.method.createUser;
 export const getUser = UserService.method.getUser;
 
 /**
- * GetCurrentUser retrieves the current authenticated user.
+ * WhoAmI retrieves the current authenticated user.
  *
- * @generated from rpc loco.user.v1.UserService.GetCurrentUser
+ * @generated from rpc loco.user.v1.UserService.WhoAmI
  */
-export const getCurrentUser = UserService.method.getCurrentUser;
+export const whoAmI = UserService.method.whoAmI;
 
 /**
  * UpdateUser updates user information.

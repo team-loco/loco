@@ -4,8 +4,8 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { EmptySchema, FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_empty, file_google_protobuf_field_mask, file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { DeploymentPhase, DeploymentPhaseJson, HealthCheckConfig, HealthCheckConfigJson, Scalers, ScalersJson } from "../../deployment/v1/deployment_pb";
 import { file_deployment_v1_deployment } from "../../deployment/v1/deployment_pb";
 import type { DomainInput, DomainInputJson, ResourceDomain, ResourceDomainJson } from "../../domain/v1/domain_pb";
@@ -16,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file resource/v1/resource.proto.
  */
 export const file_resource_v1_resource: GenFile = /*@__PURE__*/
-  fileDesc("ChpyZXNvdXJjZS92MS9yZXNvdXJjZS5wcm90bxIQbG9jby5yZXNvdXJjZS52MSJICg1Sb3V0aW5nQ29uZmlnEgwKBHBvcnQYASABKAUSEwoLcGF0aF9wcmVmaXgYAiABKAkSFAoMaWRsZV90aW1lb3V0GAMgASgFIk4KDUxvZ2dpbmdDb25maWcSDwoHZW5hYmxlZBgBIAEoCBIYChByZXRlbnRpb25fcGVyaW9kGAIgASgJEhIKCnN0cnVjdHVyZWQYAyABKAgiPAoNTWV0cmljc0NvbmZpZxIPCgdlbmFibGVkGAEgASgIEgwKBHBhdGgYAiABKAkSDAoEcG9ydBgDIAEoBSKbAQoNVHJhY2luZ0NvbmZpZxIPCgdlbmFibGVkGAEgASgIEhMKC3NhbXBsZV9yYXRlGAIgASgBEjcKBHRhZ3MYAyADKAsyKS5sb2NvLnJlc291cmNlLnYxLlRyYWNpbmdDb25maWcuVGFnc0VudHJ5GisKCVRhZ3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqsBChNPYnNlcnZhYmlsaXR5Q29uZmlnEjAKB2xvZ2dpbmcYASABKAsyHy5sb2NvLnJlc291cmNlLnYxLkxvZ2dpbmdDb25maWcSMAoHbWV0cmljcxgCIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuTWV0cmljc0NvbmZpZxIwCgd0cmFjaW5nGAMgASgLMh8ubG9jby5yZXNvdXJjZS52MS5UcmFjaW5nQ29uZmlnIrgBCgxSZWdpb25UYXJnZXQSDwoHZW5hYmxlZBgBIAEoCBIPCgdwcmltYXJ5GAIgASgIEgsKA2NwdRgDIAEoCRIOCgZtZW1vcnkYBCABKAkSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBRIxCgdzY2FsZXJzGAcgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlNjYWxlcnNIAIgBAUIKCghfc2NhbGVycyLdAgoLU2VydmljZVNwZWMSMAoHcm91dGluZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI8Cg1vYnNlcnZhYmlsaXR5GAIgASgLMiUubG9jby5yZXNvdXJjZS52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEjsKB3JlZ2lvbnMYAyADKAsyKi5sb2NvLnJlc291cmNlLnYxLlNlcnZpY2VTcGVjLlJlZ2lvbnNFbnRyeRJACgxoZWFsdGhfY2hlY2sYBCABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARpOCgxSZWdpb25zRW50cnkSCwoDa2V5GAEgASgJEi0KBXZhbHVlGAIgASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZWdpb25UYXJnZXQ6AjgBQg8KDV9oZWFsdGhfY2hlY2siDgoMRGF0YWJhc2VTcGVjIgsKCUNhY2hlU3BlYyILCglRdWV1ZVNwZWMiCgoIQmxvYlNwZWMihAIKDFJlc291cmNlU3BlYxIwCgdzZXJ2aWNlGAEgASgLMh0ubG9jby5yZXNvdXJjZS52MS5TZXJ2aWNlU3BlY0gAEjIKCGRhdGFiYXNlGAIgASgLMh4ubG9jby5yZXNvdXJjZS52MS5EYXRhYmFzZVNwZWNIABIsCgVjYWNoZRgDIAEoCzIbLmxvY28ucmVzb3VyY2UudjEuQ2FjaGVTcGVjSAASLAoFcXVldWUYBCABKAsyGy5sb2NvLnJlc291cmNlLnYxLlF1ZXVlU3BlY0gAEioKBGJsb2IYBSABKAsyGi5sb2NvLnJlc291cmNlLnYxLkJsb2JTcGVjSABCBgoEc3BlYyLsAwoIUmVzb3VyY2USCgoCaWQYASABKAMSFAoMd29ya3NwYWNlX2lkGAIgASgDEgwKBG5hbWUYAyABKAkSLAoEdHlwZRgEIAEoDjIeLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2VUeXBlEi8KB2RvbWFpbnMYBSADKAsyHi5sb2NvLmRvbWFpbi52MS5SZXNvdXJjZURvbWFpbhIvCgdyZWdpb25zGAYgAygLMh4ubG9jby5yZXNvdXJjZS52MS5SZWdpb25Db25maWcSMAoGc3RhdHVzGAcgASgOMiAubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVN0YXR1cxIxCgRzcGVjGAggASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVNwZWNIAIgBARIUCgxzcGVjX3ZlcnNpb24YCSABKAUSGAoLZGVzY3JpcHRpb24YCiABKAlIAYgBARISCgpjcmVhdGVkX2J5GAsgASgDEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgcKBV9zcGVjQg4KDF9kZXNjcmlwdGlvbiKQAQoMUmVnaW9uQ29uZmlnEg4KBnJlZ2lvbhgBIAEoCRISCgppc19wcmltYXJ5GAIgASgIEjQKBnN0YXR1cxgDIAEoDjIkLmxvY28ucmVzb3VyY2UudjEuUmVnaW9uSW50ZW50U3RhdHVzEhcKCmxhc3RfZXJyb3IYBCABKAlIAIgBAUINCgtfbGFzdF9lcnJvciLuAQoVQ3JlYXRlUmVzb3VyY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIMCgRuYW1lGAIgASgJEiwKBHR5cGUYAyABKA4yHi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlVHlwZRIrCgZkb21haW4YBCABKAsyGy5sb2NvLmRvbWFpbi52MS5Eb21haW5JbnB1dBIsCgRzcGVjGAUgASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVNwZWMSGAoLZGVzY3JpcHRpb24YBiABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24iLQoWQ3JlYXRlUmVzb3VyY2VSZXNwb25zZRITCgtyZXNvdXJjZV9pZBgBIAEoAyIpChJHZXRSZXNvdXJjZVJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMiQwoTR2V0UmVzb3VyY2VSZXNwb25zZRIsCghyZXNvdXJjZRgBIAEoCzIaLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2UiPgoYR2V0UmVzb3VyY2VCeU5hbWVSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIMCgRuYW1lGAIgASgJIkkKGUdldFJlc291cmNlQnlOYW1lUmVzcG9uc2USLAoIcmVzb3VyY2UYASABKAsyGi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlIiwKFExpc3RSZXNvdXJjZXNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAyJGChVMaXN0UmVzb3VyY2VzUmVzcG9uc2USLQoJcmVzb3VyY2VzGAEgAygLMhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZSKOAQoVVXBkYXRlUmVzb3VyY2VSZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDEhEKBG5hbWUYAiABKAlIAIgBARIWCglzdWJkb21haW4YAyABKAlIAYgBARITCgZkb21haW4YBCABKAlIAogBAUIHCgVfbmFtZUIMCgpfc3ViZG9tYWluQgkKB19kb21haW4iPgoWVXBkYXRlUmVzb3VyY2VSZXNwb25zZRITCgtyZXNvdXJjZV9pZBgBIAEoAxIPCgdtZXNzYWdlGAIgASgJIiwKFURlbGV0ZVJlc291cmNlUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAyI+ChZEZWxldGVSZXNvdXJjZVJlc3BvbnNlEhMKC3Jlc291cmNlX2lkGAEgASgDEg8KB21lc3NhZ2UYAiABKAkiRwoKUmVnaW9uSW5mbxIOCgZyZWdpb24YASABKAkSEgoKaXNfZGVmYXVsdBgCIAEoCBIVCg1oZWFsdGhfc3RhdHVzGAMgASgJIhQKEkxpc3RSZWdpb25zUmVxdWVzdCJEChNMaXN0UmVnaW9uc1Jlc3BvbnNlEi0KB3JlZ2lvbnMYASADKAsyHC5sb2NvLnJlc291cmNlLnYxLlJlZ2lvbkluZm8iLwoYR2V0UmVzb3VyY2VTdGF0dXNSZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDIocBChBEZXBsb3ltZW50U3RhdHVzEgoKAmlkGAEgASgDEjMKBnN0YXR1cxgCIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USEAoIcmVwbGljYXMYAyABKAUSFAoHbWVzc2FnZRgEIAEoCUgAiAEBQgoKCF9tZXNzYWdlIokBChlHZXRSZXNvdXJjZVN0YXR1c1Jlc3BvbnNlEiwKCHJlc291cmNlGAEgASgLMhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZRI+ChJjdXJyZW50X2RlcGxveW1lbnQYAiABKAsyIi5sb2NvLnJlc291cmNlLnYxLkRlcGxveW1lbnRTdGF0dXMiZgoRU3RyZWFtTG9nc1JlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSEgoFbGltaXQYAiABKAVIAIgBARITCgZmb2xsb3cYAyABKAhIAYgBAUIICgZfbGltaXRCCQoHX2ZvbGxvdyKNAQoITG9nRW50cnkSEAoIcG9kX25hbWUYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJEhEKCWNvbnRhaW5lchgDIAEoCRItCgl0aW1lc3RhbXAYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgsKA2xvZxgFIAEoCRINCgVsZXZlbBgGIAEoCSJ3CgVFdmVudBItCgl0aW1lc3RhbXAYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnJlYXNvbhgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEgwKBHR5cGUYBCABKAkSEAoIcG9kX25hbWUYBSABKAkiRQoQR2V0RXZlbnRzUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBQggKBl9saW1pdCI8ChFHZXRFdmVudHNSZXNwb25zZRInCgZldmVudHMYASADKAsyFy5sb2NvLnJlc291cmNlLnYxLkV2ZW50IqkBChRTY2FsZVJlc291cmNlUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxIVCghyZXBsaWNhcxgCIAEoBUgAiAEBEhAKA2NwdRgDIAEoCUgBiAEBEhMKBm1lbW9yeRgEIAEoCUgCiAEBEhMKBnJlZ2lvbhgFIAEoCUgDiAEBQgsKCV9yZXBsaWNhc0IGCgRfY3B1QgkKB19tZW1vcnlCCQoHX3JlZ2lvbiI/ChVTY2FsZVJlc291cmNlUmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoAxIPCgdtZXNzYWdlGAIgASgJIr0BChhVcGRhdGVSZXNvdXJjZUVudlJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSQAoDZW52GAIgAygLMjMubG9jby5yZXNvdXJjZS52MS5VcGRhdGVSZXNvdXJjZUVudlJlcXVlc3QuRW52RW50cnkSEwoGcmVnaW9uGAMgASgJSACIAQEaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfcmVnaW9uIkMKGVVwZGF0ZVJlc291cmNlRW52UmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoAxIPCgdtZXNzYWdlGAIgASgJKlcKDFJlc291cmNlVHlwZRILCgdTRVJWSUNFEAASDAoIREFUQUJBU0UQARIMCghGVU5DVElPThACEgkKBUNBQ0hFEAMSCQoFUVVFVUUQBBIICgRCTE9CEAUqWgoOUmVzb3VyY2VTdGF0dXMSCwoHSEVBTFRIWRAAEg0KCURFUExPWUlORxABEgwKCERFR1JBREVEEAISDwoLVU5BVkFJTEFCTEUQAxINCglTVVNQRU5ERUQQBCq7AQoSUmVnaW9uSW50ZW50U3RhdHVzEhkKFVJFR0lPTl9JTlRFTlRfREVTSVJFRBAAEh4KGlJFR0lPTl9JTlRFTlRfUFJPVklTSU9OSU5HEAESGAoUUkVHSU9OX0lOVEVOVF9BQ1RJVkUQAhIaChZSRUdJT05fSU5URU5UX0RFR1JBREVEEAMSGgoWUkVHSU9OX0lOVEVOVF9SRU1PVklORxAEEhgKFFJFR0lPTl9JTlRFTlRfRkFJTEVEEAUyrQkKD1Jlc291cmNlU2VydmljZRJjCg5DcmVhdGVSZXNvdXJjZRInLmxvY28ucmVzb3VyY2UudjEuQ3JlYXRlUmVzb3VyY2VSZXF1ZXN0GigubG9jby5yZXNvdXJjZS52MS5DcmVhdGVSZXNvdXJjZVJlc3BvbnNlEloKC0dldFJlc291cmNlEiQubG9jby5yZXNvdXJjZS52MS5HZXRSZXNvdXJjZVJlcXVlc3QaJS5sb2NvLnJlc291cmNlLnYxLkdldFJlc291cmNlUmVzcG9uc2USbAoRR2V0UmVzb3VyY2VCeU5hbWUSKi5sb2NvLnJlc291cmNlLnYxLkdldFJlc291cmNlQnlOYW1lUmVxdWVzdBorLmxvY28ucmVzb3VyY2UudjEuR2V0UmVzb3VyY2VCeU5hbWVSZXNwb25zZRJgCg1MaXN0UmVzb3VyY2VzEiYubG9jby5yZXNvdXJjZS52MS5MaXN0UmVzb3VyY2VzUmVxdWVzdBonLmxvY28ucmVzb3VyY2UudjEuTGlzdFJlc291cmNlc1Jlc3BvbnNlEmMKDlVwZGF0ZVJlc291cmNlEicubG9jby5yZXNvdXJjZS52MS5VcGRhdGVSZXNvdXJjZVJlcXVlc3QaKC5sb2NvLnJlc291cmNlLnYxLlVwZGF0ZVJlc291cmNlUmVzcG9uc2USYwoORGVsZXRlUmVzb3VyY2USJy5sb2NvLnJlc291cmNlLnYxLkRlbGV0ZVJlc291cmNlUmVxdWVzdBooLmxvY28ucmVzb3VyY2UudjEuRGVsZXRlUmVzb3VyY2VSZXNwb25zZRJsChFHZXRSZXNvdXJjZVN0YXR1cxIqLmxvY28ucmVzb3VyY2UudjEuR2V0UmVzb3VyY2VTdGF0dXNSZXF1ZXN0GisubG9jby5yZXNvdXJjZS52MS5HZXRSZXNvdXJjZVN0YXR1c1Jlc3BvbnNlEloKC0xpc3RSZWdpb25zEiQubG9jby5yZXNvdXJjZS52MS5MaXN0UmVnaW9uc1JlcXVlc3QaJS5sb2NvLnJlc291cmNlLnYxLkxpc3RSZWdpb25zUmVzcG9uc2USTwoKU3RyZWFtTG9ncxIjLmxvY28ucmVzb3VyY2UudjEuU3RyZWFtTG9nc1JlcXVlc3QaGi5sb2NvLnJlc291cmNlLnYxLkxvZ0VudHJ5MAESVAoJR2V0RXZlbnRzEiIubG9jby5yZXNvdXJjZS52MS5HZXRFdmVudHNSZXF1ZXN0GiMubG9jby5yZXNvdXJjZS52MS5HZXRFdmVudHNSZXNwb25zZRJgCg1TY2FsZVJlc291cmNlEiYubG9jby5yZXNvdXJjZS52MS5TY2FsZVJlc291cmNlUmVxdWVzdBonLmxvY28ucmVzb3VyY2UudjEuU2NhbGVSZXNvdXJjZVJlc3BvbnNlEmwKEVVwZGF0ZVJlc291cmNlRW52EioubG9jby5yZXNvdXJjZS52MS5VcGRhdGVSZXNvdXJjZUVudlJlcXVlc3QaKy5sb2NvLnJlc291cmNlLnYxLlVwZGF0ZVJlc291cmNlRW52UmVzcG9uc2VCP1o9Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9zaGFyZWQvcHJvdG8vcmVzb3VyY2UvdjE7cmVzb3VyY2V2MWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_deployment_v1_deployment, file_domain_v1_domain]);
+  fileDesc("ChpyZXNvdXJjZS92MS9yZXNvdXJjZS5wcm90bxIQbG9jby5yZXNvdXJjZS52MSJICg1Sb3V0aW5nQ29uZmlnEgwKBHBvcnQYASABKAUSEwoLcGF0aF9wcmVmaXgYAiABKAkSFAoMaWRsZV90aW1lb3V0GAMgASgFIk4KDUxvZ2dpbmdDb25maWcSDwoHZW5hYmxlZBgBIAEoCBIYChByZXRlbnRpb25fcGVyaW9kGAIgASgJEhIKCnN0cnVjdHVyZWQYAyABKAgiPAoNTWV0cmljc0NvbmZpZxIPCgdlbmFibGVkGAEgASgIEgwKBHBhdGgYAiABKAkSDAoEcG9ydBgDIAEoBSKbAQoNVHJhY2luZ0NvbmZpZxIPCgdlbmFibGVkGAEgASgIEhMKC3NhbXBsZV9yYXRlGAIgASgBEjcKBHRhZ3MYAyADKAsyKS5sb2NvLnJlc291cmNlLnYxLlRyYWNpbmdDb25maWcuVGFnc0VudHJ5GisKCVRhZ3NFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIqsBChNPYnNlcnZhYmlsaXR5Q29uZmlnEjAKB2xvZ2dpbmcYASABKAsyHy5sb2NvLnJlc291cmNlLnYxLkxvZ2dpbmdDb25maWcSMAoHbWV0cmljcxgCIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuTWV0cmljc0NvbmZpZxIwCgd0cmFjaW5nGAMgASgLMh8ubG9jby5yZXNvdXJjZS52MS5UcmFjaW5nQ29uZmlnIrgBCgxSZWdpb25UYXJnZXQSDwoHZW5hYmxlZBgBIAEoCBIPCgdwcmltYXJ5GAIgASgIEgsKA2NwdRgDIAEoCRIOCgZtZW1vcnkYBCABKAkSFAoMbWluX3JlcGxpY2FzGAUgASgFEhQKDG1heF9yZXBsaWNhcxgGIAEoBRIxCgdzY2FsZXJzGAcgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlNjYWxlcnNIAIgBAUIKCghfc2NhbGVycyLdAgoLU2VydmljZVNwZWMSMAoHcm91dGluZxgBIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI8Cg1vYnNlcnZhYmlsaXR5GAIgASgLMiUubG9jby5yZXNvdXJjZS52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEjsKB3JlZ2lvbnMYAyADKAsyKi5sb2NvLnJlc291cmNlLnYxLlNlcnZpY2VTcGVjLlJlZ2lvbnNFbnRyeRJACgxoZWFsdGhfY2hlY2sYBCABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARpOCgxSZWdpb25zRW50cnkSCwoDa2V5GAEgASgJEi0KBXZhbHVlGAIgASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZWdpb25UYXJnZXQ6AjgBQg8KDV9oZWFsdGhfY2hlY2siDgoMRGF0YWJhc2VTcGVjIgsKCUNhY2hlU3BlYyILCglRdWV1ZVNwZWMiCgoIQmxvYlNwZWMihAIKDFJlc291cmNlU3BlYxIwCgdzZXJ2aWNlGAEgASgLMh0ubG9jby5yZXNvdXJjZS52MS5TZXJ2aWNlU3BlY0gAEjIKCGRhdGFiYXNlGAIgASgLMh4ubG9jby5yZXNvdXJjZS52MS5EYXRhYmFzZVNwZWNIABIsCgVjYWNoZRgDIAEoCzIbLmxvY28ucmVzb3VyY2UudjEuQ2FjaGVTcGVjSAASLAoFcXVldWUYBCABKAsyGy5sb2NvLnJlc291cmNlLnYxLlF1ZXVlU3BlY0gAEioKBGJsb2IYBSABKAsyGi5sb2NvLnJlc291cmNlLnYxLkJsb2JTcGVjSABCBgoEc3BlYyLsAwoIUmVzb3VyY2USCgoCaWQYASABKAMSFAoMd29ya3NwYWNlX2lkGAIgASgDEgwKBG5hbWUYAyABKAkSLAoEdHlwZRgEIAEoDjIeLmxvY28ucmVzb3VyY2UudjEuUmVzb3VyY2VUeXBlEi8KB2RvbWFpbnMYBSADKAsyHi5sb2NvLmRvbWFpbi52MS5SZXNvdXJjZURvbWFpbhIvCgdyZWdpb25zGAYgAygLMh4ubG9jby5yZXNvdXJjZS52MS5SZWdpb25Db25maWcSMAoGc3RhdHVzGAcgASgOMiAubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVN0YXR1cxIxCgRzcGVjGAggASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVNwZWNIAIgBARIUCgxzcGVjX3ZlcnNpb24YCSABKAUSGAoLZGVzY3JpcHRpb24YCiABKAlIAYgBARISCgpjcmVhdGVkX2J5GAsgASgDEi4KCmNyZWF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgcKBV9zcGVjQg4KDF9kZXNjcmlwdGlvbiKQAQoMUmVnaW9uQ29uZmlnEg4KBnJlZ2lvbhgBIAEoCRISCgppc19wcmltYXJ5GAIgASgIEjQKBnN0YXR1cxgDIAEoDjIkLmxvY28ucmVzb3VyY2UudjEuUmVnaW9uSW50ZW50U3RhdHVzEhcKCmxhc3RfZXJyb3IYBCABKAlIAIgBAUINCgtfbGFzdF9lcnJvciLuAQoVQ3JlYXRlUmVzb3VyY2VSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIMCgRuYW1lGAIgASgJEiwKBHR5cGUYAyABKA4yHi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlVHlwZRIrCgZkb21haW4YBCABKAsyGy5sb2NvLmRvbWFpbi52MS5Eb21haW5JbnB1dBIsCgRzcGVjGAUgASgLMh4ubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZVNwZWMSGAoLZGVzY3JpcHRpb24YBiABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24ihgEKEkdldFJlc291cmNlUmVxdWVzdBIYCgtyZXNvdXJjZV9pZBgBIAEoA0gAiAEBEhEKBG5hbWUYAiABKAlIAYgBARIZCgx3b3Jrc3BhY2VfaWQYAyABKANIAogBAUIOCgxfcmVzb3VyY2VfaWRCBwoFX25hbWVCDwoNX3dvcmtzcGFjZV9pZCJUCh1MaXN0V29ya3NwYWNlUmVzb3VyY2VzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFImQKHkxpc3RXb3Jrc3BhY2VSZXNvdXJjZXNSZXNwb25zZRItCglyZXNvdXJjZXMYASADKAsyGi5sb2NvLnJlc291cmNlLnYxLlJlc291cmNlEhMKC3RvdGFsX2NvdW50GAIgASgDIqMBChVVcGRhdGVSZXNvdXJjZVJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhEKBG5hbWUYAyABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgEIAEoCUgBiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbiIsChVEZWxldGVSZXNvdXJjZVJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMiRwoKUmVnaW9uSW5mbxIOCgZyZWdpb24YASABKAkSEgoKaXNfZGVmYXVsdBgCIAEoCBIVCg1oZWFsdGhfc3RhdHVzGAMgASgJIhQKEkxpc3RSZWdpb25zUmVxdWVzdCJEChNMaXN0UmVnaW9uc1Jlc3BvbnNlEi0KB3JlZ2lvbnMYASADKAsyHC5sb2NvLnJlc291cmNlLnYxLlJlZ2lvbkluZm8iLwoYR2V0UmVzb3VyY2VTdGF0dXNSZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDIocBChBEZXBsb3ltZW50U3RhdHVzEgoKAmlkGAEgASgDEjMKBnN0YXR1cxgCIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USEAoIcmVwbGljYXMYAyABKAUSFAoHbWVzc2FnZRgEIAEoCUgAiAEBQgoKCF9tZXNzYWdlIokBChlHZXRSZXNvdXJjZVN0YXR1c1Jlc3BvbnNlEiwKCHJlc291cmNlGAEgASgLMhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZRI+ChJjdXJyZW50X2RlcGxveW1lbnQYAiABKAsyIi5sb2NvLnJlc291cmNlLnYxLkRlcGxveW1lbnRTdGF0dXMiZQoQV2F0Y2hMb2dzUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxISCgVsaW1pdBgCIAEoBUgAiAEBEhMKBmZvbGxvdxgDIAEoCEgBiAEBQggKBl9saW1pdEIJCgdfZm9sbG93Io0BCghMb2dFbnRyeRIQCghwb2RfbmFtZRgBIAEoCRIRCgluYW1lc3BhY2UYAiABKAkSEQoJY29udGFpbmVyGAMgASgJEi0KCXRpbWVzdGFtcBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASCwoDbG9nGAUgASgJEg0KBWxldmVsGAYgASgJIncKBUV2ZW50Ei0KCXRpbWVzdGFtcBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGcmVhc29uGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSDAoEdHlwZRgEIAEoCRIQCghwb2RfbmFtZRgFIAEoCSJOChlMaXN0UmVzb3VyY2VFdmVudHNSZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDEhIKBWxpbWl0GAIgASgFSACIAQFCCAoGX2xpbWl0IkUKGkxpc3RSZXNvdXJjZUV2ZW50c1Jlc3BvbnNlEicKBmV2ZW50cxgBIAMoCzIXLmxvY28ucmVzb3VyY2UudjEuRXZlbnQiqQEKFFNjYWxlUmVzb3VyY2VSZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDEhUKCHJlcGxpY2FzGAIgASgFSACIAQESEAoDY3B1GAMgASgJSAGIAQESEwoGbWVtb3J5GAQgASgJSAKIAQESEwoGcmVnaW9uGAUgASgJSAOIAQFCCwoJX3JlcGxpY2FzQgYKBF9jcHVCCQoHX21lbW9yeUIJCgdfcmVnaW9uIr0BChhVcGRhdGVSZXNvdXJjZUVudlJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSQAoDZW52GAIgAygLMjMubG9jby5yZXNvdXJjZS52MS5VcGRhdGVSZXNvdXJjZUVudlJlcXVlc3QuRW52RW50cnkSEwoGcmVnaW9uGAMgASgJSACIAQEaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfcmVnaW9uKnYKDFJlc291cmNlVHlwZRIdChlSRVNPVVJDRV9UWVBFX1VOU1BFQ0lGSUVEEAASCwoHU0VSVklDRRABEgwKCERBVEFCQVNFEAISDAoIRlVOQ1RJT04QAxIJCgVDQUNIRRAEEgkKBVFVRVVFEAUSCAoEQkxPQhAGKnsKDlJlc291cmNlU3RhdHVzEh8KG1JFU09VUkNFX1NUQVRVU19VTlNQRUNJRklFRBAAEgsKB0hFQUxUSFkQARINCglERVBMT1lJTkcQAhIMCghERUdSQURFRBADEg8KC1VOQVZBSUxBQkxFEAQSDQoJU1VTUEVOREVEEAUq4QEKElJlZ2lvbkludGVudFN0YXR1cxIkCiBSRUdJT05fSU5URU5UX1NUQVRVU19VTlNQRUNJRklFRBAAEhkKFVJFR0lPTl9JTlRFTlRfREVTSVJFRBABEh4KGlJFR0lPTl9JTlRFTlRfUFJPVklTSU9OSU5HEAISGAoUUkVHSU9OX0lOVEVOVF9BQ1RJVkUQAxIaChZSRUdJT05fSU5URU5UX0RFR1JBREVEEAQSGgoWUkVHSU9OX0lOVEVOVF9SRU1PVklORxAFEhgKFFJFR0lPTl9JTlRFTlRfRkFJTEVEEAYylAgKD1Jlc291cmNlU2VydmljZRJVCg5DcmVhdGVSZXNvdXJjZRInLmxvY28ucmVzb3VyY2UudjEuQ3JlYXRlUmVzb3VyY2VSZXF1ZXN0GhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZRJPCgtHZXRSZXNvdXJjZRIkLmxvY28ucmVzb3VyY2UudjEuR2V0UmVzb3VyY2VSZXF1ZXN0GhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZRJVCg5VcGRhdGVSZXNvdXJjZRInLmxvY28ucmVzb3VyY2UudjEuVXBkYXRlUmVzb3VyY2VSZXF1ZXN0GhoubG9jby5yZXNvdXJjZS52MS5SZXNvdXJjZRJRCg5EZWxldGVSZXNvdXJjZRInLmxvY28ucmVzb3VyY2UudjEuRGVsZXRlUmVzb3VyY2VSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EnsKFkxpc3RXb3Jrc3BhY2VSZXNvdXJjZXMSLy5sb2NvLnJlc291cmNlLnYxLkxpc3RXb3Jrc3BhY2VSZXNvdXJjZXNSZXF1ZXN0GjAubG9jby5yZXNvdXJjZS52MS5MaXN0V29ya3NwYWNlUmVzb3VyY2VzUmVzcG9uc2USbAoRR2V0UmVzb3VyY2VTdGF0dXMSKi5sb2NvLnJlc291cmNlLnYxLkdldFJlc291cmNlU3RhdHVzUmVxdWVzdBorLmxvY28ucmVzb3VyY2UudjEuR2V0UmVzb3VyY2VTdGF0dXNSZXNwb25zZRJaCgtMaXN0UmVnaW9ucxIkLmxvY28ucmVzb3VyY2UudjEuTGlzdFJlZ2lvbnNSZXF1ZXN0GiUubG9jby5yZXNvdXJjZS52MS5MaXN0UmVnaW9uc1Jlc3BvbnNlEk0KCVdhdGNoTG9ncxIiLmxvY28ucmVzb3VyY2UudjEuV2F0Y2hMb2dzUmVxdWVzdBoaLmxvY28ucmVzb3VyY2UudjEuTG9nRW50cnkwARJvChJMaXN0UmVzb3VyY2VFdmVudHMSKy5sb2NvLnJlc291cmNlLnYxLkxpc3RSZXNvdXJjZUV2ZW50c1JlcXVlc3QaLC5sb2NvLnJlc291cmNlLnYxLkxpc3RSZXNvdXJjZUV2ZW50c1Jlc3BvbnNlEk8KDVNjYWxlUmVzb3VyY2USJi5sb2NvLnJlc291cmNlLnYxLlNjYWxlUmVzb3VyY2VSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElcKEVVwZGF0ZVJlc291cmNlRW52EioubG9jby5yZXNvdXJjZS52MS5VcGRhdGVSZXNvdXJjZUVudlJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHlCP1o9Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9zaGFyZWQvcHJvdG8vcmVzb3VyY2UvdjE7cmVzb3VyY2V2MWIGcHJvdG8z", [file_google_protobuf_struct, file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty, file_deployment_v1_deployment, file_domain_v1_domain]);
 
 /**
  * RoutingConfig defines routing configuration for a resource.
@@ -962,46 +962,27 @@ export const CreateResourceRequestSchema: GenMessage<CreateResourceRequest, {jso
   messageDesc(file_resource_v1_resource, 14);
 
 /**
- * CreateResourceResponse is the response from creating a resource.
- *
- * @generated from message loco.resource.v1.CreateResourceResponse
- */
-export type CreateResourceResponse = Message<"loco.resource.v1.CreateResourceResponse"> & {
-  /**
-   * @generated from field: int64 resource_id = 1;
-   */
-  resourceId: bigint;
-};
-
-/**
- * CreateResourceResponse is the response from creating a resource.
- *
- * @generated from message loco.resource.v1.CreateResourceResponse
- */
-export type CreateResourceResponseJson = {
-  /**
-   * @generated from field: int64 resource_id = 1;
-   */
-  resourceId?: string;
-};
-
-/**
- * Describes the message loco.resource.v1.CreateResourceResponse.
- * Use `create(CreateResourceResponseSchema)` to create a new message.
- */
-export const CreateResourceResponseSchema: GenMessage<CreateResourceResponse, {jsonType: CreateResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 15);
-
-/**
  * GetResourceRequest is the request to retrieve a resource.
  *
  * @generated from message loco.resource.v1.GetResourceRequest
  */
 export type GetResourceRequest = Message<"loco.resource.v1.GetResourceRequest"> & {
   /**
-   * @generated from field: int64 resource_id = 1;
+   * @generated from field: optional int64 resource_id = 1;
    */
-  resourceId: bigint;
+  resourceId?: bigint;
+
+  /**
+   * @generated from field: optional string name = 2;
+   */
+  name?: string;
+
+  /**
+   * required if looking up by name
+   *
+   * @generated from field: optional int64 workspace_id = 3;
+   */
+  workspaceId?: bigint;
 };
 
 /**
@@ -1011,9 +992,21 @@ export type GetResourceRequest = Message<"loco.resource.v1.GetResourceRequest"> 
  */
 export type GetResourceRequestJson = {
   /**
-   * @generated from field: int64 resource_id = 1;
+   * @generated from field: optional int64 resource_id = 1;
    */
   resourceId?: string;
+
+  /**
+   * @generated from field: optional string name = 2;
+   */
+  name?: string;
+
+  /**
+   * required if looking up by name
+   *
+   * @generated from field: optional int64 workspace_id = 3;
+   */
+  workspaceId?: string;
 };
 
 /**
@@ -1021,172 +1014,99 @@ export type GetResourceRequestJson = {
  * Use `create(GetResourceRequestSchema)` to create a new message.
  */
 export const GetResourceRequestSchema: GenMessage<GetResourceRequest, {jsonType: GetResourceRequestJson}> = /*@__PURE__*/
+  messageDesc(file_resource_v1_resource, 15);
+
+/**
+ * ListWorkspaceResourcesRequest is the request to list resources.
+ *
+ * @generated from message loco.resource.v1.ListWorkspaceResourcesRequest
+ */
+export type ListWorkspaceResourcesRequest = Message<"loco.resource.v1.ListWorkspaceResourcesRequest"> & {
+  /**
+   * @generated from field: int64 workspace_id = 1;
+   */
+  workspaceId: bigint;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: int32 offset = 3;
+   */
+  offset: number;
+};
+
+/**
+ * ListWorkspaceResourcesRequest is the request to list resources.
+ *
+ * @generated from message loco.resource.v1.ListWorkspaceResourcesRequest
+ */
+export type ListWorkspaceResourcesRequestJson = {
+  /**
+   * @generated from field: int64 workspace_id = 1;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit?: number;
+
+  /**
+   * @generated from field: int32 offset = 3;
+   */
+  offset?: number;
+};
+
+/**
+ * Describes the message loco.resource.v1.ListWorkspaceResourcesRequest.
+ * Use `create(ListWorkspaceResourcesRequestSchema)` to create a new message.
+ */
+export const ListWorkspaceResourcesRequestSchema: GenMessage<ListWorkspaceResourcesRequest, {jsonType: ListWorkspaceResourcesRequestJson}> = /*@__PURE__*/
   messageDesc(file_resource_v1_resource, 16);
 
 /**
- * GetResourceResponse is the response containing resource information.
+ * ListWorkspaceResourcesResponse is the response containing the list of resources.
  *
- * @generated from message loco.resource.v1.GetResourceResponse
+ * @generated from message loco.resource.v1.ListWorkspaceResourcesResponse
  */
-export type GetResourceResponse = Message<"loco.resource.v1.GetResourceResponse"> & {
-  /**
-   * @generated from field: loco.resource.v1.Resource resource = 1;
-   */
-  resource?: Resource;
-};
-
-/**
- * GetResourceResponse is the response containing resource information.
- *
- * @generated from message loco.resource.v1.GetResourceResponse
- */
-export type GetResourceResponseJson = {
-  /**
-   * @generated from field: loco.resource.v1.Resource resource = 1;
-   */
-  resource?: ResourceJson;
-};
-
-/**
- * Describes the message loco.resource.v1.GetResourceResponse.
- * Use `create(GetResourceResponseSchema)` to create a new message.
- */
-export const GetResourceResponseSchema: GenMessage<GetResourceResponse, {jsonType: GetResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 17);
-
-/**
- * GetResourceByNameRequest is the request to retrieve a resource by name.
- *
- * @generated from message loco.resource.v1.GetResourceByNameRequest
- */
-export type GetResourceByNameRequest = Message<"loco.resource.v1.GetResourceByNameRequest"> & {
-  /**
-   * @generated from field: int64 workspace_id = 1;
-   */
-  workspaceId: bigint;
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name: string;
-};
-
-/**
- * GetResourceByNameRequest is the request to retrieve a resource by name.
- *
- * @generated from message loco.resource.v1.GetResourceByNameRequest
- */
-export type GetResourceByNameRequestJson = {
-  /**
-   * @generated from field: int64 workspace_id = 1;
-   */
-  workspaceId?: string;
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name?: string;
-};
-
-/**
- * Describes the message loco.resource.v1.GetResourceByNameRequest.
- * Use `create(GetResourceByNameRequestSchema)` to create a new message.
- */
-export const GetResourceByNameRequestSchema: GenMessage<GetResourceByNameRequest, {jsonType: GetResourceByNameRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 18);
-
-/**
- * GetResourceByNameResponse is the response containing the resource.
- *
- * @generated from message loco.resource.v1.GetResourceByNameResponse
- */
-export type GetResourceByNameResponse = Message<"loco.resource.v1.GetResourceByNameResponse"> & {
-  /**
-   * @generated from field: loco.resource.v1.Resource resource = 1;
-   */
-  resource?: Resource;
-};
-
-/**
- * GetResourceByNameResponse is the response containing the resource.
- *
- * @generated from message loco.resource.v1.GetResourceByNameResponse
- */
-export type GetResourceByNameResponseJson = {
-  /**
-   * @generated from field: loco.resource.v1.Resource resource = 1;
-   */
-  resource?: ResourceJson;
-};
-
-/**
- * Describes the message loco.resource.v1.GetResourceByNameResponse.
- * Use `create(GetResourceByNameResponseSchema)` to create a new message.
- */
-export const GetResourceByNameResponseSchema: GenMessage<GetResourceByNameResponse, {jsonType: GetResourceByNameResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 19);
-
-/**
- * ListResourcesRequest is the request to list resources.
- *
- * @generated from message loco.resource.v1.ListResourcesRequest
- */
-export type ListResourcesRequest = Message<"loco.resource.v1.ListResourcesRequest"> & {
-  /**
-   * @generated from field: int64 workspace_id = 1;
-   */
-  workspaceId: bigint;
-};
-
-/**
- * ListResourcesRequest is the request to list resources.
- *
- * @generated from message loco.resource.v1.ListResourcesRequest
- */
-export type ListResourcesRequestJson = {
-  /**
-   * @generated from field: int64 workspace_id = 1;
-   */
-  workspaceId?: string;
-};
-
-/**
- * Describes the message loco.resource.v1.ListResourcesRequest.
- * Use `create(ListResourcesRequestSchema)` to create a new message.
- */
-export const ListResourcesRequestSchema: GenMessage<ListResourcesRequest, {jsonType: ListResourcesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 20);
-
-/**
- * ListResourcesResponse is the response containing the list of resources.
- *
- * @generated from message loco.resource.v1.ListResourcesResponse
- */
-export type ListResourcesResponse = Message<"loco.resource.v1.ListResourcesResponse"> & {
+export type ListWorkspaceResourcesResponse = Message<"loco.resource.v1.ListWorkspaceResourcesResponse"> & {
   /**
    * @generated from field: repeated loco.resource.v1.Resource resources = 1;
    */
   resources: Resource[];
+
+  /**
+   * @generated from field: int64 total_count = 2;
+   */
+  totalCount: bigint;
 };
 
 /**
- * ListResourcesResponse is the response containing the list of resources.
+ * ListWorkspaceResourcesResponse is the response containing the list of resources.
  *
- * @generated from message loco.resource.v1.ListResourcesResponse
+ * @generated from message loco.resource.v1.ListWorkspaceResourcesResponse
  */
-export type ListResourcesResponseJson = {
+export type ListWorkspaceResourcesResponseJson = {
   /**
    * @generated from field: repeated loco.resource.v1.Resource resources = 1;
    */
   resources?: ResourceJson[];
+
+  /**
+   * @generated from field: int64 total_count = 2;
+   */
+  totalCount?: string;
 };
 
 /**
- * Describes the message loco.resource.v1.ListResourcesResponse.
- * Use `create(ListResourcesResponseSchema)` to create a new message.
+ * Describes the message loco.resource.v1.ListWorkspaceResourcesResponse.
+ * Use `create(ListWorkspaceResourcesResponseSchema)` to create a new message.
  */
-export const ListResourcesResponseSchema: GenMessage<ListResourcesResponse, {jsonType: ListResourcesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 21);
+export const ListWorkspaceResourcesResponseSchema: GenMessage<ListWorkspaceResourcesResponse, {jsonType: ListWorkspaceResourcesResponseJson}> = /*@__PURE__*/
+  messageDesc(file_resource_v1_resource, 17);
 
 /**
  * UpdateResourceRequest is the request to update a resource.
@@ -1200,19 +1120,19 @@ export type UpdateResourceRequest = Message<"loco.resource.v1.UpdateResourceRequ
   resourceId: bigint;
 
   /**
-   * @generated from field: optional string name = 2;
+   * @generated from field: google.protobuf.FieldMask update_mask = 2;
+   */
+  updateMask?: FieldMask;
+
+  /**
+   * @generated from field: optional string name = 3;
    */
   name?: string;
 
   /**
-   * @generated from field: optional string subdomain = 3;
+   * @generated from field: optional string description = 4;
    */
-  subdomain?: string;
-
-  /**
-   * @generated from field: optional string domain = 4;
-   */
-  domain?: string;
+  description?: string;
 };
 
 /**
@@ -1227,19 +1147,19 @@ export type UpdateResourceRequestJson = {
   resourceId?: string;
 
   /**
-   * @generated from field: optional string name = 2;
+   * @generated from field: google.protobuf.FieldMask update_mask = 2;
+   */
+  updateMask?: FieldMaskJson;
+
+  /**
+   * @generated from field: optional string name = 3;
    */
   name?: string;
 
   /**
-   * @generated from field: optional string subdomain = 3;
+   * @generated from field: optional string description = 4;
    */
-  subdomain?: string;
-
-  /**
-   * @generated from field: optional string domain = 4;
-   */
-  domain?: string;
+  description?: string;
 };
 
 /**
@@ -1247,48 +1167,7 @@ export type UpdateResourceRequestJson = {
  * Use `create(UpdateResourceRequestSchema)` to create a new message.
  */
 export const UpdateResourceRequestSchema: GenMessage<UpdateResourceRequest, {jsonType: UpdateResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 22);
-
-/**
- * UpdateResourceResponse is the response from updating a resource.
- *
- * @generated from message loco.resource.v1.UpdateResourceResponse
- */
-export type UpdateResourceResponse = Message<"loco.resource.v1.UpdateResourceResponse"> & {
-  /**
-   * @generated from field: int64 resource_id = 1;
-   */
-  resourceId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * UpdateResourceResponse is the response from updating a resource.
- *
- * @generated from message loco.resource.v1.UpdateResourceResponse
- */
-export type UpdateResourceResponseJson = {
-  /**
-   * @generated from field: int64 resource_id = 1;
-   */
-  resourceId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.resource.v1.UpdateResourceResponse.
- * Use `create(UpdateResourceResponseSchema)` to create a new message.
- */
-export const UpdateResourceResponseSchema: GenMessage<UpdateResourceResponse, {jsonType: UpdateResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 23);
+  messageDesc(file_resource_v1_resource, 18);
 
 /**
  * DeleteResourceRequest is the request to delete a resource.
@@ -1319,48 +1198,7 @@ export type DeleteResourceRequestJson = {
  * Use `create(DeleteResourceRequestSchema)` to create a new message.
  */
 export const DeleteResourceRequestSchema: GenMessage<DeleteResourceRequest, {jsonType: DeleteResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 24);
-
-/**
- * DeleteResourceResponse is the response from deleting a resource.
- *
- * @generated from message loco.resource.v1.DeleteResourceResponse
- */
-export type DeleteResourceResponse = Message<"loco.resource.v1.DeleteResourceResponse"> & {
-  /**
-   * @generated from field: int64 resource_id = 1;
-   */
-  resourceId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * DeleteResourceResponse is the response from deleting a resource.
- *
- * @generated from message loco.resource.v1.DeleteResourceResponse
- */
-export type DeleteResourceResponseJson = {
-  /**
-   * @generated from field: int64 resource_id = 1;
-   */
-  resourceId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.resource.v1.DeleteResourceResponse.
- * Use `create(DeleteResourceResponseSchema)` to create a new message.
- */
-export const DeleteResourceResponseSchema: GenMessage<DeleteResourceResponse, {jsonType: DeleteResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 25);
+  messageDesc(file_resource_v1_resource, 19);
 
 /**
  * RegionInfo represents available region information.
@@ -1411,7 +1249,7 @@ export type RegionInfoJson = {
  * Use `create(RegionInfoSchema)` to create a new message.
  */
 export const RegionInfoSchema: GenMessage<RegionInfo, {jsonType: RegionInfoJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 26);
+  messageDesc(file_resource_v1_resource, 20);
 
 /**
  * ListRegionsRequest is the request to list available deployment regions.
@@ -1434,7 +1272,7 @@ export type ListRegionsRequestJson = {
  * Use `create(ListRegionsRequestSchema)` to create a new message.
  */
 export const ListRegionsRequestSchema: GenMessage<ListRegionsRequest, {jsonType: ListRegionsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 27);
+  messageDesc(file_resource_v1_resource, 21);
 
 /**
  * ListRegionsResponse is the response containing available regions.
@@ -1465,7 +1303,7 @@ export type ListRegionsResponseJson = {
  * Use `create(ListRegionsResponseSchema)` to create a new message.
  */
 export const ListRegionsResponseSchema: GenMessage<ListRegionsResponse, {jsonType: ListRegionsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 28);
+  messageDesc(file_resource_v1_resource, 22);
 
 /**
  * GetResourceStatusRequest is the request to retrieve resource status.
@@ -1496,7 +1334,7 @@ export type GetResourceStatusRequestJson = {
  * Use `create(GetResourceStatusRequestSchema)` to create a new message.
  */
 export const GetResourceStatusRequestSchema: GenMessage<GetResourceStatusRequest, {jsonType: GetResourceStatusRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 29);
+  messageDesc(file_resource_v1_resource, 23);
 
 /**
  * DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
@@ -1557,7 +1395,7 @@ export type DeploymentStatusJson = {
  * Use `create(DeploymentStatusSchema)` to create a new message.
  */
 export const DeploymentStatusSchema: GenMessage<DeploymentStatus, {jsonType: DeploymentStatusJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 30);
+  messageDesc(file_resource_v1_resource, 24);
 
 /**
  * GetResourceStatusResponse is the response containing resource status information.
@@ -1598,14 +1436,14 @@ export type GetResourceStatusResponseJson = {
  * Use `create(GetResourceStatusResponseSchema)` to create a new message.
  */
 export const GetResourceStatusResponseSchema: GenMessage<GetResourceStatusResponse, {jsonType: GetResourceStatusResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 31);
+  messageDesc(file_resource_v1_resource, 25);
 
 /**
- * StreamLogsRequest is the request to stream resource logs.
+ * WatchLogsRequest is the request to stream resource logs.
  *
- * @generated from message loco.resource.v1.StreamLogsRequest
+ * @generated from message loco.resource.v1.WatchLogsRequest
  */
-export type StreamLogsRequest = Message<"loco.resource.v1.StreamLogsRequest"> & {
+export type WatchLogsRequest = Message<"loco.resource.v1.WatchLogsRequest"> & {
   /**
    * @generated from field: int64 resource_id = 1;
    */
@@ -1623,11 +1461,11 @@ export type StreamLogsRequest = Message<"loco.resource.v1.StreamLogsRequest"> & 
 };
 
 /**
- * StreamLogsRequest is the request to stream resource logs.
+ * WatchLogsRequest is the request to stream resource logs.
  *
- * @generated from message loco.resource.v1.StreamLogsRequest
+ * @generated from message loco.resource.v1.WatchLogsRequest
  */
-export type StreamLogsRequestJson = {
+export type WatchLogsRequestJson = {
   /**
    * @generated from field: int64 resource_id = 1;
    */
@@ -1645,11 +1483,11 @@ export type StreamLogsRequestJson = {
 };
 
 /**
- * Describes the message loco.resource.v1.StreamLogsRequest.
- * Use `create(StreamLogsRequestSchema)` to create a new message.
+ * Describes the message loco.resource.v1.WatchLogsRequest.
+ * Use `create(WatchLogsRequestSchema)` to create a new message.
  */
-export const StreamLogsRequestSchema: GenMessage<StreamLogsRequest, {jsonType: StreamLogsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 32);
+export const WatchLogsRequestSchema: GenMessage<WatchLogsRequest, {jsonType: WatchLogsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_resource_v1_resource, 26);
 
 /**
  * LogEntry represents a single log line from a pod container within a resource.
@@ -1730,7 +1568,7 @@ export type LogEntryJson = {
  * Use `create(LogEntrySchema)` to create a new message.
  */
 export const LogEntrySchema: GenMessage<LogEntry, {jsonType: LogEntryJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 33);
+  messageDesc(file_resource_v1_resource, 27);
 
 /**
  * Event represents a Kubernetes event related to a resource (e.g., pod created, failed, crash loop).
@@ -1801,14 +1639,14 @@ export type EventJson = {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event, {jsonType: EventJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 34);
+  messageDesc(file_resource_v1_resource, 28);
 
 /**
- * GetEventsRequest is the request to retrieve resource events.
+ * ListResourceEventsRequest is the request to retrieve resource events.
  *
- * @generated from message loco.resource.v1.GetEventsRequest
+ * @generated from message loco.resource.v1.ListResourceEventsRequest
  */
-export type GetEventsRequest = Message<"loco.resource.v1.GetEventsRequest"> & {
+export type ListResourceEventsRequest = Message<"loco.resource.v1.ListResourceEventsRequest"> & {
   /**
    * @generated from field: int64 resource_id = 1;
    */
@@ -1821,11 +1659,11 @@ export type GetEventsRequest = Message<"loco.resource.v1.GetEventsRequest"> & {
 };
 
 /**
- * GetEventsRequest is the request to retrieve resource events.
+ * ListResourceEventsRequest is the request to retrieve resource events.
  *
- * @generated from message loco.resource.v1.GetEventsRequest
+ * @generated from message loco.resource.v1.ListResourceEventsRequest
  */
-export type GetEventsRequestJson = {
+export type ListResourceEventsRequestJson = {
   /**
    * @generated from field: int64 resource_id = 1;
    */
@@ -1838,18 +1676,18 @@ export type GetEventsRequestJson = {
 };
 
 /**
- * Describes the message loco.resource.v1.GetEventsRequest.
- * Use `create(GetEventsRequestSchema)` to create a new message.
+ * Describes the message loco.resource.v1.ListResourceEventsRequest.
+ * Use `create(ListResourceEventsRequestSchema)` to create a new message.
  */
-export const GetEventsRequestSchema: GenMessage<GetEventsRequest, {jsonType: GetEventsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 35);
+export const ListResourceEventsRequestSchema: GenMessage<ListResourceEventsRequest, {jsonType: ListResourceEventsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_resource_v1_resource, 29);
 
 /**
- * GetEventsResponse is the response containing resource events.
+ * ListResourceEventsResponse is the response containing resource events.
  *
- * @generated from message loco.resource.v1.GetEventsResponse
+ * @generated from message loco.resource.v1.ListResourceEventsResponse
  */
-export type GetEventsResponse = Message<"loco.resource.v1.GetEventsResponse"> & {
+export type ListResourceEventsResponse = Message<"loco.resource.v1.ListResourceEventsResponse"> & {
   /**
    * @generated from field: repeated loco.resource.v1.Event events = 1;
    */
@@ -1857,11 +1695,11 @@ export type GetEventsResponse = Message<"loco.resource.v1.GetEventsResponse"> & 
 };
 
 /**
- * GetEventsResponse is the response containing resource events.
+ * ListResourceEventsResponse is the response containing resource events.
  *
- * @generated from message loco.resource.v1.GetEventsResponse
+ * @generated from message loco.resource.v1.ListResourceEventsResponse
  */
-export type GetEventsResponseJson = {
+export type ListResourceEventsResponseJson = {
   /**
    * @generated from field: repeated loco.resource.v1.Event events = 1;
    */
@@ -1869,11 +1707,11 @@ export type GetEventsResponseJson = {
 };
 
 /**
- * Describes the message loco.resource.v1.GetEventsResponse.
- * Use `create(GetEventsResponseSchema)` to create a new message.
+ * Describes the message loco.resource.v1.ListResourceEventsResponse.
+ * Use `create(ListResourceEventsResponseSchema)` to create a new message.
  */
-export const GetEventsResponseSchema: GenMessage<GetEventsResponse, {jsonType: GetEventsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 36);
+export const ListResourceEventsResponseSchema: GenMessage<ListResourceEventsResponse, {jsonType: ListResourceEventsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_resource_v1_resource, 30);
 
 /**
  * ScaleResourceRequest is the request to scale a resource.
@@ -1948,48 +1786,7 @@ export type ScaleResourceRequestJson = {
  * Use `create(ScaleResourceRequestSchema)` to create a new message.
  */
 export const ScaleResourceRequestSchema: GenMessage<ScaleResourceRequest, {jsonType: ScaleResourceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 37);
-
-/**
- * ScaleResourceResponse is the response from scaling a resource.
- *
- * @generated from message loco.resource.v1.ScaleResourceResponse
- */
-export type ScaleResourceResponse = Message<"loco.resource.v1.ScaleResourceResponse"> & {
-  /**
-   * @generated from field: int64 deployment_id = 1;
-   */
-  deploymentId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * ScaleResourceResponse is the response from scaling a resource.
- *
- * @generated from message loco.resource.v1.ScaleResourceResponse
- */
-export type ScaleResourceResponseJson = {
-  /**
-   * @generated from field: int64 deployment_id = 1;
-   */
-  deploymentId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.resource.v1.ScaleResourceResponse.
- * Use `create(ScaleResourceResponseSchema)` to create a new message.
- */
-export const ScaleResourceResponseSchema: GenMessage<ScaleResourceResponse, {jsonType: ScaleResourceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 38);
+  messageDesc(file_resource_v1_resource, 31);
 
 /**
  * UpdateResourceEnvRequest is the request to update resource environment variables.
@@ -2044,48 +1841,7 @@ export type UpdateResourceEnvRequestJson = {
  * Use `create(UpdateResourceEnvRequestSchema)` to create a new message.
  */
 export const UpdateResourceEnvRequestSchema: GenMessage<UpdateResourceEnvRequest, {jsonType: UpdateResourceEnvRequestJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 39);
-
-/**
- * UpdateResourceEnvResponse is the response from updating environment variables.
- *
- * @generated from message loco.resource.v1.UpdateResourceEnvResponse
- */
-export type UpdateResourceEnvResponse = Message<"loco.resource.v1.UpdateResourceEnvResponse"> & {
-  /**
-   * @generated from field: int64 deployment_id = 1;
-   */
-  deploymentId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * UpdateResourceEnvResponse is the response from updating environment variables.
- *
- * @generated from message loco.resource.v1.UpdateResourceEnvResponse
- */
-export type UpdateResourceEnvResponseJson = {
-  /**
-   * @generated from field: int64 deployment_id = 1;
-   */
-  deploymentId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.resource.v1.UpdateResourceEnvResponse.
- * Use `create(UpdateResourceEnvResponseSchema)` to create a new message.
- */
-export const UpdateResourceEnvResponseSchema: GenMessage<UpdateResourceEnvResponse, {jsonType: UpdateResourceEnvResponseJson}> = /*@__PURE__*/
-  messageDesc(file_resource_v1_resource, 40);
+  messageDesc(file_resource_v1_resource, 32);
 
 /**
  * ResourceType categorizes the type of resource being deployed.
@@ -2094,34 +1850,39 @@ export const UpdateResourceEnvResponseSchema: GenMessage<UpdateResourceEnvRespon
  */
 export enum ResourceType {
   /**
-   * @generated from enum value: SERVICE = 0;
+   * @generated from enum value: RESOURCE_TYPE_UNSPECIFIED = 0;
    */
-  SERVICE = 0,
+  RESOURCE_TYPE_UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: DATABASE = 1;
+   * @generated from enum value: SERVICE = 1;
    */
-  DATABASE = 1,
+  SERVICE = 1,
 
   /**
-   * @generated from enum value: FUNCTION = 2;
+   * @generated from enum value: DATABASE = 2;
    */
-  FUNCTION = 2,
+  DATABASE = 2,
 
   /**
-   * @generated from enum value: CACHE = 3;
+   * @generated from enum value: FUNCTION = 3;
    */
-  CACHE = 3,
+  FUNCTION = 3,
 
   /**
-   * @generated from enum value: QUEUE = 4;
+   * @generated from enum value: CACHE = 4;
    */
-  QUEUE = 4,
+  CACHE = 4,
 
   /**
-   * @generated from enum value: BLOB = 5;
+   * @generated from enum value: QUEUE = 5;
    */
-  BLOB = 5,
+  QUEUE = 5,
+
+  /**
+   * @generated from enum value: BLOB = 6;
+   */
+  BLOB = 6,
 }
 
 /**
@@ -2129,7 +1890,7 @@ export enum ResourceType {
  *
  * @generated from enum loco.resource.v1.ResourceType
  */
-export type ResourceTypeJson = "SERVICE" | "DATABASE" | "FUNCTION" | "CACHE" | "QUEUE" | "BLOB";
+export type ResourceTypeJson = "RESOURCE_TYPE_UNSPECIFIED" | "SERVICE" | "DATABASE" | "FUNCTION" | "CACHE" | "QUEUE" | "BLOB";
 
 /**
  * Describes the enum loco.resource.v1.ResourceType.
@@ -2144,29 +1905,34 @@ export const ResourceTypeSchema: GenEnum<ResourceType, ResourceTypeJson> = /*@__
  */
 export enum ResourceStatus {
   /**
-   * @generated from enum value: HEALTHY = 0;
+   * @generated from enum value: RESOURCE_STATUS_UNSPECIFIED = 0;
    */
-  HEALTHY = 0,
+  RESOURCE_STATUS_UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: DEPLOYING = 1;
+   * @generated from enum value: HEALTHY = 1;
    */
-  DEPLOYING = 1,
+  HEALTHY = 1,
 
   /**
-   * @generated from enum value: DEGRADED = 2;
+   * @generated from enum value: DEPLOYING = 2;
    */
-  DEGRADED = 2,
+  DEPLOYING = 2,
 
   /**
-   * @generated from enum value: UNAVAILABLE = 3;
+   * @generated from enum value: DEGRADED = 3;
    */
-  UNAVAILABLE = 3,
+  DEGRADED = 3,
 
   /**
-   * @generated from enum value: SUSPENDED = 4;
+   * @generated from enum value: UNAVAILABLE = 4;
    */
-  SUSPENDED = 4,
+  UNAVAILABLE = 4,
+
+  /**
+   * @generated from enum value: SUSPENDED = 5;
+   */
+  SUSPENDED = 5,
 }
 
 /**
@@ -2174,7 +1940,7 @@ export enum ResourceStatus {
  *
  * @generated from enum loco.resource.v1.ResourceStatus
  */
-export type ResourceStatusJson = "HEALTHY" | "DEPLOYING" | "DEGRADED" | "UNAVAILABLE" | "SUSPENDED";
+export type ResourceStatusJson = "RESOURCE_STATUS_UNSPECIFIED" | "HEALTHY" | "DEPLOYING" | "DEGRADED" | "UNAVAILABLE" | "SUSPENDED";
 
 /**
  * Describes the enum loco.resource.v1.ResourceStatus.
@@ -2189,34 +1955,39 @@ export const ResourceStatusSchema: GenEnum<ResourceStatus, ResourceStatusJson> =
  */
 export enum RegionIntentStatus {
   /**
-   * @generated from enum value: REGION_INTENT_DESIRED = 0;
+   * @generated from enum value: REGION_INTENT_STATUS_UNSPECIFIED = 0;
    */
-  REGION_INTENT_DESIRED = 0,
+  REGION_INTENT_STATUS_UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: REGION_INTENT_PROVISIONING = 1;
+   * @generated from enum value: REGION_INTENT_DESIRED = 1;
    */
-  REGION_INTENT_PROVISIONING = 1,
+  REGION_INTENT_DESIRED = 1,
 
   /**
-   * @generated from enum value: REGION_INTENT_ACTIVE = 2;
+   * @generated from enum value: REGION_INTENT_PROVISIONING = 2;
    */
-  REGION_INTENT_ACTIVE = 2,
+  REGION_INTENT_PROVISIONING = 2,
 
   /**
-   * @generated from enum value: REGION_INTENT_DEGRADED = 3;
+   * @generated from enum value: REGION_INTENT_ACTIVE = 3;
    */
-  REGION_INTENT_DEGRADED = 3,
+  REGION_INTENT_ACTIVE = 3,
 
   /**
-   * @generated from enum value: REGION_INTENT_REMOVING = 4;
+   * @generated from enum value: REGION_INTENT_DEGRADED = 4;
    */
-  REGION_INTENT_REMOVING = 4,
+  REGION_INTENT_DEGRADED = 4,
 
   /**
-   * @generated from enum value: REGION_INTENT_FAILED = 5;
+   * @generated from enum value: REGION_INTENT_REMOVING = 5;
    */
-  REGION_INTENT_FAILED = 5,
+  REGION_INTENT_REMOVING = 5,
+
+  /**
+   * @generated from enum value: REGION_INTENT_FAILED = 6;
+   */
+  REGION_INTENT_FAILED = 6,
 }
 
 /**
@@ -2224,7 +1995,7 @@ export enum RegionIntentStatus {
  *
  * @generated from enum loco.resource.v1.RegionIntentStatus
  */
-export type RegionIntentStatusJson = "REGION_INTENT_DESIRED" | "REGION_INTENT_PROVISIONING" | "REGION_INTENT_ACTIVE" | "REGION_INTENT_DEGRADED" | "REGION_INTENT_REMOVING" | "REGION_INTENT_FAILED";
+export type RegionIntentStatusJson = "REGION_INTENT_STATUS_UNSPECIFIED" | "REGION_INTENT_DESIRED" | "REGION_INTENT_PROVISIONING" | "REGION_INTENT_ACTIVE" | "REGION_INTENT_DEGRADED" | "REGION_INTENT_REMOVING" | "REGION_INTENT_FAILED";
 
 /**
  * Describes the enum loco.resource.v1.RegionIntentStatus.
@@ -2246,37 +2017,17 @@ export const ResourceService: GenService<{
   createResource: {
     methodKind: "unary";
     input: typeof CreateResourceRequestSchema;
-    output: typeof CreateResourceResponseSchema;
+    output: typeof ResourceSchema;
   },
   /**
-   * GetResource retrieves a resource by ID.
+   * GetResource retrieves a resource by ID or name.
    *
    * @generated from rpc loco.resource.v1.ResourceService.GetResource
    */
   getResource: {
     methodKind: "unary";
     input: typeof GetResourceRequestSchema;
-    output: typeof GetResourceResponseSchema;
-  },
-  /**
-   * GetResourceByName retrieves a resource by name within a workspace.
-   *
-   * @generated from rpc loco.resource.v1.ResourceService.GetResourceByName
-   */
-  getResourceByName: {
-    methodKind: "unary";
-    input: typeof GetResourceByNameRequestSchema;
-    output: typeof GetResourceByNameResponseSchema;
-  },
-  /**
-   * ListResources lists all resources in a workspace.
-   *
-   * @generated from rpc loco.resource.v1.ResourceService.ListResources
-   */
-  listResources: {
-    methodKind: "unary";
-    input: typeof ListResourcesRequestSchema;
-    output: typeof ListResourcesResponseSchema;
+    output: typeof ResourceSchema;
   },
   /**
    * UpdateResource updates a resource configuration.
@@ -2286,7 +2037,7 @@ export const ResourceService: GenService<{
   updateResource: {
     methodKind: "unary";
     input: typeof UpdateResourceRequestSchema;
-    output: typeof UpdateResourceResponseSchema;
+    output: typeof ResourceSchema;
   },
   /**
    * DeleteResource deletes a resource.
@@ -2296,7 +2047,17 @@ export const ResourceService: GenService<{
   deleteResource: {
     methodKind: "unary";
     input: typeof DeleteResourceRequestSchema;
-    output: typeof DeleteResourceResponseSchema;
+    output: typeof EmptySchema;
+  },
+  /**
+   * ListWorkspaceResources lists all resources in a workspace.
+   *
+   * @generated from rpc loco.resource.v1.ResourceService.ListWorkspaceResources
+   */
+  listWorkspaceResources: {
+    methodKind: "unary";
+    input: typeof ListWorkspaceResourcesRequestSchema;
+    output: typeof ListWorkspaceResourcesResponseSchema;
   },
   /**
    * GetResourceStatus retrieves the current status and deployment information of a resource.
@@ -2320,25 +2081,25 @@ export const ResourceService: GenService<{
   },
   /**
    * Logs
-   * StreamLogs streams resource logs in real-time.
+   * WatchLogs streams resource logs in real-time.
    *
-   * @generated from rpc loco.resource.v1.ResourceService.StreamLogs
+   * @generated from rpc loco.resource.v1.ResourceService.WatchLogs
    */
-  streamLogs: {
+  watchLogs: {
     methodKind: "server_streaming";
-    input: typeof StreamLogsRequestSchema;
+    input: typeof WatchLogsRequestSchema;
     output: typeof LogEntrySchema;
   },
   /**
    * Events
-   * GetEvents retrieves events for a resource.
+   * ListResourceEvents retrieves events for a resource.
    *
-   * @generated from rpc loco.resource.v1.ResourceService.GetEvents
+   * @generated from rpc loco.resource.v1.ResourceService.ListResourceEvents
    */
-  getEvents: {
+  listResourceEvents: {
     methodKind: "unary";
-    input: typeof GetEventsRequestSchema;
-    output: typeof GetEventsResponseSchema;
+    input: typeof ListResourceEventsRequestSchema;
+    output: typeof ListResourceEventsResponseSchema;
   },
   /**
    * Resource Operations
@@ -2349,7 +2110,7 @@ export const ResourceService: GenService<{
   scaleResource: {
     methodKind: "unary";
     input: typeof ScaleResourceRequestSchema;
-    output: typeof ScaleResourceResponseSchema;
+    output: typeof EmptySchema;
   },
   /**
    * UpdateResourceEnv updates environment variables for a resource.
@@ -2359,7 +2120,7 @@ export const ResourceService: GenService<{
   updateResourceEnv: {
     methodKind: "unary";
     input: typeof UpdateResourceEnvRequestSchema;
-    output: typeof UpdateResourceEnvResponseSchema;
+    output: typeof EmptySchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_resource_v1_resource, 0);

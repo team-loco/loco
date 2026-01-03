@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file registry/v1/registry.proto.
  */
 export const file_registry_v1_registry: GenFile = /*@__PURE__*/
-  fileDesc("ChpyZWdpc3RyeS92MS9yZWdpc3RyeS5wcm90bxIQbG9jby5yZWdpc3RyeS52MSIUChJHaXRsYWJUb2tlblJlcXVlc3QiNgoTR2l0bGFiVG9rZW5SZXNwb25zZRIQCgh1c2VybmFtZRgBIAEoCRINCgV0b2tlbhgCIAEoCTJvCg9SZWdpc3RyeVNlcnZpY2USXAoLR2l0bGFiVG9rZW4SJC5sb2NvLnJlZ2lzdHJ5LnYxLkdpdGxhYlRva2VuUmVxdWVzdBolLmxvY28ucmVnaXN0cnkudjEuR2l0bGFiVG9rZW5SZXNwb25zZSIAQj9aPWdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL3JlZ2lzdHJ5L3YxO3JlZ2lzdHJ5djFiBnByb3RvMw");
+  fileDesc("ChpyZWdpc3RyeS92MS9yZWdpc3RyeS5wcm90bxIQbG9jby5yZWdpc3RyeS52MSIUChJHaXRsYWJUb2tlblJlcXVlc3QiNgoTR2l0bGFiVG9rZW5SZXNwb25zZRIQCgh1c2VybmFtZRgBIAEoCRINCgV0b2tlbhgCIAEoCTJyCg9SZWdpc3RyeVNlcnZpY2USXwoOR2V0R2l0bGFiVG9rZW4SJC5sb2NvLnJlZ2lzdHJ5LnYxLkdpdGxhYlRva2VuUmVxdWVzdBolLmxvY28ucmVnaXN0cnkudjEuR2l0bGFiVG9rZW5SZXNwb25zZSIAQj9aPWdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL3JlZ2lzdHJ5L3YxO3JlZ2lzdHJ5djFiBnByb3RvMw");
 
 /**
  * GitlabTokenRequest is the request to get a GitLab token for pulling container images.
@@ -83,11 +83,11 @@ export const GitlabTokenResponseSchema: GenMessage<GitlabTokenResponse, {jsonTyp
  */
 export const RegistryService: GenService<{
   /**
-   * GitlabToken retrieves GitLab registry credentials.
+   * GetGitlabToken retrieves GitLab registry credentials.
    *
-   * @generated from rpc loco.registry.v1.RegistryService.GitlabToken
+   * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
    */
-  gitlabToken: {
+  getGitlabToken: {
     methodKind: "unary";
     input: typeof GitlabTokenRequestSchema;
     output: typeof GitlabTokenResponseSchema;

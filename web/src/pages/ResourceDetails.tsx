@@ -106,7 +106,6 @@ export function ResourceDetails() {
 			{/* Previous Deployments */}
 			<RecentDeployments
 				deployments={deployments.slice(1)}
-				resourceId={resourceId}
 				isLoading={isLoading}
 			/>
 

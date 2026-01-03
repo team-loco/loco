@@ -1,8 +1,8 @@
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation } from "@connectrpc/connect-query";
-import { listMembers, listWorkspaces, removeMember } from "@/gen/workspace/v1";
-import { getCurrentUser } from "@/gen/user/v1";
-import { getCurrentUserOrgs } from "@/gen/org/v1";
+import { listWorkspaceMembers, listOrgWorkspaces, deleteMember } from "@/gen/workspace/v1";
+import { whoAmI } from "@/gen/user/v1";
+import { listUserOrgs } from "@/gen/org/v1";
 import { toastConnectError } from "@/lib/error-handler";
 import {
 	Card,
@@ -25,14 +25,14 @@ export function Team() {
 	const [currentPage, setCurrentPage] = useState(0);
 	const ITEMS_PER_PAGE = 10;
 
-	useQuery(getCurrentUser, {});
+	useQuery(whoAmI, {});
 
-	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
+	const { data: orgsRes } = useQuery(listUserOrgs, { userId: 0n });
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
 	const firstOrgId = orgs[0]?.id ?? null;
 
 	const { data: workspacesRes } = useQuery(
-		listWorkspaces,
+		listOrgWorkspaces,
 		firstOrgId ? { orgId: firstOrgId } : undefined,
 		{ enabled: !!firstOrgId }
 	);
@@ -50,7 +50,7 @@ export function Team() {
 	}, [workspaceFromUrl, workspaces]);
 
 	const { data: membersRes, isLoading } = useQuery(
-		listMembers,
+		listWorkspaceMembers,
 		firstWorkspaceId
 			? {
 					workspaceId: firstWorkspaceId,
@@ -68,7 +68,7 @@ export function Team() {
 	const isAdmin = false;
 
 	const { mutate: removeMemberMutation, isPending: isRemoving } = useMutation(
-		removeMember,
+		deleteMember,
 		{
 			onSuccess: () => {
 				if (firstWorkspaceId) {

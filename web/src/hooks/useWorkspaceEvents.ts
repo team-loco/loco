@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
-import { listResources, getEvents } from "@/gen/resource/v1";
+import { listWorkspaceResources, listResourceEvents } from "@/gen/resource/v1";
 import type { Event } from "@/gen/resource/v1/resource_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
@@ -21,7 +21,7 @@ function getTimestampMs(timestamp: Timestamp | undefined): number {
 
 export function useWorkspaceEvents(workspaceId: string) {
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
-		listResources,
+		listWorkspaceResources,
 		workspaceId ? { workspaceId: BigInt(workspaceId) } : undefined,
 		{
 			enabled: !!workspaceId,
@@ -34,7 +34,7 @@ export function useWorkspaceEvents(workspaceId: string) {
 	// For now, just fetch events for the first resource
 	// TODO: Implement workspace-level events endpoint on backend
 	const { data: eventsData, isLoading: eventsLoading } = useQuery(
-		getEvents,
+		listResourceEvents,
 		firstResource ? { resourceId: firstResource.id, limit: 100 } : undefined,
 		{
 			enabled: !!firstResource,

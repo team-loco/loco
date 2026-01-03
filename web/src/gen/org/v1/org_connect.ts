@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetCurrentUserOrgsRequest, GetCurrentUserOrgsResponse, GetOrgRequest, GetOrgResponse, IsUniqueOrgNameRequest, IsUniqueOrgNameResponse, ListOrgsRequest, ListOrgsResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
-import { MethodKind } from "@bufbuild/protobuf";
+import { CreateOrgRequest, DeleteOrgRequest, GetOrgRequest, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, Organization, UpdateOrgRequest } from "./org_pb";
+import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * OrgService manages organizations.
@@ -22,40 +22,18 @@ export const OrgService = {
     createOrg: {
       name: "CreateOrg",
       I: CreateOrgRequest,
-      O: CreateOrgResponse,
+      O: Organization,
       kind: MethodKind.Unary,
     },
     /**
-     * GetOrg retrieves an organization by ID.
+     * GetOrg retrieves an organization by ID or name.
      *
      * @generated from rpc loco.org.v1.OrgService.GetOrg
      */
     getOrg: {
       name: "GetOrg",
       I: GetOrgRequest,
-      O: GetOrgResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * GetCurrentUserOrgs retrieves all organizations for the current user.
-     *
-     * @generated from rpc loco.org.v1.OrgService.GetCurrentUserOrgs
-     */
-    getCurrentUserOrgs: {
-      name: "GetCurrentUserOrgs",
-      I: GetCurrentUserOrgsRequest,
-      O: GetCurrentUserOrgsResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * ListOrgs lists organizations for a user.
-     *
-     * @generated from rpc loco.org.v1.OrgService.ListOrgs
-     */
-    listOrgs: {
-      name: "ListOrgs",
-      I: ListOrgsRequest,
-      O: ListOrgsResponse,
+      O: Organization,
       kind: MethodKind.Unary,
     },
     /**
@@ -66,7 +44,7 @@ export const OrgService = {
     updateOrg: {
       name: "UpdateOrg",
       I: UpdateOrgRequest,
-      O: UpdateOrgResponse,
+      O: Organization,
       kind: MethodKind.Unary,
     },
     /**
@@ -77,18 +55,40 @@ export const OrgService = {
     deleteOrg: {
       name: "DeleteOrg",
       I: DeleteOrgRequest,
-      O: DeleteOrgResponse,
+      O: Empty,
       kind: MethodKind.Unary,
     },
     /**
-     * IsUniqueOrgName checks if an organization name is unique.
+     * ListUserOrgs lists organizations for a user.
      *
-     * @generated from rpc loco.org.v1.OrgService.IsUniqueOrgName
+     * @generated from rpc loco.org.v1.OrgService.ListUserOrgs
      */
-    isUniqueOrgName: {
-      name: "IsUniqueOrgName",
-      I: IsUniqueOrgNameRequest,
-      O: IsUniqueOrgNameResponse,
+    listUserOrgs: {
+      name: "ListUserOrgs",
+      I: ListUserOrgsRequest,
+      O: ListUserOrgsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListOrgUsers lists users in an organization.
+     *
+     * @generated from rpc loco.org.v1.OrgService.ListOrgUsers
+     */
+    listOrgUsers: {
+      name: "ListOrgUsers",
+      I: ListOrgUsersRequest,
+      O: ListOrgUsersResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListOrgWorkspaces lists workspaces in an organization.
+     *
+     * @generated from rpc loco.org.v1.OrgService.ListOrgWorkspaces
+     */
+    listOrgWorkspaces: {
+      name: "ListOrgWorkspaces",
+      I: ListOrgWorkspacesRequest,
+      O: ListOrgWorkspacesResponse,
       kind: MethodKind.Unary,
     },
   }

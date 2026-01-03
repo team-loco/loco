@@ -12,25 +12,11 @@ import { ResourceService } from "./resource_pb";
 export const createResource = ResourceService.method.createResource;
 
 /**
- * GetResource retrieves a resource by ID.
+ * GetResource retrieves a resource by ID or name.
  *
  * @generated from rpc loco.resource.v1.ResourceService.GetResource
  */
 export const getResource = ResourceService.method.getResource;
-
-/**
- * GetResourceByName retrieves a resource by name within a workspace.
- *
- * @generated from rpc loco.resource.v1.ResourceService.GetResourceByName
- */
-export const getResourceByName = ResourceService.method.getResourceByName;
-
-/**
- * ListResources lists all resources in a workspace.
- *
- * @generated from rpc loco.resource.v1.ResourceService.ListResources
- */
-export const listResources = ResourceService.method.listResources;
 
 /**
  * UpdateResource updates a resource configuration.
@@ -45,6 +31,13 @@ export const updateResource = ResourceService.method.updateResource;
  * @generated from rpc loco.resource.v1.ResourceService.DeleteResource
  */
 export const deleteResource = ResourceService.method.deleteResource;
+
+/**
+ * ListWorkspaceResources lists all resources in a workspace.
+ *
+ * @generated from rpc loco.resource.v1.ResourceService.ListWorkspaceResources
+ */
+export const listWorkspaceResources = ResourceService.method.listWorkspaceResources;
 
 /**
  * GetResourceStatus retrieves the current status and deployment information of a resource.
@@ -62,11 +55,11 @@ export const listRegions = ResourceService.method.listRegions;
 
 /**
  * Events
- * GetEvents retrieves events for a resource.
+ * ListResourceEvents retrieves events for a resource.
  *
- * @generated from rpc loco.resource.v1.ResourceService.GetEvents
+ * @generated from rpc loco.resource.v1.ResourceService.ListResourceEvents
  */
-export const getEvents = ResourceService.method.getEvents;
+export const listResourceEvents = ResourceService.method.listResourceEvents;
 
 /**
  * Resource Operations

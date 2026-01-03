@@ -46,12 +46,12 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	currentUser, err := user.Current()
+	osUser, err := user.Current()
 	if err != nil {
 		return fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	t, err := keychain.GetLocoToken(currentUser.Name)
+	t, err := keychain.GetLocoToken(osUser.Name)
 	if err != nil {
 		slog.Error("failed keychain token grab", "error", err)
 		return err
@@ -59,7 +59,12 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 	apiClient := client.NewClient(host, t.Token)
 
-	orgs, err := apiClient.GetCurrentUserOrgs(ctx)
+	currentUser, err := apiClient.GetCurrentUser(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	orgs, err := apiClient.GetCurrentUserOrgs(ctx, currentUser.Id)
 	if err != nil {
 		return fmt.Errorf("failed to get organizations: %w", err)
 	}
@@ -76,7 +81,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("organization '%s' not found", orgName)
 	}
 
-	workspaces, err := apiClient.GetUserWorkspaces(ctx)
+	workspaces, err := apiClient.GetUserWorkspaces(ctx, currentUser.Id)
 	if err != nil {
 		return fmt.Errorf("failed to get workspaces: %w", err)
 	}

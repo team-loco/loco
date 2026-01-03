@@ -12,25 +12,11 @@ import { OrgService } from "./org_pb";
 export const createOrg = OrgService.method.createOrg;
 
 /**
- * GetOrg retrieves an organization by ID.
+ * GetOrg retrieves an organization by ID or name.
  *
  * @generated from rpc loco.org.v1.OrgService.GetOrg
  */
 export const getOrg = OrgService.method.getOrg;
-
-/**
- * GetCurrentUserOrgs retrieves all organizations for the current user.
- *
- * @generated from rpc loco.org.v1.OrgService.GetCurrentUserOrgs
- */
-export const getCurrentUserOrgs = OrgService.method.getCurrentUserOrgs;
-
-/**
- * ListOrgs lists organizations for a user.
- *
- * @generated from rpc loco.org.v1.OrgService.ListOrgs
- */
-export const listOrgs = OrgService.method.listOrgs;
 
 /**
  * UpdateOrg updates organization information.
@@ -47,8 +33,22 @@ export const updateOrg = OrgService.method.updateOrg;
 export const deleteOrg = OrgService.method.deleteOrg;
 
 /**
- * IsUniqueOrgName checks if an organization name is unique.
+ * ListUserOrgs lists organizations for a user.
  *
- * @generated from rpc loco.org.v1.OrgService.IsUniqueOrgName
+ * @generated from rpc loco.org.v1.OrgService.ListUserOrgs
  */
-export const isUniqueOrgName = OrgService.method.isUniqueOrgName;
+export const listUserOrgs = OrgService.method.listUserOrgs;
+
+/**
+ * ListOrgUsers lists users in an organization.
+ *
+ * @generated from rpc loco.org.v1.OrgService.ListOrgUsers
+ */
+export const listOrgUsers = OrgService.method.listOrgUsers;
+
+/**
+ * ListOrgWorkspaces lists workspaces in an organization.
+ *
+ * @generated from rpc loco.org.v1.OrgService.ListOrgWorkspaces
+ */
+export const listOrgWorkspaces = OrgService.method.listOrgWorkspaces;

@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateUserRequest, CreateUserResponse, DeleteUserRequest, DeleteUserResponse, GetCurrentUserRequest, GetCurrentUserResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, LogoutRequest, LogoutResponse, UpdateUserRequest, UpdateUserResponse } from "./user_pb";
-import { MethodKind } from "@bufbuild/protobuf";
+import { CreateUserRequest, DeleteUserRequest, GetUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest, User } from "./user_pb";
+import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * UserService manages user accounts and operations.
@@ -22,7 +22,7 @@ export const UserService = {
     createUser: {
       name: "CreateUser",
       I: CreateUserRequest,
-      O: CreateUserResponse,
+      O: User,
       kind: MethodKind.Unary,
     },
     /**
@@ -33,18 +33,18 @@ export const UserService = {
     getUser: {
       name: "GetUser",
       I: GetUserRequest,
-      O: GetUserResponse,
+      O: User,
       kind: MethodKind.Unary,
     },
     /**
-     * GetCurrentUser retrieves the current authenticated user.
+     * WhoAmI retrieves the current authenticated user.
      *
-     * @generated from rpc loco.user.v1.UserService.GetCurrentUser
+     * @generated from rpc loco.user.v1.UserService.WhoAmI
      */
-    getCurrentUser: {
-      name: "GetCurrentUser",
-      I: GetCurrentUserRequest,
-      O: GetCurrentUserResponse,
+    whoAmI: {
+      name: "WhoAmI",
+      I: Empty,
+      O: User,
       kind: MethodKind.Unary,
     },
     /**
@@ -55,7 +55,7 @@ export const UserService = {
     updateUser: {
       name: "UpdateUser",
       I: UpdateUserRequest,
-      O: UpdateUserResponse,
+      O: User,
       kind: MethodKind.Unary,
     },
     /**
@@ -77,7 +77,7 @@ export const UserService = {
     deleteUser: {
       name: "DeleteUser",
       I: DeleteUserRequest,
-      O: DeleteUserResponse,
+      O: Empty,
       kind: MethodKind.Unary,
     },
     /**
@@ -87,8 +87,8 @@ export const UserService = {
      */
     logout: {
       name: "Logout",
-      I: LogoutRequest,
-      O: LogoutResponse,
+      I: Empty,
+      O: Empty,
       kind: MethodKind.Unary,
     },
   }
