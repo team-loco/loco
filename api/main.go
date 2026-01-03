@@ -159,7 +159,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	userServiceHandler := service.NewUserServer(pool, queries)
+	userServiceHandler := service.NewUserServer(pool, queries, machine)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, kubeClient, ac.LocoNamespace)

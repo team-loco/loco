@@ -434,3 +434,4 @@ clickhouse is named weirdly and so is our controller.
   start writing tests even.
 - test scale/env. clean up cli implementation to not require config.
 - should potentially be able to chop off cilium-envoy
+- potentially use vtprotobuf.

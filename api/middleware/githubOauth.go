@@ -78,6 +78,7 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 			ID:   entity.ID,
 		})
 		c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
+		c = context.WithValue(c, contextkeys.TokenKey, token)
 
 		slog.InfoContext(c, "claims validated; populating ctx", slog.Int64("userId", entity.ID))
 
