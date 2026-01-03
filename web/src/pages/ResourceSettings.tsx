@@ -438,7 +438,7 @@ export function ResourceSettings() {
 										<SelectValue placeholder="Choose a domain..." />
 									</SelectTrigger>
 									<SelectContent>
-										{platformDomains.map((pd: any) => (
+										{platformDomains.map((pd) => (
 											<SelectItem key={pd.id} value={pd.id.toString()}>
 												{pd.domain}
 											</SelectItem>

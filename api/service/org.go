@@ -60,6 +60,10 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get user", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
 
 	orgName := r.GetName()
 	if orgName == "" {
@@ -153,7 +157,7 @@ func (s *OrgServer) ListUserOrgs(
 ) (*connect.Response[orgv1.ListUserOrgsResponse], error) {
 	r := req.Msg
 
-	limit := r.Limit
+	limit := r.GetLimit()
 	if limit < 1 {
 		limit = 50
 	}
@@ -161,16 +165,16 @@ func (s *OrgServer) ListUserOrgs(
 		limit = 100
 	}
 
-	offset := r.Offset
+	offset := r.GetOffset()
 
-	totalCount, err := s.queries.CountOrgsForUser(ctx, r.UserId)
+	totalCount, err := s.queries.CountOrgsForUser(ctx, r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to count orgs for user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
-		UserID: r.UserId,
+		UserID: r.GetUserId(),
 		Offset: offset,
 		Limit:  limit,
 	})
@@ -203,29 +207,29 @@ func (s *OrgServer) UpdateOrg(
 ) (*connect.Response[orgv1.Organization], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateOrg, r.OrgId)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to update org", "orgId", r.OrgId)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateOrg, r.GetOrgId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update org", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if r.Name != nil && *r.Name != "" {
-		isUnique, err := s.queries.IsOrgNameUnique(ctx, *r.Name)
+	if r.GetName() != "" {
+		isUnique, err := s.queries.IsOrgNameUnique(ctx, r.GetName())
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 		}
 
 		if !isUnique {
-			existingOrg, err := s.queries.GetOrgByName(ctx, *r.Name)
-			if err != nil || existingOrg.ID != r.OrgId {
-				slog.WarnContext(ctx, "org name already exists", "name", *r.Name)
+			existingOrg, err := s.queries.GetOrgByName(ctx, r.GetName())
+			if err != nil || existingOrg.ID != r.GetOrgId() {
+				slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
 				return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 			}
 		}
 
 		org, err := s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-			ID:   r.OrgId,
-			Name: *r.Name,
+			ID:   r.GetOrgId(),
+			Name: r.GetName(),
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update org", "error", err)
@@ -242,7 +246,7 @@ func (s *OrgServer) UpdateOrg(
 	}
 
 	// If no updates, just return the org
-	org, err := s.queries.GetOrgByID(ctx, r.OrgId)
+	org, err := s.queries.GetOrgByID(ctx, r.GetOrgId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get org", "error", err)
 		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
@@ -264,23 +268,23 @@ func (s *OrgServer) DeleteOrg(
 ) (*connect.Response[emptypb.Empty], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteOrg, r.OrgId)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to delete org", "orgId", r.OrgId)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteOrg, r.GetOrgId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete org", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, r.OrgId)
+	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, r.GetOrgId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for resources in workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasResources {
-		slog.WarnContext(ctx, "org has workspaces with resources", "orgId", r.OrgId)
+		slog.WarnContext(ctx, "org has workspaces with resources", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
 	}
 
-	err = s.queries.DeleteOrg(ctx, r.OrgId)
+	err = s.queries.DeleteOrg(ctx, r.GetOrgId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete org", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -311,12 +315,12 @@ func (s *OrgServer) ListOrgWorkspaces(
 	r := req.Msg
 
 	// Check authorization
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListWorkspaces, r.OrgId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListWorkspaces, r.GetOrgId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// Get workspaces for org
-	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, r.OrgId)
+	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, r.GetOrgId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))

@@ -47,7 +47,7 @@ func (s *UserServer) CreateUser(
 ) (*connect.Response[userv1.User], error) {
 	r := req.Msg
 
-	if r.ExternalId == "" || r.Email == "" {
+	if r.GetExternalId() == "" || r.GetEmail() == "" {
 		slog.ErrorContext(ctx, "invalid request: missing required fields")
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
@@ -59,20 +59,20 @@ func (s *UserServer) CreateUser(
 	}
 	defer tx.Rollback(ctx)
 
-	existingUserByEmail, err := s.queries.GetUserByEmail(ctx, r.Email)
+	existingUserByEmail, err := s.queries.GetUserByEmail(ctx, r.GetEmail())
 	if err == nil {
-		if existingUserByEmail.ExternalID == r.ExternalId {
+		if existingUserByEmail.ExternalID == r.GetExternalId() {
 			if err := tx.Commit(ctx); err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 			}
 			return connect.NewResponse(dbUserToProto(existingUserByEmail)), nil
 		}
 
-		slog.WarnContext(ctx, "email already registered with different provider", "email", r.Email)
+		slog.WarnContext(ctx, "email already registered with different provider", "email", r.GetEmail())
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrEmailAlreadyRegistered)
 	}
 
-	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.ExternalId)
+	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.GetExternalId())
 	if err == nil {
 		if err := tx.Commit(ctx); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -85,8 +85,8 @@ func (s *UserServer) CreateUser(
 	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
 
 	user, err := s.queries.CreateUser(ctx, genDb.CreateUserParams{
-		ExternalID: r.ExternalId,
-		Email:      r.Email,
+		ExternalID: r.GetExternalId(),
+		Email:      r.GetEmail(),
 		Name:       name,
 		AvatarUrl:  avatarURL,
 	})
@@ -197,15 +197,15 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.UpdateUser, r.UserId)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to update user", "targetUserId", r.UserId, "currentUserId", entity.ID)
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.UpdateUser, r.GetUserId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update user", "targetUserId", r.GetUserId(), "currentUserId", entity.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
 
 	user, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
-		ID:        r.UserId,
+		ID:        r.GetUserId(),
 		AvatarUrl: avatarURL,
 	})
 	if err != nil {
@@ -234,7 +234,7 @@ func (s *UserServer) ListUsers(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	limit := r.Limit
+	limit := r.GetLimit()
 	if limit < 1 {
 		limit = 50
 	}
@@ -242,7 +242,7 @@ func (s *UserServer) ListUsers(
 		limit = 100
 	}
 
-	offset := r.Offset
+	offset := r.GetOffset()
 	if offset < 0 {
 		offset = 0
 	}
@@ -286,40 +286,40 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.DeleteUser, r.UserId)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to delete user", "userId", r.UserId)
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.DeleteUser, r.GetUserId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete user", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	_, err := s.queries.GetUserByID(ctx, r.UserId)
+	_, err := s.queries.GetUserByID(ctx, r.GetUserId())
 	if err != nil {
-		slog.WarnContext(ctx, "user not found", "user_id", r.UserId)
+		slog.WarnContext(ctx, "user not found", "user_id", r.GetUserId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
 	}
 
-	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, r.UserId)
+	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasWorkspaces {
-		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", r.UserId)
+		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
 	}
 
-	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, r.UserId)
+	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasOrganizations {
-		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", r.UserId)
+		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
 	}
 
-	err = s.queries.DeleteUser(ctx, r.UserId)
+	err = s.queries.DeleteUser(ctx, r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))

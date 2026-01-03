@@ -151,47 +151,47 @@ func (s *DeploymentServer) CreateDeployment(
 ) (*connect.Response[deploymentv1.Deployment], error) {
 	r := req.Msg
 
-	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
+	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateDeployment, r.ResourceId)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.ResourceId)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateDeployment, r.GetResourceId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// todo: move below validations to a dedicated validation package.
-	if r.Spec == nil {
+	if r.GetSpec() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
 	}
 
 	// validate that request spec contains a service deployment (for now, only services are supported)
-	if r.Spec.GetService() == nil {
+	if r.GetSpec().GetService() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service deployments are currently supported"))
 	}
 
-	serviceSpec := r.Spec.GetService()
+	serviceSpec := r.GetSpec().GetService()
 
-	if serviceSpec.Build == nil || serviceSpec.Build.Image == "" {
+	if serviceSpec.GetBuild() == nil || serviceSpec.GetBuild().GetImage() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("image is required"))
 	}
 
-	if serviceSpec.Port < 1 {
+	if serviceSpec.GetPort() < 1 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidPort)
 	}
 
-	if !imagePattern.MatchString(serviceSpec.Build.Image) {
-		slog.WarnContext(ctx, "invalid image format", "image", serviceSpec.Build.Image)
+	if !imagePattern.MatchString(serviceSpec.GetBuild().GetImage()) {
+		slog.WarnContext(ctx, "invalid image format", "image", serviceSpec.GetBuild().GetImage())
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidImage)
 	}
 
 	replicas := serviceSpec.GetMinReplicas()
 
-	domain, err := s.queries.GetDomainByResourceId(ctx, r.ResourceId)
+	domain, err := s.queries.GetDomainByResourceId(ctx, r.GetResourceId())
 	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "domain not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
@@ -214,7 +214,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, r.Spec, region)
+	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, r.GetSpec(), region)
 	if mergeErr != nil {
 		slog.ErrorContext(ctx, mergeErr.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", mergeErr))
@@ -236,7 +236,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
 	deploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID:  r.ResourceId,
+		ResourceID:  r.GetResourceId(),
 		ClusterID:   cluster.ID,
 		Region:      region,
 		Replicas:    replicas,
@@ -254,10 +254,10 @@ func (s *DeploymentServer) CreateDeployment(
 	// create Application in loco-system namespace (pass merged spec WITH env to controller)
 	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec, s.locoNamespace, region)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create Application", "error", err, "resource_id", resource.ID)
+		slog.ErrorContext(ctx, "failed to create Application", "error", err, "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create Application: %w", err))
 	}
-	slog.InfoContext(ctx, "created/updated Application", "resource_id", resource.ID, "resource_name", resource.Name)
+	slog.InfoContext(ctx, "created/updated Application", "resourceId", resource.ID, "resource_name", resource.Name)
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
@@ -304,13 +304,13 @@ func (s *DeploymentServer) ListDeployments(
 	r := req.Msg
 
 	// check if requester has permission to list deployments (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListDeployments, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListDeployments, r.GetResourceId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	resource, err := s.queries.GetResourceByID(ctx, r.ResourceId)
+	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resource_id", r.ResourceId)
+		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
@@ -320,14 +320,14 @@ func (s *DeploymentServer) ListDeployments(
 	}
 	offset := r.GetOffset()
 
-	total, err := s.queries.CountDeploymentsForResource(ctx, r.ResourceId)
+	total, err := s.queries.CountDeploymentsForResource(ctx, r.GetResourceId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to count deployments", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID: r.ResourceId,
+		ResourceID: r.GetResourceId(),
 		Limit:      limit,
 		Offset:     offset,
 	})
@@ -374,7 +374,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	// if this is the active deployment, delete the Application
 	if deployment.IsActive {
 		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
-			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resource_id", resource.ID)
+			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resourceId", resource.ID)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup Application: %w", err))
 		}
 	}
@@ -551,7 +551,7 @@ func createLocoResource(
 	}
 
 	specJSON, _ := json.MarshalIndent(locoResourceSpec, "", "  ")
-	slog.InfoContext(ctx, "building Application", "resource_id", resource.ID, "spec", string(specJSON))
+	slog.InfoContext(ctx, "building Application", "resourceId", resource.ID, "spec", string(specJSON))
 
 	// create or update the Application
 	err := kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
@@ -562,20 +562,20 @@ func createLocoResource(
 	if err == nil {
 		// resource exists, update it
 		if err := kubeClient.ControllerClient.Update(ctx, locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to update Application", "error", err, "resource_id", resource.ID)
+			slog.ErrorContext(ctx, "failed to update Application", "error", err, "resourceId", resource.ID)
 			return err
 		}
-		slog.InfoContext(ctx, "updated existing Application", "resource_id", resource.ID)
+		slog.InfoContext(ctx, "updated existing Application", "resourceId", resource.ID)
 	} else if client.IgnoreNotFound(err) == nil {
 		// resource does not exist, create it
 		if err := kubeClient.ControllerClient.Create(ctx, locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to create Application", "error", err, "resource_id", resource.ID)
+			slog.ErrorContext(ctx, "failed to create Application", "error", err, "resourceId", resource.ID)
 			return err
 		}
-		slog.InfoContext(ctx, "created new Application", "resource_id", resource.ID)
+		slog.InfoContext(ctx, "created new Application", "resourceId", resource.ID)
 	} else {
 		// some other error occurred
-		slog.ErrorContext(ctx, "failed to check if Application exists", "error", err, "resource_id", resource.ID)
+		slog.ErrorContext(ctx, "failed to check if Application exists", "error", err, "resourceId", resource.ID)
 		return err
 	}
 
@@ -600,30 +600,30 @@ func buildResourcesSpec(
 	}
 
 	// Start with region-specific defaults
-	cpu := regionTarget.Cpu
-	memory := regionTarget.Memory
-	minReplicas := regionTarget.MinReplicas
-	maxReplicas := regionTarget.MaxReplicas
-	scalers := regionTarget.Scalers
+	cpu := regionTarget.GetCpu()
+	memory := regionTarget.GetMemory()
+	minReplicas := regionTarget.GetMinReplicas()
+	maxReplicas := regionTarget.GetMaxReplicas()
+	scalers := regionTarget.GetScalers()
 
 	// Override with deployment-time values if provided
 	if deploymentSpec != nil {
 		deploymentSvc := deploymentSpec.GetService()
 		if deploymentSvc != nil {
-			if deploymentSvc.Cpu != nil && *deploymentSvc.Cpu != "" {
-				cpu = *deploymentSvc.Cpu
+			if deploymentSvc.Cpu != nil && deploymentSvc.GetCpu() != "" {
+				cpu = deploymentSvc.GetCpu()
 			}
-			if deploymentSvc.Memory != nil && *deploymentSvc.Memory != "" {
-				memory = *deploymentSvc.Memory
+			if deploymentSvc.Memory != nil && deploymentSvc.GetMemory() != "" {
+				memory = deploymentSvc.GetMemory()
 			}
-			if deploymentSvc.MinReplicas != nil && *deploymentSvc.MinReplicas > 0 {
-				minReplicas = *deploymentSvc.MinReplicas
+			if deploymentSvc.MinReplicas != nil && deploymentSvc.GetMinReplicas() > 0 {
+				minReplicas = deploymentSvc.GetMinReplicas()
 			}
-			if deploymentSvc.MaxReplicas != nil && *deploymentSvc.MaxReplicas > 0 {
-				maxReplicas = *deploymentSvc.MaxReplicas
+			if deploymentSvc.MaxReplicas != nil && deploymentSvc.GetMaxReplicas() > 0 {
+				maxReplicas = deploymentSvc.GetMaxReplicas()
 			}
 			if deploymentSvc.Scalers != nil {
-				scalers = deploymentSvc.Scalers
+				scalers = deploymentSvc.GetScalers()
 			}
 		}
 	}
@@ -661,10 +661,10 @@ func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID
 
 	if err := kubeClient.ControllerClient.Delete(ctx, locoRes); err != nil {
 		if client.IgnoreNotFound(err) != nil {
-			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resource_id", resourceID)
+			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resourceId", resourceID)
 			return err
 		}
 	}
-	slog.InfoContext(ctx, "deleted Application", "resource_id", resourceID)
+	slog.InfoContext(ctx, "deleted Application", "resourceId", resourceID)
 	return nil
 }
