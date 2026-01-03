@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"context"
+	"log/slog"
 
 	queries "github.com/team-loco/loco/api/gen/db"
 )
@@ -9,6 +10,7 @@ import (
 func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.Entity, []queries.EntityScope, error) {
 	tokenData, err := tvm.queries.GetToken(ctx, token)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return queries.Entity{}, nil, err
 	}
 

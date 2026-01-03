@@ -10,4 +10,5 @@ const (
 	MethodKey           ContextKey = "method"
 	PathKey             ContextKey = "path"
 	SourceIPKey         ContextKey = "sourceIp"
+	TokenKey            ContextKey = "token"
 )

@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -33,6 +34,7 @@ func (tvm *VendingMachine) VerifyWithGivenEntityScopes(ctx context.Context, give
 		// lookup the org id for the workspace
 		org_id, err := tvm.queries.GetOrganizationIDByWorkspaceID(ctx, entityScope.EntityID)
 		if err != nil {
+			slog.ErrorContext(ctx, err.Error())
 			// note: this could be another error
 			return ErrEntityNotFound
 		}
@@ -49,6 +51,7 @@ func (tvm *VendingMachine) VerifyWithGivenEntityScopes(ctx context.Context, give
 		// lookup the workspace and org id for the resource
 		ids, err := tvm.queries.GetWorkspaceOrganizationIDByResourceID(ctx, entityScope.EntityID)
 		if err != nil {
+			slog.ErrorContext(ctx, err.Error())
 			// note: again this could be another eror
 			return ErrEntityNotFound
 		}

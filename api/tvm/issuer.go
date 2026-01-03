@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,12 +22,14 @@ func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID int64,
 	// fetch the scopes associated with the user
 	userScopes, err := tvm.queries.GetUserScopes(ctx, userID)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return "", err
 	}
 
 	// verify that the user has all the requested scopes, either explicitly or implicitly
 	for _, entityScope := range entityScopes {
 		if err := tvm.VerifyWithGivenEntityScopes(ctx, userScopes, entityScope); err != nil {
+			slog.ErrorContext(ctx, err.Error())
 			return "", err
 		}
 	}
@@ -38,9 +41,10 @@ func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID int64,
 // associated with a user, and that user must have sufficient permissions to issue a token with the requested scopes, or an error [ErrInsufficentPermissions] is returned.
 // Unlike [Issue], this function uses a token to authenticate the user, rather than taking a userID directly.
 func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, name string, token string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
-	// this is meant to issue a token from a user's login token, although an user token could also be used
+	// this is meant to issue a token from a user's login token, although a user token could also be used
 	tokenData, err := tvm.queries.GetToken(ctx, token)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return "", ErrTokenNotFound
 	}
 	if time.Now().After(tokenData.ExpiresAt) {
@@ -69,6 +73,7 @@ func (tvm *VendingMachine) issueNoCheck(ctx context.Context, name string, entity
 		ExpiresAt:  time.Now().Add(duration),
 	})
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return "", ErrStoreToken
 	}
 

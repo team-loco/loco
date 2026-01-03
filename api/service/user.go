@@ -12,6 +12,8 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/actions"
 	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
 )
 
@@ -29,11 +31,12 @@ var (
 type UserServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	tvm     *tvm.VendingMachine
 }
 
 // NewUserServer creates a new UserServer instance
-func NewUserServer(db *pgxpool.Pool, queries genDb.Querier) *UserServer {
-	return &UserServer{db: db, queries: queries}
+func NewUserServer(db *pgxpool.Pool, queries genDb.Querier, tvm *tvm.VendingMachine) *UserServer {
+	return &UserServer{db: db, queries: queries, tvm: tvm}
 }
 
 // CreateUser handles user creation with auto-org and workspace setup
@@ -147,6 +150,18 @@ func (s *UserServer) GetCurrentUser(
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID))
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to verify token", "error", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 
 	user, err := s.getUserByID(ctx, entity.ID)
