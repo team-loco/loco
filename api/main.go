@@ -122,7 +122,7 @@ func main() {
 	pool := dbConn.Pool()
 	queries := genDb.New(pool)
 
-	tvm := tvm.NewVendingMachine(pool, queries, tvm.Config{
+	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		MaxTokenDuration:   time.Hour * 24 * 30,
 		LoginTokenDuration: time.Hour * 1,
 	})
@@ -131,7 +131,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(tvm))
+	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -157,16 +157,16 @@ func main() {
 
 	httpClient := shared.NewHTTPClient()
 
-	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, tvm)
+	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, machine)
 	if err != nil {
 		log.Fatal(err)
 	}
-	userServiceHandler := service.NewUserServer(pool, queries, tvm)
-	orgServiceHandler := service.NewOrgServer(pool, queries, tvm)
-	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, tvm)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, tvm, kubeClient, ac.LocoNamespace)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, tvm, kubeClient, ac.LocoNamespace)
-	domainServiceHandler := service.NewDomainServer(pool, queries, tvm)
+	userServiceHandler := service.NewUserServer(pool, queries, machine)
+	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
+	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
+	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,
@@ -286,7 +286,7 @@ func main() {
 
 		// stop the k8s resources watcher and tvm
 		watcherCancel()
-		tvm.Close()
+		machine.Close()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {
 			quit <- err
