@@ -9,15 +9,15 @@ export interface KubernetesEvent {
 	message: string;
 }
 
-export function useStreamEvents(appId: string) {
+export function useStreamEvents(resourceId: string) {
 	const {
 		data: eventsRes,
 		isLoading,
 		error,
 	} = useQuery(
 		getEvents,
-		appId ? { resourceId: BigInt(appId), limit: 50 } : undefined,
-		{ enabled: !!appId }
+		resourceId ? { resourceId: BigInt(resourceId), limit: 50 } : undefined,
+		{ enabled: !!resourceId }
 	);
 
 	const events: KubernetesEvent[] = (eventsRes?.events ?? []).map((event) => ({

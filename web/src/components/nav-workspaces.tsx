@@ -22,32 +22,32 @@ import { useState } from "react";
 export function NavWorkspaces({
 	workspaces,
 	onWorkspaceClick,
-	onAppClick,
-	activeAppId,
+	onResourceClick,
+	activeResourceId,
 }: {
 	workspaces: {
 		id: bigint;
 		name: string;
 		isActive?: boolean;
-		hasApps?: boolean;
-		apps?: {
+		hasResources?: boolean;
+		resources?: {
 			id: bigint;
 			name: string;
 		}[];
 	}[];
 	onWorkspaceClick?: (workspaceId: bigint) => void;
-	onAppClick?: (appId: bigint, workspaceId: bigint) => void;
-	onCreateApp?: (workspaceId: bigint) => void;
-	activeAppId?: bigint;
+	onResourceClick?: (resourceId: bigint, workspaceId: bigint) => void;
+	onCreateResource?: (workspaceId: bigint) => void;
+	activeResourceId?: bigint;
 }) {
-	const activeWorkspaceWithApp = workspaces.find(
-		(ws) => ws.apps?.some((app) => app.id === activeAppId)
+	const activeWorkspaceWithResource = workspaces.find(
+		(ws) => ws.resources?.some((resource) => resource.id === activeResourceId)
 	);
 
 	const [openWorkspaces, setOpenWorkspaces] = useState<Set<string>>(() => {
 		const initial = new Set<string>();
-		if (activeWorkspaceWithApp) {
-			initial.add(activeWorkspaceWithApp.id.toString());
+		if (activeWorkspaceWithResource) {
+			initial.add(activeWorkspaceWithResource.id.toString());
 		}
 		return initial;
 	});
@@ -101,13 +101,13 @@ export function NavWorkspaces({
 								</CollapsibleTrigger>
 								<CollapsibleContent>
 									<SidebarMenuSub>
-										{workspace.apps?.map((app) => (
-											<SidebarMenuSubItem key={app.id.toString()}>
+										{workspace.resources?.map((resource) => (
+											<SidebarMenuSubItem key={resource.id.toString()}>
 												<SidebarMenuSubButton
-													onClick={() => onAppClick?.(app.id, workspace.id)}
-													isActive={activeAppId === app.id}
+													onClick={() => onResourceClick?.(resource.id, workspace.id)}
+													isActive={activeResourceId === resource.id}
 												>
-													<span>{app.name}</span>
+													<span>{resource.name}</span>
 												</SidebarMenuSubButton>
 											</SidebarMenuSubItem>
 										))}

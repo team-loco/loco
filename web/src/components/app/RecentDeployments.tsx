@@ -48,12 +48,13 @@ import {
 
 interface RecentDeploymentsProps {
 	deployments: Deployment[];
-	appId?: string;
+	resourceId?: string;
 	isLoading?: boolean;
 }
 
 export function RecentDeployments({
 	deployments,
+	resourceId,
 	isLoading = false,
 }: RecentDeploymentsProps) {
 	const [sorting, setSorting] = useState<SortingState>([

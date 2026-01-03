@@ -6,7 +6,7 @@ import { ConnectError } from "@connectrpc/connect";
 import { formatErrorMessage } from "@/lib/error-handler";
 
 interface EventsTimelineProps {
-	appId: string;
+	resourceId: string;
 	isLoading?: boolean;
 }
 
@@ -19,8 +19,8 @@ function getErrorMessage(error: unknown): string {
 	return formatErrorMessage("Failed to load events");
 }
 
-export function EventsTimeline({ appId, isLoading = false }: EventsTimelineProps) {
-	const { events, error } = useStreamEvents(appId);
+export function EventsTimeline({ resourceId, isLoading = false }: EventsTimelineProps) {
+	const { events, error } = useStreamEvents(resourceId);
 
 	if (isLoading) {
 		return (

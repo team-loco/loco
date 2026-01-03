@@ -5,36 +5,36 @@ import { EventsTimeline } from "@/components/app/EventsTimeline";
 import { LogsViewer } from "@/components/app/LogsViewer";
 import { RecentDeployments } from "@/components/app/RecentDeployments";
 import { Card, CardContent } from "@/components/ui/card";
-import { useAppDetails } from "@/hooks/useAppDetails";
+import { useResourceDetails } from "@/hooks/useResourceDetails";
 import { subscribeToEvents } from "@/lib/events";
 import { useEffect } from "react";
 import { useParams } from "react-router";
 import Loader from "@/assets/loader.svg?react";
 
-export function AppDetails() {
-	const { appId } = useParams<{ appId: string }>();
-	const { app, deployments, isLoading, error } = useAppDetails(appId ?? "");
+export function ResourceDetails() {
+	const { resourceId } = useParams<{ resourceId: string }>();
+	const { resource, deployments, isLoading, error } = useResourceDetails(resourceId ?? "");
 
-	// Subscribe to real-time app-specific events
+	// Subscribe to real-time resource-specific events
 	useEffect(() => {
-		if (!appId) return;
+		if (!resourceId) return;
 
-		const unsubscribe = subscribeToEvents(`app:${appId}`, (event) => {
+		const unsubscribe = subscribeToEvents(`resource:${resourceId}`, (event) => {
 			// Event subscription triggers refetches via the hook's internal logic
-			console.log(`[App ${appId}] Event: ${event.type}`);
+			console.log(`[Resource ${resourceId}] Event: ${event.type}`);
 		});
 
 		return unsubscribe;
-	}, [appId]);
+	}, [resourceId]);
 
-	if (!appId) {
+	if (!resourceId) {
 		return (
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-2">Invalid App ID</p>
+						<p className="text-destructive font-heading mb-2">Invalid Resource ID</p>
 						<p className="text-sm text-foreground opacity-70">
-							The app ID is missing from the URL
+							The resource ID is missing from the URL
 						</p>
 					</CardContent>
 				</Card>
@@ -48,7 +48,7 @@ export function AppDetails() {
 				<div className="text-center">
 					<div className="inline-flex gap-2 items-center flex-col">
 						<Loader className="w-8 h-8" />
-						<p className="text-foreground font-base">Loading app...</p>
+						<p className="text-foreground font-base">Loading resource...</p>
 					</div>
 				</div>
 			</div>
@@ -61,13 +61,13 @@ export function AppDetails() {
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
 						<p className="text-destructive font-heading mb-4">
-							Error Loading App
+							Error Loading Resource
 						</p>
 						<p className="text-sm text-foreground opacity-70 mb-4">
 							{error instanceof Error ? error.message : "Unknown error"}
 						</p>
 						<p className="text-xs text-foreground opacity-50">
-							Make sure the app exists and you have access to it
+							Make sure the resource exists and you have access to it
 						</p>
 					</CardContent>
 				</Card>
@@ -75,14 +75,14 @@ export function AppDetails() {
 		);
 	}
 
-	if (!app) {
+	if (!resource) {
 		return (
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-2">App Not Found</p>
+						<p className="text-destructive font-heading mb-2">Resource Not Found</p>
 						<p className="text-sm text-foreground opacity-70">
-							The app with ID {appId} does not exist
+							The resource with ID {resourceId} does not exist
 						</p>
 					</CardContent>
 				</Card>
@@ -92,12 +92,12 @@ export function AppDetails() {
 
 	return (
 		<div className="space-y-6">
-			{/* App Header */}
-			<AppHeader app={app} isLoading={isLoading} />
+			{/* Resource Header */}
+			<AppHeader resource={resource} isLoading={isLoading} />
 
 			{/* Active Deployment Card */}
 			<DeploymentStatusCard
-				appId={appId}
+				resourceId={resourceId}
 				deployment={deployments[0]}
 				isLoading={isLoading}
 			/>
@@ -105,18 +105,18 @@ export function AppDetails() {
 			{/* Previous Deployments */}
 			<RecentDeployments
 				deployments={deployments.slice(1)}
-				appId={appId}
+				resourceId={resourceId}
 				isLoading={isLoading}
 			/>
 
 			{/* Environment Variables */}
-			<EnvironmentVariables appId={appId} envVars={[]} isLoading={isLoading} />
+			<EnvironmentVariables resourceId={resourceId} envVars={[]} isLoading={isLoading} />
 
 			{/* Logs Viewer */}
-			<LogsViewer appId={appId} isLoading={isLoading} />
+			<LogsViewer resourceId={resourceId} isLoading={isLoading} />
 
 			{/* Events Timeline */}
-			<EventsTimeline appId={appId} isLoading={isLoading} />
+			<EventsTimeline resourceId={resourceId} isLoading={isLoading} />
 		</div>
 	);
 }

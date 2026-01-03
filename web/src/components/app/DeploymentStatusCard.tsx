@@ -22,13 +22,13 @@ import { getPhaseTooltip, getServiceSpec } from "@/lib/deployment-utils";
 import { Cpu, HardDrive } from "lucide-react";
 
 interface DeploymentStatusCardProps {
-	appId: string;
+	resourceId: string;
 	deployment?: Deployment;
 	isLoading?: boolean;
 }
 
 export function DeploymentStatusCard({
-	appId,
+	resourceId,
 	deployment,
 	isLoading = false,
 }: DeploymentStatusCardProps) {
@@ -131,7 +131,7 @@ export function DeploymentStatusCard({
 	const handleApply = async () => {
 		try {
 			await scaleResourceMutation.mutateAsync({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				replicas,
 				cpu: cpuOptions[cpuIndex],
 				memory: memoryOptions[memoryIndex],

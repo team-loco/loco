@@ -34,20 +34,20 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
-export function AppSettings() {
-	const { appId } = useParams<{ appId: string }>();
+export function ResourceSettings() {
+	const { resourceId } = useParams<{ resourceId: string }>();
 	const navigate = useNavigate();
 
 	const {
-		data: appRes,
+		data: resourceRes,
 		isLoading,
 		refetch,
-	} = useQuery(getResource, appId ? { resourceId: BigInt(appId) } : undefined, {
-		enabled: !!appId,
+	} = useQuery(getResource, resourceId ? { resourceId: BigInt(resourceId) } : undefined, {
+		enabled: !!resourceId,
 	});
-	const app = appRes?.resource;
+	const resource = resourceRes?.resource;
 
-	const [name, setName] = useState(app?.name || "");
+	const [name, setName] = useState(resource?.name || "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [newDomain, setNewDomain] = useState("");
 	const [domainSource, setDomainSource] = useState<"platform" | "user">(
@@ -71,14 +71,14 @@ export function AppSettings() {
 	const updateDomainMutation = useMutation(updateResourceDomain);
 	const scaleResourceMutation = useMutation(scaleResource);
 
-	const hasChanges = name !== app?.name;
+	const hasChanges = name !== resource?.name;
 
 	const handleSave = async () => {
-		if (!appId) return;
+		if (!resourceId) return;
 		try {
 			await updateResourceMutation.mutateAsync({
-				resourceId: BigInt(appId),
-				name: name || app?.name || "",
+				resourceId: BigInt(resourceId),
+				name: name || resource?.name || "",
 			});
 			toast.success("Resource updated successfully");
 		} catch (error) {
@@ -88,9 +88,9 @@ export function AppSettings() {
 	};
 
 	const handleDelete = async () => {
-		if (!appId) return;
+		if (!resourceId) return;
 		try {
-			await deleteResourceMutation.mutateAsync({ resourceId: BigInt(appId) });
+			await deleteResourceMutation.mutateAsync({ resourceId: BigInt(resourceId) });
 			toast.success("Resource deleted successfully");
 			navigate("/dashboard");
 		} catch (error) {
@@ -100,7 +100,7 @@ export function AppSettings() {
 	};
 
 	const handleAddDomain = async () => {
-		if (!appId || !newDomain) return;
+		if (!resourceId || !newDomain) return;
 		try {
 			const domainInput = {
 				domainSource:
@@ -116,7 +116,7 @@ export function AppSettings() {
 			};
 
 			await addDomainMutation.mutateAsync({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				domain: domainInput,
 			});
 			toast.success("Domain added successfully");
@@ -130,10 +130,10 @@ export function AppSettings() {
 	};
 
 	const handleSetPrimary = async (domainId: bigint) => {
-		if (!appId) return;
+		if (!resourceId) return;
 		try {
 			await setPrimaryMutation.mutateAsync({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				domainId,
 			});
 			toast.success("Primary domain updated");
@@ -199,10 +199,10 @@ export function AppSettings() {
 	};
 
 	const handleScale = async () => {
-		if (!appId) return;
+		if (!resourceId) return;
 		try {
 			await scaleResourceMutation.mutateAsync({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				cpu: `${cpuValue[0]}m`,
 				memory: `${memoryValue[0]}Mi`,
 			});
@@ -227,7 +227,7 @@ export function AppSettings() {
 		);
 	}
 
-	if (!app) {
+	if (!resource) {
 		return (
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
@@ -484,7 +484,7 @@ export function AppSettings() {
 			{/* Scaling */}
 			<Card
 				className={`border-2 ${
-					app?.status === ResourceStatus.UNAVAILABLE ? "opacity-50" : ""
+					resource?.status === ResourceStatus.UNAVAILABLE ? "opacity-50" : ""
 				}`}
 			>
 				<CardHeader>
@@ -492,10 +492,10 @@ export function AppSettings() {
 				</CardHeader>
 				<CardContent
 					className={`space-y-6 ${
-						app?.status === ResourceStatus.UNAVAILABLE ? "pointer-events-none" : ""
+						resource?.status === ResourceStatus.UNAVAILABLE ? "pointer-events-none" : ""
 					}`}
 				>
-					{app?.status === ResourceStatus.UNAVAILABLE && (
+					{resource?.status === ResourceStatus.UNAVAILABLE && (
 						<div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-lg p-3 mb-4">
 							<p className="text-sm text-yellow-700 dark:text-yellow-400">
 								Deploy your resource before scaling
@@ -520,7 +520,7 @@ export function AppSettings() {
 							max={4000}
 							step={100}
 							className="w-full"
-							disabled={app?.status === ResourceStatus.UNAVAILABLE}
+							disabled={resource?.status === ResourceStatus.UNAVAILABLE}
 							/>
 							<p className="text-xs text-foreground/50 mt-2">
 							Range: 100m - 4000m
@@ -545,7 +545,7 @@ export function AppSettings() {
 							max={8192}
 							step={128}
 							className="w-full"
-							disabled={app?.status === ResourceStatus.UNAVAILABLE}
+							disabled={resource?.status === ResourceStatus.UNAVAILABLE}
 						/>
 						<p className="text-xs text-foreground/50 mt-2">
 							Range: 128Mi - 8192Mi
@@ -555,7 +555,7 @@ export function AppSettings() {
 					<Button
 						onClick={handleScale}
 						disabled={
-							scaleResourceMutation.isPending || app?.status === ResourceStatus.UNAVAILABLE
+							scaleResourceMutation.isPending || resource?.status === ResourceStatus.UNAVAILABLE
 						}
 						className="w-full"
 					>
@@ -601,7 +601,7 @@ export function AppSettings() {
 						Are you sure? This action cannot be undone.
 					</p>
 					<p className="text-xs text-red-600 dark:text-red-500 opacity-90">
-						Deleting <strong>{app.name}</strong> will permanently remove all
+						Deleting <strong>{resource.name}</strong> will permanently remove all
 						data associated with this resource.
 					</p>
 					<div className="flex gap-2 pt-2">

@@ -21,13 +21,13 @@ interface EnvVar {
 }
 
 interface EnvironmentVariablesProps {
-	appId: string;
+	resourceId: string;
 	envVars?: EnvVar[];
 	isLoading?: boolean;
 }
 
 export function EnvironmentVariables({
-	appId,
+	resourceId,
 	envVars = [],
 	isLoading = false,
 }: EnvironmentVariablesProps) {
@@ -61,7 +61,7 @@ export function EnvironmentVariables({
 				{} as { [key: string]: string }
 			);
 			await updateEnvMutation.mutateAsync({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				env: envMap,
 			});
 			setIsEditing(false);

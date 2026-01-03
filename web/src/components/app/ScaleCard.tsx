@@ -17,14 +17,14 @@ import type { Deployment } from "@/gen/deployment/v1/deployment_pb";
 import { getServiceSpec } from "@/lib/deployment-utils";
 
 interface ScaleCardProps {
-	appId: string;
+	resourceId: string;
 	currentReplicas?: number;
 	deployment?: Deployment;
 	isLoading?: boolean;
 }
 
 export function ScaleCard({
-	appId,
+	resourceId,
 	currentReplicas = 1,
 	deployment,
 	isLoading = false,
@@ -95,7 +95,7 @@ export function ScaleCard({
 	const handleScale = async () => {
 		try {
 			await scale({
-				resourceId: BigInt(appId),
+				resourceId: BigInt(resourceId),
 				replicas,
 				cpu: cpuOptions[cpuIndex],
 				memory: memoryOptions[memoryIndex],

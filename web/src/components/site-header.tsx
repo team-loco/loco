@@ -16,8 +16,8 @@ export function SiteHeader() {
 	const workspaceFromUrl = searchParams.get("workspace");
 	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
 
-	const appIdMatch = location.pathname.match(/\/resource\/(\d+)/);
-	const activeAppId = appIdMatch ? BigInt(appIdMatch[1]) : null;
+	const resourceIdMatch = location.pathname.match(/\/resource\/(\d+)/);
+	const activeResourceId = resourceIdMatch ? BigInt(resourceIdMatch[1]) : null;
 
 	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
 	const firstOrgId = orgsRes?.orgs?.[0]?.id ?? null;
@@ -34,12 +34,12 @@ export function SiteHeader() {
 		{ enabled: !!activeWorkspaceId }
 	);
 
-	const isHome = !activeAppId && !activeWorkspaceId;
+	const isHome = !activeResourceId && !activeWorkspaceId;
 	const workspaceName = workspacesRes?.workspaces?.find(
 		(ws) => ws.id === activeWorkspaceId
 	)?.name;
-	const appName = resourcesRes?.resources?.find(
-		(app) => app.id === activeAppId
+	const resourceName = resourcesRes?.resources?.find(
+		(resource) => resource.id === activeResourceId
 	)?.name;
 
 	return (
@@ -78,22 +78,22 @@ export function SiteHeader() {
 							</Link>
 						</>
 					)}
-					{!isHome && appName && activeAppId && activeWorkspaceId && (
+					{!isHome && resourceName && activeResourceId && activeWorkspaceId && (
 						<>
 							<span className="text-muted-foreground">/</span>
-							<span className="text-foreground">{appName}</span>
+							<span className="text-foreground">{resourceName}</span>
 						</>
 					)}
-				</nav>
-				<Button
+					</nav>
+					<Button
 					onClick={() => navigate("/create-resource")}
 					className="ml-auto"
 					size="sm"
 					variant="default"
-				>
+					>
 					<Plus className="h-4 w-4 mr-2" />
-					New App
-				</Button>
+					New Resource
+					</Button>
 			</div>
 		</header>
 	);

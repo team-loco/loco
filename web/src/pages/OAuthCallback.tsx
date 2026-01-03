@@ -32,7 +32,7 @@ export function OAuthCallback() {
 	);
 
 	// After exchange, check if user has orgs
-	const { data: orgsRes, isLoading: orgsLoading } = useQuery(
+	const { data: orgsRes, isLoading: orgsLoading, error: orgsError } = useQuery(
 		getCurrentUserOrgs,
 		{},
 		{ enabled: !isLoading && !!exchangeRes }
@@ -56,6 +56,15 @@ export function OAuthCallback() {
 			const errorMsg =
 				queryError.message || "Failed to exchange authorization code";
 			console.error("OAuthCallback: Exchange error:", errorMsg);
+			sessionStorage.setItem("oauth_error", errorMsg);
+			navigate("/login");
+			return;
+		}
+
+		if (orgsError) {
+			const errorMsg =
+				orgsError.message || "Failed to load user organizations";
+			console.error("OAuthCallback: Orgs error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
 			navigate("/login");
 			return;
@@ -93,6 +102,7 @@ export function OAuthCallback() {
 		exchangeRes,
 		orgsLoading,
 		orgsRes,
+		orgsError,
 		navigate,
 	]);
 

@@ -48,17 +48,17 @@ import {
 } from "@/components/ui/select";
 
 interface LogsViewerProps {
-	appId: string;
+	resourceId: string;
 	isLoading?: boolean;
 }
 
-export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
+export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 	const [tailLimit] = useState<number | undefined>(100);
 	const {
 		logs,
 		isLoading: logsLoading,
 		refetch,
-	} = useStreamLogs(appId, tailLimit);
+	} = useStreamLogs(resourceId, tailLimit);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isFollowing, setIsFollowing] = useState(true);
 	const [sorting, setSorting] = useState<SortingState>([]);
@@ -149,7 +149,7 @@ export function LogsViewer({ appId, isLoading = false }: LogsViewerProps) {
 			"href",
 			"data:text/plain;charset=utf-8," + encodeURIComponent(logsText)
 		);
-		element.setAttribute("download", `logs-${appId}-${Date.now()}.txt`);
+		element.setAttribute("download", `logs-${resourceId}-${Date.now()}.txt`);
 		element.style.display = "none";
 		document.body.appendChild(element);
 		element.click();

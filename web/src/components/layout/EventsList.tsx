@@ -17,15 +17,15 @@ export function EventsList() {
 			setEvents((prev) => [event, ...prev.slice(0, 4)]);
 			if (event.severity === "error") {
 				toast.error(event.message, {
-					description: `${event.appName} • ${formatTime(event.timestamp)}`,
+					description: `${event.resourceName} • ${formatTime(event.timestamp)}`,
 				});
 			} else if (event.severity === "warning") {
 				toast.warning(event.message, {
-					description: `${event.appName} • ${formatTime(event.timestamp)}`,
+					description: `${event.resourceName} • ${formatTime(event.timestamp)}`,
 				});
 			} else {
 				toast.success(event.message, {
-					description: `${event.appName} • ${formatTime(event.timestamp)}`,
+					description: `${event.resourceName} • ${formatTime(event.timestamp)}`,
 				});
 			}
 		});
@@ -53,7 +53,7 @@ export function EventsList() {
 					className="text-xs border border-border rounded p-2 flex gap-2 items-start"
 				>
 					<div className="flex-1 min-w-0">
-						<p className="font-medium text-foreground">{event.appName}</p>
+						<p className="font-medium text-foreground">{event.resourceName}</p>
 						<p className="text-foreground opacity-70 wrap-break-word">
 							{event.message}
 						</p>

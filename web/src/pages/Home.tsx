@@ -51,29 +51,29 @@ export function Home() {
 	// Fetch resources in parallel after we have workspace ID
 	const {
 		data: listResourcesRes,
-		isLoading: appsLoading,
-		error: appsError,
-		refetch: refetchApps,
+		isLoading: resourcesLoading,
+		error: resourcesError,
+		refetch: refetchResources,
 	} = useQuery(
 		listResources,
 		{ workspaceId: currentWorkspaceId ?? 0n },
 		{ enabled: !!currentWorkspaceId }
 	);
 
-	const allApps = useMemo(
+	const allResources = useMemo(
 		() => listResourcesRes?.resources ?? [],
 		[listResourcesRes?.resources]
 	);
 
-	// Filter apps by search term
-	const filteredApps = useMemo(() => {
+	// Filter resources by search term
+	const filteredResources = useMemo(() => {
 		if (!searchTerm.trim()) {
-			return allApps;
+			return allResources;
 		}
-		return allApps.filter((app) =>
-			app.name.toLowerCase().includes(searchTerm.toLowerCase())
+		return allResources.filter((resource) =>
+			resource.name.toLowerCase().includes(searchTerm.toLowerCase())
 		);
-	}, [allApps, searchTerm]);
+	}, [allResources, searchTerm]);
 
 	// Set header content
 	useEffect(() => {
@@ -89,24 +89,24 @@ export function Home() {
 		);
 	}, [setHeader, workspaces, currentWorkspaceId]);
 
-	// Subscribe to real-time app status updates
+	// Subscribe to real-time resource status updates
 	useEffect(() => {
 		const unsubscribe = subscribeToEvents("workspace", (event) => {
-			// Refetch apps when deployment status changes
+			// Refetch resources when deployment status changes
 			if (
 				event.type === "deployment_started" ||
 				event.type === "deployment_completed" ||
 				event.type === "deployment_failed"
 			) {
-				refetchApps();
+				refetchResources();
 			}
 		});
 
 		return unsubscribe;
-	}, [refetchApps]);
+	}, [refetchResources]);
 
-	const isLoading = orgsLoading || appsLoading;
-	const error = orgsError || appsError;
+	const isLoading = orgsLoading || resourcesLoading;
+	const error = orgsError || resourcesError;
 
 	// Handle auth failures by redirecting to login
 	useEffect(() => {
@@ -158,31 +158,31 @@ export function Home() {
 				/>
 			)}
 
-			{/* Apps Grid */}
+			{/* Resources Grid */}
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<h3 className="text-2xl font-heading">
 						{searchTerm ? "Search Results" : "Resources"}
 					</h3>
-					{allApps.length > 0 && (
+					{allResources.length > 0 && (
 						<p className="text-sm text-foreground opacity-60">
-							{filteredApps.length} of {allApps.length}
+							{filteredResources.length} of {allResources.length}
 						</p>
 					)}
 				</div>
 
-				{filteredApps.length > 0 ? (
+				{filteredResources.length > 0 ? (
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{filteredApps.map((app) => (
+						{filteredResources.map((resource) => (
 							<AppCard
-								key={app.id}
-								app={app}
-								onAppDeleted={() => refetchApps()}
+								key={resource.id}
+								resource={resource}
+								onResourceDeleted={() => refetchResources()}
 								workspaceId={currentWorkspaceId || undefined}
 							/>
 						))}
 					</div>
-				) : allApps.length > 0 ? (
+				) : allResources.length > 0 ? (
 					<EmptyState
 						title="No Results"
 						description={`No resources match "${searchTerm}"`}
