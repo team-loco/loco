@@ -792,14 +792,14 @@ func (s *ResourceServer) ScaleResource(
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
 	deploymentId, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID: r.ResourceId,
-		ClusterID:  cluster.ID,
-		Region:     regionToScale,
-		Replicas:   replicas,
-		Status:     genDb.DeploymentStatusPending,
-		IsActive:   true,
-		Message:    "Scheduled scaling event.",
-		Spec:       specJson,
+		ResourceID:  r.ResourceId,
+		ClusterID:   cluster.ID,
+		Region:      regionToScale,
+		Replicas:    replicas,
+		Status:      genDb.DeploymentStatusPending,
+		IsActive:    true,
+		Message:     "Scheduled scaling event.",
+		Spec:        specJson,
 		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
@@ -935,14 +935,14 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
 	deploymentId, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID: r.ResourceId,
-		ClusterID:  cluster.ID,
-		Region:     regionToUpdate,
-		Replicas:   currentDeployment.Replicas,
-		Status:     genDb.DeploymentStatusPending,
-		IsActive:   true,
-		Message:    "Scheduled environment update",
-		Spec:       specJson,
+		ResourceID:  r.ResourceId,
+		ClusterID:   cluster.ID,
+		Region:      regionToUpdate,
+		Replicas:    currentDeployment.Replicas,
+		Status:      genDb.DeploymentStatusPending,
+		IsActive:    true,
+		Message:     "Scheduled environment update",
+		Spec:        specJson,
 		SpecVersion: version.SpecVersionV1,
 	})
 	if err != nil {
@@ -1207,6 +1207,7 @@ func createDeploymentWithCleanup(
 	})
 
 	hadPreviousDeployment := false
+	// todo: rely on psql errors or something better. this is not good.
 	if err != nil && err.Error() != "no rows in result set" {
 		slog.ErrorContext(ctx, "failed to get active deployment",
 			"resourceId", params.ResourceID,
