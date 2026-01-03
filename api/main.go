@@ -246,6 +246,7 @@ func main() {
 		domainv1connect.DomainServiceSetPrimaryResourceDomainProcedure,
 		domainv1connect.DomainServiceDeleteResourceDomainProcedure,
 		domainv1connect.DomainServiceListLocoOwnedDomainsProcedure,
+		domainv1connect.DomainServiceCheckDomainAvailabilityProcedure,
 
 		// registry service
 		registryv1connect.RegistryServiceGetGitlabTokenProcedure,

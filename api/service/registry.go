@@ -50,9 +50,9 @@ func NewRegistryServer(
 	}
 }
 
-// GitlabToken generates a short-lived deploy token for Docker registry authentication
+// GetGitlabToken generates a short-lived deploy token for Docker registry authentication
 // Requires authenticated request (user must have valid token in context)
-func (s *RegistryServer) GitlabToken(
+func (s *RegistryServer) GetGitlabToken(
 	ctx context.Context,
 	req *connect.Request[registryv1.GitlabTokenRequest],
 ) (*connect.Response[registryv1.GitlabTokenResponse], error) {

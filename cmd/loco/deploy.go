@@ -480,7 +480,7 @@ func deployApp(ctx context.Context,
 		return err
 	}
 
-	deploymentID := deploymentResp.Msg.Id
+	deploymentID := deploymentResp.Msg.GetId()
 	logf(fmt.Sprintf("Created deployment with version: %d", deploymentID))
 
 	if wait {
