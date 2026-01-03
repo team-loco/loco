@@ -34,7 +34,7 @@ func NewDomainServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.Vendi
 	return &DomainServer{db: db, queries: queries, machine: machine}
 }
 
-// CreatePlatformDomain creates a new platform domain
+// CreatePlatformDomain creates a new platform domain (admin only)
 func (s *DomainServer) CreatePlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.CreatePlatformDomainRequest],
@@ -63,7 +63,7 @@ func (s *DomainServer) CreatePlatformDomain(
 	}, nil
 }
 
-// GetPlatformDomain retrieves a platform domain by ID
+// GetPlatformDomain retrieves a platform domain by ID (public - used for domain selection)
 func (s *DomainServer) GetPlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.GetPlatformDomainRequest],
@@ -94,7 +94,7 @@ func (s *DomainServer) GetPlatformDomain(
 	}, nil
 }
 
-// GetPlatformDomainByName retrieves a platform domain by domain name
+// GetPlatformDomainByName retrieves a platform domain by domain name (public - used for domain selection)
 func (s *DomainServer) GetPlatformDomainByName(
 	ctx context.Context,
 	req *connect.Request[domainv1.GetPlatformDomainByNameRequest],
@@ -154,7 +154,7 @@ func (s *DomainServer) ListActivePlatformDomains(
 	}, nil
 }
 
-// DeactivatePlatformDomain deactivates a platform domain
+// DeactivatePlatformDomain deactivates a platform domain (admin only)
 func (s *DomainServer) DeactivatePlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.DeactivatePlatformDomainRequest],
@@ -205,7 +205,7 @@ func (s *DomainServer) CheckDomainAvailability(
 	}, nil
 }
 
-// ListAllLocoOwnedDomains lists all loco-owned (subdomain) domains
+// ListAllLocoOwnedDomains lists all loco-owned (subdomain) domains (admin only)
 func (s *DomainServer) ListAllLocoOwnedDomains(
 	ctx context.Context,
 	req *connect.Request[domainv1.ListAllLocoOwnedDomainsRequest],

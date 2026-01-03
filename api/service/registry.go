@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/client"
+	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/gen/db"
 	registryv1 "github.com/team-loco/loco/shared/proto/registry/v1"
 )
@@ -50,10 +51,17 @@ func NewRegistryServer(
 }
 
 // GitlabToken generates a short-lived deploy token for Docker registry authentication
+// Requires authenticated request (user must have valid token in context)
 func (s *RegistryServer) GitlabToken(
 	ctx context.Context,
 	req *connect.Request[registryv1.GitlabTokenRequest],
 ) (*connect.Response[registryv1.GitlabTokenResponse], error) {
+	entity, ok := ctx.Value(contextkeys.EntityKey).(db.Entity)
+	if !ok {
+		slog.ErrorContext(ctx, "entity not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("unauthorized"))
+	}
+
 	expiresAt := time.Now().Add(5 * time.Minute).UTC().Format(time.RFC3339)
 	payload := map[string]any{
 		"name":       s.deployTokenName,
@@ -73,6 +81,6 @@ func (s *RegistryServer) GitlabToken(
 		Token:    tokenResp.Token,
 	})
 
-	slog.DebugContext(ctx, "generated gitlab deploy token successfully", slog.String("username", tokenResp.Username))
+	slog.DebugContext(ctx, "generated gitlab deploy token successfully", slog.String("username", tokenResp.Username), slog.Int64("userId", entity.ID))
 	return res, nil
 }

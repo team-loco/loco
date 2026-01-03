@@ -105,22 +105,37 @@ func (s *OrgServer) CreateOrg(
 	}), nil
 }
 
-// GetOrg retrieves an organization by ID
+// GetOrg retrieves an organization by ID or name
 func (s *OrgServer) GetOrg(
 	ctx context.Context,
 	req *connect.Request[orgv1.GetOrgRequest],
 ) (*connect.Response[orgv1.GetOrgResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetOrg, r.OrgId)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get org", "orgId", r.OrgId)
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	orgID := r.GetOrgId()
+	orgName := r.GetOrgName()
+
+	if orgID == 0 && orgName == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("either org_id or org_name must be provided"))
 	}
 
-	org, err := s.queries.GetOrgByID(ctx, r.OrgId)
+	var org genDb.Organization
+	var err error
+
+	if orgID != 0 {
+		org, err = s.queries.GetOrgByID(ctx, orgID)
+	} else {
+		org, err = s.queries.GetOrgByName(ctx, orgName)
+	}
+
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to query org", "error", err)
 		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetOrg, org.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	return connect.NewResponse(&orgv1.GetOrgResponse{
@@ -148,6 +163,18 @@ func (s *OrgServer) GetCurrentUserOrgs(
 		slog.WarnContext(ctx, "improper entity type for this endpoint", "entityId", entity.ID, "entityType", entity.Type)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
 	}
+
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetCurrentUserOrgs, entity.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get current user orgs", "entityId", entity.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	orgs, err := s.queries.ListUserOrganizations(ctx, entity.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list orgs for user", "error", err)
@@ -171,12 +198,23 @@ func (s *OrgServer) GetCurrentUserOrgs(
 }
 
 // ListOrgs lists organizations for a specified user (admin endpoint)
-// todo: implement loco management endpoints?
+// requires system:read permission
 func (s *OrgServer) ListOrgs(
 	ctx context.Context,
 	req *connect.Request[orgv1.ListOrgsRequest],
 ) (*connect.Response[orgv1.ListOrgsResponse], error) {
 	r := req.Msg
+
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListOrgs, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list orgs")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 
 	limit := r.Limit
 	if limit < 1 {

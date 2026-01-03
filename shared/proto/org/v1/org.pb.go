@@ -269,7 +269,8 @@ func (x *CreateOrgResponse) GetMessage() string {
 // GetOrgRequest is the request to retrieve an organization.
 type GetOrgRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	OrgId         *int64                 `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3,oneof" json:"org_id,omitempty"`
+	OrgName       *string                `protobuf:"bytes,2,opt,name=org_name,json=orgName,proto3,oneof" json:"org_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -305,10 +306,17 @@ func (*GetOrgRequest) Descriptor() ([]byte, []int) {
 }
 
 func (x *GetOrgRequest) GetOrgId() int64 {
-	if x != nil {
-		return x.OrgId
+	if x != nil && x.OrgId != nil {
+		return *x.OrgId
 	}
 	return 0
+}
+
+func (x *GetOrgRequest) GetOrgName() string {
+	if x != nil && x.OrgName != nil {
+		return *x.OrgName
+	}
+	return ""
 }
 
 // GetOrgResponse is the response containing organization information.
@@ -880,9 +888,12 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\x05_name\"Z\n" +
 	"\x11CreateOrgResponse\x12+\n" +
 	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"&\n" +
-	"\rGetOrgRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\"=\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"c\n" +
+	"\rGetOrgRequest\x12\x1a\n" +
+	"\x06org_id\x18\x01 \x01(\x03H\x00R\x05orgId\x88\x01\x01\x12\x1e\n" +
+	"\borg_name\x18\x02 \x01(\tH\x01R\aorgName\x88\x01\x01B\t\n" +
+	"\a_org_idB\v\n" +
+	"\t_org_name\"=\n" +
 	"\x0eGetOrgResponse\x12+\n" +
 	"\x03org\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\x03org\"\x1b\n" +
 	"\x19GetCurrentUserOrgsRequest\"K\n" +
@@ -992,6 +1003,7 @@ func file_org_v1_org_proto_init() {
 		return
 	}
 	file_org_v1_org_proto_msgTypes[2].OneofWrappers = []any{}
+	file_org_v1_org_proto_msgTypes[4].OneofWrappers = []any{}
 	file_org_v1_org_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

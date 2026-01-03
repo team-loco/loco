@@ -54,7 +54,8 @@ message CreateOrgResponse {
 
 // GetOrgRequest is the request to retrieve an organization.
 message GetOrgRequest {
-  int64 org_id = 1;
+  optional int64  org_id   = 1;
+  optional string org_name = 2;
 }
 
 // GetOrgResponse is the response containing organization information.
