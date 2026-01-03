@@ -11,7 +11,7 @@ import (
 )
 
 // Exchange returns a token for the user with the given email. It is expected that the email has been
-// provided by a provider in a trusted manner (e.g. )
+// provided by a provider in a trusted manner (e.g., after successful OAuth).
 func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse) (queries.User, string, error) {
 	address, err := email.Address()
 	if err != nil {
@@ -41,6 +41,10 @@ func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailRe
 		Type: queries.EntityTypeUser,
 		ID:   user.ID,
 	}, userWithScopes.Scopes, tvm.cfg.LoginTokenDuration)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return queries.User{}, "", fmt.Errorf("issue login token: %w", err)
+	}
 
-	return user, token, err
+	return user, token, nil
 }

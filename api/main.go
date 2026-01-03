@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -120,7 +122,7 @@ func main() {
 	pool := dbConn.Pool()
 	queries := genDb.New(pool)
 
-	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
+	tvm := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		MaxTokenDuration:   time.Hour * 24 * 30,
 		LoginTokenDuration: time.Hour * 1,
 	})
@@ -129,7 +131,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine))
+	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(tvm))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -155,16 +157,16 @@ func main() {
 
 	httpClient := shared.NewHTTPClient()
 
-	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, machine)
+	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, tvm)
 	if err != nil {
 		log.Fatal(err)
 	}
-	userServiceHandler := service.NewUserServer(pool, queries, machine)
-	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
-	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
-	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
+	userServiceHandler := service.NewUserServer(pool, queries, tvm)
+	orgServiceHandler := service.NewOrgServer(pool, queries, tvm)
+	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, tvm)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, tvm, kubeClient, ac.LocoNamespace)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, tvm, kubeClient, ac.LocoNamespace)
+	domainServiceHandler := service.NewDomainServer(pool, queries, tvm)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,
@@ -263,10 +265,47 @@ func main() {
 	muxWTiming := middleware.Timing(muxWCors)
 	muxWContext := middleware.SetContext(muxWTiming)
 
-	log.Fatal(http.ListenAndServe(
-		":8000",
-		h2c.NewHandler(muxWContext, &http2.Server{}),
-	))
+	server := &http.Server{
+		Addr:    ":8000",
+		Handler: h2c.NewHandler(muxWContext, &http2.Server{}),
+	}
+
+	quit := make(chan error, 1)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(sigChan)
+
+	go func() {
+		ctx := context.Background()
+
+		sig := <-sigChan
+		slog.InfoContext(ctx, "shutdown signal received", "signal", sig.String())
+
+		shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+
+		// stop the k8s resources watcher and tvm
+		watcherCancel()
+		tvm.Close()
+
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			quit <- err
+			return
+		}
+
+		slog.InfoContext(shutdownCtx, "server shutdown completed gracefully")
+		quit <- nil
+	}()
+
+	slog.Info("starting server", "addr", server.Addr)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("server error", "error", err)
+		return
+	}
+
+	if err := <-quit; err != nil {
+		log.Fatal(err)
+	}
 }
 
 func getLoggerHandler(ac *ApiConfig) slog.Handler {

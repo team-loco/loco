@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -9,9 +10,10 @@ import (
 )
 
 type VendingMachine struct {
-	pool    *pgxpool.Pool
-	queries queries.Querier
-	cfg     Config
+	pool       *pgxpool.Pool
+	queries    queries.Querier
+	cfg        Config
+	cancelFunc context.CancelFunc
 }
 
 type Config struct {
@@ -20,17 +22,39 @@ type Config struct {
 }
 
 // NewVendingMachine creates a new VendingMachine with the given database pool, queries, and configuration.
+// starts a background goroutine to periodically clean up expired tokens (in-process cron)
+// Close() to stop the background cleanup goroutine and release resources.
 func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *VendingMachine {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// low cost pg cron
 	go func() {
-		ctx := context.Background()
-		for range time.Tick(time.Minute) {
-			q.DeleteExpiredTokens(ctx)
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := q.DeleteExpiredTokens(ctx); err != nil {
+					slog.ErrorContext(ctx, err.Error())
+				}
+			}
 		}
 	}()
+
 	return &VendingMachine{
-		pool:    pool,
-		queries: q,
-		cfg:     cfg,
+		pool:       pool,
+		queries:    q,
+		cfg:        cfg,
+		cancelFunc: cancel,
+	}
+}
+
+// Close stops the background cleanup goroutine.
+func (tvm *VendingMachine) Close() {
+	if tvm.cancelFunc != nil {
+		tvm.cancelFunc()
 	}
 }

@@ -3,6 +3,7 @@ package tvm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"slices"
 	"time"
 
@@ -135,8 +136,10 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID
 	}
 	defer tx.Rollback(ctx)
 
+	qtx := tvm.queries.(*queries.Queries).WithTx(tx)
+
 	for _, es := range addScopes {
-		if err := tvm.queries.AddUserScope(ctx, queries.AddUserScopeParams{
+		if err := qtx.AddUserScope(ctx, queries.AddUserScopeParams{
 			UserID:     userID,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
@@ -146,7 +149,7 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID
 		}
 	}
 	for _, es := range removeScopes {
-		if err := tvm.queries.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
+		if err := qtx.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
 			UserID:     userID,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
@@ -157,6 +160,7 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID
 	}
 	err = tx.Commit(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return fmt.Errorf("commit tx: %w", err)
 	}
 	return nil
