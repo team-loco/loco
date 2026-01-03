@@ -152,13 +152,13 @@ func (s *UserServer) GetCurrentUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	token, ok := ctx.Value(contextkeys.TokenKey).(string)
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
-		slog.ErrorContext(ctx, "token not found in context")
+		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	err := s.tvm.Verify(ctx, token, actions.New(actions.GetCurrentUser, entity.ID))
+	err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to verify token", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
