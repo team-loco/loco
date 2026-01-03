@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@connectrpc/connect-query";
 import { listMembers, listWorkspaces, removeMember } from "@/gen/workspace/v1";
 import { getCurrentUser } from "@/gen/user/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import {
 	Card,
 	CardContent,
@@ -93,7 +94,7 @@ export function Team() {
 					userId,
 				});
 			} catch (error) {
-				console.error("Failed to remove member:", error);
+				toastConnectError(error, "Failed to remove member");
 			}
 		},
 		[firstWorkspaceId, removeMemberMutation]

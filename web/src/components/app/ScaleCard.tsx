@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { scaleResource } from "@/gen/resource/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { Loader2, Cpu, HardDrive, Layers } from "lucide-react";
 import type { Deployment } from "@/gen/deployment/v1/deployment_pb";
@@ -101,7 +102,7 @@ export function ScaleCard({
 				memory: memoryOptions[memoryIndex],
 			});
 		} catch (error) {
-			console.error("Failed to scale resource:", error);
+			toastConnectError(error, "Failed to scale resource");
 		}
 	};
 

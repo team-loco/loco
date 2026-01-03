@@ -23,6 +23,7 @@ import {
 } from "@/gen/domain/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
+import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Check, Loader, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -173,9 +174,7 @@ export function CreateResource() {
 				toast.error("Failed to create resource");
 			}
 		} catch (error) {
-			const message =
-				error instanceof Error ? error.message : "Failed to create resource";
-			toast.error(message);
+			toast.error(getErrorMessage(error, "Failed to create resource"));
 		}
 	};
 

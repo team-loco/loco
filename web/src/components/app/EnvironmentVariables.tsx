@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { useMutation } from "@connectrpc/connect-query";
 import { updateResourceEnv } from "@/gen/resource/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
 import Loader from "@/assets/loader.svg?react";
@@ -66,7 +67,7 @@ export function EnvironmentVariables({
 			});
 			setIsEditing(false);
 		} catch (error) {
-			console.error("Failed to update env vars:", error);
+			toastConnectError(error, "Failed to update environment variables");
 		}
 	};
 

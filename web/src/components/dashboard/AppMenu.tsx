@@ -10,6 +10,7 @@ import { useNavigate } from "react-router";
 import type { Resource } from "@/gen/resource/v1/resource_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { deleteResource } from "@/gen/resource/v1";
+import { toastConnectError } from "@/lib/error-handler";
 import { useState } from "react";
 
 interface AppMenuProps {
@@ -29,7 +30,7 @@ export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 			setShowDeleteConfirm(false);
 			onResourceDeleted?.();
 		} catch (error) {
-			console.error("Failed to delete resource:", error);
+			toastConnectError(error, "Failed to delete resource");
 		}
 	};
 

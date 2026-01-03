@@ -15,6 +15,7 @@ import {
 	DeploymentPhase,
 	type Deployment,
 } from "@/gen/deployment/v1/deployment_pb";
+import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState, useMemo } from "react";
 import { PHASE_COLOR_MAP, BADGE_COLOR_MAP } from "@/lib/deployment-constants";
@@ -138,7 +139,7 @@ export function DeploymentStatusCard({
 			});
 			setIsEditing(false);
 		} catch (error) {
-			console.error("Failed to scale resource:", error);
+			toastConnectError(error, "Failed to scale resource");
 		}
 	};
 

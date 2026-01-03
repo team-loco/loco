@@ -8,6 +8,7 @@ import { listResources } from "@/gen/resource/v1";
 import { getCurrentUserOrgs } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
 import { subscribeToEvents } from "@/lib/events";
+import { getErrorMessage } from "@/lib/error-handler";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -138,7 +139,7 @@ export function Home() {
 							Error Loading Data
 						</p>
 						<p className="text-sm text-foreground opacity-70 mb-4">
-							{error instanceof Error ? error.message : "Unknown error"}
+							{getErrorMessage(error, "Failed to load resources")}
 						</p>
 					</CardContent>
 				</Card>

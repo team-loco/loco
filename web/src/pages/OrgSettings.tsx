@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getOrg, updateOrg } from "@/gen/org/v1";
 import { listWorkspaces } from "@/gen/workspace/v1";
+import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useParams } from "react-router";
@@ -55,8 +56,7 @@ export function OrgSettings() {
 				setIsEditing(false);
 			},
 			onError: (error) => {
-				toast.error("Failed to update organization");
-				console.error(error);
+				toast.error(getErrorMessage(error, "Failed to update organization"));
 			},
 		});
 	};

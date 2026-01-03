@@ -8,6 +8,7 @@ import {
 	HelpCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { toastConnectError } from "@/lib/error-handler";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -134,8 +135,7 @@ export function NavUser({
 									navigate("/");
 									toast.success("Logged out successfully");
 								} catch (error) {
-									console.error("Logout failed:", error);
-									toast.error("Failed to logout");
+									toastConnectError(error, "Failed to logout");
 								}
 							}}
 						>

@@ -2,21 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useStreamEvents } from "@/hooks/useStreamEvents";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
-import { ConnectError } from "@connectrpc/connect";
-import { formatErrorMessage } from "@/lib/error-handler";
+import { getErrorMessage } from "@/lib/error-handler";
 
 interface EventsTimelineProps {
 	resourceId: string;
 	isLoading?: boolean;
-}
-
-function getErrorMessage(error: unknown): string {
-	if (error instanceof ConnectError) {
-		return formatErrorMessage(error.rawMessage);
-	} else if (error instanceof Error) {
-		return formatErrorMessage(error.message);
-	}
-	return formatErrorMessage("Failed to load events");
 }
 
 export function EventsTimeline({ resourceId, isLoading = false }: EventsTimelineProps) {
@@ -41,7 +31,7 @@ export function EventsTimeline({ resourceId, isLoading = false }: EventsTimeline
 				<CardContent>
 					<div className="flex items-center gap-2 text-sm text-destructive">
 						<AlertCircle className="w-5 h-5 shrink-0" />
-						<p>{getErrorMessage(error)}</p>
+						<p>{getErrorMessage(error, "Failed to load events")}</p>
 					</div>
 				</CardContent>
 			</Card>

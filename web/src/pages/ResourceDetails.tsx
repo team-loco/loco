@@ -7,6 +7,7 @@ import { RecentDeployments } from "@/components/app/RecentDeployments";
 import { Card, CardContent } from "@/components/ui/card";
 import { useResourceDetails } from "@/hooks/useResourceDetails";
 import { subscribeToEvents } from "@/lib/events";
+import { getErrorMessage } from "@/lib/error-handler";
 import { useEffect } from "react";
 import { useParams } from "react-router";
 import Loader from "@/assets/loader.svg?react";
@@ -64,7 +65,7 @@ export function ResourceDetails() {
 							Error Loading Resource
 						</p>
 						<p className="text-sm text-foreground opacity-70 mb-4">
-							{error instanceof Error ? error.message : "Unknown error"}
+							{getErrorMessage(error, "Failed to load resource")}
 						</p>
 						<p className="text-xs text-foreground opacity-50">
 							Make sure the resource exists and you have access to it
