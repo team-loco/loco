@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreatePlatformDomainRequest, CreateResourceDomainRequest, DeletePlatformDomainRequest, DeleteResourceDomainRequest, GetPlatformDomainRequest, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, PlatformDomain, ResourceDomain, SetPrimaryResourceDomainRequest, UpdatePlatformDomainRequest, UpdateResourceDomainRequest } from "./domain_pb";
+import { CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreateResourceDomainRequest, DeletePlatformDomainRequest, DeleteResourceDomainRequest, GetPlatformDomainRequest, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, PlatformDomain, ResourceDomain, SetPrimaryResourceDomainRequest, UpdatePlatformDomainRequest, UpdateResourceDomainRequest } from "./domain_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -125,6 +125,17 @@ export const DomainService = {
       name: "ListLocoOwnedDomains",
       I: ListLocoOwnedDomainsRequest,
       O: ListLocoOwnedDomainsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * CheckDomainAvailability checks if a domain is available.
+     *
+     * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
+     */
+    checkDomainAvailability: {
+      name: "CheckDomainAvailability",
+      I: CheckDomainAvailabilityRequest,
+      O: CheckDomainAvailabilityResponse,
       kind: MethodKind.Unary,
     },
   }

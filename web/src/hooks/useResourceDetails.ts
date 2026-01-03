@@ -30,7 +30,7 @@ export function useResourceDetails(resourceId: string) {
 	const isEnabled = !!resourceId;
 
 	return {
-		resource: isEnabled && resourceQuery.data ? resourceQuery.data.resource : null,
+		resource: isEnabled && resourceQuery.data ? resourceQuery.data : null,
 		status:
 			isEnabled && statusQuery.data ? statusQuery.data.currentDeployment : null,
 		deployments:

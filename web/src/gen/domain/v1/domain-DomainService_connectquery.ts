@@ -76,3 +76,10 @@ export const deleteResourceDomain = DomainService.method.deleteResourceDomain;
  * @generated from rpc loco.domain.v1.DomainService.ListLocoOwnedDomains
  */
 export const listLocoOwnedDomains = DomainService.method.listLocoOwnedDomains;
+
+/**
+ * CheckDomainAvailability checks if a domain is available.
+ *
+ * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
+ */
+export const checkDomainAvailability = DomainService.method.checkDomainAvailability;
