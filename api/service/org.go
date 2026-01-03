@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,7 +34,7 @@ type OrgServer struct {
 
 // NewOrgServer creates a new OrgServer instance
 func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *OrgServer {
-	return &OrgServer{db: db, queries: queries}
+	return &OrgServer{db: db, queries: queries, machine: machine}
 }
 
 // CreateOrg creates a new organization
@@ -45,7 +46,7 @@ func (s *OrgServer) CreateOrg(
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
+		slog.ErrorContext(ctx, "entity not found in context", "entityType", reflect.TypeOf(ctx.Value(contextkeys.EntityKey)))
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	// make sure that requester is a user and has permission to create orgs (user:write on oneself)
@@ -54,7 +55,7 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
 	}
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateOrg, entity.ID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create org", "entityId", entity.ID)
+		slog.WarnContext(ctx, "unauthorized to create org", "entityId", entity.ID, "entityType", entity.Type, "entityScopes", ctx.Value(contextkeys.EntityScopesKey))
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
@@ -140,7 +141,7 @@ func (s *OrgServer) GetCurrentUserOrgs(
 ) (*connect.Response[orgv1.GetCurrentUserOrgsResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
+		slog.ErrorContext(ctx, "entity not found in context", "entityType", reflect.TypeOf(ctx.Value(contextkeys.EntityKey)))
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	if entity.Type != genDb.EntityTypeUser {

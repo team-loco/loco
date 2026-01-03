@@ -9,7 +9,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/contextkeys"
-	"github.com/team-loco/loco/api/gen/db"
+	genDb "github.com/team-loco/loco/api/gen/db"
+
 	"github.com/team-loco/loco/api/tvm"
 )
 
@@ -72,13 +73,13 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 			return nil, connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("userId", entity.ID))
-
-		c := context.WithValue(ctx, contextkeys.EntityKey, db.Entity{
+		c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
 			Type: entity.Type,
 			ID:   entity.ID,
 		})
-		c = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
+		c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
+
+		slog.InfoContext(c, "claims validated; populating ctx", slog.Int64("userId", entity.ID))
 
 		return next(c, req)
 	})
@@ -120,9 +121,9 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("userId", entity.ID))
+		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("entityId", entity.ID), slog.Any("entityType", entity.Type))
 
-		c := context.WithValue(ctx, contextkeys.EntityKey, db.Entity{
+		c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
 			Type: entity.Type,
 			ID:   entity.ID,
 		})

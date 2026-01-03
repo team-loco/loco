@@ -131,7 +131,7 @@ func (s *WorkspaceServer) GetUserWorkspaces(
 ) (*connect.Response[workspacev1.GetUserWorkspacesResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
+		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	if entity.Type != genDb.EntityTypeUser {
@@ -334,7 +334,7 @@ func (s *WorkspaceServer) RemoveMember(
 
 	// entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	// if !ok {
-	// 	slog.ErrorContext(ctx, "userId not found in context")
+	// 	slog.ErrorContext(ctx, "entity not found in context")
 	// 	return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	// }
 

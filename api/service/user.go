@@ -145,7 +145,7 @@ func (s *UserServer) GetCurrentUser(
 ) (*connect.Response[userv1.GetCurrentUserResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
+		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
@@ -168,7 +168,7 @@ func (s *UserServer) UpdateUser(
 
 	currentUserID, ok := ctx.Value("userId").(int64)
 	if !ok {
-		slog.ErrorContext(ctx, "userId not found in context")
+		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 

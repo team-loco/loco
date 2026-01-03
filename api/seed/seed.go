@@ -149,6 +149,16 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 	} else {
 		userIDs = append(userIDs, user5.ID)
 	}
+	if user6, err := queries.CreateUser(ctx, db.CreateUserParams{
+		Name:       opttext("Nikhil Kumar"),
+		Email:      "nikumar1206@gmail.com",
+		ExternalID: "github-nikumar1206",
+		AvatarUrl:  opttext("https://avatars.githubusercontent.com/u/96546721?v=4"),
+	}); err != nil {
+		return nil, fmt.Errorf("creating user 6: %w", err)
+	} else {
+		userIDs = append(userIDs, user6.ID)
+	}
 	return userIDs, nil
 }
 
@@ -552,8 +562,28 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, re
 			Scope:      db.ScopeAdmin,
 		},
 	}
+	user6Scopes := []db.AddUserScopeParams{
+		{
+			UserID:     userIDs[5],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[5],
+			Scope:      db.ScopeRead,
+		},
+		{
+			UserID:     userIDs[5],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[5],
+			Scope:      db.ScopeWrite,
+		},
+		{
+			UserID:     userIDs[5],
+			EntityType: db.EntityTypeUser,
+			EntityID:   userIDs[5],
+			Scope:      db.ScopeAdmin,
+		},
+	}
 
-	allScopes := slices.Concat(user1Scopes, user2Scopes, user3Scopes, user4Scopes, user5Scopes)
+	allScopes := slices.Concat(user1Scopes, user2Scopes, user3Scopes, user4Scopes, user5Scopes, user6Scopes)
 	for _, scope := range allScopes {
 		if err := queries.AddUserScope(ctx, scope); err != nil {
 			// addiing organization_1:read for user with id 1: bla bla bla
@@ -562,6 +592,10 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, re
 	}
 	return nil
 }
+
+// func seedClusters(ctx context.Context, q *db.Queries) error {
+// 	q.Clu
+// }
 
 func opttext(s string) pgtype.Text {
 	return pgtype.Text{Valid: true, String: s}

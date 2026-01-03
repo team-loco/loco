@@ -91,7 +91,7 @@ type GithubUser struct {
 var OAuthConf = &oauth2.Config{
 	ClientID:     os.Getenv("GH_OAUTH_CLIENT_ID"),
 	ClientSecret: os.Getenv("GH_OAUTH_CLIENT_SECRET"),
-	Scopes:       []string{"read:user user:email"},
+	Scopes:       []string{"read:user", "user:email"},
 	Endpoint:     github.Endpoint,
 }
 
