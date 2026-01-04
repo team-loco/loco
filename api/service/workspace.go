@@ -76,12 +76,10 @@ func (s *WorkspaceServer) CreateWorkspace(
 
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
-	wsID, err := s.queries.InsertWorkspace(ctx, genDb.InsertWorkspaceParams{
+	wsID, err := s.queries.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
 		OrgID:       r.GetOrgId(),
 		Name:        r.GetName(),
 		Description: description,
-		// TODO PRIORITY: change createby to entity
-		CreatedBy: 0,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
@@ -95,8 +93,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}
 
 	entity := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	token := ctx.Value(contextkeys.TokenKey).(string)
-	err = s.machine.UpdateRoles(ctx, token, entity.ID, []genDb.EntityScope{
+	err = s.machine.UpdateRoles(ctx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeAdmin},

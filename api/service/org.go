@@ -99,8 +99,7 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	token := ctx.Value(contextkeys.TokenKey).(string)
-	err = s.machine.UpdateRoles(ctx, token, entity.ID, []genDb.EntityScope{
+	err = s.machine.UpdateRoles(ctx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},

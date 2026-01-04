@@ -193,44 +193,40 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, us
 		OrgID:       orgIDs[0], // org 1
 		Name:        "Workspace One",
 		Description: opttext("alpha org's first workspace"),
-		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 1: %w", err)
 	} else {
-		wksIDs = append(wksIDs, wks1.ID)
+		wksIDs = append(wksIDs, wks1)
 	}
 
 	if wks2, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
 		OrgID:       orgIDs[0], // org 1
 		Name:        "Workspace Two",
 		Description: opttext("alpha org's second workspace"),
-		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 2: %w", err)
 	} else {
-		wksIDs = append(wksIDs, wks2.ID)
+		wksIDs = append(wksIDs, wks2)
 	}
 
 	if wks3, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
 		OrgID:       orgIDs[1], // org 2
 		Name:        "Workspace Three",
 		Description: opttext("beta org's first workspace"),
-		CreatedBy:   userIDs[1], // user 2
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 3: %w", err)
 	} else {
-		wksIDs = append(wksIDs, wks3.ID)
+		wksIDs = append(wksIDs, wks3)
 	}
 
 	if wks4, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
 		OrgID:       orgIDs[1], // org 2
 		Name:        "Workspace Four",
 		Description: opttext("beta org's second workspace"),
-		CreatedBy:   userIDs[1], // user 2
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 4: %w", err)
 	} else {
-		wksIDs = append(wksIDs, wks4.ID)
+		wksIDs = append(wksIDs, wks4)
 	}
 
 	return wksIDs, nil
