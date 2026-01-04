@@ -95,8 +95,8 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 	return nil, ErrEntityNotFound
 }
 
-// UpdateRoles updates the roles for the given user by adding and removing the given scopes.
-func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID int64, addScopes []queries.EntityScope, removeScopes []queries.EntityScope) error {
+// UpdateMemberRoles updates the roles for the given user by adding and removing the given scopes. This function is intended to be used by admin users to manage other users' roles.
+func (tvm *VendingMachine) UpdateMemberRoles(ctx context.Context, token string, userID int64, addScopes []queries.EntityScope, removeScopes []queries.EntityScope) error {
 	// find each entity being added and removed
 	// make sure the token has admin, explicitly or implicitly, on all of these entities by calling Verify
 	// if ALL checks pass, update the scopes in the database
@@ -128,7 +128,11 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, token string, userID
 	}
 
 	// token has admin on all entities, proceed with update
+	return tvm.UpdateRoles(ctx, userID, addScopes, removeScopes)
+}
 
+// UpdateRoles updates the roles for the given user by adding and removing the given scopes.
+func (tvm *VendingMachine) UpdateRoles(ctx context.Context, userID int64, addScopes []queries.EntityScope, removeScopes []queries.EntityScope) error {
 	// use a transaction to ensure all or nothing
 	tx, err := tvm.pool.Begin(ctx)
 	if err != nil {
