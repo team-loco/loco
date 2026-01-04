@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/allegro/bigcache/v3"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -123,6 +125,74 @@ func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Cl
 	}, nil
 }
 
+func (s *OAuthServer) fetchGithubUserData(token string) (*GithubUser, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create github request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Add("Accept", "application/vnd.github+json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch github user data: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("github user api returned status %d", resp.StatusCode)
+	}
+
+	var user GithubUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, fmt.Errorf("failed to decode github user response: %w", err)
+	}
+
+	return &user, nil
+}
+
+// todo: remove the second we have a proper invitation system.
+func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, email string, name string, avatarURL string) (*genDb.User, error) {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := s.queries.(*genDb.Queries).WithTx(tx)
+
+	avatarURLPgType := pgtype.Text{String: avatarURL, Valid: avatarURL != ""}
+	namePgType := pgtype.Text{String: name, Valid: name != ""}
+
+	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
+		ExternalID: externalID,
+		Email:      email,
+		Name:       namePgType,
+		AvatarUrl:  avatarURLPgType,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to create user", "error", err)
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit transaction", "error", err)
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	if err := s.machine.UpdateRoles(ctx, user.ID, []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
+	}, []genDb.EntityScope{}); err != nil {
+		slog.ErrorContext(ctx, "failed to update user roles", "error", err, "userId", user.ID)
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	return &user, nil
+}
+
 func (s *OAuthServer) GithubOAuthDetails(
 	ctx context.Context, req *connect.Request[oAuth.GithubOAuthDetailsRequest],
 ) (*connect.Response[oAuth.GithubOAuthDetailsResponse], error) {
@@ -133,6 +203,7 @@ func (s *OAuthServer) GithubOAuthDetails(
 	return res, nil
 }
 
+// todo: fix this function to exchange once.
 func (s *OAuthServer) ExchangeGithubToken(
 	ctx context.Context,
 	req *connect.Request[oAuth.ExchangeGithubTokenRequest],
@@ -229,8 +300,38 @@ func (s *OAuthServer) ExchangeGithubCode(
 		)
 	}
 
-	user, locoToken, err := s.machine.Exchange(ctx, providers.Github(token.AccessToken))
+	// get github user data
+	emailResp := providers.Github(token.AccessToken)
+	address, err := emailResp.Address()
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to get email from github token", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get email: %w", err))
+	}
+
+	// try to exchange token for existing user
+	user, locoToken, err := s.machine.Exchange(ctx, emailResp)
+	if err == tvm.ErrUserNotFound {
+		// user doesn't exist, fetch github profile and create user
+		githubUser, err := s.fetchGithubUserData(token.AccessToken)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to fetch github user data", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch github user: %w", err))
+		}
+
+		createdUser, err := s.tempCreateUser(ctx, fmt.Sprintf("%d", githubUser.ID), address, githubUser.Name, githubUser.Avatar)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to create user", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create user: %w", err))
+		}
+
+		// exchange again with newly created user
+		user, locoToken, err = s.machine.Exchange(ctx, emailResp)
+		if err != nil {
+			slog.ErrorContext(ctx, "exchange github token for new user", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("exchange token: %w", err))
+		}
+		slog.InfoContext(ctx, "created new user from github oauth", "userId", createdUser.ID)
+	} else if err != nil {
 		slog.ErrorContext(ctx, "failed to exchange token", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

@@ -54,6 +54,7 @@ type EmailResponse struct {
 	err     error
 }
 
+// not necessary, but we keep it cuz we like it.
 func (e EmailResponse) Address() (string, error) {
 	return e.address, e.err
 }

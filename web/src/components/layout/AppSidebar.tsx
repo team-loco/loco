@@ -128,15 +128,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { toggleSidebar } = useSidebar();
 	const transport = useTransport();
 
-	const [userQuery, orgsQuery] = useQueries({
-		queries: [
-			createQueryOptions(whoAmI, {}, { transport }),
-			createQueryOptions(listUserOrgs, { userId: 0n }, { transport }),
-		],
-	});
+	const { data: user } = useQuery(whoAmI, {});
+	const { data: orgsRes } = useQuery(
+		listUserOrgs,
+		user ? { userId: BigInt(user.id) } : undefined,
+		{ enabled: !!user }
+	);
 
-	const user = userQuery.data ?? null;
-	const orgs = orgsQuery.data?.orgs ?? [];
+	const orgs = orgsRes?.orgs ?? [];
 	const firstOrgId = orgs[0]?.id ?? null;
 
 	const { data: workspacesRes } = useQuery(

@@ -16,7 +16,7 @@ import Loader from "@/assets/loader.svg?react";
 
 export function Home() {
 	const navigate = useNavigate();
-	const { logout } = useAuth();
+	const { logout, user } = useAuth();
 	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
@@ -31,7 +31,9 @@ export function Home() {
 		data: orgsQueryRes,
 		isLoading: orgsLoading,
 		error: orgsError,
-	} = useQuery(listUserOrgs, { userId: 0n });
+	} = useQuery(listUserOrgs, user ? { userId: BigInt(user.id) } : undefined, {
+		enabled: !!user,
+	});
 	const orgs = useMemo(() => orgsQueryRes?.orgs ?? [], [orgsQueryRes]);
 
 	const currentOrgId = selectedOrgId || (orgs.length > 0 ? orgs[0].id : null);

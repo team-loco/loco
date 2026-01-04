@@ -3,6 +3,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { listWorkspaceResources } from "@/gen/resource/v1";
 import { listUserOrgs } from "@/gen/org/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
+import { useAuth } from "@/auth/AuthProvider";
 import { useQuery } from "@connectrpc/connect-query";
 import { PanelLeftCloseIcon, PanelLeftIcon, Plus } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -12,6 +13,7 @@ export function SiteHeader() {
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
 	const { open, toggleSidebar } = useSidebar();
+	const { user } = useAuth();
 
 	const workspaceFromUrl = searchParams.get("workspace");
 	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
@@ -19,7 +21,11 @@ export function SiteHeader() {
 	const resourceIdMatch = location.pathname.match(/\/resource\/(\d+)/);
 	const activeResourceId = resourceIdMatch ? BigInt(resourceIdMatch[1]) : null;
 
-	const { data: orgsRes } = useQuery(listUserOrgs, { userId: 0n });
+	const { data: orgsRes } = useQuery(
+		listUserOrgs,
+		user ? { userId: BigInt(user.id) } : undefined,
+		{ enabled: !!user }
+	);
 	const firstOrgId = orgsRes?.orgs?.[0]?.id ?? null;
 
 	const { data: workspacesRes } = useQuery(
