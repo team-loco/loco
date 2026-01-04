@@ -2,15 +2,24 @@ package tvm
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
 func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.Entity, []queries.EntityScope, error) {
 	tokenData, err := tvm.queries.GetToken(ctx, token)
+	fmt.Println("what is token", token)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			// we don't know why its not in the cache, so return broad error
+			return queries.Entity{}, nil, ErrInvalidExpiredToken
+		}
+
 		return queries.Entity{}, nil, err
 	}
 
