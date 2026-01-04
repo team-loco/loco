@@ -3,7 +3,9 @@ package loco
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"os/user"
 
 	"github.com/charmbracelet/lipgloss"
@@ -15,54 +17,78 @@ import (
 	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
 )
 
-func init() {
-	whoamiCmd.Flags().String("host", "", "Set the host URL")
+type whoamiDeps struct {
+	GetCurrentUser func(ctx context.Context, host, token string) (*userv1.User, error) // Pass context
+	GetLocoToken   func(username string) (*keychain.UserToken, error)
+	LoadConfig     func() (*config.SessionConfig, error)
+	Output         io.Writer
 }
 
-var whoamiCmd = &cobra.Command{
-	Use:   "whoami",
-	Short: "displays information on the logged in user",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+func buildWhoAmICmd() *cobra.Command {
+	deps := whoamiDeps{
+		GetCurrentUser: func(ctx context.Context, host, token string) (*userv1.User, error) {
+			apiClient := client.NewClient(host, token)
+			return apiClient.GetCurrentUser(ctx)
+		},
+		GetLocoToken: func(username string) (*keychain.UserToken, error) {
+			return keychain.GetLocoToken(username)
+		},
+		LoadConfig: func() (*config.SessionConfig, error) {
+			return config.Load()
+		},
+		Output: os.Stdout,
+	}
+	return newWhoAmICmd(deps)
+}
 
-		host, err := getHost(cmd)
-		if err != nil {
-			return err
-		}
+func newWhoAmICmd(deps whoamiDeps) *cobra.Command {
+	cmd := cobra.Command{
+		Use:   "whoami",
+		Short: "displays information on the logged in user",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 
-		currentUser, err := user.Current()
-		if err != nil {
-			return fmt.Errorf("failed to get current user: %w", err)
-		}
-
-		t, err := keychain.GetLocoToken(currentUser.Name)
-		if err != nil {
-			slog.Error("failed keychain token grab", "error", err)
-			return ErrLoginRequired
-		}
-
-		apiClient := client.NewClient(host, t.Token)
-		usr, err := apiClient.GetCurrentUser(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get user info: %w", err)
-		}
-
-		cfg, err := config.Load()
-		var currentOrg, currentWorkspace string
-		if err == nil {
-			scope, err := cfg.GetScope()
-			if err == nil {
-				currentOrg = scope.Organization.Name
-				currentWorkspace = scope.Workspace.Name
+			host, err := getHost(cmd)
+			if err != nil {
+				return err
 			}
-		}
 
-		renderCard(usr, currentOrg, currentWorkspace)
-		return nil
-	},
+			currentUser, err := user.Current()
+			if err != nil {
+				return fmt.Errorf("failed to get current user: %w", err)
+			}
+
+			t, err := deps.GetLocoToken(currentUser.Name)
+			if err != nil {
+				slog.Error("failed keychain token grab", "error", err)
+				return ErrLoginRequired
+			}
+
+			usr, err := deps.GetCurrentUser(ctx, host, t.Token)
+			if err != nil {
+				return fmt.Errorf("failed to get user info: %w", err)
+			}
+
+			cfg, err := deps.LoadConfig()
+			var currentOrg, currentWorkspace string
+			if err == nil {
+				scope, err := cfg.GetScope()
+				if err == nil {
+					currentOrg = scope.Organization.Name
+					currentWorkspace = scope.Workspace.Name
+				}
+			}
+
+			content := renderCardString(usr, currentOrg, currentWorkspace)
+			_, err = fmt.Fprintln(deps.Output, content)
+			return err
+		},
+	}
+	cmd.Flags().String("host", "", "Set the host URL")
+	return &cmd
 }
 
-func renderCard(usr *userv1.User, currentOrg, currentWorkspace string) {
+func renderCardString(usr *userv1.User, currentOrg, currentWorkspace string) string {
 	borderColor := ui.LocoOrange
 	labelColor := lipgloss.Color("#888888")
 	valueColor := lipgloss.Color("#FFFFFF")
@@ -110,5 +136,5 @@ func renderCard(usr *userv1.User, currentOrg, currentWorkspace string) {
 		MaxWidth(200).
 		Align(lipgloss.Left)
 
-	fmt.Println(cardStyle.Render(content))
+	return cardStyle.Render(content)
 }
