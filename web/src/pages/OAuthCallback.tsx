@@ -16,21 +16,22 @@ export function OAuthCallback() {
 	const error = params.get("error");
 	const errorDescription = params.get("error_description");
 
-	const {
-		data: exchangeRes,
-		isLoading,
-		error: queryError,
-	} = useQuery(
-		exchangeGithubCode,
+	const exchangeConfig =
 		code && state
 			? {
 					code,
 					state,
 					redirectUri: window.location.origin + "/oauth/callback",
 			  }
-			: undefined,
-		{ enabled: !!(code && state) }
-	);
+			: undefined;
+
+	const {
+		data: exchangeRes,
+		isLoading,
+		error: queryError,
+	} = useQuery(exchangeGithubCode, exchangeConfig, {
+		enabled: !!exchangeConfig,
+	});
 
 	// After exchange, check if user has orgs
 	// Use the user ID from the exchange response
