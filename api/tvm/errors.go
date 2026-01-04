@@ -10,9 +10,11 @@ var (
 	ErrStoreToken                = errors.New("unable to store issued token")
 	ErrImproperUsage             = errors.New("improper usage of token vending machine")
 
-	ErrTokenExpired  = errors.New("token has expired")
-	ErrTokenNotFound = errors.New("token not found")
-	ErrExchange      = errors.New("exchange with external provider failed")
+	ErrTokenExpired        = errors.New("token has expired")
+	ErrTokenNotFound       = errors.New("token not found")
+	ErrInvalidExpiredToken = errors.New("invalid or expired token")
+
+	ErrExchange = errors.New("exchange with external provider failed")
 
 	ErrUserNotFound   = errors.New("user not found")
 	ErrEntityNotFound = errors.New("entity not found or invalid entity")
