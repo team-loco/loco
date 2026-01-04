@@ -24,6 +24,7 @@ import { listUserOrgs } from "@/gen/org/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useAuth } from "@/auth/AuthProvider";
 import { Check, Loader, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -54,7 +55,9 @@ export function CreateResource() {
 	>(null);
 	const hasUserEditedSubdomain = useRef(false);
 
-	const { data: orgsRes } = useQuery(listUserOrgs, { userId: 0n });
+	const { user } = useAuth();
+
+	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? 0n }, { enabled: !!user });
 	const orgs = orgsRes?.orgs ?? [];
 	const firstOrgId = orgs.length > 0 ? orgs[0].id : null;
 

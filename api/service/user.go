@@ -353,8 +353,6 @@ func (s *UserServer) getUserByID(ctx context.Context, id int64) (*userv1.User, e
 	return dbUserToProto(user), nil
 }
 
-
-
 func dbUserToProto(user genDb.User) *userv1.User {
 	return &userv1.User{
 		Id:         user.ID,

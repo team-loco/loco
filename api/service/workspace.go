@@ -94,6 +94,18 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	entity := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	token := ctx.Value(contextkeys.TokenKey).(string)
+	err = s.machine.UpdateRoles(ctx, token, entity.ID, []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeAdmin},
+	}, []genDb.EntityScope{})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update user roles for new workspace", "error", err, "workspaceId", ws.ID, "userId", entity.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&workspacev1.Workspace{
 		Id:          ws.ID,
 		OrgId:       ws.OrgID,
