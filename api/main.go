@@ -190,10 +190,10 @@ func main() {
 
 	reflector := grpcreflect.NewStaticReflector(
 		// oauth service
-		oauthv1connect.OAuthServiceGithubOAuthDetailsProcedure,
-		oauthv1connect.OAuthServiceExchangeGithubTokenProcedure,
-		oauthv1connect.OAuthServiceGetGithubAuthorizationURLProcedure,
-		oauthv1connect.OAuthServiceExchangeGithubCodeProcedure,
+		oauthv1connect.OAuthServiceGetOAuthDetailsProcedure,
+		oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure,
+		oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure,
+		oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure,
 
 		// user service
 		userv1connect.UserServiceCreateUserProcedure,

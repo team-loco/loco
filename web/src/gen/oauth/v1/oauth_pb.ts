@@ -2,45 +2,53 @@
 // @generated from file oauth/v1/oauth.proto (package loco.oauth.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file oauth/v1/oauth.proto.
  */
 export const file_oauth_v1_oauth: GenFile = /*@__PURE__*/
-  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSIbChlHaXRodWJPQXV0aERldGFpbHNSZXF1ZXN0IkIKGkdpdGh1Yk9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEiXAoaRXhjaGFuZ2VHaXRodWJUb2tlblJlcXVlc3QSGwoTZ2l0aHViX2FjY2Vzc190b2tlbhgBIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAIgASgIImQKG0V4Y2hhbmdlR2l0aHViVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSDwoHdXNlcl9pZBgDIAEoAxIMCgRuYW1lGAQgASgJIkcKIEdldEdpdGh1YkF1dGhvcml6YXRpb25VUkxSZXF1ZXN0Eg0KBXN0YXRlGAEgASgJEhQKDHJlZGlyZWN0X3VyaRgCIAEoCSJNCiFHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkSDQoFc3RhdGUYAiABKAkiTgoZRXhjaGFuZ2VHaXRodWJDb2RlUmVxdWVzdBIMCgRjb2RlGAEgASgJEg0KBXN0YXRlGAIgASgJEhQKDHJlZGlyZWN0X3VyaRgDIAEoCSJPChpFeGNoYW5nZUdpdGh1YkNvZGVSZXNwb25zZRISCgpleHBpcmVzX2luGAEgASgDEg8KB3VzZXJfaWQYAiABKAMSDAoEbmFtZRgDIAEoCTLZAwoMT0F1dGhTZXJ2aWNlEmsKEkdpdGh1Yk9BdXRoRGV0YWlscxIoLmxvY28ub2F1dGgudjEuR2l0aHViT0F1dGhEZXRhaWxzUmVxdWVzdBopLmxvY28ub2F1dGgudjEuR2l0aHViT0F1dGhEZXRhaWxzUmVzcG9uc2UiABJsChNFeGNoYW5nZUdpdGh1YlRva2VuEikubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YlRva2VuUmVxdWVzdBoqLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VHaXRodWJUb2tlblJlc3BvbnNlEoABChlHZXRHaXRodWJBdXRob3JpemF0aW9uVVJMEi8ubG9jby5vYXV0aC52MS5HZXRHaXRodWJBdXRob3JpemF0aW9uVVJMUmVxdWVzdBowLmxvY28ub2F1dGgudjEuR2V0R2l0aHViQXV0aG9yaXphdGlvblVSTFJlc3BvbnNlIgASawoSRXhjaGFuZ2VHaXRodWJDb2RlEigubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YkNvZGVSZXF1ZXN0GikubG9jby5vYXV0aC52MS5FeGNoYW5nZUdpdGh1YkNvZGVSZXNwb25zZSIAQjlaN2dpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL29hdXRoL3YxO29hdXRodjFiBnByb3RvMw");
+  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSJFChNPQXV0aERldGFpbHNSZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyIjwKFE9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEifQoZRXhjaGFuZ2VPQXV0aFRva2VuUmVxdWVzdBIuCghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlchINCgV0b2tlbhgCIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAMgASgIImMKGkV4Y2hhbmdlT0F1dGhUb2tlblJlc3BvbnNlEhIKCmxvY29fdG9rZW4YASABKAkSEgoKZXhwaXJlc19pbhgCIAEoAxIPCgd1c2VyX2lkGAMgASgDEgwKBG5hbWUYBCABKAkidgofR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVxdWVzdBIuCghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlchINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiTAogR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkSDQoFc3RhdGUYAiABKAkifQoYRXhjaGFuZ2VPQXV0aENvZGVSZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyEgwKBGNvZGUYAiABKAkSDQoFc3RhdGUYAyABKAkSFAoMcmVkaXJlY3RfdXJpGAQgASgJIk4KGUV4Y2hhbmdlT0F1dGhDb2RlUmVzcG9uc2USEgoKZXhwaXJlc19pbhgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBG5hbWUYAyABKAkqOwoNT0F1dGhQcm92aWRlchIeChpPQVVUSF9QUk9WSURFUl9VTlNQRUNJRklFRBAAEgoKBkdJVEhVQhABMsADCgxPQXV0aFNlcnZpY2USXAoPR2V0T0F1dGhEZXRhaWxzEiIubG9jby5vYXV0aC52MS5PQXV0aERldGFpbHNSZXF1ZXN0GiMubG9jby5vYXV0aC52MS5PQXV0aERldGFpbHNSZXNwb25zZSIAEmkKEkV4Y2hhbmdlT0F1dGhUb2tlbhIoLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aFRva2VuUmVxdWVzdBopLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aFRva2VuUmVzcG9uc2USfQoYR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMEi4ubG9jby5vYXV0aC52MS5HZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXF1ZXN0Gi8ubG9jby5vYXV0aC52MS5HZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXNwb25zZSIAEmgKEUV4Y2hhbmdlT0F1dGhDb2RlEicubG9jby5vYXV0aC52MS5FeGNoYW5nZU9BdXRoQ29kZVJlcXVlc3QaKC5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlT0F1dGhDb2RlUmVzcG9uc2UiAEI5WjdnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3NoYXJlZC9wcm90by9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM");
 
 /**
- * GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration for client setup.
+ * OAuthDetailsRequest is the request to get OAuth configuration for a provider.
  *
- * @generated from message loco.oauth.v1.GithubOAuthDetailsRequest
+ * @generated from message loco.oauth.v1.OAuthDetailsRequest
  */
-export type GithubOAuthDetailsRequest = Message<"loco.oauth.v1.GithubOAuthDetailsRequest"> & {
+export type OAuthDetailsRequest = Message<"loco.oauth.v1.OAuthDetailsRequest"> & {
+  /**
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
+   */
+  provider: OAuthProvider;
 };
 
 /**
- * GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration for client setup.
+ * OAuthDetailsRequest is the request to get OAuth configuration for a provider.
  *
- * @generated from message loco.oauth.v1.GithubOAuthDetailsRequest
+ * @generated from message loco.oauth.v1.OAuthDetailsRequest
  */
-export type GithubOAuthDetailsRequestJson = {
+export type OAuthDetailsRequestJson = {
+  /**
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
+   */
+  provider?: OAuthProviderJson;
 };
 
 /**
- * Describes the message loco.oauth.v1.GithubOAuthDetailsRequest.
- * Use `create(GithubOAuthDetailsRequestSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.OAuthDetailsRequest.
+ * Use `create(OAuthDetailsRequestSchema)` to create a new message.
  */
-export const GithubOAuthDetailsRequestSchema: GenMessage<GithubOAuthDetailsRequest, {jsonType: GithubOAuthDetailsRequestJson}> = /*@__PURE__*/
+export const OAuthDetailsRequestSchema: GenMessage<OAuthDetailsRequest, {jsonType: OAuthDetailsRequestJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 0);
 
 /**
- * GithubOAuthDetailsResponse contains GitHub OAuth configuration details needed for client-side OAuth flow.
+ * OAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
  *
- * @generated from message loco.oauth.v1.GithubOAuthDetailsResponse
+ * @generated from message loco.oauth.v1.OAuthDetailsResponse
  */
-export type GithubOAuthDetailsResponse = Message<"loco.oauth.v1.GithubOAuthDetailsResponse"> & {
+export type OAuthDetailsResponse = Message<"loco.oauth.v1.OAuthDetailsResponse"> & {
   /**
    * @generated from field: string client_id = 1;
    */
@@ -53,11 +61,11 @@ export type GithubOAuthDetailsResponse = Message<"loco.oauth.v1.GithubOAuthDetai
 };
 
 /**
- * GithubOAuthDetailsResponse contains GitHub OAuth configuration details needed for client-side OAuth flow.
+ * OAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
  *
- * @generated from message loco.oauth.v1.GithubOAuthDetailsResponse
+ * @generated from message loco.oauth.v1.OAuthDetailsResponse
  */
-export type GithubOAuthDetailsResponseJson = {
+export type OAuthDetailsResponseJson = {
   /**
    * @generated from field: string client_id = 1;
    */
@@ -70,59 +78,69 @@ export type GithubOAuthDetailsResponseJson = {
 };
 
 /**
- * Describes the message loco.oauth.v1.GithubOAuthDetailsResponse.
- * Use `create(GithubOAuthDetailsResponseSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.OAuthDetailsResponse.
+ * Use `create(OAuthDetailsResponseSchema)` to create a new message.
  */
-export const GithubOAuthDetailsResponseSchema: GenMessage<GithubOAuthDetailsResponse, {jsonType: GithubOAuthDetailsResponseJson}> = /*@__PURE__*/
+export const OAuthDetailsResponseSchema: GenMessage<OAuthDetailsResponse, {jsonType: OAuthDetailsResponseJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 1);
 
 /**
- * ExchangeGithubTokenRequest exchanges a GitHub access token for a Loco authentication token.
+ * ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubTokenRequest
+ * @generated from message loco.oauth.v1.ExchangeOAuthTokenRequest
  */
-export type ExchangeGithubTokenRequest = Message<"loco.oauth.v1.ExchangeGithubTokenRequest"> & {
+export type ExchangeOAuthTokenRequest = Message<"loco.oauth.v1.ExchangeOAuthTokenRequest"> & {
   /**
-   * @generated from field: string github_access_token = 1;
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
    */
-  githubAccessToken: string;
+  provider: OAuthProvider;
 
   /**
-   * @generated from field: bool create_user_if_not_exists = 2;
+   * @generated from field: string token = 2;
+   */
+  token: string;
+
+  /**
+   * @generated from field: bool create_user_if_not_exists = 3;
    */
   createUserIfNotExists: boolean;
 };
 
 /**
- * ExchangeGithubTokenRequest exchanges a GitHub access token for a Loco authentication token.
+ * ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubTokenRequest
+ * @generated from message loco.oauth.v1.ExchangeOAuthTokenRequest
  */
-export type ExchangeGithubTokenRequestJson = {
+export type ExchangeOAuthTokenRequestJson = {
   /**
-   * @generated from field: string github_access_token = 1;
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
    */
-  githubAccessToken?: string;
+  provider?: OAuthProviderJson;
 
   /**
-   * @generated from field: bool create_user_if_not_exists = 2;
+   * @generated from field: string token = 2;
+   */
+  token?: string;
+
+  /**
+   * @generated from field: bool create_user_if_not_exists = 3;
    */
   createUserIfNotExists?: boolean;
 };
 
 /**
- * Describes the message loco.oauth.v1.ExchangeGithubTokenRequest.
- * Use `create(ExchangeGithubTokenRequestSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.ExchangeOAuthTokenRequest.
+ * Use `create(ExchangeOAuthTokenRequestSchema)` to create a new message.
  */
-export const ExchangeGithubTokenRequestSchema: GenMessage<ExchangeGithubTokenRequest, {jsonType: ExchangeGithubTokenRequestJson}> = /*@__PURE__*/
+export const ExchangeOAuthTokenRequestSchema: GenMessage<ExchangeOAuthTokenRequest, {jsonType: ExchangeOAuthTokenRequestJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 2);
 
 /**
- * ExchangeGithubTokenResponse contains the Loco token and user info from GitHub token exchange.
+ * ExchangeOAuthTokenResponse contains the Loco token and user info from OAuth token exchange.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubTokenResponse
+ * @generated from message loco.oauth.v1.ExchangeOAuthTokenResponse
  */
-export type ExchangeGithubTokenResponse = Message<"loco.oauth.v1.ExchangeGithubTokenResponse"> & {
+export type ExchangeOAuthTokenResponse = Message<"loco.oauth.v1.ExchangeOAuthTokenResponse"> & {
   /**
    * @generated from field: string loco_token = 1;
    */
@@ -147,11 +165,11 @@ export type ExchangeGithubTokenResponse = Message<"loco.oauth.v1.ExchangeGithubT
 };
 
 /**
- * ExchangeGithubTokenResponse contains the Loco token and user info from GitHub token exchange.
+ * ExchangeOAuthTokenResponse contains the Loco token and user info from OAuth token exchange.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubTokenResponse
+ * @generated from message loco.oauth.v1.ExchangeOAuthTokenResponse
  */
-export type ExchangeGithubTokenResponseJson = {
+export type ExchangeOAuthTokenResponseJson = {
   /**
    * @generated from field: string loco_token = 1;
    */
@@ -176,59 +194,69 @@ export type ExchangeGithubTokenResponseJson = {
 };
 
 /**
- * Describes the message loco.oauth.v1.ExchangeGithubTokenResponse.
- * Use `create(ExchangeGithubTokenResponseSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.ExchangeOAuthTokenResponse.
+ * Use `create(ExchangeOAuthTokenResponseSchema)` to create a new message.
  */
-export const ExchangeGithubTokenResponseSchema: GenMessage<ExchangeGithubTokenResponse, {jsonType: ExchangeGithubTokenResponseJson}> = /*@__PURE__*/
+export const ExchangeOAuthTokenResponseSchema: GenMessage<ExchangeOAuthTokenResponse, {jsonType: ExchangeOAuthTokenResponseJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 3);
 
 /**
- * GetGithubAuthorizationURLRequest is the request to initiate GitHub OAuth authorization flow.
+ * GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
  *
- * @generated from message loco.oauth.v1.GetGithubAuthorizationURLRequest
+ * @generated from message loco.oauth.v1.GetOAuthAuthorizationURLRequest
  */
-export type GetGithubAuthorizationURLRequest = Message<"loco.oauth.v1.GetGithubAuthorizationURLRequest"> & {
+export type GetOAuthAuthorizationURLRequest = Message<"loco.oauth.v1.GetOAuthAuthorizationURLRequest"> & {
   /**
-   * @generated from field: string state = 1;
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
+   */
+  provider: OAuthProvider;
+
+  /**
+   * @generated from field: string state = 2;
    */
   state: string;
 
   /**
-   * @generated from field: string redirect_uri = 2;
+   * @generated from field: string redirect_uri = 3;
    */
   redirectUri: string;
 };
 
 /**
- * GetGithubAuthorizationURLRequest is the request to initiate GitHub OAuth authorization flow.
+ * GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
  *
- * @generated from message loco.oauth.v1.GetGithubAuthorizationURLRequest
+ * @generated from message loco.oauth.v1.GetOAuthAuthorizationURLRequest
  */
-export type GetGithubAuthorizationURLRequestJson = {
+export type GetOAuthAuthorizationURLRequestJson = {
   /**
-   * @generated from field: string state = 1;
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
+   */
+  provider?: OAuthProviderJson;
+
+  /**
+   * @generated from field: string state = 2;
    */
   state?: string;
 
   /**
-   * @generated from field: string redirect_uri = 2;
+   * @generated from field: string redirect_uri = 3;
    */
   redirectUri?: string;
 };
 
 /**
- * Describes the message loco.oauth.v1.GetGithubAuthorizationURLRequest.
- * Use `create(GetGithubAuthorizationURLRequestSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.GetOAuthAuthorizationURLRequest.
+ * Use `create(GetOAuthAuthorizationURLRequestSchema)` to create a new message.
  */
-export const GetGithubAuthorizationURLRequestSchema: GenMessage<GetGithubAuthorizationURLRequest, {jsonType: GetGithubAuthorizationURLRequestJson}> = /*@__PURE__*/
+export const GetOAuthAuthorizationURLRequestSchema: GenMessage<GetOAuthAuthorizationURLRequest, {jsonType: GetOAuthAuthorizationURLRequestJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 4);
 
 /**
- * GetGithubAuthorizationURLResponse contains the GitHub authorization URL for client redirect.
+ * GetOAuthAuthorizationURLResponse contains the OAuth authorization URL for client redirect.
  *
- * @generated from message loco.oauth.v1.GetGithubAuthorizationURLResponse
+ * @generated from message loco.oauth.v1.GetOAuthAuthorizationURLResponse
  */
-export type GetGithubAuthorizationURLResponse = Message<"loco.oauth.v1.GetGithubAuthorizationURLResponse"> & {
+export type GetOAuthAuthorizationURLResponse = Message<"loco.oauth.v1.GetOAuthAuthorizationURLResponse"> & {
   /**
    * @generated from field: string authorization_url = 1;
    */
@@ -241,11 +269,11 @@ export type GetGithubAuthorizationURLResponse = Message<"loco.oauth.v1.GetGithub
 };
 
 /**
- * GetGithubAuthorizationURLResponse contains the GitHub authorization URL for client redirect.
+ * GetOAuthAuthorizationURLResponse contains the OAuth authorization URL for client redirect.
  *
- * @generated from message loco.oauth.v1.GetGithubAuthorizationURLResponse
+ * @generated from message loco.oauth.v1.GetOAuthAuthorizationURLResponse
  */
-export type GetGithubAuthorizationURLResponseJson = {
+export type GetOAuthAuthorizationURLResponseJson = {
   /**
    * @generated from field: string authorization_url = 1;
    */
@@ -258,69 +286,79 @@ export type GetGithubAuthorizationURLResponseJson = {
 };
 
 /**
- * Describes the message loco.oauth.v1.GetGithubAuthorizationURLResponse.
- * Use `create(GetGithubAuthorizationURLResponseSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.GetOAuthAuthorizationURLResponse.
+ * Use `create(GetOAuthAuthorizationURLResponseSchema)` to create a new message.
  */
-export const GetGithubAuthorizationURLResponseSchema: GenMessage<GetGithubAuthorizationURLResponse, {jsonType: GetGithubAuthorizationURLResponseJson}> = /*@__PURE__*/
+export const GetOAuthAuthorizationURLResponseSchema: GenMessage<GetOAuthAuthorizationURLResponse, {jsonType: GetOAuthAuthorizationURLResponseJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 5);
 
 /**
- * ExchangeGithubCodeRequest exchanges a GitHub authorization code for authentication tokens.
+ * ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubCodeRequest
+ * @generated from message loco.oauth.v1.ExchangeOAuthCodeRequest
  */
-export type ExchangeGithubCodeRequest = Message<"loco.oauth.v1.ExchangeGithubCodeRequest"> & {
+export type ExchangeOAuthCodeRequest = Message<"loco.oauth.v1.ExchangeOAuthCodeRequest"> & {
   /**
-   * @generated from field: string code = 1;
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
+   */
+  provider: OAuthProvider;
+
+  /**
+   * @generated from field: string code = 2;
    */
   code: string;
 
   /**
-   * @generated from field: string state = 2;
+   * @generated from field: string state = 3;
    */
   state: string;
 
   /**
-   * @generated from field: string redirect_uri = 3;
+   * @generated from field: string redirect_uri = 4;
    */
   redirectUri: string;
 };
 
 /**
- * ExchangeGithubCodeRequest exchanges a GitHub authorization code for authentication tokens.
+ * ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubCodeRequest
+ * @generated from message loco.oauth.v1.ExchangeOAuthCodeRequest
  */
-export type ExchangeGithubCodeRequestJson = {
+export type ExchangeOAuthCodeRequestJson = {
   /**
-   * @generated from field: string code = 1;
+   * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
+   */
+  provider?: OAuthProviderJson;
+
+  /**
+   * @generated from field: string code = 2;
    */
   code?: string;
 
   /**
-   * @generated from field: string state = 2;
+   * @generated from field: string state = 3;
    */
   state?: string;
 
   /**
-   * @generated from field: string redirect_uri = 3;
+   * @generated from field: string redirect_uri = 4;
    */
   redirectUri?: string;
 };
 
 /**
- * Describes the message loco.oauth.v1.ExchangeGithubCodeRequest.
- * Use `create(ExchangeGithubCodeRequestSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.ExchangeOAuthCodeRequest.
+ * Use `create(ExchangeOAuthCodeRequestSchema)` to create a new message.
  */
-export const ExchangeGithubCodeRequestSchema: GenMessage<ExchangeGithubCodeRequest, {jsonType: ExchangeGithubCodeRequestJson}> = /*@__PURE__*/
+export const ExchangeOAuthCodeRequestSchema: GenMessage<ExchangeOAuthCodeRequest, {jsonType: ExchangeOAuthCodeRequestJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 6);
 
 /**
- * ExchangeGithubCodeResponse contains the Loco token and user info from GitHub code exchange.
+ * ExchangeOAuthCodeResponse contains the Loco token and user info from OAuth code exchange.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubCodeResponse
+ * @generated from message loco.oauth.v1.ExchangeOAuthCodeResponse
  */
-export type ExchangeGithubCodeResponse = Message<"loco.oauth.v1.ExchangeGithubCodeResponse"> & {
+export type ExchangeOAuthCodeResponse = Message<"loco.oauth.v1.ExchangeOAuthCodeResponse"> & {
   /**
    * @generated from field: int64 expires_in = 1;
    */
@@ -338,11 +376,11 @@ export type ExchangeGithubCodeResponse = Message<"loco.oauth.v1.ExchangeGithubCo
 };
 
 /**
- * ExchangeGithubCodeResponse contains the Loco token and user info from GitHub code exchange.
+ * ExchangeOAuthCodeResponse contains the Loco token and user info from OAuth code exchange.
  *
- * @generated from message loco.oauth.v1.ExchangeGithubCodeResponse
+ * @generated from message loco.oauth.v1.ExchangeOAuthCodeResponse
  */
-export type ExchangeGithubCodeResponseJson = {
+export type ExchangeOAuthCodeResponseJson = {
   /**
    * @generated from field: int64 expires_in = 1;
    */
@@ -360,11 +398,41 @@ export type ExchangeGithubCodeResponseJson = {
 };
 
 /**
- * Describes the message loco.oauth.v1.ExchangeGithubCodeResponse.
- * Use `create(ExchangeGithubCodeResponseSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.ExchangeOAuthCodeResponse.
+ * Use `create(ExchangeOAuthCodeResponseSchema)` to create a new message.
  */
-export const ExchangeGithubCodeResponseSchema: GenMessage<ExchangeGithubCodeResponse, {jsonType: ExchangeGithubCodeResponseJson}> = /*@__PURE__*/
+export const ExchangeOAuthCodeResponseSchema: GenMessage<ExchangeOAuthCodeResponse, {jsonType: ExchangeOAuthCodeResponseJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 7);
+
+/**
+ * OAuthProvider represents supported OAuth identity providers.
+ *
+ * @generated from enum loco.oauth.v1.OAuthProvider
+ */
+export enum OAuthProvider {
+  /**
+   * @generated from enum value: OAUTH_PROVIDER_UNSPECIFIED = 0;
+   */
+  OAUTH_PROVIDER_UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: GITHUB = 1;
+   */
+  GITHUB = 1,
+}
+
+/**
+ * OAuthProvider represents supported OAuth identity providers.
+ *
+ * @generated from enum loco.oauth.v1.OAuthProvider
+ */
+export type OAuthProviderJson = "OAUTH_PROVIDER_UNSPECIFIED" | "GITHUB";
+
+/**
+ * Describes the enum loco.oauth.v1.OAuthProvider.
+ */
+export const OAuthProviderSchema: GenEnum<OAuthProvider, OAuthProviderJson> = /*@__PURE__*/
+  enumDesc(file_oauth_v1_oauth, 0);
 
 /**
  * OAuthService handles OAuth authentication flows.
@@ -373,44 +441,44 @@ export const ExchangeGithubCodeResponseSchema: GenMessage<ExchangeGithubCodeResp
  */
 export const OAuthService: GenService<{
   /**
-   * GithubOAuthDetails retrieves GitHub OAuth configuration.
+   * GetOAuthDetails retrieves OAuth configuration for a provider.
    *
-   * @generated from rpc loco.oauth.v1.OAuthService.GithubOAuthDetails
+   * @generated from rpc loco.oauth.v1.OAuthService.GetOAuthDetails
    */
-  githubOAuthDetails: {
+  getOAuthDetails: {
     methodKind: "unary";
-    input: typeof GithubOAuthDetailsRequestSchema;
-    output: typeof GithubOAuthDetailsResponseSchema;
+    input: typeof OAuthDetailsRequestSchema;
+    output: typeof OAuthDetailsResponseSchema;
   },
   /**
-   * ExchangeGithubToken exchanges a GitHub token for a Loco token.
+   * ExchangeOAuthToken exchanges an OAuth provider token for a Loco token.
    *
-   * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubToken
+   * @generated from rpc loco.oauth.v1.OAuthService.ExchangeOAuthToken
    */
-  exchangeGithubToken: {
+  exchangeOAuthToken: {
     methodKind: "unary";
-    input: typeof ExchangeGithubTokenRequestSchema;
-    output: typeof ExchangeGithubTokenResponseSchema;
+    input: typeof ExchangeOAuthTokenRequestSchema;
+    output: typeof ExchangeOAuthTokenResponseSchema;
   },
   /**
-   * GetGithubAuthorizationURL generates a GitHub authorization URL.
+   * GetOAuthAuthorizationURL generates an OAuth authorization URL for a provider.
    *
-   * @generated from rpc loco.oauth.v1.OAuthService.GetGithubAuthorizationURL
+   * @generated from rpc loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL
    */
-  getGithubAuthorizationURL: {
+  getOAuthAuthorizationURL: {
     methodKind: "unary";
-    input: typeof GetGithubAuthorizationURLRequestSchema;
-    output: typeof GetGithubAuthorizationURLResponseSchema;
+    input: typeof GetOAuthAuthorizationURLRequestSchema;
+    output: typeof GetOAuthAuthorizationURLResponseSchema;
   },
   /**
-   * ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
+   * ExchangeOAuthCode exchanges an OAuth authorization code for a Loco token.
    *
-   * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubCode
+   * @generated from rpc loco.oauth.v1.OAuthService.ExchangeOAuthCode
    */
-  exchangeGithubCode: {
+  exchangeOAuthCode: {
     methodKind: "unary";
-    input: typeof ExchangeGithubCodeRequestSchema;
-    output: typeof ExchangeGithubCodeResponseSchema;
+    input: typeof ExchangeOAuthCodeRequestSchema;
+    output: typeof ExchangeOAuthCodeResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_oauth_v1_oauth, 0);

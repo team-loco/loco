@@ -54,7 +54,7 @@ const (
 // DeploymentServiceClient is a client for the loco.deployment.v1.DeploymentService service.
 type DeploymentServiceClient interface {
 	// CreateDeployment creates a new deployment for a resource.
-	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.Deployment], error)
+	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error)
 	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *connect.Request[v1.GetDeploymentRequest]) (*connect.Response[v1.Deployment], error)
 	// ListDeployments lists deployments for a resource.
@@ -76,7 +76,7 @@ func NewDeploymentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 	baseURL = strings.TrimRight(baseURL, "/")
 	deploymentServiceMethods := v1.File_deployment_v1_deployment_proto.Services().ByName("DeploymentService").Methods()
 	return &deploymentServiceClient{
-		createDeployment: connect.NewClient[v1.CreateDeploymentRequest, v1.Deployment](
+		createDeployment: connect.NewClient[v1.CreateDeploymentRequest, v1.CreateDeploymentResponse](
 			httpClient,
 			baseURL+DeploymentServiceCreateDeploymentProcedure,
 			connect.WithSchema(deploymentServiceMethods.ByName("CreateDeployment")),
@@ -111,7 +111,7 @@ func NewDeploymentServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // deploymentServiceClient implements DeploymentServiceClient.
 type deploymentServiceClient struct {
-	createDeployment *connect.Client[v1.CreateDeploymentRequest, v1.Deployment]
+	createDeployment *connect.Client[v1.CreateDeploymentRequest, v1.CreateDeploymentResponse]
 	getDeployment    *connect.Client[v1.GetDeploymentRequest, v1.Deployment]
 	listDeployments  *connect.Client[v1.ListDeploymentsRequest, v1.ListDeploymentsResponse]
 	watchDeployment  *connect.Client[v1.WatchDeploymentRequest, v1.DeploymentEvent]
@@ -119,7 +119,7 @@ type deploymentServiceClient struct {
 }
 
 // CreateDeployment calls loco.deployment.v1.DeploymentService.CreateDeployment.
-func (c *deploymentServiceClient) CreateDeployment(ctx context.Context, req *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.Deployment], error) {
+func (c *deploymentServiceClient) CreateDeployment(ctx context.Context, req *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error) {
 	return c.createDeployment.CallUnary(ctx, req)
 }
 
@@ -147,7 +147,7 @@ func (c *deploymentServiceClient) DeleteDeployment(ctx context.Context, req *con
 // service.
 type DeploymentServiceHandler interface {
 	// CreateDeployment creates a new deployment for a resource.
-	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.Deployment], error)
+	CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error)
 	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(context.Context, *connect.Request[v1.GetDeploymentRequest]) (*connect.Response[v1.Deployment], error)
 	// ListDeployments lists deployments for a resource.
@@ -216,7 +216,7 @@ func NewDeploymentServiceHandler(svc DeploymentServiceHandler, opts ...connect.H
 // UnimplementedDeploymentServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedDeploymentServiceHandler struct{}
 
-func (UnimplementedDeploymentServiceHandler) CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.Deployment], error) {
+func (UnimplementedDeploymentServiceHandler) CreateDeployment(context.Context, *connect.Request[v1.CreateDeploymentRequest]) (*connect.Response[v1.CreateDeploymentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.deployment.v1.DeploymentService.CreateDeployment is not implemented"))
 }
 

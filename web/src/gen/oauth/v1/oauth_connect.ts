@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExchangeGithubCodeRequest, ExchangeGithubCodeResponse, ExchangeGithubTokenRequest, ExchangeGithubTokenResponse, GetGithubAuthorizationURLRequest, GetGithubAuthorizationURLResponse, GithubOAuthDetailsRequest, GithubOAuthDetailsResponse } from "./oauth_pb";
+import { ExchangeOAuthCodeRequest, ExchangeOAuthCodeResponse, ExchangeOAuthTokenRequest, ExchangeOAuthTokenResponse, GetOAuthAuthorizationURLRequest, GetOAuthAuthorizationURLResponse, OAuthDetailsRequest, OAuthDetailsResponse } from "./oauth_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,47 +15,47 @@ export const OAuthService = {
   typeName: "loco.oauth.v1.OAuthService",
   methods: {
     /**
-     * GithubOAuthDetails retrieves GitHub OAuth configuration.
+     * GetOAuthDetails retrieves OAuth configuration for a provider.
      *
-     * @generated from rpc loco.oauth.v1.OAuthService.GithubOAuthDetails
+     * @generated from rpc loco.oauth.v1.OAuthService.GetOAuthDetails
      */
-    githubOAuthDetails: {
-      name: "GithubOAuthDetails",
-      I: GithubOAuthDetailsRequest,
-      O: GithubOAuthDetailsResponse,
+    getOAuthDetails: {
+      name: "GetOAuthDetails",
+      I: OAuthDetailsRequest,
+      O: OAuthDetailsResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * ExchangeGithubToken exchanges a GitHub token for a Loco token.
+     * ExchangeOAuthToken exchanges an OAuth provider token for a Loco token.
      *
-     * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubToken
+     * @generated from rpc loco.oauth.v1.OAuthService.ExchangeOAuthToken
      */
-    exchangeGithubToken: {
-      name: "ExchangeGithubToken",
-      I: ExchangeGithubTokenRequest,
-      O: ExchangeGithubTokenResponse,
+    exchangeOAuthToken: {
+      name: "ExchangeOAuthToken",
+      I: ExchangeOAuthTokenRequest,
+      O: ExchangeOAuthTokenResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * GetGithubAuthorizationURL generates a GitHub authorization URL.
+     * GetOAuthAuthorizationURL generates an OAuth authorization URL for a provider.
      *
-     * @generated from rpc loco.oauth.v1.OAuthService.GetGithubAuthorizationURL
+     * @generated from rpc loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL
      */
-    getGithubAuthorizationURL: {
-      name: "GetGithubAuthorizationURL",
-      I: GetGithubAuthorizationURLRequest,
-      O: GetGithubAuthorizationURLResponse,
+    getOAuthAuthorizationURL: {
+      name: "GetOAuthAuthorizationURL",
+      I: GetOAuthAuthorizationURLRequest,
+      O: GetOAuthAuthorizationURLResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
+     * ExchangeOAuthCode exchanges an OAuth authorization code for a Loco token.
      *
-     * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubCode
+     * @generated from rpc loco.oauth.v1.OAuthService.ExchangeOAuthCode
      */
-    exchangeGithubCode: {
-      name: "ExchangeGithubCode",
-      I: ExchangeGithubCodeRequest,
-      O: ExchangeGithubCodeResponse,
+    exchangeOAuthCode: {
+      name: "ExchangeOAuthCode",
+      I: ExchangeOAuthCodeRequest,
+      O: ExchangeOAuthCodeResponse,
       kind: MethodKind.Unary,
     },
   }

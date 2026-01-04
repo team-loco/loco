@@ -11,11 +11,11 @@ option go_package = "github.com/team-loco/loco/shared/proto/org/v1;orgv1";
 // OrgService manages organizations.
 service OrgService {
   // CreateOrg creates a new organization.
-  rpc CreateOrg(CreateOrgRequest) returns (Organization);
+  rpc CreateOrg(CreateOrgRequest) returns (CreateOrgResponse);
   // GetOrg retrieves an organization by ID or name.
   rpc GetOrg(GetOrgRequest) returns (Organization);
   // UpdateOrg updates organization information.
-  rpc UpdateOrg(UpdateOrgRequest) returns (Organization);
+  rpc UpdateOrg(UpdateOrgRequest) returns (UpdateOrgResponse);
   // DeleteOrg deletes an organization.
   rpc DeleteOrg(DeleteOrgRequest) returns (google.protobuf.Empty);
 
@@ -49,10 +49,17 @@ message CreateOrgRequest {
   optional string name = 1;
 }
 
+// CreateOrgResponse is the response containing the created organization ID.
+message CreateOrgResponse {
+  int64 org_id = 1;
+}
+
 // GetOrgRequest is the request to retrieve an organization.
 message GetOrgRequest {
-  optional int64  org_id   = 1;
-  optional string org_name = 2;
+  oneof key {
+    int64  org_id   = 1;
+    string org_name = 2;
+  }
 }
 
 // ListUserOrgsRequest is the request to list organizations for a user.
@@ -104,9 +111,14 @@ message ListOrgWorkspacesResponse {
 
 // UpdateOrgRequest is the request to update an organization.
 message UpdateOrgRequest {
-  int64                       org_id      = 1;
-  google.protobuf.FieldMask   update_mask = 2;
-  optional string             name        = 3;
+  int64                     org_id      = 1;
+  google.protobuf.FieldMask update_mask = 2;
+  optional string           name        = 3;
+}
+
+// UpdateOrgResponse is the response containing the updated organization ID.
+message UpdateOrgResponse {
+  int64 org_id = 1;
 }
 
 // DeleteOrgRequest is the request to delete an organization.

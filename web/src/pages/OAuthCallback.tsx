@@ -1,4 +1,4 @@
-import { exchangeGithubCode } from "@/gen/oauth/v1";
+import { exchangeOAuthCode, OAuthProvider } from "@/gen/oauth/v1";
 import { listUserOrgs } from "@/gen/org/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useQuery } from "@connectrpc/connect-query";
@@ -16,22 +16,17 @@ export function OAuthCallback() {
 	const error = params.get("error");
 	const errorDescription = params.get("error_description");
 
-	const exchangeConfig =
-		code && state
-			? {
-					code,
-					state,
-					redirectUri: window.location.origin + "/oauth/callback",
-			  }
-			: undefined;
-
 	const {
 		data: exchangeRes,
 		isLoading,
 		error: queryError,
-	} = useQuery(exchangeGithubCode, exchangeConfig, {
-		enabled: !!exchangeConfig,
-	});
+	} = useQuery(
+		exchangeOAuthCode,
+		code && state ? { code: code || "", state: state || "", redirectUri: window.location.origin + "/oauth/callback", provider: OAuthProvider.GITHUB } : undefined,
+		{
+			enabled: !!code && !!state,
+		}
+	);
 
 	// After exchange, check if user has orgs
 	// Use the user ID from the exchange response

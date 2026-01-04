@@ -42,7 +42,7 @@ func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingM
 func (s *OrgServer) CreateOrg(
 	ctx context.Context,
 	req *connect.Request[orgv1.CreateOrgRequest],
-) (*connect.Response[orgv1.Organization], error) {
+) (*connect.Response[orgv1.CreateOrgResponse], error) {
 	r := req.Msg
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
@@ -109,12 +109,8 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&orgv1.Organization{
-		Id:        org.ID,
-		Name:      org.Name,
-		CreatedBy: org.CreatedBy,
-		CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+	return connect.NewResponse(&orgv1.CreateOrgResponse{
+		OrgId: org.ID,
 	}), nil
 }
 
@@ -125,20 +121,16 @@ func (s *OrgServer) GetOrg(
 ) (*connect.Response[orgv1.Organization], error) {
 	r := req.Msg
 
-	orgID := r.GetOrgId()
-	orgName := r.GetOrgName()
-
-	if orgID == 0 && orgName == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("either org_id or org_name must be provided"))
-	}
-
 	var org genDb.Organization
 	var err error
 
-	if orgID != 0 {
-		org, err = s.queries.GetOrgByID(ctx, orgID)
-	} else {
-		org, err = s.queries.GetOrgByName(ctx, orgName)
+	switch key := r.GetKey().(type) {
+	case *orgv1.GetOrgRequest_OrgId:
+		org, err = s.queries.GetOrgByID(ctx, key.OrgId)
+	case *orgv1.GetOrgRequest_OrgName:
+		org, err = s.queries.GetOrgByName(ctx, key.OrgName)
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("either org_id or org_name must be provided"))
 	}
 
 	if err != nil {
@@ -220,7 +212,7 @@ func (s *OrgServer) ListUserOrgs(
 func (s *OrgServer) UpdateOrg(
 	ctx context.Context,
 	req *connect.Request[orgv1.UpdateOrgRequest],
-) (*connect.Response[orgv1.Organization], error) {
+) (*connect.Response[orgv1.UpdateOrgResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateOrg, r.GetOrgId())); err != nil {
@@ -243,7 +235,7 @@ func (s *OrgServer) UpdateOrg(
 			}
 		}
 
-		org, err := s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
+		_, err = s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
 			ID:   r.GetOrgId(),
 			Name: r.GetName(),
 		})
@@ -251,29 +243,10 @@ func (s *OrgServer) UpdateOrg(
 			slog.ErrorContext(ctx, "failed to update org", "error", err)
 			return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
 		}
-
-		return connect.NewResponse(&orgv1.Organization{
-			Id:        org.ID,
-			Name:      org.Name,
-			CreatedBy: org.CreatedBy,
-			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
-		}), nil
 	}
 
-	// If no updates, just return the org
-	org, err := s.queries.GetOrgByID(ctx, r.GetOrgId())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get org", "error", err)
-		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
-	}
-
-	return connect.NewResponse(&orgv1.Organization{
-		Id:        org.ID,
-		Name:      org.Name,
-		CreatedBy: org.CreatedBy,
-		CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+	return connect.NewResponse(&orgv1.UpdateOrgResponse{
+		OrgId: r.GetOrgId(),
 	}), nil
 }
 

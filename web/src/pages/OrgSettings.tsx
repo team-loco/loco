@@ -22,9 +22,13 @@ export function OrgSettings() {
 	const [isEditing, setIsEditing] = useState(false);
 	const [orgName, setOrgName] = useState("");
 
-	const { data: orgRes, isLoading: orgLoading, refetch } = useQuery(
+	const {
+		data: orgRes,
+		isLoading: orgLoading,
+		refetch,
+	} = useQuery(
 		getOrg,
-		orgId ? { orgId: BigInt(orgId) } : undefined,
+		orgId ? { key: { case: "orgId", value: BigInt(orgId) } } : undefined,
 		{ enabled: !!orgId }
 	);
 
@@ -37,7 +41,8 @@ export function OrgSettings() {
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 
-	const { mutate: mutateUpdateOrg, isPending: isUpdatePending } = useMutation(updateOrg);
+	const { mutate: mutateUpdateOrg, isPending: isUpdatePending } =
+		useMutation(updateOrg);
 
 	// Update orgName when org data loads
 	if (org && !orgName && !isEditing) {
@@ -46,19 +51,22 @@ export function OrgSettings() {
 
 	const handleSave = () => {
 		if (!orgId) return;
-		mutateUpdateOrg({
-			orgId: BigInt(orgId),
-			name: orgName,
-		}, {
-			onSuccess: () => {
-				refetch();
-				toast.success("Organization updated");
-				setIsEditing(false);
+		mutateUpdateOrg(
+			{
+				orgId: BigInt(orgId),
+				name: orgName,
 			},
-			onError: (error) => {
-				toast.error(getErrorMessage(error, "Failed to update organization"));
-			},
-		});
+			{
+				onSuccess: () => {
+					refetch();
+					toast.success("Organization updated");
+					setIsEditing(false);
+				},
+				onError: (error) => {
+					toast.error(getErrorMessage(error, "Failed to update organization"));
+				},
+			}
+		);
 	};
 
 	if (orgLoading || !org) {

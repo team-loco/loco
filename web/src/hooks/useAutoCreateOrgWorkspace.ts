@@ -42,11 +42,11 @@ export function useAutoCreateOrgWorkspace() {
 						name: userEmail,
 					});
 
-					if (!org?.id) {
+					if (!org?.orgId) {
 						throw new Error("Failed to create organization");
 					}
 
-					createdOrgId = org.id;
+					createdOrgId = org.orgId;
 				} catch (createErr) {
 					// If org already exists, fetch it instead
 					if (
@@ -78,11 +78,11 @@ export function useAutoCreateOrgWorkspace() {
 						name: "default",
 					});
 
-					if (!workspace?.id) {
+					if (!workspace?.workspaceId) {
 						throw new Error("Failed to create workspace");
 					}
 
-					createdWorkspaceId = workspace.id;
+					createdWorkspaceId = workspace.workspaceId;
 				} catch (wsErr) {
 					// If workspace already exists, fetch it instead
 					if (

@@ -10,7 +10,7 @@ export function useResourceDetails(resourceId: string) {
 		queries: [
 			createQueryOptions(
 				getResource,
-				{ resourceId: BigInt(resourceId) },
+				{ key: { case: "resourceId" as const, value: BigInt(resourceId) } },
 				{ transport }
 			),
 			createQueryOptions(

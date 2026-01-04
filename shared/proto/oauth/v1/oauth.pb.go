@@ -21,27 +21,75 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GithubOAuthDetailsRequest is the request to get GitHub OAuth configuration for client setup.
-type GithubOAuthDetailsRequest struct {
+// OAuthProvider represents supported OAuth identity providers.
+type OAuthProvider int32
+
+const (
+	OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED OAuthProvider = 0
+	OAuthProvider_GITHUB                     OAuthProvider = 1
+)
+
+// Enum value maps for OAuthProvider.
+var (
+	OAuthProvider_name = map[int32]string{
+		0: "OAUTH_PROVIDER_UNSPECIFIED",
+		1: "GITHUB",
+	}
+	OAuthProvider_value = map[string]int32{
+		"OAUTH_PROVIDER_UNSPECIFIED": 0,
+		"GITHUB":                     1,
+	}
+)
+
+func (x OAuthProvider) Enum() *OAuthProvider {
+	p := new(OAuthProvider)
+	*p = x
+	return p
+}
+
+func (x OAuthProvider) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (OAuthProvider) Descriptor() protoreflect.EnumDescriptor {
+	return file_oauth_v1_oauth_proto_enumTypes[0].Descriptor()
+}
+
+func (OAuthProvider) Type() protoreflect.EnumType {
+	return &file_oauth_v1_oauth_proto_enumTypes[0]
+}
+
+func (x OAuthProvider) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use OAuthProvider.Descriptor instead.
+func (OAuthProvider) EnumDescriptor() ([]byte, []int) {
+	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{0}
+}
+
+// OAuthDetailsRequest is the request to get OAuth configuration for a provider.
+type OAuthDetailsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GithubOAuthDetailsRequest) Reset() {
-	*x = GithubOAuthDetailsRequest{}
+func (x *OAuthDetailsRequest) Reset() {
+	*x = OAuthDetailsRequest{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GithubOAuthDetailsRequest) String() string {
+func (x *OAuthDetailsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GithubOAuthDetailsRequest) ProtoMessage() {}
+func (*OAuthDetailsRequest) ProtoMessage() {}
 
-func (x *GithubOAuthDetailsRequest) ProtoReflect() protoreflect.Message {
+func (x *OAuthDetailsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -53,13 +101,20 @@ func (x *GithubOAuthDetailsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GithubOAuthDetailsRequest.ProtoReflect.Descriptor instead.
-func (*GithubOAuthDetailsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use OAuthDetailsRequest.ProtoReflect.Descriptor instead.
+func (*OAuthDetailsRequest) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{0}
 }
 
-// GithubOAuthDetailsResponse contains GitHub OAuth configuration details needed for client-side OAuth flow.
-type GithubOAuthDetailsResponse struct {
+func (x *OAuthDetailsRequest) GetProvider() OAuthProvider {
+	if x != nil {
+		return x.Provider
+	}
+	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+}
+
+// OAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
+type OAuthDetailsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	TokenTtl      float64                `protobuf:"fixed64,2,opt,name=token_ttl,json=tokenTtl,proto3" json:"token_ttl,omitempty"`
@@ -67,20 +122,20 @@ type GithubOAuthDetailsResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GithubOAuthDetailsResponse) Reset() {
-	*x = GithubOAuthDetailsResponse{}
+func (x *OAuthDetailsResponse) Reset() {
+	*x = OAuthDetailsResponse{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GithubOAuthDetailsResponse) String() string {
+func (x *OAuthDetailsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GithubOAuthDetailsResponse) ProtoMessage() {}
+func (*OAuthDetailsResponse) ProtoMessage() {}
 
-func (x *GithubOAuthDetailsResponse) ProtoReflect() protoreflect.Message {
+func (x *OAuthDetailsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -92,48 +147,49 @@ func (x *GithubOAuthDetailsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GithubOAuthDetailsResponse.ProtoReflect.Descriptor instead.
-func (*GithubOAuthDetailsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use OAuthDetailsResponse.ProtoReflect.Descriptor instead.
+func (*OAuthDetailsResponse) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GithubOAuthDetailsResponse) GetClientId() string {
+func (x *OAuthDetailsResponse) GetClientId() string {
 	if x != nil {
 		return x.ClientId
 	}
 	return ""
 }
 
-func (x *GithubOAuthDetailsResponse) GetTokenTtl() float64 {
+func (x *OAuthDetailsResponse) GetTokenTtl() float64 {
 	if x != nil {
 		return x.TokenTtl
 	}
 	return 0
 }
 
-// ExchangeGithubTokenRequest exchanges a GitHub access token for a Loco authentication token.
-type ExchangeGithubTokenRequest struct {
+// ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
+type ExchangeOAuthTokenRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
-	GithubAccessToken     string                 `protobuf:"bytes,1,opt,name=github_access_token,json=githubAccessToken,proto3" json:"github_access_token,omitempty"`
-	CreateUserIfNotExists bool                   `protobuf:"varint,2,opt,name=create_user_if_not_exists,json=createUserIfNotExists,proto3" json:"create_user_if_not_exists,omitempty"`
+	Provider              OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
+	Token                 string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
+	CreateUserIfNotExists bool                   `protobuf:"varint,3,opt,name=create_user_if_not_exists,json=createUserIfNotExists,proto3" json:"create_user_if_not_exists,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
-func (x *ExchangeGithubTokenRequest) Reset() {
-	*x = ExchangeGithubTokenRequest{}
+func (x *ExchangeOAuthTokenRequest) Reset() {
+	*x = ExchangeOAuthTokenRequest{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExchangeGithubTokenRequest) String() string {
+func (x *ExchangeOAuthTokenRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExchangeGithubTokenRequest) ProtoMessage() {}
+func (*ExchangeOAuthTokenRequest) ProtoMessage() {}
 
-func (x *ExchangeGithubTokenRequest) ProtoReflect() protoreflect.Message {
+func (x *ExchangeOAuthTokenRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -145,27 +201,34 @@ func (x *ExchangeGithubTokenRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExchangeGithubTokenRequest.ProtoReflect.Descriptor instead.
-func (*ExchangeGithubTokenRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExchangeOAuthTokenRequest.ProtoReflect.Descriptor instead.
+func (*ExchangeOAuthTokenRequest) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ExchangeGithubTokenRequest) GetGithubAccessToken() string {
+func (x *ExchangeOAuthTokenRequest) GetProvider() OAuthProvider {
 	if x != nil {
-		return x.GithubAccessToken
+		return x.Provider
+	}
+	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+}
+
+func (x *ExchangeOAuthTokenRequest) GetToken() string {
+	if x != nil {
+		return x.Token
 	}
 	return ""
 }
 
-func (x *ExchangeGithubTokenRequest) GetCreateUserIfNotExists() bool {
+func (x *ExchangeOAuthTokenRequest) GetCreateUserIfNotExists() bool {
 	if x != nil {
 		return x.CreateUserIfNotExists
 	}
 	return false
 }
 
-// ExchangeGithubTokenResponse contains the Loco token and user info from GitHub token exchange.
-type ExchangeGithubTokenResponse struct {
+// ExchangeOAuthTokenResponse contains the Loco token and user info from OAuth token exchange.
+type ExchangeOAuthTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LocoToken     string                 `protobuf:"bytes,1,opt,name=loco_token,json=locoToken,proto3" json:"loco_token,omitempty"`
 	ExpiresIn     int64                  `protobuf:"varint,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"` // seconds
@@ -175,20 +238,20 @@ type ExchangeGithubTokenResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExchangeGithubTokenResponse) Reset() {
-	*x = ExchangeGithubTokenResponse{}
+func (x *ExchangeOAuthTokenResponse) Reset() {
+	*x = ExchangeOAuthTokenResponse{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExchangeGithubTokenResponse) String() string {
+func (x *ExchangeOAuthTokenResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExchangeGithubTokenResponse) ProtoMessage() {}
+func (*ExchangeOAuthTokenResponse) ProtoMessage() {}
 
-func (x *ExchangeGithubTokenResponse) ProtoReflect() protoreflect.Message {
+func (x *ExchangeOAuthTokenResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -200,62 +263,63 @@ func (x *ExchangeGithubTokenResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExchangeGithubTokenResponse.ProtoReflect.Descriptor instead.
-func (*ExchangeGithubTokenResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExchangeOAuthTokenResponse.ProtoReflect.Descriptor instead.
+func (*ExchangeOAuthTokenResponse) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ExchangeGithubTokenResponse) GetLocoToken() string {
+func (x *ExchangeOAuthTokenResponse) GetLocoToken() string {
 	if x != nil {
 		return x.LocoToken
 	}
 	return ""
 }
 
-func (x *ExchangeGithubTokenResponse) GetExpiresIn() int64 {
+func (x *ExchangeOAuthTokenResponse) GetExpiresIn() int64 {
 	if x != nil {
 		return x.ExpiresIn
 	}
 	return 0
 }
 
-func (x *ExchangeGithubTokenResponse) GetUserId() int64 {
+func (x *ExchangeOAuthTokenResponse) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
 }
 
-func (x *ExchangeGithubTokenResponse) GetName() string {
+func (x *ExchangeOAuthTokenResponse) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-// GetGithubAuthorizationURLRequest is the request to initiate GitHub OAuth authorization flow.
-type GetGithubAuthorizationURLRequest struct {
+// GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
+type GetOAuthAuthorizationURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
-	RedirectUri   string                 `protobuf:"bytes,2,opt,name=redirect_uri,json=redirectUri,proto3" json:"redirect_uri,omitempty"`
+	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	RedirectUri   string                 `protobuf:"bytes,3,opt,name=redirect_uri,json=redirectUri,proto3" json:"redirect_uri,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetGithubAuthorizationURLRequest) Reset() {
-	*x = GetGithubAuthorizationURLRequest{}
+func (x *GetOAuthAuthorizationURLRequest) Reset() {
+	*x = GetOAuthAuthorizationURLRequest{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetGithubAuthorizationURLRequest) String() string {
+func (x *GetOAuthAuthorizationURLRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetGithubAuthorizationURLRequest) ProtoMessage() {}
+func (*GetOAuthAuthorizationURLRequest) ProtoMessage() {}
 
-func (x *GetGithubAuthorizationURLRequest) ProtoReflect() protoreflect.Message {
+func (x *GetOAuthAuthorizationURLRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -267,27 +331,34 @@ func (x *GetGithubAuthorizationURLRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetGithubAuthorizationURLRequest.ProtoReflect.Descriptor instead.
-func (*GetGithubAuthorizationURLRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetOAuthAuthorizationURLRequest.ProtoReflect.Descriptor instead.
+func (*GetOAuthAuthorizationURLRequest) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetGithubAuthorizationURLRequest) GetState() string {
+func (x *GetOAuthAuthorizationURLRequest) GetProvider() OAuthProvider {
+	if x != nil {
+		return x.Provider
+	}
+	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+}
+
+func (x *GetOAuthAuthorizationURLRequest) GetState() string {
 	if x != nil {
 		return x.State
 	}
 	return ""
 }
 
-func (x *GetGithubAuthorizationURLRequest) GetRedirectUri() string {
+func (x *GetOAuthAuthorizationURLRequest) GetRedirectUri() string {
 	if x != nil {
 		return x.RedirectUri
 	}
 	return ""
 }
 
-// GetGithubAuthorizationURLResponse contains the GitHub authorization URL for client redirect.
-type GetGithubAuthorizationURLResponse struct {
+// GetOAuthAuthorizationURLResponse contains the OAuth authorization URL for client redirect.
+type GetOAuthAuthorizationURLResponse struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	AuthorizationUrl string                 `protobuf:"bytes,1,opt,name=authorization_url,json=authorizationUrl,proto3" json:"authorization_url,omitempty"`
 	State            string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
@@ -295,20 +366,20 @@ type GetGithubAuthorizationURLResponse struct {
 	sizeCache        protoimpl.SizeCache
 }
 
-func (x *GetGithubAuthorizationURLResponse) Reset() {
-	*x = GetGithubAuthorizationURLResponse{}
+func (x *GetOAuthAuthorizationURLResponse) Reset() {
+	*x = GetOAuthAuthorizationURLResponse{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetGithubAuthorizationURLResponse) String() string {
+func (x *GetOAuthAuthorizationURLResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetGithubAuthorizationURLResponse) ProtoMessage() {}
+func (*GetOAuthAuthorizationURLResponse) ProtoMessage() {}
 
-func (x *GetGithubAuthorizationURLResponse) ProtoReflect() protoreflect.Message {
+func (x *GetOAuthAuthorizationURLResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -320,49 +391,50 @@ func (x *GetGithubAuthorizationURLResponse) ProtoReflect() protoreflect.Message 
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetGithubAuthorizationURLResponse.ProtoReflect.Descriptor instead.
-func (*GetGithubAuthorizationURLResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetOAuthAuthorizationURLResponse.ProtoReflect.Descriptor instead.
+func (*GetOAuthAuthorizationURLResponse) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *GetGithubAuthorizationURLResponse) GetAuthorizationUrl() string {
+func (x *GetOAuthAuthorizationURLResponse) GetAuthorizationUrl() string {
 	if x != nil {
 		return x.AuthorizationUrl
 	}
 	return ""
 }
 
-func (x *GetGithubAuthorizationURLResponse) GetState() string {
+func (x *GetOAuthAuthorizationURLResponse) GetState() string {
 	if x != nil {
 		return x.State
 	}
 	return ""
 }
 
-// ExchangeGithubCodeRequest exchanges a GitHub authorization code for authentication tokens.
-type ExchangeGithubCodeRequest struct {
+// ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
+type ExchangeOAuthCodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
-	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	RedirectUri   string                 `protobuf:"bytes,3,opt,name=redirect_uri,json=redirectUri,proto3" json:"redirect_uri,omitempty"`
+	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	State         string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	RedirectUri   string                 `protobuf:"bytes,4,opt,name=redirect_uri,json=redirectUri,proto3" json:"redirect_uri,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExchangeGithubCodeRequest) Reset() {
-	*x = ExchangeGithubCodeRequest{}
+func (x *ExchangeOAuthCodeRequest) Reset() {
+	*x = ExchangeOAuthCodeRequest{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExchangeGithubCodeRequest) String() string {
+func (x *ExchangeOAuthCodeRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExchangeGithubCodeRequest) ProtoMessage() {}
+func (*ExchangeOAuthCodeRequest) ProtoMessage() {}
 
-func (x *ExchangeGithubCodeRequest) ProtoReflect() protoreflect.Message {
+func (x *ExchangeOAuthCodeRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -374,34 +446,41 @@ func (x *ExchangeGithubCodeRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExchangeGithubCodeRequest.ProtoReflect.Descriptor instead.
-func (*ExchangeGithubCodeRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExchangeOAuthCodeRequest.ProtoReflect.Descriptor instead.
+func (*ExchangeOAuthCodeRequest) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ExchangeGithubCodeRequest) GetCode() string {
+func (x *ExchangeOAuthCodeRequest) GetProvider() OAuthProvider {
+	if x != nil {
+		return x.Provider
+	}
+	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+}
+
+func (x *ExchangeOAuthCodeRequest) GetCode() string {
 	if x != nil {
 		return x.Code
 	}
 	return ""
 }
 
-func (x *ExchangeGithubCodeRequest) GetState() string {
+func (x *ExchangeOAuthCodeRequest) GetState() string {
 	if x != nil {
 		return x.State
 	}
 	return ""
 }
 
-func (x *ExchangeGithubCodeRequest) GetRedirectUri() string {
+func (x *ExchangeOAuthCodeRequest) GetRedirectUri() string {
 	if x != nil {
 		return x.RedirectUri
 	}
 	return ""
 }
 
-// ExchangeGithubCodeResponse contains the Loco token and user info from GitHub code exchange.
-type ExchangeGithubCodeResponse struct {
+// ExchangeOAuthCodeResponse contains the Loco token and user info from OAuth code exchange.
+type ExchangeOAuthCodeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExpiresIn     int64                  `protobuf:"varint,1,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
 	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -410,20 +489,20 @@ type ExchangeGithubCodeResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ExchangeGithubCodeResponse) Reset() {
-	*x = ExchangeGithubCodeResponse{}
+func (x *ExchangeOAuthCodeResponse) Reset() {
+	*x = ExchangeOAuthCodeResponse{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ExchangeGithubCodeResponse) String() string {
+func (x *ExchangeOAuthCodeResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ExchangeGithubCodeResponse) ProtoMessage() {}
+func (*ExchangeOAuthCodeResponse) ProtoMessage() {}
 
-func (x *ExchangeGithubCodeResponse) ProtoReflect() protoreflect.Message {
+func (x *ExchangeOAuthCodeResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -435,26 +514,26 @@ func (x *ExchangeGithubCodeResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ExchangeGithubCodeResponse.ProtoReflect.Descriptor instead.
-func (*ExchangeGithubCodeResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ExchangeOAuthCodeResponse.ProtoReflect.Descriptor instead.
+func (*ExchangeOAuthCodeResponse) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ExchangeGithubCodeResponse) GetExpiresIn() int64 {
+func (x *ExchangeOAuthCodeResponse) GetExpiresIn() int64 {
 	if x != nil {
 		return x.ExpiresIn
 	}
 	return 0
 }
 
-func (x *ExchangeGithubCodeResponse) GetUserId() int64 {
+func (x *ExchangeOAuthCodeResponse) GetUserId() int64 {
 	if x != nil {
 		return x.UserId
 	}
 	return 0
 }
 
-func (x *ExchangeGithubCodeResponse) GetName() string {
+func (x *ExchangeOAuthCodeResponse) GetName() string {
 	if x != nil {
 		return x.Name
 	}
@@ -465,41 +544,49 @@ var File_oauth_v1_oauth_proto protoreflect.FileDescriptor
 
 const file_oauth_v1_oauth_proto_rawDesc = "" +
 	"\n" +
-	"\x14oauth/v1/oauth.proto\x12\rloco.oauth.v1\"\x1b\n" +
-	"\x19GithubOAuthDetailsRequest\"V\n" +
-	"\x1aGithubOAuthDetailsResponse\x12\x1b\n" +
+	"\x14oauth/v1/oauth.proto\x12\rloco.oauth.v1\"O\n" +
+	"\x13OAuthDetailsRequest\x128\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\"P\n" +
+	"\x14OAuthDetailsResponse\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1b\n" +
-	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\x86\x01\n" +
-	"\x1aExchangeGithubTokenRequest\x12.\n" +
-	"\x13github_access_token\x18\x01 \x01(\tR\x11githubAccessToken\x128\n" +
-	"\x19create_user_if_not_exists\x18\x02 \x01(\bR\x15createUserIfNotExists\"\x88\x01\n" +
-	"\x1bExchangeGithubTokenResponse\x12\x1d\n" +
+	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\xa5\x01\n" +
+	"\x19ExchangeOAuthTokenRequest\x128\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\x128\n" +
+	"\x19create_user_if_not_exists\x18\x03 \x01(\bR\x15createUserIfNotExists\"\x87\x01\n" +
+	"\x1aExchangeOAuthTokenResponse\x12\x1d\n" +
 	"\n" +
 	"loco_token\x18\x01 \x01(\tR\tlocoToken\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04name\x18\x04 \x01(\tR\x04name\"[\n" +
-	" GetGithubAuthorizationURLRequest\x12\x14\n" +
-	"\x05state\x18\x01 \x01(\tR\x05state\x12!\n" +
-	"\fredirect_uri\x18\x02 \x01(\tR\vredirectUri\"f\n" +
-	"!GetGithubAuthorizationURLResponse\x12+\n" +
-	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\"h\n" +
-	"\x19ExchangeGithubCodeRequest\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\tR\x04code\x12\x14\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"\x94\x01\n" +
+	"\x1fGetOAuthAuthorizationURLRequest\x128\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12!\n" +
-	"\fredirect_uri\x18\x03 \x01(\tR\vredirectUri\"h\n" +
-	"\x1aExchangeGithubCodeResponse\x12\x1d\n" +
+	"\fredirect_uri\x18\x03 \x01(\tR\vredirectUri\"e\n" +
+	" GetOAuthAuthorizationURLResponse\x12+\n" +
+	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"\xa1\x01\n" +
+	"\x18ExchangeOAuthCodeRequest\x128\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12!\n" +
+	"\fredirect_uri\x18\x04 \x01(\tR\vredirectUri\"g\n" +
+	"\x19ExchangeOAuthCodeResponse\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x01 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name2\xd9\x03\n" +
-	"\fOAuthService\x12k\n" +
-	"\x12GithubOAuthDetails\x12(.loco.oauth.v1.GithubOAuthDetailsRequest\x1a).loco.oauth.v1.GithubOAuthDetailsResponse\"\x00\x12l\n" +
-	"\x13ExchangeGithubToken\x12).loco.oauth.v1.ExchangeGithubTokenRequest\x1a*.loco.oauth.v1.ExchangeGithubTokenResponse\x12\x80\x01\n" +
-	"\x19GetGithubAuthorizationURL\x12/.loco.oauth.v1.GetGithubAuthorizationURLRequest\x1a0.loco.oauth.v1.GetGithubAuthorizationURLResponse\"\x00\x12k\n" +
-	"\x12ExchangeGithubCode\x12(.loco.oauth.v1.ExchangeGithubCodeRequest\x1a).loco.oauth.v1.ExchangeGithubCodeResponse\"\x00B9Z7github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1b\x06proto3"
+	"\x04name\x18\x03 \x01(\tR\x04name*;\n" +
+	"\rOAuthProvider\x12\x1e\n" +
+	"\x1aOAUTH_PROVIDER_UNSPECIFIED\x10\x00\x12\n" +
+	"\n" +
+	"\x06GITHUB\x10\x012\xc0\x03\n" +
+	"\fOAuthService\x12\\\n" +
+	"\x0fGetOAuthDetails\x12\".loco.oauth.v1.OAuthDetailsRequest\x1a#.loco.oauth.v1.OAuthDetailsResponse\"\x00\x12i\n" +
+	"\x12ExchangeOAuthToken\x12(.loco.oauth.v1.ExchangeOAuthTokenRequest\x1a).loco.oauth.v1.ExchangeOAuthTokenResponse\x12}\n" +
+	"\x18GetOAuthAuthorizationURL\x12..loco.oauth.v1.GetOAuthAuthorizationURLRequest\x1a/.loco.oauth.v1.GetOAuthAuthorizationURLResponse\"\x00\x12h\n" +
+	"\x11ExchangeOAuthCode\x12'.loco.oauth.v1.ExchangeOAuthCodeRequest\x1a(.loco.oauth.v1.ExchangeOAuthCodeResponse\"\x00B9Z7github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1b\x06proto3"
 
 var (
 	file_oauth_v1_oauth_proto_rawDescOnce sync.Once
@@ -513,31 +600,37 @@ func file_oauth_v1_oauth_proto_rawDescGZIP() []byte {
 	return file_oauth_v1_oauth_proto_rawDescData
 }
 
+var file_oauth_v1_oauth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_oauth_v1_oauth_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_oauth_v1_oauth_proto_goTypes = []any{
-	(*GithubOAuthDetailsRequest)(nil),         // 0: loco.oauth.v1.GithubOAuthDetailsRequest
-	(*GithubOAuthDetailsResponse)(nil),        // 1: loco.oauth.v1.GithubOAuthDetailsResponse
-	(*ExchangeGithubTokenRequest)(nil),        // 2: loco.oauth.v1.ExchangeGithubTokenRequest
-	(*ExchangeGithubTokenResponse)(nil),       // 3: loco.oauth.v1.ExchangeGithubTokenResponse
-	(*GetGithubAuthorizationURLRequest)(nil),  // 4: loco.oauth.v1.GetGithubAuthorizationURLRequest
-	(*GetGithubAuthorizationURLResponse)(nil), // 5: loco.oauth.v1.GetGithubAuthorizationURLResponse
-	(*ExchangeGithubCodeRequest)(nil),         // 6: loco.oauth.v1.ExchangeGithubCodeRequest
-	(*ExchangeGithubCodeResponse)(nil),        // 7: loco.oauth.v1.ExchangeGithubCodeResponse
+	(OAuthProvider)(0),                       // 0: loco.oauth.v1.OAuthProvider
+	(*OAuthDetailsRequest)(nil),              // 1: loco.oauth.v1.OAuthDetailsRequest
+	(*OAuthDetailsResponse)(nil),             // 2: loco.oauth.v1.OAuthDetailsResponse
+	(*ExchangeOAuthTokenRequest)(nil),        // 3: loco.oauth.v1.ExchangeOAuthTokenRequest
+	(*ExchangeOAuthTokenResponse)(nil),       // 4: loco.oauth.v1.ExchangeOAuthTokenResponse
+	(*GetOAuthAuthorizationURLRequest)(nil),  // 5: loco.oauth.v1.GetOAuthAuthorizationURLRequest
+	(*GetOAuthAuthorizationURLResponse)(nil), // 6: loco.oauth.v1.GetOAuthAuthorizationURLResponse
+	(*ExchangeOAuthCodeRequest)(nil),         // 7: loco.oauth.v1.ExchangeOAuthCodeRequest
+	(*ExchangeOAuthCodeResponse)(nil),        // 8: loco.oauth.v1.ExchangeOAuthCodeResponse
 }
 var file_oauth_v1_oauth_proto_depIdxs = []int32{
-	0, // 0: loco.oauth.v1.OAuthService.GithubOAuthDetails:input_type -> loco.oauth.v1.GithubOAuthDetailsRequest
-	2, // 1: loco.oauth.v1.OAuthService.ExchangeGithubToken:input_type -> loco.oauth.v1.ExchangeGithubTokenRequest
-	4, // 2: loco.oauth.v1.OAuthService.GetGithubAuthorizationURL:input_type -> loco.oauth.v1.GetGithubAuthorizationURLRequest
-	6, // 3: loco.oauth.v1.OAuthService.ExchangeGithubCode:input_type -> loco.oauth.v1.ExchangeGithubCodeRequest
-	1, // 4: loco.oauth.v1.OAuthService.GithubOAuthDetails:output_type -> loco.oauth.v1.GithubOAuthDetailsResponse
-	3, // 5: loco.oauth.v1.OAuthService.ExchangeGithubToken:output_type -> loco.oauth.v1.ExchangeGithubTokenResponse
-	5, // 6: loco.oauth.v1.OAuthService.GetGithubAuthorizationURL:output_type -> loco.oauth.v1.GetGithubAuthorizationURLResponse
-	7, // 7: loco.oauth.v1.OAuthService.ExchangeGithubCode:output_type -> loco.oauth.v1.ExchangeGithubCodeResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: loco.oauth.v1.OAuthDetailsRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	0, // 1: loco.oauth.v1.ExchangeOAuthTokenRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	0, // 2: loco.oauth.v1.GetOAuthAuthorizationURLRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	0, // 3: loco.oauth.v1.ExchangeOAuthCodeRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	1, // 4: loco.oauth.v1.OAuthService.GetOAuthDetails:input_type -> loco.oauth.v1.OAuthDetailsRequest
+	3, // 5: loco.oauth.v1.OAuthService.ExchangeOAuthToken:input_type -> loco.oauth.v1.ExchangeOAuthTokenRequest
+	5, // 6: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:input_type -> loco.oauth.v1.GetOAuthAuthorizationURLRequest
+	7, // 7: loco.oauth.v1.OAuthService.ExchangeOAuthCode:input_type -> loco.oauth.v1.ExchangeOAuthCodeRequest
+	2, // 8: loco.oauth.v1.OAuthService.GetOAuthDetails:output_type -> loco.oauth.v1.OAuthDetailsResponse
+	4, // 9: loco.oauth.v1.OAuthService.ExchangeOAuthToken:output_type -> loco.oauth.v1.ExchangeOAuthTokenResponse
+	6, // 10: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:output_type -> loco.oauth.v1.GetOAuthAuthorizationURLResponse
+	8, // 11: loco.oauth.v1.OAuthService.ExchangeOAuthCode:output_type -> loco.oauth.v1.ExchangeOAuthCodeResponse
+	8, // [8:12] is the sub-list for method output_type
+	4, // [4:8] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_oauth_v1_oauth_proto_init() }
@@ -550,13 +643,14 @@ func file_oauth_v1_oauth_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_oauth_v1_oauth_proto_rawDesc), len(file_oauth_v1_oauth_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_oauth_v1_oauth_proto_goTypes,
 		DependencyIndexes: file_oauth_v1_oauth_proto_depIdxs,
+		EnumInfos:         file_oauth_v1_oauth_proto_enumTypes,
 		MessageInfos:      file_oauth_v1_oauth_proto_msgTypes,
 	}.Build()
 	File_oauth_v1_oauth_proto = out.File

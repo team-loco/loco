@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file user/v1/user.proto.
  */
 export const file_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCJQCg5HZXRVc2VyUmVxdWVzdBIUCgd1c2VyX2lkGAEgASgDSACIAQESEgoFZW1haWwYAiABKAlIAYgBAUIKCghfdXNlcl9pZEIICgZfZW1haWwimQEKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhcKCmF2YXRhcl91cmwYAyABKAlIAIgBARIRCgRuYW1lGAQgASgJSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiMQoQTGlzdFVzZXJzUmVxdWVzdBINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUiSwoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchITCgt0b3RhbF9jb3VudBgCIAEoAyIkChFEZWxldGVVc2VyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDMtUDCgtVc2VyU2VydmljZRJBCgpDcmVhdGVVc2VyEh8ubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXF1ZXN0GhIubG9jby51c2VyLnYxLlVzZXISOwoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBoSLmxvY28udXNlci52MS5Vc2VyEjQKBldob0FtSRIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRoSLmxvY28udXNlci52MS5Vc2VyEkEKClVwZGF0ZVVzZXISHy5sb2NvLnVzZXIudjEuVXBkYXRlVXNlclJlcXVlc3QaEi5sb2NvLnVzZXIudjEuVXNlchJMCglMaXN0VXNlcnMSHi5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVxdWVzdBofLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXNwb25zZRJFCgpEZWxldGVVc2VyEh8ubG9jby51c2VyLnYxLkRlbGV0ZVVzZXJSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EjgKBkxvZ291dBIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eUI3WjVnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3NoYXJlZC9wcm90by91c2VyL3YxO3VzZXJ2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
+  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCIlChJDcmVhdGVVc2VyUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoAyI7Cg5HZXRVc2VyUmVxdWVzdBIRCgd1c2VyX2lkGAEgASgDSAASDwoFZW1haWwYAiABKAlIAEIFCgNrZXkimQEKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhcKCmF2YXRhcl91cmwYAyABKAlIAIgBARIRCgRuYW1lGAQgASgJSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAMiMQoQTGlzdFVzZXJzUmVxdWVzdBINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUiSwoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchITCgt0b3RhbF9jb3VudBgCIAEoAyIkChFEZWxldGVVc2VyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDMvEDCgtVc2VyU2VydmljZRJPCgpDcmVhdGVVc2VyEh8ubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXNwb25zZRI7CgdHZXRVc2VyEhwubG9jby51c2VyLnYxLkdldFVzZXJSZXF1ZXN0GhIubG9jby51c2VyLnYxLlVzZXISNAoGV2hvQW1JEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhIubG9jby51c2VyLnYxLlVzZXISTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USRQoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRI4CgZMb2dvdXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaFi5nb29nbGUucHJvdG9idWYuRW1wdHlCN1o1Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9zaGFyZWQvcHJvdG8vdXNlci92MTt1c2VydjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -167,20 +167,58 @@ export const CreateUserRequestSchema: GenMessage<CreateUserRequest, {jsonType: C
   messageDesc(file_user_v1_user, 1);
 
 /**
+ * CreateUserResponse is the response containing the created user ID.
+ *
+ * @generated from message loco.user.v1.CreateUserResponse
+ */
+export type CreateUserResponse = Message<"loco.user.v1.CreateUserResponse"> & {
+  /**
+   * @generated from field: int64 user_id = 1;
+   */
+  userId: bigint;
+};
+
+/**
+ * CreateUserResponse is the response containing the created user ID.
+ *
+ * @generated from message loco.user.v1.CreateUserResponse
+ */
+export type CreateUserResponseJson = {
+  /**
+   * @generated from field: int64 user_id = 1;
+   */
+  userId?: string;
+};
+
+/**
+ * Describes the message loco.user.v1.CreateUserResponse.
+ * Use `create(CreateUserResponseSchema)` to create a new message.
+ */
+export const CreateUserResponseSchema: GenMessage<CreateUserResponse, {jsonType: CreateUserResponseJson}> = /*@__PURE__*/
+  messageDesc(file_user_v1_user, 2);
+
+/**
  * GetUserRequest is the request to retrieve a user.
  *
  * @generated from message loco.user.v1.GetUserRequest
  */
 export type GetUserRequest = Message<"loco.user.v1.GetUserRequest"> & {
   /**
-   * @generated from field: optional int64 user_id = 1;
+   * @generated from oneof loco.user.v1.GetUserRequest.key
    */
-  userId?: bigint;
-
-  /**
-   * @generated from field: optional string email = 2;
-   */
-  email?: string;
+  key: {
+    /**
+     * @generated from field: int64 user_id = 1;
+     */
+    value: bigint;
+    case: "userId";
+  } | {
+    /**
+     * @generated from field: string email = 2;
+     */
+    value: string;
+    case: "email";
+  } | { case: undefined; value?: undefined };
 };
 
 /**
@@ -190,12 +228,12 @@ export type GetUserRequest = Message<"loco.user.v1.GetUserRequest"> & {
  */
 export type GetUserRequestJson = {
   /**
-   * @generated from field: optional int64 user_id = 1;
+   * @generated from field: int64 user_id = 1;
    */
   userId?: string;
 
   /**
-   * @generated from field: optional string email = 2;
+   * @generated from field: string email = 2;
    */
   email?: string;
 };
@@ -205,7 +243,7 @@ export type GetUserRequestJson = {
  * Use `create(GetUserRequestSchema)` to create a new message.
  */
 export const GetUserRequestSchema: GenMessage<GetUserRequest, {jsonType: GetUserRequestJson}> = /*@__PURE__*/
-  messageDesc(file_user_v1_user, 2);
+  messageDesc(file_user_v1_user, 3);
 
 /**
  * UpdateUserRequest is the request to update user information.
@@ -266,7 +304,38 @@ export type UpdateUserRequestJson = {
  * Use `create(UpdateUserRequestSchema)` to create a new message.
  */
 export const UpdateUserRequestSchema: GenMessage<UpdateUserRequest, {jsonType: UpdateUserRequestJson}> = /*@__PURE__*/
-  messageDesc(file_user_v1_user, 3);
+  messageDesc(file_user_v1_user, 4);
+
+/**
+ * UpdateUserResponse is the response containing the updated user ID.
+ *
+ * @generated from message loco.user.v1.UpdateUserResponse
+ */
+export type UpdateUserResponse = Message<"loco.user.v1.UpdateUserResponse"> & {
+  /**
+   * @generated from field: int64 user_id = 1;
+   */
+  userId: bigint;
+};
+
+/**
+ * UpdateUserResponse is the response containing the updated user ID.
+ *
+ * @generated from message loco.user.v1.UpdateUserResponse
+ */
+export type UpdateUserResponseJson = {
+  /**
+   * @generated from field: int64 user_id = 1;
+   */
+  userId?: string;
+};
+
+/**
+ * Describes the message loco.user.v1.UpdateUserResponse.
+ * Use `create(UpdateUserResponseSchema)` to create a new message.
+ */
+export const UpdateUserResponseSchema: GenMessage<UpdateUserResponse, {jsonType: UpdateUserResponseJson}> = /*@__PURE__*/
+  messageDesc(file_user_v1_user, 5);
 
 /**
  * ListUsersRequest is the request to list users.
@@ -307,7 +376,7 @@ export type ListUsersRequestJson = {
  * Use `create(ListUsersRequestSchema)` to create a new message.
  */
 export const ListUsersRequestSchema: GenMessage<ListUsersRequest, {jsonType: ListUsersRequestJson}> = /*@__PURE__*/
-  messageDesc(file_user_v1_user, 4);
+  messageDesc(file_user_v1_user, 6);
 
 /**
  * ListUsersResponse is the response containing user list.
@@ -348,7 +417,7 @@ export type ListUsersResponseJson = {
  * Use `create(ListUsersResponseSchema)` to create a new message.
  */
 export const ListUsersResponseSchema: GenMessage<ListUsersResponse, {jsonType: ListUsersResponseJson}> = /*@__PURE__*/
-  messageDesc(file_user_v1_user, 5);
+  messageDesc(file_user_v1_user, 7);
 
 /**
  * DeleteUserRequest is the request to delete a user.
@@ -379,7 +448,7 @@ export type DeleteUserRequestJson = {
  * Use `create(DeleteUserRequestSchema)` to create a new message.
  */
 export const DeleteUserRequestSchema: GenMessage<DeleteUserRequest, {jsonType: DeleteUserRequestJson}> = /*@__PURE__*/
-  messageDesc(file_user_v1_user, 6);
+  messageDesc(file_user_v1_user, 8);
 
 /**
  * UserService manages user accounts and operations.
@@ -395,7 +464,7 @@ export const UserService: GenService<{
   createUser: {
     methodKind: "unary";
     input: typeof CreateUserRequestSchema;
-    output: typeof UserSchema;
+    output: typeof CreateUserResponseSchema;
   },
   /**
    * GetUser retrieves a user by ID or email.
@@ -425,7 +494,7 @@ export const UserService: GenService<{
   updateUser: {
     methodKind: "unary";
     input: typeof UpdateUserRequestSchema;
-    output: typeof UserSchema;
+    output: typeof UpdateUserResponseSchema;
   },
   /**
    * ListUsers lists users with pagination.

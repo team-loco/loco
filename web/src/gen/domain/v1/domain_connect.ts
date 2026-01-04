@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreateResourceDomainRequest, DeletePlatformDomainRequest, DeleteResourceDomainRequest, GetPlatformDomainRequest, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, PlatformDomain, ResourceDomain, SetPrimaryResourceDomainRequest, UpdatePlatformDomainRequest, UpdateResourceDomainRequest } from "./domain_pb";
+import { CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreatePlatformDomainResponse, CreateResourceDomainRequest, CreateResourceDomainResponse, DeletePlatformDomainRequest, DeleteResourceDomainRequest, GetPlatformDomainRequest, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, PlatformDomain, SetPrimaryResourceDomainRequest, SetPrimaryResourceDomainResponse, UpdatePlatformDomainRequest, UpdatePlatformDomainResponse, UpdateResourceDomainRequest, UpdateResourceDomainResponse } from "./domain_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -23,7 +23,7 @@ export const DomainService = {
     createPlatformDomain: {
       name: "CreatePlatformDomain",
       I: CreatePlatformDomainRequest,
-      O: PlatformDomain,
+      O: CreatePlatformDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -56,7 +56,7 @@ export const DomainService = {
     updatePlatformDomain: {
       name: "UpdatePlatformDomain",
       I: UpdatePlatformDomainRequest,
-      O: PlatformDomain,
+      O: UpdatePlatformDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -79,7 +79,7 @@ export const DomainService = {
     createResourceDomain: {
       name: "CreateResourceDomain",
       I: CreateResourceDomainRequest,
-      O: ResourceDomain,
+      O: CreateResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -90,7 +90,7 @@ export const DomainService = {
     updateResourceDomain: {
       name: "UpdateResourceDomain",
       I: UpdateResourceDomainRequest,
-      O: ResourceDomain,
+      O: UpdateResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -101,7 +101,7 @@ export const DomainService = {
     setPrimaryResourceDomain: {
       name: "SetPrimaryResourceDomain",
       I: SetPrimaryResourceDomainRequest,
-      O: ResourceDomain,
+      O: SetPrimaryResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**

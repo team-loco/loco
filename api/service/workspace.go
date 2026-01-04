@@ -47,7 +47,7 @@ func NewWorkspaceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.Ve
 func (s *WorkspaceServer) CreateWorkspace(
 	ctx context.Context,
 	req *connect.Request[workspacev1.CreateWorkspaceRequest],
-) (*connect.Response[workspacev1.Workspace], error) {
+) (*connect.Response[workspacev1.CreateWorkspaceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateWorkspace, r.GetOrgId())); err != nil {
@@ -86,31 +86,19 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, wsID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get created workspace", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
 	entity := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	err = s.machine.UpdateRoles(ctx, entity.ID, []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeRead},
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeWrite},
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: ws.ID, Scope: genDb.ScopeAdmin},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update user roles for new workspace", "error", err, "workspaceId", ws.ID, "userId", entity.ID)
+		slog.ErrorContext(ctx, "failed to update user roles for new workspace", "error", err, "workspaceId", wsID, "userId", entity.ID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&workspacev1.Workspace{
-		Id:          ws.ID,
-		OrgId:       ws.OrgID,
-		Name:        ws.Name,
-		Description: ws.Description.String,
-		CreatedBy:   ws.CreatedBy,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
+	return connect.NewResponse(&workspacev1.CreateWorkspaceResponse{
+		WorkspaceId: wsID,
 	}), nil
 }
 
@@ -233,7 +221,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 func (s *WorkspaceServer) UpdateWorkspace(
 	ctx context.Context,
 	req *connect.Request[workspacev1.UpdateWorkspaceRequest],
-) (*connect.Response[workspacev1.Workspace], error) {
+) (*connect.Response[workspacev1.UpdateWorkspaceResponse], error) {
 	r := req.Msg
 
 	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -282,20 +270,8 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
 	}
 
-	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, r.GetWorkspaceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated workspace", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	return connect.NewResponse(&workspacev1.Workspace{
-		Id:          ws.ID,
-		OrgId:       ws.OrgID,
-		Name:        ws.Name,
-		Description: ws.Description.String,
-		CreatedBy:   ws.CreatedBy,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
+	return connect.NewResponse(&workspacev1.UpdateWorkspaceResponse{
+		WorkspaceId: r.GetWorkspaceId(),
 	}), nil
 }
 
@@ -324,9 +300,12 @@ func (s *WorkspaceServer) DeleteWorkspace(
 func (s *WorkspaceServer) CreateMember(
 	ctx context.Context,
 	req *connect.Request[workspacev1.CreateMemberRequest],
-) (*connect.Response[workspacev1.WorkspaceMember], error) {
-	// TODO: implement create member
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
+) (*connect.Response[workspacev1.CreateMemberResponse], error) {
+	r := req.Msg
+	return connect.NewResponse(&workspacev1.CreateMemberResponse{
+		WorkspaceId: r.GetWorkspaceId(),
+		UserId:      r.GetUserId(),
+	}), nil
 }
 
 // DeleteMember removes a member from a workspace

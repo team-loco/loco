@@ -66,8 +66,12 @@ func destroyCmdFunc(cmd *cobra.Command) error {
 	slog.Debug("fetching app by name", "workspaceId", workspaceID, "app_name", appName)
 
 	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceRequest{
-		WorkspaceId: &workspaceID,
-		Name:        &appName,
+		Key: &resourcev1.GetResourceRequest_NameKey{
+			NameKey: &resourcev1.GetResourceNameKey{
+				WorkspaceId: workspaceID,
+				Name:        appName,
+			},
+		},
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 

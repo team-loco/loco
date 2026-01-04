@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateDeploymentRequest, DeleteDeploymentRequest, Deployment, DeploymentEvent, GetDeploymentRequest, ListDeploymentsRequest, ListDeploymentsResponse, WatchDeploymentRequest } from "./deployment_pb";
+import { CreateDeploymentRequest, CreateDeploymentResponse, DeleteDeploymentRequest, Deployment, DeploymentEvent, GetDeploymentRequest, ListDeploymentsRequest, ListDeploymentsResponse, WatchDeploymentRequest } from "./deployment_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -22,7 +22,7 @@ export const DeploymentService = {
     createDeployment: {
       name: "CreateDeployment",
       I: CreateDeploymentRequest,
-      O: Deployment,
+      O: CreateDeploymentResponse,
       kind: MethodKind.Unary,
     },
     /**
