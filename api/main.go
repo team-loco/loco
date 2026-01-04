@@ -176,6 +176,7 @@ func main() {
 		ac.DeployTokenName,
 		ac.RegistryTag,
 		httpClient,
+		machine,
 	)
 
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, interceptors)

@@ -42,6 +42,12 @@ func (s *DomainServer) CreatePlatformDomain(
 ) (*connect.Response[domainv1.PlatformDomain], error) {
 	r := req.Msg
 
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.CreatePlatformDomain, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create platform domain")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	if r.GetDomain() == "" {
 		slog.ErrorContext(ctx, "invalid request: domain is required")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
@@ -150,6 +156,12 @@ func (s *DomainServer) UpdatePlatformDomain(
 ) (*connect.Response[domainv1.PlatformDomain], error) {
 	r := req.Msg
 
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.UpdatePlatformDomain, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update platform domain")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	if r.GetId() <= 0 {
 		slog.ErrorContext(ctx, "invalid request: id is required")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
@@ -187,6 +199,12 @@ func (s *DomainServer) DeletePlatformDomain(
 ) (*connect.Response[emptypb.Empty], error) {
 	r := req.Msg
 
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.DeletePlatformDomain, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete platform domain")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	if r.GetId() <= 0 {
 		slog.ErrorContext(ctx, "invalid request: id is required")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
@@ -207,6 +225,12 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	ctx context.Context,
 	req *connect.Request[domainv1.ListLocoOwnedDomainsRequest],
 ) (*connect.Response[domainv1.ListLocoOwnedDomainsResponse], error) {
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListLocoOwnedDomains, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list loco owned domains")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	results, err := s.queries.ListAllLocoOwnedDomains(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list loco owned domains", "error", err)

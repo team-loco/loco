@@ -157,6 +157,12 @@ func (s *OrgServer) ListUserOrgs(
 ) (*connect.Response[orgv1.ListUserOrgsResponse], error) {
 	r := req.Msg
 
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListUserOrgs, r.GetUserId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list user orgs", "userId", r.GetUserId())
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	limit := r.GetLimit()
 	if limit < 1 {
 		limit = 50

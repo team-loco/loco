@@ -12,6 +12,8 @@ import (
 	"github.com/team-loco/loco/api/client"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/tvm/actions"
 	registryv1 "github.com/team-loco/loco/shared/proto/registry/v1"
 )
 
@@ -25,6 +27,7 @@ type RegistryServer struct {
 	deployTokenName   string
 	registryBaseImage string
 	httpClient        *http.Client
+	machine           *tvm.VendingMachine
 }
 
 // NewRegistryServer creates a new RegistryServer instance
@@ -37,6 +40,7 @@ func NewRegistryServer(
 	deployTokenName string,
 	registryBaseImage string,
 	httpClient *http.Client,
+	machine *tvm.VendingMachine,
 ) *RegistryServer {
 	return &RegistryServer{
 		db:                dbPool,
@@ -47,6 +51,7 @@ func NewRegistryServer(
 		deployTokenName:   deployTokenName,
 		registryBaseImage: registryBaseImage,
 		httpClient:        httpClient,
+		machine:           machine,
 	}
 }
 
@@ -60,6 +65,17 @@ func (s *RegistryServer) GetGitlabToken(
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("unauthorized"))
+	}
+
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]db.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("unauthorized"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetGitlabToken, entity.ID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get gitlab token", "entityId", entity.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	expiresAt := time.Now().Add(5 * time.Minute).UTC().Format(time.RFC3339)
