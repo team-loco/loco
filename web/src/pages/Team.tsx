@@ -1,9 +1,9 @@
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation } from "@connectrpc/connect-query";
 import { listWorkspaceMembers, listOrgWorkspaces, deleteMember } from "@/gen/workspace/v1";
-import { whoAmI } from "@/gen/user/v1";
 import { listUserOrgs } from "@/gen/org/v1";
 import { toastConnectError } from "@/lib/error-handler";
+import { useAuth } from "@/auth/AuthProvider";
 import {
 	Card,
 	CardContent,
@@ -25,9 +25,9 @@ export function Team() {
 	const [currentPage, setCurrentPage] = useState(0);
 	const ITEMS_PER_PAGE = 10;
 
-	useQuery(whoAmI, {});
+	const { user } = useAuth();
 
-	const { data: orgsRes } = useQuery(listUserOrgs, { userId: 0n });
+	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? 0n }, { enabled: !!user });
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
 	const firstOrgId = orgs[0]?.id ?? null;
 

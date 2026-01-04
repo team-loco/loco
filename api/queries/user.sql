@@ -69,18 +69,6 @@ SELECT COUNT(*) = 0 AS is_unique
 FROM organizations
 WHERE name = $1;
 
--- Workspace queries
-
--- name: CreateWorkspace :one
-INSERT INTO workspaces (org_id, name, description, created_by)
-VALUES ($1, $2, $3, $4)
-RETURNING id, org_id, name, description, created_by, created_at, updated_at;
-
--- name: GetWorkspaceByID :one
-SELECT id, org_id, name, description, created_by, created_at, updated_at
-FROM workspaces
-WHERE id = $1;
-
 -- Organization members queries
 
 -- name: AddOrganizationMember :one

@@ -11,6 +11,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createWorkspace = `-- name: CreateWorkspace :one
+INSERT INTO workspaces (org_id, name, description)
+VALUES ($1, $2, $3)
+RETURNING id
+`
+
+type CreateWorkspaceParams struct {
+	OrgID       int64       `json:"orgId"`
+	Name        string      `json:"name"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, createWorkspace, arg.OrgID, arg.Name, arg.Description)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const deleteWorkspaceMember = `-- name: DeleteWorkspaceMember :exec
 DELETE FROM workspace_members
 WHERE workspace_id = $1 AND user_id = $2
@@ -113,31 +132,6 @@ func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error
 	var org_id int64
 	err := row.Scan(&org_id)
 	return org_id, err
-}
-
-const insertWorkspace = `-- name: InsertWorkspace :one
-INSERT INTO workspaces (org_id, name, description, created_by)
-VALUES ($1, $2, $3, $4)
-RETURNING id
-`
-
-type InsertWorkspaceParams struct {
-	OrgID       int64       `json:"orgId"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	CreatedBy   int64       `json:"createdBy"`
-}
-
-func (q *Queries) InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (int64, error) {
-	row := q.db.QueryRow(ctx, insertWorkspace,
-		arg.OrgID,
-		arg.Name,
-		arg.Description,
-		arg.CreatedBy,
-	)
-	var id int64
-	err := row.Scan(&id)
-	return id, err
 }
 
 const isWorkspaceMember = `-- name: IsWorkspaceMember :one

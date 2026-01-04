@@ -100,6 +100,16 @@ func (s *UserServer) CreateUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	err = s.tvm.UpdateRoles(ctx, user.ID, []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
+	}, []genDb.EntityScope{})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update user roles", "error", err, "userId", user.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(dbUserToProto(user)), nil
 }
 
@@ -352,8 +362,6 @@ func (s *UserServer) getUserByID(ctx context.Context, id int64) (*userv1.User, e
 
 	return dbUserToProto(user), nil
 }
-
-
 
 func dbUserToProto(user genDb.User) *userv1.User {
 	return &userv1.User{

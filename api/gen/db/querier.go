@@ -33,8 +33,7 @@ type Querier interface {
 	CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error)
 	// User queries for sqlc
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	// Workspace queries
-	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (Workspace, error)
+	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (int64, error)
 	DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error)
 	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID int64) error
 	DeleteExpiredTokens(ctx context.Context) error
@@ -82,14 +81,12 @@ type Querier interface {
 	GetUserWithScopesByEmail(ctx context.Context, email string) (UserWithScopesView, error)
 	// what users have scope z on entity y?
 	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]int64, error)
-	GetWorkspaceByID(ctx context.Context, id int64) (Workspace, error)
 	GetWorkspaceByIDQuery(ctx context.Context, id int64) (Workspace, error)
 	GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error)
 	GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error)
 	GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([]WorkspaceMember, error)
 	GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error)
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (GetWorkspaceOrganizationIDByResourceIDRow, error)
-	InsertWorkspace(ctx context.Context, arg InsertWorkspaceParams) (int64, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgNameUnique(ctx context.Context, name string) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)

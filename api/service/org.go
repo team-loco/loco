@@ -99,6 +99,16 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	err = s.machine.UpdateRoles(ctx, entity.ID, []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
+	}, []genDb.EntityScope{})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", org.ID, "userId", entity.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&orgv1.Organization{
 		Id:        org.ID,
 		Name:      org.Name,
@@ -343,7 +353,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 	}
 
 	return connect.NewResponse(&orgv1.ListOrgWorkspacesResponse{
-		Workspaces:  workspaceSummaries,
+		Workspaces: workspaceSummaries,
 		TotalCount: int64(len(workspaces)),
 	}), nil
 }

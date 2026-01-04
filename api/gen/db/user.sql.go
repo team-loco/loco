@@ -158,41 +158,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
-const createWorkspace = `-- name: CreateWorkspace :one
-
-INSERT INTO workspaces (org_id, name, description, created_by)
-VALUES ($1, $2, $3, $4)
-RETURNING id, org_id, name, description, created_by, created_at, updated_at
-`
-
-type CreateWorkspaceParams struct {
-	OrgID       int64       `json:"orgId"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	CreatedBy   int64       `json:"createdBy"`
-}
-
-// Workspace queries
-func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (Workspace, error) {
-	row := q.db.QueryRow(ctx, createWorkspace,
-		arg.OrgID,
-		arg.Name,
-		arg.Description,
-		arg.CreatedBy,
-	)
-	var i Workspace
-	err := row.Scan(
-		&i.ID,
-		&i.OrgID,
-		&i.Name,
-		&i.Description,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const deleteOrganization = `-- name: DeleteOrganization :exec
 DELETE FROM organizations WHERE id = $1
 `
@@ -338,27 +303,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getWorkspaceByID = `-- name: GetWorkspaceByID :one
-SELECT id, org_id, name, description, created_by, created_at, updated_at
-FROM workspaces
-WHERE id = $1
-`
-
-func (q *Queries) GetWorkspaceByID(ctx context.Context, id int64) (Workspace, error) {
-	row := q.db.QueryRow(ctx, getWorkspaceByID, id)
-	var i Workspace
-	err := row.Scan(
-		&i.ID,
-		&i.OrgID,
-		&i.Name,
-		&i.Description,
-		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
