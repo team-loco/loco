@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package loco.resource.v1;
 
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/field_mask.proto";
-import "google/protobuf/empty.proto";
 
 import "deployment/v1/deployment.proto";
 import "domain/v1/domain.proto";
@@ -15,33 +15,33 @@ option go_package = "github.com/team-loco/loco/shared/proto/resource/v1;resource
 // ResourceType categorizes the type of resource being deployed.
 enum ResourceType {
   RESOURCE_TYPE_UNSPECIFIED = 0;
-  SERVICE  = 1;
-  DATABASE = 2;
-  FUNCTION = 3;
-  CACHE    = 4;
-  QUEUE    = 5;
-  BLOB     = 6;
+  SERVICE                   = 1;
+  DATABASE                  = 2;
+  FUNCTION                  = 3;
+  CACHE                     = 4;
+  QUEUE                     = 5;
+  BLOB                      = 6;
 }
 
 // ResourceStatus represents the operational status of a resource based on current deployment and health checks.
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
-  HEALTHY     = 1;
-  DEPLOYING   = 2;
-  DEGRADED    = 3;
-  UNAVAILABLE = 4;
-  SUSPENDED   = 5;
+  HEALTHY                     = 1;
+  DEPLOYING                   = 2;
+  DEGRADED                    = 3;
+  UNAVAILABLE                 = 4;
+  SUSPENDED                   = 5;
 }
 
 // RegionIntentStatus represents the state of a region intent for a resource.
 enum RegionIntentStatus {
   REGION_INTENT_STATUS_UNSPECIFIED = 0;
-  REGION_INTENT_DESIRED      = 1;
-  REGION_INTENT_PROVISIONING = 2;
-  REGION_INTENT_ACTIVE       = 3;
-  REGION_INTENT_DEGRADED     = 4;
-  REGION_INTENT_REMOVING     = 5;
-  REGION_INTENT_FAILED       = 6;
+  REGION_INTENT_DESIRED            = 1;
+  REGION_INTENT_PROVISIONING       = 2;
+  REGION_INTENT_ACTIVE             = 3;
+  REGION_INTENT_DEGRADED           = 4;
+  REGION_INTENT_REMOVING           = 5;
+  REGION_INTENT_FAILED             = 6;
 }
 
 // ResourceService manages resource lifecycle and operations.
@@ -202,8 +202,8 @@ message CreateResourceRequest {
 
 // GetResourceRequest is the request to retrieve a resource.
 message GetResourceRequest {
-  optional int64  resource_id = 1;
-  optional string name        = 2;
+  optional int64  resource_id  = 1;
+  optional string name         = 2;
   optional int64  workspace_id = 3; // required if looking up by name
 }
 
@@ -216,7 +216,7 @@ message ListWorkspaceResourcesRequest {
 
 // ListWorkspaceResourcesResponse is the response containing the list of resources.
 message ListWorkspaceResourcesResponse {
-  repeated Resource resources  = 1;
+  repeated Resource resources   = 1;
   int64             total_count = 2;
 }
 

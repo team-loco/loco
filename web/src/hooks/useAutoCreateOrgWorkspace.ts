@@ -3,8 +3,10 @@ import { createOrg, listUserOrgs } from "@/gen/org/v1";
 import { createWorkspace, listOrgWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useCallback, useState } from "react";
+import { useAuth } from "@/auth/AuthProvider";
 
 export function useAutoCreateOrgWorkspace() {
+	const { user } = useAuth();
 	const [step, setStep] = useState<
 		"idle" | "creating-org" | "creating-workspace" | "done" | "error"
 	>("idle");
@@ -16,7 +18,7 @@ export function useAutoCreateOrgWorkspace() {
 	const createWorkspaceMutation = useMutation(createWorkspace);
 	const { refetch: refetchOrgs } = useQuery(
 		listUserOrgs,
-		{ userId: 0n },
+		user ? { userId: BigInt(user.id) } : undefined,
 		{ enabled: false }
 	);
 	const [wsQueryOrgId, setWsQueryOrgId] = useState<bigint>(0n);

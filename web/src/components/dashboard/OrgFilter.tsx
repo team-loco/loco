@@ -1,5 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { listUserOrgs } from "@/gen/org/v1";
+import { useAuth } from "@/auth/AuthProvider";
 import {
 	Select,
 	SelectContent,
@@ -14,9 +15,11 @@ interface OrgFilterProps {
 }
 
 export function OrgFilter({ selectedOrgId, onOrgChange }: OrgFilterProps) {
+	const { user } = useAuth();
 	const { data: listUserOrgsRes, isLoading } = useQuery(
 		listUserOrgs,
-		{ userId: 0n }
+		user ? { userId: BigInt(user.id) } : undefined,
+		{ enabled: !!user }
 	);
 	const orgs = listUserOrgsRes?.orgs ?? [];
 
