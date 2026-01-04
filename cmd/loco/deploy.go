@@ -289,7 +289,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 		}
 
 		resourceID = createResourceResp.Msg.Id
-		slog.Debug("created resource", "resource_id", resourceID)
+		slog.Debug("created resource", "resourceId", resourceID)
 	}
 
 	imageBase := "registry.gitlab.com/locomotive-group/loco-ecr"
