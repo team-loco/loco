@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateOrgRequest, DeleteOrgRequest, GetOrgRequest, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, Organization, UpdateOrgRequest } from "./org_pb";
+import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, GetOrgRequest, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, Organization, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -22,7 +22,7 @@ export const OrgService = {
     createOrg: {
       name: "CreateOrg",
       I: CreateOrgRequest,
-      O: Organization,
+      O: CreateOrgResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -44,7 +44,7 @@ export const OrgService = {
     updateOrg: {
       name: "UpdateOrg",
       I: UpdateOrgRequest,
-      O: Organization,
+      O: UpdateOrgResponse,
       kind: MethodKind.Unary,
     },
     /**

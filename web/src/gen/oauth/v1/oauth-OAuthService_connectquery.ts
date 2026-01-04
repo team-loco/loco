@@ -5,29 +5,29 @@
 import { OAuthService } from "./oauth_pb";
 
 /**
- * GithubOAuthDetails retrieves GitHub OAuth configuration.
+ * GetOAuthDetails retrieves OAuth configuration for a provider.
  *
- * @generated from rpc loco.oauth.v1.OAuthService.GithubOAuthDetails
+ * @generated from rpc loco.oauth.v1.OAuthService.GetOAuthDetails
  */
-export const githubOAuthDetails = OAuthService.method.githubOAuthDetails;
+export const getOAuthDetails = OAuthService.method.getOAuthDetails;
 
 /**
- * ExchangeGithubToken exchanges a GitHub token for a Loco token.
+ * ExchangeOAuthToken exchanges an OAuth provider token for a Loco token.
  *
- * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubToken
+ * @generated from rpc loco.oauth.v1.OAuthService.ExchangeOAuthToken
  */
-export const exchangeGithubToken = OAuthService.method.exchangeGithubToken;
+export const exchangeOAuthToken = OAuthService.method.exchangeOAuthToken;
 
 /**
- * GetGithubAuthorizationURL generates a GitHub authorization URL.
+ * GetOAuthAuthorizationURL generates an OAuth authorization URL for a provider.
  *
- * @generated from rpc loco.oauth.v1.OAuthService.GetGithubAuthorizationURL
+ * @generated from rpc loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL
  */
-export const getGithubAuthorizationURL = OAuthService.method.getGithubAuthorizationURL;
+export const getOAuthAuthorizationURL = OAuthService.method.getOAuthAuthorizationURL;
 
 /**
- * ExchangeGithubCode exchanges a GitHub authorization code for a Loco token.
+ * ExchangeOAuthCode exchanges an OAuth authorization code for a Loco token.
  *
- * @generated from rpc loco.oauth.v1.OAuthService.ExchangeGithubCode
+ * @generated from rpc loco.oauth.v1.OAuthService.ExchangeOAuthCode
  */
-export const exchangeGithubCode = OAuthService.method.exchangeGithubCode;
+export const exchangeOAuthCode = OAuthService.method.exchangeOAuthCode;

@@ -26,7 +26,9 @@ export function Login() {
 			setError(null);
 
 			const client = createClient(OAuthService, transport);
-			const data = await client.getGithubAuthorizationURL({});
+			const data = await client.getOAuthAuthorizationURL({
+				provider: 1, // GITHUB = 1
+			});
 			const authUrl = data.authorizationUrl;
 
 			if (!authUrl) {

@@ -72,11 +72,11 @@ const (
 // ResourceServiceClient is a client for the loco.resource.v1.ResourceService service.
 type ResourceServiceClient interface {
 	// CreateResource creates a new resource.
-	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.Resource], error)
+	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error)
 	// GetResource retrieves a resource by ID or name.
 	GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.Resource], error)
 	// UpdateResource updates a resource configuration.
-	UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.Resource], error)
+	UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error)
 	// DeleteResource deletes a resource.
 	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[emptypb.Empty], error)
 	// ListWorkspaceResources lists all resources in a workspace.
@@ -109,7 +109,7 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	resourceServiceMethods := v1.File_resource_v1_resource_proto.Services().ByName("ResourceService").Methods()
 	return &resourceServiceClient{
-		createResource: connect.NewClient[v1.CreateResourceRequest, v1.Resource](
+		createResource: connect.NewClient[v1.CreateResourceRequest, v1.CreateResourceResponse](
 			httpClient,
 			baseURL+ResourceServiceCreateResourceProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("CreateResource")),
@@ -121,7 +121,7 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("GetResource")),
 			connect.WithClientOptions(opts...),
 		),
-		updateResource: connect.NewClient[v1.UpdateResourceRequest, v1.Resource](
+		updateResource: connect.NewClient[v1.UpdateResourceRequest, v1.UpdateResourceResponse](
 			httpClient,
 			baseURL+ResourceServiceUpdateResourceProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("UpdateResource")),
@@ -180,9 +180,9 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // resourceServiceClient implements ResourceServiceClient.
 type resourceServiceClient struct {
-	createResource         *connect.Client[v1.CreateResourceRequest, v1.Resource]
+	createResource         *connect.Client[v1.CreateResourceRequest, v1.CreateResourceResponse]
 	getResource            *connect.Client[v1.GetResourceRequest, v1.Resource]
-	updateResource         *connect.Client[v1.UpdateResourceRequest, v1.Resource]
+	updateResource         *connect.Client[v1.UpdateResourceRequest, v1.UpdateResourceResponse]
 	deleteResource         *connect.Client[v1.DeleteResourceRequest, emptypb.Empty]
 	listWorkspaceResources *connect.Client[v1.ListWorkspaceResourcesRequest, v1.ListWorkspaceResourcesResponse]
 	getResourceStatus      *connect.Client[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse]
@@ -194,7 +194,7 @@ type resourceServiceClient struct {
 }
 
 // CreateResource calls loco.resource.v1.ResourceService.CreateResource.
-func (c *resourceServiceClient) CreateResource(ctx context.Context, req *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.Resource], error) {
+func (c *resourceServiceClient) CreateResource(ctx context.Context, req *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error) {
 	return c.createResource.CallUnary(ctx, req)
 }
 
@@ -204,7 +204,7 @@ func (c *resourceServiceClient) GetResource(ctx context.Context, req *connect.Re
 }
 
 // UpdateResource calls loco.resource.v1.ResourceService.UpdateResource.
-func (c *resourceServiceClient) UpdateResource(ctx context.Context, req *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.Resource], error) {
+func (c *resourceServiceClient) UpdateResource(ctx context.Context, req *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error) {
 	return c.updateResource.CallUnary(ctx, req)
 }
 
@@ -251,11 +251,11 @@ func (c *resourceServiceClient) UpdateResourceEnv(ctx context.Context, req *conn
 // ResourceServiceHandler is an implementation of the loco.resource.v1.ResourceService service.
 type ResourceServiceHandler interface {
 	// CreateResource creates a new resource.
-	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.Resource], error)
+	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error)
 	// GetResource retrieves a resource by ID or name.
 	GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.Resource], error)
 	// UpdateResource updates a resource configuration.
-	UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.Resource], error)
+	UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error)
 	// DeleteResource deletes a resource.
 	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[emptypb.Empty], error)
 	// ListWorkspaceResources lists all resources in a workspace.
@@ -383,7 +383,7 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 // UnimplementedResourceServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedResourceServiceHandler struct{}
 
-func (UnimplementedResourceServiceHandler) CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.Resource], error) {
+func (UnimplementedResourceServiceHandler) CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.CreateResource is not implemented"))
 }
 
@@ -391,7 +391,7 @@ func (UnimplementedResourceServiceHandler) GetResource(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResource is not implemented"))
 }
 
-func (UnimplementedResourceServiceHandler) UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.Resource], error) {
+func (UnimplementedResourceServiceHandler) UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.UpdateResource is not implemented"))
 }
 

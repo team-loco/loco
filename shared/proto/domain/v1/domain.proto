@@ -53,23 +53,23 @@ message ResourceDomain {
 service DomainService {
   // Platform Domain CRUD
   // CreatePlatformDomain creates a new platform-provided domain.
-  rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (PlatformDomain);
+  rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (CreatePlatformDomainResponse);
   // GetPlatformDomain retrieves a platform domain by ID or name.
   rpc GetPlatformDomain(GetPlatformDomainRequest) returns (PlatformDomain);
   // ListPlatformDomains lists platform domains with optional filters.
   rpc ListPlatformDomains(ListPlatformDomainsRequest) returns (ListPlatformDomainsResponse);
   // UpdatePlatformDomain updates a platform domain.
-  rpc UpdatePlatformDomain(UpdatePlatformDomainRequest) returns (PlatformDomain);
+  rpc UpdatePlatformDomain(UpdatePlatformDomainRequest) returns (UpdatePlatformDomainResponse);
   // DeletePlatformDomain deletes a platform domain.
   rpc DeletePlatformDomain(DeletePlatformDomainRequest) returns (google.protobuf.Empty);
 
   // Resource Domain Management
   // CreateResourceDomain assigns a domain to a resource.
-  rpc CreateResourceDomain(CreateResourceDomainRequest) returns (ResourceDomain);
+  rpc CreateResourceDomain(CreateResourceDomainRequest) returns (CreateResourceDomainResponse);
   // UpdateResourceDomain updates a resource's domain configuration.
-  rpc UpdateResourceDomain(UpdateResourceDomainRequest) returns (ResourceDomain);
+  rpc UpdateResourceDomain(UpdateResourceDomainRequest) returns (UpdateResourceDomainResponse);
   // SetPrimaryResourceDomain sets the primary domain for a resource.
-  rpc SetPrimaryResourceDomain(SetPrimaryResourceDomainRequest) returns (ResourceDomain);
+  rpc SetPrimaryResourceDomain(SetPrimaryResourceDomainRequest) returns (SetPrimaryResourceDomainResponse);
   // DeleteResourceDomain removes a domain from a resource.
   rpc DeleteResourceDomain(DeleteResourceDomainRequest) returns (google.protobuf.Empty);
 
@@ -88,10 +88,17 @@ message CreatePlatformDomainRequest {
   bool   is_active = 2;
 }
 
+// CreatePlatformDomainResponse is the response containing the created platform domain ID.
+message CreatePlatformDomainResponse {
+  int64 id = 1;
+}
+
 // GetPlatformDomainRequest is the request to retrieve a platform domain.
 message GetPlatformDomainRequest {
-  optional int64  id     = 1;
-  optional string domain = 2;
+  oneof key {
+    int64  id     = 1;
+    string domain = 2;
+  }
 }
 
 // ListPlatformDomainsRequest is the request to list platform domains.
@@ -113,6 +120,11 @@ message UpdatePlatformDomainRequest {
   google.protobuf.FieldMask update_mask = 2;
   optional string           domain      = 3;
   optional bool             is_active   = 4;
+}
+
+// UpdatePlatformDomainResponse is the response containing the updated platform domain ID.
+message UpdatePlatformDomainResponse {
+  int64 id = 1;
 }
 
 // DeletePlatformDomainRequest is the request to delete a platform domain.
@@ -147,6 +159,11 @@ message CreateResourceDomainRequest {
   DomainInput domain      = 2;
 }
 
+// CreateResourceDomainResponse is the response containing the created resource domain ID.
+message CreateResourceDomainResponse {
+  int64 domain_id = 1;
+}
+
 // UpdateResourceDomainRequest is the request to update a resource's domain.
 message UpdateResourceDomainRequest {
   int64                     domain_id   = 1;
@@ -154,8 +171,19 @@ message UpdateResourceDomainRequest {
   optional string           domain      = 3;
 }
 
+// UpdateResourceDomainResponse is the response containing the updated resource domain ID.
+message UpdateResourceDomainResponse {
+  int64 domain_id = 1;
+}
+
 // SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
 message SetPrimaryResourceDomainRequest {
+  int64 resource_id = 1;
+  int64 domain_id   = 2;
+}
+
+// SetPrimaryResourceDomainResponse is the response containing the resource and domain IDs.
+message SetPrimaryResourceDomainResponse {
   int64 resource_id = 1;
   int64 domain_id   = 2;
 }

@@ -94,7 +94,19 @@ func (c *Client) CreateUser(ctx context.Context, externalID, email, avatarURL st
 		return nil, err
 	}
 
-	return resp.Msg, nil
+	// CreateUser now returns only the user ID, so we need to fetch the full user
+	getReq := connect.NewRequest(&userv1.GetUserRequest{
+		Key: &userv1.GetUserRequest_UserId{UserId: resp.Msg.UserId},
+	})
+	getReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+
+	getResp, err := c.User.GetUser(ctx, getReq)
+	if err != nil {
+		logRequestID(ctx, err, "failed to get created user")
+		return nil, err
+	}
+
+	return getResp.Msg, nil
 }
 
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
@@ -151,7 +163,9 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 		return nil, fmt.Errorf("invalid app ID: %w", err)
 	}
 
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{ResourceId: &appIDInt})
+	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: appIDInt},
+	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Resource.GetResource(ctx, req)
@@ -184,8 +198,12 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 
 func (c *Client) GetAppByName(ctx context.Context, workspaceID int64, appName string) (*resourcev1.Resource, error) {
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
-		WorkspaceId: &workspaceID,
-		Name:        &appName,
+		Key: &resourcev1.GetResourceRequest_NameKey{
+			NameKey: &resourcev1.GetResourceNameKey{
+				WorkspaceId: workspaceID,
+				Name:        appName,
+			},
+		},
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 

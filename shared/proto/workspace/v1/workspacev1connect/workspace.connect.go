@@ -66,11 +66,11 @@ const (
 // WorkspaceServiceClient is a client for the loco.workspace.v1.WorkspaceService service.
 type WorkspaceServiceClient interface {
 	// CreateWorkspace creates a new workspace.
-	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.Workspace], error)
+	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.Workspace], error)
 	// UpdateWorkspace updates workspace information.
-	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.Workspace], error)
+	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
 	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *connect.Request[v1.DeleteWorkspaceRequest]) (*connect.Response[emptypb.Empty], error)
 	// ListUserWorkspaces lists all workspaces for a user.
@@ -78,7 +78,7 @@ type WorkspaceServiceClient interface {
 	// ListOrgWorkspaces lists all workspaces in an organization.
 	ListOrgWorkspaces(context.Context, *connect.Request[v1.ListOrgWorkspacesRequest]) (*connect.Response[v1.ListOrgWorkspacesResponse], error)
 	// CreateMember adds a user to a workspace with a specified role.
-	CreateMember(context.Context, *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.WorkspaceMember], error)
+	CreateMember(context.Context, *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.CreateMemberResponse], error)
 	// DeleteMember removes a user from a workspace.
 	DeleteMember(context.Context, *connect.Request[v1.DeleteMemberRequest]) (*connect.Response[emptypb.Empty], error)
 	// ListWorkspaceMembers lists all members of a workspace with pagination.
@@ -96,7 +96,7 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 	baseURL = strings.TrimRight(baseURL, "/")
 	workspaceServiceMethods := v1.File_workspace_v1_workspace_proto.Services().ByName("WorkspaceService").Methods()
 	return &workspaceServiceClient{
-		createWorkspace: connect.NewClient[v1.CreateWorkspaceRequest, v1.Workspace](
+		createWorkspace: connect.NewClient[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse](
 			httpClient,
 			baseURL+WorkspaceServiceCreateWorkspaceProcedure,
 			connect.WithSchema(workspaceServiceMethods.ByName("CreateWorkspace")),
@@ -108,7 +108,7 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("GetWorkspace")),
 			connect.WithClientOptions(opts...),
 		),
-		updateWorkspace: connect.NewClient[v1.UpdateWorkspaceRequest, v1.Workspace](
+		updateWorkspace: connect.NewClient[v1.UpdateWorkspaceRequest, v1.UpdateWorkspaceResponse](
 			httpClient,
 			baseURL+WorkspaceServiceUpdateWorkspaceProcedure,
 			connect.WithSchema(workspaceServiceMethods.ByName("UpdateWorkspace")),
@@ -132,7 +132,7 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("ListOrgWorkspaces")),
 			connect.WithClientOptions(opts...),
 		),
-		createMember: connect.NewClient[v1.CreateMemberRequest, v1.WorkspaceMember](
+		createMember: connect.NewClient[v1.CreateMemberRequest, v1.CreateMemberResponse](
 			httpClient,
 			baseURL+WorkspaceServiceCreateMemberProcedure,
 			connect.WithSchema(workspaceServiceMethods.ByName("CreateMember")),
@@ -155,19 +155,19 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // workspaceServiceClient implements WorkspaceServiceClient.
 type workspaceServiceClient struct {
-	createWorkspace      *connect.Client[v1.CreateWorkspaceRequest, v1.Workspace]
+	createWorkspace      *connect.Client[v1.CreateWorkspaceRequest, v1.CreateWorkspaceResponse]
 	getWorkspace         *connect.Client[v1.GetWorkspaceRequest, v1.Workspace]
-	updateWorkspace      *connect.Client[v1.UpdateWorkspaceRequest, v1.Workspace]
+	updateWorkspace      *connect.Client[v1.UpdateWorkspaceRequest, v1.UpdateWorkspaceResponse]
 	deleteWorkspace      *connect.Client[v1.DeleteWorkspaceRequest, emptypb.Empty]
 	listUserWorkspaces   *connect.Client[v1.ListUserWorkspacesRequest, v1.ListUserWorkspacesResponse]
 	listOrgWorkspaces    *connect.Client[v1.ListOrgWorkspacesRequest, v1.ListOrgWorkspacesResponse]
-	createMember         *connect.Client[v1.CreateMemberRequest, v1.WorkspaceMember]
+	createMember         *connect.Client[v1.CreateMemberRequest, v1.CreateMemberResponse]
 	deleteMember         *connect.Client[v1.DeleteMemberRequest, emptypb.Empty]
 	listWorkspaceMembers *connect.Client[v1.ListWorkspaceMembersRequest, v1.ListWorkspaceMembersResponse]
 }
 
 // CreateWorkspace calls loco.workspace.v1.WorkspaceService.CreateWorkspace.
-func (c *workspaceServiceClient) CreateWorkspace(ctx context.Context, req *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.Workspace], error) {
+func (c *workspaceServiceClient) CreateWorkspace(ctx context.Context, req *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
 	return c.createWorkspace.CallUnary(ctx, req)
 }
 
@@ -177,7 +177,7 @@ func (c *workspaceServiceClient) GetWorkspace(ctx context.Context, req *connect.
 }
 
 // UpdateWorkspace calls loco.workspace.v1.WorkspaceService.UpdateWorkspace.
-func (c *workspaceServiceClient) UpdateWorkspace(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.Workspace], error) {
+func (c *workspaceServiceClient) UpdateWorkspace(ctx context.Context, req *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
 	return c.updateWorkspace.CallUnary(ctx, req)
 }
 
@@ -197,7 +197,7 @@ func (c *workspaceServiceClient) ListOrgWorkspaces(ctx context.Context, req *con
 }
 
 // CreateMember calls loco.workspace.v1.WorkspaceService.CreateMember.
-func (c *workspaceServiceClient) CreateMember(ctx context.Context, req *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.WorkspaceMember], error) {
+func (c *workspaceServiceClient) CreateMember(ctx context.Context, req *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.CreateMemberResponse], error) {
 	return c.createMember.CallUnary(ctx, req)
 }
 
@@ -214,11 +214,11 @@ func (c *workspaceServiceClient) ListWorkspaceMembers(ctx context.Context, req *
 // WorkspaceServiceHandler is an implementation of the loco.workspace.v1.WorkspaceService service.
 type WorkspaceServiceHandler interface {
 	// CreateWorkspace creates a new workspace.
-	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.Workspace], error)
+	CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error)
 	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *connect.Request[v1.GetWorkspaceRequest]) (*connect.Response[v1.Workspace], error)
 	// UpdateWorkspace updates workspace information.
-	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.Workspace], error)
+	UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error)
 	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *connect.Request[v1.DeleteWorkspaceRequest]) (*connect.Response[emptypb.Empty], error)
 	// ListUserWorkspaces lists all workspaces for a user.
@@ -226,7 +226,7 @@ type WorkspaceServiceHandler interface {
 	// ListOrgWorkspaces lists all workspaces in an organization.
 	ListOrgWorkspaces(context.Context, *connect.Request[v1.ListOrgWorkspacesRequest]) (*connect.Response[v1.ListOrgWorkspacesResponse], error)
 	// CreateMember adds a user to a workspace with a specified role.
-	CreateMember(context.Context, *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.WorkspaceMember], error)
+	CreateMember(context.Context, *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.CreateMemberResponse], error)
 	// DeleteMember removes a user from a workspace.
 	DeleteMember(context.Context, *connect.Request[v1.DeleteMemberRequest]) (*connect.Response[emptypb.Empty], error)
 	// ListWorkspaceMembers lists all members of a workspace with pagination.
@@ -323,7 +323,7 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 // UnimplementedWorkspaceServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedWorkspaceServiceHandler struct{}
 
-func (UnimplementedWorkspaceServiceHandler) CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.Workspace], error) {
+func (UnimplementedWorkspaceServiceHandler) CreateWorkspace(context.Context, *connect.Request[v1.CreateWorkspaceRequest]) (*connect.Response[v1.CreateWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.workspace.v1.WorkspaceService.CreateWorkspace is not implemented"))
 }
 
@@ -331,7 +331,7 @@ func (UnimplementedWorkspaceServiceHandler) GetWorkspace(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.workspace.v1.WorkspaceService.GetWorkspace is not implemented"))
 }
 
-func (UnimplementedWorkspaceServiceHandler) UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.Workspace], error) {
+func (UnimplementedWorkspaceServiceHandler) UpdateWorkspace(context.Context, *connect.Request[v1.UpdateWorkspaceRequest]) (*connect.Response[v1.UpdateWorkspaceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.workspace.v1.WorkspaceService.UpdateWorkspace is not implemented"))
 }
 
@@ -347,7 +347,7 @@ func (UnimplementedWorkspaceServiceHandler) ListOrgWorkspaces(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.workspace.v1.WorkspaceService.ListOrgWorkspaces is not implemented"))
 }
 
-func (UnimplementedWorkspaceServiceHandler) CreateMember(context.Context, *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.WorkspaceMember], error) {
+func (UnimplementedWorkspaceServiceHandler) CreateMember(context.Context, *connect.Request[v1.CreateMemberRequest]) (*connect.Response[v1.CreateMemberResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.workspace.v1.WorkspaceService.CreateMember is not implemented"))
 }
 

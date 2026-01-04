@@ -44,7 +44,7 @@ export function ResourceSettings() {
 		refetch,
 	} = useQuery(
 		getResource,
-		resourceId ? { resourceId: BigInt(resourceId) } : undefined,
+		resourceId ? { key: { case: "resourceId" as const, value: BigInt(resourceId) } } : undefined,
 		{
 			enabled: !!resourceId,
 		}

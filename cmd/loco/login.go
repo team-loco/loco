@@ -100,7 +100,9 @@ var loginCmd = &cobra.Command{
 
 		httpClient := shared.NewHTTPClient()
 		oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
-		resp, err := oAuthClient.GithubOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.GithubOAuthDetailsRequest{}))
+		resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.OAuthDetailsRequest{
+			Provider: oAuth.OAuthProvider_GITHUB,
+		}))
 		if err != nil {
 			logRequestID(cmd.Context(), err, "failed to get oAuth details")
 			return err
@@ -164,8 +166,9 @@ var loginCmd = &cobra.Command{
 			return nil
 		}
 
-		locoResp, err := oAuthClient.ExchangeGithubToken(cmd.Context(), connect.NewRequest(&oAuth.ExchangeGithubTokenRequest{
-			GithubAccessToken:     finalM.tokenResp.AccessToken,
+		locoResp, err := oAuthClient.ExchangeOAuthToken(cmd.Context(), connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
+			Provider:              oAuth.OAuthProvider_GITHUB,
+			Token:                 finalM.tokenResp.AccessToken,
 			CreateUserIfNotExists: true,
 		}))
 		if err != nil {
@@ -255,10 +258,24 @@ var loginCmd = &cobra.Command{
 				return fmt.Errorf("organization creation returned empty response")
 			}
 
+			// Fetch the created org to get its name
+			getOrgReq := connect.NewRequest(&orgv1.GetOrgRequest{
+				Key: &orgv1.GetOrgRequest_OrgId{
+					OrgId: createdOrg.OrgId,
+				},
+			})
+			getOrgReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+
+			getOrgResp, err := orgClient.GetOrg(context.Background(), getOrgReq)
+			if err != nil {
+				slog.Debug("failed to get created organization", "error", err)
+				return fmt.Errorf("failed to get created organization: %w", err)
+			}
+
 			workspaceName := "default"
 			wsClientNew := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 			createWSReq := connect.NewRequest(&workspacev1.CreateWorkspaceRequest{
-				OrgId: createdOrg.Id,
+				OrgId: createdOrg.OrgId,
 				Name:  workspaceName,
 			})
 			createWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
@@ -269,10 +286,22 @@ var loginCmd = &cobra.Command{
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
 
+			// Fetch the created workspace to get its name
+			getWSReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
+				WorkspaceId: createWSResp.Msg.WorkspaceId,
+			})
+			getWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+
+			getWSResp, err := wsClientNew.GetWorkspace(context.Background(), getWSReq)
+			if err != nil {
+				slog.Debug("failed to get created workspace", "error", err)
+				return fmt.Errorf("failed to get created workspace: %w", err)
+			}
+
 			cfg := config.NewSessionConfig()
 			if err := cfg.SetDefaultScope(
-				config.SimpleOrg{ID: createdOrg.Id, Name: createdOrg.Name},
-				config.SimpleWorkspace{ID: createWSResp.Msg.Id, Name: createWSReq.Msg.Name},
+				config.SimpleOrg{ID: getOrgResp.Msg.Id, Name: getOrgResp.Msg.Name},
+				config.SimpleWorkspace{ID: getWSResp.Msg.Id, Name: getWSResp.Msg.Name},
 			); err != nil {
 				slog.Error(err.Error())
 				return err
@@ -286,8 +315,8 @@ var loginCmd = &cobra.Command{
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
-			orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", createdOrg.Name))
-			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", createWSReq.Msg.Name))
+			orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", getOrgResp.Msg.Name))
+			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", getWSResp.Msg.Name))
 			fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 			return nil

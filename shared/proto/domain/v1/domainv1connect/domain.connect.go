@@ -73,22 +73,22 @@ const (
 type DomainServiceClient interface {
 	// Platform Domain CRUD
 	// CreatePlatformDomain creates a new platform-provided domain.
-	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
+	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
 	// GetPlatformDomain retrieves a platform domain by ID or name.
 	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
 	// ListPlatformDomains lists platform domains with optional filters.
 	ListPlatformDomains(context.Context, *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error)
 	// UpdatePlatformDomain updates a platform domain.
-	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
+	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error)
 	// DeletePlatformDomain deletes a platform domain.
 	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[emptypb.Empty], error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
-	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error)
+	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error)
 	// UpdateResourceDomain updates a resource's domain configuration.
-	UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error)
+	UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error)
 	// SetPrimaryResourceDomain sets the primary domain for a resource.
-	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error)
+	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error)
 	// DeleteResourceDomain removes a domain from a resource.
 	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[emptypb.Empty], error)
 	// Queries
@@ -109,7 +109,7 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	domainServiceMethods := v1.File_domain_v1_domain_proto.Services().ByName("DomainService").Methods()
 	return &domainServiceClient{
-		createPlatformDomain: connect.NewClient[v1.CreatePlatformDomainRequest, v1.PlatformDomain](
+		createPlatformDomain: connect.NewClient[v1.CreatePlatformDomainRequest, v1.CreatePlatformDomainResponse](
 			httpClient,
 			baseURL+DomainServiceCreatePlatformDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("CreatePlatformDomain")),
@@ -127,7 +127,7 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(domainServiceMethods.ByName("ListPlatformDomains")),
 			connect.WithClientOptions(opts...),
 		),
-		updatePlatformDomain: connect.NewClient[v1.UpdatePlatformDomainRequest, v1.PlatformDomain](
+		updatePlatformDomain: connect.NewClient[v1.UpdatePlatformDomainRequest, v1.UpdatePlatformDomainResponse](
 			httpClient,
 			baseURL+DomainServiceUpdatePlatformDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("UpdatePlatformDomain")),
@@ -139,19 +139,19 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(domainServiceMethods.ByName("DeletePlatformDomain")),
 			connect.WithClientOptions(opts...),
 		),
-		createResourceDomain: connect.NewClient[v1.CreateResourceDomainRequest, v1.ResourceDomain](
+		createResourceDomain: connect.NewClient[v1.CreateResourceDomainRequest, v1.CreateResourceDomainResponse](
 			httpClient,
 			baseURL+DomainServiceCreateResourceDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("CreateResourceDomain")),
 			connect.WithClientOptions(opts...),
 		),
-		updateResourceDomain: connect.NewClient[v1.UpdateResourceDomainRequest, v1.ResourceDomain](
+		updateResourceDomain: connect.NewClient[v1.UpdateResourceDomainRequest, v1.UpdateResourceDomainResponse](
 			httpClient,
 			baseURL+DomainServiceUpdateResourceDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("UpdateResourceDomain")),
 			connect.WithClientOptions(opts...),
 		),
-		setPrimaryResourceDomain: connect.NewClient[v1.SetPrimaryResourceDomainRequest, v1.ResourceDomain](
+		setPrimaryResourceDomain: connect.NewClient[v1.SetPrimaryResourceDomainRequest, v1.SetPrimaryResourceDomainResponse](
 			httpClient,
 			baseURL+DomainServiceSetPrimaryResourceDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("SetPrimaryResourceDomain")),
@@ -180,21 +180,21 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // domainServiceClient implements DomainServiceClient.
 type domainServiceClient struct {
-	createPlatformDomain     *connect.Client[v1.CreatePlatformDomainRequest, v1.PlatformDomain]
+	createPlatformDomain     *connect.Client[v1.CreatePlatformDomainRequest, v1.CreatePlatformDomainResponse]
 	getPlatformDomain        *connect.Client[v1.GetPlatformDomainRequest, v1.PlatformDomain]
 	listPlatformDomains      *connect.Client[v1.ListPlatformDomainsRequest, v1.ListPlatformDomainsResponse]
-	updatePlatformDomain     *connect.Client[v1.UpdatePlatformDomainRequest, v1.PlatformDomain]
+	updatePlatformDomain     *connect.Client[v1.UpdatePlatformDomainRequest, v1.UpdatePlatformDomainResponse]
 	deletePlatformDomain     *connect.Client[v1.DeletePlatformDomainRequest, emptypb.Empty]
-	createResourceDomain     *connect.Client[v1.CreateResourceDomainRequest, v1.ResourceDomain]
-	updateResourceDomain     *connect.Client[v1.UpdateResourceDomainRequest, v1.ResourceDomain]
-	setPrimaryResourceDomain *connect.Client[v1.SetPrimaryResourceDomainRequest, v1.ResourceDomain]
+	createResourceDomain     *connect.Client[v1.CreateResourceDomainRequest, v1.CreateResourceDomainResponse]
+	updateResourceDomain     *connect.Client[v1.UpdateResourceDomainRequest, v1.UpdateResourceDomainResponse]
+	setPrimaryResourceDomain *connect.Client[v1.SetPrimaryResourceDomainRequest, v1.SetPrimaryResourceDomainResponse]
 	deleteResourceDomain     *connect.Client[v1.DeleteResourceDomainRequest, emptypb.Empty]
 	listLocoOwnedDomains     *connect.Client[v1.ListLocoOwnedDomainsRequest, v1.ListLocoOwnedDomainsResponse]
 	checkDomainAvailability  *connect.Client[v1.CheckDomainAvailabilityRequest, v1.CheckDomainAvailabilityResponse]
 }
 
 // CreatePlatformDomain calls loco.domain.v1.DomainService.CreatePlatformDomain.
-func (c *domainServiceClient) CreatePlatformDomain(ctx context.Context, req *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error) {
+func (c *domainServiceClient) CreatePlatformDomain(ctx context.Context, req *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error) {
 	return c.createPlatformDomain.CallUnary(ctx, req)
 }
 
@@ -209,7 +209,7 @@ func (c *domainServiceClient) ListPlatformDomains(ctx context.Context, req *conn
 }
 
 // UpdatePlatformDomain calls loco.domain.v1.DomainService.UpdatePlatformDomain.
-func (c *domainServiceClient) UpdatePlatformDomain(ctx context.Context, req *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error) {
+func (c *domainServiceClient) UpdatePlatformDomain(ctx context.Context, req *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error) {
 	return c.updatePlatformDomain.CallUnary(ctx, req)
 }
 
@@ -219,17 +219,17 @@ func (c *domainServiceClient) DeletePlatformDomain(ctx context.Context, req *con
 }
 
 // CreateResourceDomain calls loco.domain.v1.DomainService.CreateResourceDomain.
-func (c *domainServiceClient) CreateResourceDomain(ctx context.Context, req *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error) {
+func (c *domainServiceClient) CreateResourceDomain(ctx context.Context, req *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error) {
 	return c.createResourceDomain.CallUnary(ctx, req)
 }
 
 // UpdateResourceDomain calls loco.domain.v1.DomainService.UpdateResourceDomain.
-func (c *domainServiceClient) UpdateResourceDomain(ctx context.Context, req *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error) {
+func (c *domainServiceClient) UpdateResourceDomain(ctx context.Context, req *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error) {
 	return c.updateResourceDomain.CallUnary(ctx, req)
 }
 
 // SetPrimaryResourceDomain calls loco.domain.v1.DomainService.SetPrimaryResourceDomain.
-func (c *domainServiceClient) SetPrimaryResourceDomain(ctx context.Context, req *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error) {
+func (c *domainServiceClient) SetPrimaryResourceDomain(ctx context.Context, req *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error) {
 	return c.setPrimaryResourceDomain.CallUnary(ctx, req)
 }
 
@@ -252,22 +252,22 @@ func (c *domainServiceClient) CheckDomainAvailability(ctx context.Context, req *
 type DomainServiceHandler interface {
 	// Platform Domain CRUD
 	// CreatePlatformDomain creates a new platform-provided domain.
-	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
+	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
 	// GetPlatformDomain retrieves a platform domain by ID or name.
 	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
 	// ListPlatformDomains lists platform domains with optional filters.
 	ListPlatformDomains(context.Context, *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error)
 	// UpdatePlatformDomain updates a platform domain.
-	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
+	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error)
 	// DeletePlatformDomain deletes a platform domain.
 	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[emptypb.Empty], error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
-	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error)
+	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error)
 	// UpdateResourceDomain updates a resource's domain configuration.
-	UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error)
+	UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error)
 	// SetPrimaryResourceDomain sets the primary domain for a resource.
-	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error)
+	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error)
 	// DeleteResourceDomain removes a domain from a resource.
 	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[emptypb.Empty], error)
 	// Queries
@@ -383,7 +383,7 @@ func NewDomainServiceHandler(svc DomainServiceHandler, opts ...connect.HandlerOp
 // UnimplementedDomainServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedDomainServiceHandler struct{}
 
-func (UnimplementedDomainServiceHandler) CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error) {
+func (UnimplementedDomainServiceHandler) CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.CreatePlatformDomain is not implemented"))
 }
 
@@ -395,7 +395,7 @@ func (UnimplementedDomainServiceHandler) ListPlatformDomains(context.Context, *c
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.ListPlatformDomains is not implemented"))
 }
 
-func (UnimplementedDomainServiceHandler) UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error) {
+func (UnimplementedDomainServiceHandler) UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.UpdatePlatformDomain is not implemented"))
 }
 
@@ -403,15 +403,15 @@ func (UnimplementedDomainServiceHandler) DeletePlatformDomain(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.DeletePlatformDomain is not implemented"))
 }
 
-func (UnimplementedDomainServiceHandler) CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error) {
+func (UnimplementedDomainServiceHandler) CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.CreateResourceDomain is not implemented"))
 }
 
-func (UnimplementedDomainServiceHandler) UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error) {
+func (UnimplementedDomainServiceHandler) UpdateResourceDomain(context.Context, *connect.Request[v1.UpdateResourceDomainRequest]) (*connect.Response[v1.UpdateResourceDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.UpdateResourceDomain is not implemented"))
 }
 
-func (UnimplementedDomainServiceHandler) SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.ResourceDomain], error) {
+func (UnimplementedDomainServiceHandler) SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.SetPrimaryResourceDomain is not implemented"))
 }
 

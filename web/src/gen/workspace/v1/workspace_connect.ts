@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateMemberRequest, CreateWorkspaceRequest, DeleteMemberRequest, DeleteWorkspaceRequest, GetWorkspaceRequest, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserWorkspacesRequest, ListUserWorkspacesResponse, ListWorkspaceMembersRequest, ListWorkspaceMembersResponse, UpdateWorkspaceRequest, Workspace, WorkspaceMember } from "./workspace_pb";
+import { CreateMemberRequest, CreateMemberResponse, CreateWorkspaceRequest, CreateWorkspaceResponse, DeleteMemberRequest, DeleteWorkspaceRequest, GetWorkspaceRequest, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserWorkspacesRequest, ListUserWorkspacesResponse, ListWorkspaceMembersRequest, ListWorkspaceMembersResponse, UpdateWorkspaceRequest, UpdateWorkspaceResponse, Workspace } from "./workspace_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -22,7 +22,7 @@ export const WorkspaceService = {
     createWorkspace: {
       name: "CreateWorkspace",
       I: CreateWorkspaceRequest,
-      O: Workspace,
+      O: CreateWorkspaceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -44,7 +44,7 @@ export const WorkspaceService = {
     updateWorkspace: {
       name: "UpdateWorkspace",
       I: UpdateWorkspaceRequest,
-      O: Workspace,
+      O: UpdateWorkspaceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -88,7 +88,7 @@ export const WorkspaceService = {
     createMember: {
       name: "CreateMember",
       I: CreateMemberRequest,
-      O: WorkspaceMember,
+      O: CreateMemberResponse,
       kind: MethodKind.Unary,
     },
     /**

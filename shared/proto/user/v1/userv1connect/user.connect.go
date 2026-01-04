@@ -53,13 +53,13 @@ const (
 // UserServiceClient is a client for the loco.user.v1.UserService service.
 type UserServiceClient interface {
 	// CreateUser creates a new user account.
-	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.User], error)
+	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// GetUser retrieves a user by ID or email.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.User], error)
 	// WhoAmI retrieves the current authenticated user.
 	WhoAmI(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.User], error)
 	// UpdateUser updates user information.
-	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.User], error)
+	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// ListUsers lists users with pagination.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// DeleteUser deletes a user account.
@@ -79,7 +79,7 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	userServiceMethods := v1.File_user_v1_user_proto.Services().ByName("UserService").Methods()
 	return &userServiceClient{
-		createUser: connect.NewClient[v1.CreateUserRequest, v1.User](
+		createUser: connect.NewClient[v1.CreateUserRequest, v1.CreateUserResponse](
 			httpClient,
 			baseURL+UserServiceCreateUserProcedure,
 			connect.WithSchema(userServiceMethods.ByName("CreateUser")),
@@ -97,7 +97,7 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("WhoAmI")),
 			connect.WithClientOptions(opts...),
 		),
-		updateUser: connect.NewClient[v1.UpdateUserRequest, v1.User](
+		updateUser: connect.NewClient[v1.UpdateUserRequest, v1.UpdateUserResponse](
 			httpClient,
 			baseURL+UserServiceUpdateUserProcedure,
 			connect.WithSchema(userServiceMethods.ByName("UpdateUser")),
@@ -126,17 +126,17 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
-	createUser *connect.Client[v1.CreateUserRequest, v1.User]
+	createUser *connect.Client[v1.CreateUserRequest, v1.CreateUserResponse]
 	getUser    *connect.Client[v1.GetUserRequest, v1.User]
 	whoAmI     *connect.Client[emptypb.Empty, v1.User]
-	updateUser *connect.Client[v1.UpdateUserRequest, v1.User]
+	updateUser *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
 	listUsers  *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
 	deleteUser *connect.Client[v1.DeleteUserRequest, emptypb.Empty]
 	logout     *connect.Client[emptypb.Empty, emptypb.Empty]
 }
 
 // CreateUser calls loco.user.v1.UserService.CreateUser.
-func (c *userServiceClient) CreateUser(ctx context.Context, req *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.User], error) {
+func (c *userServiceClient) CreateUser(ctx context.Context, req *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
 	return c.createUser.CallUnary(ctx, req)
 }
 
@@ -151,7 +151,7 @@ func (c *userServiceClient) WhoAmI(ctx context.Context, req *connect.Request[emp
 }
 
 // UpdateUser calls loco.user.v1.UserService.UpdateUser.
-func (c *userServiceClient) UpdateUser(ctx context.Context, req *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.User], error) {
+func (c *userServiceClient) UpdateUser(ctx context.Context, req *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
 	return c.updateUser.CallUnary(ctx, req)
 }
 
@@ -173,13 +173,13 @@ func (c *userServiceClient) Logout(ctx context.Context, req *connect.Request[emp
 // UserServiceHandler is an implementation of the loco.user.v1.UserService service.
 type UserServiceHandler interface {
 	// CreateUser creates a new user account.
-	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.User], error)
+	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// GetUser retrieves a user by ID or email.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.User], error)
 	// WhoAmI retrieves the current authenticated user.
 	WhoAmI(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.User], error)
 	// UpdateUser updates user information.
-	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.User], error)
+	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// ListUsers lists users with pagination.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// DeleteUser deletes a user account.
@@ -262,7 +262,7 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 // UnimplementedUserServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedUserServiceHandler struct{}
 
-func (UnimplementedUserServiceHandler) CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.User], error) {
+func (UnimplementedUserServiceHandler) CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.CreateUser is not implemented"))
 }
 
@@ -274,7 +274,7 @@ func (UnimplementedUserServiceHandler) WhoAmI(context.Context, *connect.Request[
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.WhoAmI is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.User], error) {
+func (UnimplementedUserServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.UpdateUser is not implemented"))
 }
 

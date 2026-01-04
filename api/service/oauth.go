@@ -193,10 +193,15 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 	return &user, nil
 }
 
-func (s *OAuthServer) GithubOAuthDetails(
-	ctx context.Context, req *connect.Request[oAuth.GithubOAuthDetailsRequest],
-) (*connect.Response[oAuth.GithubOAuthDetailsResponse], error) {
-	res := connect.NewResponse(&oAuth.GithubOAuthDetailsResponse{
+func (s *OAuthServer) GetOAuthDetails(
+	ctx context.Context, req *connect.Request[oAuth.OAuthDetailsRequest],
+) (*connect.Response[oAuth.OAuthDetailsResponse], error) {
+	// Currently only GitHub is supported
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+	}
+
+	res := connect.NewResponse(&oAuth.OAuthDetailsResponse{
 		ClientId: OAuthConf.ClientID,
 		TokenTtl: OAuthTokenTTL.Seconds(),
 	})
@@ -204,39 +209,49 @@ func (s *OAuthServer) GithubOAuthDetails(
 }
 
 // todo: fix this function to exchange once.
-func (s *OAuthServer) ExchangeGithubToken(
+func (s *OAuthServer) ExchangeOAuthToken(
 	ctx context.Context,
-	req *connect.Request[oAuth.ExchangeGithubTokenRequest],
-) (*connect.Response[oAuth.ExchangeGithubTokenResponse], error) {
-	githubToken := req.Msg.GetGithubAccessToken()
-	if githubToken == "" {
-		slog.ErrorContext(ctx, "empty github access token")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("github_access_token is required"))
+	req *connect.Request[oAuth.ExchangeOAuthTokenRequest],
+) (*connect.Response[oAuth.ExchangeOAuthTokenResponse], error) {
+	// Currently only GitHub is supported
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+	}
+
+	token := req.Msg.GetToken()
+	if token == "" {
+		slog.ErrorContext(ctx, "empty oauth access token")
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("token is required"))
 	}
 
 	// initiate login
-	user, token, err := s.machine.Exchange(ctx, providers.Github(githubToken))
+	user, locoToken, err := s.machine.Exchange(ctx, providers.Github(token))
 	if err != nil {
-		slog.ErrorContext(ctx, "exchange github token", "error", err)
+		slog.ErrorContext(ctx, "exchange oauth token", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("exchange token: %w", err))
 	}
 
-	res := connect.NewResponse(&oAuth.ExchangeGithubTokenResponse{
-		LocoToken: token,
+	res := connect.NewResponse(&oAuth.ExchangeOAuthTokenResponse{
+		LocoToken: locoToken,
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
 		UserId:    user.ID,
 		Name:      user.Name.String,
 	})
 
-	slog.InfoContext(ctx, "exchanged github token for loco token", "userId", user.ID)
+	slog.InfoContext(ctx, "exchanged oauth token for loco token", "userId", user.ID)
 	return res, nil
 }
 
-// GetGithubAuthorizationURL generates the GitHub OAuth authorization URL
-func (s *OAuthServer) GetGithubAuthorizationURL(
+// GetOAuthAuthorizationURL generates the OAuth authorization URL for a provider
+func (s *OAuthServer) GetOAuthAuthorizationURL(
 	ctx context.Context,
-	req *connect.Request[oAuth.GetGithubAuthorizationURLRequest],
-) (*connect.Response[oAuth.GetGithubAuthorizationURLResponse], error) {
+	req *connect.Request[oAuth.GetOAuthAuthorizationURLRequest],
+) (*connect.Response[oAuth.GetOAuthAuthorizationURLResponse], error) {
+	// Currently only GitHub is supported
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+	}
+
 	state := req.Msg.GetState()
 	if state == "" {
 		var err error
@@ -255,20 +270,25 @@ func (s *OAuthServer) GetGithubAuthorizationURL(
 	// build github oauth url
 	authURL := OAuthConf.AuthCodeURL(state, oauth2.AccessTypeOffline)
 
-	res := connect.NewResponse(&oAuth.GetGithubAuthorizationURLResponse{
+	res := connect.NewResponse(&oAuth.GetOAuthAuthorizationURLResponse{
 		AuthorizationUrl: authURL,
 		State:            state,
 	})
 
-	slog.InfoContext(ctx, "generated github authorization url")
+	slog.InfoContext(ctx, "generated oauth authorization url", "provider", req.Msg.GetProvider())
 	return res, nil
 }
 
-// ExchangeGithubCode exchanges authorization code for Loco token
-func (s *OAuthServer) ExchangeGithubCode(
+// ExchangeOAuthCode exchanges authorization code for Loco token
+func (s *OAuthServer) ExchangeOAuthCode(
 	ctx context.Context,
-	req *connect.Request[oAuth.ExchangeGithubCodeRequest],
-) (*connect.Response[oAuth.ExchangeGithubCodeResponse], error) {
+	req *connect.Request[oAuth.ExchangeOAuthCodeRequest],
+) (*connect.Response[oAuth.ExchangeOAuthCodeResponse], error) {
+	// Currently only GitHub is supported
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+	}
+
 	code := req.Msg.GetCode()
 	state := req.Msg.GetState()
 
@@ -336,7 +356,7 @@ func (s *OAuthServer) ExchangeGithubCode(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	res := connect.NewResponse(&oAuth.ExchangeGithubCodeResponse{
+	res := connect.NewResponse(&oAuth.ExchangeOAuthCodeResponse{
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
 		UserId:    user.ID,
 		Name:      user.Name.String,
@@ -349,6 +369,6 @@ func (s *OAuthServer) ExchangeGithubCode(
 		int(OAuthTokenTTL.Seconds()),
 	))
 
-	slog.InfoContext(ctx, "exchanged github code for loco token", "userId", user.ID, "method", "cookie")
+	slog.InfoContext(ctx, "exchanged oauth code for loco token", "userId", user.ID, "method", "cookie", "provider", req.Msg.GetProvider())
 	return res, nil
 }

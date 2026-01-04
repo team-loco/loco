@@ -14,7 +14,18 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const { data: user, isLoading, error } = useQuery(whoAmI, {});
+	const {
+		data: user,
+		isLoading,
+		error,
+	} = useQuery(
+		whoAmI,
+		{},
+		{
+			// coming back from oauth we may not have the loco token present.
+			enabled: !window.location.pathname.includes("/oauth/callback"),
+		}
+	);
 	const [isLoggedOut, setIsLoggedOut] = useState(false);
 
 	const { refetch: performLogout } = useQuery(

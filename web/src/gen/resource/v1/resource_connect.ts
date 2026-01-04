@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, DeleteResourceRequest, GetResourceRequest, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, LogEntry, Resource, ScaleResourceRequest, UpdateResourceEnvRequest, UpdateResourceRequest, WatchLogsRequest } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, GetResourceRequest, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, LogEntry, Resource, ScaleResourceRequest, UpdateResourceEnvRequest, UpdateResourceRequest, UpdateResourceResponse, WatchLogsRequest } from "./resource_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -22,7 +22,7 @@ export const ResourceService = {
     createResource: {
       name: "CreateResource",
       I: CreateResourceRequest,
-      O: Resource,
+      O: CreateResourceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -44,7 +44,7 @@ export const ResourceService = {
     updateResource: {
       name: "UpdateResource",
       I: UpdateResourceRequest,
-      O: Resource,
+      O: UpdateResourceResponse,
       kind: MethodKind.Unary,
     },
     /**

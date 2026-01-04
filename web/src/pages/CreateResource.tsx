@@ -16,10 +16,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { ResourceType, createResource } from "@/gen/resource/v1";
-import {
-	DomainType,
-	listPlatformDomains,
-} from "@/gen/domain/v1";
+import { DomainType, listPlatformDomains } from "@/gen/domain/v1";
 import { listUserOrgs } from "@/gen/org/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -57,7 +54,11 @@ export function CreateResource() {
 
 	const { user } = useAuth();
 
-	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? 0n }, { enabled: !!user });
+	const { data: orgsRes } = useQuery(
+		listUserOrgs,
+		{ userId: user?.id ?? 0n },
+		{ enabled: !!user }
+	);
 	const orgs = orgsRes?.orgs ?? [];
 	const firstOrgId = orgs.length > 0 ? orgs[0].id : null;
 
@@ -70,7 +71,9 @@ export function CreateResource() {
 	const workspaceId =
 		paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
-	const { data: platformDomainsRes } = useQuery(listPlatformDomains, { activeOnly: true });
+	const { data: platformDomainsRes } = useQuery(listPlatformDomains, {
+		activeOnly: true,
+	});
 	const platformDomains = useMemo(
 		() => platformDomainsRes?.platformDomains ?? [],
 		[platformDomainsRes?.platformDomains]
@@ -133,10 +136,10 @@ export function CreateResource() {
 				},
 			});
 
-			if (resource?.id) {
+			if (resource?.resourceId) {
 				toast.success("Resource created successfully");
 				navigate(
-					`/resource/${resource.id}${
+					`/resource/${resource.resourceId}${
 						workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""
 					}`
 				);

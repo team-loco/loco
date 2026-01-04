@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateUserRequest, DeleteUserRequest, GetUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest, User } from "./user_pb";
+import { CreateUserRequest, CreateUserResponse, DeleteUserRequest, GetUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest, UpdateUserResponse, User } from "./user_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -22,7 +22,7 @@ export const UserService = {
     createUser: {
       name: "CreateUser",
       I: CreateUserRequest,
-      O: User,
+      O: CreateUserResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -55,7 +55,7 @@ export const UserService = {
     updateUser: {
       name: "UpdateUser",
       I: UpdateUserRequest,
-      O: User,
+      O: UpdateUserResponse,
       kind: MethodKind.Unary,
     },
     /**

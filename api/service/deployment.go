@@ -148,7 +148,7 @@ func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.V
 func (s *DeploymentServer) CreateDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.CreateDeploymentRequest],
-) (*connect.Response[deploymentv1.Deployment], error) {
+) (*connect.Response[deploymentv1.CreateDeploymentResponse], error) {
 	r := req.Msg
 
 	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
@@ -265,7 +265,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(deploymentToProto(deployment, string(resource.Type))), nil
+	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deployment.ID}), nil
 }
 
 // GetDeployment retrieves a deployment by ID

@@ -120,8 +120,12 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	var resourceID int64
 
 	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceRequest{
-		WorkspaceId: &workspaceID,
-		Name:        &loadedCfg.Config.Metadata.Name,
+		Key: &resourcev1.GetResourceRequest_NameKey{
+			NameKey: &resourcev1.GetResourceNameKey{
+				WorkspaceId: workspaceID,
+				Name:        loadedCfg.Config.Metadata.Name,
+			},
+		},
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
@@ -288,7 +292,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to create resource: %w", createErr)
 		}
 
-		resourceID = createResourceResp.Msg.Id
+		resourceID = createResourceResp.Msg.ResourceId
 		slog.Debug("created resource", "resourceId", resourceID)
 	}
 
@@ -356,7 +360,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 
 	// Fetch resource to verify it exists
 	getResourceReq := connect.NewRequest(&resourcev1.GetResourceRequest{
-		ResourceId: &resourceID,
+		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: resourceID},
 	})
 	getResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
@@ -480,7 +484,7 @@ func deployApp(ctx context.Context,
 		return err
 	}
 
-	deploymentID := deploymentResp.Msg.GetId()
+	deploymentID := deploymentResp.Msg.DeploymentId
 	logf(fmt.Sprintf("Created deployment with version: %d", deploymentID))
 
 	if wait {

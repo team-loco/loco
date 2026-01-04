@@ -27,7 +27,7 @@ enum DeploymentPhase {
 // DeploymentService manages resource deployments.
 service DeploymentService {
   // CreateDeployment creates a new deployment for a resource.
-  rpc CreateDeployment(CreateDeploymentRequest) returns (Deployment);
+  rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
   // GetDeployment retrieves a deployment by ID.
   rpc GetDeployment(GetDeploymentRequest) returns (Deployment);
   // ListDeployments lists deployments for a resource.
@@ -136,6 +136,11 @@ message CreateDeploymentRequest {
   int64          cluster_id  = 2;
   string         region      = 3;
   DeploymentSpec spec        = 4;
+}
+
+// CreateDeploymentResponse is the response containing the created deployment ID.
+message CreateDeploymentResponse {
+  int64 deployment_id = 1;
 }
 
 // GetDeploymentRequest is the request to retrieve a deployment.

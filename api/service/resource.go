@@ -72,7 +72,7 @@ func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.Ven
 func (s *ResourceServer) CreateResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.CreateResourceRequest],
-) (*connect.Response[resourcev1.Resource], error) {
+) (*connect.Response[resourcev1.CreateResourceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateResource, r.GetWorkspaceId())); err != nil {
@@ -230,26 +230,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	// Get the created resource
-	resource, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get created resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	return connect.NewResponse(dbResourceToProto(resource, resourceDomains, resourceRegions)), nil
+	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: resourceID}), nil
 }
 
 // GetResource retrieves a resource by ID
@@ -259,9 +240,14 @@ func (s *ResourceServer) GetResource(
 ) (*connect.Response[resourcev1.Resource], error) {
 	r := req.Msg
 
-	resourceId := r.GetResourceId()
-	if resourceId == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("resource_id is required"))
+	var resourceId int64
+	switch key := r.GetKey().(type) {
+	case *resourcev1.GetResourceRequest_ResourceId:
+		resourceId = key.ResourceId
+	case *resourcev1.GetResourceRequest_NameKey:
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("name-based lookup not yet implemented"))
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("resource_id or name_key is required"))
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResource, resourceId)); err != nil {
@@ -271,7 +257,7 @@ func (s *ResourceServer) GetResource(
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "id", r.GetResourceId())
+		slog.WarnContext(ctx, "resource not found", "id", resourceId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
@@ -333,7 +319,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 func (s *ResourceServer) UpdateResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.UpdateResourceRequest],
-) (*connect.Response[resourcev1.Resource], error) {
+) (*connect.Response[resourcev1.UpdateResourceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateResource, r.GetResourceId())); err != nil {
@@ -355,26 +341,7 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	// Get updated resource
-	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get updated resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	return connect.NewResponse(dbResourceToProto(resource, resourceDomains, resourceRegions)), nil
+	return connect.NewResponse(&resourcev1.UpdateResourceResponse{ResourceId: r.GetResourceId()}), nil
 }
 
 // DeleteResource deletes a resource

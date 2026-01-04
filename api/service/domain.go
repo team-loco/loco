@@ -39,7 +39,7 @@ func NewDomainServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.Vendi
 func (s *DomainServer) CreatePlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.CreatePlatformDomainRequest],
-) (*connect.Response[domainv1.PlatformDomain], error) {
+) (*connect.Response[domainv1.CreatePlatformDomainResponse], error) {
 	r := req.Msg
 
 	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -53,7 +53,7 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
 	}
 
-	result, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
+	platformDomain, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
 		Domain:   r.GetDomain(),
 		IsActive: r.GetIsActive(),
 	})
@@ -62,18 +62,8 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create platform domain: %w", err))
 	}
 
-	domain, err := s.queries.GetPlatformDomain(ctx, result)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get created platform domain", "id", result, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get created platform domain: %w", err))
-	}
-
-	return connect.NewResponse(&domainv1.PlatformDomain{
-		Id:        domain.ID,
-		Domain:    domain.Domain,
-		IsActive:  domain.IsActive,
-		CreatedAt: timestamppb.New(domain.CreatedAt.Time),
-		UpdatedAt: timestamppb.New(domain.CreatedAt.Time),
+	return connect.NewResponse(&domainv1.CreatePlatformDomainResponse{
+		Id: platformDomain,
 	}), nil
 }
 
@@ -87,11 +77,12 @@ func (s *DomainServer) GetPlatformDomain(
 	var result genDb.PlatformDomain
 	var err error
 
-	if r.GetId() > 0 {
-		result, err = s.queries.GetPlatformDomain(ctx, r.GetId())
-	} else if r.GetDomain() != "" {
-		result, err = s.queries.GetPlatformDomainByName(ctx, r.GetDomain())
-	} else {
+	switch key := r.GetKey().(type) {
+	case *domainv1.GetPlatformDomainRequest_Id:
+		result, err = s.queries.GetPlatformDomain(ctx, key.Id)
+	case *domainv1.GetPlatformDomainRequest_Domain:
+		result, err = s.queries.GetPlatformDomainByName(ctx, key.Domain)
+	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("either id or domain must be provided"))
 	}
 
@@ -153,7 +144,7 @@ func (s *DomainServer) ListPlatformDomains(
 func (s *DomainServer) UpdatePlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.UpdatePlatformDomainRequest],
-) (*connect.Response[domainv1.PlatformDomain], error) {
+) (*connect.Response[domainv1.UpdatePlatformDomainResponse], error) {
 	r := req.Msg
 
 	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -177,18 +168,8 @@ func (s *DomainServer) UpdatePlatformDomain(
 		}
 	}
 
-	result, err := s.queries.GetPlatformDomain(ctx, r.GetId())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get platform domain", "id", r.GetId(), "error", err)
-		return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
-	}
-
-	return connect.NewResponse(&domainv1.PlatformDomain{
-		Id:        result.ID,
-		Domain:    result.Domain,
-		IsActive:  result.IsActive,
-		CreatedAt: timestamppb.New(result.CreatedAt.Time),
-		UpdatedAt: timestamppb.New(result.CreatedAt.Time),
+	return connect.NewResponse(&domainv1.UpdatePlatformDomainResponse{
+		Id: r.GetId(),
 	}), nil
 }
 
@@ -257,7 +238,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 func (s *DomainServer) CreateResourceDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.CreateResourceDomainRequest],
-) (*connect.Response[domainv1.ResourceDomain], error) {
+) (*connect.Response[domainv1.CreateResourceDomainResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.AddDomain, r.GetResourceId())); err != nil {
@@ -312,7 +293,7 @@ func (s *DomainServer) CreateResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	domainID, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+	resourceDomain, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
 		ResourceID:       r.GetResourceId(),
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
@@ -324,42 +305,16 @@ func (s *DomainServer) CreateResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	// Get the created domain to return
-	createdDomain, err := s.queries.GetResourceDomainByID(ctx, domainID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	protoSource := domainv1.DomainType_USER_PROVIDED
-	if createdDomain.DomainSource == genDb.DomainSourcePlatformProvided {
-		protoSource = domainv1.DomainType_PLATFORM_PROVIDED
-	}
-
-	result := &domainv1.ResourceDomain{
-		Id:           createdDomain.ID,
-		ResourceId:   createdDomain.ResourceID,
-		Domain:       createdDomain.Domain,
-		DomainSource: protoSource,
-		IsPrimary:    createdDomain.IsPrimary,
-		CreatedAt:    timestamppb.New(createdDomain.CreatedAt.Time),
-		UpdatedAt:    timestamppb.New(createdDomain.UpdatedAt.Time),
-	}
-
-	if createdDomain.SubdomainLabel.Valid {
-		result.SubdomainLabel = &createdDomain.SubdomainLabel.String
-	}
-	if createdDomain.PlatformDomainID.Valid {
-		result.PlatformDomainId = &createdDomain.PlatformDomainID.Int64
-	}
-
-	return connect.NewResponse(result), nil
+	return connect.NewResponse(&domainv1.CreateResourceDomainResponse{
+		DomainId: resourceDomain,
+	}), nil
 }
 
 // UpdateResourceDomain updates a domain for a resource
 func (s *DomainServer) UpdateResourceDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.UpdateResourceDomainRequest],
-) (*connect.Response[domainv1.ResourceDomain], error) {
+) (*connect.Response[domainv1.UpdateResourceDomainResponse], error) {
 	r := req.Msg
 
 	// get the domain to check its resource
@@ -394,42 +349,16 @@ func (s *DomainServer) UpdateResourceDomain(
 		}
 	}
 
-	// Get updated domain
-	updatedDomain, err := s.queries.GetResourceDomainByID(ctx, r.GetDomainId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	protoSource := domainv1.DomainType_USER_PROVIDED
-	if updatedDomain.DomainSource == genDb.DomainSourcePlatformProvided {
-		protoSource = domainv1.DomainType_PLATFORM_PROVIDED
-	}
-
-	result := &domainv1.ResourceDomain{
-		Id:           updatedDomain.ID,
-		ResourceId:   updatedDomain.ResourceID,
-		Domain:       updatedDomain.Domain,
-		DomainSource: protoSource,
-		IsPrimary:    updatedDomain.IsPrimary,
-		CreatedAt:    timestamppb.New(updatedDomain.CreatedAt.Time),
-		UpdatedAt:    timestamppb.New(updatedDomain.UpdatedAt.Time),
-	}
-
-	if updatedDomain.SubdomainLabel.Valid {
-		result.SubdomainLabel = &updatedDomain.SubdomainLabel.String
-	}
-	if updatedDomain.PlatformDomainID.Valid {
-		result.PlatformDomainId = &updatedDomain.PlatformDomainID.Int64
-	}
-
-	return connect.NewResponse(result), nil
+	return connect.NewResponse(&domainv1.UpdateResourceDomainResponse{
+		DomainId: r.GetDomainId(),
+	}), nil
 }
 
 // SetPrimaryResourceDomain sets which domain is primary for a resource
 func (s *DomainServer) SetPrimaryResourceDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.SetPrimaryResourceDomainRequest],
-) (*connect.Response[domainv1.ResourceDomain], error) {
+) (*connect.Response[domainv1.SetPrimaryResourceDomainResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.SetPrimaryDomain, r.GetResourceId())); err != nil {
@@ -451,35 +380,10 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found or does not belong to resource"))
 	}
 
-	// Get updated domain
-	updatedDomain, err := s.queries.GetResourceDomainByID(ctx, r.GetDomainId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	protoSource := domainv1.DomainType_USER_PROVIDED
-	if updatedDomain.DomainSource == genDb.DomainSourcePlatformProvided {
-		protoSource = domainv1.DomainType_PLATFORM_PROVIDED
-	}
-
-	result := &domainv1.ResourceDomain{
-		Id:           updatedDomain.ID,
-		ResourceId:   updatedDomain.ResourceID,
-		Domain:       updatedDomain.Domain,
-		DomainSource: protoSource,
-		IsPrimary:    updatedDomain.IsPrimary,
-		CreatedAt:    timestamppb.New(updatedDomain.CreatedAt.Time),
-		UpdatedAt:    timestamppb.New(updatedDomain.UpdatedAt.Time),
-	}
-
-	if updatedDomain.SubdomainLabel.Valid {
-		result.SubdomainLabel = &updatedDomain.SubdomainLabel.String
-	}
-	if updatedDomain.PlatformDomainID.Valid {
-		result.PlatformDomainId = &updatedDomain.PlatformDomainID.Int64
-	}
-
-	return connect.NewResponse(result), nil
+	return connect.NewResponse(&domainv1.SetPrimaryResourceDomainResponse{
+		ResourceId: r.GetResourceId(),
+		DomainId:   r.GetDomainId(),
+	}), nil
 }
 
 // DeleteResourceDomain removes a domain from a resource

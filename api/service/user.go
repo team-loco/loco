@@ -44,7 +44,7 @@ func NewUserServer(db *pgxpool.Pool, queries genDb.Querier, tvm *tvm.VendingMach
 func (s *UserServer) CreateUser(
 	ctx context.Context,
 	req *connect.Request[userv1.CreateUserRequest],
-) (*connect.Response[userv1.User], error) {
+) (*connect.Response[userv1.CreateUserResponse], error) {
 	r := req.Msg
 
 	if r.GetExternalId() == "" || r.GetEmail() == "" {
@@ -65,7 +65,7 @@ func (s *UserServer) CreateUser(
 			if err := tx.Commit(ctx); err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 			}
-			return connect.NewResponse(dbUserToProto(existingUserByEmail)), nil
+			return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByEmail.ID}), nil
 		}
 
 		slog.WarnContext(ctx, "email already registered with different provider", "email", r.GetEmail())
@@ -77,7 +77,7 @@ func (s *UserServer) CreateUser(
 		if err := tx.Commit(ctx); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 		}
-		return connect.NewResponse(dbUserToProto(existingUserByExtID)), nil
+		return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByExtID.ID}), nil
 	}
 
 	// Create new user
@@ -110,7 +110,7 @@ func (s *UserServer) CreateUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(dbUserToProto(user)), nil
+	return connect.NewResponse(&userv1.CreateUserResponse{UserId: user.ID}), nil
 }
 
 // GetUser retrieves a user by ID or email
@@ -120,21 +120,22 @@ func (s *UserServer) GetUser(
 ) (*connect.Response[userv1.User], error) {
 	r := req.Msg
 
-	if r.GetUserId() == 0 && r.GetEmail() == "" {
-		slog.ErrorContext(ctx, "invalid request: either id or email must be provided")
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
-	}
-
 	var targetUserID int64
-	if r.GetUserId() != 0 {
-		targetUserID = r.GetUserId()
-	} else {
-		dbUser, err := s.queries.GetUserByEmail(ctx, r.GetEmail())
+	var err error
+
+	switch key := r.GetKey().(type) {
+	case *userv1.GetUserRequest_UserId:
+		targetUserID = key.UserId
+	case *userv1.GetUserRequest_Email:
+		dbUser, err := s.queries.GetUserByEmail(ctx, key.Email)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to query user by email", "error", err)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 		}
 		targetUserID = dbUser.ID
+	default:
+		slog.ErrorContext(ctx, "invalid request: either id or email must be provided")
+		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -192,7 +193,7 @@ func (s *UserServer) WhoAmI(
 func (s *UserServer) UpdateUser(
 	ctx context.Context,
 	req *connect.Request[userv1.UpdateUserRequest],
-) (*connect.Response[userv1.User], error) {
+) (*connect.Response[userv1.UpdateUserResponse], error) {
 	r := req.Msg
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
@@ -214,7 +215,7 @@ func (s *UserServer) UpdateUser(
 
 	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
 
-	user, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
+	_, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
 		ID:        r.GetUserId(),
 		AvatarUrl: avatarURL,
 	})
@@ -223,7 +224,7 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(dbUserToProto(user)), nil
+	return connect.NewResponse(&userv1.UpdateUserResponse{UserId: r.GetUserId()}), nil
 }
 
 // ListUsers lists all users with pagination
@@ -344,8 +345,14 @@ func (s *UserServer) Logout(
 	req *connect.Request[emptypb.Empty],
 ) (*connect.Response[emptypb.Empty], error) {
 	res := connect.NewResponse(&emptypb.Empty{})
-
 	res.Header().Set("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+
+	token, ok := ctx.Value(contextkeys.TokenKey).(string)
+	if !ok {
+		slog.WarnContext(ctx, "token not found in context")
+		return res, nil
+	}
+	s.tvm.Revoke(ctx, token)
 
 	slog.InfoContext(ctx, "user logged out")
 	return res, nil

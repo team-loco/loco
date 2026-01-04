@@ -16,10 +16,10 @@ export function useAutoCreateOrgWorkspace() {
 
 	const createOrgMutation = useMutation(createOrg);
 	const createWorkspaceMutation = useMutation(createWorkspace);
-	const { refetch: refetchOrgs } = useQuery(
+	const { data: userOrgsData, refetch: refetchOrgs } = useQuery(
 		listUserOrgs,
 		user ? { userId: BigInt(user.id) } : undefined,
-		{ enabled: false }
+		{ enabled: !!user }
 	);
 	const [wsQueryOrgId, setWsQueryOrgId] = useState<bigint>(0n);
 	const { refetch: refetchWorkspaces } = useQuery(
@@ -42,11 +42,11 @@ export function useAutoCreateOrgWorkspace() {
 						name: userEmail,
 					});
 
-					if (!org?.id) {
+					if (!org?.orgId) {
 						throw new Error("Failed to create organization");
 					}
 
-					createdOrgId = org.id;
+					createdOrgId = org.orgId;
 				} catch (createErr) {
 					// If org already exists, fetch it instead
 					if (
@@ -78,11 +78,11 @@ export function useAutoCreateOrgWorkspace() {
 						name: "default",
 					});
 
-					if (!workspace?.id) {
+					if (!workspace?.workspaceId) {
 						throw new Error("Failed to create workspace");
 					}
 
-					createdWorkspaceId = workspace.id;
+					createdWorkspaceId = workspace.workspaceId;
 				} catch (wsErr) {
 					// If workspace already exists, fetch it instead
 					if (
@@ -119,6 +119,8 @@ export function useAutoCreateOrgWorkspace() {
 		[createOrgMutation, createWorkspaceMutation, refetchOrgs, refetchWorkspaces]
 	);
 
+	const hasOrgs = userOrgsData?.orgs && userOrgsData.orgs.length > 0;
+
 	return {
 		autoCreate,
 		step,
@@ -126,5 +128,6 @@ export function useAutoCreateOrgWorkspace() {
 		orgId,
 		workspaceId,
 		isLoading: createOrgMutation.isPending || createWorkspaceMutation.isPending,
+		shouldAutoCreate: !hasOrgs && !!user,
 	};
 }

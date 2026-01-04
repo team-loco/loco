@@ -11,13 +11,13 @@ option go_package = "github.com/team-loco/loco/shared/proto/user/v1;userv1";
 // UserService manages user accounts and operations.
 service UserService {
   // CreateUser creates a new user account.
-  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   // GetUser retrieves a user by ID or email.
   rpc GetUser(GetUserRequest) returns (User);
   // WhoAmI retrieves the current authenticated user.
   rpc WhoAmI(google.protobuf.Empty) returns (User);
   // UpdateUser updates user information.
-  rpc UpdateUser(UpdateUserRequest) returns (User);
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // ListUsers lists users with pagination.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   // DeleteUser deletes a user account.
@@ -45,18 +45,30 @@ message CreateUserRequest {
   optional string avatar_url = 4;
 }
 
+// CreateUserResponse is the response containing the created user ID.
+message CreateUserResponse {
+  int64 user_id = 1;
+}
+
 // GetUserRequest is the request to retrieve a user.
 message GetUserRequest {
-  optional int64 user_id = 1;
-  optional string email = 2;
+  oneof key {
+    int64  user_id = 1;
+    string email   = 2;
+  }
 }
 
 // UpdateUserRequest is the request to update user information.
 message UpdateUserRequest {
-  int64 user_id = 1;
+  int64                     user_id     = 1;
   google.protobuf.FieldMask update_mask = 2;
-  optional string avatar_url = 3;
-  optional string name = 4;
+  optional string           avatar_url  = 3;
+  optional string           name        = 4;
+}
+
+// UpdateUserResponse is the response containing the updated user ID.
+message UpdateUserResponse {
+  int64 user_id = 1;
 }
 
 // ListUsersRequest is the request to list users.
