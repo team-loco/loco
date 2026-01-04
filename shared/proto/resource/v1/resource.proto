@@ -222,14 +222,14 @@ message GetResourceRequest {
 // ListWorkspaceResourcesRequest is the request to list resources.
 message ListWorkspaceResourcesRequest {
   int64 workspace_id = 1;
-  int32 limit        = 2;
-  int32 offset       = 3;
+  int32 page_size = 2;  // default: 50, max: 200
+  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListWorkspaceResourcesResponse is the response containing the list of resources.
 message ListWorkspaceResourcesResponse {
-  repeated Resource resources   = 1;
-  int64             total_count = 2;
+  repeated Resource resources = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // UpdateResourceRequest is the request to update a resource.
@@ -317,13 +317,15 @@ message Event {
 
 // ListResourceEventsRequest is the request to retrieve resource events.
 message ListResourceEventsRequest {
-  int64          resource_id = 1;
-  optional int32 limit       = 2;
+  int64 resource_id = 1;
+  int32 page_size = 2;  // default: 50, max: 200
+  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListResourceEventsResponse is the response containing resource events.
 message ListResourceEventsResponse {
   repeated Event events = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // --- Resource Operations ---
