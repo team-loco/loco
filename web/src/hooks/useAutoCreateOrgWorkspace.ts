@@ -16,10 +16,10 @@ export function useAutoCreateOrgWorkspace() {
 
 	const createOrgMutation = useMutation(createOrg);
 	const createWorkspaceMutation = useMutation(createWorkspace);
-	const { refetch: refetchOrgs } = useQuery(
+	const { data: userOrgsData, refetch: refetchOrgs } = useQuery(
 		listUserOrgs,
 		user ? { userId: BigInt(user.id) } : undefined,
-		{ enabled: false }
+		{ enabled: !!user }
 	);
 	const [wsQueryOrgId, setWsQueryOrgId] = useState<bigint>(0n);
 	const { refetch: refetchWorkspaces } = useQuery(
@@ -119,6 +119,8 @@ export function useAutoCreateOrgWorkspace() {
 		[createOrgMutation, createWorkspaceMutation, refetchOrgs, refetchWorkspaces]
 	);
 
+	const hasOrgs = userOrgsData?.orgs && userOrgsData.orgs.length > 0;
+
 	return {
 		autoCreate,
 		step,
@@ -126,5 +128,6 @@ export function useAutoCreateOrgWorkspace() {
 		orgId,
 		workspaceId,
 		isLoading: createOrgMutation.isPending || createWorkspaceMutation.isPending,
+		shouldAutoCreate: !hasOrgs && !!user,
 	};
 }

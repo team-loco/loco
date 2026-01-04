@@ -33,8 +33,6 @@ import { listUserOrgs } from "@/gen/org/v1";
 import { whoAmI } from "@/gen/user/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
-import { useQueries } from "@tanstack/react-query";
-import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -126,7 +124,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { toggleSidebar } = useSidebar();
-	const transport = useTransport();
 
 	const { data: user } = useQuery(whoAmI, {});
 	const { data: orgsRes } = useQuery(

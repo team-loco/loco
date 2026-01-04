@@ -10,17 +10,18 @@ export function Onboarding() {
 	const navigate = useNavigate();
 	const hasStarted = useRef(false);
 	const { data: user } = useQuery(whoAmI, {});
-	const { autoCreate, step, error } = useAutoCreateOrgWorkspace();
+	const { autoCreate, step, error, shouldAutoCreate } =
+		useAutoCreateOrgWorkspace();
 
 	useEffect(() => {
-		if (!user || hasStarted.current) {
+		if (!shouldAutoCreate || hasStarted.current) {
 			return;
 		}
 
 		hasStarted.current = true;
 
 		// Start auto-creation
-		autoCreate(user.email)
+		autoCreate(user!.email)
 			.then(() => {
 				// Wait a moment for smooth UX, then redirect
 				setTimeout(() => {
@@ -30,7 +31,7 @@ export function Onboarding() {
 			.catch(() => {
 				// Error is handled in hook state
 			});
-	}, [user, navigate, autoCreate]);
+	}, [user, navigate, autoCreate, shouldAutoCreate]);
 
 	if (!user) {
 		return null;
