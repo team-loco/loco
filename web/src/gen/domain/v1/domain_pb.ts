@@ -4,15 +4,15 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { EmptySchema, FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_empty, file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file domain/v1/domain.proto.
  */
 export const file_domain_v1_domain: GenFile = /*@__PURE__*/
-  fileDesc("ChZkb21haW4vdjEvZG9tYWluLnByb3RvEg5sb2NvLmRvbWFpbi52MSKfAQoOUGxhdGZvcm1Eb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhEKCWlzX2FjdGl2ZRgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoLRG9tYWluSW5wdXQSMQoNZG9tYWluX3NvdXJjZRgBIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSFgoJc3ViZG9tYWluGAIgASgJSACIAQESHwoScGxhdGZvcm1fZG9tYWluX2lkGAMgASgDSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCDAoKX3N1YmRvbWFpbkIVChNfcGxhdGZvcm1fZG9tYWluX2lkQgkKB19kb21haW4i0gIKDlJlc291cmNlRG9tYWluEgoKAmlkGAEgASgDEhMKC3Jlc291cmNlX2lkGAIgASgDEg4KBmRvbWFpbhgDIAEoCRIxCg1kb21haW5fc291cmNlGAQgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZRIcCg9zdWJkb21haW5fbGFiZWwYBSABKAlIAIgBARIfChJwbGF0Zm9ybV9kb21haW5faWQYBiABKANIAYgBARISCgppc19wcmltYXJ5GAcgASgIEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhIKEF9zdWJkb21haW5fbGFiZWxCFQoTX3BsYXRmb3JtX2RvbWFpbl9pZCJAChtDcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QSDgoGZG9tYWluGAEgASgJEhEKCWlzX2FjdGl2ZRgCIAEoCCJCChxDcmVhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEhEKCWRvbWFpbl9pZBgBIAEoAxIPCgdtZXNzYWdlGAIgASgJIiYKGEdldFBsYXRmb3JtRG9tYWluUmVxdWVzdBIKCgJpZBgBIAEoAyJUChlHZXRQbGF0Zm9ybURvbWFpblJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIjAKHkdldFBsYXRmb3JtRG9tYWluQnlOYW1lUmVxdWVzdBIOCgZkb21haW4YASABKAkiWgofR2V0UGxhdGZvcm1Eb21haW5CeU5hbWVSZXNwb25zZRI3Cg9wbGF0Zm9ybV9kb21haW4YASABKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiIiCiBMaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVxdWVzdCJdCiFMaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVzcG9uc2USOAoQcGxhdGZvcm1fZG9tYWlucxgBIAMoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIi0KH0RlYWN0aXZhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QSCgoCaWQYASABKAMiRgogRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USEQoJZG9tYWluX2lkGAEgASgDEg8KB21lc3NhZ2UYAiABKAkiMAoeQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Eg4KBmRvbWFpbhgBIAEoCSI3Ch9DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlc3BvbnNlEhQKDGlzX2F2YWlsYWJsZRgBIAEoCCJyCg9Mb2NvT3duZWREb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhUKDXJlc291cmNlX25hbWUYAyABKAkSEwoLcmVzb3VyY2VfaWQYBCABKAMSFwoPcGxhdGZvcm1fZG9tYWluGAUgASgJIiAKHkxpc3RBbGxMb2NvT3duZWREb21haW5zUmVxdWVzdCJTCh9MaXN0QWxsTG9jb093bmVkRG9tYWluc1Jlc3BvbnNlEjAKB2RvbWFpbnMYASADKAsyHy5sb2NvLmRvbWFpbi52MS5Mb2NvT3duZWREb21haW4iXAoYQWRkUmVzb3VyY2VEb21haW5SZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDEisKBmRvbWFpbhgCIAEoCzIbLmxvY28uZG9tYWluLnYxLkRvbWFpbklucHV0Ij8KGUFkZFJlc291cmNlRG9tYWluUmVzcG9uc2USEQoJZG9tYWluX2lkGAEgASgDEg8KB21lc3NhZ2UYAiABKAkiQAobVXBkYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0EhEKCWRvbWFpbl9pZBgBIAEoAxIOCgZkb21haW4YAiABKAkiQgocVXBkYXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRIRCglkb21haW5faWQYASABKAMSDwoHbWVzc2FnZRgCIAEoCSJJCh9TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgDEhEKCWRvbWFpbl9pZBgCIAEoAyJGCiBTZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXNwb25zZRIRCglkb21haW5faWQYASABKAMSDwoHbWVzc2FnZRgCIAEoCSIwChtSZW1vdmVSZXNvdXJjZURvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgDIi8KHFJlbW92ZVJlc291cmNlRG9tYWluUmVzcG9uc2USDwoHbWVzc2FnZRgBIAEoCSo2CgpEb21haW5UeXBlEhUKEVBMQVRGT1JNX1BST1ZJREVEEAASEQoNVVNFUl9QUk9WSURFRBABMrEKCg1Eb21haW5TZXJ2aWNlEnEKFENyZWF0ZVBsYXRmb3JtRG9tYWluEisubG9jby5kb21haW4udjEuQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRJoChFHZXRQbGF0Zm9ybURvbWFpbhIoLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluUmVxdWVzdBopLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluUmVzcG9uc2USegoXR2V0UGxhdGZvcm1Eb21haW5CeU5hbWUSLi5sb2NvLmRvbWFpbi52MS5HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlcXVlc3QaLy5sb2NvLmRvbWFpbi52MS5HZXRQbGF0Zm9ybURvbWFpbkJ5TmFtZVJlc3BvbnNlEoABChlMaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zEjAubG9jby5kb21haW4udjEuTGlzdEFjdGl2ZVBsYXRmb3JtRG9tYWluc1JlcXVlc3QaMS5sb2NvLmRvbWFpbi52MS5MaXN0QWN0aXZlUGxhdGZvcm1Eb21haW5zUmVzcG9uc2USfQoYRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluEi8ubG9jby5kb21haW4udjEuRGVhY3RpdmF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBowLmxvY28uZG9tYWluLnYxLkRlYWN0aXZhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEmgKEUFkZFJlc291cmNlRG9tYWluEigubG9jby5kb21haW4udjEuQWRkUmVzb3VyY2VEb21haW5SZXF1ZXN0GikubG9jby5kb21haW4udjEuQWRkUmVzb3VyY2VEb21haW5SZXNwb25zZRJxChRVcGRhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USfQoYU2V0UHJpbWFyeVJlc291cmNlRG9tYWluEi8ubG9jby5kb21haW4udjEuU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBowLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEnEKFFJlbW92ZVJlc291cmNlRG9tYWluEisubG9jby5kb21haW4udjEuUmVtb3ZlUmVzb3VyY2VEb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuUmVtb3ZlUmVzb3VyY2VEb21haW5SZXNwb25zZRJ6ChdDaGVja0RvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USegoXTGlzdEFsbExvY29Pd25lZERvbWFpbnMSLi5sb2NvLmRvbWFpbi52MS5MaXN0QWxsTG9jb093bmVkRG9tYWluc1JlcXVlc3QaLy5sb2NvLmRvbWFpbi52MS5MaXN0QWxsTG9jb093bmVkRG9tYWluc1Jlc3BvbnNlQjtaOWdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL2RvbWFpbi92MTtkb21haW52MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("ChZkb21haW4vdjEvZG9tYWluLnByb3RvEg5sb2NvLmRvbWFpbi52MSKfAQoOUGxhdGZvcm1Eb21haW4SCgoCaWQYASABKAMSDgoGZG9tYWluGAIgASgJEhEKCWlzX2FjdGl2ZRgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoLRG9tYWluSW5wdXQSMQoNZG9tYWluX3NvdXJjZRgBIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSFgoJc3ViZG9tYWluGAIgASgJSACIAQESHwoScGxhdGZvcm1fZG9tYWluX2lkGAMgASgDSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQFCDAoKX3N1YmRvbWFpbkIVChNfcGxhdGZvcm1fZG9tYWluX2lkQgkKB19kb21haW4i0gIKDlJlc291cmNlRG9tYWluEgoKAmlkGAEgASgDEhMKC3Jlc291cmNlX2lkGAIgASgDEg4KBmRvbWFpbhgDIAEoCRIxCg1kb21haW5fc291cmNlGAQgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZRIcCg9zdWJkb21haW5fbGFiZWwYBSABKAlIAIgBARIfChJwbGF0Zm9ybV9kb21haW5faWQYBiABKANIAYgBARISCgppc19wcmltYXJ5GAcgASgIEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhIKEF9zdWJkb21haW5fbGFiZWxCFQoTX3BsYXRmb3JtX2RvbWFpbl9pZCJAChtDcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QSDgoGZG9tYWluGAEgASgJEhEKCWlzX2FjdGl2ZRgCIAEoCCJSChhHZXRQbGF0Zm9ybURvbWFpblJlcXVlc3QSDwoCaWQYASABKANIAIgBARITCgZkb21haW4YAiABKAlIAYgBAUIFCgNfaWRCCQoHX2RvbWFpbiJlChpMaXN0UGxhdGZvcm1Eb21haW5zUmVxdWVzdBIYCgthY3RpdmVfb25seRgBIAEoCEgAiAEBEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBUIOCgxfYWN0aXZlX29ubHkibAobTGlzdFBsYXRmb3JtRG9tYWluc1Jlc3BvbnNlEjgKEHBsYXRmb3JtX2RvbWFpbnMYASADKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbhITCgt0b3RhbF9jb3VudBgCIAEoAyKgAQobVXBkYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0EgoKAmlkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxITCgZkb21haW4YAyABKAlIAIgBARIWCglpc19hY3RpdmUYBCABKAhIAYgBAUIJCgdfZG9tYWluQgwKCl9pc19hY3RpdmUiKQobRGVsZXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0EgoKAmlkGAEgASgDInIKD0xvY29Pd25lZERvbWFpbhIKCgJpZBgBIAEoAxIOCgZkb21haW4YAiABKAkSFQoNcmVzb3VyY2VfbmFtZRgDIAEoCRITCgtyZXNvdXJjZV9pZBgEIAEoAxIXCg9wbGF0Zm9ybV9kb21haW4YBSABKAkiHQobTGlzdExvY29Pd25lZERvbWFpbnNSZXF1ZXN0IlAKHExpc3RMb2NvT3duZWREb21haW5zUmVzcG9uc2USMAoHZG9tYWlucxgBIAMoCzIfLmxvY28uZG9tYWluLnYxLkxvY29Pd25lZERvbWFpbiJfChtDcmVhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAMSKwoGZG9tYWluGAIgASgLMhsubG9jby5kb21haW4udjEuRG9tYWluSW5wdXQigQEKG1VwZGF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBIRCglkb21haW5faWQYASABKAMSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhMKBmRvbWFpbhgDIAEoCUgAiAEBQgkKB19kb21haW4iSQofU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBITCgtyZXNvdXJjZV9pZBgBIAEoAxIRCglkb21haW5faWQYAiABKAMiMAobRGVsZXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0EhEKCWRvbWFpbl9pZBgBIAEoAyIwCh5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QSDgoGZG9tYWluGAEgASgJIjcKH0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USFAoMaXNfYXZhaWxhYmxlGAEgASgIKlMKCkRvbWFpblR5cGUSGwoXRE9NQUlOX1RZUEVfVU5TUEVDSUZJRUQQABIVChFQTEFURk9STV9QUk9WSURFRBABEhEKDVVTRVJfUFJPVklERUQQAjKICQoNRG9tYWluU2VydmljZRJjChRDcmVhdGVQbGF0Zm9ybURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkNyZWF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBoeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluEl0KEUdldFBsYXRmb3JtRG9tYWluEigubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0Gh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4SbgoTTGlzdFBsYXRmb3JtRG9tYWlucxIqLmxvY28uZG9tYWluLnYxLkxpc3RQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0GisubG9jby5kb21haW4udjEuTGlzdFBsYXRmb3JtRG9tYWluc1Jlc3BvbnNlEmMKFFVwZGF0ZVBsYXRmb3JtRG9tYWluEisubG9jby5kb21haW4udjEuVXBkYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0Gh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4SWwoURGVsZXRlUGxhdGZvcm1Eb21haW4SKy5sb2NvLmRvbWFpbi52MS5EZWxldGVQbGF0Zm9ybURvbWFpblJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSYwoUQ3JlYXRlUmVzb3VyY2VEb21haW4SKy5sb2NvLmRvbWFpbi52MS5DcmVhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QaHi5sb2NvLmRvbWFpbi52MS5SZXNvdXJjZURvbWFpbhJjChRVcGRhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBoeLmxvY28uZG9tYWluLnYxLlJlc291cmNlRG9tYWluEmsKGFNldFByaW1hcnlSZXNvdXJjZURvbWFpbhIvLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlcXVlc3QaHi5sb2NvLmRvbWFpbi52MS5SZXNvdXJjZURvbWFpbhJbChREZWxldGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkRlbGV0ZVJlc291cmNlRG9tYWluUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJxChRMaXN0TG9jb093bmVkRG9tYWlucxIrLmxvY28uZG9tYWluLnYxLkxpc3RMb2NvT3duZWREb21haW5zUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkxpc3RMb2NvT3duZWREb21haW5zUmVzcG9uc2USegoXQ2hlY2tEb21haW5BdmFpbGFiaWxpdHkSLi5sb2NvLmRvbWFpbi52MS5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QaLy5sb2NvLmRvbWFpbi52MS5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlc3BvbnNlQjtaOWdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL2RvbWFpbi92MTtkb21haW52MWIGcHJvdG8z", [file_google_protobuf_empty, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * PlatformDomain represents a platform-provided domain.
@@ -311,56 +311,20 @@ export const CreatePlatformDomainRequestSchema: GenMessage<CreatePlatformDomainR
   messageDesc(file_domain_v1_domain, 3);
 
 /**
- * CreatePlatformDomainResponse is the response from creating a platform domain.
- *
- * @generated from message loco.domain.v1.CreatePlatformDomainResponse
- */
-export type CreatePlatformDomainResponse = Message<"loco.domain.v1.CreatePlatformDomainResponse"> & {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * CreatePlatformDomainResponse is the response from creating a platform domain.
- *
- * @generated from message loco.domain.v1.CreatePlatformDomainResponse
- */
-export type CreatePlatformDomainResponseJson = {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.CreatePlatformDomainResponse.
- * Use `create(CreatePlatformDomainResponseSchema)` to create a new message.
- */
-export const CreatePlatformDomainResponseSchema: GenMessage<CreatePlatformDomainResponse, {jsonType: CreatePlatformDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 4);
-
-/**
  * GetPlatformDomainRequest is the request to retrieve a platform domain.
  *
  * @generated from message loco.domain.v1.GetPlatformDomainRequest
  */
 export type GetPlatformDomainRequest = Message<"loco.domain.v1.GetPlatformDomainRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: optional int64 id = 1;
    */
-  id: bigint;
+  id?: bigint;
+
+  /**
+   * @generated from field: optional string domain = 2;
+   */
+  domain?: string;
 };
 
 /**
@@ -370,9 +334,14 @@ export type GetPlatformDomainRequest = Message<"loco.domain.v1.GetPlatformDomain
  */
 export type GetPlatformDomainRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: optional int64 id = 1;
    */
   id?: string;
+
+  /**
+   * @generated from field: optional string domain = 2;
+   */
+  domain?: string;
 };
 
 /**
@@ -380,161 +349,167 @@ export type GetPlatformDomainRequestJson = {
  * Use `create(GetPlatformDomainRequestSchema)` to create a new message.
  */
 export const GetPlatformDomainRequestSchema: GenMessage<GetPlatformDomainRequest, {jsonType: GetPlatformDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 4);
+
+/**
+ * ListPlatformDomainsRequest is the request to list platform domains.
+ *
+ * @generated from message loco.domain.v1.ListPlatformDomainsRequest
+ */
+export type ListPlatformDomainsRequest = Message<"loco.domain.v1.ListPlatformDomainsRequest"> & {
+  /**
+   * @generated from field: optional bool active_only = 1;
+   */
+  activeOnly?: boolean;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: int32 offset = 3;
+   */
+  offset: number;
+};
+
+/**
+ * ListPlatformDomainsRequest is the request to list platform domains.
+ *
+ * @generated from message loco.domain.v1.ListPlatformDomainsRequest
+ */
+export type ListPlatformDomainsRequestJson = {
+  /**
+   * @generated from field: optional bool active_only = 1;
+   */
+  activeOnly?: boolean;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit?: number;
+
+  /**
+   * @generated from field: int32 offset = 3;
+   */
+  offset?: number;
+};
+
+/**
+ * Describes the message loco.domain.v1.ListPlatformDomainsRequest.
+ * Use `create(ListPlatformDomainsRequestSchema)` to create a new message.
+ */
+export const ListPlatformDomainsRequestSchema: GenMessage<ListPlatformDomainsRequest, {jsonType: ListPlatformDomainsRequestJson}> = /*@__PURE__*/
   messageDesc(file_domain_v1_domain, 5);
 
 /**
- * GetPlatformDomainResponse is the response containing platform domain information.
+ * ListPlatformDomainsResponse contains the list of platform domains.
  *
- * @generated from message loco.domain.v1.GetPlatformDomainResponse
+ * @generated from message loco.domain.v1.ListPlatformDomainsResponse
  */
-export type GetPlatformDomainResponse = Message<"loco.domain.v1.GetPlatformDomainResponse"> & {
-  /**
-   * @generated from field: loco.domain.v1.PlatformDomain platform_domain = 1;
-   */
-  platformDomain?: PlatformDomain;
-};
-
-/**
- * GetPlatformDomainResponse is the response containing platform domain information.
- *
- * @generated from message loco.domain.v1.GetPlatformDomainResponse
- */
-export type GetPlatformDomainResponseJson = {
-  /**
-   * @generated from field: loco.domain.v1.PlatformDomain platform_domain = 1;
-   */
-  platformDomain?: PlatformDomainJson;
-};
-
-/**
- * Describes the message loco.domain.v1.GetPlatformDomainResponse.
- * Use `create(GetPlatformDomainResponseSchema)` to create a new message.
- */
-export const GetPlatformDomainResponseSchema: GenMessage<GetPlatformDomainResponse, {jsonType: GetPlatformDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 6);
-
-/**
- * GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
- *
- * @generated from message loco.domain.v1.GetPlatformDomainByNameRequest
- */
-export type GetPlatformDomainByNameRequest = Message<"loco.domain.v1.GetPlatformDomainByNameRequest"> & {
-  /**
-   * @generated from field: string domain = 1;
-   */
-  domain: string;
-};
-
-/**
- * GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
- *
- * @generated from message loco.domain.v1.GetPlatformDomainByNameRequest
- */
-export type GetPlatformDomainByNameRequestJson = {
-  /**
-   * @generated from field: string domain = 1;
-   */
-  domain?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.GetPlatformDomainByNameRequest.
- * Use `create(GetPlatformDomainByNameRequestSchema)` to create a new message.
- */
-export const GetPlatformDomainByNameRequestSchema: GenMessage<GetPlatformDomainByNameRequest, {jsonType: GetPlatformDomainByNameRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 7);
-
-/**
- * GetPlatformDomainByNameResponse is the response containing the platform domain.
- *
- * @generated from message loco.domain.v1.GetPlatformDomainByNameResponse
- */
-export type GetPlatformDomainByNameResponse = Message<"loco.domain.v1.GetPlatformDomainByNameResponse"> & {
-  /**
-   * @generated from field: loco.domain.v1.PlatformDomain platform_domain = 1;
-   */
-  platformDomain?: PlatformDomain;
-};
-
-/**
- * GetPlatformDomainByNameResponse is the response containing the platform domain.
- *
- * @generated from message loco.domain.v1.GetPlatformDomainByNameResponse
- */
-export type GetPlatformDomainByNameResponseJson = {
-  /**
-   * @generated from field: loco.domain.v1.PlatformDomain platform_domain = 1;
-   */
-  platformDomain?: PlatformDomainJson;
-};
-
-/**
- * Describes the message loco.domain.v1.GetPlatformDomainByNameResponse.
- * Use `create(GetPlatformDomainByNameResponseSchema)` to create a new message.
- */
-export const GetPlatformDomainByNameResponseSchema: GenMessage<GetPlatformDomainByNameResponse, {jsonType: GetPlatformDomainByNameResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 8);
-
-/**
- * ListActivePlatformDomainsRequest is the request to list active platform domains.
- *
- * @generated from message loco.domain.v1.ListActivePlatformDomainsRequest
- */
-export type ListActivePlatformDomainsRequest = Message<"loco.domain.v1.ListActivePlatformDomainsRequest"> & {
-};
-
-/**
- * ListActivePlatformDomainsRequest is the request to list active platform domains.
- *
- * @generated from message loco.domain.v1.ListActivePlatformDomainsRequest
- */
-export type ListActivePlatformDomainsRequestJson = {
-};
-
-/**
- * Describes the message loco.domain.v1.ListActivePlatformDomainsRequest.
- * Use `create(ListActivePlatformDomainsRequestSchema)` to create a new message.
- */
-export const ListActivePlatformDomainsRequestSchema: GenMessage<ListActivePlatformDomainsRequest, {jsonType: ListActivePlatformDomainsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 9);
-
-/**
- * ListActivePlatformDomainsResponse contains the list of active platform domains.
- *
- * @generated from message loco.domain.v1.ListActivePlatformDomainsResponse
- */
-export type ListActivePlatformDomainsResponse = Message<"loco.domain.v1.ListActivePlatformDomainsResponse"> & {
+export type ListPlatformDomainsResponse = Message<"loco.domain.v1.ListPlatformDomainsResponse"> & {
   /**
    * @generated from field: repeated loco.domain.v1.PlatformDomain platform_domains = 1;
    */
   platformDomains: PlatformDomain[];
+
+  /**
+   * @generated from field: int64 total_count = 2;
+   */
+  totalCount: bigint;
 };
 
 /**
- * ListActivePlatformDomainsResponse contains the list of active platform domains.
+ * ListPlatformDomainsResponse contains the list of platform domains.
  *
- * @generated from message loco.domain.v1.ListActivePlatformDomainsResponse
+ * @generated from message loco.domain.v1.ListPlatformDomainsResponse
  */
-export type ListActivePlatformDomainsResponseJson = {
+export type ListPlatformDomainsResponseJson = {
   /**
    * @generated from field: repeated loco.domain.v1.PlatformDomain platform_domains = 1;
    */
   platformDomains?: PlatformDomainJson[];
+
+  /**
+   * @generated from field: int64 total_count = 2;
+   */
+  totalCount?: string;
 };
 
 /**
- * Describes the message loco.domain.v1.ListActivePlatformDomainsResponse.
- * Use `create(ListActivePlatformDomainsResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.ListPlatformDomainsResponse.
+ * Use `create(ListPlatformDomainsResponseSchema)` to create a new message.
  */
-export const ListActivePlatformDomainsResponseSchema: GenMessage<ListActivePlatformDomainsResponse, {jsonType: ListActivePlatformDomainsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 10);
+export const ListPlatformDomainsResponseSchema: GenMessage<ListPlatformDomainsResponse, {jsonType: ListPlatformDomainsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 6);
 
 /**
- * DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
+ * UpdatePlatformDomainRequest is the request to update a platform domain.
  *
- * @generated from message loco.domain.v1.DeactivatePlatformDomainRequest
+ * @generated from message loco.domain.v1.UpdatePlatformDomainRequest
  */
-export type DeactivatePlatformDomainRequest = Message<"loco.domain.v1.DeactivatePlatformDomainRequest"> & {
+export type UpdatePlatformDomainRequest = Message<"loco.domain.v1.UpdatePlatformDomainRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: google.protobuf.FieldMask update_mask = 2;
+   */
+  updateMask?: FieldMask;
+
+  /**
+   * @generated from field: optional string domain = 3;
+   */
+  domain?: string;
+
+  /**
+   * @generated from field: optional bool is_active = 4;
+   */
+  isActive?: boolean;
+};
+
+/**
+ * UpdatePlatformDomainRequest is the request to update a platform domain.
+ *
+ * @generated from message loco.domain.v1.UpdatePlatformDomainRequest
+ */
+export type UpdatePlatformDomainRequestJson = {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id?: string;
+
+  /**
+   * @generated from field: google.protobuf.FieldMask update_mask = 2;
+   */
+  updateMask?: FieldMaskJson;
+
+  /**
+   * @generated from field: optional string domain = 3;
+   */
+  domain?: string;
+
+  /**
+   * @generated from field: optional bool is_active = 4;
+   */
+  isActive?: boolean;
+};
+
+/**
+ * Describes the message loco.domain.v1.UpdatePlatformDomainRequest.
+ * Use `create(UpdatePlatformDomainRequestSchema)` to create a new message.
+ */
+export const UpdatePlatformDomainRequestSchema: GenMessage<UpdatePlatformDomainRequest, {jsonType: UpdatePlatformDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 7);
+
+/**
+ * DeletePlatformDomainRequest is the request to delete a platform domain.
+ *
+ * @generated from message loco.domain.v1.DeletePlatformDomainRequest
+ */
+export type DeletePlatformDomainRequest = Message<"loco.domain.v1.DeletePlatformDomainRequest"> & {
   /**
    * @generated from field: int64 id = 1;
    */
@@ -542,11 +517,11 @@ export type DeactivatePlatformDomainRequest = Message<"loco.domain.v1.Deactivate
 };
 
 /**
- * DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
+ * DeletePlatformDomainRequest is the request to delete a platform domain.
  *
- * @generated from message loco.domain.v1.DeactivatePlatformDomainRequest
+ * @generated from message loco.domain.v1.DeletePlatformDomainRequest
  */
-export type DeactivatePlatformDomainRequestJson = {
+export type DeletePlatformDomainRequestJson = {
   /**
    * @generated from field: int64 id = 1;
    */
@@ -554,114 +529,11 @@ export type DeactivatePlatformDomainRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.DeactivatePlatformDomainRequest.
- * Use `create(DeactivatePlatformDomainRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.DeletePlatformDomainRequest.
+ * Use `create(DeletePlatformDomainRequestSchema)` to create a new message.
  */
-export const DeactivatePlatformDomainRequestSchema: GenMessage<DeactivatePlatformDomainRequest, {jsonType: DeactivatePlatformDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 11);
-
-/**
- * DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
- *
- * @generated from message loco.domain.v1.DeactivatePlatformDomainResponse
- */
-export type DeactivatePlatformDomainResponse = Message<"loco.domain.v1.DeactivatePlatformDomainResponse"> & {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
- *
- * @generated from message loco.domain.v1.DeactivatePlatformDomainResponse
- */
-export type DeactivatePlatformDomainResponseJson = {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.DeactivatePlatformDomainResponse.
- * Use `create(DeactivatePlatformDomainResponseSchema)` to create a new message.
- */
-export const DeactivatePlatformDomainResponseSchema: GenMessage<DeactivatePlatformDomainResponse, {jsonType: DeactivatePlatformDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 12);
-
-/**
- * CheckDomainAvailabilityRequest is the request to check domain availability.
- *
- * @generated from message loco.domain.v1.CheckDomainAvailabilityRequest
- */
-export type CheckDomainAvailabilityRequest = Message<"loco.domain.v1.CheckDomainAvailabilityRequest"> & {
-  /**
-   * @generated from field: string domain = 1;
-   */
-  domain: string;
-};
-
-/**
- * CheckDomainAvailabilityRequest is the request to check domain availability.
- *
- * @generated from message loco.domain.v1.CheckDomainAvailabilityRequest
- */
-export type CheckDomainAvailabilityRequestJson = {
-  /**
-   * @generated from field: string domain = 1;
-   */
-  domain?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.CheckDomainAvailabilityRequest.
- * Use `create(CheckDomainAvailabilityRequestSchema)` to create a new message.
- */
-export const CheckDomainAvailabilityRequestSchema: GenMessage<CheckDomainAvailabilityRequest, {jsonType: CheckDomainAvailabilityRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 13);
-
-/**
- * CheckDomainAvailabilityResponse indicates if a domain is available.
- *
- * @generated from message loco.domain.v1.CheckDomainAvailabilityResponse
- */
-export type CheckDomainAvailabilityResponse = Message<"loco.domain.v1.CheckDomainAvailabilityResponse"> & {
-  /**
-   * @generated from field: bool is_available = 1;
-   */
-  isAvailable: boolean;
-};
-
-/**
- * CheckDomainAvailabilityResponse indicates if a domain is available.
- *
- * @generated from message loco.domain.v1.CheckDomainAvailabilityResponse
- */
-export type CheckDomainAvailabilityResponseJson = {
-  /**
-   * @generated from field: bool is_available = 1;
-   */
-  isAvailable?: boolean;
-};
-
-/**
- * Describes the message loco.domain.v1.CheckDomainAvailabilityResponse.
- * Use `create(CheckDomainAvailabilityResponseSchema)` to create a new message.
- */
-export const CheckDomainAvailabilityResponseSchema: GenMessage<CheckDomainAvailabilityResponse, {jsonType: CheckDomainAvailabilityResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 14);
+export const DeletePlatformDomainRequestSchema: GenMessage<DeletePlatformDomainRequest, {jsonType: DeletePlatformDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 8);
 
 /**
  * LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
@@ -732,37 +604,37 @@ export type LocoOwnedDomainJson = {
  * Use `create(LocoOwnedDomainSchema)` to create a new message.
  */
 export const LocoOwnedDomainSchema: GenMessage<LocoOwnedDomain, {jsonType: LocoOwnedDomainJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 15);
+  messageDesc(file_domain_v1_domain, 9);
 
 /**
- * ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
+ * ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
  *
- * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsRequest
+ * @generated from message loco.domain.v1.ListLocoOwnedDomainsRequest
  */
-export type ListAllLocoOwnedDomainsRequest = Message<"loco.domain.v1.ListAllLocoOwnedDomainsRequest"> & {
+export type ListLocoOwnedDomainsRequest = Message<"loco.domain.v1.ListLocoOwnedDomainsRequest"> & {
 };
 
 /**
- * ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
+ * ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
  *
- * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsRequest
+ * @generated from message loco.domain.v1.ListLocoOwnedDomainsRequest
  */
-export type ListAllLocoOwnedDomainsRequestJson = {
+export type ListLocoOwnedDomainsRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.ListAllLocoOwnedDomainsRequest.
- * Use `create(ListAllLocoOwnedDomainsRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.ListLocoOwnedDomainsRequest.
+ * Use `create(ListLocoOwnedDomainsRequestSchema)` to create a new message.
  */
-export const ListAllLocoOwnedDomainsRequestSchema: GenMessage<ListAllLocoOwnedDomainsRequest, {jsonType: ListAllLocoOwnedDomainsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 16);
+export const ListLocoOwnedDomainsRequestSchema: GenMessage<ListLocoOwnedDomainsRequest, {jsonType: ListLocoOwnedDomainsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 10);
 
 /**
- * ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
+ * ListLocoOwnedDomainsResponse contains the list of Loco-owned domains.
  *
- * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsResponse
+ * @generated from message loco.domain.v1.ListLocoOwnedDomainsResponse
  */
-export type ListAllLocoOwnedDomainsResponse = Message<"loco.domain.v1.ListAllLocoOwnedDomainsResponse"> & {
+export type ListLocoOwnedDomainsResponse = Message<"loco.domain.v1.ListLocoOwnedDomainsResponse"> & {
   /**
    * @generated from field: repeated loco.domain.v1.LocoOwnedDomain domains = 1;
    */
@@ -770,11 +642,11 @@ export type ListAllLocoOwnedDomainsResponse = Message<"loco.domain.v1.ListAllLoc
 };
 
 /**
- * ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
+ * ListLocoOwnedDomainsResponse contains the list of Loco-owned domains.
  *
- * @generated from message loco.domain.v1.ListAllLocoOwnedDomainsResponse
+ * @generated from message loco.domain.v1.ListLocoOwnedDomainsResponse
  */
-export type ListAllLocoOwnedDomainsResponseJson = {
+export type ListLocoOwnedDomainsResponseJson = {
   /**
    * @generated from field: repeated loco.domain.v1.LocoOwnedDomain domains = 1;
    */
@@ -782,18 +654,18 @@ export type ListAllLocoOwnedDomainsResponseJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.ListAllLocoOwnedDomainsResponse.
- * Use `create(ListAllLocoOwnedDomainsResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.ListLocoOwnedDomainsResponse.
+ * Use `create(ListLocoOwnedDomainsResponseSchema)` to create a new message.
  */
-export const ListAllLocoOwnedDomainsResponseSchema: GenMessage<ListAllLocoOwnedDomainsResponse, {jsonType: ListAllLocoOwnedDomainsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 17);
+export const ListLocoOwnedDomainsResponseSchema: GenMessage<ListLocoOwnedDomainsResponse, {jsonType: ListLocoOwnedDomainsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 11);
 
 /**
- * AddResourceDomainRequest is the request to add a domain to a resource.
+ * CreateResourceDomainRequest is the request to add a domain to a resource.
  *
- * @generated from message loco.domain.v1.AddResourceDomainRequest
+ * @generated from message loco.domain.v1.CreateResourceDomainRequest
  */
-export type AddResourceDomainRequest = Message<"loco.domain.v1.AddResourceDomainRequest"> & {
+export type CreateResourceDomainRequest = Message<"loco.domain.v1.CreateResourceDomainRequest"> & {
   /**
    * @generated from field: int64 resource_id = 1;
    */
@@ -806,11 +678,11 @@ export type AddResourceDomainRequest = Message<"loco.domain.v1.AddResourceDomain
 };
 
 /**
- * AddResourceDomainRequest is the request to add a domain to a resource.
+ * CreateResourceDomainRequest is the request to add a domain to a resource.
  *
- * @generated from message loco.domain.v1.AddResourceDomainRequest
+ * @generated from message loco.domain.v1.CreateResourceDomainRequest
  */
-export type AddResourceDomainRequestJson = {
+export type CreateResourceDomainRequestJson = {
   /**
    * @generated from field: int64 resource_id = 1;
    */
@@ -823,52 +695,11 @@ export type AddResourceDomainRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.AddResourceDomainRequest.
- * Use `create(AddResourceDomainRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.CreateResourceDomainRequest.
+ * Use `create(CreateResourceDomainRequestSchema)` to create a new message.
  */
-export const AddResourceDomainRequestSchema: GenMessage<AddResourceDomainRequest, {jsonType: AddResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 18);
-
-/**
- * AddResourceDomainResponse is the response from adding a domain to a resource.
- *
- * @generated from message loco.domain.v1.AddResourceDomainResponse
- */
-export type AddResourceDomainResponse = Message<"loco.domain.v1.AddResourceDomainResponse"> & {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * AddResourceDomainResponse is the response from adding a domain to a resource.
- *
- * @generated from message loco.domain.v1.AddResourceDomainResponse
- */
-export type AddResourceDomainResponseJson = {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.AddResourceDomainResponse.
- * Use `create(AddResourceDomainResponseSchema)` to create a new message.
- */
-export const AddResourceDomainResponseSchema: GenMessage<AddResourceDomainResponse, {jsonType: AddResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 19);
+export const CreateResourceDomainRequestSchema: GenMessage<CreateResourceDomainRequest, {jsonType: CreateResourceDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 12);
 
 /**
  * UpdateResourceDomainRequest is the request to update a resource's domain.
@@ -882,9 +713,14 @@ export type UpdateResourceDomainRequest = Message<"loco.domain.v1.UpdateResource
   domainId: bigint;
 
   /**
-   * @generated from field: string domain = 2;
+   * @generated from field: google.protobuf.FieldMask update_mask = 2;
    */
-  domain: string;
+  updateMask?: FieldMask;
+
+  /**
+   * @generated from field: optional string domain = 3;
+   */
+  domain?: string;
 };
 
 /**
@@ -899,7 +735,12 @@ export type UpdateResourceDomainRequestJson = {
   domainId?: string;
 
   /**
-   * @generated from field: string domain = 2;
+   * @generated from field: google.protobuf.FieldMask update_mask = 2;
+   */
+  updateMask?: FieldMaskJson;
+
+  /**
+   * @generated from field: optional string domain = 3;
    */
   domain?: string;
 };
@@ -909,48 +750,7 @@ export type UpdateResourceDomainRequestJson = {
  * Use `create(UpdateResourceDomainRequestSchema)` to create a new message.
  */
 export const UpdateResourceDomainRequestSchema: GenMessage<UpdateResourceDomainRequest, {jsonType: UpdateResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 20);
-
-/**
- * UpdateResourceDomainResponse is the response from updating a resource's domain.
- *
- * @generated from message loco.domain.v1.UpdateResourceDomainResponse
- */
-export type UpdateResourceDomainResponse = Message<"loco.domain.v1.UpdateResourceDomainResponse"> & {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * UpdateResourceDomainResponse is the response from updating a resource's domain.
- *
- * @generated from message loco.domain.v1.UpdateResourceDomainResponse
- */
-export type UpdateResourceDomainResponseJson = {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.UpdateResourceDomainResponse.
- * Use `create(UpdateResourceDomainResponseSchema)` to create a new message.
- */
-export const UpdateResourceDomainResponseSchema: GenMessage<UpdateResourceDomainResponse, {jsonType: UpdateResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 21);
+  messageDesc(file_domain_v1_domain, 13);
 
 /**
  * SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
@@ -991,55 +791,14 @@ export type SetPrimaryResourceDomainRequestJson = {
  * Use `create(SetPrimaryResourceDomainRequestSchema)` to create a new message.
  */
 export const SetPrimaryResourceDomainRequestSchema: GenMessage<SetPrimaryResourceDomainRequest, {jsonType: SetPrimaryResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 22);
+  messageDesc(file_domain_v1_domain, 14);
 
 /**
- * SetPrimaryResourceDomainResponse is the response from setting the primary domain.
+ * DeleteResourceDomainRequest is the request to remove a domain from a resource.
  *
- * @generated from message loco.domain.v1.SetPrimaryResourceDomainResponse
+ * @generated from message loco.domain.v1.DeleteResourceDomainRequest
  */
-export type SetPrimaryResourceDomainResponse = Message<"loco.domain.v1.SetPrimaryResourceDomainResponse"> & {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId: bigint;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * SetPrimaryResourceDomainResponse is the response from setting the primary domain.
- *
- * @generated from message loco.domain.v1.SetPrimaryResourceDomainResponse
- */
-export type SetPrimaryResourceDomainResponseJson = {
-  /**
-   * @generated from field: int64 domain_id = 1;
-   */
-  domainId?: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.SetPrimaryResourceDomainResponse.
- * Use `create(SetPrimaryResourceDomainResponseSchema)` to create a new message.
- */
-export const SetPrimaryResourceDomainResponseSchema: GenMessage<SetPrimaryResourceDomainResponse, {jsonType: SetPrimaryResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 23);
-
-/**
- * RemoveResourceDomainRequest is the request to remove a domain from a resource.
- *
- * @generated from message loco.domain.v1.RemoveResourceDomainRequest
- */
-export type RemoveResourceDomainRequest = Message<"loco.domain.v1.RemoveResourceDomainRequest"> & {
+export type DeleteResourceDomainRequest = Message<"loco.domain.v1.DeleteResourceDomainRequest"> & {
   /**
    * @generated from field: int64 domain_id = 1;
    */
@@ -1047,11 +806,11 @@ export type RemoveResourceDomainRequest = Message<"loco.domain.v1.RemoveResource
 };
 
 /**
- * RemoveResourceDomainRequest is the request to remove a domain from a resource.
+ * DeleteResourceDomainRequest is the request to remove a domain from a resource.
  *
- * @generated from message loco.domain.v1.RemoveResourceDomainRequest
+ * @generated from message loco.domain.v1.DeleteResourceDomainRequest
  */
-export type RemoveResourceDomainRequestJson = {
+export type DeleteResourceDomainRequestJson = {
   /**
    * @generated from field: int64 domain_id = 1;
    */
@@ -1059,42 +818,73 @@ export type RemoveResourceDomainRequestJson = {
 };
 
 /**
- * Describes the message loco.domain.v1.RemoveResourceDomainRequest.
- * Use `create(RemoveResourceDomainRequestSchema)` to create a new message.
+ * Describes the message loco.domain.v1.DeleteResourceDomainRequest.
+ * Use `create(DeleteResourceDomainRequestSchema)` to create a new message.
  */
-export const RemoveResourceDomainRequestSchema: GenMessage<RemoveResourceDomainRequest, {jsonType: RemoveResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 24);
+export const DeleteResourceDomainRequestSchema: GenMessage<DeleteResourceDomainRequest, {jsonType: DeleteResourceDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 15);
 
 /**
- * RemoveResourceDomainResponse is the response from removing a domain.
+ * CheckDomainAvailabilityRequest is the request to check if a domain is available.
  *
- * @generated from message loco.domain.v1.RemoveResourceDomainResponse
+ * @generated from message loco.domain.v1.CheckDomainAvailabilityRequest
  */
-export type RemoveResourceDomainResponse = Message<"loco.domain.v1.RemoveResourceDomainResponse"> & {
+export type CheckDomainAvailabilityRequest = Message<"loco.domain.v1.CheckDomainAvailabilityRequest"> & {
   /**
-   * @generated from field: string message = 1;
+   * @generated from field: string domain = 1;
    */
-  message: string;
+  domain: string;
 };
 
 /**
- * RemoveResourceDomainResponse is the response from removing a domain.
+ * CheckDomainAvailabilityRequest is the request to check if a domain is available.
  *
- * @generated from message loco.domain.v1.RemoveResourceDomainResponse
+ * @generated from message loco.domain.v1.CheckDomainAvailabilityRequest
  */
-export type RemoveResourceDomainResponseJson = {
+export type CheckDomainAvailabilityRequestJson = {
   /**
-   * @generated from field: string message = 1;
+   * @generated from field: string domain = 1;
    */
-  message?: string;
+  domain?: string;
 };
 
 /**
- * Describes the message loco.domain.v1.RemoveResourceDomainResponse.
- * Use `create(RemoveResourceDomainResponseSchema)` to create a new message.
+ * Describes the message loco.domain.v1.CheckDomainAvailabilityRequest.
+ * Use `create(CheckDomainAvailabilityRequestSchema)` to create a new message.
  */
-export const RemoveResourceDomainResponseSchema: GenMessage<RemoveResourceDomainResponse, {jsonType: RemoveResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_domain_v1_domain, 25);
+export const CheckDomainAvailabilityRequestSchema: GenMessage<CheckDomainAvailabilityRequest, {jsonType: CheckDomainAvailabilityRequestJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 16);
+
+/**
+ * CheckDomainAvailabilityResponse contains the availability check result.
+ *
+ * @generated from message loco.domain.v1.CheckDomainAvailabilityResponse
+ */
+export type CheckDomainAvailabilityResponse = Message<"loco.domain.v1.CheckDomainAvailabilityResponse"> & {
+  /**
+   * @generated from field: bool is_available = 1;
+   */
+  isAvailable: boolean;
+};
+
+/**
+ * CheckDomainAvailabilityResponse contains the availability check result.
+ *
+ * @generated from message loco.domain.v1.CheckDomainAvailabilityResponse
+ */
+export type CheckDomainAvailabilityResponseJson = {
+  /**
+   * @generated from field: bool is_available = 1;
+   */
+  isAvailable?: boolean;
+};
+
+/**
+ * Describes the message loco.domain.v1.CheckDomainAvailabilityResponse.
+ * Use `create(CheckDomainAvailabilityResponseSchema)` to create a new message.
+ */
+export const CheckDomainAvailabilityResponseSchema: GenMessage<CheckDomainAvailabilityResponse, {jsonType: CheckDomainAvailabilityResponseJson}> = /*@__PURE__*/
+  messageDesc(file_domain_v1_domain, 17);
 
 /**
  * DomainType indicates the source of a domain: platform-provided or user-provided.
@@ -1103,14 +893,19 @@ export const RemoveResourceDomainResponseSchema: GenMessage<RemoveResourceDomain
  */
 export enum DomainType {
   /**
-   * @generated from enum value: PLATFORM_PROVIDED = 0;
+   * @generated from enum value: DOMAIN_TYPE_UNSPECIFIED = 0;
    */
-  PLATFORM_PROVIDED = 0,
+  DOMAIN_TYPE_UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: USER_PROVIDED = 1;
+   * @generated from enum value: PLATFORM_PROVIDED = 1;
    */
-  USER_PROVIDED = 1,
+  PLATFORM_PROVIDED = 1,
+
+  /**
+   * @generated from enum value: USER_PROVIDED = 2;
+   */
+  USER_PROVIDED = 2,
 }
 
 /**
@@ -1118,7 +913,7 @@ export enum DomainType {
  *
  * @generated from enum loco.domain.v1.DomainType
  */
-export type DomainTypeJson = "PLATFORM_PROVIDED" | "USER_PROVIDED";
+export type DomainTypeJson = "DOMAIN_TYPE_UNSPECIFIED" | "PLATFORM_PROVIDED" | "USER_PROVIDED";
 
 /**
  * Describes the enum loco.domain.v1.DomainType.
@@ -1141,58 +936,58 @@ export const DomainService: GenService<{
   createPlatformDomain: {
     methodKind: "unary";
     input: typeof CreatePlatformDomainRequestSchema;
-    output: typeof CreatePlatformDomainResponseSchema;
+    output: typeof PlatformDomainSchema;
   },
   /**
-   * GetPlatformDomain retrieves a platform domain by ID.
+   * GetPlatformDomain retrieves a platform domain by ID or name.
    *
    * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomain
    */
   getPlatformDomain: {
     methodKind: "unary";
     input: typeof GetPlatformDomainRequestSchema;
-    output: typeof GetPlatformDomainResponseSchema;
+    output: typeof PlatformDomainSchema;
   },
   /**
-   * GetPlatformDomainByName retrieves a platform domain by name.
+   * ListPlatformDomains lists platform domains with optional filters.
    *
-   * @generated from rpc loco.domain.v1.DomainService.GetPlatformDomainByName
+   * @generated from rpc loco.domain.v1.DomainService.ListPlatformDomains
    */
-  getPlatformDomainByName: {
+  listPlatformDomains: {
     methodKind: "unary";
-    input: typeof GetPlatformDomainByNameRequestSchema;
-    output: typeof GetPlatformDomainByNameResponseSchema;
+    input: typeof ListPlatformDomainsRequestSchema;
+    output: typeof ListPlatformDomainsResponseSchema;
   },
   /**
-   * ListActivePlatformDomains lists all active platform domains.
+   * UpdatePlatformDomain updates a platform domain.
    *
-   * @generated from rpc loco.domain.v1.DomainService.ListActivePlatformDomains
+   * @generated from rpc loco.domain.v1.DomainService.UpdatePlatformDomain
    */
-  listActivePlatformDomains: {
+  updatePlatformDomain: {
     methodKind: "unary";
-    input: typeof ListActivePlatformDomainsRequestSchema;
-    output: typeof ListActivePlatformDomainsResponseSchema;
+    input: typeof UpdatePlatformDomainRequestSchema;
+    output: typeof PlatformDomainSchema;
   },
   /**
-   * DeactivatePlatformDomain deactivates a platform domain.
+   * DeletePlatformDomain deletes a platform domain.
    *
-   * @generated from rpc loco.domain.v1.DomainService.DeactivatePlatformDomain
+   * @generated from rpc loco.domain.v1.DomainService.DeletePlatformDomain
    */
-  deactivatePlatformDomain: {
+  deletePlatformDomain: {
     methodKind: "unary";
-    input: typeof DeactivatePlatformDomainRequestSchema;
-    output: typeof DeactivatePlatformDomainResponseSchema;
+    input: typeof DeletePlatformDomainRequestSchema;
+    output: typeof EmptySchema;
   },
   /**
    * Resource Domain Management
-   * AddResourceDomain assigns a domain to a resource.
+   * CreateResourceDomain assigns a domain to a resource.
    *
-   * @generated from rpc loco.domain.v1.DomainService.AddResourceDomain
+   * @generated from rpc loco.domain.v1.DomainService.CreateResourceDomain
    */
-  addResourceDomain: {
+  createResourceDomain: {
     methodKind: "unary";
-    input: typeof AddResourceDomainRequestSchema;
-    output: typeof AddResourceDomainResponseSchema;
+    input: typeof CreateResourceDomainRequestSchema;
+    output: typeof ResourceDomainSchema;
   },
   /**
    * UpdateResourceDomain updates a resource's domain configuration.
@@ -1202,7 +997,7 @@ export const DomainService: GenService<{
   updateResourceDomain: {
     methodKind: "unary";
     input: typeof UpdateResourceDomainRequestSchema;
-    output: typeof UpdateResourceDomainResponseSchema;
+    output: typeof ResourceDomainSchema;
   },
   /**
    * SetPrimaryResourceDomain sets the primary domain for a resource.
@@ -1212,20 +1007,30 @@ export const DomainService: GenService<{
   setPrimaryResourceDomain: {
     methodKind: "unary";
     input: typeof SetPrimaryResourceDomainRequestSchema;
-    output: typeof SetPrimaryResourceDomainResponseSchema;
+    output: typeof ResourceDomainSchema;
   },
   /**
-   * RemoveResourceDomain removes a domain from a resource.
+   * DeleteResourceDomain removes a domain from a resource.
    *
-   * @generated from rpc loco.domain.v1.DomainService.RemoveResourceDomain
+   * @generated from rpc loco.domain.v1.DomainService.DeleteResourceDomain
    */
-  removeResourceDomain: {
+  deleteResourceDomain: {
     methodKind: "unary";
-    input: typeof RemoveResourceDomainRequestSchema;
-    output: typeof RemoveResourceDomainResponseSchema;
+    input: typeof DeleteResourceDomainRequestSchema;
+    output: typeof EmptySchema;
   },
   /**
-   * Domain Availability
+   * Queries
+   * ListLocoOwnedDomains lists all domains owned by Loco with resources.
+   *
+   * @generated from rpc loco.domain.v1.DomainService.ListLocoOwnedDomains
+   */
+  listLocoOwnedDomains: {
+    methodKind: "unary";
+    input: typeof ListLocoOwnedDomainsRequestSchema;
+    output: typeof ListLocoOwnedDomainsResponseSchema;
+  },
+  /**
    * CheckDomainAvailability checks if a domain is available.
    *
    * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
@@ -1234,17 +1039,6 @@ export const DomainService: GenService<{
     methodKind: "unary";
     input: typeof CheckDomainAvailabilityRequestSchema;
     output: typeof CheckDomainAvailabilityResponseSchema;
-  },
-  /**
-   * Queries
-   * ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
-   *
-   * @generated from rpc loco.domain.v1.DomainService.ListAllLocoOwnedDomains
-   */
-  listAllLocoOwnedDomains: {
-    methodKind: "unary";
-    input: typeof ListAllLocoOwnedDomainsRequestSchema;
-    output: typeof ListAllLocoOwnedDomainsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_domain_v1_domain, 0);

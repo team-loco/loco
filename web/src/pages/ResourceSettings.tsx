@@ -18,10 +18,10 @@ import {
 	updateResource,
 } from "@/gen/resource/v1";
 import {
-	addResourceDomain,
+	createResourceDomain,
 	checkDomainAvailability,
-	listActivePlatformDomains,
-	removeResourceDomain,
+	listPlatformDomains,
+	deleteResourceDomain,
 	setPrimaryResourceDomain,
 	updateResourceDomain,
 } from "@/gen/domain/v1";
@@ -39,13 +39,16 @@ export function ResourceSettings() {
 	const navigate = useNavigate();
 
 	const {
-		data: resourceRes,
+		data: resource,
 		isLoading,
 		refetch,
-	} = useQuery(getResource, resourceId ? { resourceId: BigInt(resourceId) } : undefined, {
-		enabled: !!resourceId,
-	});
-	const resource = resourceRes?.resource;
+	} = useQuery(
+		getResource,
+		resourceId ? { resourceId: BigInt(resourceId) } : undefined,
+		{
+			enabled: !!resourceId,
+		}
+	);
 
 	const [name, setName] = useState(resource?.name || "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -59,13 +62,13 @@ export function ResourceSettings() {
 	const [cpuValue, setCpuValue] = useState<number[]>([500]);
 	const [memoryValue, setMemoryValue] = useState<number[]>([512]);
 
-	const { data: platformDomainsRes } = useQuery(listActivePlatformDomains, {});
+	const { data: platformDomainsRes } = useQuery(listPlatformDomains, {});
 	const platformDomains = platformDomainsRes?.platformDomains || [];
 
 	const updateResourceMutation = useMutation(updateResource);
 	const deleteResourceMutation = useMutation(deleteResource);
-	const addDomainMutation = useMutation(addResourceDomain);
-	const removeDomainMutation = useMutation(removeResourceDomain);
+	const addDomainMutation = useMutation(createResourceDomain);
+	const removeDomainMutation = useMutation(deleteResourceDomain);
 	const setPrimaryMutation = useMutation(setPrimaryResourceDomain);
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);
 	const updateDomainMutation = useMutation(updateResourceDomain);
@@ -90,7 +93,9 @@ export function ResourceSettings() {
 	const handleDelete = async () => {
 		if (!resourceId) return;
 		try {
-			await deleteResourceMutation.mutateAsync({ resourceId: BigInt(resourceId) });
+			await deleteResourceMutation.mutateAsync({
+				resourceId: BigInt(resourceId),
+			});
 			toast.success("Resource deleted successfully");
 			navigate("/dashboard");
 		} catch (error) {
@@ -178,12 +183,12 @@ export function ResourceSettings() {
 			}
 
 			// Update the domain
-			const resp = await updateDomainMutation.mutateAsync({
+			await updateDomainMutation.mutateAsync({
 				domainId: editingDomainId,
 				domain: editDomainValue,
 			});
 
-			toast.success(resp.message);
+			toast.success("Domain updated successfully");
 			setEditingDomainId(null);
 			setEditDomainValue("");
 			await refetch();
@@ -232,11 +237,13 @@ export function ResourceSettings() {
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-2">Resource Not Found</p>
+						<p className="text-destructive font-heading mb-2">
+							Resource Not Found
+						</p>
 					</CardContent>
 				</Card>
 			</div>
-			);
+		);
 	}
 
 	return (
@@ -269,7 +276,7 @@ export function ResourceSettings() {
 						<Button
 							variant="outline"
 							onClick={() => {
-								setName(app.name);
+								setName(resource?.name || "");
 							}}
 							className="border-2"
 							disabled={!hasChanges}
@@ -300,13 +307,13 @@ export function ResourceSettings() {
 				</CardHeader>
 				<CardContent className="space-y-4">
 					{/* Current Domains */}
-					{app?.domains && app.domains.length > 0 && (
+					{resource?.domains && resource.domains.length > 0 && (
 						<div className="space-y-3 pb-4 border-b">
 							<div className="text-sm font-medium text-foreground">
 								Current Domains
 							</div>
 							<div className="bg-background/50 rounded-lg p-3 space-y-2">
-								{app.domains.map((domain) => (
+								{resource.domains.map((domain) => (
 									<div key={domain.id}>
 										{editingDomainId === domain.id ? (
 											<div className="flex items-center justify-between gap-2">
@@ -492,7 +499,9 @@ export function ResourceSettings() {
 				</CardHeader>
 				<CardContent
 					className={`space-y-6 ${
-						resource?.status === ResourceStatus.UNAVAILABLE ? "pointer-events-none" : ""
+						resource?.status === ResourceStatus.UNAVAILABLE
+							? "pointer-events-none"
+							: ""
 					}`}
 				>
 					{resource?.status === ResourceStatus.UNAVAILABLE && (
@@ -521,15 +530,15 @@ export function ResourceSettings() {
 							step={100}
 							className="w-full"
 							disabled={resource?.status === ResourceStatus.UNAVAILABLE}
-							/>
-							<p className="text-xs text-foreground/50 mt-2">
+						/>
+						<p className="text-xs text-foreground/50 mt-2">
 							Range: 100m - 4000m
-							</p>
-							</div>
+						</p>
+					</div>
 
-							{/* Memory */}
-							<div>
-							<div className="flex items-center gap-2 mb-3">
+					{/* Memory */}
+					<div>
+						<div className="flex items-center gap-2 mb-3">
 							<HardDrive className="h-5 w-5 text-amber-500" />
 							<div>
 								<label className="text-sm font-medium text-foreground">
@@ -537,8 +546,8 @@ export function ResourceSettings() {
 								</label>
 								<p className="text-xs text-foreground/70">{memoryValue[0]}Mi</p>
 							</div>
-							</div>
-							<Slider
+						</div>
+						<Slider
 							value={memoryValue}
 							onValueChange={setMemoryValue}
 							min={128}
@@ -555,7 +564,8 @@ export function ResourceSettings() {
 					<Button
 						onClick={handleScale}
 						disabled={
-							scaleResourceMutation.isPending || resource?.status === ResourceStatus.UNAVAILABLE
+							scaleResourceMutation.isPending ||
+							resource?.status === ResourceStatus.UNAVAILABLE
 						}
 						className="w-full"
 					>
@@ -578,8 +588,8 @@ export function ResourceSettings() {
 								Delete Resource
 							</h3>
 							<p className="text-sm text-foreground opacity-70 mb-4">
-								This action cannot be undone. All data associated with this resource
-								will be permanently deleted.
+								This action cannot be undone. All data associated with this
+								resource will be permanently deleted.
 							</p>
 						</div>
 
@@ -601,8 +611,8 @@ export function ResourceSettings() {
 						Are you sure? This action cannot be undone.
 					</p>
 					<p className="text-xs text-red-600 dark:text-red-500 opacity-90">
-						Deleting <strong>{resource.name}</strong> will permanently remove all
-						data associated with this resource.
+						Deleting <strong>{resource.name}</strong> will permanently remove
+						all data associated with this resource.
 					</p>
 					<div className="flex gap-2 pt-2">
 						<Button

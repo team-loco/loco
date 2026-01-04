@@ -4,8 +4,6 @@ Phase I
 
 [ ] Add network policies restricting cross-workspace traffic / intro in-cluster communication.
 
-[ ] Add network policies restricting cross-workspace traffic / intro in-cluster communication.
-
 [ ] OpenTelemetry Optimization
 
 [ ] Create metric processor to drop unnecessary/high-cardinality metrics.

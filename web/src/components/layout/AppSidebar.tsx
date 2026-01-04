@@ -29,9 +29,9 @@ import {
 	SidebarRail,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { getCurrentUserOrgs } from "@/gen/org/v1";
-import { getCurrentUser } from "@/gen/user/v1";
-import { listWorkspaces } from "@/gen/workspace/v1";
+import { listUserOrgs } from "@/gen/org/v1";
+import { whoAmI } from "@/gen/user/v1";
+import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
@@ -130,17 +130,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 	const [userQuery, orgsQuery] = useQueries({
 		queries: [
-			createQueryOptions(getCurrentUser, {}, { transport }),
-			createQueryOptions(getCurrentUserOrgs, {}, { transport }),
+			createQueryOptions(whoAmI, {}, { transport }),
+			createQueryOptions(listUserOrgs, { userId: 0n }, { transport }),
 		],
 	});
 
-	const user = userQuery.data?.user ?? null;
+	const user = userQuery.data ?? null;
 	const orgs = orgsQuery.data?.orgs ?? [];
 	const firstOrgId = orgs[0]?.id ?? null;
 
 	const { data: workspacesRes } = useQuery(
-		listWorkspaces,
+		listOrgWorkspaces,
 		firstOrgId ? { orgId: firstOrgId } : undefined,
 		{ enabled: !!firstOrgId }
 	);

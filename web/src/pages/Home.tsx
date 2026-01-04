@@ -4,9 +4,9 @@ import { EmptyState } from "@/components/EmptyState";
 import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
 import { Card, CardContent } from "@/components/ui/card";
 import { useHeader } from "@/context/HeaderContext";
-import { listResources } from "@/gen/resource/v1";
-import { getCurrentUserOrgs } from "@/gen/org/v1";
-import { listWorkspaces } from "@/gen/workspace/v1";
+import { listWorkspaceResources } from "@/gen/resource/v1";
+import { listUserOrgs } from "@/gen/org/v1";
+import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { subscribeToEvents } from "@/lib/events";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useQuery } from "@connectrpc/connect-query";
@@ -31,14 +31,14 @@ export function Home() {
 		data: orgsQueryRes,
 		isLoading: orgsLoading,
 		error: orgsError,
-	} = useQuery(getCurrentUserOrgs, {});
+	} = useQuery(listUserOrgs, { userId: 0n });
 	const orgs = useMemo(() => orgsQueryRes?.orgs ?? [], [orgsQueryRes]);
 
 	const currentOrgId = selectedOrgId || (orgs.length > 0 ? orgs[0].id : null);
 
 	// Fetch workspaces for selected org
 	const { data: listWorkspacesRes } = useQuery(
-		listWorkspaces,
+		listOrgWorkspaces,
 		currentOrgId ? { orgId: currentOrgId } : undefined,
 		{ enabled: !!currentOrgId }
 	);
@@ -56,7 +56,7 @@ export function Home() {
 		error: resourcesError,
 		refetch: refetchResources,
 	} = useQuery(
-		listResources,
+		listWorkspaceResources,
 		{ workspaceId: currentWorkspaceId ?? 0n },
 		{ enabled: !!currentWorkspaceId }
 	);

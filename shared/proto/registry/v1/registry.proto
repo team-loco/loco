@@ -15,6 +15,6 @@ message GitlabTokenResponse {
 
 // RegistryService manages container registry access.
 service RegistryService {
-  // GitlabToken retrieves GitLab registry credentials.
-  rpc GitlabToken(GitlabTokenRequest) returns (GitlabTokenResponse) {}
+  // GetGitlabToken retrieves GitLab registry credentials.
+  rpc GetGitlabToken(GitlabTokenRequest) returns (GitlabTokenResponse) {}
 }

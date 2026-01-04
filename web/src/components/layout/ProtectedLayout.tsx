@@ -2,7 +2,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { getCurrentUser } from "@/gen/user/v1";
+import { whoAmI } from "@/gen/user/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -15,7 +15,7 @@ interface ProtectedLayoutProps {
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const navigate = useNavigate();
 	const { logout } = useAuth();
-	const { isLoading, error } = useQuery(getCurrentUser, {});
+	const { isLoading, error } = useQuery(whoAmI, {});
 
 	// Handle auth failures by redirecting to login
 	useEffect(() => {

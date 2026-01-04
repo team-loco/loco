@@ -252,6 +252,45 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
+
+	// domains
+
+	// CreatePlatformDomain requires system:admin.
+	CreatePlatformDomain = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
+	// UpdatePlatformDomain requires system:admin.
+	UpdatePlatformDomain = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
+	// DeletePlatformDomain requires system:admin.
+	DeletePlatformDomain = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
+	// ListLocoOwnedDomains requires system:admin.
+	ListLocoOwnedDomains = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
+
+	// orgs (additional)
+
+	// ListUserOrgs requires user:read (to list orgs for a specific user).
+	ListUserOrgs = Action{
+		entityType: db.EntityTypeUser,
+		scope:      db.ScopeRead,
+	}
+
+	// registry
+
+	// GetGitlabToken requires user:read (to access registry).
+	GetGitlabToken = Action{
+		entityType: db.EntityTypeUser,
+		scope:      db.ScopeRead,
+	}
 )
 
 func New(a Action, entityID int64) db.EntityScope {

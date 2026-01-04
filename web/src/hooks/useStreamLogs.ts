@@ -33,7 +33,7 @@ export function useStreamLogs(resourceId: string, tailLimit?: number) {
 				let isFirstUpdate = true;
 
 				// Stream logs from the server
-				for await (const logEntry of client.streamLogs(
+				for await (const logEntry of client.watchLogs(
 					{ resourceId: BigInt(resourceId), limit: tailLimit },
 					{ signal: abortController.signal }
 				)) {

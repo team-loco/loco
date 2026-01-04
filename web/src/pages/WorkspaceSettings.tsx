@@ -22,13 +22,11 @@ export function WorkspaceSettings() {
 	const [wsName, setWsName] = useState("");
 	const [wsDescription, setWsDescription] = useState("");
 
-	const { data: wsRes, isLoading: wsLoading } = useQuery(
+	const { data: workspace, isLoading: wsLoading } = useQuery(
 		getWorkspace,
 		workspaceId ? { workspaceId: BigInt(workspaceId) } : undefined,
 		{ enabled: !!workspaceId }
 	);
-
-	const workspace = wsRes?.workspace;
 
 	// Update state when workspace data loads
 	if (workspace && !wsName && !isEditing) {

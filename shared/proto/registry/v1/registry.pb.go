@@ -119,9 +119,9 @@ const file_registry_v1_registry_proto_rawDesc = "" +
 	"\x12GitlabTokenRequest\"G\n" +
 	"\x13GitlabTokenResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token2o\n" +
-	"\x0fRegistryService\x12\\\n" +
-	"\vGitlabToken\x12$.loco.registry.v1.GitlabTokenRequest\x1a%.loco.registry.v1.GitlabTokenResponse\"\x00B?Z=github.com/team-loco/loco/shared/proto/registry/v1;registryv1b\x06proto3"
+	"\x05token\x18\x02 \x01(\tR\x05token2r\n" +
+	"\x0fRegistryService\x12_\n" +
+	"\x0eGetGitlabToken\x12$.loco.registry.v1.GitlabTokenRequest\x1a%.loco.registry.v1.GitlabTokenResponse\"\x00B?Z=github.com/team-loco/loco/shared/proto/registry/v1;registryv1b\x06proto3"
 
 var (
 	file_registry_v1_registry_proto_rawDescOnce sync.Once
@@ -141,8 +141,8 @@ var file_registry_v1_registry_proto_goTypes = []any{
 	(*GitlabTokenResponse)(nil), // 1: loco.registry.v1.GitlabTokenResponse
 }
 var file_registry_v1_registry_proto_depIdxs = []int32{
-	0, // 0: loco.registry.v1.RegistryService.GitlabToken:input_type -> loco.registry.v1.GitlabTokenRequest
-	1, // 1: loco.registry.v1.RegistryService.GitlabToken:output_type -> loco.registry.v1.GitlabTokenResponse
+	0, // 0: loco.registry.v1.RegistryService.GetGitlabToken:input_type -> loco.registry.v1.GitlabTokenRequest
+	1, // 1: loco.registry.v1.RegistryService.GetGitlabToken:output_type -> loco.registry.v1.GitlabTokenResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

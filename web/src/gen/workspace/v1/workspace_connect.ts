@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddMemberRequest, AddMemberResponse, CreateWorkspaceRequest, CreateWorkspaceResponse, DeleteWorkspaceRequest, DeleteWorkspaceResponse, GetUserWorkspacesRequest, GetUserWorkspacesResponse, GetWorkspaceRequest, GetWorkspaceResponse, ListMembersRequest, ListMembersResponse, ListWorkspacesRequest, ListWorkspacesResponse, RemoveMemberRequest, RemoveMemberResponse, UpdateWorkspaceRequest, UpdateWorkspaceResponse } from "./workspace_pb";
-import { MethodKind } from "@bufbuild/protobuf";
+import { CreateMemberRequest, CreateWorkspaceRequest, DeleteMemberRequest, DeleteWorkspaceRequest, GetWorkspaceRequest, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserWorkspacesRequest, ListUserWorkspacesResponse, ListWorkspaceMembersRequest, ListWorkspaceMembersResponse, UpdateWorkspaceRequest, Workspace, WorkspaceMember } from "./workspace_pb";
+import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * WorkspaceService manages workspaces and their members.
@@ -22,7 +22,7 @@ export const WorkspaceService = {
     createWorkspace: {
       name: "CreateWorkspace",
       I: CreateWorkspaceRequest,
-      O: CreateWorkspaceResponse,
+      O: Workspace,
       kind: MethodKind.Unary,
     },
     /**
@@ -33,29 +33,7 @@ export const WorkspaceService = {
     getWorkspace: {
       name: "GetWorkspace",
       I: GetWorkspaceRequest,
-      O: GetWorkspaceResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * GetUserWorkspaces retrieves all workspaces for the current user.
-     *
-     * @generated from rpc loco.workspace.v1.WorkspaceService.GetUserWorkspaces
-     */
-    getUserWorkspaces: {
-      name: "GetUserWorkspaces",
-      I: GetUserWorkspacesRequest,
-      O: GetUserWorkspacesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * ListWorkspaces lists all workspaces in an organization.
-     *
-     * @generated from rpc loco.workspace.v1.WorkspaceService.ListWorkspaces
-     */
-    listWorkspaces: {
-      name: "ListWorkspaces",
-      I: ListWorkspacesRequest,
-      O: ListWorkspacesResponse,
+      O: Workspace,
       kind: MethodKind.Unary,
     },
     /**
@@ -66,7 +44,7 @@ export const WorkspaceService = {
     updateWorkspace: {
       name: "UpdateWorkspace",
       I: UpdateWorkspaceRequest,
-      O: UpdateWorkspaceResponse,
+      O: Workspace,
       kind: MethodKind.Unary,
     },
     /**
@@ -77,40 +55,62 @@ export const WorkspaceService = {
     deleteWorkspace: {
       name: "DeleteWorkspace",
       I: DeleteWorkspaceRequest,
-      O: DeleteWorkspaceResponse,
+      O: Empty,
       kind: MethodKind.Unary,
     },
     /**
-     * AddMember adds a user to a workspace with a specified role.
+     * ListUserWorkspaces lists all workspaces for a user.
      *
-     * @generated from rpc loco.workspace.v1.WorkspaceService.AddMember
+     * @generated from rpc loco.workspace.v1.WorkspaceService.ListUserWorkspaces
      */
-    addMember: {
-      name: "AddMember",
-      I: AddMemberRequest,
-      O: AddMemberResponse,
+    listUserWorkspaces: {
+      name: "ListUserWorkspaces",
+      I: ListUserWorkspacesRequest,
+      O: ListUserWorkspacesResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * RemoveMember removes a user from a workspace.
+     * ListOrgWorkspaces lists all workspaces in an organization.
      *
-     * @generated from rpc loco.workspace.v1.WorkspaceService.RemoveMember
+     * @generated from rpc loco.workspace.v1.WorkspaceService.ListOrgWorkspaces
      */
-    removeMember: {
-      name: "RemoveMember",
-      I: RemoveMemberRequest,
-      O: RemoveMemberResponse,
+    listOrgWorkspaces: {
+      name: "ListOrgWorkspaces",
+      I: ListOrgWorkspacesRequest,
+      O: ListOrgWorkspacesResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * ListMembers lists all members of a workspace with pagination.
+     * CreateMember adds a user to a workspace with a specified role.
      *
-     * @generated from rpc loco.workspace.v1.WorkspaceService.ListMembers
+     * @generated from rpc loco.workspace.v1.WorkspaceService.CreateMember
      */
-    listMembers: {
-      name: "ListMembers",
-      I: ListMembersRequest,
-      O: ListMembersResponse,
+    createMember: {
+      name: "CreateMember",
+      I: CreateMemberRequest,
+      O: WorkspaceMember,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * DeleteMember removes a user from a workspace.
+     *
+     * @generated from rpc loco.workspace.v1.WorkspaceService.DeleteMember
+     */
+    deleteMember: {
+      name: "DeleteMember",
+      I: DeleteMemberRequest,
+      O: Empty,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListWorkspaceMembers lists all members of a workspace with pagination.
+     *
+     * @generated from rpc loco.workspace.v1.WorkspaceService.ListWorkspaceMembers
+     */
+    listWorkspaceMembers: {
+      name: "ListWorkspaceMembers",
+      I: ListWorkspaceMembersRequest,
+      O: ListWorkspaceMembersResponse,
       kind: MethodKind.Unary,
     },
   }

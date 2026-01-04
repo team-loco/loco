@@ -8,7 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { deleteUser, getCurrentUser } from "@/gen/user/v1";
+import { deleteUser, whoAmI } from "@/gen/user/v1";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
@@ -19,8 +19,7 @@ import Loader from "@/assets/loader.svg?react";
 export function Profile() {
 	const { logout } = useAuth();
 	const navigate = useNavigate();
-	const { data: currentUserRes, isLoading } = useQuery(getCurrentUser, {});
-	const user = currentUserRes?.user;
+	const { data: user, isLoading } = useQuery(whoAmI, {});
 
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const deleteUserMutation = useMutation(deleteUser);

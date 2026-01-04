@@ -2,14 +2,17 @@ syntax = "proto3";
 
 package loco.domain.v1;
 
+import "google/protobuf/empty.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/domain/v1;domainv1";
 
 // DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {
-  PLATFORM_PROVIDED = 0;
-  USER_PROVIDED     = 1;
+  DOMAIN_TYPE_UNSPECIFIED = 0;
+  PLATFORM_PROVIDED = 1;
+  USER_PROVIDED     = 2;
 }
 
 // --- Messages ---
@@ -50,34 +53,32 @@ message ResourceDomain {
 service DomainService {
   // Platform Domain CRUD
   // CreatePlatformDomain creates a new platform-provided domain.
-  rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (CreatePlatformDomainResponse);
-  // GetPlatformDomain retrieves a platform domain by ID.
-  rpc GetPlatformDomain(GetPlatformDomainRequest) returns (GetPlatformDomainResponse);
-  // GetPlatformDomainByName retrieves a platform domain by name.
-  rpc GetPlatformDomainByName(GetPlatformDomainByNameRequest) returns (GetPlatformDomainByNameResponse);
-  // ListActivePlatformDomains lists all active platform domains.
-  rpc ListActivePlatformDomains(ListActivePlatformDomainsRequest) returns (ListActivePlatformDomainsResponse);
-  // DeactivatePlatformDomain deactivates a platform domain.
-  rpc DeactivatePlatformDomain(DeactivatePlatformDomainRequest) returns (DeactivatePlatformDomainResponse);
+  rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (PlatformDomain);
+  // GetPlatformDomain retrieves a platform domain by ID or name.
+  rpc GetPlatformDomain(GetPlatformDomainRequest) returns (PlatformDomain);
+  // ListPlatformDomains lists platform domains with optional filters.
+  rpc ListPlatformDomains(ListPlatformDomainsRequest) returns (ListPlatformDomainsResponse);
+  // UpdatePlatformDomain updates a platform domain.
+  rpc UpdatePlatformDomain(UpdatePlatformDomainRequest) returns (PlatformDomain);
+  // DeletePlatformDomain deletes a platform domain.
+  rpc DeletePlatformDomain(DeletePlatformDomainRequest) returns (google.protobuf.Empty);
 
   // Resource Domain Management
-  // AddResourceDomain assigns a domain to a resource.
-  rpc AddResourceDomain(AddResourceDomainRequest) returns (AddResourceDomainResponse);
+  // CreateResourceDomain assigns a domain to a resource.
+  rpc CreateResourceDomain(CreateResourceDomainRequest) returns (ResourceDomain);
   // UpdateResourceDomain updates a resource's domain configuration.
-  rpc UpdateResourceDomain(UpdateResourceDomainRequest) returns (UpdateResourceDomainResponse);
+  rpc UpdateResourceDomain(UpdateResourceDomainRequest) returns (ResourceDomain);
   // SetPrimaryResourceDomain sets the primary domain for a resource.
-  rpc SetPrimaryResourceDomain(SetPrimaryResourceDomainRequest) returns (SetPrimaryResourceDomainResponse);
-  // RemoveResourceDomain removes a domain from a resource.
-  rpc RemoveResourceDomain(RemoveResourceDomainRequest) returns (RemoveResourceDomainResponse);
-
-  // Domain Availability
-  // CheckDomainAvailability checks if a domain is available.
-  rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
+  rpc SetPrimaryResourceDomain(SetPrimaryResourceDomainRequest) returns (ResourceDomain);
+  // DeleteResourceDomain removes a domain from a resource.
+  rpc DeleteResourceDomain(DeleteResourceDomainRequest) returns (google.protobuf.Empty);
 
   // Queries
-  // ListAllLocoOwnedDomains lists all domains owned by Loco with resources.
-  rpc ListAllLocoOwnedDomains(ListAllLocoOwnedDomainsRequest) returns (ListAllLocoOwnedDomainsResponse);
-}
+  // ListLocoOwnedDomains lists all domains owned by Loco with resources.
+  rpc ListLocoOwnedDomains(ListLocoOwnedDomainsRequest) returns (ListLocoOwnedDomainsResponse);
+  // CheckDomainAvailability checks if a domain is available.
+  rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
+  }
 
 // --- Platform Domain Requests/Responses ---
 
@@ -87,61 +88,36 @@ message CreatePlatformDomainRequest {
   bool   is_active = 2;
 }
 
-// CreatePlatformDomainResponse is the response from creating a platform domain.
-message CreatePlatformDomainResponse {
-  int64  domain_id = 1;
-  string message   = 2;
-}
-
 // GetPlatformDomainRequest is the request to retrieve a platform domain.
 message GetPlatformDomainRequest {
-  int64 id = 1;
+  optional int64  id     = 1;
+  optional string domain = 2;
 }
 
-// GetPlatformDomainResponse is the response containing platform domain information.
-message GetPlatformDomainResponse {
-  PlatformDomain platform_domain = 1;
+// ListPlatformDomainsRequest is the request to list platform domains.
+message ListPlatformDomainsRequest {
+  optional bool active_only = 1;
+  int32         limit       = 2;
+  int32         offset      = 3;
 }
 
-// GetPlatformDomainByNameRequest is the request to retrieve a platform domain by name.
-message GetPlatformDomainByNameRequest {
-  string domain = 1;
-}
-
-// GetPlatformDomainByNameResponse is the response containing the platform domain.
-message GetPlatformDomainByNameResponse {
-  PlatformDomain platform_domain = 1;
-}
-
-// ListActivePlatformDomainsRequest is the request to list active platform domains.
-message ListActivePlatformDomainsRequest {}
-
-// ListActivePlatformDomainsResponse contains the list of active platform domains.
-message ListActivePlatformDomainsResponse {
+// ListPlatformDomainsResponse contains the list of platform domains.
+message ListPlatformDomainsResponse {
   repeated PlatformDomain platform_domains = 1;
+  int64                   total_count      = 2;
 }
 
-// DeactivatePlatformDomainRequest is the request to deactivate a platform domain.
-message DeactivatePlatformDomainRequest {
+// UpdatePlatformDomainRequest is the request to update a platform domain.
+message UpdatePlatformDomainRequest {
+  int64                     id          = 1;
+  google.protobuf.FieldMask update_mask = 2;
+  optional string           domain      = 3;
+  optional bool             is_active   = 4;
+}
+
+// DeletePlatformDomainRequest is the request to delete a platform domain.
+message DeletePlatformDomainRequest {
   int64 id = 1;
-}
-
-// DeactivatePlatformDomainResponse is the response from deactivating a platform domain.
-message DeactivatePlatformDomainResponse {
-  int64  domain_id = 1;
-  string message   = 2;
-}
-
-// --- Domain Availability ---
-
-// CheckDomainAvailabilityRequest is the request to check domain availability.
-message CheckDomainAvailabilityRequest {
-  string domain = 1;
-}
-
-// CheckDomainAvailabilityResponse indicates if a domain is available.
-message CheckDomainAvailabilityResponse {
-  bool is_available = 1;
 }
 
 // --- List Loco Owned Domains ---
@@ -155,38 +131,27 @@ message LocoOwnedDomain {
   string platform_domain = 5;
 }
 
-// ListAllLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
-message ListAllLocoOwnedDomainsRequest {}
+// ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
+message ListLocoOwnedDomainsRequest {}
 
-// ListAllLocoOwnedDomainsResponse contains the list of Loco-owned domains.
-message ListAllLocoOwnedDomainsResponse {
+// ListLocoOwnedDomainsResponse contains the list of Loco-owned domains.
+message ListLocoOwnedDomainsResponse {
   repeated LocoOwnedDomain domains = 1;
 }
 
 // --- Resource Domain Management ---
 
-// AddResourceDomainRequest is the request to add a domain to a resource.
-message AddResourceDomainRequest {
+// CreateResourceDomainRequest is the request to add a domain to a resource.
+message CreateResourceDomainRequest {
   int64       resource_id = 1;
   DomainInput domain      = 2;
 }
 
-// AddResourceDomainResponse is the response from adding a domain to a resource.
-message AddResourceDomainResponse {
-  int64  domain_id = 1;
-  string message   = 2;
-}
-
 // UpdateResourceDomainRequest is the request to update a resource's domain.
 message UpdateResourceDomainRequest {
-  int64  domain_id = 1;
-  string domain    = 2;
-}
-
-// UpdateResourceDomainResponse is the response from updating a resource's domain.
-message UpdateResourceDomainResponse {
-  int64  domain_id = 1;
-  string message   = 2;
+  int64                     domain_id   = 1;
+  google.protobuf.FieldMask update_mask = 2;
+  optional string           domain      = 3;
 }
 
 // SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
@@ -195,18 +160,19 @@ message SetPrimaryResourceDomainRequest {
   int64 domain_id   = 2;
 }
 
-// SetPrimaryResourceDomainResponse is the response from setting the primary domain.
-message SetPrimaryResourceDomainResponse {
-  int64  domain_id = 1;
-  string message   = 2;
+// DeleteResourceDomainRequest is the request to remove a domain from a resource.
+message DeleteResourceDomainRequest {
+   int64 domain_id = 1;
 }
 
-// RemoveResourceDomainRequest is the request to remove a domain from a resource.
-message RemoveResourceDomainRequest {
-  int64 domain_id = 1;
+// --- Domain Availability ---
+
+// CheckDomainAvailabilityRequest is the request to check if a domain is available.
+message CheckDomainAvailabilityRequest {
+   string domain = 1;
 }
 
-// RemoveResourceDomainResponse is the response from removing a domain.
-message RemoveResourceDomainResponse {
-  string message = 1;
+// CheckDomainAvailabilityResponse contains the availability check result.
+message CheckDomainAvailabilityResponse {
+   bool is_available = 1;
 }

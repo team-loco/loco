@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { getCurrentUserOrgs } from "@/gen/org/v1";
+import { listUserOrgs } from "@/gen/org/v1";
 import {
 	Select,
 	SelectContent,
@@ -14,11 +14,11 @@ interface OrgFilterProps {
 }
 
 export function OrgFilter({ selectedOrgId, onOrgChange }: OrgFilterProps) {
-	const { data: getCurrentUserOrgsRes, isLoading } = useQuery(
-		getCurrentUserOrgs,
-		{}
+	const { data: listUserOrgsRes, isLoading } = useQuery(
+		listUserOrgs,
+		{ userId: 0n }
 	);
-	const orgs = getCurrentUserOrgsRes?.orgs ?? [];
+	const orgs = listUserOrgsRes?.orgs ?? [];
 
 	if (isLoading || orgs.length === 0) {
 		return null;

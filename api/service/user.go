@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
 	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -43,10 +44,10 @@ func NewUserServer(db *pgxpool.Pool, queries genDb.Querier, tvm *tvm.VendingMach
 func (s *UserServer) CreateUser(
 	ctx context.Context,
 	req *connect.Request[userv1.CreateUserRequest],
-) (*connect.Response[userv1.CreateUserResponse], error) {
+) (*connect.Response[userv1.User], error) {
 	r := req.Msg
 
-	if r.ExternalId == "" || r.Email == "" {
+	if r.GetExternalId() == "" || r.GetEmail() == "" {
 		slog.ErrorContext(ctx, "invalid request: missing required fields")
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
@@ -58,41 +59,34 @@ func (s *UserServer) CreateUser(
 	}
 	defer tx.Rollback(ctx)
 
-	existingUserByEmail, err := s.queries.GetUserByEmail(ctx, r.Email)
+	existingUserByEmail, err := s.queries.GetUserByEmail(ctx, r.GetEmail())
 	if err == nil {
-		if existingUserByEmail.ExternalID == r.ExternalId {
+		if existingUserByEmail.ExternalID == r.GetExternalId() {
 			if err := tx.Commit(ctx); err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 			}
-			return connect.NewResponse(&userv1.CreateUserResponse{
-				User: dbUserToProto(existingUserByEmail),
-			}), nil
+			return connect.NewResponse(dbUserToProto(existingUserByEmail)), nil
 		}
 
-		slog.WarnContext(ctx, "email already registered with different provider", "email", r.Email)
+		slog.WarnContext(ctx, "email already registered with different provider", "email", r.GetEmail())
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrEmailAlreadyRegistered)
 	}
 
-	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.ExternalId)
+	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.GetExternalId())
 	if err == nil {
 		if err := tx.Commit(ctx); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 		}
-		return connect.NewResponse(&userv1.CreateUserResponse{
-			User: dbUserToProto(existingUserByExtID),
-		}), nil
+		return connect.NewResponse(dbUserToProto(existingUserByExtID)), nil
 	}
 
 	// Create new user
-	// TODO: Check GitHub collaborator status - for now default to false
-	// This will be implemented when we add GitHub API client
-
 	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
 	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
 
 	user, err := s.queries.CreateUser(ctx, genDb.CreateUserParams{
-		ExternalID: r.ExternalId,
-		Email:      r.Email,
+		ExternalID: r.GetExternalId(),
+		Email:      r.GetEmail(),
 		Name:       name,
 		AvatarUrl:  avatarURL,
 	})
@@ -106,16 +100,14 @@ func (s *UserServer) CreateUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&userv1.CreateUserResponse{
-		User: dbUserToProto(user),
-	}), nil
+	return connect.NewResponse(dbUserToProto(user)), nil
 }
 
 // GetUser retrieves a user by ID or email
 func (s *UserServer) GetUser(
 	ctx context.Context,
 	req *connect.Request[userv1.GetUserRequest],
-) (*connect.Response[userv1.GetUserResponse], error) {
+) (*connect.Response[userv1.User], error) {
 	r := req.Msg
 
 	if r.GetUserId() == 0 && r.GetEmail() == "" {
@@ -123,29 +115,42 @@ func (s *UserServer) GetUser(
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
 	}
 
-	var user *userv1.User
-	var err error
-
+	var targetUserID int64
 	if r.GetUserId() != 0 {
-		user, err = s.getUserByID(ctx, r.GetUserId())
+		targetUserID = r.GetUserId()
 	} else {
-		user, err = s.getUserByEmail(ctx, r.GetEmail())
+		dbUser, err := s.queries.GetUserByEmail(ctx, r.GetEmail())
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to query user by email", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		}
+		targetUserID = dbUser.ID
 	}
 
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetUser, targetUserID)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get user", "userId", targetUserID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
+	user, err := s.getUserByID(ctx, targetUserID)
 	if err != nil {
 		return nil, err
 	}
 
-	return connect.NewResponse(&userv1.GetUserResponse{
-		User: user,
-	}), nil
+	return connect.NewResponse(user), nil
 }
 
-// GetCurrentUser retrieves the current user from loco token
-func (s *UserServer) GetCurrentUser(
+// WhoAmI retrieves the current authenticated user
+func (s *UserServer) WhoAmI(
 	ctx context.Context,
-	req *connect.Request[userv1.GetCurrentUserRequest],
-) (*connect.Response[userv1.GetCurrentUserResponse], error) {
+	req *connect.Request[emptypb.Empty],
+) (*connect.Response[userv1.User], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
@@ -169,33 +174,38 @@ func (s *UserServer) GetCurrentUser(
 		return nil, err
 	}
 	slog.InfoContext(ctx, "returning user")
-	resp := connect.NewResponse(&userv1.GetCurrentUserResponse{User: user})
 
-	return resp, nil
+	return connect.NewResponse(user), nil
 }
 
-// UpdateUser updates user avatar URL
+// UpdateUser updates user information
 func (s *UserServer) UpdateUser(
 	ctx context.Context,
 	req *connect.Request[userv1.UpdateUserRequest],
-) (*connect.Response[userv1.UpdateUserResponse], error) {
+) (*connect.Response[userv1.User], error) {
 	r := req.Msg
 
-	currentUserID, ok := ctx.Value("userId").(int64)
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if r.UserId != currentUserID {
-		slog.WarnContext(ctx, "user attempted to update another user", "target_user", r.UserId, "currentUser", currentUserID)
-		return nil, connect.NewError(connect.CodePermissionDenied, ErrUnauthorized)
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.UpdateUser, r.GetUserId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update user", "targetUserId", r.GetUserId(), "currentUserId", entity.ID)
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
 
 	user, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
-		ID:        r.UserId,
+		ID:        r.GetUserId(),
 		AvatarUrl: avatarURL,
 	})
 	if err != nil {
@@ -203,9 +213,7 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&userv1.UpdateUserResponse{
-		User: dbUserToProto(user),
-	}), nil
+	return connect.NewResponse(dbUserToProto(user)), nil
 }
 
 // ListUsers lists all users with pagination
@@ -215,7 +223,18 @@ func (s *UserServer) ListUsers(
 ) (*connect.Response[userv1.ListUsersResponse], error) {
 	r := req.Msg
 
-	limit := r.Limit
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListUsers, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list users")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
+	limit := r.GetLimit()
 	if limit < 1 {
 		limit = 50
 	}
@@ -223,7 +242,7 @@ func (s *UserServer) ListUsers(
 		limit = 100
 	}
 
-	offset := r.Offset
+	offset := r.GetOffset()
 	if offset < 0 {
 		offset = 0
 	}
@@ -258,57 +277,63 @@ func (s *UserServer) ListUsers(
 func (s *UserServer) DeleteUser(
 	ctx context.Context,
 	req *connect.Request[userv1.DeleteUserRequest],
-) (*connect.Response[userv1.DeleteUserResponse], error) {
+) (*connect.Response[emptypb.Empty], error) {
 	r := req.Msg
 
-	user, err := s.queries.GetUserByID(ctx, r.UserId)
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.DeleteUser, r.GetUserId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete user", "userId", r.GetUserId())
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
+	_, err := s.queries.GetUserByID(ctx, r.GetUserId())
 	if err != nil {
-		slog.WarnContext(ctx, "user not found", "user_id", r.UserId)
+		slog.WarnContext(ctx, "user not found", "user_id", r.GetUserId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
 	}
 
-	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, r.UserId)
+	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasWorkspaces {
-		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", r.UserId)
+		slog.WarnContext(ctx, "cannot delete user with active workspace memberships", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
 	}
 
-	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, r.UserId)
+	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	if hasOrganizations {
-		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", r.UserId)
+		slog.WarnContext(ctx, "cannot delete user with owned organizations", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
 	}
 
-	err = s.queries.DeleteUser(ctx, r.UserId)
+	err = s.queries.DeleteUser(ctx, r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&userv1.DeleteUserResponse{
-		User:    dbUserToProto(user),
-		Message: "User deleted successfully",
-	}), nil
+	return connect.NewResponse(&emptypb.Empty{}), nil
 }
 
 // Logout logs out the user by clearing the session cookie
 func (s *UserServer) Logout(
 	ctx context.Context,
-	req *connect.Request[userv1.LogoutRequest],
-) (*connect.Response[userv1.LogoutResponse], error) {
-	res := connect.NewResponse(&userv1.LogoutResponse{
-		Message: "logged out successfully",
-	})
+	req *connect.Request[emptypb.Empty],
+) (*connect.Response[emptypb.Empty], error) {
+	res := connect.NewResponse(&emptypb.Empty{})
 
 	res.Header().Set("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
 
@@ -328,15 +353,7 @@ func (s *UserServer) getUserByID(ctx context.Context, id int64) (*userv1.User, e
 	return dbUserToProto(user), nil
 }
 
-func (s *UserServer) getUserByEmail(ctx context.Context, email string) (*userv1.User, error) {
-	user, err := s.queries.GetUserByEmail(ctx, email)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to query user by email", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
 
-	return dbUserToProto(user), nil
-}
 
 func dbUserToProto(user genDb.User) *userv1.User {
 	return &userv1.User{

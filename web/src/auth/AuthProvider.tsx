@@ -1,10 +1,10 @@
 import { createContext, useContext, type ReactNode, useState } from "react";
 import { useQuery } from "@connectrpc/connect-query";
-import { getCurrentUser, logout as logoutMethod } from "@/gen/user/v1";
-import type { GetCurrentUserResponse } from "@/gen/user/v1/user_pb";
+import { whoAmI, logout as logoutMethod } from "@/gen/user/v1";
+import type { User } from "@/gen/user/v1/user_pb";
 
 interface AuthContextType {
-	user: GetCurrentUserResponse | null;
+	user: User | null;
 	isAuthenticated: boolean;
 	isLoading: boolean;
 	error: Error | null;
@@ -14,7 +14,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const { data: user, isLoading, error } = useQuery(getCurrentUser, {});
+	const { data: user, isLoading, error } = useQuery(whoAmI, {});
 	const [isLoggedOut, setIsLoggedOut] = useState(false);
 
 	const { refetch: performLogout } = useQuery(
@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		<AuthContext.Provider
 			value={{
 				user: user ?? null,
-				isAuthenticated: !isLoggedOut && !!user?.user,
+				isAuthenticated: !isLoggedOut && !!user,
 				isLoading,
 				error: error instanceof Error ? error : null,
 				logout,

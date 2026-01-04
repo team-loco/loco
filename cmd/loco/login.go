@@ -22,10 +22,10 @@ import (
 	"github.com/team-loco/loco/shared/proto/oauth/v1/oauthv1connect"
 	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
 	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
-	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
 	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/shared/proto/workspace/v1"
 	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type DeviceCodeRequest struct {
@@ -202,27 +202,31 @@ var loginCmd = &cobra.Command{
 		var selectedOrg *orgv1.Organization
 		var selectedWorkspace *workspacev1.Workspace
 
-		orgRequest := connect.NewRequest(&orgv1.GetCurrentUserOrgsRequest{})
+		userClient := userv1connect.NewUserServiceClient(httpClient, host)
+
+		currentUserReq := connect.NewRequest(&emptypb.Empty{})
+		currentUserReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+
+		currentUserResp, err := userClient.WhoAmI(context.Background(), currentUserReq)
+		if err != nil {
+			slog.Debug("failed to get current user", "error", err)
+			return fmt.Errorf("failed to get current user: %w", err)
+		}
+
+		orgRequest := connect.NewRequest(&orgv1.ListUserOrgsRequest{
+			UserId: currentUserResp.Msg.Id,
+			Limit:  100,
+			Offset: 0,
+		})
 		orgRequest.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-		orgResp, err := orgClient.GetCurrentUserOrgs(context.Background(), orgRequest)
+		orgResp, err := orgClient.ListUserOrgs(context.Background(), orgRequest)
 		if err != nil {
 			slog.Debug("failed to get user orgs details", "error", err)
 			return err
 		}
 
-		userClient := userv1connect.NewUserServiceClient(httpClient, host)
-
-		currentUserReq := connect.NewRequest(&userv1.GetCurrentUserRequest{})
-		currentUserReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
-
-		currentUserResp, err := userClient.GetCurrentUser(context.Background(), currentUserReq)
-		if err != nil {
-			slog.Debug("failed to create current user", "error", err)
-			return fmt.Errorf("failed to get current user: %w", err)
-		}
-
-		email := currentUserResp.Msg.GetUser().GetEmail()
+		email := currentUserResp.Msg.GetEmail()
 		cleanEmailFunc := func(email string) string {
 			s := strings.ToLower(email)
 			s = strings.ReplaceAll(s, "@", "-")
@@ -246,7 +250,7 @@ var loginCmd = &cobra.Command{
 				return fmt.Errorf("failed to create organization: %w", err)
 			}
 
-			createdOrg := createOrgResp.Msg.GetOrg()
+			createdOrg := createOrgResp.Msg
 			if createdOrg == nil {
 				return fmt.Errorf("organization creation returned empty response")
 			}
@@ -268,7 +272,7 @@ var loginCmd = &cobra.Command{
 			cfg := config.NewSessionConfig()
 			if err := cfg.SetDefaultScope(
 				config.SimpleOrg{ID: createdOrg.Id, Name: createdOrg.Name},
-				config.SimpleWorkspace{ID: createWSResp.Msg.WorkspaceId, Name: createWSReq.Msg.Name},
+				config.SimpleWorkspace{ID: createWSResp.Msg.Id, Name: createWSReq.Msg.Name},
 			); err != nil {
 				slog.Error(err.Error())
 				return err
@@ -292,18 +296,20 @@ var loginCmd = &cobra.Command{
 		if len(orgs) == 1 {
 			selectedOrg = orgs[0]
 
-			wsReq := connect.NewRequest(&workspacev1.ListWorkspacesRequest{
-				OrgId: selectedOrg.Id,
+			wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
+				OrgId:  selectedOrg.Id,
+				Limit:  100,
+				Offset: 0,
 			})
 			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-			wsResp, err := wsClient.ListWorkspaces(context.Background(), wsReq)
+			wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
 			if err != nil {
 				slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
 				return fmt.Errorf("failed to list workspaces: %w", err)
 			}
 
-			workspaces := wsResp.Msg.GetWorkspaces()
+			workspaces := wsResp.Msg.Workspaces
 			if len(workspaces) == 0 {
 				return fmt.Errorf("organization has no workspaces")
 			}
@@ -312,18 +318,20 @@ var loginCmd = &cobra.Command{
 		} else {
 			selectedOrg = orgs[0]
 
-			wsReq := connect.NewRequest(&workspacev1.ListWorkspacesRequest{
-				OrgId: selectedOrg.Id,
+			wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
+				OrgId:  selectedOrg.Id,
+				Limit:  100,
+				Offset: 0,
 			})
 			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-			wsResp, err := wsClient.ListWorkspaces(context.Background(), wsReq)
+			wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
 			if err != nil {
 				slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
 				return fmt.Errorf("failed to list workspaces: %w", err)
 			}
 
-			workspaces := wsResp.Msg.GetWorkspaces()
+			workspaces := wsResp.Msg.Workspaces
 			if len(workspaces) == 0 {
 				return fmt.Errorf("organization has no workspaces")
 			}

@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getCurrentUser } from "@/gen/user/v1";
+import { whoAmI } from "@/gen/user/v1";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useRef } from "react";
@@ -9,10 +9,8 @@ import { useNavigate } from "react-router";
 export function Onboarding() {
 	const navigate = useNavigate();
 	const hasStarted = useRef(false);
-	const { data: currentUserRes } = useQuery(getCurrentUser, {});
+	const { data: user } = useQuery(whoAmI, {});
 	const { autoCreate, step, error } = useAutoCreateOrgWorkspace();
-
-	const user = currentUserRes?.user;
 
 	useEffect(() => {
 		if (!user || hasStarted.current) {

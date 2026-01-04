@@ -1,6 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { createOrg, getCurrentUserOrgs } from "@/gen/org/v1";
-import { createWorkspace, listWorkspaces } from "@/gen/workspace/v1";
+import { createOrg, listUserOrgs } from "@/gen/org/v1";
+import { createWorkspace, listOrgWorkspaces } from "@/gen/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useCallback, useState } from "react";
 
@@ -15,13 +15,13 @@ export function useAutoCreateOrgWorkspace() {
 	const createOrgMutation = useMutation(createOrg);
 	const createWorkspaceMutation = useMutation(createWorkspace);
 	const { refetch: refetchOrgs } = useQuery(
-		getCurrentUserOrgs,
-		{},
+		listUserOrgs,
+		{ userId: 0n },
 		{ enabled: false }
 	);
 	const [wsQueryOrgId, setWsQueryOrgId] = useState<bigint>(0n);
 	const { refetch: refetchWorkspaces } = useQuery(
-		listWorkspaces,
+		listOrgWorkspaces,
 		{ orgId: wsQueryOrgId },
 		{ enabled: false }
 	);
@@ -36,15 +36,15 @@ export function useAutoCreateOrgWorkspace() {
 
 				// Try to create organization with user's email as name
 				try {
-					const orgRes = await createOrgMutation.mutateAsync({
+					const org = await createOrgMutation.mutateAsync({
 						name: userEmail,
 					});
 
-					if (!orgRes.org?.id) {
+					if (!org?.id) {
 						throw new Error("Failed to create organization");
 					}
 
-					createdOrgId = orgRes.org.id;
+					createdOrgId = org.id;
 				} catch (createErr) {
 					// If org already exists, fetch it instead
 					if (
@@ -71,16 +71,16 @@ export function useAutoCreateOrgWorkspace() {
 				let createdWorkspaceId: bigint;
 
 				try {
-					const wsRes = await createWorkspaceMutation.mutateAsync({
+					const workspace = await createWorkspaceMutation.mutateAsync({
 						orgId: createdOrgId,
 						name: "default",
 					});
 
-					if (!wsRes.workspaceId) {
+					if (!workspace?.id) {
 						throw new Error("Failed to create workspace");
 					}
 
-					createdWorkspaceId = wsRes.workspaceId;
+					createdWorkspaceId = workspace.id;
 				} catch (wsErr) {
 					// If workspace already exists, fetch it instead
 					if (

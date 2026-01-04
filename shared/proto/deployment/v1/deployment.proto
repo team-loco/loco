@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.deployment.v1;
 
+import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -27,15 +28,15 @@ enum DeploymentPhase {
 // DeploymentService manages resource deployments.
 service DeploymentService {
   // CreateDeployment creates a new deployment for a resource.
-  rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
+  rpc CreateDeployment(CreateDeploymentRequest) returns (Deployment);
   // GetDeployment retrieves a deployment by ID.
-  rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
+  rpc GetDeployment(GetDeploymentRequest) returns (Deployment);
   // ListDeployments lists deployments for a resource.
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
-  // StreamDeployment streams deployment events in real-time.
-  rpc StreamDeployment(StreamDeploymentRequest) returns (stream DeploymentEvent);
+  // WatchDeployment streams deployment events in real-time.
+  rpc WatchDeployment(WatchDeploymentRequest) returns (stream DeploymentEvent);
   // DeleteDeployment deletes/inactivates a deployment.
-  rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
+  rpc DeleteDeployment(DeleteDeploymentRequest) returns (google.protobuf.Empty);
 }
 
 // Port defines a network port configuration.
@@ -138,20 +139,9 @@ message CreateDeploymentRequest {
   DeploymentSpec spec        = 4;
 }
 
-// CreateDeploymentResponse is the response from creating a deployment.
-message CreateDeploymentResponse {
-  int64  deployment_id = 1;
-  string message       = 2;
-}
-
 // GetDeploymentRequest is the request to retrieve a deployment.
 message GetDeploymentRequest {
   int64 deployment_id = 1;
-}
-
-// GetDeploymentResponse is the response containing deployment information.
-message GetDeploymentResponse {
-  Deployment deployment = 1;
 }
 
 // ListDeploymentsRequest is the request to list deployments.
@@ -167,8 +157,8 @@ message ListDeploymentsResponse {
   int64               total       = 2;
 }
 
-// StreamDeploymentRequest is the request to stream deployment events.
-message StreamDeploymentRequest {
+// WatchDeploymentRequest is the request to stream deployment events.
+message WatchDeploymentRequest {
   int64 deployment_id = 1;
 }
 
@@ -183,10 +173,4 @@ message DeploymentEvent {
 // DeleteDeploymentRequest is the request to delete/inactivate a deployment.
 message DeleteDeploymentRequest {
   int64 deployment_id = 1;
-}
-
-// DeleteDeploymentResponse is the response from deleting a deployment.
-message DeleteDeploymentResponse {
-  int64  deployment_id = 1;
-  string message       = 2;
 }

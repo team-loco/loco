@@ -119,21 +119,21 @@ func deployCmdFunc(cmd *cobra.Command) error {
 
 	var resourceID int64
 
-	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
-		WorkspaceId: workspaceID,
-		Name:        loadedCfg.Config.Metadata.Name,
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+		WorkspaceId: &workspaceID,
+		Name:        &loadedCfg.Config.Metadata.Name,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResource(ctx, getAppByNameReq)
 	if err != nil {
 		if connect.CodeOf(err) != connect.CodeNotFound {
 			logRequestID(ctx, err, "get app by name")
 			return fmt.Errorf("failed to get app '%s': %w", loadedCfg.Config.Metadata.Name, err)
 		}
 	} else {
-		resourceID = getAppByNameResp.Msg.Resource.Id
-		slog.Debug("found existing app", "app_id", resourceID, "name", getAppByNameResp.Msg.Resource.Name)
+		resourceID = getAppByNameResp.Msg.Id
+		slog.Debug("found existing app", "app_id", resourceID, "name", getAppByNameResp.Msg.Name)
 	}
 
 	if resourceID == 0 {
@@ -206,10 +206,15 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			slog.Info("using custom domain from config", "domain", loadedCfg.Config.DomainConfig.Hostname)
 		} else {
 			// Platform domain - need to resolve the base domain and use subdomain
-			listDomainsReq := connect.NewRequest(&domainv1.ListActivePlatformDomainsRequest{})
+			activeOnlyVal := true
+			listDomainsReq := connect.NewRequest(&domainv1.ListPlatformDomainsRequest{
+				ActiveOnly: &activeOnlyVal,
+				Limit:      100,
+				Offset:     0,
+			})
 			listDomainsReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-			listDomainsResp, domainsErr := domainClient.ListActivePlatformDomains(ctx, listDomainsReq)
+			listDomainsResp, domainsErr := domainClient.ListPlatformDomains(ctx, listDomainsReq)
 			if domainsErr != nil {
 				logRequestID(ctx, domainsErr, "list platform domains")
 				return fmt.Errorf("failed to fetch platform domains: %w", domainsErr)
@@ -283,8 +288,8 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to create resource: %w", createErr)
 		}
 
-		resourceID = createResourceResp.Msg.ResourceId
-		slog.Debug("created resource", "resource_id", resourceID)
+		resourceID = createResourceResp.Msg.Id
+		slog.Debug("created resource", "resourceId", resourceID)
 	}
 
 	imageBase := "registry.gitlab.com/locomotive-group/loco-ecr"
@@ -330,7 +335,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			tokenReq := connect.NewRequest(&registryv1.GitlabTokenRequest{})
 			tokenReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 			// todo: responsible for checking deploy permissions
-			tokenResp, tokenErr := registryClient.GitlabToken(ctx, tokenReq)
+			tokenResp, tokenErr := registryClient.GetGitlabToken(ctx, tokenReq)
 			if tokenErr != nil {
 				logRequestID(ctx, tokenErr, "gitlab token request")
 				return fmt.Errorf("failed to fetch registry credentials: %w", tokenErr)
@@ -351,7 +356,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 
 	// Fetch resource to verify it exists
 	getResourceReq := connect.NewRequest(&resourcev1.GetResourceRequest{
-		ResourceId: resourceID,
+		ResourceId: &resourceID,
 	})
 	getResourceReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
@@ -475,7 +480,7 @@ func deployApp(ctx context.Context,
 		return err
 	}
 
-	deploymentID := deploymentResp.Msg.DeploymentId
+	deploymentID := deploymentResp.Msg.GetId()
 	logf(fmt.Sprintf("Created deployment with version: %d", deploymentID))
 
 	if wait {

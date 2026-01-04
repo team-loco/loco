@@ -1,5 +1,5 @@
 import { exchangeGithubCode } from "@/gen/oauth/v1";
-import { getCurrentUserOrgs } from "@/gen/org/v1";
+import { listUserOrgs } from "@/gen/org/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo } from "react";
@@ -34,8 +34,8 @@ export function OAuthCallback() {
 
 	// After exchange, check if user has orgs
 	const { data: orgsRes, isLoading: orgsLoading, error: orgsError } = useQuery(
-		getCurrentUserOrgs,
-		{},
+		listUserOrgs,
+		{ userId: 0n },
 		{ enabled: !isLoading && !!exchangeRes }
 	);
 

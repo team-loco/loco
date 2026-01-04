@@ -5,8 +5,8 @@
 import { RegistryService } from "./registry_pb";
 
 /**
- * GitlabToken retrieves GitLab registry credentials.
+ * GetGitlabToken retrieves GitLab registry credentials.
  *
- * @generated from rpc loco.registry.v1.RegistryService.GitlabToken
+ * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
  */
-export const gitlabToken = RegistryService.method.gitlabToken;
+export const getGitlabToken = RegistryService.method.getGitlabToken;

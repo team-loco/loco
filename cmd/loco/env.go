@@ -104,26 +104,26 @@ func envCmdFunc(cmd *cobra.Command) error {
 
 	slog.Debug("fetching app by name", "workspaceId", workspaceID, "app_name", appName)
 
-	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
-		WorkspaceId: workspaceID,
-		Name:        appName,
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+		WorkspaceId: &workspaceID,
+		Name:        &appName,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResource(ctx, getAppByNameReq)
 	if err != nil {
 		slog.Debug("failed to get app by name", "error", err)
 		return fmt.Errorf("failed to get app '%s': %w", appName, err)
 	}
 
-	appID := getAppByNameResp.Msg.Resource.Id
+	appID := getAppByNameResp.Msg.Id
 	slog.Debug("found app by name", "app_name", appName, "app_id", appID)
 
 	apiClient := client.NewClient(host, locoToken.Token)
 
 	slog.Debug("updating environment variables", "app_id", appID, "app_name", appName)
 
-	_, err = apiClient.UpdateAppEnv(ctx, appID, envVars)
+	err = apiClient.UpdateAppEnv(ctx, appID, envVars)
 	if err != nil {
 		slog.Error("failed to update environment variables", "error", err)
 		return fmt.Errorf("failed to update environment variables for app '%s': %w", appName, err)

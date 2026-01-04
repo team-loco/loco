@@ -87,19 +87,19 @@ func scaleCmdFunc(cmd *cobra.Command) error {
 
 	slog.Debug("fetching app by name", "workspaceId", workspaceID, "app_name", appName)
 
-	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
-		WorkspaceId: workspaceID,
-		Name:        appName,
+	getAppByNameReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+		WorkspaceId: &workspaceID,
+		Name:        &appName,
 	})
 	getAppByNameReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 
-	getAppByNameResp, err := resourceClient.GetResourceByName(ctx, getAppByNameReq)
+	getAppByNameResp, err := resourceClient.GetResource(ctx, getAppByNameReq)
 	if err != nil {
 		slog.Debug("failed to get app by name", "error", err)
 		return fmt.Errorf("failed to get app '%s': %w", appName, err)
 	}
 
-	appID := getAppByNameResp.Msg.Resource.Id
+	appID := getAppByNameResp.Msg.Id
 	slog.Debug("found app by name", "app_name", appName, "app_id", appID)
 
 	apiClient := client.NewClient(host, locoToken.Token)
@@ -121,7 +121,7 @@ func scaleCmdFunc(cmd *cobra.Command) error {
 
 	slog.Debug("scaling app", "app_id", appID, "app_name", appName)
 
-	_, err = apiClient.ScaleApp(ctx, appID, replicasPtr, cpuPtr, memoryPtr)
+	err = apiClient.ScaleApp(ctx, appID, replicasPtr, cpuPtr, memoryPtr)
 	if err != nil {
 		slog.Error("failed to scale app", "error", err)
 		return fmt.Errorf("failed to scale app '%s': %w", appName, err)

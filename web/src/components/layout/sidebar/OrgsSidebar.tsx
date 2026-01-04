@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { listWorkspaces } from "@/gen/workspace/v1";
+import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Organization } from "@/gen/org/v1/org_pb";
@@ -63,7 +63,7 @@ function OrgItem({
 	activeWorkspaceId,
 }: OrgItemProps) {
 	const { data: workspacesRes, isLoading } = useQuery(
-		listWorkspaces,
+		listOrgWorkspaces,
 		{ orgId: org.id },
 		{ enabled: isExpanded }
 	);

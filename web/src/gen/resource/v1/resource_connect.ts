@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetEventsRequest, GetEventsResponse, GetResourceByNameRequest, GetResourceByNameResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourcesRequest, ListResourcesResponse, LogEntry, ScaleResourceRequest, ScaleResourceResponse, StreamLogsRequest, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
-import { MethodKind } from "@bufbuild/protobuf";
+import { CreateResourceRequest, DeleteResourceRequest, GetResourceRequest, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, LogEntry, Resource, ScaleResourceRequest, UpdateResourceEnvRequest, UpdateResourceRequest, WatchLogsRequest } from "./resource_pb";
+import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * ResourceService manages resource lifecycle and operations.
@@ -22,40 +22,18 @@ export const ResourceService = {
     createResource: {
       name: "CreateResource",
       I: CreateResourceRequest,
-      O: CreateResourceResponse,
+      O: Resource,
       kind: MethodKind.Unary,
     },
     /**
-     * GetResource retrieves a resource by ID.
+     * GetResource retrieves a resource by ID or name.
      *
      * @generated from rpc loco.resource.v1.ResourceService.GetResource
      */
     getResource: {
       name: "GetResource",
       I: GetResourceRequest,
-      O: GetResourceResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * GetResourceByName retrieves a resource by name within a workspace.
-     *
-     * @generated from rpc loco.resource.v1.ResourceService.GetResourceByName
-     */
-    getResourceByName: {
-      name: "GetResourceByName",
-      I: GetResourceByNameRequest,
-      O: GetResourceByNameResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * ListResources lists all resources in a workspace.
-     *
-     * @generated from rpc loco.resource.v1.ResourceService.ListResources
-     */
-    listResources: {
-      name: "ListResources",
-      I: ListResourcesRequest,
-      O: ListResourcesResponse,
+      O: Resource,
       kind: MethodKind.Unary,
     },
     /**
@@ -66,7 +44,7 @@ export const ResourceService = {
     updateResource: {
       name: "UpdateResource",
       I: UpdateResourceRequest,
-      O: UpdateResourceResponse,
+      O: Resource,
       kind: MethodKind.Unary,
     },
     /**
@@ -77,7 +55,18 @@ export const ResourceService = {
     deleteResource: {
       name: "DeleteResource",
       I: DeleteResourceRequest,
-      O: DeleteResourceResponse,
+      O: Empty,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListWorkspaceResources lists all resources in a workspace.
+     *
+     * @generated from rpc loco.resource.v1.ResourceService.ListWorkspaceResources
+     */
+    listWorkspaceResources: {
+      name: "ListWorkspaceResources",
+      I: ListWorkspaceResourcesRequest,
+      O: ListWorkspaceResourcesResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -104,26 +93,26 @@ export const ResourceService = {
     },
     /**
      * Logs
-     * StreamLogs streams resource logs in real-time.
+     * WatchLogs streams resource logs in real-time.
      *
-     * @generated from rpc loco.resource.v1.ResourceService.StreamLogs
+     * @generated from rpc loco.resource.v1.ResourceService.WatchLogs
      */
-    streamLogs: {
-      name: "StreamLogs",
-      I: StreamLogsRequest,
+    watchLogs: {
+      name: "WatchLogs",
+      I: WatchLogsRequest,
       O: LogEntry,
       kind: MethodKind.ServerStreaming,
     },
     /**
      * Events
-     * GetEvents retrieves events for a resource.
+     * ListResourceEvents retrieves events for a resource.
      *
-     * @generated from rpc loco.resource.v1.ResourceService.GetEvents
+     * @generated from rpc loco.resource.v1.ResourceService.ListResourceEvents
      */
-    getEvents: {
-      name: "GetEvents",
-      I: GetEventsRequest,
-      O: GetEventsResponse,
+    listResourceEvents: {
+      name: "ListResourceEvents",
+      I: ListResourceEventsRequest,
+      O: ListResourceEventsResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -135,7 +124,7 @@ export const ResourceService = {
     scaleResource: {
       name: "ScaleResource",
       I: ScaleResourceRequest,
-      O: ScaleResourceResponse,
+      O: Empty,
       kind: MethodKind.Unary,
     },
     /**
@@ -146,7 +135,7 @@ export const ResourceService = {
     updateResourceEnv: {
       name: "UpdateResourceEnv",
       I: UpdateResourceEnvRequest,
-      O: UpdateResourceEnvResponse,
+      O: Empty,
       kind: MethodKind.Unary,
     },
   }

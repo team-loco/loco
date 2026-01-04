@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	json "github.com/goccy/go-json"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/shared"
@@ -93,40 +94,48 @@ func (c *Client) CreateUser(ctx context.Context, externalID, email, avatarURL st
 		return nil, err
 	}
 
-	return resp.Msg.User, nil
+	return resp.Msg, nil
 }
 
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
-	req := connect.NewRequest(&userv1.GetCurrentUserRequest{})
+	req := connect.NewRequest(&emptypb.Empty{})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.User.GetCurrentUser(ctx, req)
+	resp, err := c.User.WhoAmI(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to get current user")
 		return nil, err
 	}
 
-	return resp.Msg.User, nil
+	return resp.Msg, nil
 }
 
-func (c *Client) GetCurrentUserOrgs(ctx context.Context) ([]*orgv1.Organization, error) {
-	req := connect.NewRequest(&orgv1.GetCurrentUserOrgsRequest{})
+func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID int64) ([]*orgv1.Organization, error) {
+	req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
+		UserId: userID,
+		Limit:  100,
+		Offset: 0,
+	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.Org.GetCurrentUserOrgs(ctx, req)
+	resp, err := c.Org.ListUserOrgs(ctx, req)
 	if err != nil {
-		logRequestID(ctx, err, "failed to get current user orgs")
+		logRequestID(ctx, err, "failed to get user orgs")
 		return nil, err
 	}
 
 	return resp.Msg.Orgs, nil
 }
 
-func (c *Client) GetUserWorkspaces(ctx context.Context) ([]*workspacev1.Workspace, error) {
-	req := connect.NewRequest(&workspacev1.GetUserWorkspacesRequest{})
+func (c *Client) GetUserWorkspaces(ctx context.Context, userID int64) ([]*workspacev1.Workspace, error) {
+	req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
+		UserId: userID,
+		Limit:  100,
+		Offset: 0,
+	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.Workspace.GetUserWorkspaces(ctx, req)
+	resp, err := c.Workspace.ListUserWorkspaces(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to get user workspaces")
 		return nil, err
@@ -142,7 +151,7 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 		return nil, fmt.Errorf("invalid app ID: %w", err)
 	}
 
-	req := connect.NewRequest(&resourcev1.GetResourceRequest{ResourceId: appIDInt})
+	req := connect.NewRequest(&resourcev1.GetResourceRequest{ResourceId: &appIDInt})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Resource.GetResource(ctx, req)
@@ -151,7 +160,7 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 		return nil, err
 	}
 
-	return resp.Msg.Resource, nil
+	return resp.Msg, nil
 }
 
 func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev1.Resource, error) {
@@ -161,10 +170,10 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 		return nil, fmt.Errorf("invalid workspace ID: %w", err)
 	}
 
-	req := connect.NewRequest(&resourcev1.ListResourcesRequest{WorkspaceId: wsID})
+	req := connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: wsID})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.Resource.ListResources(ctx, req)
+	resp, err := c.Resource.ListWorkspaceResources(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to list apps")
 		return nil, err
@@ -174,19 +183,19 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 }
 
 func (c *Client) GetAppByName(ctx context.Context, workspaceID int64, appName string) (*resourcev1.Resource, error) {
-	req := connect.NewRequest(&resourcev1.GetResourceByNameRequest{
-		WorkspaceId: workspaceID,
-		Name:        appName,
+	req := connect.NewRequest(&resourcev1.GetResourceRequest{
+		WorkspaceId: &workspaceID,
+		Name:        &appName,
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.Resource.GetResourceByName(ctx, req)
+	resp, err := c.Resource.GetResource(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to get app by name")
 		return nil, err
 	}
 
-	return resp.Msg.Resource, nil
+	return resp.Msg, nil
 }
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {
@@ -203,7 +212,7 @@ func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deplo
 		return nil, err
 	}
 
-	return resp.Msg.Deployment, nil
+	return resp.Msg, nil
 }
 
 func (c *Client) StreamDeployment(ctx context.Context, deploymentID string, eventHandler func(*deploymentv1.DeploymentEvent) error) error {
@@ -211,10 +220,10 @@ func (c *Client) StreamDeployment(ctx context.Context, deploymentID string, even
 	if err != nil {
 		return err
 	}
-	req := connect.NewRequest(&deploymentv1.StreamDeploymentRequest{DeploymentId: deploymentIDInt})
+	req := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentIDInt})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	stream, err := c.Deployment.StreamDeployment(ctx, req)
+	stream, err := c.Deployment.WatchDeployment(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to stream deployment")
 		return err
@@ -248,7 +257,7 @@ func (c *Client) DeleteApp(ctx context.Context, appID string) error {
 	return err
 }
 
-func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu, memory *string) (int64, error) {
+func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu, memory *string) error {
 	req := connect.NewRequest(&resourcev1.ScaleResourceRequest{
 		ResourceId: appID,
 		Replicas:   replicas,
@@ -257,29 +266,29 @@ func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.Resource.ScaleResource(ctx, req)
+	_, err := c.Resource.ScaleResource(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to scale app")
-		return 0, err
+		return err
 	}
 
-	return resp.Msg.DeploymentId, nil
+	return nil
 }
 
-func (c *Client) UpdateAppEnv(ctx context.Context, appID int64, env map[string]string) (int64, error) {
+func (c *Client) UpdateAppEnv(ctx context.Context, appID int64, env map[string]string) error {
 	req := connect.NewRequest(&resourcev1.UpdateResourceEnvRequest{
 		ResourceId: appID,
 		Env:        env,
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.Resource.UpdateResourceEnv(ctx, req)
+	_, err := c.Resource.UpdateResourceEnv(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to update app env")
-		return 0, err
+		return err
 	}
 
-	return resp.Msg.DeploymentId, nil
+	return nil
 }
 
 func (c *Client) GetAppStatus(ctx context.Context, appID int64) (*resourcev1.GetResourceStatusResponse, error) {
@@ -298,14 +307,14 @@ func (c *Client) GetAppStatus(ctx context.Context, appID int64) (*resourcev1.Get
 }
 
 func (c *Client) StreamLogs(ctx context.Context, appID int64, limit *int32, follow *bool, logHandler func(*resourcev1.LogEntry) error) error {
-	req := connect.NewRequest(&resourcev1.StreamLogsRequest{
+	req := connect.NewRequest(&resourcev1.WatchLogsRequest{
 		ResourceId: appID,
 		Limit:      limit,
 		Follow:     follow,
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	stream, err := c.Resource.StreamLogs(ctx, req)
+	stream, err := c.Resource.WatchLogs(ctx, req)
 	if err != nil {
 		logRequestID(ctx, err, "failed to stream logs")
 		return err
@@ -327,13 +336,13 @@ func (c *Client) StreamLogs(ctx context.Context, appID int64, limit *int32, foll
 }
 
 func (c *Client) GetEvents(ctx context.Context, appID int64, limit *int32) ([]*resourcev1.Event, error) {
-	req := connect.NewRequest(&resourcev1.GetEventsRequest{
+	req := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
 		ResourceId: appID,
 		Limit:      limit,
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	resp, err := c.Resource.GetEvents(ctx, req)
+	resp, err := c.Resource.ListResourceEvents(ctx, req)
 	if err != nil {
 		return nil, err
 	}

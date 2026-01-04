@@ -17,12 +17,11 @@ import {
 } from "@/components/ui/select";
 import { ResourceType, createResource } from "@/gen/resource/v1";
 import {
-	checkDomainAvailability,
 	DomainType,
-	listActivePlatformDomains,
+	listPlatformDomains,
 } from "@/gen/domain/v1";
-import { getCurrentUserOrgs } from "@/gen/org/v1";
-import { listWorkspaces } from "@/gen/workspace/v1";
+import { listUserOrgs } from "@/gen/org/v1";
+import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Check, Loader, X } from "lucide-react";
@@ -50,18 +49,17 @@ export function CreateResource() {
 	const [subdomain, setSubdomain] = useState("");
 	const [selectedPlatformDomain, setSelectedPlatformDomain] =
 		useState<string>("");
-	const [subdomainAvailability, setSubdomainAvailability] = useState<
+	const [subdomainAvailability] = useState<
 		"available" | "unavailable" | "checking" | null
 	>(null);
-	const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const hasUserEditedSubdomain = useRef(false);
 
-	const { data: orgsRes } = useQuery(getCurrentUserOrgs, {});
+	const { data: orgsRes } = useQuery(listUserOrgs, { userId: 0n });
 	const orgs = orgsRes?.orgs ?? [];
 	const firstOrgId = orgs.length > 0 ? orgs[0].id : null;
 
 	const { data: workspacesRes } = useQuery(
-		listWorkspaces,
+		listOrgWorkspaces,
 		firstOrgId ? { orgId: firstOrgId } : undefined,
 		{ enabled: !!firstOrgId }
 	);
@@ -69,14 +67,13 @@ export function CreateResource() {
 	const workspaceId =
 		paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
 
-	const { data: platformDomainsRes } = useQuery(listActivePlatformDomains, {});
+	const { data: platformDomainsRes } = useQuery(listPlatformDomains, { activeOnly: true });
 	const platformDomains = useMemo(
 		() => platformDomainsRes?.platformDomains ?? [],
 		[platformDomainsRes?.platformDomains]
 	);
 
 	const createResourceMutation = useMutation(createResource);
-	const checkSubdomainMutation = useMutation(checkDomainAvailability);
 
 	// Set default platform domain on load
 	useEffect(() => {
@@ -96,37 +93,7 @@ export function CreateResource() {
 		setSubdomain(sanitized);
 	}, [resourceName]);
 
-	// Debounced subdomain availability check
-	useEffect(() => {
-		if (!subdomain.trim() || !selectedPlatformDomain) {
-			setSubdomainAvailability(null);
-			return;
-		}
-
-		if (debounceTimer.current) {
-			clearTimeout(debounceTimer.current);
-		}
-
-		setSubdomainAvailability("checking");
-		debounceTimer.current = setTimeout(async () => {
-			try {
-				const fullDomain = `${subdomain}.${selectedPlatformDomain}`;
-				const res = await checkSubdomainMutation.mutateAsync({
-					domain: fullDomain,
-				} as { domain: string });
-				setSubdomainAvailability(res.isAvailable ? "available" : "unavailable");
-			} catch {
-				setSubdomainAvailability("unavailable");
-			}
-		}, 500);
-
-		return () => {
-			if (debounceTimer.current) {
-				clearTimeout(debounceTimer.current);
-			}
-		};
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [subdomain, selectedPlatformDomain]);
+	// TODO: Implement subdomain availability check when API is available
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -151,7 +118,7 @@ export function CreateResource() {
 				(d) => d.domain === selectedPlatformDomain
 			);
 
-			const res = await createResourceMutation.mutateAsync({
+			const resource = await createResourceMutation.mutateAsync({
 				name: resourceName,
 				workspaceId:
 					typeof workspaceId === "string" ? BigInt(workspaceId) : workspaceId,
@@ -163,10 +130,10 @@ export function CreateResource() {
 				},
 			});
 
-			if (res.resourceId) {
+			if (resource?.id) {
 				toast.success("Resource created successfully");
 				navigate(
-					`/resource/${res.resourceId}${
+					`/resource/${resource.id}${
 						workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""
 					}`
 				);

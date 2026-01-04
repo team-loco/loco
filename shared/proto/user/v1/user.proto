@@ -3,25 +3,27 @@ syntax = "proto3";
 package loco.user.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/empty.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/user/v1;userv1";
 
 // UserService manages user accounts and operations.
 service UserService {
   // CreateUser creates a new user account.
-  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  rpc CreateUser(CreateUserRequest) returns (User);
   // GetUser retrieves a user by ID or email.
-  rpc GetUser(GetUserRequest) returns (GetUserResponse);
-  // GetCurrentUser retrieves the current authenticated user.
-  rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+  rpc GetUser(GetUserRequest) returns (User);
+  // WhoAmI retrieves the current authenticated user.
+  rpc WhoAmI(google.protobuf.Empty) returns (User);
   // UpdateUser updates user information.
-  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
   // ListUsers lists users with pagination.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   // DeleteUser deletes a user account.
-  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
   // Logout logs out the current user.
-  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
 }
 
 // User represents a user account with OAuth identity and profile information.
@@ -43,41 +45,18 @@ message CreateUserRequest {
   optional string avatar_url = 4;
 }
 
-// CreateUserResponse is the response from creating a user.
-message CreateUserResponse {
-  User user = 1;
-  string message = 2;
-}
-
 // GetUserRequest is the request to retrieve a user.
 message GetUserRequest {
   optional int64 user_id = 1;
   optional string email = 2;
 }
 
-// GetUserResponse is the response containing user information.
-message GetUserResponse {
-  User user = 1;
-}
-
-// GetCurrentUserRequest is the request to retrieve the current user.
-message GetCurrentUserRequest {}
-
-// GetCurrentUserResponse is the response containing current user information.
-message GetCurrentUserResponse {
-  User user = 1;
-}
-
 // UpdateUserRequest is the request to update user information.
 message UpdateUserRequest {
   int64 user_id = 1;
-  optional string avatar_url = 2;
-}
-
-// UpdateUserResponse is the response from updating a user.
-message UpdateUserResponse {
-  User user = 1;
-  string message = 2;
+  google.protobuf.FieldMask update_mask = 2;
+  optional string avatar_url = 3;
+  optional string name = 4;
 }
 
 // ListUsersRequest is the request to list users.
@@ -95,18 +74,4 @@ message ListUsersResponse {
 // DeleteUserRequest is the request to delete a user.
 message DeleteUserRequest {
   int64 user_id = 1;
-}
-
-// DeleteUserResponse is the response from deleting a user.
-message DeleteUserResponse {
-  User user = 1;
-  string message = 2;
-}
-
-// LogoutRequest is the request to logout.
-message LogoutRequest {}
-
-// LogoutResponse is the response from logging out.
-message LogoutResponse {
-  string message = 1;
 }

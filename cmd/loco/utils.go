@@ -169,7 +169,14 @@ func getOrgId(cmd *cobra.Command) (int64, error) {
 	}
 
 	apiClient := client.NewClient(host, locoToken.Token)
-	orgs, err := apiClient.GetCurrentUserOrgs(context.Background())
+	
+	currentUser, err := apiClient.GetCurrentUser(context.Background())
+	if err != nil {
+		slog.Debug("failed to get current user", "error", err)
+		return 0, fmt.Errorf("failed to get current user: %w", err)
+	}
+	
+	orgs, err := apiClient.GetCurrentUserOrgs(context.Background(), currentUser.Id)
 	if err != nil {
 		slog.Debug("failed to get organizations", "error", err)
 		return 0, fmt.Errorf("failed to get organizations: %w", err)
@@ -218,7 +225,14 @@ func getWorkspaceId(cmd *cobra.Command) (int64, error) {
 	}
 
 	apiClient := client.NewClient(host, locoToken.Token)
-	workspaces, err := apiClient.GetUserWorkspaces(context.Background())
+	
+	currentUser, err := apiClient.GetCurrentUser(context.Background())
+	if err != nil {
+		slog.Debug("failed to get current user", "error", err)
+		return 0, fmt.Errorf("failed to get current user: %w", err)
+	}
+	
+	workspaces, err := apiClient.GetUserWorkspaces(context.Background(), currentUser.Id)
 	if err != nil {
 		slog.Debug("failed to get workspaces", "error", err)
 		return 0, fmt.Errorf("failed to get workspaces: %w", err)

@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getOrg, updateOrg } from "@/gen/org/v1";
-import { listWorkspaces } from "@/gen/workspace/v1";
+import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
@@ -28,10 +28,10 @@ export function OrgSettings() {
 		{ enabled: !!orgId }
 	);
 
-	const org = orgRes?.org;
+	const org = orgRes;
 
 	const { data: workspacesRes } = useQuery(
-		listWorkspaces,
+		listOrgWorkspaces,
 		orgId ? { orgId: BigInt(orgId) } : undefined,
 		{ enabled: !!orgId }
 	);
@@ -48,7 +48,7 @@ export function OrgSettings() {
 		if (!orgId) return;
 		mutateUpdateOrg({
 			orgId: BigInt(orgId),
-			newName: orgName,
+			name: orgName,
 		}, {
 			onSuccess: () => {
 				refetch();

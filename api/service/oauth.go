@@ -137,7 +137,7 @@ func (s *OAuthServer) ExchangeGithubToken(
 	ctx context.Context,
 	req *connect.Request[oAuth.ExchangeGithubTokenRequest],
 ) (*connect.Response[oAuth.ExchangeGithubTokenResponse], error) {
-	githubToken := req.Msg.GithubAccessToken
+	githubToken := req.Msg.GetGithubAccessToken()
 	if githubToken == "" {
 		slog.ErrorContext(ctx, "empty github access token")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("github_access_token is required"))
@@ -166,7 +166,7 @@ func (s *OAuthServer) GetGithubAuthorizationURL(
 	ctx context.Context,
 	req *connect.Request[oAuth.GetGithubAuthorizationURLRequest],
 ) (*connect.Response[oAuth.GetGithubAuthorizationURLResponse], error) {
-	state := req.Msg.State
+	state := req.Msg.GetState()
 	if state == "" {
 		var err error
 		state, err = generateSecureRandomString(32)
@@ -198,8 +198,8 @@ func (s *OAuthServer) ExchangeGithubCode(
 	ctx context.Context,
 	req *connect.Request[oAuth.ExchangeGithubCodeRequest],
 ) (*connect.Response[oAuth.ExchangeGithubCodeResponse], error) {
-	code := req.Msg.Code
-	state := req.Msg.State
+	code := req.Msg.GetCode()
+	state := req.Msg.GetState()
 
 	if code == "" {
 		slog.ErrorContext(ctx, "missing authorization code")

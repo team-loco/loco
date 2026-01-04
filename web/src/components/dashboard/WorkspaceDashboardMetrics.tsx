@@ -2,8 +2,8 @@ import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { useNavigate } from "react-router";
 
-import { listResources } from "@/gen/resource/v1";
-import { listMembers } from "@/gen/workspace/v1";
+import { listWorkspaceResources } from "@/gen/resource/v1";
+import { listWorkspaceMembers } from "@/gen/workspace/v1";
 import {
 	Card,
 	CardContent,
@@ -32,7 +32,7 @@ export function WorkspaceDashboardMetrics({
 }: WorkspaceDashboardMetricsProps) {
 	// Fetch resources
 	const { data: resourcesRes } = useQuery(
-		listResources,
+		listWorkspaceResources,
 		{ workspaceId },
 		{ enabled: !!workspaceId }
 	);
@@ -43,7 +43,7 @@ export function WorkspaceDashboardMetrics({
 
 	// Fetch members
 	const { data: membersRes } = useQuery(
-		listMembers,
+		listWorkspaceMembers,
 		{ workspaceId },
 		{ enabled: !!workspaceId }
 	);

@@ -4,6 +4,8 @@ package loco.resource.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/empty.proto";
 
 import "deployment/v1/deployment.proto";
 import "domain/v1/domain.proto";
@@ -12,65 +14,67 @@ option go_package = "github.com/team-loco/loco/shared/proto/resource/v1;resource
 
 // ResourceType categorizes the type of resource being deployed.
 enum ResourceType {
-  SERVICE  = 0;
-  DATABASE = 1;
-  FUNCTION = 2;
-  CACHE    = 3;
-  QUEUE    = 4;
-  BLOB     = 5;
+  RESOURCE_TYPE_UNSPECIFIED = 0;
+  SERVICE  = 1;
+  DATABASE = 2;
+  FUNCTION = 3;
+  CACHE    = 4;
+  QUEUE    = 5;
+  BLOB     = 6;
 }
 
 // ResourceStatus represents the operational status of a resource based on current deployment and health checks.
 enum ResourceStatus {
-  HEALTHY     = 0;
-  DEPLOYING   = 1;
-  DEGRADED    = 2;
-  UNAVAILABLE = 3;
-  SUSPENDED   = 4;
+  RESOURCE_STATUS_UNSPECIFIED = 0;
+  HEALTHY     = 1;
+  DEPLOYING   = 2;
+  DEGRADED    = 3;
+  UNAVAILABLE = 4;
+  SUSPENDED   = 5;
 }
 
 // RegionIntentStatus represents the state of a region intent for a resource.
 enum RegionIntentStatus {
-  REGION_INTENT_DESIRED      = 0;
-  REGION_INTENT_PROVISIONING = 1;
-  REGION_INTENT_ACTIVE       = 2;
-  REGION_INTENT_DEGRADED     = 3;
-  REGION_INTENT_REMOVING     = 4;
-  REGION_INTENT_FAILED       = 5;
+  REGION_INTENT_STATUS_UNSPECIFIED = 0;
+  REGION_INTENT_DESIRED      = 1;
+  REGION_INTENT_PROVISIONING = 2;
+  REGION_INTENT_ACTIVE       = 3;
+  REGION_INTENT_DEGRADED     = 4;
+  REGION_INTENT_REMOVING     = 5;
+  REGION_INTENT_FAILED       = 6;
 }
 
 // ResourceService manages resource lifecycle and operations.
 service ResourceService {
   // CreateResource creates a new resource.
-  rpc CreateResource(CreateResourceRequest) returns (CreateResourceResponse);
-  // GetResource retrieves a resource by ID.
-  rpc GetResource(GetResourceRequest) returns (GetResourceResponse);
-  // GetResourceByName retrieves a resource by name within a workspace.
-  rpc GetResourceByName(GetResourceByNameRequest) returns (GetResourceByNameResponse);
-  // ListResources lists all resources in a workspace.
-  rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse);
+  rpc CreateResource(CreateResourceRequest) returns (Resource);
+  // GetResource retrieves a resource by ID or name.
+  rpc GetResource(GetResourceRequest) returns (Resource);
   // UpdateResource updates a resource configuration.
-  rpc UpdateResource(UpdateResourceRequest) returns (UpdateResourceResponse);
+  rpc UpdateResource(UpdateResourceRequest) returns (Resource);
   // DeleteResource deletes a resource.
-  rpc DeleteResource(DeleteResourceRequest) returns (DeleteResourceResponse);
+  rpc DeleteResource(DeleteResourceRequest) returns (google.protobuf.Empty);
+
+  // ListWorkspaceResources lists all resources in a workspace.
+  rpc ListWorkspaceResources(ListWorkspaceResourcesRequest) returns (ListWorkspaceResourcesResponse);
   // GetResourceStatus retrieves the current status and deployment information of a resource.
   rpc GetResourceStatus(GetResourceStatusRequest) returns (GetResourceStatusResponse);
   // ListRegions lists available regions for resource deployment.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
 
   // Logs
-  // StreamLogs streams resource logs in real-time.
-  rpc StreamLogs(StreamLogsRequest) returns (stream LogEntry);
+  // WatchLogs streams resource logs in real-time.
+  rpc WatchLogs(WatchLogsRequest) returns (stream LogEntry);
 
   // Events
-  // GetEvents retrieves events for a resource.
-  rpc GetEvents(GetEventsRequest) returns (GetEventsResponse);
+  // ListResourceEvents retrieves events for a resource.
+  rpc ListResourceEvents(ListResourceEventsRequest) returns (ListResourceEventsResponse);
 
   // Resource Operations
   // ScaleResource adjusts resource replicas and resource allocation.
-  rpc ScaleResource(ScaleResourceRequest) returns (ScaleResourceResponse);
+  rpc ScaleResource(ScaleResourceRequest) returns (google.protobuf.Empty);
   // UpdateResourceEnv updates environment variables for a resource.
-  rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (UpdateResourceEnvResponse);
+  rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (google.protobuf.Empty);
 }
 
 // RoutingConfig defines routing configuration for a resource.
@@ -196,65 +200,37 @@ message CreateResourceRequest {
   optional string            description  = 6;
 }
 
-// CreateResourceResponse is the response from creating a resource.
-message CreateResourceResponse {
-  int64 resource_id = 1;
-}
-
 // GetResourceRequest is the request to retrieve a resource.
 message GetResourceRequest {
-  int64 resource_id = 1;
+  optional int64  resource_id = 1;
+  optional string name        = 2;
+  optional int64  workspace_id = 3; // required if looking up by name
 }
 
-// GetResourceResponse is the response containing resource information.
-message GetResourceResponse {
-  Resource resource = 1;
-}
-
-// GetResourceByNameRequest is the request to retrieve a resource by name.
-message GetResourceByNameRequest {
-  int64  workspace_id = 1;
-  string name         = 2;
-}
-
-// GetResourceByNameResponse is the response containing the resource.
-message GetResourceByNameResponse {
-  Resource resource = 1;
-}
-
-// ListResourcesRequest is the request to list resources.
-message ListResourcesRequest {
+// ListWorkspaceResourcesRequest is the request to list resources.
+message ListWorkspaceResourcesRequest {
   int64 workspace_id = 1;
+  int32 limit        = 2;
+  int32 offset       = 3;
 }
 
-// ListResourcesResponse is the response containing the list of resources.
-message ListResourcesResponse {
-  repeated Resource resources = 1;
+// ListWorkspaceResourcesResponse is the response containing the list of resources.
+message ListWorkspaceResourcesResponse {
+  repeated Resource resources  = 1;
+  int64             total_count = 2;
 }
 
 // UpdateResourceRequest is the request to update a resource.
 message UpdateResourceRequest {
-  int64           resource_id = 1;
-  optional string name        = 2;
-  optional string subdomain   = 3;
-  optional string domain      = 4;
-}
-
-// UpdateResourceResponse is the response from updating a resource.
-message UpdateResourceResponse {
-  int64  resource_id = 1;
-  string message     = 2;
+  int64                     resource_id = 1;
+  google.protobuf.FieldMask update_mask = 2;
+  optional string           name        = 3;
+  optional string           description = 4;
 }
 
 // DeleteResourceRequest is the request to delete a resource.
 message DeleteResourceRequest {
   int64 resource_id = 1;
-}
-
-// DeleteResourceResponse is the response from deleting a resource.
-message DeleteResourceResponse {
-  int64  resource_id = 1;
-  string message     = 2;
 }
 
 // RegionInfo represents available region information.
@@ -294,8 +270,8 @@ message GetResourceStatusResponse {
 
 // --- Logs ---
 
-// StreamLogsRequest is the request to stream resource logs.
-message StreamLogsRequest {
+// WatchLogsRequest is the request to stream resource logs.
+message WatchLogsRequest {
   int64          resource_id = 1;
   optional int32 limit       = 2;
   optional bool  follow      = 3;
@@ -322,14 +298,14 @@ message Event {
   string                    pod_name  = 5;
 }
 
-// GetEventsRequest is the request to retrieve resource events.
-message GetEventsRequest {
+// ListResourceEventsRequest is the request to retrieve resource events.
+message ListResourceEventsRequest {
   int64          resource_id = 1;
   optional int32 limit       = 2;
 }
 
-// GetEventsResponse is the response containing resource events.
-message GetEventsResponse {
+// ListResourceEventsResponse is the response containing resource events.
+message ListResourceEventsResponse {
   repeated Event events = 1;
 }
 
@@ -344,21 +320,9 @@ message ScaleResourceRequest {
   optional string region      = 5; // if provided, scale only this region; otherwise scale all regions
 }
 
-// ScaleResourceResponse is the response from scaling a resource.
-message ScaleResourceResponse {
-  int64  deployment_id = 1;
-  string message       = 2;
-}
-
 // UpdateResourceEnvRequest is the request to update resource environment variables.
 message UpdateResourceEnvRequest {
   int64               resource_id = 1;
   map<string, string> env         = 2;
   optional string     region      = 3; // if provided, update only this region; otherwise update all regions
-}
-
-// UpdateResourceEnvResponse is the response from updating environment variables.
-message UpdateResourceEnvResponse {
-  int64  deployment_id = 1;
-  string message       = 2;
 }

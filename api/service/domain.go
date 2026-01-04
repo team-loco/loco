@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
 	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -34,105 +35,100 @@ func NewDomainServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.Vendi
 	return &DomainServer{db: db, queries: queries, machine: machine}
 }
 
-// CreatePlatformDomain creates a new platform domain
+// CreatePlatformDomain creates a new platform domain (admin only)
 func (s *DomainServer) CreatePlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.CreatePlatformDomainRequest],
-) (*connect.Response[domainv1.CreatePlatformDomainResponse], error) {
+) (*connect.Response[domainv1.PlatformDomain], error) {
 	r := req.Msg
 
-	if r.Domain == "" {
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.CreatePlatformDomain, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create platform domain")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
+	if r.GetDomain() == "" {
 		slog.ErrorContext(ctx, "invalid request: domain is required")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
 	}
 
-	domainID, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
-		Domain:   r.Domain,
-		IsActive: r.IsActive,
+	result, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
+		Domain:   r.GetDomain(),
+		IsActive: r.GetIsActive(),
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create platform domain", "domain", r.Domain, "error", err)
+		slog.ErrorContext(ctx, "failed to create platform domain", "domain", r.GetDomain(), "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create platform domain: %w", err))
 	}
 
-	return &connect.Response[domainv1.CreatePlatformDomainResponse]{
-		Msg: &domainv1.CreatePlatformDomainResponse{
-			DomainId: domainID,
-			Message:  "Platform domain created successfully.",
-		},
-	}, nil
+	domain, err := s.queries.GetPlatformDomain(ctx, result)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get created platform domain", "id", result, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get created platform domain: %w", err))
+	}
+
+	return connect.NewResponse(&domainv1.PlatformDomain{
+		Id:        domain.ID,
+		Domain:    domain.Domain,
+		IsActive:  domain.IsActive,
+		CreatedAt: timestamppb.New(domain.CreatedAt.Time),
+		UpdatedAt: timestamppb.New(domain.CreatedAt.Time),
+	}), nil
 }
 
-// GetPlatformDomain retrieves a platform domain by ID
+// GetPlatformDomain retrieves a platform domain by ID or name (public - used for domain selection)
 func (s *DomainServer) GetPlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.GetPlatformDomainRequest],
-) (*connect.Response[domainv1.GetPlatformDomainResponse], error) {
+) (*connect.Response[domainv1.PlatformDomain], error) {
 	r := req.Msg
 
-	if r.Id <= 0 {
-		slog.ErrorContext(ctx, "invalid request: id is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
+	var result genDb.PlatformDomain
+	var err error
+
+	if r.GetId() > 0 {
+		result, err = s.queries.GetPlatformDomain(ctx, r.GetId())
+	} else if r.GetDomain() != "" {
+		result, err = s.queries.GetPlatformDomainByName(ctx, r.GetDomain())
+	} else {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("either id or domain must be provided"))
 	}
 
-	result, err := s.queries.GetPlatformDomain(ctx, r.Id)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get platform domain", "id", r.Id, "error", err)
+		slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
 		return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
 	}
 
-	return &connect.Response[domainv1.GetPlatformDomainResponse]{
-		Msg: &domainv1.GetPlatformDomainResponse{
-			PlatformDomain: &domainv1.PlatformDomain{
-				Id:        result.ID,
-				Domain:    result.Domain,
-				IsActive:  result.IsActive,
-				CreatedAt: timestamppb.New(result.CreatedAt.Time),
-				UpdatedAt: timestamppb.New(result.CreatedAt.Time),
-			},
-		},
-	}, nil
+	return connect.NewResponse(&domainv1.PlatformDomain{
+		Id:        result.ID,
+		Domain:    result.Domain,
+		IsActive:  result.IsActive,
+		CreatedAt: timestamppb.New(result.CreatedAt.Time),
+		UpdatedAt: timestamppb.New(result.CreatedAt.Time),
+	}), nil
 }
 
-// GetPlatformDomainByName retrieves a platform domain by domain name
-func (s *DomainServer) GetPlatformDomainByName(
+// ListPlatformDomains lists platform domains with optional filters
+func (s *DomainServer) ListPlatformDomains(
 	ctx context.Context,
-	req *connect.Request[domainv1.GetPlatformDomainByNameRequest],
-) (*connect.Response[domainv1.GetPlatformDomainByNameResponse], error) {
+	req *connect.Request[domainv1.ListPlatformDomainsRequest],
+) (*connect.Response[domainv1.ListPlatformDomainsResponse], error) {
 	r := req.Msg
 
-	if r.Domain == "" {
-		slog.ErrorContext(ctx, "invalid request: domain is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
+	var results []genDb.PlatformDomain
+	var err error
+
+	if r.GetActiveOnly() {
+		results, err = s.queries.ListActivePlatformDomains(ctx)
+	} else {
+		// If we need to list all domains, we'd need a new query
+		// For now, fall back to active only
+		results, err = s.queries.ListActivePlatformDomains(ctx)
 	}
 
-	result, err := s.queries.GetPlatformDomainByName(ctx, r.Domain)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get platform domain by name", "domain", r.Domain, "error", err)
-		return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
-	}
-
-	return &connect.Response[domainv1.GetPlatformDomainByNameResponse]{
-		Msg: &domainv1.GetPlatformDomainByNameResponse{
-			PlatformDomain: &domainv1.PlatformDomain{
-				Id:        result.ID,
-				Domain:    result.Domain,
-				IsActive:  result.IsActive,
-				CreatedAt: timestamppb.New(result.CreatedAt.Time),
-				UpdatedAt: timestamppb.New(result.CreatedAt.Time),
-			},
-		},
-	}, nil
-}
-
-// ListActivePlatformDomains lists all active platform domains
-func (s *DomainServer) ListActivePlatformDomains(
-	ctx context.Context,
-	req *connect.Request[domainv1.ListActivePlatformDomainsRequest],
-) (*connect.Response[domainv1.ListActivePlatformDomainsResponse], error) {
-	results, err := s.queries.ListActivePlatformDomains(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list active platform domains", "error", err)
+		slog.ErrorContext(ctx, "failed to list platform domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to list platform domains: %w", err))
 	}
 
@@ -147,69 +143,94 @@ func (s *DomainServer) ListActivePlatformDomains(
 		}
 	}
 
-	return &connect.Response[domainv1.ListActivePlatformDomainsResponse]{
-		Msg: &domainv1.ListActivePlatformDomainsResponse{
-			PlatformDomains: domains,
-		},
-	}, nil
+	return connect.NewResponse(&domainv1.ListPlatformDomainsResponse{
+		PlatformDomains: domains,
+		TotalCount:      int64(len(domains)),
+	}), nil
 }
 
-// DeactivatePlatformDomain deactivates a platform domain
-func (s *DomainServer) DeactivatePlatformDomain(
+// UpdatePlatformDomain updates a platform domain
+func (s *DomainServer) UpdatePlatformDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.DeactivatePlatformDomainRequest],
-) (*connect.Response[domainv1.DeactivatePlatformDomainResponse], error) {
+	req *connect.Request[domainv1.UpdatePlatformDomainRequest],
+) (*connect.Response[domainv1.PlatformDomain], error) {
 	r := req.Msg
 
-	if r.Id <= 0 {
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.UpdatePlatformDomain, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to update platform domain")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
+	if r.GetId() <= 0 {
 		slog.ErrorContext(ctx, "invalid request: id is required")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
 
-	domainID, err := s.queries.DeactivatePlatformDomain(ctx, r.Id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to deactivate platform domain", "id", r.Id, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to deactivate platform domain: %w", err))
+	// For now, we'll update using the existing deactivate method if is_active is being changed
+	// This is a simplified implementation
+	if !r.GetIsActive() {
+		_, err := s.queries.DeactivatePlatformDomain(ctx, r.GetId())
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to update platform domain", "id", r.GetId(), "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update platform domain: %w", err))
+		}
 	}
 
-	return &connect.Response[domainv1.DeactivatePlatformDomainResponse]{
-		Msg: &domainv1.DeactivatePlatformDomainResponse{
-			DomainId: domainID,
-			Message:  "Platform domain deactivated successfully.",
-		},
-	}, nil
+	result, err := s.queries.GetPlatformDomain(ctx, r.GetId())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get platform domain", "id", r.GetId(), "error", err)
+		return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
+	}
+
+	return connect.NewResponse(&domainv1.PlatformDomain{
+		Id:        result.ID,
+		Domain:    result.Domain,
+		IsActive:  result.IsActive,
+		CreatedAt: timestamppb.New(result.CreatedAt.Time),
+		UpdatedAt: timestamppb.New(result.CreatedAt.Time),
+	}), nil
 }
 
-// CheckDomainAvailability checks if a domain is available
-func (s *DomainServer) CheckDomainAvailability(
+// DeletePlatformDomain deletes a platform domain
+func (s *DomainServer) DeletePlatformDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.CheckDomainAvailabilityRequest],
-) (*connect.Response[domainv1.CheckDomainAvailabilityResponse], error) {
+	req *connect.Request[domainv1.DeletePlatformDomainRequest],
+) (*connect.Response[emptypb.Empty], error) {
 	r := req.Msg
 
-	if r.Domain == "" {
-		slog.ErrorContext(ctx, "invalid request: domain is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.DeletePlatformDomain, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete platform domain")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	result, err := s.queries.CheckDomainAvailability(ctx, r.Domain)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check domain availability", "domain", r.Domain, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to check domain availability: %w", err))
+	if r.GetId() <= 0 {
+		slog.ErrorContext(ctx, "invalid request: id is required")
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
-	slog.InfoContext(ctx, "domain availability check", "domain", r.Domain, "available", result)
-	return &connect.Response[domainv1.CheckDomainAvailabilityResponse]{
-		Msg: &domainv1.CheckDomainAvailabilityResponse{
-			IsAvailable: result,
-		},
-	}, nil
+
+	// Use deactivate for now as delete equivalent
+	_, err := s.queries.DeactivatePlatformDomain(ctx, r.GetId())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to delete platform domain", "id", r.GetId(), "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete platform domain: %w", err))
+	}
+
+	return connect.NewResponse(&emptypb.Empty{}), nil
 }
 
-// ListAllLocoOwnedDomains lists all loco-owned (subdomain) domains
-func (s *DomainServer) ListAllLocoOwnedDomains(
+// ListLocoOwnedDomains lists all loco-owned (subdomain) domains (admin only)
+func (s *DomainServer) ListLocoOwnedDomains(
 	ctx context.Context,
-	req *connect.Request[domainv1.ListAllLocoOwnedDomainsRequest],
-) (*connect.Response[domainv1.ListAllLocoOwnedDomainsResponse], error) {
+	req *connect.Request[domainv1.ListLocoOwnedDomainsRequest],
+) (*connect.Response[domainv1.ListLocoOwnedDomainsResponse], error) {
+	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListLocoOwnedDomains, 0)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list loco owned domains")
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	results, err := s.queries.ListAllLocoOwnedDomains(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list loco owned domains", "error", err)
@@ -227,24 +248,22 @@ func (s *DomainServer) ListAllLocoOwnedDomains(
 		}
 	}
 
-	return &connect.Response[domainv1.ListAllLocoOwnedDomainsResponse]{
-		Msg: &domainv1.ListAllLocoOwnedDomainsResponse{
-			Domains: domains,
-		},
-	}, nil
+	return connect.NewResponse(&domainv1.ListLocoOwnedDomainsResponse{
+		Domains: domains,
+	}), nil
 }
 
-// AddResourceDomain adds a new domain to an app
-func (s *DomainServer) AddResourceDomain(
+// CreateResourceDomain adds a new domain to a resource
+func (s *DomainServer) CreateResourceDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.AddResourceDomainRequest],
-) (*connect.Response[domainv1.AddResourceDomainResponse], error) {
+	req *connect.Request[domainv1.CreateResourceDomainRequest],
+) (*connect.Response[domainv1.ResourceDomain], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.AddDomain, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.AddDomain, r.GetResourceId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	if r.Domain == nil {
+	if r.GetDomain() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain input is required"))
 	}
 
@@ -254,28 +273,28 @@ func (s *DomainServer) AddResourceDomain(
 	platformDomainID := pgtype.Int8{Valid: false}
 	domainSource := genDb.DomainSourceUserProvided
 
-	if r.Domain.DomainSource == domainv1.DomainType_PLATFORM_PROVIDED {
-		if r.Domain.Subdomain == nil || *r.Domain.Subdomain == "" {
+	if r.GetDomain().GetDomainSource() == domainv1.DomainType_PLATFORM_PROVIDED {
+		if r.GetDomain().GetSubdomain() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
 		}
-		if r.Domain.PlatformDomainId == nil {
+		if r.GetDomain().GetPlatformDomainId() == 0 {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform_domain_id required for platform_provided domains"))
 		}
 
-		platformDomainID = pgtype.Int8{Int64: *r.Domain.PlatformDomainId, Valid: true}
-		platformDomain, err := s.queries.GetPlatformDomain(ctx, *r.Domain.PlatformDomainId)
+		platformDomainID = pgtype.Int8{Int64: r.GetDomain().GetPlatformDomainId(), Valid: true}
+		platformDomain, err := s.queries.GetPlatformDomain(ctx, r.GetDomain().GetPlatformDomainId())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
 		}
 
-		fullDomain = *r.Domain.Subdomain + "." + platformDomain.Domain
-		subdomainLabel = pgtype.Text{String: *r.Domain.Subdomain, Valid: true}
+		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
+		subdomainLabel = pgtype.Text{String: r.GetDomain().GetSubdomain(), Valid: true}
 		domainSource = genDb.DomainSourcePlatformProvided
 	} else {
-		if r.Domain.Domain == nil || *r.Domain.Domain == "" {
+		if r.GetDomain().GetDomain() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain required for user-provided domains"))
 		}
-		fullDomain = *r.Domain.Domain
+		fullDomain = r.GetDomain().GetDomain()
 	}
 
 	// check domain availability
@@ -287,14 +306,14 @@ func (s *DomainServer) AddResourceDomain(
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
 	}
 
-	// check if this is the first domain for the app
+	// check if this is the first domain for the resource
 	count, err := s.queries.GetResourceDomainCount(ctx, r.ResourceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	domainID, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-		ResourceID:       r.ResourceId,
+		ResourceID:       r.GetResourceId(),
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
@@ -305,104 +324,173 @@ func (s *DomainServer) AddResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return &connect.Response[domainv1.AddResourceDomainResponse]{
-		Msg: &domainv1.AddResourceDomainResponse{
-			DomainId: domainID,
-			Message:  "Domain added successfully",
-		},
-	}, nil
+	// Get the created domain to return
+	createdDomain, err := s.queries.GetResourceDomainByID(ctx, domainID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	protoSource := domainv1.DomainType_USER_PROVIDED
+	if createdDomain.DomainSource == genDb.DomainSourcePlatformProvided {
+		protoSource = domainv1.DomainType_PLATFORM_PROVIDED
+	}
+
+	result := &domainv1.ResourceDomain{
+		Id:           createdDomain.ID,
+		ResourceId:   createdDomain.ResourceID,
+		Domain:       createdDomain.Domain,
+		DomainSource: protoSource,
+		IsPrimary:    createdDomain.IsPrimary,
+		CreatedAt:    timestamppb.New(createdDomain.CreatedAt.Time),
+		UpdatedAt:    timestamppb.New(createdDomain.UpdatedAt.Time),
+	}
+
+	if createdDomain.SubdomainLabel.Valid {
+		result.SubdomainLabel = &createdDomain.SubdomainLabel.String
+	}
+	if createdDomain.PlatformDomainID.Valid {
+		result.PlatformDomainId = &createdDomain.PlatformDomainID.Int64
+	}
+
+	return connect.NewResponse(result), nil
 }
 
-// UpdateResourceDomain updates a domain for an app
+// UpdateResourceDomain updates a domain for a resource
 func (s *DomainServer) UpdateResourceDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.UpdateResourceDomainRequest],
-) (*connect.Response[domainv1.UpdateResourceDomainResponse], error) {
+) (*connect.Response[domainv1.ResourceDomain], error) {
 	r := req.Msg
 
-	// get the domain to check its app
+	// get the domain to check its resource
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.DomainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
 
-	// verify user has access to this app
+	// verify user has access to this resource
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateDomain, domainRow.ResourceID)); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// check if new domain is available (unless it's the same domain)
-	if r.Domain != domainRow.Domain {
-		available, err := s.queries.CheckDomainAvailability(ctx, r.Domain)
+	if r.GetDomain() != "" && r.GetDomain() != domainRow.Domain {
+		available, err := s.queries.CheckDomainAvailability(ctx, r.GetDomain())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 		}
 		if !available {
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
 		}
+
+		// update the domain
+		_, err = s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
+			ID:     r.GetDomainId(),
+			Domain: r.GetDomain(),
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to update resource domain", "id", r.GetDomainId(), "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		}
 	}
 
-	// update the domain
-	domainID, err := s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
-		ID:     r.DomainId,
-		Domain: r.Domain,
-	})
+	// Get updated domain
+	updatedDomain, err := s.queries.GetResourceDomainByID(ctx, r.GetDomainId())
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update app domain", "id", r.DomainId, "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return &connect.Response[domainv1.UpdateResourceDomainResponse]{
-		Msg: &domainv1.UpdateResourceDomainResponse{
-			DomainId: domainID,
-			Message:  "Domain updated successfully",
-		},
-	}, nil
+	protoSource := domainv1.DomainType_USER_PROVIDED
+	if updatedDomain.DomainSource == genDb.DomainSourcePlatformProvided {
+		protoSource = domainv1.DomainType_PLATFORM_PROVIDED
+	}
+
+	result := &domainv1.ResourceDomain{
+		Id:           updatedDomain.ID,
+		ResourceId:   updatedDomain.ResourceID,
+		Domain:       updatedDomain.Domain,
+		DomainSource: protoSource,
+		IsPrimary:    updatedDomain.IsPrimary,
+		CreatedAt:    timestamppb.New(updatedDomain.CreatedAt.Time),
+		UpdatedAt:    timestamppb.New(updatedDomain.UpdatedAt.Time),
+	}
+
+	if updatedDomain.SubdomainLabel.Valid {
+		result.SubdomainLabel = &updatedDomain.SubdomainLabel.String
+	}
+	if updatedDomain.PlatformDomainID.Valid {
+		result.PlatformDomainId = &updatedDomain.PlatformDomainID.Int64
+	}
+
+	return connect.NewResponse(result), nil
 }
 
-// SetPrimaryResourceDomain sets which domain is primary for an app
+// SetPrimaryResourceDomain sets which domain is primary for a resource
 func (s *DomainServer) SetPrimaryResourceDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.SetPrimaryResourceDomainRequest],
-) (*connect.Response[domainv1.SetPrimaryResourceDomainResponse], error) {
+) (*connect.Response[domainv1.ResourceDomain], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.SetPrimaryDomain, r.ResourceId)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.SetPrimaryDomain, r.GetResourceId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// unset primary on all other domains
-	err := s.queries.UpdateResourceDomainPrimary(ctx, r.ResourceId)
+	err := s.queries.UpdateResourceDomainPrimary(ctx, r.GetResourceId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	// set this domain as primary
-	domainID, err := s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
-		ID:         r.DomainId,
-		ResourceID: r.ResourceId,
+	_, err = s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
+		ID:         r.GetDomainId(),
+		ResourceID: r.GetResourceId(),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found or does not belong to app"))
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found or does not belong to resource"))
 	}
 
-	return &connect.Response[domainv1.SetPrimaryResourceDomainResponse]{
-		Msg: &domainv1.SetPrimaryResourceDomainResponse{
-			DomainId: domainID,
-			Message:  "Primary domain updated successfully",
-		},
-	}, nil
+	// Get updated domain
+	updatedDomain, err := s.queries.GetResourceDomainByID(ctx, r.GetDomainId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	protoSource := domainv1.DomainType_USER_PROVIDED
+	if updatedDomain.DomainSource == genDb.DomainSourcePlatformProvided {
+		protoSource = domainv1.DomainType_PLATFORM_PROVIDED
+	}
+
+	result := &domainv1.ResourceDomain{
+		Id:           updatedDomain.ID,
+		ResourceId:   updatedDomain.ResourceID,
+		Domain:       updatedDomain.Domain,
+		DomainSource: protoSource,
+		IsPrimary:    updatedDomain.IsPrimary,
+		CreatedAt:    timestamppb.New(updatedDomain.CreatedAt.Time),
+		UpdatedAt:    timestamppb.New(updatedDomain.UpdatedAt.Time),
+	}
+
+	if updatedDomain.SubdomainLabel.Valid {
+		result.SubdomainLabel = &updatedDomain.SubdomainLabel.String
+	}
+	if updatedDomain.PlatformDomainID.Valid {
+		result.PlatformDomainId = &updatedDomain.PlatformDomainID.Int64
+	}
+
+	return connect.NewResponse(result), nil
 }
 
-// RemoveResourceDomain removes a domain from an app
-func (s *DomainServer) RemoveResourceDomain(
+// DeleteResourceDomain removes a domain from a resource
+func (s *DomainServer) DeleteResourceDomain(
 	ctx context.Context,
-	req *connect.Request[domainv1.RemoveResourceDomainRequest],
-) (*connect.Response[domainv1.RemoveResourceDomainResponse], error) {
+	req *connect.Request[domainv1.DeleteResourceDomainRequest],
+) (*connect.Response[emptypb.Empty], error) {
 	r := req.Msg
 
-	// get the domain to check its app and whether it's primary
-	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.DomainId)
+	// get the domain to check its resource and whether it's primary
+	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.GetDomainId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
@@ -426,14 +514,35 @@ func (s *DomainServer) RemoveResourceDomain(
 	}
 
 	// delete the domain
-	err = s.queries.DeleteResourceDomain(ctx, r.DomainId)
+	err = s.queries.DeleteResourceDomain(ctx, r.GetDomainId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return &connect.Response[domainv1.RemoveResourceDomainResponse]{
-		Msg: &domainv1.RemoveResourceDomainResponse{
-			Message: "Domain removed successfully",
+	return connect.NewResponse(&emptypb.Empty{}), nil
+}
+
+// CheckDomainAvailability checks if a domain is available
+func (s *DomainServer) CheckDomainAvailability(
+	ctx context.Context,
+	req *connect.Request[domainv1.CheckDomainAvailabilityRequest],
+) (*connect.Response[domainv1.CheckDomainAvailabilityResponse], error) {
+	r := req.Msg
+
+	if r.GetDomain() == "" {
+		slog.ErrorContext(ctx, "invalid request: domain is required")
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
+	}
+
+	result, err := s.queries.CheckDomainAvailability(ctx, r.GetDomain())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check domain availability", "domain", r.GetDomain(), "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to check domain availability: %w", err))
+	}
+	slog.InfoContext(ctx, "domain availability check", "domain", r.GetDomain(), "available", result)
+	return &connect.Response[domainv1.CheckDomainAvailabilityResponse]{
+		Msg: &domainv1.CheckDomainAvailabilityResponse{
+			IsAvailable: result,
 		},
 	}, nil
 }

@@ -176,6 +176,7 @@ func main() {
 		ac.DeployTokenName,
 		ac.RegistryTag,
 		httpClient,
+		machine,
 	)
 
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, interceptors)
@@ -197,7 +198,7 @@ func main() {
 		// user service
 		userv1connect.UserServiceCreateUserProcedure,
 		userv1connect.UserServiceGetUserProcedure,
-		userv1connect.UserServiceGetCurrentUserProcedure,
+		userv1connect.UserServiceWhoAmIProcedure,
 		userv1connect.UserServiceUpdateUserProcedure,
 		userv1connect.UserServiceListUsersProcedure,
 		userv1connect.UserServiceDeleteUserProcedure,
@@ -205,27 +206,27 @@ func main() {
 		// org service
 		orgv1connect.OrgServiceCreateOrgProcedure,
 		orgv1connect.OrgServiceGetOrgProcedure,
-		orgv1connect.OrgServiceGetCurrentUserOrgsProcedure,
-		orgv1connect.OrgServiceListOrgsProcedure,
+		orgv1connect.OrgServiceListUserOrgsProcedure,
+		orgv1connect.OrgServiceListOrgUsersProcedure,
+		orgv1connect.OrgServiceListOrgWorkspacesProcedure,
 		orgv1connect.OrgServiceUpdateOrgProcedure,
 		orgv1connect.OrgServiceDeleteOrgProcedure,
-		orgv1connect.OrgServiceIsUniqueOrgNameProcedure,
 
 		// workspace service
 		workspacev1connect.WorkspaceServiceCreateWorkspaceProcedure,
 		workspacev1connect.WorkspaceServiceGetWorkspaceProcedure,
-		workspacev1connect.WorkspaceServiceGetUserWorkspacesProcedure,
-		workspacev1connect.WorkspaceServiceListWorkspacesProcedure,
+		workspacev1connect.WorkspaceServiceListUserWorkspacesProcedure,
+		workspacev1connect.WorkspaceServiceListOrgWorkspacesProcedure,
 		workspacev1connect.WorkspaceServiceUpdateWorkspaceProcedure,
 		workspacev1connect.WorkspaceServiceDeleteWorkspaceProcedure,
-		workspacev1connect.WorkspaceServiceAddMemberProcedure,
-		workspacev1connect.WorkspaceServiceRemoveMemberProcedure,
-		workspacev1connect.WorkspaceServiceListMembersProcedure,
+		workspacev1connect.WorkspaceServiceCreateMemberProcedure,
+		workspacev1connect.WorkspaceServiceDeleteMemberProcedure,
+		workspacev1connect.WorkspaceServiceListWorkspaceMembersProcedure,
 
 		// resource service
 		resourcev1connect.ResourceServiceCreateResourceProcedure,
 		resourcev1connect.ResourceServiceGetResourceProcedure,
-		resourcev1connect.ResourceServiceListResourcesProcedure,
+		resourcev1connect.ResourceServiceListWorkspaceResourcesProcedure,
 		resourcev1connect.ResourceServiceUpdateResourceProcedure,
 		resourcev1connect.ResourceServiceDeleteResourceProcedure,
 
@@ -233,19 +234,23 @@ func main() {
 		deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
 		deploymentv1connect.DeploymentServiceGetDeploymentProcedure,
 		deploymentv1connect.DeploymentServiceListDeploymentsProcedure,
-		deploymentv1connect.DeploymentServiceStreamDeploymentProcedure,
+		deploymentv1connect.DeploymentServiceWatchDeploymentProcedure,
 
 		// domain service
 		domainv1connect.DomainServiceCreatePlatformDomainProcedure,
 		domainv1connect.DomainServiceGetPlatformDomainProcedure,
-		domainv1connect.DomainServiceGetPlatformDomainByNameProcedure,
-		domainv1connect.DomainServiceListActivePlatformDomainsProcedure,
-		domainv1connect.DomainServiceDeactivatePlatformDomainProcedure,
+		domainv1connect.DomainServiceListPlatformDomainsProcedure,
+		domainv1connect.DomainServiceUpdatePlatformDomainProcedure,
+		domainv1connect.DomainServiceDeletePlatformDomainProcedure,
+		domainv1connect.DomainServiceCreateResourceDomainProcedure,
+		domainv1connect.DomainServiceUpdateResourceDomainProcedure,
+		domainv1connect.DomainServiceSetPrimaryResourceDomainProcedure,
+		domainv1connect.DomainServiceDeleteResourceDomainProcedure,
+		domainv1connect.DomainServiceListLocoOwnedDomainsProcedure,
 		domainv1connect.DomainServiceCheckDomainAvailabilityProcedure,
-		domainv1connect.DomainServiceListAllLocoOwnedDomainsProcedure,
 
 		// registry service
-		registryv1connect.RegistryServiceGitlabTokenProcedure,
+		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
 	)
 
 	// mount both old and new reflectors for backwards compatibility
