@@ -60,7 +60,7 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	if orgIDs, err = seedOrganizations(ctx, q, userIDs); err != nil {
 		return err
 	}
-	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
+	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs); err != nil {
 		return err
 	}
 	if resourceIds, err = seedResources(ctx, q, wksIDs, userIDs); err != nil {
@@ -186,7 +186,7 @@ func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []int64
 	return orgIDs, nil
 }
 
-func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64, userIDs []int64) ([]int64, error) {
+func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64) ([]int64, error) {
 	var wksIDs []int64
 
 	if wks1, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
