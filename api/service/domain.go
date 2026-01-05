@@ -136,7 +136,6 @@ func (s *DomainServer) ListPlatformDomains(
 
 	return connect.NewResponse(&domainv1.ListPlatformDomainsResponse{
 		PlatformDomains: domains,
-		TotalCount:      int64(len(domains)),
 	}), nil
 }
 

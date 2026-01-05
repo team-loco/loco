@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -314,22 +315,24 @@ func (s *DeploymentServer) ListDeployments(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	limit := r.GetLimit()
-	if limit == 0 {
-		limit = 50
-	}
-	offset := r.GetOffset()
+	pageSize := normalizePageSize(r.GetPageSize())
 
-	total, err := s.queries.CountDeploymentsForResource(ctx, r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
 	}
 
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
 		ResourceID: r.GetResourceId(),
-		Limit:      limit,
-		Offset:     offset,
+		Limit:      pageSize,
+		PageToken:  pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -341,9 +344,14 @@ func (s *DeploymentServer) ListDeployments(
 		deployments = append(deployments, deploymentToProto(d, string(resource.Type)))
 	}
 
+	var nextPageToken string
+	if len(deploymentList) == int(pageSize) {
+		nextPageToken = encodeCursor(deploymentList[len(deploymentList)-1].ID)
+	}
+
 	return connect.NewResponse(&deploymentv1.ListDeploymentsResponse{
-		Deployments: deployments,
-		Total:       total,
+		Deployments:   deployments,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 

@@ -1437,8 +1437,8 @@ func (*GetResourceRequest_NameKey) isGetResourceRequest_Key() {}
 type ListWorkspaceResourcesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1480,25 +1480,25 @@ func (x *ListWorkspaceResourcesRequest) GetWorkspaceId() int64 {
 	return 0
 }
 
-func (x *ListWorkspaceResourcesRequest) GetLimit() int32 {
+func (x *ListWorkspaceResourcesRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListWorkspaceResourcesRequest) GetOffset() int32 {
+func (x *ListWorkspaceResourcesRequest) GetPageToken() string {
 	if x != nil {
-		return x.Offset
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListWorkspaceResourcesResponse is the response containing the list of resources.
 type ListWorkspaceResourcesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Resources     []*Resource            `protobuf:"bytes,1,rep,name=resources,proto3" json:"resources,omitempty"`
-	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1540,11 +1540,11 @@ func (x *ListWorkspaceResourcesResponse) GetResources() []*Resource {
 	return nil
 }
 
-func (x *ListWorkspaceResourcesResponse) GetTotalCount() int64 {
+func (x *ListWorkspaceResourcesResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.TotalCount
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // UpdateResourceRequest is the request to update a resource.
@@ -2243,7 +2243,7 @@ func (x *Event) GetPodName() string {
 type ListResourceEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"` // max number of events to return
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2584,15 +2584,15 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\vresource_id\x18\x01 \x01(\x03H\x00R\n" +
 	"resourceId\x12A\n" +
 	"\bname_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceNameKeyH\x00R\anameKeyB\x05\n" +
-	"\x03key\"p\n" +
+	"\x03key\"~\n" +
 	"\x1dListWorkspaceResourcesRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"{\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
-	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x03R\n" +
-	"totalCount\"\xce\x01\n" +
+	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xce\x01\n" +
 	"\x15UpdateResourceRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12;\n" +

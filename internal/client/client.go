@@ -124,9 +124,8 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 
 func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID int64) ([]*orgv1.Organization, error) {
 	req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-		UserId: userID,
-		Limit:  100,
-		Offset: 0,
+		UserId:   userID,
+		PageSize: 100,
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
@@ -141,9 +140,7 @@ func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID int64) ([]*orgv1
 
 func (c *Client) GetUserWorkspaces(ctx context.Context, userID int64) ([]*workspacev1.Workspace, error) {
 	req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
-		UserId: userID,
-		Limit:  100,
-		Offset: 0,
+		PageSize: 100,
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 

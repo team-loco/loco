@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (external_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+CREATE INDEX IF NOT EXISTS idx_users_created_at_id_desc ON users (created_at DESC, id DESC);
 
 -- Organizations table
 CREATE TABLE IF NOT EXISTS organizations (
@@ -23,6 +24,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 
 CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations (name);
 CREATE INDEX IF NOT EXISTS idx_organizations_created_by ON organizations (created_by);
+CREATE INDEX IF NOT EXISTS idx_organizations_created_at_id_desc ON organizations (created_at DESC, id DESC);
 
 -- Organization members table
 CREATE TABLE IF NOT EXISTS organization_members (
@@ -49,6 +51,7 @@ CREATE TABLE IF NOT EXISTS workspaces (
 CREATE INDEX IF NOT EXISTS idx_workspaces_org_id ON workspaces (org_id);
 CREATE INDEX IF NOT EXISTS idx_workspaces_created_by ON workspaces (created_by);
 CREATE INDEX IF NOT EXISTS idx_workspaces_org_id_created_at ON workspaces (org_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_workspaces_created_at_id_desc ON workspaces (created_at DESC, id DESC);
 
 -- Workspace roles enum
 CREATE TYPE workspace_role AS ENUM ('admin', 'deploy', 'read');
@@ -64,3 +67,4 @@ CREATE TABLE IF NOT EXISTS workspace_members (
 
 CREATE INDEX IF NOT EXISTS idx_workspace_members_user_id ON workspace_members (user_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace_id ON workspace_members (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace_created_user_desc ON workspace_members (workspace_id, created_at DESC, user_id DESC);

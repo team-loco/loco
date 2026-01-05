@@ -347,8 +347,8 @@ func (*GetOrgRequest_OrgName) isGetOrgRequest_Key() {}
 type ListUserOrgsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -390,25 +390,25 @@ func (x *ListUserOrgsRequest) GetUserId() int64 {
 	return 0
 }
 
-func (x *ListUserOrgsRequest) GetLimit() int32 {
+func (x *ListUserOrgsRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListUserOrgsRequest) GetOffset() int32 {
+func (x *ListUserOrgsRequest) GetPageToken() string {
 	if x != nil {
-		return x.Offset
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListUserOrgsResponse is the response containing organization list.
 type ListUserOrgsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Orgs          []*Organization        `protobuf:"bytes,1,rep,name=orgs,proto3" json:"orgs,omitempty"`
-	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -450,19 +450,19 @@ func (x *ListUserOrgsResponse) GetOrgs() []*Organization {
 	return nil
 }
 
-func (x *ListUserOrgsResponse) GetTotalCount() int64 {
+func (x *ListUserOrgsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.TotalCount
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // ListOrgUsersRequest is the request to list users in an organization.
 type ListOrgUsersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -504,25 +504,25 @@ func (x *ListOrgUsersRequest) GetOrgId() int64 {
 	return 0
 }
 
-func (x *ListOrgUsersRequest) GetLimit() int32 {
+func (x *ListOrgUsersRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListOrgUsersRequest) GetOffset() int32 {
+func (x *ListOrgUsersRequest) GetPageToken() string {
 	if x != nil {
-		return x.Offset
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListOrgUsersResponse is the response containing user list.
 type ListOrgUsersResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -564,11 +564,11 @@ func (x *ListOrgUsersResponse) GetUsers() []*User {
 	return nil
 }
 
-func (x *ListOrgUsersResponse) GetTotalCount() int64 {
+func (x *ListOrgUsersResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.TotalCount
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // User is a lightweight representation of a user for listing.
@@ -644,8 +644,8 @@ func (x *User) GetAvatarUrl() string {
 type ListOrgWorkspacesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -687,25 +687,25 @@ func (x *ListOrgWorkspacesRequest) GetOrgId() int64 {
 	return 0
 }
 
-func (x *ListOrgWorkspacesRequest) GetLimit() int32 {
+func (x *ListOrgWorkspacesRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListOrgWorkspacesRequest) GetOffset() int32 {
+func (x *ListOrgWorkspacesRequest) GetPageToken() string {
 	if x != nil {
-		return x.Offset
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListOrgWorkspacesResponse is the response containing workspace list.
 type ListOrgWorkspacesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspaces    []*WorkspaceSummary    `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
-	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -747,11 +747,11 @@ func (x *ListOrgWorkspacesResponse) GetWorkspaces() []*WorkspaceSummary {
 	return nil
 }
 
-func (x *ListOrgWorkspacesResponse) GetTotalCount() int64 {
+func (x *ListOrgWorkspacesResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.TotalCount
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // UpdateOrgRequest is the request to update an organization.
@@ -934,39 +934,39 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\rGetOrgRequest\x12\x17\n" +
 	"\x06org_id\x18\x01 \x01(\x03H\x00R\x05orgId\x12\x1b\n" +
 	"\borg_name\x18\x02 \x01(\tH\x00R\aorgNameB\x05\n" +
-	"\x03key\"\\\n" +
+	"\x03key\"j\n" +
 	"\x13ListUserOrgsRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"f\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"m\n" +
 	"\x14ListUserOrgsResponse\x12-\n" +
-	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x03R\n" +
-	"totalCount\"Z\n" +
+	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"h\n" +
 	"\x13ListOrgUsersRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"`\n" +
+	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"g\n" +
 	"\x14ListOrgUsersResponse\x12'\n" +
-	"\x05users\x18\x01 \x03(\v2\x11.loco.org.v1.UserR\x05users\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x03R\n" +
-	"totalCount\"_\n" +
+	"\x05users\x18\x01 \x03(\v2\x11.loco.org.v1.UserR\x05users\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"_\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
-	"avatar_url\x18\x04 \x01(\tR\tavatarUrl\"_\n" +
+	"avatar_url\x18\x04 \x01(\tR\tavatarUrl\"m\n" +
 	"\x18ListOrgWorkspacesRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"{\n" +
+	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x19ListOrgWorkspacesResponse\x12=\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1d.loco.org.v1.WorkspaceSummaryR\n" +
-	"workspaces\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x03R\n" +
-	"totalCount\"\x88\x01\n" +
+	"workspaces\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x88\x01\n" +
 	"\x10UpdateOrgRequest\x12\x15\n" +
 	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +

@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -165,26 +166,24 @@ func (s *OrgServer) ListUserOrgs(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	limit := r.GetLimit()
-	if limit < 1 {
-		limit = 50
-	}
-	if limit > 100 {
-		limit = 100
-	}
+	pageSize := normalizePageSize(r.GetPageSize())
 
-	offset := r.GetOffset()
-
-	totalCount, err := s.queries.CountOrgsForUser(ctx, r.GetUserId())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count orgs for user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
 	}
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
-		UserID: r.GetUserId(),
-		Offset: offset,
-		Limit:  limit,
+		UserID:    r.GetUserId(),
+		Limit:     pageSize,
+		PageToken: pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list orgs", "error", err)
@@ -202,9 +201,14 @@ func (s *OrgServer) ListUserOrgs(
 		})
 	}
 
+	var nextPageToken string
+	if len(orgs) == int(pageSize) {
+		nextPageToken = encodeCursor(orgs[len(orgs)-1].ID)
+	}
+
 	return connect.NewResponse(&orgv1.ListUserOrgsResponse{
-		Orgs:       orgResponses,
-		TotalCount: totalCount,
+		Orgs:          orgResponses,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 
@@ -291,8 +295,8 @@ func (s *OrgServer) ListOrgUsers(
 	// TODO: Implement database query to get org users
 	// For now, return empty list
 	return connect.NewResponse(&orgv1.ListOrgUsersResponse{
-		Users:      []*orgv1.User{},
-		TotalCount: 0,
+		Users:         []*orgv1.User{},
+		NextPageToken: "",
 	}), nil
 }
 
@@ -308,8 +312,26 @@ func (s *OrgServer) ListOrgWorkspaces(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
+	pageSize := normalizePageSize(r.GetPageSize())
+
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
+	}
+
 	// Get workspaces for org
-	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, r.GetOrgId())
+	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
+		OrgID:     r.GetOrgId(),
+		Limit:     pageSize,
+		PageToken: pageToken,
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -325,8 +347,13 @@ func (s *OrgServer) ListOrgWorkspaces(
 		}
 	}
 
+	var nextPageToken string
+	if len(workspaces) == int(pageSize) {
+		nextPageToken = encodeCursor(workspaces[len(workspaces)-1].ID)
+	}
+
 	return connect.NewResponse(&orgv1.ListOrgWorkspacesResponse{
-		Workspaces: workspaceSummaries,
-		TotalCount: int64(len(workspaces)),
+		Workspaces:    workspaceSummaries,
+		NextPageToken: nextPageToken,
 	}), nil
 }

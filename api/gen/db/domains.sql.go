@@ -297,6 +297,37 @@ func (q *Queries) ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwn
 	return items, nil
 }
 
+const listPlatformDomains = `-- name: ListPlatformDomains :many
+SELECT id, domain, is_active, created_at FROM platform_domains
+WHERE ($1::boolean IS NULL OR is_active = $1::boolean)
+ORDER BY domain
+`
+
+func (q *Queries) ListPlatformDomains(ctx context.Context, activeOnly pgtype.Bool) ([]PlatformDomain, error) {
+	rows, err := q.db.Query(ctx, listPlatformDomains, activeOnly)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PlatformDomain
+	for rows.Next() {
+		var i PlatformDomain
+		if err := rows.Scan(
+			&i.ID,
+			&i.Domain,
+			&i.IsActive,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listResourceDomains = `-- name: ListResourceDomains :many
 SELECT 
     rd.id,

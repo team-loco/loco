@@ -213,8 +213,6 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			activeOnlyVal := true
 			listDomainsReq := connect.NewRequest(&domainv1.ListPlatformDomainsRequest{
 				ActiveOnly: &activeOnlyVal,
-				Limit:      100,
-				Offset:     0,
 			})
 			listDomainsReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 

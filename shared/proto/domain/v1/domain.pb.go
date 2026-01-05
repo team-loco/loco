@@ -514,8 +514,6 @@ func (*GetPlatformDomainRequest_Domain) isGetPlatformDomainRequest_Key() {}
 type ListPlatformDomainsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ActiveOnly    *bool                  `protobuf:"varint,1,opt,name=active_only,json=activeOnly,proto3,oneof" json:"active_only,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -557,25 +555,10 @@ func (x *ListPlatformDomainsRequest) GetActiveOnly() bool {
 	return false
 }
 
-func (x *ListPlatformDomainsRequest) GetLimit() int32 {
-	if x != nil {
-		return x.Limit
-	}
-	return 0
-}
-
-func (x *ListPlatformDomainsRequest) GetOffset() int32 {
-	if x != nil {
-		return x.Offset
-	}
-	return 0
-}
-
 // ListPlatformDomainsResponse contains the list of platform domains.
 type ListPlatformDomainsResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	PlatformDomains []*PlatformDomain      `protobuf:"bytes,1,rep,name=platform_domains,json=platformDomains,proto3" json:"platform_domains,omitempty"`
-	TotalCount      int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -615,13 +598,6 @@ func (x *ListPlatformDomainsResponse) GetPlatformDomains() []*PlatformDomain {
 		return x.PlatformDomains
 	}
 	return nil
-}
-
-func (x *ListPlatformDomainsResponse) GetTotalCount() int64 {
-	if x != nil {
-		return x.TotalCount
-	}
-	return 0
 }
 
 // UpdatePlatformDomainRequest is the request to update a platform domain.
@@ -1433,17 +1409,13 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"\x18GetPlatformDomainRequest\x12\x10\n" +
 	"\x02id\x18\x01 \x01(\x03H\x00R\x02id\x12\x18\n" +
 	"\x06domain\x18\x02 \x01(\tH\x00R\x06domainB\x05\n" +
-	"\x03key\"\x80\x01\n" +
+	"\x03key\"R\n" +
 	"\x1aListPlatformDomainsRequest\x12$\n" +
 	"\vactive_only\x18\x01 \x01(\bH\x00R\n" +
-	"activeOnly\x88\x01\x01\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offsetB\x0e\n" +
-	"\f_active_only\"\x89\x01\n" +
+	"activeOnly\x88\x01\x01B\x0e\n" +
+	"\f_active_only\"h\n" +
 	"\x1bListPlatformDomainsResponse\x12I\n" +
-	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x03R\n" +
-	"totalCount\"\xc2\x01\n" +
+	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"\xc2\x01\n" +
 	"\x1bUpdatePlatformDomainRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +

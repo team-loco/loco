@@ -82,27 +82,27 @@ message GetWorkspaceRequest {
 // ListUserWorkspacesRequest is the request to list workspaces for a user.
 message ListUserWorkspacesRequest {
   int64 user_id = 1;
-  int32 limit   = 2;
-  int32 offset  = 3;
+  int32 page_size = 2;  // default: 50, max: 200
+  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListUserWorkspacesResponse contains the list of user's workspaces.
 message ListUserWorkspacesResponse {
-  repeated Workspace workspaces  = 1;
-  int64              total_count = 2;
+  repeated Workspace workspaces = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 message ListOrgWorkspacesRequest {
   int64 org_id = 1;
-  int32 limit  = 2;
-  int32 offset = 3;
+  int32 page_size = 2;  // default: 50, max: 200
+  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListOrgWorkspacesResponse contains the list of workspaces.
 message ListOrgWorkspacesResponse {
-  repeated Workspace workspaces  = 1;
-  int64              total_count = 2;
+  repeated Workspace workspaces = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // UpdateWorkspaceRequest is the request to update a workspace.
@@ -145,13 +145,13 @@ message DeleteMemberRequest {
 
 // ListWorkspaceMembersRequest is the request to list members of a workspace.
 message ListWorkspaceMembersRequest {
-  int64          workspace_id = 1;
-  int32          limit        = 2;
-  optional int64 after_cursor = 3;
+  int64 workspace_id = 1;
+  int32 page_size = 2;  // default: 50, max: 200
+  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListWorkspaceMembersResponse contains the list of workspace members.
 message ListWorkspaceMembersResponse {
-  repeated WorkspaceMemberWithUser members     = 1;
-  optional int64                   next_cursor = 2;
+  repeated WorkspaceMemberWithUser members = 1;
+  string next_page_token = 2; // empty if no more pages
 }

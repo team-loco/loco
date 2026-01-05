@@ -86,17 +86,6 @@ func (q *Queries) CheckUserHasWorkspaces(ctx context.Context, userID int64) (boo
 	return has_workspaces, err
 }
 
-const countUsers = `-- name: CountUsers :one
-SELECT COUNT(*) FROM users
-`
-
-func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const createOrganization = `-- name: CreateOrganization :one
 
 INSERT INTO organizations (name, created_by)
@@ -450,17 +439,22 @@ func (q *Queries) ListUserWorkspaces(ctx context.Context, userID int64) ([]Works
 const listUsers = `-- name: ListUsers :many
 SELECT id, external_id, email, name, avatar_url, created_at, updated_at
 FROM users
-ORDER BY created_at DESC
-LIMIT $1 OFFSET $2
+WHERE ($2::text IS NULL
+       OR (created_at, id) < (
+         (SELECT created_at FROM users WHERE id = $2::bigint),
+         $2::bigint
+       ))
+ORDER BY created_at DESC, id DESC
+LIMIT $1
 `
 
 type ListUsersParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	Limit     int32       `json:"limit"`
+	PageToken pgtype.Text `json:"pageToken"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, listUsers, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listUsers, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}

@@ -434,8 +434,8 @@ func (x *GetWorkspaceRequest) GetWorkspaceId() int64 {
 type ListUserWorkspacesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -477,25 +477,25 @@ func (x *ListUserWorkspacesRequest) GetUserId() int64 {
 	return 0
 }
 
-func (x *ListUserWorkspacesRequest) GetLimit() int32 {
+func (x *ListUserWorkspacesRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListUserWorkspacesRequest) GetOffset() int32 {
+func (x *ListUserWorkspacesRequest) GetPageToken() string {
 	if x != nil {
-		return x.Offset
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListUserWorkspacesResponse contains the list of user's workspaces.
 type ListUserWorkspacesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspaces    []*Workspace           `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
-	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -537,19 +537,19 @@ func (x *ListUserWorkspacesResponse) GetWorkspaces() []*Workspace {
 	return nil
 }
 
-func (x *ListUserWorkspacesResponse) GetTotalCount() int64 {
+func (x *ListUserWorkspacesResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.TotalCount
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 type ListOrgWorkspacesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	Offset        int32                  `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -591,25 +591,25 @@ func (x *ListOrgWorkspacesRequest) GetOrgId() int64 {
 	return 0
 }
 
-func (x *ListOrgWorkspacesRequest) GetLimit() int32 {
+func (x *ListOrgWorkspacesRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListOrgWorkspacesRequest) GetOffset() int32 {
+func (x *ListOrgWorkspacesRequest) GetPageToken() string {
 	if x != nil {
-		return x.Offset
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListOrgWorkspacesResponse contains the list of workspaces.
 type ListOrgWorkspacesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Workspaces    []*Workspace           `protobuf:"bytes,1,rep,name=workspaces,proto3" json:"workspaces,omitempty"`
-	TotalCount    int64                  `protobuf:"varint,2,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -651,11 +651,11 @@ func (x *ListOrgWorkspacesResponse) GetWorkspaces() []*Workspace {
 	return nil
 }
 
-func (x *ListOrgWorkspacesResponse) GetTotalCount() int64 {
+func (x *ListOrgWorkspacesResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.TotalCount
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // UpdateWorkspaceRequest is the request to update a workspace.
@@ -996,8 +996,8 @@ func (x *DeleteMemberRequest) GetUserId() int64 {
 type ListWorkspaceMembersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	AfterCursor   *int64                 `protobuf:"varint,3,opt,name=after_cursor,json=afterCursor,proto3,oneof" json:"after_cursor,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1039,25 +1039,25 @@ func (x *ListWorkspaceMembersRequest) GetWorkspaceId() int64 {
 	return 0
 }
 
-func (x *ListWorkspaceMembersRequest) GetLimit() int32 {
+func (x *ListWorkspaceMembersRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Limit
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListWorkspaceMembersRequest) GetAfterCursor() int64 {
-	if x != nil && x.AfterCursor != nil {
-		return *x.AfterCursor
+func (x *ListWorkspaceMembersRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListWorkspaceMembersResponse contains the list of workspace members.
 type ListWorkspaceMembersResponse struct {
 	state         protoimpl.MessageState     `protogen:"open.v1"`
 	Members       []*WorkspaceMemberWithUser `protobuf:"bytes,1,rep,name=members,proto3" json:"members,omitempty"`
-	NextCursor    *int64                     `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3,oneof" json:"next_cursor,omitempty"`
+	NextPageToken string                     `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1099,11 +1099,11 @@ func (x *ListWorkspaceMembersResponse) GetMembers() []*WorkspaceMemberWithUser {
 	return nil
 }
 
-func (x *ListWorkspaceMembersResponse) GetNextCursor() int64 {
-	if x != nil && x.NextCursor != nil {
-		return *x.NextCursor
+func (x *ListWorkspaceMembersResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 var File_workspace_v1_workspace_proto protoreflect.FileDescriptor
@@ -1146,27 +1146,27 @@ const file_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x17CreateWorkspaceResponse\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"8\n" +
 	"\x13GetWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"b\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"p\n" +
 	"\x19ListUserWorkspacesRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"{\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1aListUserWorkspacesResponse\x12<\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
-	"workspaces\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x03R\n" +
-	"totalCount\"_\n" +
+	"workspaces\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"m\n" +
 	"\x18ListOrgWorkspacesRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x03 \x01(\x05R\x06offset\"z\n" +
+	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x81\x01\n" +
 	"\x19ListOrgWorkspacesResponse\x12<\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
-	"workspaces\x12\x1f\n" +
-	"\vtotal_count\x18\x02 \x01(\x03R\n" +
-	"totalCount\"\xd1\x01\n" +
+	"workspaces\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd1\x01\n" +
 	"\x16UpdateWorkspaceRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
@@ -1189,17 +1189,15 @@ const file_workspace_v1_workspace_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"Q\n" +
 	"\x13DeleteMemberRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\"\x8f\x01\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\"|\n" +
 	"\x1bListWorkspaceMembersRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12&\n" +
-	"\fafter_cursor\x18\x03 \x01(\x03H\x00R\vafterCursor\x88\x01\x01B\x0f\n" +
-	"\r_after_cursor\"\x9a\x01\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x8c\x01\n" +
 	"\x1cListWorkspaceMembersResponse\x12D\n" +
-	"\amembers\x18\x01 \x03(\v2*.loco.workspace.v1.WorkspaceMemberWithUserR\amembers\x12$\n" +
-	"\vnext_cursor\x18\x02 \x01(\x03H\x00R\n" +
-	"nextCursor\x88\x01\x01B\x0e\n" +
-	"\f_next_cursor2\x9f\a\n" +
+	"\amembers\x18\x01 \x03(\v2*.loco.workspace.v1.WorkspaceMemberWithUserR\amembers\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\x9f\a\n" +
 	"\x10WorkspaceService\x12h\n" +
 	"\x0fCreateWorkspace\x12).loco.workspace.v1.CreateWorkspaceRequest\x1a*.loco.workspace.v1.CreateWorkspaceResponse\x12T\n" +
 	"\fGetWorkspace\x12&.loco.workspace.v1.GetWorkspaceRequest\x1a\x1c.loco.workspace.v1.Workspace\x12h\n" +
@@ -1288,8 +1286,6 @@ func file_workspace_v1_workspace_proto_init() {
 	}
 	file_workspace_v1_workspace_proto_msgTypes[3].OneofWrappers = []any{}
 	file_workspace_v1_workspace_proto_msgTypes[10].OneofWrappers = []any{}
-	file_workspace_v1_workspace_proto_msgTypes[16].OneofWrappers = []any{}
-	file_workspace_v1_workspace_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

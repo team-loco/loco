@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file org/v1/org.proto.
  */
 export const file_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChBvcmcvdjEvb3JnLnByb3RvEgtsb2NvLm9yZy52MSKcAQoMT3JnYW5pemF0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJwChBXb3Jrc3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIuChBDcmVhdGVPcmdSZXF1ZXN0EhEKBG5hbWUYASABKAlIAIgBAUIHCgVfbmFtZSIjChFDcmVhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAMiPAoNR2V0T3JnUmVxdWVzdBIQCgZvcmdfaWQYASABKANIABISCghvcmdfbmFtZRgCIAEoCUgAQgUKA2tleSJFChNMaXN0VXNlck9yZ3NSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFIlQKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SEwoLdG90YWxfY291bnQYAiABKAMiRAoTTGlzdE9yZ1VzZXJzUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSDQoFbGltaXQYAiABKAUSDgoGb2Zmc2V0GAMgASgFIk0KFExpc3RPcmdVc2Vyc1Jlc3BvbnNlEiAKBXVzZXJzGAEgAygLMhEubG9jby5vcmcudjEuVXNlchITCgt0b3RhbF9jb3VudBgCIAEoAyJDCgRVc2VyEgoKAmlkGAEgASgDEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKYXZhdGFyX3VybBgEIAEoCSJJChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJjChlMaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlEjEKCndvcmtzcGFjZXMYASADKAsyHS5sb2NvLm9yZy52MS5Xb3Jrc3BhY2VTdW1tYXJ5EhMKC3RvdGFsX2NvdW50GAIgASgDIm8KEFVwZGF0ZU9yZ1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIRCgRuYW1lGAMgASgJSACIAQFCBwoFX25hbWUiIwoRVXBkYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgDIiIKEERlbGV0ZU9yZ1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDMrcECgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRI/CgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEkoKCVVwZGF0ZU9yZxIdLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXNwb25zZRJCCglEZWxldGVPcmcSHS5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElMKDExpc3RVc2VyT3JncxIgLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXNwb25zZRJTCgxMaXN0T3JnVXNlcnMSIC5sb2NvLm9yZy52MS5MaXN0T3JnVXNlcnNSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdE9yZ1VzZXJzUmVzcG9uc2USYgoRTGlzdE9yZ1dvcmtzcGFjZXMSJS5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QaJi5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlQjVaM2dpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL29yZy92MTtvcmd2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
+  fileDesc("ChBvcmcvdjEvb3JnLnByb3RvEgtsb2NvLm9yZy52MSKcAQoMT3JnYW5pemF0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJwChBXb3Jrc3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIuChBDcmVhdGVPcmdSZXF1ZXN0EhEKBG5hbWUYASABKAlIAIgBAUIHCgVfbmFtZSIjChFDcmVhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAMiPAoNR2V0T3JnUmVxdWVzdBIQCgZvcmdfaWQYASABKANIABISCghvcmdfbmFtZRgCIAEoCUgAQgUKA2tleSJNChNMaXN0VXNlck9yZ3NSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSEQoJcGFnZV9zaXplGAIgASgFEhIKCnBhZ2VfdG9rZW4YAyABKAkiWAoUTGlzdFVzZXJPcmdzUmVzcG9uc2USJwoEb3JncxgBIAMoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiTAoTTGlzdE9yZ1VzZXJzUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSEQoJcGFnZV9zaXplGAIgASgFEhIKCnBhZ2VfdG9rZW4YAyABKAkiUQoUTGlzdE9yZ1VzZXJzUmVzcG9uc2USIAoFdXNlcnMYASADKAsyES5sb2NvLm9yZy52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJDCgRVc2VyEgoKAmlkGAEgASgDEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKYXZhdGFyX3VybBgEIAEoCSJRChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJImcKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMQoKd29ya3NwYWNlcxgBIAMoCzIdLmxvY28ub3JnLnYxLldvcmtzcGFjZVN1bW1hcnkSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIm8KEFVwZGF0ZU9yZ1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIRCgRuYW1lGAMgASgJSACIAQFCBwoFX25hbWUiIwoRVXBkYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgDIiIKEERlbGV0ZU9yZ1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDMrcECgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRI/CgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEkoKCVVwZGF0ZU9yZxIdLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXNwb25zZRJCCglEZWxldGVPcmcSHS5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElMKDExpc3RVc2VyT3JncxIgLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXNwb25zZRJTCgxMaXN0T3JnVXNlcnMSIC5sb2NvLm9yZy52MS5MaXN0T3JnVXNlcnNSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdE9yZ1VzZXJzUmVzcG9uc2USYgoRTGlzdE9yZ1dvcmtzcGFjZXMSJS5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QaJi5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlQjVaM2dpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL29yZy92MTtvcmd2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -268,14 +268,18 @@ export type ListUserOrgsRequest = Message<"loco.org.v1.ListUserOrgsRequest"> & {
   userId: bigint;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset: number;
+  pageToken: string;
 };
 
 /**
@@ -290,14 +294,18 @@ export type ListUserOrgsRequestJson = {
   userId?: string;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset?: number;
+  pageToken?: string;
 };
 
 /**
@@ -319,9 +327,11 @@ export type ListUserOrgsResponse = Message<"loco.org.v1.ListUserOrgsResponse"> &
   orgs: Organization[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount: bigint;
+  nextPageToken: string;
 };
 
 /**
@@ -336,9 +346,11 @@ export type ListUserOrgsResponseJson = {
   orgs?: OrganizationJson[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount?: string;
+  nextPageToken?: string;
 };
 
 /**
@@ -360,14 +372,18 @@ export type ListOrgUsersRequest = Message<"loco.org.v1.ListOrgUsersRequest"> & {
   orgId: bigint;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset: number;
+  pageToken: string;
 };
 
 /**
@@ -382,14 +398,18 @@ export type ListOrgUsersRequestJson = {
   orgId?: string;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset?: number;
+  pageToken?: string;
 };
 
 /**
@@ -411,9 +431,11 @@ export type ListOrgUsersResponse = Message<"loco.org.v1.ListOrgUsersResponse"> &
   users: User[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount: bigint;
+  nextPageToken: string;
 };
 
 /**
@@ -428,9 +450,11 @@ export type ListOrgUsersResponseJson = {
   users?: UserJson[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount?: string;
+  nextPageToken?: string;
 };
 
 /**
@@ -513,14 +537,18 @@ export type ListOrgWorkspacesRequest = Message<"loco.org.v1.ListOrgWorkspacesReq
   orgId: bigint;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset: number;
+  pageToken: string;
 };
 
 /**
@@ -535,14 +563,18 @@ export type ListOrgWorkspacesRequestJson = {
   orgId?: string;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset?: number;
+  pageToken?: string;
 };
 
 /**
@@ -564,9 +596,11 @@ export type ListOrgWorkspacesResponse = Message<"loco.org.v1.ListOrgWorkspacesRe
   workspaces: WorkspaceSummary[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount: bigint;
+  nextPageToken: string;
 };
 
 /**
@@ -581,9 +615,11 @@ export type ListOrgWorkspacesResponseJson = {
   workspaces?: WorkspaceSummaryJson[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount?: string;
+  nextPageToken?: string;
 };
 
 /**

@@ -217,9 +217,8 @@ var loginCmd = &cobra.Command{
 		}
 
 		orgRequest := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-			UserId: currentUserResp.Msg.Id,
-			Limit:  100,
-			Offset: 0,
+			UserId:   currentUserResp.Msg.Id,
+			PageSize: 100,
 		})
 		orgRequest.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
@@ -326,9 +325,8 @@ var loginCmd = &cobra.Command{
 			selectedOrg = orgs[0]
 
 			wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
-				OrgId:  selectedOrg.Id,
-				Limit:  100,
-				Offset: 0,
+				OrgId:    selectedOrg.Id,
+				PageSize: 100,
 			})
 			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
@@ -348,9 +346,8 @@ var loginCmd = &cobra.Command{
 			selectedOrg = orgs[0]
 
 			wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
-				OrgId:  selectedOrg.Id,
-				Limit:  100,
-				Offset: 0,
+				OrgId:    selectedOrg.Id,
+				PageSize: 100,
 			})
 			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 

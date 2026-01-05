@@ -318,14 +318,12 @@ message Event {
 // ListResourceEventsRequest is the request to retrieve resource events.
 message ListResourceEventsRequest {
   int64 resource_id = 1;
-  int32 page_size = 2;  // default: 50, max: 200
-  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
+  optional int32 limit = 2; // max number of events to return
 }
 
 // ListResourceEventsResponse is the response containing resource events.
 message ListResourceEventsResponse {
   repeated Event events = 1;
-  string next_page_token = 2; // empty if no more pages
 }
 
 // --- Resource Operations ---

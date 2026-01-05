@@ -29,11 +29,13 @@ RETURNING id, external_id, email, name, avatar_url, created_at, updated_at;
 -- name: ListUsers :many
 SELECT id, external_id, email, name, avatar_url, created_at, updated_at
 FROM users
-ORDER BY created_at DESC
-LIMIT $1 OFFSET $2;
-
--- name: CountUsers :one
-SELECT COUNT(*) FROM users;
+WHERE (sqlc.narg('page_token')::text IS NULL
+       OR (created_at, id) < (
+         (SELECT created_at FROM users WHERE id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY created_at DESC, id DESC
+LIMIT $1;
 
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file user/v1/user.proto.
  */
 export const file_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCIlChJDcmVhdGVVc2VyUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoAyI7Cg5HZXRVc2VyUmVxdWVzdBIRCgd1c2VyX2lkGAEgASgDSAASDwoFZW1haWwYAiABKAlIAEIFCgNrZXkimQEKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhcKCmF2YXRhcl91cmwYAyABKAlIAIgBARIRCgRuYW1lGAQgASgJSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAMiMQoQTGlzdFVzZXJzUmVxdWVzdBINCgVsaW1pdBgBIAEoBRIOCgZvZmZzZXQYAiABKAUiSwoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchITCgt0b3RhbF9jb3VudBgCIAEoAyIkChFEZWxldGVVc2VyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDMvEDCgtVc2VyU2VydmljZRJPCgpDcmVhdGVVc2VyEh8ubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXNwb25zZRI7CgdHZXRVc2VyEhwubG9jby51c2VyLnYxLkdldFVzZXJSZXF1ZXN0GhIubG9jby51c2VyLnYxLlVzZXISNAoGV2hvQW1JEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhIubG9jby51c2VyLnYxLlVzZXISTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USRQoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRI4CgZMb2dvdXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaFi5nb29nbGUucHJvdG9idWYuRW1wdHlCN1o1Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9zaGFyZWQvcHJvdG8vdXNlci92MTt1c2VydjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
+  fileDesc("ChJ1c2VyL3YxL3VzZXIucHJvdG8SDGxvY28udXNlci52MSK4AQoEVXNlchIKCgJpZBgBIAEoAxITCgtleHRlcm5hbF9pZBgCIAEoCRINCgVlbWFpbBgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJEgwKBG5hbWUYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiewoRQ3JlYXRlVXNlclJlcXVlc3QSEwoLZXh0ZXJuYWxfaWQYASABKAkSDQoFZW1haWwYAiABKAkSEQoEbmFtZRgDIAEoCUgAiAEBEhcKCmF2YXRhcl91cmwYBCABKAlIAYgBAUIHCgVfbmFtZUINCgtfYXZhdGFyX3VybCIlChJDcmVhdGVVc2VyUmVzcG9uc2USDwoHdXNlcl9pZBgBIAEoAyI7Cg5HZXRVc2VyUmVxdWVzdBIRCgd1c2VyX2lkGAEgASgDSAASDwoFZW1haWwYAiABKAlIAEIFCgNrZXkimQEKEVVwZGF0ZVVzZXJSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhcKCmF2YXRhcl91cmwYAyABKAlIAIgBARIRCgRuYW1lGAQgASgJSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAMiOQoQTGlzdFVzZXJzUmVxdWVzdBIRCglwYWdlX3NpemUYASABKAUSEgoKcGFnZV90b2tlbhgCIAEoCSJPChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIkChFEZWxldGVVc2VyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDMvEDCgtVc2VyU2VydmljZRJPCgpDcmVhdGVVc2VyEh8ubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXF1ZXN0GiAubG9jby51c2VyLnYxLkNyZWF0ZVVzZXJSZXNwb25zZRI7CgdHZXRVc2VyEhwubG9jby51c2VyLnYxLkdldFVzZXJSZXF1ZXN0GhIubG9jby51c2VyLnYxLlVzZXISNAoGV2hvQW1JEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhIubG9jby51c2VyLnYxLlVzZXISTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USRQoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRI4CgZMb2dvdXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaFi5nb29nbGUucHJvdG9idWYuRW1wdHlCN1o1Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9zaGFyZWQvcHJvdG8vdXNlci92MTt1c2VydjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -344,14 +344,18 @@ export const UpdateUserResponseSchema: GenMessage<UpdateUserResponse, {jsonType:
  */
 export type ListUsersRequest = Message<"loco.user.v1.ListUsersRequest"> & {
   /**
-   * @generated from field: int32 limit = 1;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 1;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: int32 offset = 2;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 2;
    */
-  offset: number;
+  pageToken: string;
 };
 
 /**
@@ -361,14 +365,18 @@ export type ListUsersRequest = Message<"loco.user.v1.ListUsersRequest"> & {
  */
 export type ListUsersRequestJson = {
   /**
-   * @generated from field: int32 limit = 1;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 1;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: int32 offset = 2;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 2;
    */
-  offset?: number;
+  pageToken?: string;
 };
 
 /**
@@ -390,9 +398,11 @@ export type ListUsersResponse = Message<"loco.user.v1.ListUsersResponse"> & {
   users: User[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount: bigint;
+  nextPageToken: string;
 };
 
 /**
@@ -407,9 +417,11 @@ export type ListUsersResponseJson = {
   users?: UserJson[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount?: string;
+  nextPageToken?: string;
 };
 
 /**

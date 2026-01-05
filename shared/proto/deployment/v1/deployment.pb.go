@@ -1044,8 +1044,8 @@ func (x *GetDeploymentRequest) GetDeploymentId() int64 {
 type ListDeploymentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	Offset        *int32                 `protobuf:"varint,3,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
+	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1087,25 +1087,25 @@ func (x *ListDeploymentsRequest) GetResourceId() int64 {
 	return 0
 }
 
-func (x *ListDeploymentsRequest) GetLimit() int32 {
-	if x != nil && x.Limit != nil {
-		return *x.Limit
+func (x *ListDeploymentsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
 	}
 	return 0
 }
 
-func (x *ListDeploymentsRequest) GetOffset() int32 {
-	if x != nil && x.Offset != nil {
-		return *x.Offset
+func (x *ListDeploymentsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListDeploymentsResponse is the response containing deployment list.
 type ListDeploymentsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deployments   []*Deployment          `protobuf:"bytes,1,rep,name=deployments,proto3" json:"deployments,omitempty"`
-	Total         int64                  `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1147,11 +1147,11 @@ func (x *ListDeploymentsResponse) GetDeployments() []*Deployment {
 	return nil
 }
 
-func (x *ListDeploymentsResponse) GetTotal() int64 {
+func (x *ListDeploymentsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.Total
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // WatchDeploymentRequest is the request to stream deployment events.
@@ -1407,17 +1407,16 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\";\n" +
 	"\x14GetDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\x86\x01\n" +
+	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"u\n" +
 	"\x16ListDeploymentsRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
-	"resourceId\x12\x19\n" +
-	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01\x12\x1b\n" +
-	"\x06offset\x18\x03 \x01(\x05H\x01R\x06offset\x88\x01\x01B\b\n" +
-	"\x06_limitB\t\n" +
-	"\a_offset\"q\n" +
+	"resourceId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
-	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x03R\x05total\"=\n" +
+	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"=\n" +
 	"\x16WatchDeploymentRequest\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\xc7\x01\n" +
 	"\x0fDeploymentEvent\x12#\n" +
@@ -1534,7 +1533,6 @@ func file_deployment_v1_deployment_proto_init() {
 		(*DeploymentSpec_Queue)(nil),
 	}
 	file_deployment_v1_deployment_proto_msgTypes[10].OneofWrappers = []any{}
-	file_deployment_v1_deployment_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

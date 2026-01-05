@@ -7,18 +7,9 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
-
-const countDeploymentsForResource = `-- name: CountDeploymentsForResource :one
-SELECT COUNT(*) FROM deployments WHERE resource_id = $1
-`
-
-func (q *Queries) CountDeploymentsForResource(ctx context.Context, resourceID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, countDeploymentsForResource, resourceID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
 
 const createDeployment = `-- name: CreateDeployment :one
 
@@ -199,20 +190,25 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 }
 
 const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
-WHERE resource_id = $1
-ORDER BY created_at DESC
-LIMIT $2 OFFSET $3
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments d
+WHERE d.resource_id = $1
+  AND ($3::text IS NULL
+       OR (d.created_at, d.id) < (
+         (SELECT created_at FROM deployments WHERE id = $3::bigint),
+         $3::bigint
+       ))
+ORDER BY d.created_at DESC, d.id DESC
+LIMIT $2
 `
 
 type ListDeploymentsForResourceParams struct {
-	ResourceID int64 `json:"resourceId"`
-	Limit      int32 `json:"limit"`
-	Offset     int32 `json:"offset"`
+	ResourceID int64       `json:"resourceId"`
+	Limit      int32       `json:"limit"`
+	PageToken  pgtype.Text `json:"pageToken"`
 }
 
 func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error) {
-	rows, err := q.db.Query(ctx, listDeploymentsForResource, arg.ResourceID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listDeploymentsForResource, arg.ResourceID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}

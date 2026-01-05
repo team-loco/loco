@@ -19,7 +19,13 @@ WHERE r.workspace_id = $1 AND r.name = $2;
 SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
-ORDER BY r.created_at DESC;
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (r.created_at, r.id) < (
+         (SELECT created_at FROM resources WHERE id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $2;
 
 -- name: UpdateResource :one
 UPDATE resources

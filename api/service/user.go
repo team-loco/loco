@@ -245,28 +245,23 @@ func (s *UserServer) ListUsers(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	limit := r.GetLimit()
-	if limit < 1 {
-		limit = 50
-	}
-	if limit > 100 {
-		limit = 100
-	}
+	pageSize := normalizePageSize(r.GetPageSize())
 
-	offset := r.GetOffset()
-	if offset < 0 {
-		offset = 0
-	}
-
-	totalCount, err := s.queries.CountUsers(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count users", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
 	}
 
 	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
-		Limit:  limit,
-		Offset: offset,
+		Limit:     pageSize,
+		PageToken: pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list users", "error", err)
@@ -278,9 +273,14 @@ func (s *UserServer) ListUsers(
 		users = append(users, dbUserToProto(dbUser))
 	}
 
+	var nextPageToken string
+	if len(dbUsers) == int(pageSize) {
+		nextPageToken = encodeCursor(dbUsers[len(dbUsers)-1].ID)
+	}
+
 	return connect.NewResponse(&userv1.ListUsersResponse{
-		Users:      users,
-		TotalCount: int64(totalCount),
+		Users:         users,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 

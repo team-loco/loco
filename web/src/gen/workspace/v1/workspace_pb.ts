@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file workspace/v1/workspace.proto.
  */
 export const file_workspace_v1_workspace: GenFile = /*@__PURE__*/
-  fileDesc("Chx3b3Jrc3BhY2UvdjEvd29ya3NwYWNlLnByb3RvEhFsb2NvLndvcmtzcGFjZS52MSK+AQoJV29ya3NwYWNlEgoKAmlkGAEgASgDEg4KBm9yZ19pZBgCIAEoAxIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAMSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidgoPV29ya3NwYWNlTWVtYmVyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAivgEKF1dvcmtzcGFjZU1lbWJlcldpdGhVc2VyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdXNlcl9uYW1lGAUgASgJEhIKCnVzZXJfZW1haWwYBiABKAkSFwoPdXNlcl9hdmF0YXJfdXJsGAcgASgJImAKFkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QSDgoGb3JnX2lkGAEgASgDEgwKBG5hbWUYAiABKAkSGAoLZGVzY3JpcHRpb24YAyABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24iLwoXQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgDIisKE0dldFdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDIksKGUxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QSDwoHdXNlcl9pZBgBIAEoAxINCgVsaW1pdBgCIAEoBRIOCgZvZmZzZXQYAyABKAUiYwoaTGlzdFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRITCgt0b3RhbF9jb3VudBgCIAEoAyJJChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEg0KBWxpbWl0GAIgASgFEg4KBm9mZnNldBgDIAEoBSJiChlMaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlEjAKCndvcmtzcGFjZXMYASADKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USEwoLdG90YWxfY291bnQYAiABKAMipQEKFlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIRCgRuYW1lGAMgASgJSACIAQESGAoLZGVzY3JpcHRpb24YBCABKAlIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb24iLwoXVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgDIksKFkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiSgoTQ3JlYXRlTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDwoHdXNlcl9pZBgCIAEoAxIMCgRyb2xlGAMgASgJIj0KFENyZWF0ZU1lbWJlclJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDIjwKE0RlbGV0ZU1lbWJlclJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEg8KB3VzZXJfaWQYAiABKAMibgobTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxINCgVsaW1pdBgCIAEoBRIZCgxhZnRlcl9jdXJzb3IYAyABKANIAIgBAUIPCg1fYWZ0ZXJfY3Vyc29yIoUBChxMaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlEjsKB21lbWJlcnMYASADKAsyKi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIYCgtuZXh0X2N1cnNvchgCIAEoA0gAiAEBQg4KDF9uZXh0X2N1cnNvcjKfBwoQV29ya3NwYWNlU2VydmljZRJoCg9DcmVhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USVAoMR2V0V29ya3NwYWNlEiYubG9jby53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVxdWVzdBocLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRJoCg9VcGRhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USVAoPRGVsZXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJxChJMaXN0VXNlcldvcmtzcGFjZXMSLC5sb2NvLndvcmtzcGFjZS52MS5MaXN0VXNlcldvcmtzcGFjZXNSZXF1ZXN0Gi0ubG9jby53b3Jrc3BhY2UudjEuTGlzdFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USbgoRTGlzdE9yZ1dvcmtzcGFjZXMSKy5sb2NvLndvcmtzcGFjZS52MS5MaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QaLC5sb2NvLndvcmtzcGFjZS52MS5MaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlEl8KDENyZWF0ZU1lbWJlchImLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZU1lbWJlclJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVNZW1iZXJSZXNwb25zZRJOCgxEZWxldGVNZW1iZXISJi5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVNZW1iZXJSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5EncKFExpc3RXb3Jrc3BhY2VNZW1iZXJzEi4ubG9jby53b3Jrc3BhY2UudjEuTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXF1ZXN0Gi8ubG9jby53b3Jrc3BhY2UudjEuTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXNwb25zZUJBWj9naXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3NoYXJlZC9wcm90by93b3Jrc3BhY2UvdjE7d29ya3NwYWNldjFiBnByb3RvMw", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
+  fileDesc("Chx3b3Jrc3BhY2UvdjEvd29ya3NwYWNlLnByb3RvEhFsb2NvLndvcmtzcGFjZS52MSK+AQoJV29ya3NwYWNlEgoKAmlkGAEgASgDEg4KBm9yZ19pZBgCIAEoAxIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhIKCmNyZWF0ZWRfYnkYBSABKAMSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAidgoPV29ya3NwYWNlTWVtYmVyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAivgEKF1dvcmtzcGFjZU1lbWJlcldpdGhVc2VyEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBHJvbGUYAyABKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdXNlcl9uYW1lGAUgASgJEhIKCnVzZXJfZW1haWwYBiABKAkSFwoPdXNlcl9hdmF0YXJfdXJsGAcgASgJImAKFkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QSDgoGb3JnX2lkGAEgASgDEgwKBG5hbWUYAiABKAkSGAoLZGVzY3JpcHRpb24YAyABKAlIAIgBAUIOCgxfZGVzY3JpcHRpb24iLwoXQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgDIisKE0dldFdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDIlMKGUxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QSDwoHdXNlcl9pZBgBIAEoAxIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCSJnChpMaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRIwCgp3b3Jrc3BhY2VzGAEgAygLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJRChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJImYKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkipQEKFlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIRCgRuYW1lGAMgASgJSACIAQESGAoLZGVzY3JpcHRpb24YBCABKAlIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb24iLwoXVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgDIksKFkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiSgoTQ3JlYXRlTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDwoHdXNlcl9pZBgCIAEoAxIMCgRyb2xlGAMgASgJIj0KFENyZWF0ZU1lbWJlclJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDIjwKE0RlbGV0ZU1lbWJlclJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEg8KB3VzZXJfaWQYAiABKAMiWgobTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCSJ0ChxMaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlEjsKB21lbWJlcnMYASADKAsyKi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkynwcKEFdvcmtzcGFjZVNlcnZpY2USaAoPQ3JlYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlElQKDEdldFdvcmtzcGFjZRImLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlcXVlc3QaHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USaAoPVXBkYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLlVwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlElQKD0RlbGV0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QaFi5nb29nbGUucHJvdG9idWYuRW1wdHkScQoSTGlzdFVzZXJXb3Jrc3BhY2VzEiwubG9jby53b3Jrc3BhY2UudjEuTGlzdFVzZXJXb3Jrc3BhY2VzUmVxdWVzdBotLmxvY28ud29ya3NwYWNlLnYxLkxpc3RVc2VyV29ya3NwYWNlc1Jlc3BvbnNlEm4KEUxpc3RPcmdXb3Jrc3BhY2VzEisubG9jby53b3Jrc3BhY2UudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXF1ZXN0GiwubG9jby53b3Jrc3BhY2UudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXNwb25zZRJfCgxDcmVhdGVNZW1iZXISJi5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVNZW1iZXJSZXF1ZXN0GicubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlTWVtYmVyUmVzcG9uc2USTgoMRGVsZXRlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlTWVtYmVyUmVxdWVzdBoWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRJ3ChRMaXN0V29ya3NwYWNlTWVtYmVycxIuLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVxdWVzdBovLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVzcG9uc2VCQVo/Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9zaGFyZWQvcHJvdG8vd29ya3NwYWNlL3YxO3dvcmtzcGFjZXYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
 
 /**
  * Workspace represents a project container within an organization where resources are deployed and managed.
@@ -382,14 +382,18 @@ export type ListUserWorkspacesRequest = Message<"loco.workspace.v1.ListUserWorks
   userId: bigint;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset: number;
+  pageToken: string;
 };
 
 /**
@@ -404,14 +408,18 @@ export type ListUserWorkspacesRequestJson = {
   userId?: string;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset?: number;
+  pageToken?: string;
 };
 
 /**
@@ -433,9 +441,11 @@ export type ListUserWorkspacesResponse = Message<"loco.workspace.v1.ListUserWork
   workspaces: Workspace[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount: bigint;
+  nextPageToken: string;
 };
 
 /**
@@ -450,9 +460,11 @@ export type ListUserWorkspacesResponseJson = {
   workspaces?: WorkspaceJson[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount?: string;
+  nextPageToken?: string;
 };
 
 /**
@@ -474,14 +486,18 @@ export type ListOrgWorkspacesRequest = Message<"loco.workspace.v1.ListOrgWorkspa
   orgId: bigint;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset: number;
+  pageToken: string;
 };
 
 /**
@@ -496,14 +512,18 @@ export type ListOrgWorkspacesRequestJson = {
   orgId?: string;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: int32 offset = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  offset?: number;
+  pageToken?: string;
 };
 
 /**
@@ -525,9 +545,11 @@ export type ListOrgWorkspacesResponse = Message<"loco.workspace.v1.ListOrgWorksp
   workspaces: Workspace[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount: bigint;
+  nextPageToken: string;
 };
 
 /**
@@ -542,9 +564,11 @@ export type ListOrgWorkspacesResponseJson = {
   workspaces?: WorkspaceJson[];
 
   /**
-   * @generated from field: int64 total_count = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  totalCount?: string;
+  nextPageToken?: string;
 };
 
 /**
@@ -832,14 +856,18 @@ export type ListWorkspaceMembersRequest = Message<"loco.workspace.v1.ListWorkspa
   workspaceId: bigint;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit: number;
+  pageSize: number;
 
   /**
-   * @generated from field: optional int64 after_cursor = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  afterCursor?: bigint;
+  pageToken: string;
 };
 
 /**
@@ -854,14 +882,18 @@ export type ListWorkspaceMembersRequestJson = {
   workspaceId?: string;
 
   /**
-   * @generated from field: int32 limit = 2;
+   * default: 50, max: 200
+   *
+   * @generated from field: int32 page_size = 2;
    */
-  limit?: number;
+  pageSize?: number;
 
   /**
-   * @generated from field: optional int64 after_cursor = 3;
+   * cursor from previous page (base64-encoded timestamp+id)
+   *
+   * @generated from field: string page_token = 3;
    */
-  afterCursor?: string;
+  pageToken?: string;
 };
 
 /**
@@ -883,9 +915,11 @@ export type ListWorkspaceMembersResponse = Message<"loco.workspace.v1.ListWorksp
   members: WorkspaceMemberWithUser[];
 
   /**
-   * @generated from field: optional int64 next_cursor = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  nextCursor?: bigint;
+  nextPageToken: string;
 };
 
 /**
@@ -900,9 +934,11 @@ export type ListWorkspaceMembersResponseJson = {
   members?: WorkspaceMemberWithUserJson[];
 
   /**
-   * @generated from field: optional int64 next_cursor = 2;
+   * empty if no more pages
+   *
+   * @generated from field: string next_page_token = 2;
    */
-  nextCursor?: string;
+  nextPageToken?: string;
 };
 
 /**

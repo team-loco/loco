@@ -104,14 +104,11 @@ message GetPlatformDomainRequest {
 // ListPlatformDomainsRequest is the request to list platform domains.
 message ListPlatformDomainsRequest {
   optional bool active_only = 1;
-  int32 page_size = 2;  // default: 50, max: 200
-  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListPlatformDomainsResponse contains the list of platform domains.
 message ListPlatformDomainsResponse {
   repeated PlatformDomain platform_domains = 1;
-  string next_page_token = 2; // empty if no more pages
 }
 
 // UpdatePlatformDomainRequest is the request to update a platform domain.

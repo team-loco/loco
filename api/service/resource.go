@@ -289,7 +289,25 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, r.GetWorkspaceId())
+	pageSize := normalizePageSize(r.GetPageSize())
+
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
+	}
+
+	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, genDb.ListResourcesForWorkspaceParams{
+		WorkspaceID: r.GetWorkspaceId(),
+		Limit:       pageSize,
+		PageToken:   pageToken,
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resources", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -310,8 +328,14 @@ func (s *ResourceServer) ListWorkspaceResources(
 		resources = append(resources, dbResourceToProto(dbResource, resourceDomains, resourceRegions))
 	}
 
+	var nextPageToken string
+	if len(dbResources) == int(pageSize) {
+		nextPageToken = encodeCursor(dbResources[len(dbResources)-1].ID)
+	}
+
 	return connect.NewResponse(&resourcev1.ListWorkspaceResourcesResponse{
-		Resources: resources,
+		Resources:     resources,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 
@@ -397,7 +421,7 @@ func (s *ResourceServer) GetResourceStatus(
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
 		ResourceID: r.ResourceId,
 		Limit:      1,
-		Offset:     0,
+		PageToken:  pgtype.Text{}, // empty for first page
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)

@@ -136,6 +136,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	ctx context.Context,
 	req *connect.Request[workspacev1.ListUserWorkspacesRequest],
 ) (*connect.Response[workspacev1.ListUserWorkspacesResponse], error) {
+	r := req.Msg
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
@@ -150,7 +151,25 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	workspaceList, err := s.queries.ListWorkspacesForUser(ctx, entity.ID)
+	pageSize := normalizePageSize(r.GetPageSize())
+
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
+	}
+
+	workspaceList, err := s.queries.ListWorkspacesForUser(ctx, genDb.ListWorkspacesForUserParams{
+		UserID:    entity.ID,
+		Limit:     pageSize,
+		PageToken: pageToken,
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces for user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -169,8 +188,14 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		})
 	}
 
+	var nextPageToken string
+	if len(workspaceList) == int(pageSize) {
+		nextPageToken = encodeCursor(workspaceList[len(workspaceList)-1].ID)
+	}
+
 	return connect.NewResponse(&workspacev1.ListUserWorkspacesResponse{
-		Workspaces: workspaces,
+		Workspaces:    workspaces,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 
@@ -193,7 +218,25 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, r.GetOrgId())
+	pageSize := normalizePageSize(r.GetPageSize())
+
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
+	}
+
+	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
+		OrgID:     r.GetOrgId(),
+		Limit:     pageSize,
+		PageToken: pageToken,
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -212,8 +255,14 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		})
 	}
 
+	var nextPageToken string
+	if len(workspaceList) == int(pageSize) {
+		nextPageToken = encodeCursor(workspaceList[len(workspaceList)-1].ID)
+	}
+
 	return connect.NewResponse(&workspacev1.ListOrgWorkspacesResponse{
-		Workspaces: workspaces,
+		Workspaces:    workspaces,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 
@@ -330,34 +379,28 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	limit := r.GetLimit()
-	if limit == 0 {
-		limit = 10
-	}
-	if limit > 100 {
-		limit = 100
-	}
+	pageSize := normalizePageSize(r.GetPageSize())
 
-	var afterCursor pgtype.Int8
-	if r.GetAfterCursor() > 0 {
-		afterCursor = pgtype.Int8{Int64: r.GetAfterCursor(), Valid: true}
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
 	}
 
 	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(ctx, genDb.ListWorkspaceMembersWithUserDetailsParams{
 		WorkspaceID: r.GetWorkspaceId(),
-		Limit:       limit + 1,
-		AfterCursor: afterCursor,
+		Limit:       pageSize,
+		PageToken:   pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list members", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	var nextCursor *int64
-	if len(memberList) > int(limit) {
-		memberList = memberList[:limit]
-		lastMember := memberList[len(memberList)-1]
-		nextCursor = &lastMember.UserID
 	}
 
 	var members []*workspacev1.WorkspaceMemberWithUser
@@ -373,8 +416,13 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		})
 	}
 
+	var nextPageToken string
+	if len(memberList) == int(pageSize) {
+		nextPageToken = encodeCursor(memberList[len(memberList)-1].UserID)
+	}
+
 	return connect.NewResponse(&workspacev1.ListWorkspaceMembersResponse{
-		Members:    members,
-		NextCursor: nextCursor,
+		Members:       members,
+		NextPageToken: nextPageToken,
 	}), nil
 }

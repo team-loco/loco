@@ -14,12 +14,13 @@ SELECT DISTINCT o.*
 FROM organizations o
 JOIN organization_members om ON om.organization_id = o.id
 WHERE om.user_id = $1
-ORDER BY o.created_at DESC
-OFFSET $2
-LIMIT $3;
-
--- name: CountOrgsForUser :one
-SELECT COUNT(*) FROM organization_members WHERE user_id = $1;
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (o.created_at, o.id) < (
+         (SELECT created_at FROM organizations WHERE id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY o.created_at DESC, o.id DESC
+LIMIT $2;
 
 -- name: UpdateOrgName :one
 UPDATE organizations
@@ -31,10 +32,16 @@ RETURNING *;
 DELETE FROM organizations WHERE id = $1;
 
 -- name: ListWorkspacesForOrg :many
-SELECT id, name, created_by, created_at
-FROM workspaces
-WHERE org_id = $1
-ORDER BY created_at DESC;
+SELECT w.id, w.name, w.created_by, w.created_at
+FROM workspaces w
+WHERE w.org_id = $1
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (w.created_at, w.id) < (
+         (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2;
 
 -- name: OrgHasWorkspacesWithResources :one
 SELECT EXISTS(
