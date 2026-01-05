@@ -2,7 +2,7 @@ name: Deploy and Update Infra
 on:
   push:
     branches:
-      - feature/*
+      - main
 jobs:
   deploy:
     runs-on: ubuntu-latest
