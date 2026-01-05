@@ -9,7 +9,6 @@ import (
 	context "context"
 	errors "errors"
 	v1 "github.com/team-loco/loco/shared/proto/domain/v1"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	http "net/http"
 	strings "strings"
 )
@@ -75,13 +74,13 @@ type DomainServiceClient interface {
 	// CreatePlatformDomain creates a new platform-provided domain.
 	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
 	// GetPlatformDomain retrieves a platform domain by ID or name.
-	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
+	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error)
 	// ListPlatformDomains lists platform domains with optional filters.
 	ListPlatformDomains(context.Context, *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error)
 	// UpdatePlatformDomain updates a platform domain.
 	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error)
 	// DeletePlatformDomain deletes a platform domain.
-	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[emptypb.Empty], error)
+	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
 	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error)
@@ -90,7 +89,7 @@ type DomainServiceClient interface {
 	// SetPrimaryResourceDomain sets the primary domain for a resource.
 	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error)
 	// DeleteResourceDomain removes a domain from a resource.
-	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error)
 	// Queries
 	// ListLocoOwnedDomains lists all domains owned by Loco with resources.
 	ListLocoOwnedDomains(context.Context, *connect.Request[v1.ListLocoOwnedDomainsRequest]) (*connect.Response[v1.ListLocoOwnedDomainsResponse], error)
@@ -115,7 +114,7 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(domainServiceMethods.ByName("CreatePlatformDomain")),
 			connect.WithClientOptions(opts...),
 		),
-		getPlatformDomain: connect.NewClient[v1.GetPlatformDomainRequest, v1.PlatformDomain](
+		getPlatformDomain: connect.NewClient[v1.GetPlatformDomainRequest, v1.GetPlatformDomainResponse](
 			httpClient,
 			baseURL+DomainServiceGetPlatformDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("GetPlatformDomain")),
@@ -133,7 +132,7 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(domainServiceMethods.ByName("UpdatePlatformDomain")),
 			connect.WithClientOptions(opts...),
 		),
-		deletePlatformDomain: connect.NewClient[v1.DeletePlatformDomainRequest, emptypb.Empty](
+		deletePlatformDomain: connect.NewClient[v1.DeletePlatformDomainRequest, v1.DeletePlatformDomainResponse](
 			httpClient,
 			baseURL+DomainServiceDeletePlatformDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("DeletePlatformDomain")),
@@ -157,7 +156,7 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(domainServiceMethods.ByName("SetPrimaryResourceDomain")),
 			connect.WithClientOptions(opts...),
 		),
-		deleteResourceDomain: connect.NewClient[v1.DeleteResourceDomainRequest, emptypb.Empty](
+		deleteResourceDomain: connect.NewClient[v1.DeleteResourceDomainRequest, v1.DeleteResourceDomainResponse](
 			httpClient,
 			baseURL+DomainServiceDeleteResourceDomainProcedure,
 			connect.WithSchema(domainServiceMethods.ByName("DeleteResourceDomain")),
@@ -181,14 +180,14 @@ func NewDomainServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // domainServiceClient implements DomainServiceClient.
 type domainServiceClient struct {
 	createPlatformDomain     *connect.Client[v1.CreatePlatformDomainRequest, v1.CreatePlatformDomainResponse]
-	getPlatformDomain        *connect.Client[v1.GetPlatformDomainRequest, v1.PlatformDomain]
+	getPlatformDomain        *connect.Client[v1.GetPlatformDomainRequest, v1.GetPlatformDomainResponse]
 	listPlatformDomains      *connect.Client[v1.ListPlatformDomainsRequest, v1.ListPlatformDomainsResponse]
 	updatePlatformDomain     *connect.Client[v1.UpdatePlatformDomainRequest, v1.UpdatePlatformDomainResponse]
-	deletePlatformDomain     *connect.Client[v1.DeletePlatformDomainRequest, emptypb.Empty]
+	deletePlatformDomain     *connect.Client[v1.DeletePlatformDomainRequest, v1.DeletePlatformDomainResponse]
 	createResourceDomain     *connect.Client[v1.CreateResourceDomainRequest, v1.CreateResourceDomainResponse]
 	updateResourceDomain     *connect.Client[v1.UpdateResourceDomainRequest, v1.UpdateResourceDomainResponse]
 	setPrimaryResourceDomain *connect.Client[v1.SetPrimaryResourceDomainRequest, v1.SetPrimaryResourceDomainResponse]
-	deleteResourceDomain     *connect.Client[v1.DeleteResourceDomainRequest, emptypb.Empty]
+	deleteResourceDomain     *connect.Client[v1.DeleteResourceDomainRequest, v1.DeleteResourceDomainResponse]
 	listLocoOwnedDomains     *connect.Client[v1.ListLocoOwnedDomainsRequest, v1.ListLocoOwnedDomainsResponse]
 	checkDomainAvailability  *connect.Client[v1.CheckDomainAvailabilityRequest, v1.CheckDomainAvailabilityResponse]
 }
@@ -199,7 +198,7 @@ func (c *domainServiceClient) CreatePlatformDomain(ctx context.Context, req *con
 }
 
 // GetPlatformDomain calls loco.domain.v1.DomainService.GetPlatformDomain.
-func (c *domainServiceClient) GetPlatformDomain(ctx context.Context, req *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error) {
+func (c *domainServiceClient) GetPlatformDomain(ctx context.Context, req *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error) {
 	return c.getPlatformDomain.CallUnary(ctx, req)
 }
 
@@ -214,7 +213,7 @@ func (c *domainServiceClient) UpdatePlatformDomain(ctx context.Context, req *con
 }
 
 // DeletePlatformDomain calls loco.domain.v1.DomainService.DeletePlatformDomain.
-func (c *domainServiceClient) DeletePlatformDomain(ctx context.Context, req *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *domainServiceClient) DeletePlatformDomain(ctx context.Context, req *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error) {
 	return c.deletePlatformDomain.CallUnary(ctx, req)
 }
 
@@ -234,7 +233,7 @@ func (c *domainServiceClient) SetPrimaryResourceDomain(ctx context.Context, req 
 }
 
 // DeleteResourceDomain calls loco.domain.v1.DomainService.DeleteResourceDomain.
-func (c *domainServiceClient) DeleteResourceDomain(ctx context.Context, req *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *domainServiceClient) DeleteResourceDomain(ctx context.Context, req *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error) {
 	return c.deleteResourceDomain.CallUnary(ctx, req)
 }
 
@@ -254,13 +253,13 @@ type DomainServiceHandler interface {
 	// CreatePlatformDomain creates a new platform-provided domain.
 	CreatePlatformDomain(context.Context, *connect.Request[v1.CreatePlatformDomainRequest]) (*connect.Response[v1.CreatePlatformDomainResponse], error)
 	// GetPlatformDomain retrieves a platform domain by ID or name.
-	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error)
+	GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error)
 	// ListPlatformDomains lists platform domains with optional filters.
 	ListPlatformDomains(context.Context, *connect.Request[v1.ListPlatformDomainsRequest]) (*connect.Response[v1.ListPlatformDomainsResponse], error)
 	// UpdatePlatformDomain updates a platform domain.
 	UpdatePlatformDomain(context.Context, *connect.Request[v1.UpdatePlatformDomainRequest]) (*connect.Response[v1.UpdatePlatformDomainResponse], error)
 	// DeletePlatformDomain deletes a platform domain.
-	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[emptypb.Empty], error)
+	DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error)
 	// Resource Domain Management
 	// CreateResourceDomain assigns a domain to a resource.
 	CreateResourceDomain(context.Context, *connect.Request[v1.CreateResourceDomainRequest]) (*connect.Response[v1.CreateResourceDomainResponse], error)
@@ -269,7 +268,7 @@ type DomainServiceHandler interface {
 	// SetPrimaryResourceDomain sets the primary domain for a resource.
 	SetPrimaryResourceDomain(context.Context, *connect.Request[v1.SetPrimaryResourceDomainRequest]) (*connect.Response[v1.SetPrimaryResourceDomainResponse], error)
 	// DeleteResourceDomain removes a domain from a resource.
-	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error)
 	// Queries
 	// ListLocoOwnedDomains lists all domains owned by Loco with resources.
 	ListLocoOwnedDomains(context.Context, *connect.Request[v1.ListLocoOwnedDomainsRequest]) (*connect.Response[v1.ListLocoOwnedDomainsResponse], error)
@@ -387,7 +386,7 @@ func (UnimplementedDomainServiceHandler) CreatePlatformDomain(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.CreatePlatformDomain is not implemented"))
 }
 
-func (UnimplementedDomainServiceHandler) GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.PlatformDomain], error) {
+func (UnimplementedDomainServiceHandler) GetPlatformDomain(context.Context, *connect.Request[v1.GetPlatformDomainRequest]) (*connect.Response[v1.GetPlatformDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.GetPlatformDomain is not implemented"))
 }
 
@@ -399,7 +398,7 @@ func (UnimplementedDomainServiceHandler) UpdatePlatformDomain(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.UpdatePlatformDomain is not implemented"))
 }
 
-func (UnimplementedDomainServiceHandler) DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedDomainServiceHandler) DeletePlatformDomain(context.Context, *connect.Request[v1.DeletePlatformDomainRequest]) (*connect.Response[v1.DeletePlatformDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.DeletePlatformDomain is not implemented"))
 }
 
@@ -415,7 +414,7 @@ func (UnimplementedDomainServiceHandler) SetPrimaryResourceDomain(context.Contex
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.SetPrimaryResourceDomain is not implemented"))
 }
 
-func (UnimplementedDomainServiceHandler) DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedDomainServiceHandler) DeleteResourceDomain(context.Context, *connect.Request[v1.DeleteResourceDomainRequest]) (*connect.Response[v1.DeleteResourceDomainResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.domain.v1.DomainService.DeleteResourceDomain is not implemented"))
 }
 

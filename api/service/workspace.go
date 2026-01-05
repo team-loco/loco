@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
 	workspacev1 "github.com/team-loco/loco/shared/proto/workspace/v1"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -106,7 +105,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 func (s *WorkspaceServer) GetWorkspace(
 	ctx context.Context,
 	req *connect.Request[workspacev1.GetWorkspaceRequest],
-) (*connect.Response[workspacev1.Workspace], error) {
+) (*connect.Response[workspacev1.GetWorkspaceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetWorkspace, r.GetWorkspaceId())); err != nil {
@@ -120,14 +119,16 @@ func (s *WorkspaceServer) GetWorkspace(
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
 	}
 
-	return connect.NewResponse(&workspacev1.Workspace{
-		Id:          ws.ID,
-		OrgId:       ws.OrgID,
-		Name:        ws.Name,
-		Description: ws.Description.String,
-		CreatedBy:   ws.CreatedBy,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
+	return connect.NewResponse(&workspacev1.GetWorkspaceResponse{
+		Workspace: &workspacev1.Workspace{
+			Id:          ws.ID,
+			OrgId:       ws.OrgID,
+			Name:        ws.Name,
+			Description: ws.Description.String,
+			CreatedBy:   ws.CreatedBy,
+			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
+			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
+		},
 	}), nil
 }
 
@@ -328,7 +329,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 func (s *WorkspaceServer) DeleteWorkspace(
 	ctx context.Context,
 	req *connect.Request[workspacev1.DeleteWorkspaceRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[workspacev1.DeleteWorkspaceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteWorkspace, r.GetWorkspaceId())); err != nil {
@@ -342,7 +343,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
 }
 
 // CreateMember adds a member to a workspace
@@ -361,7 +362,7 @@ func (s *WorkspaceServer) CreateMember(
 func (s *WorkspaceServer) DeleteMember(
 	ctx context.Context,
 	req *connect.Request[workspacev1.DeleteMemberRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[workspacev1.DeleteMemberResponse], error) {
 	// TODO: implement delete member
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
 }

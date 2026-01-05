@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package loco.deployment.v1;
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/deployment/v1;deploymentv1";
@@ -29,13 +28,13 @@ service DeploymentService {
   // CreateDeployment creates a new deployment for a resource.
   rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
   // GetDeployment retrieves a deployment by ID.
-  rpc GetDeployment(GetDeploymentRequest) returns (Deployment);
+  rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
   // ListDeployments lists deployments for a resource.
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
   // WatchDeployment streams deployment events in real-time.
-  rpc WatchDeployment(WatchDeploymentRequest) returns (stream DeploymentEvent);
+  rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
   // DeleteDeployment deletes/inactivates a deployment.
-  rpc DeleteDeployment(DeleteDeploymentRequest) returns (google.protobuf.Empty);
+  rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
 }
 
 // Port defines a network port configuration.
@@ -148,6 +147,11 @@ message GetDeploymentRequest {
   int64 deployment_id = 1;
 }
 
+// GetDeploymentResponse is the response containing the deployment.
+message GetDeploymentResponse {
+  Deployment deployment = 1;
+}
+
 // ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
   int64 resource_id = 1;
@@ -166,8 +170,8 @@ message WatchDeploymentRequest {
   int64 deployment_id = 1;
 }
 
-// DeploymentEvent represents a deployment event.
-message DeploymentEvent {
+// WatchDeploymentResponse represents a deployment event stream response.
+message WatchDeploymentResponse {
   int64                     deployment_id = 1;
   DeploymentPhase           status        = 2;
   string                    message       = 3;
@@ -178,3 +182,6 @@ message DeploymentEvent {
 message DeleteDeploymentRequest {
   int64 deployment_id = 1;
 }
+
+// DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
+message DeleteDeploymentResponse {}

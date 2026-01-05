@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreatePlatformDomainResponse, CreateResourceDomainRequest, CreateResourceDomainResponse, DeletePlatformDomainRequest, DeleteResourceDomainRequest, GetPlatformDomainRequest, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, PlatformDomain, SetPrimaryResourceDomainRequest, SetPrimaryResourceDomainResponse, UpdatePlatformDomainRequest, UpdatePlatformDomainResponse, UpdateResourceDomainRequest, UpdateResourceDomainResponse } from "./domain_pb";
-import { Empty, MethodKind } from "@bufbuild/protobuf";
+import { CheckDomainAvailabilityRequest, CheckDomainAvailabilityResponse, CreatePlatformDomainRequest, CreatePlatformDomainResponse, CreateResourceDomainRequest, CreateResourceDomainResponse, DeletePlatformDomainRequest, DeletePlatformDomainResponse, DeleteResourceDomainRequest, DeleteResourceDomainResponse, GetPlatformDomainRequest, GetPlatformDomainResponse, ListLocoOwnedDomainsRequest, ListLocoOwnedDomainsResponse, ListPlatformDomainsRequest, ListPlatformDomainsResponse, SetPrimaryResourceDomainRequest, SetPrimaryResourceDomainResponse, UpdatePlatformDomainRequest, UpdatePlatformDomainResponse, UpdateResourceDomainRequest, UpdateResourceDomainResponse } from "./domain_pb";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * DomainService manages domains for resources.
@@ -34,7 +34,7 @@ export const DomainService = {
     getPlatformDomain: {
       name: "GetPlatformDomain",
       I: GetPlatformDomainRequest,
-      O: PlatformDomain,
+      O: GetPlatformDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -67,7 +67,7 @@ export const DomainService = {
     deletePlatformDomain: {
       name: "DeletePlatformDomain",
       I: DeletePlatformDomainRequest,
-      O: Empty,
+      O: DeletePlatformDomainResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -112,7 +112,7 @@ export const DomainService = {
     deleteResourceDomain: {
       name: "DeleteResourceDomain",
       I: DeleteResourceDomainRequest,
-      O: Empty,
+      O: DeleteResourceDomainResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -25,7 +25,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
 	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -273,7 +272,7 @@ func (s *DeploymentServer) CreateDeployment(
 func (s *DeploymentServer) GetDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.GetDeploymentRequest],
-) (*connect.Response[deploymentv1.Deployment], error) {
+) (*connect.Response[deploymentv1.GetDeploymentResponse], error) {
 	r := req.Msg
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
@@ -294,7 +293,9 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	return connect.NewResponse(deploymentToProto(deploymentData, string(resource.Type))), nil
+	return connect.NewResponse(&deploymentv1.GetDeploymentResponse{
+		Deployment: deploymentToProto(deploymentData, string(resource.Type)),
+	}), nil
 }
 
 // ListDeployments lists deployments for a resource
@@ -359,7 +360,7 @@ func (s *DeploymentServer) ListDeployments(
 func (s *DeploymentServer) DeleteDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.DeleteDeploymentRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
 	r := req.Msg
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
@@ -394,14 +395,14 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&deploymentv1.DeleteDeploymentResponse{}), nil
 }
 
 // WatchDeployment streams deployment status updates
 func (s *DeploymentServer) WatchDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.WatchDeploymentRequest],
-	stream *connect.ServerStream[deploymentv1.DeploymentEvent],
+	stream *connect.ServerStream[deploymentv1.WatchDeploymentResponse],
 ) error {
 	r := req.Msg
 
@@ -448,7 +449,7 @@ func (s *DeploymentServer) WatchDeployment(
 
 func (s *DeploymentServer) sendDeploymentEvent(
 	ctx context.Context,
-	stream *connect.ServerStream[deploymentv1.DeploymentEvent],
+	stream *connect.ServerStream[deploymentv1.WatchDeploymentResponse],
 	deploymentID string,
 	lastStatus *string,
 ) error {
@@ -469,7 +470,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	message := deployment.Message
 
 	if statusStr != *lastStatus {
-		event := &deploymentv1.DeploymentEvent{
+		event := &deploymentv1.WatchDeploymentResponse{
 			DeploymentId: parsedDeploymentID,
 			Status:       statusPhase,
 			Message:      message,

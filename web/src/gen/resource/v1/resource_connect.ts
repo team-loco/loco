@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, GetResourceRequest, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, LogEntry, Resource, ScaleResourceRequest, UpdateResourceEnvRequest, UpdateResourceRequest, UpdateResourceResponse, WatchLogsRequest } from "./resource_pb";
-import { Empty, MethodKind } from "@bufbuild/protobuf";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse, WatchLogsRequest, WatchLogsResponse } from "./resource_pb";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * ResourceService manages resource lifecycle and operations.
@@ -33,7 +33,7 @@ export const ResourceService = {
     getResource: {
       name: "GetResource",
       I: GetResourceRequest,
-      O: Resource,
+      O: GetResourceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -55,7 +55,7 @@ export const ResourceService = {
     deleteResource: {
       name: "DeleteResource",
       I: DeleteResourceRequest,
-      O: Empty,
+      O: DeleteResourceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -100,7 +100,7 @@ export const ResourceService = {
     watchLogs: {
       name: "WatchLogs",
       I: WatchLogsRequest,
-      O: LogEntry,
+      O: WatchLogsResponse,
       kind: MethodKind.ServerStreaming,
     },
     /**
@@ -124,7 +124,7 @@ export const ResourceService = {
     scaleResource: {
       name: "ScaleResource",
       I: ScaleResourceRequest,
-      O: Empty,
+      O: ScaleResourceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -135,7 +135,7 @@ export const ResourceService = {
     updateResourceEnv: {
       name: "UpdateResourceEnv",
       I: UpdateResourceEnvRequest,
-      O: Empty,
+      O: UpdateResourceEnvResponse,
       kind: MethodKind.Unary,
     },
   }

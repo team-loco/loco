@@ -50,7 +50,7 @@ const (
 // OAuthServiceClient is a client for the loco.oauth.v1.OAuthService service.
 type OAuthServiceClient interface {
 	// GetOAuthDetails retrieves OAuth configuration for a provider.
-	GetOAuthDetails(context.Context, *connect.Request[v1.OAuthDetailsRequest]) (*connect.Response[v1.OAuthDetailsResponse], error)
+	GetOAuthDetails(context.Context, *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error)
 	// ExchangeOAuthToken exchanges an OAuth provider token for a Loco token.
 	ExchangeOAuthToken(context.Context, *connect.Request[v1.ExchangeOAuthTokenRequest]) (*connect.Response[v1.ExchangeOAuthTokenResponse], error)
 	// GetOAuthAuthorizationURL generates an OAuth authorization URL for a provider.
@@ -70,7 +70,7 @@ func NewOAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	oAuthServiceMethods := v1.File_oauth_v1_oauth_proto.Services().ByName("OAuthService").Methods()
 	return &oAuthServiceClient{
-		getOAuthDetails: connect.NewClient[v1.OAuthDetailsRequest, v1.OAuthDetailsResponse](
+		getOAuthDetails: connect.NewClient[v1.GetOAuthDetailsRequest, v1.GetOAuthDetailsResponse](
 			httpClient,
 			baseURL+OAuthServiceGetOAuthDetailsProcedure,
 			connect.WithSchema(oAuthServiceMethods.ByName("GetOAuthDetails")),
@@ -99,14 +99,14 @@ func NewOAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // oAuthServiceClient implements OAuthServiceClient.
 type oAuthServiceClient struct {
-	getOAuthDetails          *connect.Client[v1.OAuthDetailsRequest, v1.OAuthDetailsResponse]
+	getOAuthDetails          *connect.Client[v1.GetOAuthDetailsRequest, v1.GetOAuthDetailsResponse]
 	exchangeOAuthToken       *connect.Client[v1.ExchangeOAuthTokenRequest, v1.ExchangeOAuthTokenResponse]
 	getOAuthAuthorizationURL *connect.Client[v1.GetOAuthAuthorizationURLRequest, v1.GetOAuthAuthorizationURLResponse]
 	exchangeOAuthCode        *connect.Client[v1.ExchangeOAuthCodeRequest, v1.ExchangeOAuthCodeResponse]
 }
 
 // GetOAuthDetails calls loco.oauth.v1.OAuthService.GetOAuthDetails.
-func (c *oAuthServiceClient) GetOAuthDetails(ctx context.Context, req *connect.Request[v1.OAuthDetailsRequest]) (*connect.Response[v1.OAuthDetailsResponse], error) {
+func (c *oAuthServiceClient) GetOAuthDetails(ctx context.Context, req *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error) {
 	return c.getOAuthDetails.CallUnary(ctx, req)
 }
 
@@ -128,7 +128,7 @@ func (c *oAuthServiceClient) ExchangeOAuthCode(ctx context.Context, req *connect
 // OAuthServiceHandler is an implementation of the loco.oauth.v1.OAuthService service.
 type OAuthServiceHandler interface {
 	// GetOAuthDetails retrieves OAuth configuration for a provider.
-	GetOAuthDetails(context.Context, *connect.Request[v1.OAuthDetailsRequest]) (*connect.Response[v1.OAuthDetailsResponse], error)
+	GetOAuthDetails(context.Context, *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error)
 	// ExchangeOAuthToken exchanges an OAuth provider token for a Loco token.
 	ExchangeOAuthToken(context.Context, *connect.Request[v1.ExchangeOAuthTokenRequest]) (*connect.Response[v1.ExchangeOAuthTokenResponse], error)
 	// GetOAuthAuthorizationURL generates an OAuth authorization URL for a provider.
@@ -187,7 +187,7 @@ func NewOAuthServiceHandler(svc OAuthServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedOAuthServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedOAuthServiceHandler struct{}
 
-func (UnimplementedOAuthServiceHandler) GetOAuthDetails(context.Context, *connect.Request[v1.OAuthDetailsRequest]) (*connect.Response[v1.OAuthDetailsResponse], error) {
+func (UnimplementedOAuthServiceHandler) GetOAuthDetails(context.Context, *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.GetOAuthDetails is not implemented"))
 }
 

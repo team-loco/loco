@@ -194,14 +194,14 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 }
 
 func (s *OAuthServer) GetOAuthDetails(
-	ctx context.Context, req *connect.Request[oAuth.OAuthDetailsRequest],
-) (*connect.Response[oAuth.OAuthDetailsResponse], error) {
+	ctx context.Context, req *connect.Request[oAuth.GetOAuthDetailsRequest],
+) (*connect.Response[oAuth.GetOAuthDetailsResponse], error) {
 	// Currently only GitHub is supported
 	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
 	}
 
-	res := connect.NewResponse(&oAuth.OAuthDetailsResponse{
+	res := connect.NewResponse(&oAuth.GetOAuthDetailsResponse{
 		ClientId: OAuthConf.ClientID,
 		TokenTtl: OAuthTokenTTL.Seconds(),
 	})

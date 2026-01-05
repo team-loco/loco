@@ -16,7 +16,6 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
 	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -119,7 +118,7 @@ func (s *OrgServer) CreateOrg(
 func (s *OrgServer) GetOrg(
 	ctx context.Context,
 	req *connect.Request[orgv1.GetOrgRequest],
-) (*connect.Response[orgv1.Organization], error) {
+) (*connect.Response[orgv1.GetOrgResponse], error) {
 	r := req.Msg
 
 	var org genDb.Organization
@@ -144,12 +143,14 @@ func (s *OrgServer) GetOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	return connect.NewResponse(&orgv1.Organization{
-		Id:        org.ID,
-		Name:      org.Name,
-		CreatedBy: org.CreatedBy,
-		CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-		UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+	return connect.NewResponse(&orgv1.GetOrgResponse{
+		Organization: &orgv1.Organization{
+			Id:        org.ID,
+			Name:      org.Name,
+			CreatedBy: org.CreatedBy,
+			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
+			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+		},
 	}), nil
 }
 
@@ -258,7 +259,7 @@ func (s *OrgServer) UpdateOrg(
 func (s *OrgServer) DeleteOrg(
 	ctx context.Context,
 	req *connect.Request[orgv1.DeleteOrgRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[orgv1.DeleteOrgResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteOrg, r.GetOrgId())); err != nil {
@@ -283,7 +284,7 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&orgv1.DeleteOrgResponse{}), nil
 }
 
 // ListOrgUsers lists users in an organization

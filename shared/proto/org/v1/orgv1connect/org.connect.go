@@ -9,7 +9,6 @@ import (
 	context "context"
 	errors "errors"
 	v1 "github.com/team-loco/loco/shared/proto/org/v1"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	http "net/http"
 	strings "strings"
 )
@@ -56,11 +55,11 @@ type OrgServiceClient interface {
 	// CreateOrg creates a new organization.
 	CreateOrg(context.Context, *connect.Request[v1.CreateOrgRequest]) (*connect.Response[v1.CreateOrgResponse], error)
 	// GetOrg retrieves an organization by ID or name.
-	GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.Organization], error)
+	GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.GetOrgResponse], error)
 	// UpdateOrg updates organization information.
 	UpdateOrg(context.Context, *connect.Request[v1.UpdateOrgRequest]) (*connect.Response[v1.UpdateOrgResponse], error)
 	// DeleteOrg deletes an organization.
-	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error)
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *connect.Request[v1.ListUserOrgsRequest]) (*connect.Response[v1.ListUserOrgsResponse], error)
 	// ListOrgUsers lists users in an organization.
@@ -86,7 +85,7 @@ func NewOrgServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(orgServiceMethods.ByName("CreateOrg")),
 			connect.WithClientOptions(opts...),
 		),
-		getOrg: connect.NewClient[v1.GetOrgRequest, v1.Organization](
+		getOrg: connect.NewClient[v1.GetOrgRequest, v1.GetOrgResponse](
 			httpClient,
 			baseURL+OrgServiceGetOrgProcedure,
 			connect.WithSchema(orgServiceMethods.ByName("GetOrg")),
@@ -98,7 +97,7 @@ func NewOrgServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(orgServiceMethods.ByName("UpdateOrg")),
 			connect.WithClientOptions(opts...),
 		),
-		deleteOrg: connect.NewClient[v1.DeleteOrgRequest, emptypb.Empty](
+		deleteOrg: connect.NewClient[v1.DeleteOrgRequest, v1.DeleteOrgResponse](
 			httpClient,
 			baseURL+OrgServiceDeleteOrgProcedure,
 			connect.WithSchema(orgServiceMethods.ByName("DeleteOrg")),
@@ -128,9 +127,9 @@ func NewOrgServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 // orgServiceClient implements OrgServiceClient.
 type orgServiceClient struct {
 	createOrg         *connect.Client[v1.CreateOrgRequest, v1.CreateOrgResponse]
-	getOrg            *connect.Client[v1.GetOrgRequest, v1.Organization]
+	getOrg            *connect.Client[v1.GetOrgRequest, v1.GetOrgResponse]
 	updateOrg         *connect.Client[v1.UpdateOrgRequest, v1.UpdateOrgResponse]
-	deleteOrg         *connect.Client[v1.DeleteOrgRequest, emptypb.Empty]
+	deleteOrg         *connect.Client[v1.DeleteOrgRequest, v1.DeleteOrgResponse]
 	listUserOrgs      *connect.Client[v1.ListUserOrgsRequest, v1.ListUserOrgsResponse]
 	listOrgUsers      *connect.Client[v1.ListOrgUsersRequest, v1.ListOrgUsersResponse]
 	listOrgWorkspaces *connect.Client[v1.ListOrgWorkspacesRequest, v1.ListOrgWorkspacesResponse]
@@ -142,7 +141,7 @@ func (c *orgServiceClient) CreateOrg(ctx context.Context, req *connect.Request[v
 }
 
 // GetOrg calls loco.org.v1.OrgService.GetOrg.
-func (c *orgServiceClient) GetOrg(ctx context.Context, req *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.Organization], error) {
+func (c *orgServiceClient) GetOrg(ctx context.Context, req *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.GetOrgResponse], error) {
 	return c.getOrg.CallUnary(ctx, req)
 }
 
@@ -152,7 +151,7 @@ func (c *orgServiceClient) UpdateOrg(ctx context.Context, req *connect.Request[v
 }
 
 // DeleteOrg calls loco.org.v1.OrgService.DeleteOrg.
-func (c *orgServiceClient) DeleteOrg(ctx context.Context, req *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *orgServiceClient) DeleteOrg(ctx context.Context, req *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error) {
 	return c.deleteOrg.CallUnary(ctx, req)
 }
 
@@ -176,11 +175,11 @@ type OrgServiceHandler interface {
 	// CreateOrg creates a new organization.
 	CreateOrg(context.Context, *connect.Request[v1.CreateOrgRequest]) (*connect.Response[v1.CreateOrgResponse], error)
 	// GetOrg retrieves an organization by ID or name.
-	GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.Organization], error)
+	GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.GetOrgResponse], error)
 	// UpdateOrg updates organization information.
 	UpdateOrg(context.Context, *connect.Request[v1.UpdateOrgRequest]) (*connect.Response[v1.UpdateOrgResponse], error)
 	// DeleteOrg deletes an organization.
-	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error)
 	// ListUserOrgs lists organizations for a user.
 	ListUserOrgs(context.Context, *connect.Request[v1.ListUserOrgsRequest]) (*connect.Response[v1.ListUserOrgsResponse], error)
 	// ListOrgUsers lists users in an organization.
@@ -267,7 +266,7 @@ func (UnimplementedOrgServiceHandler) CreateOrg(context.Context, *connect.Reques
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.CreateOrg is not implemented"))
 }
 
-func (UnimplementedOrgServiceHandler) GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.Organization], error) {
+func (UnimplementedOrgServiceHandler) GetOrg(context.Context, *connect.Request[v1.GetOrgRequest]) (*connect.Response[v1.GetOrgResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.GetOrg is not implemented"))
 }
 
@@ -275,7 +274,7 @@ func (UnimplementedOrgServiceHandler) UpdateOrg(context.Context, *connect.Reques
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.UpdateOrg is not implemented"))
 }
 
-func (UnimplementedOrgServiceHandler) DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedOrgServiceHandler) DeleteOrg(context.Context, *connect.Request[v1.DeleteOrgRequest]) (*connect.Response[v1.DeleteOrgResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.DeleteOrg is not implemented"))
 }
 

@@ -4,15 +4,15 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { EmptySchema, FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_empty, file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file org/v1/org.proto.
  */
 export const file_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChBvcmcvdjEvb3JnLnByb3RvEgtsb2NvLm9yZy52MSKcAQoMT3JnYW5pemF0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJwChBXb3Jrc3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIuChBDcmVhdGVPcmdSZXF1ZXN0EhEKBG5hbWUYASABKAlIAIgBAUIHCgVfbmFtZSIjChFDcmVhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAMiPAoNR2V0T3JnUmVxdWVzdBIQCgZvcmdfaWQYASABKANIABISCghvcmdfbmFtZRgCIAEoCUgAQgUKA2tleSJNChNMaXN0VXNlck9yZ3NSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAMSEQoJcGFnZV9zaXplGAIgASgFEhIKCnBhZ2VfdG9rZW4YAyABKAkiWAoUTGlzdFVzZXJPcmdzUmVzcG9uc2USJwoEb3JncxgBIAMoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbhIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiTAoTTGlzdE9yZ1VzZXJzUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSEQoJcGFnZV9zaXplGAIgASgFEhIKCnBhZ2VfdG9rZW4YAyABKAkiUQoUTGlzdE9yZ1VzZXJzUmVzcG9uc2USIAoFdXNlcnMYASADKAsyES5sb2NvLm9yZy52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJDCgRVc2VyEgoKAmlkGAEgASgDEg0KBWVtYWlsGAIgASgJEgwKBG5hbWUYAyABKAkSEgoKYXZhdGFyX3VybBgEIAEoCSJRChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJImcKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMQoKd29ya3NwYWNlcxgBIAMoCzIdLmxvY28ub3JnLnYxLldvcmtzcGFjZVN1bW1hcnkSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIm8KEFVwZGF0ZU9yZ1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIRCgRuYW1lGAMgASgJSACIAQFCBwoFX25hbWUiIwoRVXBkYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgDIiIKEERlbGV0ZU9yZ1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDMrcECgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRI/CgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhkubG9jby5vcmcudjEuT3JnYW5pemF0aW9uEkoKCVVwZGF0ZU9yZxIdLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXNwb25zZRJCCglEZWxldGVPcmcSHS5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5ElMKDExpc3RVc2VyT3JncxIgLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXNwb25zZRJTCgxMaXN0T3JnVXNlcnMSIC5sb2NvLm9yZy52MS5MaXN0T3JnVXNlcnNSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdE9yZ1VzZXJzUmVzcG9uc2USYgoRTGlzdE9yZ1dvcmtzcGFjZXMSJS5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QaJi5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlQjVaM2dpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vc2hhcmVkL3Byb3RvL29yZy92MTtvcmd2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_field_mask, file_google_protobuf_empty]);
+  fileDesc("ChBvcmcvdjEvb3JnLnByb3RvEgtsb2NvLm9yZy52MSKcAQoMT3JnYW5pemF0aW9uEgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJwChBXb3Jrc3BhY2VTdW1tYXJ5EgoKAmlkGAEgASgDEgwKBG5hbWUYAiABKAkSEgoKY3JlYXRlZF9ieRgDIAEoAxIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIuChBDcmVhdGVPcmdSZXF1ZXN0EhEKBG5hbWUYASABKAlIAIgBAUIHCgVfbmFtZSIjChFDcmVhdGVPcmdSZXNwb25zZRIOCgZvcmdfaWQYASABKAMiPAoNR2V0T3JnUmVxdWVzdBIQCgZvcmdfaWQYASABKANIABISCghvcmdfbmFtZRgCIAEoCUgAQgUKA2tleSJBCg5HZXRPcmdSZXNwb25zZRIvCgxvcmdhbml6YXRpb24YASABKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24iTQoTTGlzdFVzZXJPcmdzUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIkwKE0xpc3RPcmdVc2Vyc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJIlEKFExpc3RPcmdVc2Vyc1Jlc3BvbnNlEiAKBXVzZXJzGAEgAygLMhEubG9jby5vcmcudjEuVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiQwoEVXNlchIKCgJpZBgBIAEoAxINCgVlbWFpbBgCIAEoCRIMCgRuYW1lGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkiUQoYTGlzdE9yZ1dvcmtzcGFjZXNSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAxIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCSJnChlMaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlEjEKCndvcmtzcGFjZXMYASADKAsyHS5sb2NvLm9yZy52MS5Xb3Jrc3BhY2VTdW1tYXJ5EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJvChBVcGRhdGVPcmdSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAxIvCgt1cGRhdGVfbWFzaxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSEQoEbmFtZRgDIAEoCUgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoAyIiChBEZWxldGVPcmdSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoAyITChFEZWxldGVPcmdSZXNwb25zZTLBBAoKT3JnU2VydmljZRJKCglDcmVhdGVPcmcSHS5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVzcG9uc2USQQoGR2V0T3JnEhoubG9jby5vcmcudjEuR2V0T3JnUmVxdWVzdBobLmxvY28ub3JnLnYxLkdldE9yZ1Jlc3BvbnNlEkoKCVVwZGF0ZU9yZxIdLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXNwb25zZRJKCglEZWxldGVPcmcSHS5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVzcG9uc2USUwoMTGlzdFVzZXJPcmdzEiAubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVxdWVzdBohLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1Jlc3BvbnNlElMKDExpc3RPcmdVc2VycxIgLmxvY28ub3JnLnYxLkxpc3RPcmdVc2Vyc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0T3JnVXNlcnNSZXNwb25zZRJiChFMaXN0T3JnV29ya3NwYWNlcxIlLmxvY28ub3JnLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBomLmxvY28ub3JnLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2VCNVozZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9zaGFyZWQvcHJvdG8vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_field_mask]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -257,6 +257,37 @@ export const GetOrgRequestSchema: GenMessage<GetOrgRequest, {jsonType: GetOrgReq
   messageDesc(file_org_v1_org, 4);
 
 /**
+ * GetOrgResponse is the response containing the organization.
+ *
+ * @generated from message loco.org.v1.GetOrgResponse
+ */
+export type GetOrgResponse = Message<"loco.org.v1.GetOrgResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.Organization organization = 1;
+   */
+  organization?: Organization;
+};
+
+/**
+ * GetOrgResponse is the response containing the organization.
+ *
+ * @generated from message loco.org.v1.GetOrgResponse
+ */
+export type GetOrgResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.Organization organization = 1;
+   */
+  organization?: OrganizationJson;
+};
+
+/**
+ * Describes the message loco.org.v1.GetOrgResponse.
+ * Use `create(GetOrgResponseSchema)` to create a new message.
+ */
+export const GetOrgResponseSchema: GenMessage<GetOrgResponse, {jsonType: GetOrgResponseJson}> = /*@__PURE__*/
+  messageDesc(file_org_v1_org, 5);
+
+/**
  * ListUserOrgsRequest is the request to list organizations for a user.
  *
  * @generated from message loco.org.v1.ListUserOrgsRequest
@@ -313,7 +344,7 @@ export type ListUserOrgsRequestJson = {
  * Use `create(ListUserOrgsRequestSchema)` to create a new message.
  */
 export const ListUserOrgsRequestSchema: GenMessage<ListUserOrgsRequest, {jsonType: ListUserOrgsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 5);
+  messageDesc(file_org_v1_org, 6);
 
 /**
  * ListUserOrgsResponse is the response containing organization list.
@@ -358,7 +389,7 @@ export type ListUserOrgsResponseJson = {
  * Use `create(ListUserOrgsResponseSchema)` to create a new message.
  */
 export const ListUserOrgsResponseSchema: GenMessage<ListUserOrgsResponse, {jsonType: ListUserOrgsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 6);
+  messageDesc(file_org_v1_org, 7);
 
 /**
  * ListOrgUsersRequest is the request to list users in an organization.
@@ -417,7 +448,7 @@ export type ListOrgUsersRequestJson = {
  * Use `create(ListOrgUsersRequestSchema)` to create a new message.
  */
 export const ListOrgUsersRequestSchema: GenMessage<ListOrgUsersRequest, {jsonType: ListOrgUsersRequestJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 7);
+  messageDesc(file_org_v1_org, 8);
 
 /**
  * ListOrgUsersResponse is the response containing user list.
@@ -462,7 +493,7 @@ export type ListOrgUsersResponseJson = {
  * Use `create(ListOrgUsersResponseSchema)` to create a new message.
  */
 export const ListOrgUsersResponseSchema: GenMessage<ListOrgUsersResponse, {jsonType: ListOrgUsersResponseJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 8);
+  messageDesc(file_org_v1_org, 9);
 
 /**
  * User is a lightweight representation of a user for listing.
@@ -523,7 +554,7 @@ export type UserJson = {
  * Use `create(UserSchema)` to create a new message.
  */
 export const UserSchema: GenMessage<User, {jsonType: UserJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 9);
+  messageDesc(file_org_v1_org, 10);
 
 /**
  * ListOrgWorkspacesRequest is the request to list workspaces in an organization.
@@ -582,7 +613,7 @@ export type ListOrgWorkspacesRequestJson = {
  * Use `create(ListOrgWorkspacesRequestSchema)` to create a new message.
  */
 export const ListOrgWorkspacesRequestSchema: GenMessage<ListOrgWorkspacesRequest, {jsonType: ListOrgWorkspacesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 10);
+  messageDesc(file_org_v1_org, 11);
 
 /**
  * ListOrgWorkspacesResponse is the response containing workspace list.
@@ -627,7 +658,7 @@ export type ListOrgWorkspacesResponseJson = {
  * Use `create(ListOrgWorkspacesResponseSchema)` to create a new message.
  */
 export const ListOrgWorkspacesResponseSchema: GenMessage<ListOrgWorkspacesResponse, {jsonType: ListOrgWorkspacesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 11);
+  messageDesc(file_org_v1_org, 12);
 
 /**
  * UpdateOrgRequest is the request to update an organization.
@@ -678,7 +709,7 @@ export type UpdateOrgRequestJson = {
  * Use `create(UpdateOrgRequestSchema)` to create a new message.
  */
 export const UpdateOrgRequestSchema: GenMessage<UpdateOrgRequest, {jsonType: UpdateOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 12);
+  messageDesc(file_org_v1_org, 13);
 
 /**
  * UpdateOrgResponse is the response containing the updated organization ID.
@@ -709,7 +740,7 @@ export type UpdateOrgResponseJson = {
  * Use `create(UpdateOrgResponseSchema)` to create a new message.
  */
 export const UpdateOrgResponseSchema: GenMessage<UpdateOrgResponse, {jsonType: UpdateOrgResponseJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 13);
+  messageDesc(file_org_v1_org, 14);
 
 /**
  * DeleteOrgRequest is the request to delete an organization.
@@ -740,7 +771,30 @@ export type DeleteOrgRequestJson = {
  * Use `create(DeleteOrgRequestSchema)` to create a new message.
  */
 export const DeleteOrgRequestSchema: GenMessage<DeleteOrgRequest, {jsonType: DeleteOrgRequestJson}> = /*@__PURE__*/
-  messageDesc(file_org_v1_org, 14);
+  messageDesc(file_org_v1_org, 15);
+
+/**
+ * DeleteOrgResponse is the response after deleting an organization.
+ *
+ * @generated from message loco.org.v1.DeleteOrgResponse
+ */
+export type DeleteOrgResponse = Message<"loco.org.v1.DeleteOrgResponse"> & {
+};
+
+/**
+ * DeleteOrgResponse is the response after deleting an organization.
+ *
+ * @generated from message loco.org.v1.DeleteOrgResponse
+ */
+export type DeleteOrgResponseJson = {
+};
+
+/**
+ * Describes the message loco.org.v1.DeleteOrgResponse.
+ * Use `create(DeleteOrgResponseSchema)` to create a new message.
+ */
+export const DeleteOrgResponseSchema: GenMessage<DeleteOrgResponse, {jsonType: DeleteOrgResponseJson}> = /*@__PURE__*/
+  messageDesc(file_org_v1_org, 16);
 
 /**
  * OrgService manages organizations.
@@ -766,7 +820,7 @@ export const OrgService: GenService<{
   getOrg: {
     methodKind: "unary";
     input: typeof GetOrgRequestSchema;
-    output: typeof OrganizationSchema;
+    output: typeof GetOrgResponseSchema;
   },
   /**
    * UpdateOrg updates organization information.
@@ -786,7 +840,7 @@ export const OrgService: GenService<{
   deleteOrg: {
     methodKind: "unary";
     input: typeof DeleteOrgRequestSchema;
-    output: typeof EmptySchema;
+    output: typeof DeleteOrgResponseSchema;
   },
   /**
    * ListUserOrgs lists organizations for a user.

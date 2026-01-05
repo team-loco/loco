@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExchangeOAuthCodeRequest, ExchangeOAuthCodeResponse, ExchangeOAuthTokenRequest, ExchangeOAuthTokenResponse, GetOAuthAuthorizationURLRequest, GetOAuthAuthorizationURLResponse, OAuthDetailsRequest, OAuthDetailsResponse } from "./oauth_pb";
+import { ExchangeOAuthCodeRequest, ExchangeOAuthCodeResponse, ExchangeOAuthTokenRequest, ExchangeOAuthTokenResponse, GetOAuthAuthorizationURLRequest, GetOAuthAuthorizationURLResponse, GetOAuthDetailsRequest, GetOAuthDetailsResponse } from "./oauth_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -21,8 +21,8 @@ export const OAuthService = {
      */
     getOAuthDetails: {
       name: "GetOAuthDetails",
-      I: OAuthDetailsRequest,
-      O: OAuthDetailsResponse,
+      I: GetOAuthDetailsRequest,
+      O: GetOAuthDetailsResponse,
       kind: MethodKind.Unary,
     },
     /**

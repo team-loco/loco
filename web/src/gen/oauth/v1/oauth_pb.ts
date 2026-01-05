@@ -10,14 +10,14 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file oauth/v1/oauth.proto.
  */
 export const file_oauth_v1_oauth: GenFile = /*@__PURE__*/
-  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSJFChNPQXV0aERldGFpbHNSZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyIjwKFE9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEifQoZRXhjaGFuZ2VPQXV0aFRva2VuUmVxdWVzdBIuCghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlchINCgV0b2tlbhgCIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAMgASgIImMKGkV4Y2hhbmdlT0F1dGhUb2tlblJlc3BvbnNlEhIKCmxvY29fdG9rZW4YASABKAkSEgoKZXhwaXJlc19pbhgCIAEoAxIPCgd1c2VyX2lkGAMgASgDEgwKBG5hbWUYBCABKAkidgofR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVxdWVzdBIuCghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlchINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiTAogR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkSDQoFc3RhdGUYAiABKAkifQoYRXhjaGFuZ2VPQXV0aENvZGVSZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyEgwKBGNvZGUYAiABKAkSDQoFc3RhdGUYAyABKAkSFAoMcmVkaXJlY3RfdXJpGAQgASgJIk4KGUV4Y2hhbmdlT0F1dGhDb2RlUmVzcG9uc2USEgoKZXhwaXJlc19pbhgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBG5hbWUYAyABKAkqOwoNT0F1dGhQcm92aWRlchIeChpPQVVUSF9QUk9WSURFUl9VTlNQRUNJRklFRBAAEgoKBkdJVEhVQhABMsADCgxPQXV0aFNlcnZpY2USXAoPR2V0T0F1dGhEZXRhaWxzEiIubG9jby5vYXV0aC52MS5PQXV0aERldGFpbHNSZXF1ZXN0GiMubG9jby5vYXV0aC52MS5PQXV0aERldGFpbHNSZXNwb25zZSIAEmkKEkV4Y2hhbmdlT0F1dGhUb2tlbhIoLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aFRva2VuUmVxdWVzdBopLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aFRva2VuUmVzcG9uc2USfQoYR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMEi4ubG9jby5vYXV0aC52MS5HZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXF1ZXN0Gi8ubG9jby5vYXV0aC52MS5HZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXNwb25zZSIAEmgKEUV4Y2hhbmdlT0F1dGhDb2RlEicubG9jby5vYXV0aC52MS5FeGNoYW5nZU9BdXRoQ29kZVJlcXVlc3QaKC5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlT0F1dGhDb2RlUmVzcG9uc2UiAEI5WjdnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3NoYXJlZC9wcm90by9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM");
+  fileDesc("ChRvYXV0aC92MS9vYXV0aC5wcm90bxINbG9jby5vYXV0aC52MSJIChZHZXRPQXV0aERldGFpbHNSZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyIj8KF0dldE9BdXRoRGV0YWlsc1Jlc3BvbnNlEhEKCWNsaWVudF9pZBgBIAEoCRIRCgl0b2tlbl90dGwYAiABKAEifQoZRXhjaGFuZ2VPQXV0aFRva2VuUmVxdWVzdBIuCghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlchINCgV0b2tlbhgCIAEoCRIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAMgASgIImMKGkV4Y2hhbmdlT0F1dGhUb2tlblJlc3BvbnNlEhIKCmxvY29fdG9rZW4YASABKAkSEgoKZXhwaXJlc19pbhgCIAEoAxIPCgd1c2VyX2lkGAMgASgDEgwKBG5hbWUYBCABKAkidgofR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVxdWVzdBIuCghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlchINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiTAogR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkSDQoFc3RhdGUYAiABKAkifQoYRXhjaGFuZ2VPQXV0aENvZGVSZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyEgwKBGNvZGUYAiABKAkSDQoFc3RhdGUYAyABKAkSFAoMcmVkaXJlY3RfdXJpGAQgASgJIk4KGUV4Y2hhbmdlT0F1dGhDb2RlUmVzcG9uc2USEgoKZXhwaXJlc19pbhgBIAEoAxIPCgd1c2VyX2lkGAIgASgDEgwKBG5hbWUYAyABKAkqOwoNT0F1dGhQcm92aWRlchIeChpPQVVUSF9QUk9WSURFUl9VTlNQRUNJRklFRBAAEgoKBkdJVEhVQhABMsYDCgxPQXV0aFNlcnZpY2USYgoPR2V0T0F1dGhEZXRhaWxzEiUubG9jby5vYXV0aC52MS5HZXRPQXV0aERldGFpbHNSZXF1ZXN0GiYubG9jby5vYXV0aC52MS5HZXRPQXV0aERldGFpbHNSZXNwb25zZSIAEmkKEkV4Y2hhbmdlT0F1dGhUb2tlbhIoLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aFRva2VuUmVxdWVzdBopLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aFRva2VuUmVzcG9uc2USfQoYR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMEi4ubG9jby5vYXV0aC52MS5HZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXF1ZXN0Gi8ubG9jby5vYXV0aC52MS5HZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXNwb25zZSIAEmgKEUV4Y2hhbmdlT0F1dGhDb2RlEicubG9jby5vYXV0aC52MS5FeGNoYW5nZU9BdXRoQ29kZVJlcXVlc3QaKC5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlT0F1dGhDb2RlUmVzcG9uc2UiAEI5WjdnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3NoYXJlZC9wcm90by9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM");
 
 /**
- * OAuthDetailsRequest is the request to get OAuth configuration for a provider.
+ * GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
  *
- * @generated from message loco.oauth.v1.OAuthDetailsRequest
+ * @generated from message loco.oauth.v1.GetOAuthDetailsRequest
  */
-export type OAuthDetailsRequest = Message<"loco.oauth.v1.OAuthDetailsRequest"> & {
+export type GetOAuthDetailsRequest = Message<"loco.oauth.v1.GetOAuthDetailsRequest"> & {
   /**
    * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
    */
@@ -25,11 +25,11 @@ export type OAuthDetailsRequest = Message<"loco.oauth.v1.OAuthDetailsRequest"> &
 };
 
 /**
- * OAuthDetailsRequest is the request to get OAuth configuration for a provider.
+ * GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
  *
- * @generated from message loco.oauth.v1.OAuthDetailsRequest
+ * @generated from message loco.oauth.v1.GetOAuthDetailsRequest
  */
-export type OAuthDetailsRequestJson = {
+export type GetOAuthDetailsRequestJson = {
   /**
    * @generated from field: loco.oauth.v1.OAuthProvider provider = 1;
    */
@@ -37,18 +37,18 @@ export type OAuthDetailsRequestJson = {
 };
 
 /**
- * Describes the message loco.oauth.v1.OAuthDetailsRequest.
- * Use `create(OAuthDetailsRequestSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.GetOAuthDetailsRequest.
+ * Use `create(GetOAuthDetailsRequestSchema)` to create a new message.
  */
-export const OAuthDetailsRequestSchema: GenMessage<OAuthDetailsRequest, {jsonType: OAuthDetailsRequestJson}> = /*@__PURE__*/
+export const GetOAuthDetailsRequestSchema: GenMessage<GetOAuthDetailsRequest, {jsonType: GetOAuthDetailsRequestJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 0);
 
 /**
- * OAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
+ * GetOAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
  *
- * @generated from message loco.oauth.v1.OAuthDetailsResponse
+ * @generated from message loco.oauth.v1.GetOAuthDetailsResponse
  */
-export type OAuthDetailsResponse = Message<"loco.oauth.v1.OAuthDetailsResponse"> & {
+export type GetOAuthDetailsResponse = Message<"loco.oauth.v1.GetOAuthDetailsResponse"> & {
   /**
    * @generated from field: string client_id = 1;
    */
@@ -61,11 +61,11 @@ export type OAuthDetailsResponse = Message<"loco.oauth.v1.OAuthDetailsResponse">
 };
 
 /**
- * OAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
+ * GetOAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
  *
- * @generated from message loco.oauth.v1.OAuthDetailsResponse
+ * @generated from message loco.oauth.v1.GetOAuthDetailsResponse
  */
-export type OAuthDetailsResponseJson = {
+export type GetOAuthDetailsResponseJson = {
   /**
    * @generated from field: string client_id = 1;
    */
@@ -78,10 +78,10 @@ export type OAuthDetailsResponseJson = {
 };
 
 /**
- * Describes the message loco.oauth.v1.OAuthDetailsResponse.
- * Use `create(OAuthDetailsResponseSchema)` to create a new message.
+ * Describes the message loco.oauth.v1.GetOAuthDetailsResponse.
+ * Use `create(GetOAuthDetailsResponseSchema)` to create a new message.
  */
-export const OAuthDetailsResponseSchema: GenMessage<OAuthDetailsResponse, {jsonType: OAuthDetailsResponseJson}> = /*@__PURE__*/
+export const GetOAuthDetailsResponseSchema: GenMessage<GetOAuthDetailsResponse, {jsonType: GetOAuthDetailsResponseJson}> = /*@__PURE__*/
   messageDesc(file_oauth_v1_oauth, 1);
 
 /**
@@ -447,8 +447,8 @@ export const OAuthService: GenService<{
    */
   getOAuthDetails: {
     methodKind: "unary";
-    input: typeof OAuthDetailsRequestSchema;
-    output: typeof OAuthDetailsResponseSchema;
+    input: typeof GetOAuthDetailsRequestSchema;
+    output: typeof GetOAuthDetailsResponseSchema;
   },
   /**
    * ExchangeOAuthToken exchanges an OAuth provider token for a Loco token.

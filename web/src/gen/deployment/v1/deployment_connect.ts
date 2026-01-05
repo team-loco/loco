@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateDeploymentRequest, CreateDeploymentResponse, DeleteDeploymentRequest, Deployment, DeploymentEvent, GetDeploymentRequest, ListDeploymentsRequest, ListDeploymentsResponse, WatchDeploymentRequest } from "./deployment_pb";
-import { Empty, MethodKind } from "@bufbuild/protobuf";
+import { CreateDeploymentRequest, CreateDeploymentResponse, DeleteDeploymentRequest, DeleteDeploymentResponse, GetDeploymentRequest, GetDeploymentResponse, ListDeploymentsRequest, ListDeploymentsResponse, WatchDeploymentRequest, WatchDeploymentResponse } from "./deployment_pb";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * DeploymentService manages resource deployments.
@@ -33,7 +33,7 @@ export const DeploymentService = {
     getDeployment: {
       name: "GetDeployment",
       I: GetDeploymentRequest,
-      O: Deployment,
+      O: GetDeploymentResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -55,7 +55,7 @@ export const DeploymentService = {
     watchDeployment: {
       name: "WatchDeployment",
       I: WatchDeploymentRequest,
-      O: DeploymentEvent,
+      O: WatchDeploymentResponse,
       kind: MethodKind.ServerStreaming,
     },
     /**
@@ -66,7 +66,7 @@ export const DeploymentService = {
     deleteDeployment: {
       name: "DeleteDeployment",
       I: DeleteDeploymentRequest,
-      O: Empty,
+      O: DeleteDeploymentResponse,
       kind: MethodKind.Unary,
     },
   }

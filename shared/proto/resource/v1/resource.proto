@@ -2,9 +2,7 @@ syntax = "proto3";
 
 package loco.resource.v1;
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
-import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 
 import "deployment/v1/deployment.proto";
@@ -49,11 +47,11 @@ service ResourceService {
   // CreateResource creates a new resource.
   rpc CreateResource(CreateResourceRequest) returns (CreateResourceResponse);
   // GetResource retrieves a resource by ID or name.
-  rpc GetResource(GetResourceRequest) returns (Resource);
+  rpc GetResource(GetResourceRequest) returns (GetResourceResponse);
   // UpdateResource updates a resource configuration.
   rpc UpdateResource(UpdateResourceRequest) returns (UpdateResourceResponse);
   // DeleteResource deletes a resource.
-  rpc DeleteResource(DeleteResourceRequest) returns (google.protobuf.Empty);
+  rpc DeleteResource(DeleteResourceRequest) returns (DeleteResourceResponse);
 
   // ListWorkspaceResources lists all resources in a workspace.
   rpc ListWorkspaceResources(ListWorkspaceResourcesRequest) returns (ListWorkspaceResourcesResponse);
@@ -64,7 +62,7 @@ service ResourceService {
 
   // Logs
   // WatchLogs streams resource logs in real-time.
-  rpc WatchLogs(WatchLogsRequest) returns (stream LogEntry);
+  rpc WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
 
   // Events
   // ListResourceEvents retrieves events for a resource.
@@ -72,9 +70,9 @@ service ResourceService {
 
   // Resource Operations
   // ScaleResource adjusts resource replicas and resource allocation.
-  rpc ScaleResource(ScaleResourceRequest) returns (google.protobuf.Empty);
+  rpc ScaleResource(ScaleResourceRequest) returns (ScaleResourceResponse);
   // UpdateResourceEnv updates environment variables for a resource.
-  rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (google.protobuf.Empty);
+  rpc UpdateResourceEnv(UpdateResourceEnvRequest) returns (UpdateResourceEnvResponse);
 }
 
 // RoutingConfig defines routing configuration for a resource.
@@ -219,6 +217,11 @@ message GetResourceRequest {
   }
 }
 
+// GetResourceResponse is the response containing the resource.
+message GetResourceResponse {
+  Resource resource = 1;
+}
+
 // ListWorkspaceResourcesRequest is the request to list resources.
 message ListWorkspaceResourcesRequest {
   int64 workspace_id = 1;
@@ -249,6 +252,9 @@ message UpdateResourceResponse {
 message DeleteResourceRequest {
   int64 resource_id = 1;
 }
+
+// DeleteResourceResponse is the response after deleting a resource.
+message DeleteResourceResponse {}
 
 // RegionInfo represents available region information.
 message RegionInfo {
@@ -294,8 +300,8 @@ message WatchLogsRequest {
   optional bool  follow      = 3;
 }
 
-// LogEntry represents a single log line from a pod container within a resource.
-message LogEntry {
+// WatchLogsResponse represents a single log line from a pod container within a resource.
+message WatchLogsResponse {
   string                    pod_name  = 1;
   string                    namespace = 2;
   string                    container = 3;
@@ -337,9 +343,15 @@ message ScaleResourceRequest {
   optional string region      = 5; // if provided, scale only this region; otherwise scale all regions
 }
 
+// ScaleResourceResponse is the response after scaling a resource.
+message ScaleResourceResponse {}
+
 // UpdateResourceEnvRequest is the request to update resource environment variables.
 message UpdateResourceEnvRequest {
   int64               resource_id = 1;
   map<string, string> env         = 2;
   optional string     region      = 3; // if provided, update only this region; otherwise update all regions
 }
+
+// UpdateResourceEnvResponse is the response after updating resource environment variables.
+message UpdateResourceEnvResponse {}

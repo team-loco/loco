@@ -136,8 +136,8 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			return fmt.Errorf("failed to get app '%s': %w", loadedCfg.Config.Metadata.Name, err)
 		}
 	} else {
-		resourceID = getAppByNameResp.Msg.Id
-		slog.Debug("found existing app", "app_id", resourceID, "name", getAppByNameResp.Msg.Name)
+		resourceID = getAppByNameResp.Msg.Resource.Id
+		slog.Debug("found existing app", "app_id", resourceID, "name", getAppByNameResp.Msg.Resource.Name)
 	}
 
 	if resourceID == 0 {
@@ -334,7 +334,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 	steps = append(steps, ui.Step{
 		Title: "Push image to registry",
 		Run: func(logf func(string)) error {
-			tokenReq := connect.NewRequest(&registryv1.GitlabTokenRequest{})
+			tokenReq := connect.NewRequest(&registryv1.GetGitlabTokenRequest{})
 			tokenReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", locoToken.Token))
 			// todo: responsible for checking deploy permissions
 			tokenResp, tokenErr := registryClient.GetGitlabToken(ctx, tokenReq)
@@ -487,7 +487,7 @@ func deployApp(ctx context.Context,
 
 	if wait {
 		logf("Waiting for deployment to complete...")
-		if err := apiClient.StreamDeployment(ctx, fmt.Sprintf("%d", deploymentID), func(event *deploymentv1.DeploymentEvent) error {
+		if err := apiClient.StreamDeployment(ctx, fmt.Sprintf("%d", deploymentID), func(event *deploymentv1.WatchDeploymentResponse) error {
 			logf(fmt.Sprintf("[%s] %s", event.Status, event.Message))
 			if event.Status == deploymentv1.DeploymentPhase_FAILED && event.Message != "" {
 				logf(fmt.Sprintf("ERROR: %s", event.Message))

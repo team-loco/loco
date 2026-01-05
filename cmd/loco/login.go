@@ -22,10 +22,10 @@ import (
 	"github.com/team-loco/loco/shared/proto/oauth/v1/oauthv1connect"
 	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
 	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
+	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
 	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/shared/proto/workspace/v1"
 	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type DeviceCodeRequest struct {
@@ -100,7 +100,7 @@ var loginCmd = &cobra.Command{
 
 		httpClient := shared.NewHTTPClient()
 		oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
-		resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.OAuthDetailsRequest{
+		resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
 			Provider: oAuth.OAuthProvider_GITHUB,
 		}))
 		if err != nil {
@@ -207,7 +207,7 @@ var loginCmd = &cobra.Command{
 
 		userClient := userv1connect.NewUserServiceClient(httpClient, host)
 
-		currentUserReq := connect.NewRequest(&emptypb.Empty{})
+		currentUserReq := connect.NewRequest(&userv1.WhoAmIRequest{})
 		currentUserReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
 		currentUserResp, err := userClient.WhoAmI(context.Background(), currentUserReq)
@@ -217,7 +217,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		orgRequest := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-			UserId:   currentUserResp.Msg.Id,
+			UserId:   currentUserResp.Msg.User.Id,
 			PageSize: 100,
 		})
 		orgRequest.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
@@ -228,7 +228,7 @@ var loginCmd = &cobra.Command{
 			return err
 		}
 
-		email := currentUserResp.Msg.GetEmail()
+		email := currentUserResp.Msg.User.GetEmail()
 		cleanEmailFunc := func(email string) string {
 			s := strings.ToLower(email)
 			s = strings.ReplaceAll(s, "@", "-")
@@ -299,8 +299,8 @@ var loginCmd = &cobra.Command{
 
 			cfg := config.NewSessionConfig()
 			if err := cfg.SetDefaultScope(
-				config.SimpleOrg{ID: getOrgResp.Msg.Id, Name: getOrgResp.Msg.Name},
-				config.SimpleWorkspace{ID: getWSResp.Msg.Id, Name: getWSResp.Msg.Name},
+				config.SimpleOrg{ID: getOrgResp.Msg.Organization.Id, Name: getOrgResp.Msg.Organization.Name},
+				config.SimpleWorkspace{ID: getWSResp.Msg.Workspace.Id, Name: getWSResp.Msg.Workspace.Name},
 			); err != nil {
 				slog.Error(err.Error())
 				return err
@@ -314,8 +314,8 @@ var loginCmd = &cobra.Command{
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
-			orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", getOrgResp.Msg.Name))
-			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", getWSResp.Msg.Name))
+			orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", getOrgResp.Msg.Organization.Name))
+			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", getWSResp.Msg.Workspace.Name))
 			fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 			return nil

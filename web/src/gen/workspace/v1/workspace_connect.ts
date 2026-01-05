@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateMemberRequest, CreateMemberResponse, CreateWorkspaceRequest, CreateWorkspaceResponse, DeleteMemberRequest, DeleteWorkspaceRequest, GetWorkspaceRequest, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserWorkspacesRequest, ListUserWorkspacesResponse, ListWorkspaceMembersRequest, ListWorkspaceMembersResponse, UpdateWorkspaceRequest, UpdateWorkspaceResponse, Workspace } from "./workspace_pb";
-import { Empty, MethodKind } from "@bufbuild/protobuf";
+import { CreateMemberRequest, CreateMemberResponse, CreateWorkspaceRequest, CreateWorkspaceResponse, DeleteMemberRequest, DeleteMemberResponse, DeleteWorkspaceRequest, DeleteWorkspaceResponse, GetWorkspaceRequest, GetWorkspaceResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserWorkspacesRequest, ListUserWorkspacesResponse, ListWorkspaceMembersRequest, ListWorkspaceMembersResponse, UpdateWorkspaceRequest, UpdateWorkspaceResponse } from "./workspace_pb";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * WorkspaceService manages workspaces and their members.
@@ -33,7 +33,7 @@ export const WorkspaceService = {
     getWorkspace: {
       name: "GetWorkspace",
       I: GetWorkspaceRequest,
-      O: Workspace,
+      O: GetWorkspaceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -55,7 +55,7 @@ export const WorkspaceService = {
     deleteWorkspace: {
       name: "DeleteWorkspace",
       I: DeleteWorkspaceRequest,
-      O: Empty,
+      O: DeleteWorkspaceResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -99,7 +99,7 @@ export const WorkspaceService = {
     deleteMember: {
       name: "DeleteMember",
       I: DeleteMemberRequest,
-      O: Empty,
+      O: DeleteMemberResponse,
       kind: MethodKind.Unary,
     },
     /**

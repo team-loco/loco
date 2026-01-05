@@ -9,7 +9,6 @@ import (
 	context "context"
 	errors "errors"
 	v1 "github.com/team-loco/loco/shared/proto/resource/v1"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	http "net/http"
 	strings "strings"
 )
@@ -74,11 +73,11 @@ type ResourceServiceClient interface {
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error)
 	// GetResource retrieves a resource by ID or name.
-	GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.Resource], error)
+	GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.GetResourceResponse], error)
 	// UpdateResource updates a resource configuration.
 	UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error)
 	// DeleteResource deletes a resource.
-	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error)
 	// ListWorkspaceResources lists all resources in a workspace.
 	ListWorkspaceResources(context.Context, *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error)
 	// GetResourceStatus retrieves the current status and deployment information of a resource.
@@ -87,15 +86,15 @@ type ResourceServiceClient interface {
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
 	// Logs
 	// WatchLogs streams resource logs in real-time.
-	WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest]) (*connect.ServerStreamForClient[v1.LogEntry], error)
+	WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest]) (*connect.ServerStreamForClient[v1.WatchLogsResponse], error)
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
-	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[emptypb.Empty], error)
+	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error)
 	// UpdateResourceEnv updates environment variables for a resource.
-	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[emptypb.Empty], error)
+	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error)
 }
 
 // NewResourceServiceClient constructs a client for the loco.resource.v1.ResourceService service. By
@@ -115,7 +114,7 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("CreateResource")),
 			connect.WithClientOptions(opts...),
 		),
-		getResource: connect.NewClient[v1.GetResourceRequest, v1.Resource](
+		getResource: connect.NewClient[v1.GetResourceRequest, v1.GetResourceResponse](
 			httpClient,
 			baseURL+ResourceServiceGetResourceProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("GetResource")),
@@ -127,7 +126,7 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("UpdateResource")),
 			connect.WithClientOptions(opts...),
 		),
-		deleteResource: connect.NewClient[v1.DeleteResourceRequest, emptypb.Empty](
+		deleteResource: connect.NewClient[v1.DeleteResourceRequest, v1.DeleteResourceResponse](
 			httpClient,
 			baseURL+ResourceServiceDeleteResourceProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("DeleteResource")),
@@ -151,7 +150,7 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
 			connect.WithClientOptions(opts...),
 		),
-		watchLogs: connect.NewClient[v1.WatchLogsRequest, v1.LogEntry](
+		watchLogs: connect.NewClient[v1.WatchLogsRequest, v1.WatchLogsResponse](
 			httpClient,
 			baseURL+ResourceServiceWatchLogsProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("WatchLogs")),
@@ -163,13 +162,13 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("ListResourceEvents")),
 			connect.WithClientOptions(opts...),
 		),
-		scaleResource: connect.NewClient[v1.ScaleResourceRequest, emptypb.Empty](
+		scaleResource: connect.NewClient[v1.ScaleResourceRequest, v1.ScaleResourceResponse](
 			httpClient,
 			baseURL+ResourceServiceScaleResourceProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("ScaleResource")),
 			connect.WithClientOptions(opts...),
 		),
-		updateResourceEnv: connect.NewClient[v1.UpdateResourceEnvRequest, emptypb.Empty](
+		updateResourceEnv: connect.NewClient[v1.UpdateResourceEnvRequest, v1.UpdateResourceEnvResponse](
 			httpClient,
 			baseURL+ResourceServiceUpdateResourceEnvProcedure,
 			connect.WithSchema(resourceServiceMethods.ByName("UpdateResourceEnv")),
@@ -181,16 +180,16 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 // resourceServiceClient implements ResourceServiceClient.
 type resourceServiceClient struct {
 	createResource         *connect.Client[v1.CreateResourceRequest, v1.CreateResourceResponse]
-	getResource            *connect.Client[v1.GetResourceRequest, v1.Resource]
+	getResource            *connect.Client[v1.GetResourceRequest, v1.GetResourceResponse]
 	updateResource         *connect.Client[v1.UpdateResourceRequest, v1.UpdateResourceResponse]
-	deleteResource         *connect.Client[v1.DeleteResourceRequest, emptypb.Empty]
+	deleteResource         *connect.Client[v1.DeleteResourceRequest, v1.DeleteResourceResponse]
 	listWorkspaceResources *connect.Client[v1.ListWorkspaceResourcesRequest, v1.ListWorkspaceResourcesResponse]
 	getResourceStatus      *connect.Client[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse]
 	listRegions            *connect.Client[v1.ListRegionsRequest, v1.ListRegionsResponse]
-	watchLogs              *connect.Client[v1.WatchLogsRequest, v1.LogEntry]
+	watchLogs              *connect.Client[v1.WatchLogsRequest, v1.WatchLogsResponse]
 	listResourceEvents     *connect.Client[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse]
-	scaleResource          *connect.Client[v1.ScaleResourceRequest, emptypb.Empty]
-	updateResourceEnv      *connect.Client[v1.UpdateResourceEnvRequest, emptypb.Empty]
+	scaleResource          *connect.Client[v1.ScaleResourceRequest, v1.ScaleResourceResponse]
+	updateResourceEnv      *connect.Client[v1.UpdateResourceEnvRequest, v1.UpdateResourceEnvResponse]
 }
 
 // CreateResource calls loco.resource.v1.ResourceService.CreateResource.
@@ -199,7 +198,7 @@ func (c *resourceServiceClient) CreateResource(ctx context.Context, req *connect
 }
 
 // GetResource calls loco.resource.v1.ResourceService.GetResource.
-func (c *resourceServiceClient) GetResource(ctx context.Context, req *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.Resource], error) {
+func (c *resourceServiceClient) GetResource(ctx context.Context, req *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.GetResourceResponse], error) {
 	return c.getResource.CallUnary(ctx, req)
 }
 
@@ -209,7 +208,7 @@ func (c *resourceServiceClient) UpdateResource(ctx context.Context, req *connect
 }
 
 // DeleteResource calls loco.resource.v1.ResourceService.DeleteResource.
-func (c *resourceServiceClient) DeleteResource(ctx context.Context, req *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *resourceServiceClient) DeleteResource(ctx context.Context, req *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error) {
 	return c.deleteResource.CallUnary(ctx, req)
 }
 
@@ -229,7 +228,7 @@ func (c *resourceServiceClient) ListRegions(ctx context.Context, req *connect.Re
 }
 
 // WatchLogs calls loco.resource.v1.ResourceService.WatchLogs.
-func (c *resourceServiceClient) WatchLogs(ctx context.Context, req *connect.Request[v1.WatchLogsRequest]) (*connect.ServerStreamForClient[v1.LogEntry], error) {
+func (c *resourceServiceClient) WatchLogs(ctx context.Context, req *connect.Request[v1.WatchLogsRequest]) (*connect.ServerStreamForClient[v1.WatchLogsResponse], error) {
 	return c.watchLogs.CallServerStream(ctx, req)
 }
 
@@ -239,12 +238,12 @@ func (c *resourceServiceClient) ListResourceEvents(ctx context.Context, req *con
 }
 
 // ScaleResource calls loco.resource.v1.ResourceService.ScaleResource.
-func (c *resourceServiceClient) ScaleResource(ctx context.Context, req *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *resourceServiceClient) ScaleResource(ctx context.Context, req *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error) {
 	return c.scaleResource.CallUnary(ctx, req)
 }
 
 // UpdateResourceEnv calls loco.resource.v1.ResourceService.UpdateResourceEnv.
-func (c *resourceServiceClient) UpdateResourceEnv(ctx context.Context, req *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *resourceServiceClient) UpdateResourceEnv(ctx context.Context, req *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error) {
 	return c.updateResourceEnv.CallUnary(ctx, req)
 }
 
@@ -253,11 +252,11 @@ type ResourceServiceHandler interface {
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error)
 	// GetResource retrieves a resource by ID or name.
-	GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.Resource], error)
+	GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.GetResourceResponse], error)
 	// UpdateResource updates a resource configuration.
 	UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error)
 	// DeleteResource deletes a resource.
-	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error)
 	// ListWorkspaceResources lists all resources in a workspace.
 	ListWorkspaceResources(context.Context, *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error)
 	// GetResourceStatus retrieves the current status and deployment information of a resource.
@@ -266,15 +265,15 @@ type ResourceServiceHandler interface {
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
 	// Logs
 	// WatchLogs streams resource logs in real-time.
-	WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest], *connect.ServerStream[v1.LogEntry]) error
+	WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest], *connect.ServerStream[v1.WatchLogsResponse]) error
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
-	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[emptypb.Empty], error)
+	ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error)
 	// UpdateResourceEnv updates environment variables for a resource.
-	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[emptypb.Empty], error)
+	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error)
 }
 
 // NewResourceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -387,7 +386,7 @@ func (UnimplementedResourceServiceHandler) CreateResource(context.Context, *conn
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.CreateResource is not implemented"))
 }
 
-func (UnimplementedResourceServiceHandler) GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.Resource], error) {
+func (UnimplementedResourceServiceHandler) GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.GetResourceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResource is not implemented"))
 }
 
@@ -395,7 +394,7 @@ func (UnimplementedResourceServiceHandler) UpdateResource(context.Context, *conn
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.UpdateResource is not implemented"))
 }
 
-func (UnimplementedResourceServiceHandler) DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedResourceServiceHandler) DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.DeleteResource is not implemented"))
 }
 
@@ -411,7 +410,7 @@ func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *connect
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListRegions is not implemented"))
 }
 
-func (UnimplementedResourceServiceHandler) WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest], *connect.ServerStream[v1.LogEntry]) error {
+func (UnimplementedResourceServiceHandler) WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest], *connect.ServerStream[v1.WatchLogsResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.WatchLogs is not implemented"))
 }
 
@@ -419,10 +418,10 @@ func (UnimplementedResourceServiceHandler) ListResourceEvents(context.Context, *
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListResourceEvents is not implemented"))
 }
 
-func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ScaleResource is not implemented"))
 }
 
-func (UnimplementedResourceServiceHandler) UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedResourceServiceHandler) UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.UpdateResourceEnv is not implemented"))
 }

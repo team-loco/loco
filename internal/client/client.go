@@ -11,7 +11,6 @@ import (
 	"strconv"
 
 	json "github.com/goccy/go-json"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/shared"
@@ -106,11 +105,11 @@ func (c *Client) CreateUser(ctx context.Context, externalID, email, avatarURL st
 		return nil, err
 	}
 
-	return getResp.Msg, nil
+	return getResp.Msg.User, nil
 }
 
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
-	req := connect.NewRequest(&emptypb.Empty{})
+	req := connect.NewRequest(&userv1.WhoAmIRequest{})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.User.WhoAmI(ctx, req)
@@ -119,7 +118,7 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 		return nil, err
 	}
 
-	return resp.Msg, nil
+	return resp.Msg.User, nil
 }
 
 func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID int64) ([]*orgv1.Organization, error) {
@@ -171,7 +170,7 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 		return nil, err
 	}
 
-	return resp.Msg, nil
+	return resp.Msg.Resource, nil
 }
 
 func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev1.Resource, error) {
@@ -210,7 +209,7 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID int64, appName st
 		return nil, err
 	}
 
-	return resp.Msg, nil
+	return resp.Msg.Resource, nil
 }
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {
@@ -227,10 +226,10 @@ func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deplo
 		return nil, err
 	}
 
-	return resp.Msg, nil
+	return resp.Msg.Deployment, nil
 }
 
-func (c *Client) StreamDeployment(ctx context.Context, deploymentID string, eventHandler func(*deploymentv1.DeploymentEvent) error) error {
+func (c *Client) StreamDeployment(ctx context.Context, deploymentID string, eventHandler func(*deploymentv1.WatchDeploymentResponse) error) error {
 	deploymentIDInt, err := strconv.ParseInt(deploymentID, 10, 64)
 	if err != nil {
 		return err
@@ -321,7 +320,7 @@ func (c *Client) GetAppStatus(ctx context.Context, appID int64) (*resourcev1.Get
 	return resp.Msg, nil
 }
 
-func (c *Client) StreamLogs(ctx context.Context, appID int64, limit *int32, follow *bool, logHandler func(*resourcev1.LogEntry) error) error {
+func (c *Client) StreamLogs(ctx context.Context, appID int64, limit *int32, follow *bool, logHandler func(*resourcev1.WatchLogsResponse) error) error {
 	req := connect.NewRequest(&resourcev1.WatchLogsRequest{
 		ResourceId: appID,
 		Limit:      limit,

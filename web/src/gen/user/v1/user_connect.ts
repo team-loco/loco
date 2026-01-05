@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateUserRequest, CreateUserResponse, DeleteUserRequest, GetUserRequest, ListUsersRequest, ListUsersResponse, UpdateUserRequest, UpdateUserResponse, User } from "./user_pb";
-import { Empty, MethodKind } from "@bufbuild/protobuf";
+import { CreateUserRequest, CreateUserResponse, DeleteUserRequest, DeleteUserResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, LogoutRequest, LogoutResponse, UpdateUserRequest, UpdateUserResponse, WhoAmIRequest, WhoAmIResponse } from "./user_pb";
+import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * UserService manages user accounts and operations.
@@ -33,7 +33,7 @@ export const UserService = {
     getUser: {
       name: "GetUser",
       I: GetUserRequest,
-      O: User,
+      O: GetUserResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -43,8 +43,8 @@ export const UserService = {
      */
     whoAmI: {
       name: "WhoAmI",
-      I: Empty,
-      O: User,
+      I: WhoAmIRequest,
+      O: WhoAmIResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -77,7 +77,7 @@ export const UserService = {
     deleteUser: {
       name: "DeleteUser",
       I: DeleteUserRequest,
-      O: Empty,
+      O: DeleteUserResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -87,8 +87,8 @@ export const UserService = {
      */
     logout: {
       name: "Logout",
-      I: Empty,
-      O: Empty,
+      I: LogoutRequest,
+      O: LogoutResponse,
       kind: MethodKind.Unary,
     },
   }

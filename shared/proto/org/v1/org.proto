@@ -4,7 +4,6 @@ package loco.org.v1;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/org/v1;orgv1";
 
@@ -13,11 +12,11 @@ service OrgService {
   // CreateOrg creates a new organization.
   rpc CreateOrg(CreateOrgRequest) returns (CreateOrgResponse);
   // GetOrg retrieves an organization by ID or name.
-  rpc GetOrg(GetOrgRequest) returns (Organization);
+  rpc GetOrg(GetOrgRequest) returns (GetOrgResponse);
   // UpdateOrg updates organization information.
   rpc UpdateOrg(UpdateOrgRequest) returns (UpdateOrgResponse);
   // DeleteOrg deletes an organization.
-  rpc DeleteOrg(DeleteOrgRequest) returns (google.protobuf.Empty);
+  rpc DeleteOrg(DeleteOrgRequest) returns (DeleteOrgResponse);
 
   // ListUserOrgs lists organizations for a user.
   rpc ListUserOrgs(ListUserOrgsRequest) returns (ListUserOrgsResponse);
@@ -60,6 +59,11 @@ message GetOrgRequest {
     int64  org_id   = 1;
     string org_name = 2;
   }
+}
+
+// GetOrgResponse is the response containing the organization.
+message GetOrgResponse {
+  Organization organization = 1;
 }
 
 // ListUserOrgsRequest is the request to list organizations for a user.
@@ -125,3 +129,6 @@ message UpdateOrgResponse {
 message DeleteOrgRequest {
   int64 org_id = 1;
 }
+
+// DeleteOrgResponse is the response after deleting an organization.
+message DeleteOrgResponse {}

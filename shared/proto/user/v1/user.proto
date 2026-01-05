@@ -4,7 +4,6 @@ package loco.user.v1;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/user/v1;userv1";
 
@@ -13,17 +12,17 @@ service UserService {
   // CreateUser creates a new user account.
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   // GetUser retrieves a user by ID or email.
-  rpc GetUser(GetUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // WhoAmI retrieves the current authenticated user.
-  rpc WhoAmI(google.protobuf.Empty) returns (User);
+  rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse);
   // UpdateUser updates user information.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // ListUsers lists users with pagination.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   // DeleteUser deletes a user account.
-  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Logout logs out the current user.
-  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
 // User represents a user account with OAuth identity and profile information.
@@ -58,6 +57,11 @@ message GetUserRequest {
   }
 }
 
+// GetUserResponse is the response containing the user.
+message GetUserResponse {
+  User user = 1;
+}
+
 // UpdateUserRequest is the request to update user information.
 message UpdateUserRequest {
   int64                     user_id     = 1;
@@ -83,7 +87,24 @@ message ListUsersResponse {
   string next_page_token = 2; // empty if no more pages
 }
 
+// WhoAmIRequest is the request to get the current authenticated user.
+message WhoAmIRequest {}
+
+// WhoAmIResponse is the response containing the current user.
+message WhoAmIResponse {
+  User user = 1;
+}
+
 // DeleteUserRequest is the request to delete a user.
 message DeleteUserRequest {
   int64 user_id = 1;
 }
+
+// DeleteUserResponse is the response after deleting a user.
+message DeleteUserResponse {}
+
+// LogoutRequest is the request to logout the current user.
+message LogoutRequest {}
+
+// LogoutResponse is the response after logging out.
+message LogoutResponse {}

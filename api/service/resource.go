@@ -24,7 +24,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
 	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -237,7 +236,7 @@ func (s *ResourceServer) CreateResource(
 func (s *ResourceServer) GetResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.GetResourceRequest],
-) (*connect.Response[resourcev1.Resource], error) {
+) (*connect.Response[resourcev1.GetResourceResponse], error) {
 	r := req.Msg
 
 	var resourceId int64
@@ -273,7 +272,9 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(dbResourceToProto(resource, resourceDomains, resourceRegions)), nil
+	return connect.NewResponse(&resourcev1.GetResourceResponse{
+		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
+	}), nil
 }
 
 // ListWorkspaceResources lists all resources in a workspace
@@ -372,7 +373,7 @@ func (s *ResourceServer) UpdateResource(
 func (s *ResourceServer) DeleteResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.DeleteResourceRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[resourcev1.DeleteResourceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteResource, r.GetResourceId())); err != nil {
@@ -397,7 +398,7 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&resourcev1.DeleteResourceResponse{}), nil
 }
 
 // GetResourceStatus retrieves a resource and its current deployment status
@@ -498,7 +499,7 @@ func (s *ResourceServer) ListRegions(
 func (s *ResourceServer) WatchLogs(
 	ctx context.Context,
 	req *connect.Request[resourcev1.WatchLogsRequest],
-	stream *connect.ServerStream[resourcev1.LogEntry],
+	stream *connect.ServerStream[resourcev1.WatchLogsResponse],
 ) error {
 	r := req.Msg
 
@@ -545,7 +546,7 @@ func (s *ResourceServer) WatchLogs(
 		case <-ctx.Done():
 			return ctx.Err()
 		case entry := <-logStream.Entries():
-			protoLog := &resourcev1.LogEntry{
+			protoLog := &resourcev1.WatchLogsResponse{
 				PodName:   entry.PodName,
 				Namespace: entry.Namespace,
 				Container: entry.Container,
@@ -635,7 +636,7 @@ func (s *ResourceServer) ListResourceEvents(
 func (s *ResourceServer) ScaleResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.ScaleResourceRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ScaleResource, r.GetResourceId())); err != nil {
@@ -820,14 +821,14 @@ func (s *ResourceServer) ScaleResource(
 	}
 	slog.InfoContext(ctx, "updated Application after scaling", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
 }
 
 // UpdateResourceEnv updates environment variables for a resource
 func (s *ResourceServer) UpdateResourceEnv(
 	ctx context.Context,
 	req *connect.Request[resourcev1.UpdateResourceEnvRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[resourcev1.UpdateResourceEnvResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateResourceEnv, r.GetResourceId())); err != nil {
@@ -960,7 +961,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	}
 	slog.InfoContext(ctx, "updated Application after env update", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate, "deploymentId", deploymentId)
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
 }
 
 // resourceStatusToProto converts database resource status to proto enum

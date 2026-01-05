@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GitlabTokenRequest, GitlabTokenResponse } from "./registry_pb";
+import { GetGitlabTokenRequest, GetGitlabTokenResponse } from "./registry_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -21,8 +21,8 @@ export const RegistryService = {
      */
     getGitlabToken: {
       name: "GetGitlabToken",
-      I: GitlabTokenRequest,
-      O: GitlabTokenResponse,
+      I: GetGitlabTokenRequest,
+      O: GetGitlabTokenResponse,
       kind: MethodKind.Unary,
     },
   }
