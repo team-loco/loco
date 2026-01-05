@@ -115,13 +115,13 @@ var File_registry_v1_registry_proto protoreflect.FileDescriptor
 
 const file_registry_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1aregistry/v1/registry.proto\x12\x10loco.registry.v1\"\x17\n" +
+	"\x1aregistry/v1/registry.proto\x12\vregistry.v1\"\x17\n" +
 	"\x15GetGitlabTokenRequest\"J\n" +
 	"\x16GetGitlabTokenResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token2x\n" +
-	"\x0fRegistryService\x12e\n" +
-	"\x0eGetGitlabToken\x12'.loco.registry.v1.GetGitlabTokenRequest\x1a(.loco.registry.v1.GetGitlabTokenResponse\"\x00B?Z=github.com/team-loco/loco/shared/proto/registry/v1;registryv1b\x06proto3"
+	"\x05token\x18\x02 \x01(\tR\x05token2n\n" +
+	"\x0fRegistryService\x12[\n" +
+	"\x0eGetGitlabToken\x12\".registry.v1.GetGitlabTokenRequest\x1a#.registry.v1.GetGitlabTokenResponse\"\x00B?Z=github.com/team-loco/loco/shared/proto/registry/v1;registryv1b\x06proto3"
 
 var (
 	file_registry_v1_registry_proto_rawDescOnce sync.Once
@@ -137,12 +137,12 @@ func file_registry_v1_registry_proto_rawDescGZIP() []byte {
 
 var file_registry_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_registry_v1_registry_proto_goTypes = []any{
-	(*GetGitlabTokenRequest)(nil),  // 0: loco.registry.v1.GetGitlabTokenRequest
-	(*GetGitlabTokenResponse)(nil), // 1: loco.registry.v1.GetGitlabTokenResponse
+	(*GetGitlabTokenRequest)(nil),  // 0: registry.v1.GetGitlabTokenRequest
+	(*GetGitlabTokenResponse)(nil), // 1: registry.v1.GetGitlabTokenResponse
 }
 var file_registry_v1_registry_proto_depIdxs = []int32{
-	0, // 0: loco.registry.v1.RegistryService.GetGitlabToken:input_type -> loco.registry.v1.GetGitlabTokenRequest
-	1, // 1: loco.registry.v1.RegistryService.GetGitlabToken:output_type -> loco.registry.v1.GetGitlabTokenResponse
+	0, // 0: registry.v1.RegistryService.GetGitlabToken:input_type -> registry.v1.GetGitlabTokenRequest
+	1, // 1: registry.v1.RegistryService.GetGitlabToken:output_type -> registry.v1.GetGitlabTokenResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

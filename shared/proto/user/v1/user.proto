@@ -1,9 +1,9 @@
 syntax = "proto3";
 
-package loco.user.v1;
+package user.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/user/v1;userv1";
 
@@ -27,21 +27,21 @@ service UserService {
 
 // User represents a user account with OAuth identity and profile information.
 message User {
-  int64 id = 1;
-  string external_id = 2;
-  string email = 3;
-  string avatar_url = 4;
-  string name = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+  int64                     id          = 1;
+  string                    external_id = 2;
+  string                    email       = 3;
+  string                    avatar_url  = 4;
+  string                    name        = 5;
+  google.protobuf.Timestamp created_at  = 6;
+  google.protobuf.Timestamp updated_at  = 7;
 }
 
 // CreateUserRequest is the request to create a new user.
 message CreateUserRequest {
-  string external_id = 1;
-  string email = 2;
-  optional string name = 3;
-  optional string avatar_url = 4;
+  string          external_id = 1;
+  string          email       = 2;
+  optional string name        = 3;
+  optional string avatar_url  = 4;
 }
 
 // CreateUserResponse is the response containing the created user ID.
@@ -77,14 +77,14 @@ message UpdateUserResponse {
 
 // ListUsersRequest is the request to list users.
 message ListUsersRequest {
-  int32 page_size = 1;  // default: 50, max: 200
+  int32  page_size  = 1; // default: 50, max: 200
   string page_token = 2; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListUsersResponse is the response containing user list.
 message ListUsersResponse {
-  repeated User users = 1;
-  string next_page_token = 2; // empty if no more pages
+  repeated User users           = 1;
+  string        next_page_token = 2; // empty if no more pages
 }
 
 // WhoAmIRequest is the request to get the current authenticated user.

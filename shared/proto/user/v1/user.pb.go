@@ -820,7 +820,7 @@ var File_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_user_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x12user/v1/user.proto\x12\floco.user.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a google/protobuf/field_mask.proto\"\xf6\x01\n" +
+	"\x12user/v1/user.proto\x12\auser.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf6\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
 	"\vexternal_id\x18\x02 \x01(\tR\n" +
@@ -847,9 +847,9 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\x0eGetUserRequest\x12\x19\n" +
 	"\auser_id\x18\x01 \x01(\x03H\x00R\x06userId\x12\x16\n" +
 	"\x05email\x18\x02 \x01(\tH\x00R\x05emailB\x05\n" +
-	"\x03key\"9\n" +
-	"\x0fGetUserResponse\x12&\n" +
-	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"\xbe\x01\n" +
+	"\x03key\"4\n" +
+	"\x0fGetUserResponse\x12!\n" +
+	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\"\xbe\x01\n" +
 	"\x11UpdateUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
@@ -864,29 +864,29 @@ const file_user_v1_user_proto_rawDesc = "" +
 	"\x10ListUsersRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\"e\n" +
-	"\x11ListUsersResponse\x12(\n" +
-	"\x05users\x18\x01 \x03(\v2\x12.loco.user.v1.UserR\x05users\x12&\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"`\n" +
+	"\x11ListUsersResponse\x12#\n" +
+	"\x05users\x18\x01 \x03(\v2\r.user.v1.UserR\x05users\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x0f\n" +
-	"\rWhoAmIRequest\"8\n" +
-	"\x0eWhoAmIResponse\x12&\n" +
-	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\",\n" +
+	"\rWhoAmIRequest\"3\n" +
+	"\x0eWhoAmIResponse\x12!\n" +
+	"\x04user\x18\x01 \x01(\v2\r.user.v1.UserR\x04user\",\n" +
 	"\x11DeleteUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\x14\n" +
 	"\x12DeleteUserResponse\"\x0f\n" +
 	"\rLogoutRequest\"\x10\n" +
-	"\x0eLogoutResponse2\xa0\x04\n" +
-	"\vUserService\x12O\n" +
+	"\x0eLogoutResponse2\xda\x03\n" +
+	"\vUserService\x12E\n" +
 	"\n" +
-	"CreateUser\x12\x1f.loco.user.v1.CreateUserRequest\x1a .loco.user.v1.CreateUserResponse\x12F\n" +
-	"\aGetUser\x12\x1c.loco.user.v1.GetUserRequest\x1a\x1d.loco.user.v1.GetUserResponse\x12C\n" +
-	"\x06WhoAmI\x12\x1b.loco.user.v1.WhoAmIRequest\x1a\x1c.loco.user.v1.WhoAmIResponse\x12O\n" +
+	"CreateUser\x12\x1a.user.v1.CreateUserRequest\x1a\x1b.user.v1.CreateUserResponse\x12<\n" +
+	"\aGetUser\x12\x17.user.v1.GetUserRequest\x1a\x18.user.v1.GetUserResponse\x129\n" +
+	"\x06WhoAmI\x12\x16.user.v1.WhoAmIRequest\x1a\x17.user.v1.WhoAmIResponse\x12E\n" +
 	"\n" +
-	"UpdateUser\x12\x1f.loco.user.v1.UpdateUserRequest\x1a .loco.user.v1.UpdateUserResponse\x12L\n" +
-	"\tListUsers\x12\x1e.loco.user.v1.ListUsersRequest\x1a\x1f.loco.user.v1.ListUsersResponse\x12O\n" +
+	"UpdateUser\x12\x1a.user.v1.UpdateUserRequest\x1a\x1b.user.v1.UpdateUserResponse\x12B\n" +
+	"\tListUsers\x12\x19.user.v1.ListUsersRequest\x1a\x1a.user.v1.ListUsersResponse\x12E\n" +
 	"\n" +
-	"DeleteUser\x12\x1f.loco.user.v1.DeleteUserRequest\x1a .loco.user.v1.DeleteUserResponse\x12C\n" +
-	"\x06Logout\x12\x1b.loco.user.v1.LogoutRequest\x1a\x1c.loco.user.v1.LogoutResponseB7Z5github.com/team-loco/loco/shared/proto/user/v1;userv1b\x06proto3"
+	"DeleteUser\x12\x1a.user.v1.DeleteUserRequest\x1a\x1b.user.v1.DeleteUserResponse\x129\n" +
+	"\x06Logout\x12\x16.user.v1.LogoutRequest\x1a\x17.user.v1.LogoutResponseB7Z5github.com/team-loco/loco/shared/proto/user/v1;userv1b\x06proto3"
 
 var (
 	file_user_v1_user_proto_rawDescOnce sync.Once
@@ -902,45 +902,45 @@ func file_user_v1_user_proto_rawDescGZIP() []byte {
 
 var file_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_user_v1_user_proto_goTypes = []any{
-	(*User)(nil),                  // 0: loco.user.v1.User
-	(*CreateUserRequest)(nil),     // 1: loco.user.v1.CreateUserRequest
-	(*CreateUserResponse)(nil),    // 2: loco.user.v1.CreateUserResponse
-	(*GetUserRequest)(nil),        // 3: loco.user.v1.GetUserRequest
-	(*GetUserResponse)(nil),       // 4: loco.user.v1.GetUserResponse
-	(*UpdateUserRequest)(nil),     // 5: loco.user.v1.UpdateUserRequest
-	(*UpdateUserResponse)(nil),    // 6: loco.user.v1.UpdateUserResponse
-	(*ListUsersRequest)(nil),      // 7: loco.user.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),     // 8: loco.user.v1.ListUsersResponse
-	(*WhoAmIRequest)(nil),         // 9: loco.user.v1.WhoAmIRequest
-	(*WhoAmIResponse)(nil),        // 10: loco.user.v1.WhoAmIResponse
-	(*DeleteUserRequest)(nil),     // 11: loco.user.v1.DeleteUserRequest
-	(*DeleteUserResponse)(nil),    // 12: loco.user.v1.DeleteUserResponse
-	(*LogoutRequest)(nil),         // 13: loco.user.v1.LogoutRequest
-	(*LogoutResponse)(nil),        // 14: loco.user.v1.LogoutResponse
+	(*User)(nil),                  // 0: user.v1.User
+	(*CreateUserRequest)(nil),     // 1: user.v1.CreateUserRequest
+	(*CreateUserResponse)(nil),    // 2: user.v1.CreateUserResponse
+	(*GetUserRequest)(nil),        // 3: user.v1.GetUserRequest
+	(*GetUserResponse)(nil),       // 4: user.v1.GetUserResponse
+	(*UpdateUserRequest)(nil),     // 5: user.v1.UpdateUserRequest
+	(*UpdateUserResponse)(nil),    // 6: user.v1.UpdateUserResponse
+	(*ListUsersRequest)(nil),      // 7: user.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),     // 8: user.v1.ListUsersResponse
+	(*WhoAmIRequest)(nil),         // 9: user.v1.WhoAmIRequest
+	(*WhoAmIResponse)(nil),        // 10: user.v1.WhoAmIResponse
+	(*DeleteUserRequest)(nil),     // 11: user.v1.DeleteUserRequest
+	(*DeleteUserResponse)(nil),    // 12: user.v1.DeleteUserResponse
+	(*LogoutRequest)(nil),         // 13: user.v1.LogoutRequest
+	(*LogoutResponse)(nil),        // 14: user.v1.LogoutResponse
 	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
 	(*fieldmaskpb.FieldMask)(nil), // 16: google.protobuf.FieldMask
 }
 var file_user_v1_user_proto_depIdxs = []int32{
-	15, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	15, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: loco.user.v1.GetUserResponse.user:type_name -> loco.user.v1.User
-	16, // 3: loco.user.v1.UpdateUserRequest.update_mask:type_name -> google.protobuf.FieldMask
-	0,  // 4: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
-	0,  // 5: loco.user.v1.WhoAmIResponse.user:type_name -> loco.user.v1.User
-	1,  // 6: loco.user.v1.UserService.CreateUser:input_type -> loco.user.v1.CreateUserRequest
-	3,  // 7: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
-	9,  // 8: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
-	5,  // 9: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
-	7,  // 10: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
-	11, // 11: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
-	13, // 12: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
-	2,  // 13: loco.user.v1.UserService.CreateUser:output_type -> loco.user.v1.CreateUserResponse
-	4,  // 14: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
-	10, // 15: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
-	6,  // 16: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
-	8,  // 17: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
-	12, // 18: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
-	14, // 19: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
+	15, // 0: user.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	15, // 1: user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: user.v1.GetUserResponse.user:type_name -> user.v1.User
+	16, // 3: user.v1.UpdateUserRequest.update_mask:type_name -> google.protobuf.FieldMask
+	0,  // 4: user.v1.ListUsersResponse.users:type_name -> user.v1.User
+	0,  // 5: user.v1.WhoAmIResponse.user:type_name -> user.v1.User
+	1,  // 6: user.v1.UserService.CreateUser:input_type -> user.v1.CreateUserRequest
+	3,  // 7: user.v1.UserService.GetUser:input_type -> user.v1.GetUserRequest
+	9,  // 8: user.v1.UserService.WhoAmI:input_type -> user.v1.WhoAmIRequest
+	5,  // 9: user.v1.UserService.UpdateUser:input_type -> user.v1.UpdateUserRequest
+	7,  // 10: user.v1.UserService.ListUsers:input_type -> user.v1.ListUsersRequest
+	11, // 11: user.v1.UserService.DeleteUser:input_type -> user.v1.DeleteUserRequest
+	13, // 12: user.v1.UserService.Logout:input_type -> user.v1.LogoutRequest
+	2,  // 13: user.v1.UserService.CreateUser:output_type -> user.v1.CreateUserResponse
+	4,  // 14: user.v1.UserService.GetUser:output_type -> user.v1.GetUserResponse
+	10, // 15: user.v1.UserService.WhoAmI:output_type -> user.v1.WhoAmIResponse
+	6,  // 16: user.v1.UserService.UpdateUser:output_type -> user.v1.UpdateUserResponse
+	8,  // 17: user.v1.UserService.ListUsers:output_type -> user.v1.ListUsersResponse
+	12, // 18: user.v1.UserService.DeleteUser:output_type -> user.v1.DeleteUserResponse
+	14, // 19: user.v1.UserService.Logout:output_type -> user.v1.LogoutResponse
 	13, // [13:20] is the sub-list for method output_type
 	6,  // [6:13] is the sub-list for method input_type
 	6,  // [6:6] is the sub-list for extension type_name

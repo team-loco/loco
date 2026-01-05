@@ -1228,7 +1228,7 @@ var File_workspace_v1_workspace_proto protoreflect.FileDescriptor
 
 const file_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
-	"\x1cworkspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a google/protobuf/field_mask.proto\"\xfd\x01\n" +
+	"\x1cworkspace/v1/workspace.proto\x12\fworkspace.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfd\x01\n" +
 	"\tWorkspace\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x15\n" +
 	"\x06org_id\x18\x02 \x01(\x03R\x05orgId\x12\x12\n" +
@@ -1264,27 +1264,27 @@ const file_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x17CreateWorkspaceResponse\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"8\n" +
 	"\x13GetWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"R\n" +
-	"\x14GetWorkspaceResponse\x12:\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"p\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"M\n" +
+	"\x14GetWorkspaceResponse\x125\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x17.workspace.v1.WorkspaceR\tworkspace\"p\n" +
 	"\x19ListUserWorkspacesRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
-	"\x1aListUserWorkspacesResponse\x12<\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"}\n" +
+	"\x1aListUserWorkspacesResponse\x127\n" +
 	"\n" +
-	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
+	"workspaces\x18\x01 \x03(\v2\x17.workspace.v1.WorkspaceR\n" +
 	"workspaces\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"m\n" +
 	"\x18ListOrgWorkspacesRequest\x12\x15\n" +
 	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x81\x01\n" +
-	"\x19ListOrgWorkspacesResponse\x12<\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"|\n" +
+	"\x19ListOrgWorkspacesResponse\x127\n" +
 	"\n" +
-	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
+	"workspaces\x18\x01 \x03(\v2\x17.workspace.v1.WorkspaceR\n" +
 	"workspaces\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd1\x01\n" +
 	"\x16UpdateWorkspaceRequest\x12!\n" +
@@ -1316,20 +1316,20 @@ const file_workspace_v1_workspace_proto_rawDesc = "" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x8c\x01\n" +
-	"\x1cListWorkspaceMembersResponse\x12D\n" +
-	"\amembers\x18\x01 \x03(\v2*.loco.workspace.v1.WorkspaceMemberWithUserR\amembers\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\xcf\a\n" +
-	"\x10WorkspaceService\x12h\n" +
-	"\x0fCreateWorkspace\x12).loco.workspace.v1.CreateWorkspaceRequest\x1a*.loco.workspace.v1.CreateWorkspaceResponse\x12_\n" +
-	"\fGetWorkspace\x12&.loco.workspace.v1.GetWorkspaceRequest\x1a'.loco.workspace.v1.GetWorkspaceResponse\x12h\n" +
-	"\x0fUpdateWorkspace\x12).loco.workspace.v1.UpdateWorkspaceRequest\x1a*.loco.workspace.v1.UpdateWorkspaceResponse\x12h\n" +
-	"\x0fDeleteWorkspace\x12).loco.workspace.v1.DeleteWorkspaceRequest\x1a*.loco.workspace.v1.DeleteWorkspaceResponse\x12q\n" +
-	"\x12ListUserWorkspaces\x12,.loco.workspace.v1.ListUserWorkspacesRequest\x1a-.loco.workspace.v1.ListUserWorkspacesResponse\x12n\n" +
-	"\x11ListOrgWorkspaces\x12+.loco.workspace.v1.ListOrgWorkspacesRequest\x1a,.loco.workspace.v1.ListOrgWorkspacesResponse\x12_\n" +
-	"\fCreateMember\x12&.loco.workspace.v1.CreateMemberRequest\x1a'.loco.workspace.v1.CreateMemberResponse\x12_\n" +
-	"\fDeleteMember\x12&.loco.workspace.v1.DeleteMemberRequest\x1a'.loco.workspace.v1.DeleteMemberResponse\x12w\n" +
-	"\x14ListWorkspaceMembers\x12..loco.workspace.v1.ListWorkspaceMembersRequest\x1a/.loco.workspace.v1.ListWorkspaceMembersResponseBAZ?github.com/team-loco/loco/shared/proto/workspace/v1;workspacev1b\x06proto3"
+	"page_token\x18\x03 \x01(\tR\tpageToken\"\x87\x01\n" +
+	"\x1cListWorkspaceMembersResponse\x12?\n" +
+	"\amembers\x18\x01 \x03(\v2%.workspace.v1.WorkspaceMemberWithUserR\amembers\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\xf5\x06\n" +
+	"\x10WorkspaceService\x12^\n" +
+	"\x0fCreateWorkspace\x12$.workspace.v1.CreateWorkspaceRequest\x1a%.workspace.v1.CreateWorkspaceResponse\x12U\n" +
+	"\fGetWorkspace\x12!.workspace.v1.GetWorkspaceRequest\x1a\".workspace.v1.GetWorkspaceResponse\x12^\n" +
+	"\x0fUpdateWorkspace\x12$.workspace.v1.UpdateWorkspaceRequest\x1a%.workspace.v1.UpdateWorkspaceResponse\x12^\n" +
+	"\x0fDeleteWorkspace\x12$.workspace.v1.DeleteWorkspaceRequest\x1a%.workspace.v1.DeleteWorkspaceResponse\x12g\n" +
+	"\x12ListUserWorkspaces\x12'.workspace.v1.ListUserWorkspacesRequest\x1a(.workspace.v1.ListUserWorkspacesResponse\x12d\n" +
+	"\x11ListOrgWorkspaces\x12&.workspace.v1.ListOrgWorkspacesRequest\x1a'.workspace.v1.ListOrgWorkspacesResponse\x12U\n" +
+	"\fCreateMember\x12!.workspace.v1.CreateMemberRequest\x1a\".workspace.v1.CreateMemberResponse\x12U\n" +
+	"\fDeleteMember\x12!.workspace.v1.DeleteMemberRequest\x1a\".workspace.v1.DeleteMemberResponse\x12m\n" +
+	"\x14ListWorkspaceMembers\x12).workspace.v1.ListWorkspaceMembersRequest\x1a*.workspace.v1.ListWorkspaceMembersResponseBAZ?github.com/team-loco/loco/shared/proto/workspace/v1;workspacev1b\x06proto3"
 
 var (
 	file_workspace_v1_workspace_proto_rawDescOnce sync.Once
@@ -1345,58 +1345,58 @@ func file_workspace_v1_workspace_proto_rawDescGZIP() []byte {
 
 var file_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_workspace_v1_workspace_proto_goTypes = []any{
-	(*Workspace)(nil),                    // 0: loco.workspace.v1.Workspace
-	(*WorkspaceMember)(nil),              // 1: loco.workspace.v1.WorkspaceMember
-	(*WorkspaceMemberWithUser)(nil),      // 2: loco.workspace.v1.WorkspaceMemberWithUser
-	(*CreateWorkspaceRequest)(nil),       // 3: loco.workspace.v1.CreateWorkspaceRequest
-	(*CreateWorkspaceResponse)(nil),      // 4: loco.workspace.v1.CreateWorkspaceResponse
-	(*GetWorkspaceRequest)(nil),          // 5: loco.workspace.v1.GetWorkspaceRequest
-	(*GetWorkspaceResponse)(nil),         // 6: loco.workspace.v1.GetWorkspaceResponse
-	(*ListUserWorkspacesRequest)(nil),    // 7: loco.workspace.v1.ListUserWorkspacesRequest
-	(*ListUserWorkspacesResponse)(nil),   // 8: loco.workspace.v1.ListUserWorkspacesResponse
-	(*ListOrgWorkspacesRequest)(nil),     // 9: loco.workspace.v1.ListOrgWorkspacesRequest
-	(*ListOrgWorkspacesResponse)(nil),    // 10: loco.workspace.v1.ListOrgWorkspacesResponse
-	(*UpdateWorkspaceRequest)(nil),       // 11: loco.workspace.v1.UpdateWorkspaceRequest
-	(*UpdateWorkspaceResponse)(nil),      // 12: loco.workspace.v1.UpdateWorkspaceResponse
-	(*DeleteWorkspaceRequest)(nil),       // 13: loco.workspace.v1.DeleteWorkspaceRequest
-	(*DeleteWorkspaceResponse)(nil),      // 14: loco.workspace.v1.DeleteWorkspaceResponse
-	(*CreateMemberRequest)(nil),          // 15: loco.workspace.v1.CreateMemberRequest
-	(*CreateMemberResponse)(nil),         // 16: loco.workspace.v1.CreateMemberResponse
-	(*DeleteMemberRequest)(nil),          // 17: loco.workspace.v1.DeleteMemberRequest
-	(*DeleteMemberResponse)(nil),         // 18: loco.workspace.v1.DeleteMemberResponse
-	(*ListWorkspaceMembersRequest)(nil),  // 19: loco.workspace.v1.ListWorkspaceMembersRequest
-	(*ListWorkspaceMembersResponse)(nil), // 20: loco.workspace.v1.ListWorkspaceMembersResponse
+	(*Workspace)(nil),                    // 0: workspace.v1.Workspace
+	(*WorkspaceMember)(nil),              // 1: workspace.v1.WorkspaceMember
+	(*WorkspaceMemberWithUser)(nil),      // 2: workspace.v1.WorkspaceMemberWithUser
+	(*CreateWorkspaceRequest)(nil),       // 3: workspace.v1.CreateWorkspaceRequest
+	(*CreateWorkspaceResponse)(nil),      // 4: workspace.v1.CreateWorkspaceResponse
+	(*GetWorkspaceRequest)(nil),          // 5: workspace.v1.GetWorkspaceRequest
+	(*GetWorkspaceResponse)(nil),         // 6: workspace.v1.GetWorkspaceResponse
+	(*ListUserWorkspacesRequest)(nil),    // 7: workspace.v1.ListUserWorkspacesRequest
+	(*ListUserWorkspacesResponse)(nil),   // 8: workspace.v1.ListUserWorkspacesResponse
+	(*ListOrgWorkspacesRequest)(nil),     // 9: workspace.v1.ListOrgWorkspacesRequest
+	(*ListOrgWorkspacesResponse)(nil),    // 10: workspace.v1.ListOrgWorkspacesResponse
+	(*UpdateWorkspaceRequest)(nil),       // 11: workspace.v1.UpdateWorkspaceRequest
+	(*UpdateWorkspaceResponse)(nil),      // 12: workspace.v1.UpdateWorkspaceResponse
+	(*DeleteWorkspaceRequest)(nil),       // 13: workspace.v1.DeleteWorkspaceRequest
+	(*DeleteWorkspaceResponse)(nil),      // 14: workspace.v1.DeleteWorkspaceResponse
+	(*CreateMemberRequest)(nil),          // 15: workspace.v1.CreateMemberRequest
+	(*CreateMemberResponse)(nil),         // 16: workspace.v1.CreateMemberResponse
+	(*DeleteMemberRequest)(nil),          // 17: workspace.v1.DeleteMemberRequest
+	(*DeleteMemberResponse)(nil),         // 18: workspace.v1.DeleteMemberResponse
+	(*ListWorkspaceMembersRequest)(nil),  // 19: workspace.v1.ListWorkspaceMembersRequest
+	(*ListWorkspaceMembersResponse)(nil), // 20: workspace.v1.ListWorkspaceMembersResponse
 	(*timestamppb.Timestamp)(nil),        // 21: google.protobuf.Timestamp
 	(*fieldmaskpb.FieldMask)(nil),        // 22: google.protobuf.FieldMask
 }
 var file_workspace_v1_workspace_proto_depIdxs = []int32{
-	21, // 0: loco.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
-	21, // 1: loco.workspace.v1.Workspace.updated_at:type_name -> google.protobuf.Timestamp
-	21, // 2: loco.workspace.v1.WorkspaceMember.created_at:type_name -> google.protobuf.Timestamp
-	21, // 3: loco.workspace.v1.WorkspaceMemberWithUser.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 4: loco.workspace.v1.GetWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
-	0,  // 5: loco.workspace.v1.ListUserWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	0,  // 6: loco.workspace.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	22, // 7: loco.workspace.v1.UpdateWorkspaceRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 8: loco.workspace.v1.ListWorkspaceMembersResponse.members:type_name -> loco.workspace.v1.WorkspaceMemberWithUser
-	3,  // 9: loco.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> loco.workspace.v1.CreateWorkspaceRequest
-	5,  // 10: loco.workspace.v1.WorkspaceService.GetWorkspace:input_type -> loco.workspace.v1.GetWorkspaceRequest
-	11, // 11: loco.workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> loco.workspace.v1.UpdateWorkspaceRequest
-	13, // 12: loco.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> loco.workspace.v1.DeleteWorkspaceRequest
-	7,  // 13: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:input_type -> loco.workspace.v1.ListUserWorkspacesRequest
-	9,  // 14: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:input_type -> loco.workspace.v1.ListOrgWorkspacesRequest
-	15, // 15: loco.workspace.v1.WorkspaceService.CreateMember:input_type -> loco.workspace.v1.CreateMemberRequest
-	17, // 16: loco.workspace.v1.WorkspaceService.DeleteMember:input_type -> loco.workspace.v1.DeleteMemberRequest
-	19, // 17: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:input_type -> loco.workspace.v1.ListWorkspaceMembersRequest
-	4,  // 18: loco.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> loco.workspace.v1.CreateWorkspaceResponse
-	6,  // 19: loco.workspace.v1.WorkspaceService.GetWorkspace:output_type -> loco.workspace.v1.GetWorkspaceResponse
-	12, // 20: loco.workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> loco.workspace.v1.UpdateWorkspaceResponse
-	14, // 21: loco.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> loco.workspace.v1.DeleteWorkspaceResponse
-	8,  // 22: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:output_type -> loco.workspace.v1.ListUserWorkspacesResponse
-	10, // 23: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:output_type -> loco.workspace.v1.ListOrgWorkspacesResponse
-	16, // 24: loco.workspace.v1.WorkspaceService.CreateMember:output_type -> loco.workspace.v1.CreateMemberResponse
-	18, // 25: loco.workspace.v1.WorkspaceService.DeleteMember:output_type -> loco.workspace.v1.DeleteMemberResponse
-	20, // 26: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:output_type -> loco.workspace.v1.ListWorkspaceMembersResponse
+	21, // 0: workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	21, // 1: workspace.v1.Workspace.updated_at:type_name -> google.protobuf.Timestamp
+	21, // 2: workspace.v1.WorkspaceMember.created_at:type_name -> google.protobuf.Timestamp
+	21, // 3: workspace.v1.WorkspaceMemberWithUser.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 4: workspace.v1.GetWorkspaceResponse.workspace:type_name -> workspace.v1.Workspace
+	0,  // 5: workspace.v1.ListUserWorkspacesResponse.workspaces:type_name -> workspace.v1.Workspace
+	0,  // 6: workspace.v1.ListOrgWorkspacesResponse.workspaces:type_name -> workspace.v1.Workspace
+	22, // 7: workspace.v1.UpdateWorkspaceRequest.update_mask:type_name -> google.protobuf.FieldMask
+	2,  // 8: workspace.v1.ListWorkspaceMembersResponse.members:type_name -> workspace.v1.WorkspaceMemberWithUser
+	3,  // 9: workspace.v1.WorkspaceService.CreateWorkspace:input_type -> workspace.v1.CreateWorkspaceRequest
+	5,  // 10: workspace.v1.WorkspaceService.GetWorkspace:input_type -> workspace.v1.GetWorkspaceRequest
+	11, // 11: workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> workspace.v1.UpdateWorkspaceRequest
+	13, // 12: workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> workspace.v1.DeleteWorkspaceRequest
+	7,  // 13: workspace.v1.WorkspaceService.ListUserWorkspaces:input_type -> workspace.v1.ListUserWorkspacesRequest
+	9,  // 14: workspace.v1.WorkspaceService.ListOrgWorkspaces:input_type -> workspace.v1.ListOrgWorkspacesRequest
+	15, // 15: workspace.v1.WorkspaceService.CreateMember:input_type -> workspace.v1.CreateMemberRequest
+	17, // 16: workspace.v1.WorkspaceService.DeleteMember:input_type -> workspace.v1.DeleteMemberRequest
+	19, // 17: workspace.v1.WorkspaceService.ListWorkspaceMembers:input_type -> workspace.v1.ListWorkspaceMembersRequest
+	4,  // 18: workspace.v1.WorkspaceService.CreateWorkspace:output_type -> workspace.v1.CreateWorkspaceResponse
+	6,  // 19: workspace.v1.WorkspaceService.GetWorkspace:output_type -> workspace.v1.GetWorkspaceResponse
+	12, // 20: workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> workspace.v1.UpdateWorkspaceResponse
+	14, // 21: workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> workspace.v1.DeleteWorkspaceResponse
+	8,  // 22: workspace.v1.WorkspaceService.ListUserWorkspaces:output_type -> workspace.v1.ListUserWorkspacesResponse
+	10, // 23: workspace.v1.WorkspaceService.ListOrgWorkspaces:output_type -> workspace.v1.ListOrgWorkspacesResponse
+	16, // 24: workspace.v1.WorkspaceService.CreateMember:output_type -> workspace.v1.CreateMemberResponse
+	18, // 25: workspace.v1.WorkspaceService.DeleteMember:output_type -> workspace.v1.DeleteMemberResponse
+	20, // 26: workspace.v1.WorkspaceService.ListWorkspaceMembers:output_type -> workspace.v1.ListWorkspaceMembersResponse
 	18, // [18:27] is the sub-list for method output_type
 	9,  // [9:18] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name

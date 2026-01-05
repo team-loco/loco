@@ -961,10 +961,10 @@ type Resource struct {
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
 	WorkspaceId   int64                  `protobuf:"varint,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Type          ResourceType           `protobuf:"varint,4,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
+	Type          ResourceType           `protobuf:"varint,4,opt,name=type,proto3,enum=resource.v1.ResourceType" json:"type,omitempty"`
 	Domains       []*v11.ResourceDomain  `protobuf:"bytes,5,rep,name=domains,proto3" json:"domains,omitempty"`
 	Regions       []*RegionConfig        `protobuf:"bytes,6,rep,name=regions,proto3" json:"regions,omitempty"`
-	Status        ResourceStatus         `protobuf:"varint,7,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
+	Status        ResourceStatus         `protobuf:"varint,7,opt,name=status,proto3,enum=resource.v1.ResourceStatus" json:"status,omitempty"`
 	Spec          *ResourceSpec          `protobuf:"bytes,8,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
 	SpecVersion   int32                  `protobuf:"varint,9,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	Description   *string                `protobuf:"bytes,10,opt,name=description,proto3,oneof" json:"description,omitempty"`
@@ -1101,7 +1101,7 @@ type RegionConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Region        string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
 	IsPrimary     bool                   `protobuf:"varint,2,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
-	Status        RegionIntentStatus     `protobuf:"varint,3,opt,name=status,proto3,enum=loco.resource.v1.RegionIntentStatus" json:"status,omitempty"`
+	Status        RegionIntentStatus     `protobuf:"varint,3,opt,name=status,proto3,enum=resource.v1.RegionIntentStatus" json:"status,omitempty"`
 	LastError     *string                `protobuf:"bytes,4,opt,name=last_error,json=lastError,proto3,oneof" json:"last_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1170,7 +1170,7 @@ type CreateResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Type          ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
+	Type          ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=resource.v1.ResourceType" json:"type,omitempty"`
 	Domain        *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
 	Spec          *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
 	Description   *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
@@ -1978,7 +1978,7 @@ func (x *GetResourceStatusRequest) GetResourceId() int64 {
 type DeploymentStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Status        v1.DeploymentPhase     `protobuf:"varint,2,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
+	Status        v1.DeploymentPhase     `protobuf:"varint,2,opt,name=status,proto3,enum=deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	Replicas      int32                  `protobuf:"varint,3,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Message       *string                `protobuf:"bytes,4,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2633,7 +2633,7 @@ var File_resource_v1_resource_proto protoreflect.FileDescriptor
 
 const file_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
-	"\x1aresource/v1/resource.proto\x12\x10loco.resource.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1edeployment/v1/deployment.proto\x1a\x16domain/v1/domain.proto\"g\n" +
+	"\x1aresource/v1/resource.proto\x12\vresource.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1edeployment/v1/deployment.proto\x1a\x16domain/v1/domain.proto\"g\n" +
 	"\rRoutingConfig\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1f\n" +
 	"\vpath_prefix\x18\x02 \x01(\tR\n" +
@@ -2648,59 +2648,59 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\rMetricsConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
-	"\x04port\x18\x03 \x01(\x05R\x04port\"\xc2\x01\n" +
+	"\x04port\x18\x03 \x01(\x05R\x04port\"\xbd\x01\n" +
 	"\rTracingConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
 	"\vsample_rate\x18\x02 \x01(\x01R\n" +
-	"sampleRate\x12=\n" +
-	"\x04tags\x18\x03 \x03(\v2).loco.resource.v1.TracingConfig.TagsEntryR\x04tags\x1a7\n" +
+	"sampleRate\x128\n" +
+	"\x04tags\x18\x03 \x03(\v2$.resource.v1.TracingConfig.TagsEntryR\x04tags\x1a7\n" +
 	"\tTagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc6\x01\n" +
-	"\x13ObservabilityConfig\x129\n" +
-	"\alogging\x18\x01 \x01(\v2\x1f.loco.resource.v1.LoggingConfigR\alogging\x129\n" +
-	"\ametrics\x18\x02 \x01(\v2\x1f.loco.resource.v1.MetricsConfigR\ametrics\x129\n" +
-	"\atracing\x18\x03 \x01(\v2\x1f.loco.resource.v1.TracingConfigR\atracing\"\xfa\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb7\x01\n" +
+	"\x13ObservabilityConfig\x124\n" +
+	"\alogging\x18\x01 \x01(\v2\x1a.resource.v1.LoggingConfigR\alogging\x124\n" +
+	"\ametrics\x18\x02 \x01(\v2\x1a.resource.v1.MetricsConfigR\ametrics\x124\n" +
+	"\atracing\x18\x03 \x01(\v2\x1a.resource.v1.TracingConfigR\atracing\"\xf5\x01\n" +
 	"\fRegionTarget\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x18\n" +
 	"\aprimary\x18\x02 \x01(\bR\aprimary\x12\x10\n" +
 	"\x03cpu\x18\x03 \x01(\tR\x03cpu\x12\x16\n" +
 	"\x06memory\x18\x04 \x01(\tR\x06memory\x12!\n" +
 	"\fmin_replicas\x18\x05 \x01(\x05R\vminReplicas\x12!\n" +
-	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12:\n" +
-	"\ascalers\x18\a \x01(\v2\x1b.loco.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
+	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x125\n" +
+	"\ascalers\x18\a \x01(\v2\x16.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
 	"\n" +
-	"\b_scalers\"\x97\x03\n" +
-	"\vServiceSpec\x129\n" +
-	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12K\n" +
-	"\robservability\x18\x02 \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12D\n" +
-	"\aregions\x18\x03 \x03(\v2*.loco.resource.v1.ServiceSpec.RegionsEntryR\aregions\x12M\n" +
-	"\fhealth_check\x18\x04 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x1aZ\n" +
+	"\b_scalers\"\xfe\x02\n" +
+	"\vServiceSpec\x124\n" +
+	"\arouting\x18\x01 \x01(\v2\x1a.resource.v1.RoutingConfigR\arouting\x12F\n" +
+	"\robservability\x18\x02 \x01(\v2 .resource.v1.ObservabilityConfigR\robservability\x12?\n" +
+	"\aregions\x18\x03 \x03(\v2%.resource.v1.ServiceSpec.RegionsEntryR\aregions\x12H\n" +
+	"\fhealth_check\x18\x04 \x01(\v2 .deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x1aU\n" +
 	"\fRegionsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
-	"\x05value\x18\x02 \x01(\v2\x1e.loco.resource.v1.RegionTargetR\x05value:\x028\x01B\x0f\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12/\n" +
+	"\x05value\x18\x02 \x01(\v2\x19.resource.v1.RegionTargetR\x05value:\x028\x01B\x0f\n" +
 	"\r_health_check\"\x0e\n" +
 	"\fDatabaseSpec\"\v\n" +
 	"\tCacheSpec\"\v\n" +
 	"\tQueueSpec\"\n" +
 	"\n" +
-	"\bBlobSpec\"\xab\x02\n" +
-	"\fResourceSpec\x129\n" +
-	"\aservice\x18\x01 \x01(\v2\x1d.loco.resource.v1.ServiceSpecH\x00R\aservice\x12<\n" +
-	"\bdatabase\x18\x02 \x01(\v2\x1e.loco.resource.v1.DatabaseSpecH\x00R\bdatabase\x123\n" +
-	"\x05cache\x18\x03 \x01(\v2\x1b.loco.resource.v1.CacheSpecH\x00R\x05cache\x123\n" +
-	"\x05queue\x18\x04 \x01(\v2\x1b.loco.resource.v1.QueueSpecH\x00R\x05queue\x120\n" +
-	"\x04blob\x18\x05 \x01(\v2\x1a.loco.resource.v1.BlobSpecH\x00R\x04blobB\x06\n" +
-	"\x04spec\"\xe4\x04\n" +
+	"\bBlobSpec\"\x92\x02\n" +
+	"\fResourceSpec\x124\n" +
+	"\aservice\x18\x01 \x01(\v2\x18.resource.v1.ServiceSpecH\x00R\aservice\x127\n" +
+	"\bdatabase\x18\x02 \x01(\v2\x19.resource.v1.DatabaseSpecH\x00R\bdatabase\x12.\n" +
+	"\x05cache\x18\x03 \x01(\v2\x16.resource.v1.CacheSpecH\x00R\x05cache\x12.\n" +
+	"\x05queue\x18\x04 \x01(\v2\x16.resource.v1.QueueSpecH\x00R\x05queue\x12+\n" +
+	"\x04blob\x18\x05 \x01(\v2\x15.resource.v1.BlobSpecH\x00R\x04blobB\x06\n" +
+	"\x04spec\"\xcb\x04\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\x03R\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x122\n" +
-	"\x04type\x18\x04 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x128\n" +
-	"\adomains\x18\x05 \x03(\v2\x1e.loco.domain.v1.ResourceDomainR\adomains\x128\n" +
-	"\aregions\x18\x06 \x03(\v2\x1e.loco.resource.v1.RegionConfigR\aregions\x128\n" +
-	"\x06status\x18\a \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x127\n" +
-	"\x04spec\x18\b \x01(\v2\x1e.loco.resource.v1.ResourceSpecH\x00R\x04spec\x88\x01\x01\x12!\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12-\n" +
+	"\x04type\x18\x04 \x01(\x0e2\x19.resource.v1.ResourceTypeR\x04type\x123\n" +
+	"\adomains\x18\x05 \x03(\v2\x19.domain.v1.ResourceDomainR\adomains\x123\n" +
+	"\aregions\x18\x06 \x03(\v2\x19.resource.v1.RegionConfigR\aregions\x123\n" +
+	"\x06status\x18\a \x01(\x0e2\x1b.resource.v1.ResourceStatusR\x06status\x122\n" +
+	"\x04spec\x18\b \x01(\v2\x19.resource.v1.ResourceSpecH\x00R\x04spec\x88\x01\x01\x12!\n" +
 	"\fspec_version\x18\t \x01(\x05R\vspecVersion\x12%\n" +
 	"\vdescription\x18\n" +
 	" \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
@@ -2711,21 +2711,21 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\a\n" +
 	"\x05_specB\x0e\n" +
-	"\f_description\"\xb6\x01\n" +
+	"\f_description\"\xb1\x01\n" +
 	"\fRegionConfig\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1d\n" +
 	"\n" +
-	"is_primary\x18\x02 \x01(\bR\tisPrimary\x12<\n" +
-	"\x06status\x18\x03 \x01(\x0e2$.loco.resource.v1.RegionIntentStatusR\x06status\x12\"\n" +
+	"is_primary\x18\x02 \x01(\bR\tisPrimary\x127\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x1f.resource.v1.RegionIntentStatusR\x06status\x12\"\n" +
 	"\n" +
 	"last_error\x18\x04 \x01(\tH\x00R\tlastError\x88\x01\x01B\r\n" +
-	"\v_last_error\"\xa2\x02\n" +
+	"\v_last_error\"\x93\x02\n" +
 	"\x15CreateResourceRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
-	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x123\n" +
-	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\x122\n" +
-	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecR\x04spec\x12%\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12-\n" +
+	"\x04type\x18\x03 \x01(\x0e2\x19.resource.v1.ResourceTypeR\x04type\x12.\n" +
+	"\x06domain\x18\x04 \x01(\v2\x16.domain.v1.DomainInputR\x06domain\x12-\n" +
+	"\x04spec\x18\x05 \x01(\v2\x19.resource.v1.ResourceSpecR\x04spec\x12%\n" +
 	"\vdescription\x18\x06 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
 	"\f_description\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
@@ -2733,21 +2733,21 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"resourceId\"K\n" +
 	"\x12GetResourceNameKey\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"\x81\x01\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"|\n" +
 	"\x12GetResourceRequest\x12!\n" +
 	"\vresource_id\x18\x01 \x01(\x03H\x00R\n" +
-	"resourceId\x12A\n" +
-	"\bname_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceNameKeyH\x00R\anameKeyB\x05\n" +
-	"\x03key\"M\n" +
-	"\x13GetResourceResponse\x126\n" +
-	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"~\n" +
+	"resourceId\x12<\n" +
+	"\bname_key\x18\x02 \x01(\v2\x1f.resource.v1.GetResourceNameKeyH\x00R\anameKeyB\x05\n" +
+	"\x03key\"H\n" +
+	"\x13GetResourceResponse\x121\n" +
+	"\bresource\x18\x01 \x01(\v2\x15.resource.v1.ResourceR\bresource\"~\n" +
 	"\x1dListWorkspaceResourcesRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
-	"\x1eListWorkspaceResourcesResponse\x128\n" +
-	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"}\n" +
+	"\x1eListWorkspaceResourcesResponse\x123\n" +
+	"\tresources\x18\x01 \x03(\v2\x15.resource.v1.ResourceR\tresources\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xce\x01\n" +
 	"\x15UpdateResourceRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
@@ -2771,22 +2771,22 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"is_default\x18\x02 \x01(\bR\tisDefault\x12#\n" +
 	"\rhealth_status\x18\x03 \x01(\tR\fhealthStatus\"\x14\n" +
-	"\x12ListRegionsRequest\"M\n" +
-	"\x13ListRegionsResponse\x126\n" +
-	"\aregions\x18\x01 \x03(\v2\x1c.loco.resource.v1.RegionInfoR\aregions\";\n" +
+	"\x12ListRegionsRequest\"H\n" +
+	"\x13ListRegionsResponse\x121\n" +
+	"\aregions\x18\x01 \x03(\v2\x17.resource.v1.RegionInfoR\aregions\";\n" +
 	"\x18GetResourceStatusRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
-	"resourceId\"\xa6\x01\n" +
+	"resourceId\"\xa1\x01\n" +
 	"\x10DeploymentStatus\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12;\n" +
-	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x126\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x1e.deployment.v1.DeploymentPhaseR\x06status\x12\x1a\n" +
 	"\breplicas\x18\x03 \x01(\x05R\breplicas\x12\x1d\n" +
 	"\amessage\x18\x04 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
 	"\n" +
-	"\b_message\"\xa6\x01\n" +
-	"\x19GetResourceStatusResponse\x126\n" +
-	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\x12Q\n" +
-	"\x12current_deployment\x18\x02 \x01(\v2\".loco.resource.v1.DeploymentStatusR\x11currentDeployment\"\x80\x01\n" +
+	"\b_message\"\x9c\x01\n" +
+	"\x19GetResourceStatusResponse\x121\n" +
+	"\bresource\x18\x01 \x01(\v2\x15.resource.v1.ResourceR\bresource\x12L\n" +
+	"\x12current_deployment\x18\x02 \x01(\v2\x1d.resource.v1.DeploymentStatusR\x11currentDeployment\"\x80\x01\n" +
 	"\x10WatchLogsRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x19\n" +
@@ -2811,9 +2811,9 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x19\n" +
 	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01B\b\n" +
-	"\x06_limit\"M\n" +
-	"\x1aListResourceEventsResponse\x12/\n" +
-	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xd4\x01\n" +
+	"\x06_limit\"H\n" +
+	"\x1aListResourceEventsResponse\x12*\n" +
+	"\x06events\x18\x01 \x03(\v2\x12.resource.v1.EventR\x06events\"\xd4\x01\n" +
 	"\x14ScaleResourceRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x1f\n" +
@@ -2825,11 +2825,11 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\x04_cpuB\t\n" +
 	"\a_memoryB\t\n" +
 	"\a_region\"\x17\n" +
-	"\x15ScaleResourceResponse\"\xe2\x01\n" +
+	"\x15ScaleResourceResponse\"\xdd\x01\n" +
 	"\x18UpdateResourceEnvRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
-	"resourceId\x12E\n" +
-	"\x03env\x18\x02 \x03(\v23.loco.resource.v1.UpdateResourceEnvRequest.EnvEntryR\x03env\x12\x1b\n" +
+	"resourceId\x12@\n" +
+	"\x03env\x18\x02 \x03(\v2..resource.v1.UpdateResourceEnvRequest.EnvEntryR\x03env\x12\x1b\n" +
 	"\x06region\x18\x03 \x01(\tH\x00R\x06region\x88\x01\x01\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -2858,19 +2858,19 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\x1bREGION_INTENT_STATUS_ACTIVE\x10\x03\x12!\n" +
 	"\x1dREGION_INTENT_STATUS_DEGRADED\x10\x04\x12!\n" +
 	"\x1dREGION_INTENT_STATUS_REMOVING\x10\x05\x12\x1f\n" +
-	"\x1bREGION_INTENT_STATUS_FAILED\x10\x062\xfc\b\n" +
-	"\x0fResourceService\x12c\n" +
-	"\x0eCreateResource\x12'.loco.resource.v1.CreateResourceRequest\x1a(.loco.resource.v1.CreateResourceResponse\x12Z\n" +
-	"\vGetResource\x12$.loco.resource.v1.GetResourceRequest\x1a%.loco.resource.v1.GetResourceResponse\x12c\n" +
-	"\x0eUpdateResource\x12'.loco.resource.v1.UpdateResourceRequest\x1a(.loco.resource.v1.UpdateResourceResponse\x12c\n" +
-	"\x0eDeleteResource\x12'.loco.resource.v1.DeleteResourceRequest\x1a(.loco.resource.v1.DeleteResourceResponse\x12{\n" +
-	"\x16ListWorkspaceResources\x12/.loco.resource.v1.ListWorkspaceResourcesRequest\x1a0.loco.resource.v1.ListWorkspaceResourcesResponse\x12l\n" +
-	"\x11GetResourceStatus\x12*.loco.resource.v1.GetResourceStatusRequest\x1a+.loco.resource.v1.GetResourceStatusResponse\x12Z\n" +
-	"\vListRegions\x12$.loco.resource.v1.ListRegionsRequest\x1a%.loco.resource.v1.ListRegionsResponse\x12V\n" +
-	"\tWatchLogs\x12\".loco.resource.v1.WatchLogsRequest\x1a#.loco.resource.v1.WatchLogsResponse0\x01\x12o\n" +
-	"\x12ListResourceEvents\x12+.loco.resource.v1.ListResourceEventsRequest\x1a,.loco.resource.v1.ListResourceEventsResponse\x12`\n" +
-	"\rScaleResource\x12&.loco.resource.v1.ScaleResourceRequest\x1a'.loco.resource.v1.ScaleResourceResponse\x12l\n" +
-	"\x11UpdateResourceEnv\x12*.loco.resource.v1.UpdateResourceEnvRequest\x1a+.loco.resource.v1.UpdateResourceEnvResponseB?Z=github.com/team-loco/loco/shared/proto/resource/v1;resourcev1b\x06proto3"
+	"\x1bREGION_INTENT_STATUS_FAILED\x10\x062\x8e\b\n" +
+	"\x0fResourceService\x12Y\n" +
+	"\x0eCreateResource\x12\".resource.v1.CreateResourceRequest\x1a#.resource.v1.CreateResourceResponse\x12P\n" +
+	"\vGetResource\x12\x1f.resource.v1.GetResourceRequest\x1a .resource.v1.GetResourceResponse\x12Y\n" +
+	"\x0eUpdateResource\x12\".resource.v1.UpdateResourceRequest\x1a#.resource.v1.UpdateResourceResponse\x12Y\n" +
+	"\x0eDeleteResource\x12\".resource.v1.DeleteResourceRequest\x1a#.resource.v1.DeleteResourceResponse\x12q\n" +
+	"\x16ListWorkspaceResources\x12*.resource.v1.ListWorkspaceResourcesRequest\x1a+.resource.v1.ListWorkspaceResourcesResponse\x12b\n" +
+	"\x11GetResourceStatus\x12%.resource.v1.GetResourceStatusRequest\x1a&.resource.v1.GetResourceStatusResponse\x12P\n" +
+	"\vListRegions\x12\x1f.resource.v1.ListRegionsRequest\x1a .resource.v1.ListRegionsResponse\x12L\n" +
+	"\tWatchLogs\x12\x1d.resource.v1.WatchLogsRequest\x1a\x1e.resource.v1.WatchLogsResponse0\x01\x12e\n" +
+	"\x12ListResourceEvents\x12&.resource.v1.ListResourceEventsRequest\x1a'.resource.v1.ListResourceEventsResponse\x12V\n" +
+	"\rScaleResource\x12!.resource.v1.ScaleResourceRequest\x1a\".resource.v1.ScaleResourceResponse\x12b\n" +
+	"\x11UpdateResourceEnv\x12%.resource.v1.UpdateResourceEnvRequest\x1a&.resource.v1.UpdateResourceEnvResponseB?Z=github.com/team-loco/loco/shared/proto/resource/v1;resourcev1b\x06proto3"
 
 var (
 	file_resource_v1_resource_proto_rawDescOnce sync.Once
@@ -2887,121 +2887,121 @@ func file_resource_v1_resource_proto_rawDescGZIP() []byte {
 var file_resource_v1_resource_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_resource_v1_resource_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_resource_v1_resource_proto_goTypes = []any{
-	(ResourceType)(0),                      // 0: loco.resource.v1.ResourceType
-	(ResourceStatus)(0),                    // 1: loco.resource.v1.ResourceStatus
-	(RegionIntentStatus)(0),                // 2: loco.resource.v1.RegionIntentStatus
-	(*RoutingConfig)(nil),                  // 3: loco.resource.v1.RoutingConfig
-	(*LoggingConfig)(nil),                  // 4: loco.resource.v1.LoggingConfig
-	(*MetricsConfig)(nil),                  // 5: loco.resource.v1.MetricsConfig
-	(*TracingConfig)(nil),                  // 6: loco.resource.v1.TracingConfig
-	(*ObservabilityConfig)(nil),            // 7: loco.resource.v1.ObservabilityConfig
-	(*RegionTarget)(nil),                   // 8: loco.resource.v1.RegionTarget
-	(*ServiceSpec)(nil),                    // 9: loco.resource.v1.ServiceSpec
-	(*DatabaseSpec)(nil),                   // 10: loco.resource.v1.DatabaseSpec
-	(*CacheSpec)(nil),                      // 11: loco.resource.v1.CacheSpec
-	(*QueueSpec)(nil),                      // 12: loco.resource.v1.QueueSpec
-	(*BlobSpec)(nil),                       // 13: loco.resource.v1.BlobSpec
-	(*ResourceSpec)(nil),                   // 14: loco.resource.v1.ResourceSpec
-	(*Resource)(nil),                       // 15: loco.resource.v1.Resource
-	(*RegionConfig)(nil),                   // 16: loco.resource.v1.RegionConfig
-	(*CreateResourceRequest)(nil),          // 17: loco.resource.v1.CreateResourceRequest
-	(*CreateResourceResponse)(nil),         // 18: loco.resource.v1.CreateResourceResponse
-	(*GetResourceNameKey)(nil),             // 19: loco.resource.v1.GetResourceNameKey
-	(*GetResourceRequest)(nil),             // 20: loco.resource.v1.GetResourceRequest
-	(*GetResourceResponse)(nil),            // 21: loco.resource.v1.GetResourceResponse
-	(*ListWorkspaceResourcesRequest)(nil),  // 22: loco.resource.v1.ListWorkspaceResourcesRequest
-	(*ListWorkspaceResourcesResponse)(nil), // 23: loco.resource.v1.ListWorkspaceResourcesResponse
-	(*UpdateResourceRequest)(nil),          // 24: loco.resource.v1.UpdateResourceRequest
-	(*UpdateResourceResponse)(nil),         // 25: loco.resource.v1.UpdateResourceResponse
-	(*DeleteResourceRequest)(nil),          // 26: loco.resource.v1.DeleteResourceRequest
-	(*DeleteResourceResponse)(nil),         // 27: loco.resource.v1.DeleteResourceResponse
-	(*RegionInfo)(nil),                     // 28: loco.resource.v1.RegionInfo
-	(*ListRegionsRequest)(nil),             // 29: loco.resource.v1.ListRegionsRequest
-	(*ListRegionsResponse)(nil),            // 30: loco.resource.v1.ListRegionsResponse
-	(*GetResourceStatusRequest)(nil),       // 31: loco.resource.v1.GetResourceStatusRequest
-	(*DeploymentStatus)(nil),               // 32: loco.resource.v1.DeploymentStatus
-	(*GetResourceStatusResponse)(nil),      // 33: loco.resource.v1.GetResourceStatusResponse
-	(*WatchLogsRequest)(nil),               // 34: loco.resource.v1.WatchLogsRequest
-	(*WatchLogsResponse)(nil),              // 35: loco.resource.v1.WatchLogsResponse
-	(*Event)(nil),                          // 36: loco.resource.v1.Event
-	(*ListResourceEventsRequest)(nil),      // 37: loco.resource.v1.ListResourceEventsRequest
-	(*ListResourceEventsResponse)(nil),     // 38: loco.resource.v1.ListResourceEventsResponse
-	(*ScaleResourceRequest)(nil),           // 39: loco.resource.v1.ScaleResourceRequest
-	(*ScaleResourceResponse)(nil),          // 40: loco.resource.v1.ScaleResourceResponse
-	(*UpdateResourceEnvRequest)(nil),       // 41: loco.resource.v1.UpdateResourceEnvRequest
-	(*UpdateResourceEnvResponse)(nil),      // 42: loco.resource.v1.UpdateResourceEnvResponse
-	nil,                                    // 43: loco.resource.v1.TracingConfig.TagsEntry
-	nil,                                    // 44: loco.resource.v1.ServiceSpec.RegionsEntry
-	nil,                                    // 45: loco.resource.v1.UpdateResourceEnvRequest.EnvEntry
-	(*v1.Scalers)(nil),                     // 46: loco.deployment.v1.Scalers
-	(*v1.HealthCheckConfig)(nil),           // 47: loco.deployment.v1.HealthCheckConfig
-	(*v11.ResourceDomain)(nil),             // 48: loco.domain.v1.ResourceDomain
+	(ResourceType)(0),                      // 0: resource.v1.ResourceType
+	(ResourceStatus)(0),                    // 1: resource.v1.ResourceStatus
+	(RegionIntentStatus)(0),                // 2: resource.v1.RegionIntentStatus
+	(*RoutingConfig)(nil),                  // 3: resource.v1.RoutingConfig
+	(*LoggingConfig)(nil),                  // 4: resource.v1.LoggingConfig
+	(*MetricsConfig)(nil),                  // 5: resource.v1.MetricsConfig
+	(*TracingConfig)(nil),                  // 6: resource.v1.TracingConfig
+	(*ObservabilityConfig)(nil),            // 7: resource.v1.ObservabilityConfig
+	(*RegionTarget)(nil),                   // 8: resource.v1.RegionTarget
+	(*ServiceSpec)(nil),                    // 9: resource.v1.ServiceSpec
+	(*DatabaseSpec)(nil),                   // 10: resource.v1.DatabaseSpec
+	(*CacheSpec)(nil),                      // 11: resource.v1.CacheSpec
+	(*QueueSpec)(nil),                      // 12: resource.v1.QueueSpec
+	(*BlobSpec)(nil),                       // 13: resource.v1.BlobSpec
+	(*ResourceSpec)(nil),                   // 14: resource.v1.ResourceSpec
+	(*Resource)(nil),                       // 15: resource.v1.Resource
+	(*RegionConfig)(nil),                   // 16: resource.v1.RegionConfig
+	(*CreateResourceRequest)(nil),          // 17: resource.v1.CreateResourceRequest
+	(*CreateResourceResponse)(nil),         // 18: resource.v1.CreateResourceResponse
+	(*GetResourceNameKey)(nil),             // 19: resource.v1.GetResourceNameKey
+	(*GetResourceRequest)(nil),             // 20: resource.v1.GetResourceRequest
+	(*GetResourceResponse)(nil),            // 21: resource.v1.GetResourceResponse
+	(*ListWorkspaceResourcesRequest)(nil),  // 22: resource.v1.ListWorkspaceResourcesRequest
+	(*ListWorkspaceResourcesResponse)(nil), // 23: resource.v1.ListWorkspaceResourcesResponse
+	(*UpdateResourceRequest)(nil),          // 24: resource.v1.UpdateResourceRequest
+	(*UpdateResourceResponse)(nil),         // 25: resource.v1.UpdateResourceResponse
+	(*DeleteResourceRequest)(nil),          // 26: resource.v1.DeleteResourceRequest
+	(*DeleteResourceResponse)(nil),         // 27: resource.v1.DeleteResourceResponse
+	(*RegionInfo)(nil),                     // 28: resource.v1.RegionInfo
+	(*ListRegionsRequest)(nil),             // 29: resource.v1.ListRegionsRequest
+	(*ListRegionsResponse)(nil),            // 30: resource.v1.ListRegionsResponse
+	(*GetResourceStatusRequest)(nil),       // 31: resource.v1.GetResourceStatusRequest
+	(*DeploymentStatus)(nil),               // 32: resource.v1.DeploymentStatus
+	(*GetResourceStatusResponse)(nil),      // 33: resource.v1.GetResourceStatusResponse
+	(*WatchLogsRequest)(nil),               // 34: resource.v1.WatchLogsRequest
+	(*WatchLogsResponse)(nil),              // 35: resource.v1.WatchLogsResponse
+	(*Event)(nil),                          // 36: resource.v1.Event
+	(*ListResourceEventsRequest)(nil),      // 37: resource.v1.ListResourceEventsRequest
+	(*ListResourceEventsResponse)(nil),     // 38: resource.v1.ListResourceEventsResponse
+	(*ScaleResourceRequest)(nil),           // 39: resource.v1.ScaleResourceRequest
+	(*ScaleResourceResponse)(nil),          // 40: resource.v1.ScaleResourceResponse
+	(*UpdateResourceEnvRequest)(nil),       // 41: resource.v1.UpdateResourceEnvRequest
+	(*UpdateResourceEnvResponse)(nil),      // 42: resource.v1.UpdateResourceEnvResponse
+	nil,                                    // 43: resource.v1.TracingConfig.TagsEntry
+	nil,                                    // 44: resource.v1.ServiceSpec.RegionsEntry
+	nil,                                    // 45: resource.v1.UpdateResourceEnvRequest.EnvEntry
+	(*v1.Scalers)(nil),                     // 46: deployment.v1.Scalers
+	(*v1.HealthCheckConfig)(nil),           // 47: deployment.v1.HealthCheckConfig
+	(*v11.ResourceDomain)(nil),             // 48: domain.v1.ResourceDomain
 	(*timestamppb.Timestamp)(nil),          // 49: google.protobuf.Timestamp
-	(*v11.DomainInput)(nil),                // 50: loco.domain.v1.DomainInput
+	(*v11.DomainInput)(nil),                // 50: domain.v1.DomainInput
 	(*fieldmaskpb.FieldMask)(nil),          // 51: google.protobuf.FieldMask
-	(v1.DeploymentPhase)(0),                // 52: loco.deployment.v1.DeploymentPhase
+	(v1.DeploymentPhase)(0),                // 52: deployment.v1.DeploymentPhase
 }
 var file_resource_v1_resource_proto_depIdxs = []int32{
-	43, // 0: loco.resource.v1.TracingConfig.tags:type_name -> loco.resource.v1.TracingConfig.TagsEntry
-	4,  // 1: loco.resource.v1.ObservabilityConfig.logging:type_name -> loco.resource.v1.LoggingConfig
-	5,  // 2: loco.resource.v1.ObservabilityConfig.metrics:type_name -> loco.resource.v1.MetricsConfig
-	6,  // 3: loco.resource.v1.ObservabilityConfig.tracing:type_name -> loco.resource.v1.TracingConfig
-	46, // 4: loco.resource.v1.RegionTarget.scalers:type_name -> loco.deployment.v1.Scalers
-	3,  // 5: loco.resource.v1.ServiceSpec.routing:type_name -> loco.resource.v1.RoutingConfig
-	7,  // 6: loco.resource.v1.ServiceSpec.observability:type_name -> loco.resource.v1.ObservabilityConfig
-	44, // 7: loco.resource.v1.ServiceSpec.regions:type_name -> loco.resource.v1.ServiceSpec.RegionsEntry
-	47, // 8: loco.resource.v1.ServiceSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	9,  // 9: loco.resource.v1.ResourceSpec.service:type_name -> loco.resource.v1.ServiceSpec
-	10, // 10: loco.resource.v1.ResourceSpec.database:type_name -> loco.resource.v1.DatabaseSpec
-	11, // 11: loco.resource.v1.ResourceSpec.cache:type_name -> loco.resource.v1.CacheSpec
-	12, // 12: loco.resource.v1.ResourceSpec.queue:type_name -> loco.resource.v1.QueueSpec
-	13, // 13: loco.resource.v1.ResourceSpec.blob:type_name -> loco.resource.v1.BlobSpec
-	0,  // 14: loco.resource.v1.Resource.type:type_name -> loco.resource.v1.ResourceType
-	48, // 15: loco.resource.v1.Resource.domains:type_name -> loco.domain.v1.ResourceDomain
-	16, // 16: loco.resource.v1.Resource.regions:type_name -> loco.resource.v1.RegionConfig
-	1,  // 17: loco.resource.v1.Resource.status:type_name -> loco.resource.v1.ResourceStatus
-	14, // 18: loco.resource.v1.Resource.spec:type_name -> loco.resource.v1.ResourceSpec
-	49, // 19: loco.resource.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
-	49, // 20: loco.resource.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
-	2,  // 21: loco.resource.v1.RegionConfig.status:type_name -> loco.resource.v1.RegionIntentStatus
-	0,  // 22: loco.resource.v1.CreateResourceRequest.type:type_name -> loco.resource.v1.ResourceType
-	50, // 23: loco.resource.v1.CreateResourceRequest.domain:type_name -> loco.domain.v1.DomainInput
-	14, // 24: loco.resource.v1.CreateResourceRequest.spec:type_name -> loco.resource.v1.ResourceSpec
-	19, // 25: loco.resource.v1.GetResourceRequest.name_key:type_name -> loco.resource.v1.GetResourceNameKey
-	15, // 26: loco.resource.v1.GetResourceResponse.resource:type_name -> loco.resource.v1.Resource
-	15, // 27: loco.resource.v1.ListWorkspaceResourcesResponse.resources:type_name -> loco.resource.v1.Resource
-	51, // 28: loco.resource.v1.UpdateResourceRequest.update_mask:type_name -> google.protobuf.FieldMask
-	28, // 29: loco.resource.v1.ListRegionsResponse.regions:type_name -> loco.resource.v1.RegionInfo
-	52, // 30: loco.resource.v1.DeploymentStatus.status:type_name -> loco.deployment.v1.DeploymentPhase
-	15, // 31: loco.resource.v1.GetResourceStatusResponse.resource:type_name -> loco.resource.v1.Resource
-	32, // 32: loco.resource.v1.GetResourceStatusResponse.current_deployment:type_name -> loco.resource.v1.DeploymentStatus
-	49, // 33: loco.resource.v1.WatchLogsResponse.timestamp:type_name -> google.protobuf.Timestamp
-	49, // 34: loco.resource.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
-	36, // 35: loco.resource.v1.ListResourceEventsResponse.events:type_name -> loco.resource.v1.Event
-	45, // 36: loco.resource.v1.UpdateResourceEnvRequest.env:type_name -> loco.resource.v1.UpdateResourceEnvRequest.EnvEntry
-	8,  // 37: loco.resource.v1.ServiceSpec.RegionsEntry.value:type_name -> loco.resource.v1.RegionTarget
-	17, // 38: loco.resource.v1.ResourceService.CreateResource:input_type -> loco.resource.v1.CreateResourceRequest
-	20, // 39: loco.resource.v1.ResourceService.GetResource:input_type -> loco.resource.v1.GetResourceRequest
-	24, // 40: loco.resource.v1.ResourceService.UpdateResource:input_type -> loco.resource.v1.UpdateResourceRequest
-	26, // 41: loco.resource.v1.ResourceService.DeleteResource:input_type -> loco.resource.v1.DeleteResourceRequest
-	22, // 42: loco.resource.v1.ResourceService.ListWorkspaceResources:input_type -> loco.resource.v1.ListWorkspaceResourcesRequest
-	31, // 43: loco.resource.v1.ResourceService.GetResourceStatus:input_type -> loco.resource.v1.GetResourceStatusRequest
-	29, // 44: loco.resource.v1.ResourceService.ListRegions:input_type -> loco.resource.v1.ListRegionsRequest
-	34, // 45: loco.resource.v1.ResourceService.WatchLogs:input_type -> loco.resource.v1.WatchLogsRequest
-	37, // 46: loco.resource.v1.ResourceService.ListResourceEvents:input_type -> loco.resource.v1.ListResourceEventsRequest
-	39, // 47: loco.resource.v1.ResourceService.ScaleResource:input_type -> loco.resource.v1.ScaleResourceRequest
-	41, // 48: loco.resource.v1.ResourceService.UpdateResourceEnv:input_type -> loco.resource.v1.UpdateResourceEnvRequest
-	18, // 49: loco.resource.v1.ResourceService.CreateResource:output_type -> loco.resource.v1.CreateResourceResponse
-	21, // 50: loco.resource.v1.ResourceService.GetResource:output_type -> loco.resource.v1.GetResourceResponse
-	25, // 51: loco.resource.v1.ResourceService.UpdateResource:output_type -> loco.resource.v1.UpdateResourceResponse
-	27, // 52: loco.resource.v1.ResourceService.DeleteResource:output_type -> loco.resource.v1.DeleteResourceResponse
-	23, // 53: loco.resource.v1.ResourceService.ListWorkspaceResources:output_type -> loco.resource.v1.ListWorkspaceResourcesResponse
-	33, // 54: loco.resource.v1.ResourceService.GetResourceStatus:output_type -> loco.resource.v1.GetResourceStatusResponse
-	30, // 55: loco.resource.v1.ResourceService.ListRegions:output_type -> loco.resource.v1.ListRegionsResponse
-	35, // 56: loco.resource.v1.ResourceService.WatchLogs:output_type -> loco.resource.v1.WatchLogsResponse
-	38, // 57: loco.resource.v1.ResourceService.ListResourceEvents:output_type -> loco.resource.v1.ListResourceEventsResponse
-	40, // 58: loco.resource.v1.ResourceService.ScaleResource:output_type -> loco.resource.v1.ScaleResourceResponse
-	42, // 59: loco.resource.v1.ResourceService.UpdateResourceEnv:output_type -> loco.resource.v1.UpdateResourceEnvResponse
+	43, // 0: resource.v1.TracingConfig.tags:type_name -> resource.v1.TracingConfig.TagsEntry
+	4,  // 1: resource.v1.ObservabilityConfig.logging:type_name -> resource.v1.LoggingConfig
+	5,  // 2: resource.v1.ObservabilityConfig.metrics:type_name -> resource.v1.MetricsConfig
+	6,  // 3: resource.v1.ObservabilityConfig.tracing:type_name -> resource.v1.TracingConfig
+	46, // 4: resource.v1.RegionTarget.scalers:type_name -> deployment.v1.Scalers
+	3,  // 5: resource.v1.ServiceSpec.routing:type_name -> resource.v1.RoutingConfig
+	7,  // 6: resource.v1.ServiceSpec.observability:type_name -> resource.v1.ObservabilityConfig
+	44, // 7: resource.v1.ServiceSpec.regions:type_name -> resource.v1.ServiceSpec.RegionsEntry
+	47, // 8: resource.v1.ServiceSpec.health_check:type_name -> deployment.v1.HealthCheckConfig
+	9,  // 9: resource.v1.ResourceSpec.service:type_name -> resource.v1.ServiceSpec
+	10, // 10: resource.v1.ResourceSpec.database:type_name -> resource.v1.DatabaseSpec
+	11, // 11: resource.v1.ResourceSpec.cache:type_name -> resource.v1.CacheSpec
+	12, // 12: resource.v1.ResourceSpec.queue:type_name -> resource.v1.QueueSpec
+	13, // 13: resource.v1.ResourceSpec.blob:type_name -> resource.v1.BlobSpec
+	0,  // 14: resource.v1.Resource.type:type_name -> resource.v1.ResourceType
+	48, // 15: resource.v1.Resource.domains:type_name -> domain.v1.ResourceDomain
+	16, // 16: resource.v1.Resource.regions:type_name -> resource.v1.RegionConfig
+	1,  // 17: resource.v1.Resource.status:type_name -> resource.v1.ResourceStatus
+	14, // 18: resource.v1.Resource.spec:type_name -> resource.v1.ResourceSpec
+	49, // 19: resource.v1.Resource.created_at:type_name -> google.protobuf.Timestamp
+	49, // 20: resource.v1.Resource.updated_at:type_name -> google.protobuf.Timestamp
+	2,  // 21: resource.v1.RegionConfig.status:type_name -> resource.v1.RegionIntentStatus
+	0,  // 22: resource.v1.CreateResourceRequest.type:type_name -> resource.v1.ResourceType
+	50, // 23: resource.v1.CreateResourceRequest.domain:type_name -> domain.v1.DomainInput
+	14, // 24: resource.v1.CreateResourceRequest.spec:type_name -> resource.v1.ResourceSpec
+	19, // 25: resource.v1.GetResourceRequest.name_key:type_name -> resource.v1.GetResourceNameKey
+	15, // 26: resource.v1.GetResourceResponse.resource:type_name -> resource.v1.Resource
+	15, // 27: resource.v1.ListWorkspaceResourcesResponse.resources:type_name -> resource.v1.Resource
+	51, // 28: resource.v1.UpdateResourceRequest.update_mask:type_name -> google.protobuf.FieldMask
+	28, // 29: resource.v1.ListRegionsResponse.regions:type_name -> resource.v1.RegionInfo
+	52, // 30: resource.v1.DeploymentStatus.status:type_name -> deployment.v1.DeploymentPhase
+	15, // 31: resource.v1.GetResourceStatusResponse.resource:type_name -> resource.v1.Resource
+	32, // 32: resource.v1.GetResourceStatusResponse.current_deployment:type_name -> resource.v1.DeploymentStatus
+	49, // 33: resource.v1.WatchLogsResponse.timestamp:type_name -> google.protobuf.Timestamp
+	49, // 34: resource.v1.Event.timestamp:type_name -> google.protobuf.Timestamp
+	36, // 35: resource.v1.ListResourceEventsResponse.events:type_name -> resource.v1.Event
+	45, // 36: resource.v1.UpdateResourceEnvRequest.env:type_name -> resource.v1.UpdateResourceEnvRequest.EnvEntry
+	8,  // 37: resource.v1.ServiceSpec.RegionsEntry.value:type_name -> resource.v1.RegionTarget
+	17, // 38: resource.v1.ResourceService.CreateResource:input_type -> resource.v1.CreateResourceRequest
+	20, // 39: resource.v1.ResourceService.GetResource:input_type -> resource.v1.GetResourceRequest
+	24, // 40: resource.v1.ResourceService.UpdateResource:input_type -> resource.v1.UpdateResourceRequest
+	26, // 41: resource.v1.ResourceService.DeleteResource:input_type -> resource.v1.DeleteResourceRequest
+	22, // 42: resource.v1.ResourceService.ListWorkspaceResources:input_type -> resource.v1.ListWorkspaceResourcesRequest
+	31, // 43: resource.v1.ResourceService.GetResourceStatus:input_type -> resource.v1.GetResourceStatusRequest
+	29, // 44: resource.v1.ResourceService.ListRegions:input_type -> resource.v1.ListRegionsRequest
+	34, // 45: resource.v1.ResourceService.WatchLogs:input_type -> resource.v1.WatchLogsRequest
+	37, // 46: resource.v1.ResourceService.ListResourceEvents:input_type -> resource.v1.ListResourceEventsRequest
+	39, // 47: resource.v1.ResourceService.ScaleResource:input_type -> resource.v1.ScaleResourceRequest
+	41, // 48: resource.v1.ResourceService.UpdateResourceEnv:input_type -> resource.v1.UpdateResourceEnvRequest
+	18, // 49: resource.v1.ResourceService.CreateResource:output_type -> resource.v1.CreateResourceResponse
+	21, // 50: resource.v1.ResourceService.GetResource:output_type -> resource.v1.GetResourceResponse
+	25, // 51: resource.v1.ResourceService.UpdateResource:output_type -> resource.v1.UpdateResourceResponse
+	27, // 52: resource.v1.ResourceService.DeleteResource:output_type -> resource.v1.DeleteResourceResponse
+	23, // 53: resource.v1.ResourceService.ListWorkspaceResources:output_type -> resource.v1.ListWorkspaceResourcesResponse
+	33, // 54: resource.v1.ResourceService.GetResourceStatus:output_type -> resource.v1.GetResourceStatusResponse
+	30, // 55: resource.v1.ResourceService.ListRegions:output_type -> resource.v1.ListRegionsResponse
+	35, // 56: resource.v1.ResourceService.WatchLogs:output_type -> resource.v1.WatchLogsResponse
+	38, // 57: resource.v1.ResourceService.ListResourceEvents:output_type -> resource.v1.ListResourceEventsResponse
+	40, // 58: resource.v1.ResourceService.ScaleResource:output_type -> resource.v1.ScaleResourceResponse
+	42, // 59: resource.v1.ResourceService.UpdateResourceEnv:output_type -> resource.v1.UpdateResourceEnvResponse
 	49, // [49:60] is the sub-list for method output_type
 	38, // [38:49] is the sub-list for method input_type
 	38, // [38:38] is the sub-list for extension type_name

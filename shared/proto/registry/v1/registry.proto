@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package loco.registry.v1;
+package registry.v1;
 
 option go_package = "github.com/team-loco/loco/shared/proto/registry/v1;registryv1";
 
@@ -10,7 +10,7 @@ message GetGitlabTokenRequest {}
 // GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
 message GetGitlabTokenResponse {
   string username = 1;
-  string token = 2;
+  string token    = 2;
 }
 
 // RegistryService manages container registry access.

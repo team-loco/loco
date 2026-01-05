@@ -22,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// RegistryServiceName is the fully-qualified name of the RegistryService service.
-	RegistryServiceName = "loco.registry.v1.RegistryService"
+	RegistryServiceName = "registry.v1.RegistryService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -35,16 +35,16 @@ const (
 const (
 	// RegistryServiceGetGitlabTokenProcedure is the fully-qualified name of the RegistryService's
 	// GetGitlabToken RPC.
-	RegistryServiceGetGitlabTokenProcedure = "/loco.registry.v1.RegistryService/GetGitlabToken"
+	RegistryServiceGetGitlabTokenProcedure = "/registry.v1.RegistryService/GetGitlabToken"
 )
 
-// RegistryServiceClient is a client for the loco.registry.v1.RegistryService service.
+// RegistryServiceClient is a client for the registry.v1.RegistryService service.
 type RegistryServiceClient interface {
 	// GetGitlabToken retrieves GitLab registry credentials.
 	GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error)
 }
 
-// NewRegistryServiceClient constructs a client for the loco.registry.v1.RegistryService service. By
+// NewRegistryServiceClient constructs a client for the registry.v1.RegistryService service. By
 // default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
 // and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
 // connect.WithGRPC() or connect.WithGRPCWeb() options.
@@ -69,12 +69,12 @@ type registryServiceClient struct {
 	getGitlabToken *connect.Client[v1.GetGitlabTokenRequest, v1.GetGitlabTokenResponse]
 }
 
-// GetGitlabToken calls loco.registry.v1.RegistryService.GetGitlabToken.
+// GetGitlabToken calls registry.v1.RegistryService.GetGitlabToken.
 func (c *registryServiceClient) GetGitlabToken(ctx context.Context, req *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error) {
 	return c.getGitlabToken.CallUnary(ctx, req)
 }
 
-// RegistryServiceHandler is an implementation of the loco.registry.v1.RegistryService service.
+// RegistryServiceHandler is an implementation of the registry.v1.RegistryService service.
 type RegistryServiceHandler interface {
 	// GetGitlabToken retrieves GitLab registry credentials.
 	GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error)
@@ -93,7 +93,7 @@ func NewRegistryServiceHandler(svc RegistryServiceHandler, opts ...connect.Handl
 		connect.WithSchema(registryServiceMethods.ByName("GetGitlabToken")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/loco.registry.v1.RegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/registry.v1.RegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RegistryServiceGetGitlabTokenProcedure:
 			registryServiceGetGitlabTokenHandler.ServeHTTP(w, r)
@@ -107,5 +107,5 @@ func NewRegistryServiceHandler(svc RegistryServiceHandler, opts ...connect.Handl
 type UnimplementedRegistryServiceHandler struct{}
 
 func (UnimplementedRegistryServiceHandler) GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.registry.v1.RegistryService.GetGitlabToken is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("registry.v1.RegistryService.GetGitlabToken is not implemented"))
 }

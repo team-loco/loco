@@ -22,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// ResourceServiceName is the fully-qualified name of the ResourceService service.
-	ResourceServiceName = "loco.resource.v1.ResourceService"
+	ResourceServiceName = "resource.v1.ResourceService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -35,40 +35,40 @@ const (
 const (
 	// ResourceServiceCreateResourceProcedure is the fully-qualified name of the ResourceService's
 	// CreateResource RPC.
-	ResourceServiceCreateResourceProcedure = "/loco.resource.v1.ResourceService/CreateResource"
+	ResourceServiceCreateResourceProcedure = "/resource.v1.ResourceService/CreateResource"
 	// ResourceServiceGetResourceProcedure is the fully-qualified name of the ResourceService's
 	// GetResource RPC.
-	ResourceServiceGetResourceProcedure = "/loco.resource.v1.ResourceService/GetResource"
+	ResourceServiceGetResourceProcedure = "/resource.v1.ResourceService/GetResource"
 	// ResourceServiceUpdateResourceProcedure is the fully-qualified name of the ResourceService's
 	// UpdateResource RPC.
-	ResourceServiceUpdateResourceProcedure = "/loco.resource.v1.ResourceService/UpdateResource"
+	ResourceServiceUpdateResourceProcedure = "/resource.v1.ResourceService/UpdateResource"
 	// ResourceServiceDeleteResourceProcedure is the fully-qualified name of the ResourceService's
 	// DeleteResource RPC.
-	ResourceServiceDeleteResourceProcedure = "/loco.resource.v1.ResourceService/DeleteResource"
+	ResourceServiceDeleteResourceProcedure = "/resource.v1.ResourceService/DeleteResource"
 	// ResourceServiceListWorkspaceResourcesProcedure is the fully-qualified name of the
 	// ResourceService's ListWorkspaceResources RPC.
-	ResourceServiceListWorkspaceResourcesProcedure = "/loco.resource.v1.ResourceService/ListWorkspaceResources"
+	ResourceServiceListWorkspaceResourcesProcedure = "/resource.v1.ResourceService/ListWorkspaceResources"
 	// ResourceServiceGetResourceStatusProcedure is the fully-qualified name of the ResourceService's
 	// GetResourceStatus RPC.
-	ResourceServiceGetResourceStatusProcedure = "/loco.resource.v1.ResourceService/GetResourceStatus"
+	ResourceServiceGetResourceStatusProcedure = "/resource.v1.ResourceService/GetResourceStatus"
 	// ResourceServiceListRegionsProcedure is the fully-qualified name of the ResourceService's
 	// ListRegions RPC.
-	ResourceServiceListRegionsProcedure = "/loco.resource.v1.ResourceService/ListRegions"
+	ResourceServiceListRegionsProcedure = "/resource.v1.ResourceService/ListRegions"
 	// ResourceServiceWatchLogsProcedure is the fully-qualified name of the ResourceService's WatchLogs
 	// RPC.
-	ResourceServiceWatchLogsProcedure = "/loco.resource.v1.ResourceService/WatchLogs"
+	ResourceServiceWatchLogsProcedure = "/resource.v1.ResourceService/WatchLogs"
 	// ResourceServiceListResourceEventsProcedure is the fully-qualified name of the ResourceService's
 	// ListResourceEvents RPC.
-	ResourceServiceListResourceEventsProcedure = "/loco.resource.v1.ResourceService/ListResourceEvents"
+	ResourceServiceListResourceEventsProcedure = "/resource.v1.ResourceService/ListResourceEvents"
 	// ResourceServiceScaleResourceProcedure is the fully-qualified name of the ResourceService's
 	// ScaleResource RPC.
-	ResourceServiceScaleResourceProcedure = "/loco.resource.v1.ResourceService/ScaleResource"
+	ResourceServiceScaleResourceProcedure = "/resource.v1.ResourceService/ScaleResource"
 	// ResourceServiceUpdateResourceEnvProcedure is the fully-qualified name of the ResourceService's
 	// UpdateResourceEnv RPC.
-	ResourceServiceUpdateResourceEnvProcedure = "/loco.resource.v1.ResourceService/UpdateResourceEnv"
+	ResourceServiceUpdateResourceEnvProcedure = "/resource.v1.ResourceService/UpdateResourceEnv"
 )
 
-// ResourceServiceClient is a client for the loco.resource.v1.ResourceService service.
+// ResourceServiceClient is a client for the resource.v1.ResourceService service.
 type ResourceServiceClient interface {
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error)
@@ -97,7 +97,7 @@ type ResourceServiceClient interface {
 	UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error)
 }
 
-// NewResourceServiceClient constructs a client for the loco.resource.v1.ResourceService service. By
+// NewResourceServiceClient constructs a client for the resource.v1.ResourceService service. By
 // default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
 // and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
 // connect.WithGRPC() or connect.WithGRPCWeb() options.
@@ -192,62 +192,62 @@ type resourceServiceClient struct {
 	updateResourceEnv      *connect.Client[v1.UpdateResourceEnvRequest, v1.UpdateResourceEnvResponse]
 }
 
-// CreateResource calls loco.resource.v1.ResourceService.CreateResource.
+// CreateResource calls resource.v1.ResourceService.CreateResource.
 func (c *resourceServiceClient) CreateResource(ctx context.Context, req *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error) {
 	return c.createResource.CallUnary(ctx, req)
 }
 
-// GetResource calls loco.resource.v1.ResourceService.GetResource.
+// GetResource calls resource.v1.ResourceService.GetResource.
 func (c *resourceServiceClient) GetResource(ctx context.Context, req *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.GetResourceResponse], error) {
 	return c.getResource.CallUnary(ctx, req)
 }
 
-// UpdateResource calls loco.resource.v1.ResourceService.UpdateResource.
+// UpdateResource calls resource.v1.ResourceService.UpdateResource.
 func (c *resourceServiceClient) UpdateResource(ctx context.Context, req *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error) {
 	return c.updateResource.CallUnary(ctx, req)
 }
 
-// DeleteResource calls loco.resource.v1.ResourceService.DeleteResource.
+// DeleteResource calls resource.v1.ResourceService.DeleteResource.
 func (c *resourceServiceClient) DeleteResource(ctx context.Context, req *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error) {
 	return c.deleteResource.CallUnary(ctx, req)
 }
 
-// ListWorkspaceResources calls loco.resource.v1.ResourceService.ListWorkspaceResources.
+// ListWorkspaceResources calls resource.v1.ResourceService.ListWorkspaceResources.
 func (c *resourceServiceClient) ListWorkspaceResources(ctx context.Context, req *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error) {
 	return c.listWorkspaceResources.CallUnary(ctx, req)
 }
 
-// GetResourceStatus calls loco.resource.v1.ResourceService.GetResourceStatus.
+// GetResourceStatus calls resource.v1.ResourceService.GetResourceStatus.
 func (c *resourceServiceClient) GetResourceStatus(ctx context.Context, req *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error) {
 	return c.getResourceStatus.CallUnary(ctx, req)
 }
 
-// ListRegions calls loco.resource.v1.ResourceService.ListRegions.
+// ListRegions calls resource.v1.ResourceService.ListRegions.
 func (c *resourceServiceClient) ListRegions(ctx context.Context, req *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error) {
 	return c.listRegions.CallUnary(ctx, req)
 }
 
-// WatchLogs calls loco.resource.v1.ResourceService.WatchLogs.
+// WatchLogs calls resource.v1.ResourceService.WatchLogs.
 func (c *resourceServiceClient) WatchLogs(ctx context.Context, req *connect.Request[v1.WatchLogsRequest]) (*connect.ServerStreamForClient[v1.WatchLogsResponse], error) {
 	return c.watchLogs.CallServerStream(ctx, req)
 }
 
-// ListResourceEvents calls loco.resource.v1.ResourceService.ListResourceEvents.
+// ListResourceEvents calls resource.v1.ResourceService.ListResourceEvents.
 func (c *resourceServiceClient) ListResourceEvents(ctx context.Context, req *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {
 	return c.listResourceEvents.CallUnary(ctx, req)
 }
 
-// ScaleResource calls loco.resource.v1.ResourceService.ScaleResource.
+// ScaleResource calls resource.v1.ResourceService.ScaleResource.
 func (c *resourceServiceClient) ScaleResource(ctx context.Context, req *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error) {
 	return c.scaleResource.CallUnary(ctx, req)
 }
 
-// UpdateResourceEnv calls loco.resource.v1.ResourceService.UpdateResourceEnv.
+// UpdateResourceEnv calls resource.v1.ResourceService.UpdateResourceEnv.
 func (c *resourceServiceClient) UpdateResourceEnv(ctx context.Context, req *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error) {
 	return c.updateResourceEnv.CallUnary(ctx, req)
 }
 
-// ResourceServiceHandler is an implementation of the loco.resource.v1.ResourceService service.
+// ResourceServiceHandler is an implementation of the resource.v1.ResourceService service.
 type ResourceServiceHandler interface {
 	// CreateResource creates a new resource.
 	CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error)
@@ -349,7 +349,7 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resourceServiceMethods.ByName("UpdateResourceEnv")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/loco.resource.v1.ResourceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/resource.v1.ResourceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ResourceServiceCreateResourceProcedure:
 			resourceServiceCreateResourceHandler.ServeHTTP(w, r)
@@ -383,45 +383,45 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 type UnimplementedResourceServiceHandler struct{}
 
 func (UnimplementedResourceServiceHandler) CreateResource(context.Context, *connect.Request[v1.CreateResourceRequest]) (*connect.Response[v1.CreateResourceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.CreateResource is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.CreateResource is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) GetResource(context.Context, *connect.Request[v1.GetResourceRequest]) (*connect.Response[v1.GetResourceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResource is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.GetResource is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) UpdateResource(context.Context, *connect.Request[v1.UpdateResourceRequest]) (*connect.Response[v1.UpdateResourceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.UpdateResource is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.UpdateResource is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) DeleteResource(context.Context, *connect.Request[v1.DeleteResourceRequest]) (*connect.Response[v1.DeleteResourceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.DeleteResource is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.DeleteResource is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ListWorkspaceResources(context.Context, *connect.Request[v1.ListWorkspaceResourcesRequest]) (*connect.Response[v1.ListWorkspaceResourcesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListWorkspaceResources is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.ListWorkspaceResources is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.GetResourceStatus is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.GetResourceStatus is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListRegions is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.ListRegions is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest], *connect.ServerStream[v1.WatchLogsResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.WatchLogs is not implemented"))
+	return connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.WatchLogs is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListResourceEvents is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.ListResourceEvents is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *connect.Request[v1.ScaleResourceRequest]) (*connect.Response[v1.ScaleResourceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ScaleResource is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.ScaleResource is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) UpdateResourceEnv(context.Context, *connect.Request[v1.UpdateResourceEnvRequest]) (*connect.Response[v1.UpdateResourceEnvResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.UpdateResourceEnv is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("resource.v1.ResourceService.UpdateResourceEnv is not implemented"))
 }

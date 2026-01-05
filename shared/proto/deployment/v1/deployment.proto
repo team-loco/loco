@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package loco.deployment.v1;
+package deployment.v1;
 
 import "google/protobuf/timestamp.proto";
 

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package loco.domain.v1;
+package domain.v1;
 
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
@@ -9,7 +9,7 @@ option go_package = "github.com/team-loco/loco/shared/proto/domain/v1;domainv1";
 
 // DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {
-  DOMAIN_TYPE_UNSPECIFIED = 0;
+  DOMAIN_TYPE_UNSPECIFIED       = 0;
   DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
   DOMAIN_TYPE_USER_PROVIDED     = 2;
 }
@@ -77,7 +77,7 @@ service DomainService {
   rpc ListLocoOwnedDomains(ListLocoOwnedDomainsRequest) returns (ListLocoOwnedDomainsResponse);
   // CheckDomainAvailability checks if a domain is available.
   rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
-  }
+}
 
 // --- Platform Domain Requests/Responses ---
 
@@ -194,7 +194,7 @@ message SetPrimaryResourceDomainResponse {
 
 // DeleteResourceDomainRequest is the request to remove a domain from a resource.
 message DeleteResourceDomainRequest {
-   int64 domain_id = 1;
+  int64 domain_id = 1;
 }
 
 // DeleteResourceDomainResponse is the response after removing a domain from a resource.
@@ -204,10 +204,10 @@ message DeleteResourceDomainResponse {}
 
 // CheckDomainAvailabilityRequest is the request to check if a domain is available.
 message CheckDomainAvailabilityRequest {
-   string domain = 1;
+  string domain = 1;
 }
 
 // CheckDomainAvailabilityResponse contains the availability check result.
 message CheckDomainAvailabilityResponse {
-   bool is_available = 1;
+  bool is_available = 1;
 }

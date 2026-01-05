@@ -1,6 +1,10 @@
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation } from "@connectrpc/connect-query";
-import { listWorkspaceMembers, listOrgWorkspaces, deleteMember } from "@/gen/workspace/v1";
+import {
+	listWorkspaceMembers,
+	listOrgWorkspaces,
+	deleteMember,
+} from "@/gen/workspace/v1";
 import { listUserOrgs } from "@/gen/org/v1";
 import { toastConnectError } from "@/lib/error-handler";
 import { useAuth } from "@/auth/AuthProvider";
@@ -27,7 +31,11 @@ export function Team() {
 
 	const { user } = useAuth();
 
-	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? 0n }, { enabled: !!user });
+	const { data: orgsRes } = useQuery(
+		listUserOrgs,
+		{ userId: user?.id ?? 0n },
+		{ enabled: !!user }
+	);
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
 	const firstOrgId = orgs[0]?.id ?? null;
 
@@ -75,7 +83,7 @@ export function Team() {
 					queryClient.invalidateQueries({
 						queryKey: [
 							{
-								service: "loco.workspace.v1.WorkspaceService",
+								service: "workspace.v1.WorkspaceService",
 								method: "ListMembers",
 							},
 						],

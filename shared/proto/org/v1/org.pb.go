@@ -990,7 +990,7 @@ var File_org_v1_org_proto protoreflect.FileDescriptor
 
 const file_org_v1_org_proto_rawDesc = "" +
 	"\n" +
-	"\x10org/v1/org.proto\x12\vloco.org.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a google/protobuf/field_mask.proto\"\xc7\x01\n" +
+	"\x10org/v1/org.proto\x12\x06org.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x01\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -1015,24 +1015,24 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\rGetOrgRequest\x12\x17\n" +
 	"\x06org_id\x18\x01 \x01(\x03H\x00R\x05orgId\x12\x1b\n" +
 	"\borg_name\x18\x02 \x01(\tH\x00R\aorgNameB\x05\n" +
-	"\x03key\"O\n" +
-	"\x0eGetOrgResponse\x12=\n" +
-	"\forganization\x18\x01 \x01(\v2\x19.loco.org.v1.OrganizationR\forganization\"j\n" +
+	"\x03key\"J\n" +
+	"\x0eGetOrgResponse\x128\n" +
+	"\forganization\x18\x01 \x01(\v2\x14.org.v1.OrganizationR\forganization\"j\n" +
 	"\x13ListUserOrgsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"m\n" +
-	"\x14ListUserOrgsResponse\x12-\n" +
-	"\x04orgs\x18\x01 \x03(\v2\x19.loco.org.v1.OrganizationR\x04orgs\x12&\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"h\n" +
+	"\x14ListUserOrgsResponse\x12(\n" +
+	"\x04orgs\x18\x01 \x03(\v2\x14.org.v1.OrganizationR\x04orgs\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"h\n" +
 	"\x13ListOrgUsersRequest\x12\x15\n" +
 	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"g\n" +
-	"\x14ListOrgUsersResponse\x12'\n" +
-	"\x05users\x18\x01 \x03(\v2\x11.loco.org.v1.UserR\x05users\x12&\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"b\n" +
+	"\x14ListOrgUsersResponse\x12\"\n" +
+	"\x05users\x18\x01 \x03(\v2\f.org.v1.UserR\x05users\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"_\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
@@ -1044,10 +1044,10 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
-	"\x19ListOrgWorkspacesResponse\x12=\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"}\n" +
+	"\x19ListOrgWorkspacesResponse\x128\n" +
 	"\n" +
-	"workspaces\x18\x01 \x03(\v2\x1d.loco.org.v1.WorkspaceSummaryR\n" +
+	"workspaces\x18\x01 \x03(\v2\x18.org.v1.WorkspaceSummaryR\n" +
 	"workspaces\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x88\x01\n" +
 	"\x10UpdateOrgRequest\x12\x15\n" +
@@ -1060,16 +1060,16 @@ const file_org_v1_org_proto_rawDesc = "" +
 	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\")\n" +
 	"\x10DeleteOrgRequest\x12\x15\n" +
 	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\"\x13\n" +
-	"\x11DeleteOrgResponse2\xc1\x04\n" +
+	"\x11DeleteOrgResponse2\xfb\x03\n" +
 	"\n" +
-	"OrgService\x12J\n" +
-	"\tCreateOrg\x12\x1d.loco.org.v1.CreateOrgRequest\x1a\x1e.loco.org.v1.CreateOrgResponse\x12A\n" +
-	"\x06GetOrg\x12\x1a.loco.org.v1.GetOrgRequest\x1a\x1b.loco.org.v1.GetOrgResponse\x12J\n" +
-	"\tUpdateOrg\x12\x1d.loco.org.v1.UpdateOrgRequest\x1a\x1e.loco.org.v1.UpdateOrgResponse\x12J\n" +
-	"\tDeleteOrg\x12\x1d.loco.org.v1.DeleteOrgRequest\x1a\x1e.loco.org.v1.DeleteOrgResponse\x12S\n" +
-	"\fListUserOrgs\x12 .loco.org.v1.ListUserOrgsRequest\x1a!.loco.org.v1.ListUserOrgsResponse\x12S\n" +
-	"\fListOrgUsers\x12 .loco.org.v1.ListOrgUsersRequest\x1a!.loco.org.v1.ListOrgUsersResponse\x12b\n" +
-	"\x11ListOrgWorkspaces\x12%.loco.org.v1.ListOrgWorkspacesRequest\x1a&.loco.org.v1.ListOrgWorkspacesResponseB5Z3github.com/team-loco/loco/shared/proto/org/v1;orgv1b\x06proto3"
+	"OrgService\x12@\n" +
+	"\tCreateOrg\x12\x18.org.v1.CreateOrgRequest\x1a\x19.org.v1.CreateOrgResponse\x127\n" +
+	"\x06GetOrg\x12\x15.org.v1.GetOrgRequest\x1a\x16.org.v1.GetOrgResponse\x12@\n" +
+	"\tUpdateOrg\x12\x18.org.v1.UpdateOrgRequest\x1a\x19.org.v1.UpdateOrgResponse\x12@\n" +
+	"\tDeleteOrg\x12\x18.org.v1.DeleteOrgRequest\x1a\x19.org.v1.DeleteOrgResponse\x12I\n" +
+	"\fListUserOrgs\x12\x1b.org.v1.ListUserOrgsRequest\x1a\x1c.org.v1.ListUserOrgsResponse\x12I\n" +
+	"\fListOrgUsers\x12\x1b.org.v1.ListOrgUsersRequest\x1a\x1c.org.v1.ListOrgUsersResponse\x12X\n" +
+	"\x11ListOrgWorkspaces\x12 .org.v1.ListOrgWorkspacesRequest\x1a!.org.v1.ListOrgWorkspacesResponseB5Z3github.com/team-loco/loco/shared/proto/org/v1;orgv1b\x06proto3"
 
 var (
 	file_org_v1_org_proto_rawDescOnce sync.Once
@@ -1085,49 +1085,49 @@ func file_org_v1_org_proto_rawDescGZIP() []byte {
 
 var file_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_org_v1_org_proto_goTypes = []any{
-	(*Organization)(nil),              // 0: loco.org.v1.Organization
-	(*WorkspaceSummary)(nil),          // 1: loco.org.v1.WorkspaceSummary
-	(*CreateOrgRequest)(nil),          // 2: loco.org.v1.CreateOrgRequest
-	(*CreateOrgResponse)(nil),         // 3: loco.org.v1.CreateOrgResponse
-	(*GetOrgRequest)(nil),             // 4: loco.org.v1.GetOrgRequest
-	(*GetOrgResponse)(nil),            // 5: loco.org.v1.GetOrgResponse
-	(*ListUserOrgsRequest)(nil),       // 6: loco.org.v1.ListUserOrgsRequest
-	(*ListUserOrgsResponse)(nil),      // 7: loco.org.v1.ListUserOrgsResponse
-	(*ListOrgUsersRequest)(nil),       // 8: loco.org.v1.ListOrgUsersRequest
-	(*ListOrgUsersResponse)(nil),      // 9: loco.org.v1.ListOrgUsersResponse
-	(*User)(nil),                      // 10: loco.org.v1.User
-	(*ListOrgWorkspacesRequest)(nil),  // 11: loco.org.v1.ListOrgWorkspacesRequest
-	(*ListOrgWorkspacesResponse)(nil), // 12: loco.org.v1.ListOrgWorkspacesResponse
-	(*UpdateOrgRequest)(nil),          // 13: loco.org.v1.UpdateOrgRequest
-	(*UpdateOrgResponse)(nil),         // 14: loco.org.v1.UpdateOrgResponse
-	(*DeleteOrgRequest)(nil),          // 15: loco.org.v1.DeleteOrgRequest
-	(*DeleteOrgResponse)(nil),         // 16: loco.org.v1.DeleteOrgResponse
+	(*Organization)(nil),              // 0: org.v1.Organization
+	(*WorkspaceSummary)(nil),          // 1: org.v1.WorkspaceSummary
+	(*CreateOrgRequest)(nil),          // 2: org.v1.CreateOrgRequest
+	(*CreateOrgResponse)(nil),         // 3: org.v1.CreateOrgResponse
+	(*GetOrgRequest)(nil),             // 4: org.v1.GetOrgRequest
+	(*GetOrgResponse)(nil),            // 5: org.v1.GetOrgResponse
+	(*ListUserOrgsRequest)(nil),       // 6: org.v1.ListUserOrgsRequest
+	(*ListUserOrgsResponse)(nil),      // 7: org.v1.ListUserOrgsResponse
+	(*ListOrgUsersRequest)(nil),       // 8: org.v1.ListOrgUsersRequest
+	(*ListOrgUsersResponse)(nil),      // 9: org.v1.ListOrgUsersResponse
+	(*User)(nil),                      // 10: org.v1.User
+	(*ListOrgWorkspacesRequest)(nil),  // 11: org.v1.ListOrgWorkspacesRequest
+	(*ListOrgWorkspacesResponse)(nil), // 12: org.v1.ListOrgWorkspacesResponse
+	(*UpdateOrgRequest)(nil),          // 13: org.v1.UpdateOrgRequest
+	(*UpdateOrgResponse)(nil),         // 14: org.v1.UpdateOrgResponse
+	(*DeleteOrgRequest)(nil),          // 15: org.v1.DeleteOrgRequest
+	(*DeleteOrgResponse)(nil),         // 16: org.v1.DeleteOrgResponse
 	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
 	(*fieldmaskpb.FieldMask)(nil),     // 18: google.protobuf.FieldMask
 }
 var file_org_v1_org_proto_depIdxs = []int32{
-	17, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	17, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
-	17, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: loco.org.v1.GetOrgResponse.organization:type_name -> loco.org.v1.Organization
-	0,  // 4: loco.org.v1.ListUserOrgsResponse.orgs:type_name -> loco.org.v1.Organization
-	10, // 5: loco.org.v1.ListOrgUsersResponse.users:type_name -> loco.org.v1.User
-	1,  // 6: loco.org.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.org.v1.WorkspaceSummary
-	18, // 7: loco.org.v1.UpdateOrgRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 8: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	4,  // 9: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	13, // 10: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	15, // 11: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	6,  // 12: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
-	8,  // 13: loco.org.v1.OrgService.ListOrgUsers:input_type -> loco.org.v1.ListOrgUsersRequest
-	11, // 14: loco.org.v1.OrgService.ListOrgWorkspaces:input_type -> loco.org.v1.ListOrgWorkspacesRequest
-	3,  // 15: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	5,  // 16: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	14, // 17: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	16, // 18: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	7,  // 19: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
-	9,  // 20: loco.org.v1.OrgService.ListOrgUsers:output_type -> loco.org.v1.ListOrgUsersResponse
-	12, // 21: loco.org.v1.OrgService.ListOrgWorkspaces:output_type -> loco.org.v1.ListOrgWorkspacesResponse
+	17, // 0: org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	17, // 1: org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
+	17, // 2: org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: org.v1.GetOrgResponse.organization:type_name -> org.v1.Organization
+	0,  // 4: org.v1.ListUserOrgsResponse.orgs:type_name -> org.v1.Organization
+	10, // 5: org.v1.ListOrgUsersResponse.users:type_name -> org.v1.User
+	1,  // 6: org.v1.ListOrgWorkspacesResponse.workspaces:type_name -> org.v1.WorkspaceSummary
+	18, // 7: org.v1.UpdateOrgRequest.update_mask:type_name -> google.protobuf.FieldMask
+	2,  // 8: org.v1.OrgService.CreateOrg:input_type -> org.v1.CreateOrgRequest
+	4,  // 9: org.v1.OrgService.GetOrg:input_type -> org.v1.GetOrgRequest
+	13, // 10: org.v1.OrgService.UpdateOrg:input_type -> org.v1.UpdateOrgRequest
+	15, // 11: org.v1.OrgService.DeleteOrg:input_type -> org.v1.DeleteOrgRequest
+	6,  // 12: org.v1.OrgService.ListUserOrgs:input_type -> org.v1.ListUserOrgsRequest
+	8,  // 13: org.v1.OrgService.ListOrgUsers:input_type -> org.v1.ListOrgUsersRequest
+	11, // 14: org.v1.OrgService.ListOrgWorkspaces:input_type -> org.v1.ListOrgWorkspacesRequest
+	3,  // 15: org.v1.OrgService.CreateOrg:output_type -> org.v1.CreateOrgResponse
+	5,  // 16: org.v1.OrgService.GetOrg:output_type -> org.v1.GetOrgResponse
+	14, // 17: org.v1.OrgService.UpdateOrg:output_type -> org.v1.UpdateOrgResponse
+	16, // 18: org.v1.OrgService.DeleteOrg:output_type -> org.v1.DeleteOrgResponse
+	7,  // 19: org.v1.OrgService.ListUserOrgs:output_type -> org.v1.ListUserOrgsResponse
+	9,  // 20: org.v1.OrgService.ListOrgUsers:output_type -> org.v1.ListOrgUsersResponse
+	12, // 21: org.v1.OrgService.ListOrgWorkspaces:output_type -> org.v1.ListOrgWorkspacesResponse
 	15, // [15:22] is the sub-list for method output_type
 	8,  // [8:15] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name

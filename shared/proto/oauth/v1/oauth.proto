@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package loco.oauth.v1;
+package oauth.v1;
 
 option go_package = "github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1";
 
@@ -23,8 +23,8 @@ message GetOAuthDetailsResponse {
 
 // ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
 message ExchangeOAuthTokenRequest {
-  OAuthProvider provider                = 1;
-  string        token                   = 2;
+  OAuthProvider provider                  = 1;
+  string        token                     = 2;
   bool          create_user_if_not_exists = 3;
 }
 

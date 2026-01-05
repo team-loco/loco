@@ -739,7 +739,7 @@ type Deployment struct {
 	ClusterId     int64                  `protobuf:"varint,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Region        string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
 	Replicas      int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
+	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	IsActive      bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	Message       string                 `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -1247,7 +1247,7 @@ func (x *WatchDeploymentRequest) GetDeploymentId() int64 {
 type WatchDeploymentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	Status        DeploymentPhase        `protobuf:"varint,2,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
+	Status        DeploymentPhase        `protobuf:"varint,2,opt,name=status,proto3,enum=deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1398,7 +1398,7 @@ var File_deployment_v1_deployment_proto protoreflect.FileDescriptor
 
 const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
-	"\x1edeployment/v1/deployment.proto\x12\x12loco.deployment.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
+	"\x1edeployment/v1/deployment.proto\x12\rdeployment.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
 	"\x04Port\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1a\n" +
 	"\bprotocol\x18\x02 \x01(\tR\bprotocol\"U\n" +
@@ -1424,16 +1424,16 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
 	"\x05image\x18\x02 \x01(\tR\x05image\x12,\n" +
 	"\x0fdockerfile_path\x18\x03 \x01(\tH\x00R\x0edockerfilePath\x88\x01\x01B\x12\n" +
-	"\x10_dockerfile_path\"\xc1\x04\n" +
-	"\x15ServiceDeploymentSpec\x125\n" +
-	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceR\x05build\x12M\n" +
-	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x15\n" +
+	"\x10_dockerfile_path\"\xad\x04\n" +
+	"\x15ServiceDeploymentSpec\x120\n" +
+	"\x05build\x18\x01 \x01(\v2\x1a.deployment.v1.BuildSourceR\x05build\x12H\n" +
+	"\fhealth_check\x18\x02 \x01(\v2 .deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x15\n" +
 	"\x03cpu\x18\x03 \x01(\tH\x01R\x03cpu\x88\x01\x01\x12\x1b\n" +
 	"\x06memory\x18\x04 \x01(\tH\x02R\x06memory\x88\x01\x01\x12&\n" +
 	"\fmin_replicas\x18\x05 \x01(\x05H\x03R\vminReplicas\x88\x01\x01\x12&\n" +
-	"\fmax_replicas\x18\x06 \x01(\x05H\x04R\vmaxReplicas\x88\x01\x01\x12:\n" +
-	"\ascalers\x18\a \x01(\v2\x1b.loco.deployment.v1.ScalersH\x05R\ascalers\x88\x01\x01\x12D\n" +
-	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12\x12\n" +
+	"\fmax_replicas\x18\x06 \x01(\x05H\x04R\vmaxReplicas\x88\x01\x01\x125\n" +
+	"\ascalers\x18\a \x01(\v2\x16.deployment.v1.ScalersH\x05R\ascalers\x88\x01\x01\x12?\n" +
+	"\x03env\x18\b \x03(\v2-.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12\x12\n" +
 	"\x04port\x18\t \x01(\x05R\x04port\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -1447,13 +1447,13 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\b_scalers\"\x18\n" +
 	"\x16DatabaseDeploymentSpec\"\x15\n" +
 	"\x13CacheDeploymentSpec\"\x15\n" +
-	"\x13QueueDeploymentSpec\"\xab\x02\n" +
-	"\x0eDeploymentSpec\x12E\n" +
-	"\aservice\x18\x01 \x01(\v2).loco.deployment.v1.ServiceDeploymentSpecH\x00R\aservice\x12H\n" +
-	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
-	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
-	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\xf9\x04\n" +
+	"\x13QueueDeploymentSpec\"\x97\x02\n" +
+	"\x0eDeploymentSpec\x12@\n" +
+	"\aservice\x18\x01 \x01(\v2$.deployment.v1.ServiceDeploymentSpecH\x00R\aservice\x12C\n" +
+	"\bdatabase\x18\x02 \x01(\v2%.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12:\n" +
+	"\x05cache\x18\x03 \x01(\v2\".deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12:\n" +
+	"\x05queue\x18\x04 \x01(\v2\".deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
+	"\x04spec\"\xef\x04\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
@@ -1462,8 +1462,8 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
 	"cluster_id\x18\x03 \x01(\x03R\tclusterId\x12\x16\n" +
 	"\x06region\x18\x04 \x01(\tR\x06region\x12\x1a\n" +
-	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
-	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
+	"\breplicas\x18\x05 \x01(\x05R\breplicas\x126\n" +
+	"\x06status\x18\x06 \x01(\x0e2\x1e.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
 	"\tis_active\x18\a \x01(\bR\bisActive\x12\x18\n" +
 	"\amessage\x18\b \x01(\tR\amessage\x129\n" +
 	"\n" +
@@ -1474,39 +1474,39 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fcompleted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampH\x01R\vcompletedAt\x88\x01\x01\x129\n" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
-	"\fspec_version\x18\r \x01(\x05R\vspecVersion\x126\n" +
-	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04specB\r\n" +
+	"\fspec_version\x18\r \x01(\x05R\vspecVersion\x121\n" +
+	"\x04spec\x18\x0e \x01(\v2\x1d.deployment.v1.DeploymentSpecR\x04specB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\xa9\x01\n" +
+	"\r_completed_at\"\xa4\x01\n" +
 	"\x17CreateDeploymentRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x12\x16\n" +
-	"\x06region\x18\x03 \x01(\tR\x06region\x126\n" +
-	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"?\n" +
+	"\x06region\x18\x03 \x01(\tR\x06region\x121\n" +
+	"\x04spec\x18\x04 \x01(\v2\x1d.deployment.v1.DeploymentSpecR\x04spec\"?\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\";\n" +
 	"\x14GetDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"W\n" +
-	"\x15GetDeploymentResponse\x12>\n" +
+	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"R\n" +
+	"\x15GetDeploymentResponse\x129\n" +
 	"\n" +
-	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
+	"deployment\x18\x01 \x01(\v2\x19.deployment.v1.DeploymentR\n" +
 	"deployment\"u\n" +
 	"\x16ListDeploymentsRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\x03R\n" +
 	"resourceId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"\x83\x01\n" +
-	"\x17ListDeploymentsResponse\x12@\n" +
-	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"~\n" +
+	"\x17ListDeploymentsResponse\x12;\n" +
+	"\vdeployments\x18\x01 \x03(\v2\x19.deployment.v1.DeploymentR\vdeployments\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"=\n" +
 	"\x16WatchDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\xcf\x01\n" +
+	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\xca\x01\n" +
 	"\x17WatchDeploymentResponse\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12;\n" +
-	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x18\n" +
+	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x126\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x1e.deployment.v1.DeploymentPhaseR\x06status\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x128\n" +
 	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\">\n" +
 	"\x17DeleteDeploymentRequest\x12#\n" +
@@ -1519,13 +1519,13 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x18DEPLOYMENT_PHASE_RUNNING\x10\x03\x12\x1e\n" +
 	"\x1aDEPLOYMENT_PHASE_SUCCEEDED\x10\x04\x12\x1b\n" +
 	"\x17DEPLOYMENT_PHASE_FAILED\x10\x05\x12\x1d\n" +
-	"\x19DEPLOYMENT_PHASE_CANCELED\x10\x062\xb1\x04\n" +
-	"\x11DeploymentService\x12m\n" +
-	"\x10CreateDeployment\x12+.loco.deployment.v1.CreateDeploymentRequest\x1a,.loco.deployment.v1.CreateDeploymentResponse\x12d\n" +
-	"\rGetDeployment\x12(.loco.deployment.v1.GetDeploymentRequest\x1a).loco.deployment.v1.GetDeploymentResponse\x12j\n" +
-	"\x0fListDeployments\x12*.loco.deployment.v1.ListDeploymentsRequest\x1a+.loco.deployment.v1.ListDeploymentsResponse\x12l\n" +
-	"\x0fWatchDeployment\x12*.loco.deployment.v1.WatchDeploymentRequest\x1a+.loco.deployment.v1.WatchDeploymentResponse0\x01\x12m\n" +
-	"\x10DeleteDeployment\x12+.loco.deployment.v1.DeleteDeploymentRequest\x1a,.loco.deployment.v1.DeleteDeploymentResponseBCZAgithub.com/team-loco/loco/shared/proto/deployment/v1;deploymentv1b\x06proto3"
+	"\x19DEPLOYMENT_PHASE_CANCELED\x10\x062\xff\x03\n" +
+	"\x11DeploymentService\x12c\n" +
+	"\x10CreateDeployment\x12&.deployment.v1.CreateDeploymentRequest\x1a'.deployment.v1.CreateDeploymentResponse\x12Z\n" +
+	"\rGetDeployment\x12#.deployment.v1.GetDeploymentRequest\x1a$.deployment.v1.GetDeploymentResponse\x12`\n" +
+	"\x0fListDeployments\x12%.deployment.v1.ListDeploymentsRequest\x1a&.deployment.v1.ListDeploymentsResponse\x12b\n" +
+	"\x0fWatchDeployment\x12%.deployment.v1.WatchDeploymentRequest\x1a&.deployment.v1.WatchDeploymentResponse0\x01\x12c\n" +
+	"\x10DeleteDeployment\x12&.deployment.v1.DeleteDeploymentRequest\x1a'.deployment.v1.DeleteDeploymentResponseBCZAgithub.com/team-loco/loco/shared/proto/deployment/v1;deploymentv1b\x06proto3"
 
 var (
 	file_deployment_v1_deployment_proto_rawDescOnce sync.Once
@@ -1542,61 +1542,61 @@ func file_deployment_v1_deployment_proto_rawDescGZIP() []byte {
 var file_deployment_v1_deployment_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_deployment_v1_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_deployment_v1_deployment_proto_goTypes = []any{
-	(DeploymentPhase)(0),             // 0: loco.deployment.v1.DeploymentPhase
-	(*Port)(nil),                     // 1: loco.deployment.v1.Port
-	(*ResourceSpec)(nil),             // 2: loco.deployment.v1.ResourceSpec
-	(*HealthCheckConfig)(nil),        // 3: loco.deployment.v1.HealthCheckConfig
-	(*Scalers)(nil),                  // 4: loco.deployment.v1.Scalers
-	(*BuildSource)(nil),              // 5: loco.deployment.v1.BuildSource
-	(*ServiceDeploymentSpec)(nil),    // 6: loco.deployment.v1.ServiceDeploymentSpec
-	(*DatabaseDeploymentSpec)(nil),   // 7: loco.deployment.v1.DatabaseDeploymentSpec
-	(*CacheDeploymentSpec)(nil),      // 8: loco.deployment.v1.CacheDeploymentSpec
-	(*QueueDeploymentSpec)(nil),      // 9: loco.deployment.v1.QueueDeploymentSpec
-	(*DeploymentSpec)(nil),           // 10: loco.deployment.v1.DeploymentSpec
-	(*Deployment)(nil),               // 11: loco.deployment.v1.Deployment
-	(*CreateDeploymentRequest)(nil),  // 12: loco.deployment.v1.CreateDeploymentRequest
-	(*CreateDeploymentResponse)(nil), // 13: loco.deployment.v1.CreateDeploymentResponse
-	(*GetDeploymentRequest)(nil),     // 14: loco.deployment.v1.GetDeploymentRequest
-	(*GetDeploymentResponse)(nil),    // 15: loco.deployment.v1.GetDeploymentResponse
-	(*ListDeploymentsRequest)(nil),   // 16: loco.deployment.v1.ListDeploymentsRequest
-	(*ListDeploymentsResponse)(nil),  // 17: loco.deployment.v1.ListDeploymentsResponse
-	(*WatchDeploymentRequest)(nil),   // 18: loco.deployment.v1.WatchDeploymentRequest
-	(*WatchDeploymentResponse)(nil),  // 19: loco.deployment.v1.WatchDeploymentResponse
-	(*DeleteDeploymentRequest)(nil),  // 20: loco.deployment.v1.DeleteDeploymentRequest
-	(*DeleteDeploymentResponse)(nil), // 21: loco.deployment.v1.DeleteDeploymentResponse
-	nil,                              // 22: loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
+	(DeploymentPhase)(0),             // 0: deployment.v1.DeploymentPhase
+	(*Port)(nil),                     // 1: deployment.v1.Port
+	(*ResourceSpec)(nil),             // 2: deployment.v1.ResourceSpec
+	(*HealthCheckConfig)(nil),        // 3: deployment.v1.HealthCheckConfig
+	(*Scalers)(nil),                  // 4: deployment.v1.Scalers
+	(*BuildSource)(nil),              // 5: deployment.v1.BuildSource
+	(*ServiceDeploymentSpec)(nil),    // 6: deployment.v1.ServiceDeploymentSpec
+	(*DatabaseDeploymentSpec)(nil),   // 7: deployment.v1.DatabaseDeploymentSpec
+	(*CacheDeploymentSpec)(nil),      // 8: deployment.v1.CacheDeploymentSpec
+	(*QueueDeploymentSpec)(nil),      // 9: deployment.v1.QueueDeploymentSpec
+	(*DeploymentSpec)(nil),           // 10: deployment.v1.DeploymentSpec
+	(*Deployment)(nil),               // 11: deployment.v1.Deployment
+	(*CreateDeploymentRequest)(nil),  // 12: deployment.v1.CreateDeploymentRequest
+	(*CreateDeploymentResponse)(nil), // 13: deployment.v1.CreateDeploymentResponse
+	(*GetDeploymentRequest)(nil),     // 14: deployment.v1.GetDeploymentRequest
+	(*GetDeploymentResponse)(nil),    // 15: deployment.v1.GetDeploymentResponse
+	(*ListDeploymentsRequest)(nil),   // 16: deployment.v1.ListDeploymentsRequest
+	(*ListDeploymentsResponse)(nil),  // 17: deployment.v1.ListDeploymentsResponse
+	(*WatchDeploymentRequest)(nil),   // 18: deployment.v1.WatchDeploymentRequest
+	(*WatchDeploymentResponse)(nil),  // 19: deployment.v1.WatchDeploymentResponse
+	(*DeleteDeploymentRequest)(nil),  // 20: deployment.v1.DeleteDeploymentRequest
+	(*DeleteDeploymentResponse)(nil), // 21: deployment.v1.DeleteDeploymentResponse
+	nil,                              // 22: deployment.v1.ServiceDeploymentSpec.EnvEntry
 	(*timestamppb.Timestamp)(nil),    // 23: google.protobuf.Timestamp
 }
 var file_deployment_v1_deployment_proto_depIdxs = []int32{
-	5,  // 0: loco.deployment.v1.ServiceDeploymentSpec.build:type_name -> loco.deployment.v1.BuildSource
-	3,  // 1: loco.deployment.v1.ServiceDeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	4,  // 2: loco.deployment.v1.ServiceDeploymentSpec.scalers:type_name -> loco.deployment.v1.Scalers
-	22, // 3: loco.deployment.v1.ServiceDeploymentSpec.env:type_name -> loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
-	6,  // 4: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
-	7,  // 5: loco.deployment.v1.DeploymentSpec.database:type_name -> loco.deployment.v1.DatabaseDeploymentSpec
-	8,  // 6: loco.deployment.v1.DeploymentSpec.cache:type_name -> loco.deployment.v1.CacheDeploymentSpec
-	9,  // 7: loco.deployment.v1.DeploymentSpec.queue:type_name -> loco.deployment.v1.QueueDeploymentSpec
-	0,  // 8: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentPhase
-	23, // 9: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
-	23, // 10: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
-	23, // 11: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
-	23, // 12: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
-	10, // 13: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	10, // 14: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	11, // 15: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	11, // 16: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	0,  // 17: loco.deployment.v1.WatchDeploymentResponse.status:type_name -> loco.deployment.v1.DeploymentPhase
-	23, // 18: loco.deployment.v1.WatchDeploymentResponse.timestamp:type_name -> google.protobuf.Timestamp
-	12, // 19: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
-	14, // 20: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
-	16, // 21: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
-	18, // 22: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
-	20, // 23: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
-	13, // 24: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
-	15, // 25: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
-	17, // 26: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
-	19, // 27: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
-	21, // 28: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
+	5,  // 0: deployment.v1.ServiceDeploymentSpec.build:type_name -> deployment.v1.BuildSource
+	3,  // 1: deployment.v1.ServiceDeploymentSpec.health_check:type_name -> deployment.v1.HealthCheckConfig
+	4,  // 2: deployment.v1.ServiceDeploymentSpec.scalers:type_name -> deployment.v1.Scalers
+	22, // 3: deployment.v1.ServiceDeploymentSpec.env:type_name -> deployment.v1.ServiceDeploymentSpec.EnvEntry
+	6,  // 4: deployment.v1.DeploymentSpec.service:type_name -> deployment.v1.ServiceDeploymentSpec
+	7,  // 5: deployment.v1.DeploymentSpec.database:type_name -> deployment.v1.DatabaseDeploymentSpec
+	8,  // 6: deployment.v1.DeploymentSpec.cache:type_name -> deployment.v1.CacheDeploymentSpec
+	9,  // 7: deployment.v1.DeploymentSpec.queue:type_name -> deployment.v1.QueueDeploymentSpec
+	0,  // 8: deployment.v1.Deployment.status:type_name -> deployment.v1.DeploymentPhase
+	23, // 9: deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
+	23, // 10: deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
+	23, // 11: deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
+	23, // 12: deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
+	10, // 13: deployment.v1.Deployment.spec:type_name -> deployment.v1.DeploymentSpec
+	10, // 14: deployment.v1.CreateDeploymentRequest.spec:type_name -> deployment.v1.DeploymentSpec
+	11, // 15: deployment.v1.GetDeploymentResponse.deployment:type_name -> deployment.v1.Deployment
+	11, // 16: deployment.v1.ListDeploymentsResponse.deployments:type_name -> deployment.v1.Deployment
+	0,  // 17: deployment.v1.WatchDeploymentResponse.status:type_name -> deployment.v1.DeploymentPhase
+	23, // 18: deployment.v1.WatchDeploymentResponse.timestamp:type_name -> google.protobuf.Timestamp
+	12, // 19: deployment.v1.DeploymentService.CreateDeployment:input_type -> deployment.v1.CreateDeploymentRequest
+	14, // 20: deployment.v1.DeploymentService.GetDeployment:input_type -> deployment.v1.GetDeploymentRequest
+	16, // 21: deployment.v1.DeploymentService.ListDeployments:input_type -> deployment.v1.ListDeploymentsRequest
+	18, // 22: deployment.v1.DeploymentService.WatchDeployment:input_type -> deployment.v1.WatchDeploymentRequest
+	20, // 23: deployment.v1.DeploymentService.DeleteDeployment:input_type -> deployment.v1.DeleteDeploymentRequest
+	13, // 24: deployment.v1.DeploymentService.CreateDeployment:output_type -> deployment.v1.CreateDeploymentResponse
+	15, // 25: deployment.v1.DeploymentService.GetDeployment:output_type -> deployment.v1.GetDeploymentResponse
+	17, // 26: deployment.v1.DeploymentService.ListDeployments:output_type -> deployment.v1.ListDeploymentsResponse
+	19, // 27: deployment.v1.DeploymentService.WatchDeployment:output_type -> deployment.v1.WatchDeploymentResponse
+	21, // 28: deployment.v1.DeploymentService.DeleteDeployment:output_type -> deployment.v1.DeleteDeploymentResponse
 	24, // [24:29] is the sub-list for method output_type
 	19, // [19:24] is the sub-list for method input_type
 	19, // [19:19] is the sub-list for extension type_name

@@ -22,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// OAuthServiceName is the fully-qualified name of the OAuthService service.
-	OAuthServiceName = "loco.oauth.v1.OAuthService"
+	OAuthServiceName = "oauth.v1.OAuthService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -35,19 +35,19 @@ const (
 const (
 	// OAuthServiceGetOAuthDetailsProcedure is the fully-qualified name of the OAuthService's
 	// GetOAuthDetails RPC.
-	OAuthServiceGetOAuthDetailsProcedure = "/loco.oauth.v1.OAuthService/GetOAuthDetails"
+	OAuthServiceGetOAuthDetailsProcedure = "/oauth.v1.OAuthService/GetOAuthDetails"
 	// OAuthServiceExchangeOAuthTokenProcedure is the fully-qualified name of the OAuthService's
 	// ExchangeOAuthToken RPC.
-	OAuthServiceExchangeOAuthTokenProcedure = "/loco.oauth.v1.OAuthService/ExchangeOAuthToken"
+	OAuthServiceExchangeOAuthTokenProcedure = "/oauth.v1.OAuthService/ExchangeOAuthToken"
 	// OAuthServiceGetOAuthAuthorizationURLProcedure is the fully-qualified name of the OAuthService's
 	// GetOAuthAuthorizationURL RPC.
-	OAuthServiceGetOAuthAuthorizationURLProcedure = "/loco.oauth.v1.OAuthService/GetOAuthAuthorizationURL"
+	OAuthServiceGetOAuthAuthorizationURLProcedure = "/oauth.v1.OAuthService/GetOAuthAuthorizationURL"
 	// OAuthServiceExchangeOAuthCodeProcedure is the fully-qualified name of the OAuthService's
 	// ExchangeOAuthCode RPC.
-	OAuthServiceExchangeOAuthCodeProcedure = "/loco.oauth.v1.OAuthService/ExchangeOAuthCode"
+	OAuthServiceExchangeOAuthCodeProcedure = "/oauth.v1.OAuthService/ExchangeOAuthCode"
 )
 
-// OAuthServiceClient is a client for the loco.oauth.v1.OAuthService service.
+// OAuthServiceClient is a client for the oauth.v1.OAuthService service.
 type OAuthServiceClient interface {
 	// GetOAuthDetails retrieves OAuth configuration for a provider.
 	GetOAuthDetails(context.Context, *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error)
@@ -59,10 +59,10 @@ type OAuthServiceClient interface {
 	ExchangeOAuthCode(context.Context, *connect.Request[v1.ExchangeOAuthCodeRequest]) (*connect.Response[v1.ExchangeOAuthCodeResponse], error)
 }
 
-// NewOAuthServiceClient constructs a client for the loco.oauth.v1.OAuthService service. By default,
-// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
-// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
-// or connect.WithGRPCWeb() options.
+// NewOAuthServiceClient constructs a client for the oauth.v1.OAuthService service. By default, it
+// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
@@ -105,27 +105,27 @@ type oAuthServiceClient struct {
 	exchangeOAuthCode        *connect.Client[v1.ExchangeOAuthCodeRequest, v1.ExchangeOAuthCodeResponse]
 }
 
-// GetOAuthDetails calls loco.oauth.v1.OAuthService.GetOAuthDetails.
+// GetOAuthDetails calls oauth.v1.OAuthService.GetOAuthDetails.
 func (c *oAuthServiceClient) GetOAuthDetails(ctx context.Context, req *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error) {
 	return c.getOAuthDetails.CallUnary(ctx, req)
 }
 
-// ExchangeOAuthToken calls loco.oauth.v1.OAuthService.ExchangeOAuthToken.
+// ExchangeOAuthToken calls oauth.v1.OAuthService.ExchangeOAuthToken.
 func (c *oAuthServiceClient) ExchangeOAuthToken(ctx context.Context, req *connect.Request[v1.ExchangeOAuthTokenRequest]) (*connect.Response[v1.ExchangeOAuthTokenResponse], error) {
 	return c.exchangeOAuthToken.CallUnary(ctx, req)
 }
 
-// GetOAuthAuthorizationURL calls loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL.
+// GetOAuthAuthorizationURL calls oauth.v1.OAuthService.GetOAuthAuthorizationURL.
 func (c *oAuthServiceClient) GetOAuthAuthorizationURL(ctx context.Context, req *connect.Request[v1.GetOAuthAuthorizationURLRequest]) (*connect.Response[v1.GetOAuthAuthorizationURLResponse], error) {
 	return c.getOAuthAuthorizationURL.CallUnary(ctx, req)
 }
 
-// ExchangeOAuthCode calls loco.oauth.v1.OAuthService.ExchangeOAuthCode.
+// ExchangeOAuthCode calls oauth.v1.OAuthService.ExchangeOAuthCode.
 func (c *oAuthServiceClient) ExchangeOAuthCode(ctx context.Context, req *connect.Request[v1.ExchangeOAuthCodeRequest]) (*connect.Response[v1.ExchangeOAuthCodeResponse], error) {
 	return c.exchangeOAuthCode.CallUnary(ctx, req)
 }
 
-// OAuthServiceHandler is an implementation of the loco.oauth.v1.OAuthService service.
+// OAuthServiceHandler is an implementation of the oauth.v1.OAuthService service.
 type OAuthServiceHandler interface {
 	// GetOAuthDetails retrieves OAuth configuration for a provider.
 	GetOAuthDetails(context.Context, *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error)
@@ -168,7 +168,7 @@ func NewOAuthServiceHandler(svc OAuthServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(oAuthServiceMethods.ByName("ExchangeOAuthCode")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/loco.oauth.v1.OAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/oauth.v1.OAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OAuthServiceGetOAuthDetailsProcedure:
 			oAuthServiceGetOAuthDetailsHandler.ServeHTTP(w, r)
@@ -188,17 +188,17 @@ func NewOAuthServiceHandler(svc OAuthServiceHandler, opts ...connect.HandlerOpti
 type UnimplementedOAuthServiceHandler struct{}
 
 func (UnimplementedOAuthServiceHandler) GetOAuthDetails(context.Context, *connect.Request[v1.GetOAuthDetailsRequest]) (*connect.Response[v1.GetOAuthDetailsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.GetOAuthDetails is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("oauth.v1.OAuthService.GetOAuthDetails is not implemented"))
 }
 
 func (UnimplementedOAuthServiceHandler) ExchangeOAuthToken(context.Context, *connect.Request[v1.ExchangeOAuthTokenRequest]) (*connect.Response[v1.ExchangeOAuthTokenResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.ExchangeOAuthToken is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("oauth.v1.OAuthService.ExchangeOAuthToken is not implemented"))
 }
 
 func (UnimplementedOAuthServiceHandler) GetOAuthAuthorizationURL(context.Context, *connect.Request[v1.GetOAuthAuthorizationURLRequest]) (*connect.Response[v1.GetOAuthAuthorizationURLResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("oauth.v1.OAuthService.GetOAuthAuthorizationURL is not implemented"))
 }
 
 func (UnimplementedOAuthServiceHandler) ExchangeOAuthCode(context.Context, *connect.Request[v1.ExchangeOAuthCodeRequest]) (*connect.Response[v1.ExchangeOAuthCodeResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.ExchangeOAuthCode is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("oauth.v1.OAuthService.ExchangeOAuthCode is not implemented"))
 }
