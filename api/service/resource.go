@@ -102,7 +102,7 @@ func (s *ResourceServer) CreateResource(
 	var subdomainLabel pgtype.Text
 	var platformDomainID pgtype.Int8
 
-	if r.GetDomain().GetDomainSource() == domainv1.DomainType_PLATFORM_PROVIDED {
+	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
 		if r.GetDomain().GetSubdomain() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
 		}
@@ -968,17 +968,17 @@ func (s *ResourceServer) UpdateResourceEnv(
 func resourceStatusToProto(status genDb.ResourceStatus) resourcev1.ResourceStatus {
 	switch status {
 	case genDb.ResourceStatusHealthy:
-		return resourcev1.ResourceStatus_HEALTHY
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
 	case genDb.ResourceStatusDeploying:
-		return resourcev1.ResourceStatus_DEPLOYING
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING
 	case genDb.ResourceStatusDegraded:
-		return resourcev1.ResourceStatus_DEGRADED
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
 	case genDb.ResourceStatusUnavailable:
-		return resourcev1.ResourceStatus_UNAVAILABLE
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
 	case genDb.ResourceStatusSuspended:
-		return resourcev1.ResourceStatus_SUSPENDED
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_SUSPENDED
 	default:
-		return resourcev1.ResourceStatus_HEALTHY
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
 	}
 }
 
@@ -986,19 +986,19 @@ func resourceStatusToProto(status genDb.ResourceStatus) resourcev1.ResourceStatu
 func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
 	case genDb.DeploymentStatusPending:
-		return deploymentv1.DeploymentPhase_PENDING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
 	case genDb.DeploymentStatusDeploying:
-		return deploymentv1.DeploymentPhase_DEPLOYING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING
 	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentPhase_RUNNING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
 	case genDb.DeploymentStatusSucceeded:
-		return deploymentv1.DeploymentPhase_SUCCEEDED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentPhase_FAILED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
 	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentPhase_CANCELED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
 	default:
-		return deploymentv1.DeploymentPhase_UNSPECIFIED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
 	}
 }
 
@@ -1006,9 +1006,9 @@ func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.Deploym
 func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.ResourceDomain {
 	var protoDomains []*domainv1.ResourceDomain
 	for _, d := range domains {
-		domainSource := domainv1.DomainType_USER_PROVIDED
+		domainSource := domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED
 		if d.DomainSource == genDb.DomainSourcePlatformProvided {
-			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
+			domainSource = domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED
 		}
 
 		domain := &domainv1.ResourceDomain{
@@ -1040,19 +1040,19 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 	var resourceType resourcev1.ResourceType
 	switch resource.Type {
 	case "service":
-		resourceType = resourcev1.ResourceType_SERVICE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	case "database":
-		resourceType = resourcev1.ResourceType_DATABASE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_DATABASE
 	case "function":
-		resourceType = resourcev1.ResourceType_FUNCTION
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION
 	case "cache":
-		resourceType = resourcev1.ResourceType_CACHE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_CACHE
 	case "queue":
-		resourceType = resourcev1.ResourceType_QUEUE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_QUEUE
 	case "blob":
-		resourceType = resourcev1.ResourceType_BLOB
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_BLOB
 	default:
-		resourceType = resourcev1.ResourceType_SERVICE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	}
 
 	resourceStatus := resourceStatusToProto(resource.Status)

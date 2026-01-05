@@ -26,40 +26,40 @@ const (
 type DeploymentPhase int32
 
 const (
-	DeploymentPhase_UNSPECIFIED DeploymentPhase = 0
+	DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED DeploymentPhase = 0
 	// Pre-deployment: created in DB, waiting for controller to pick it up
-	DeploymentPhase_PENDING DeploymentPhase = 1
+	DeploymentPhase_DEPLOYMENT_PHASE_PENDING DeploymentPhase = 1
 	// Active: controller is actively deploying (pulling image, creating pods, etc)
-	DeploymentPhase_DEPLOYING DeploymentPhase = 2
+	DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING DeploymentPhase = 2
 	// Running: pods are up, healthy, ready to serve traffic
-	DeploymentPhase_RUNNING DeploymentPhase = 3
+	DeploymentPhase_DEPLOYMENT_PHASE_RUNNING DeploymentPhase = 3
 	// Terminal: one-off jobs completed successfully
-	DeploymentPhase_SUCCEEDED DeploymentPhase = 4
+	DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED DeploymentPhase = 4
 	// Terminal: error during deployment or runtime
-	DeploymentPhase_FAILED DeploymentPhase = 5
+	DeploymentPhase_DEPLOYMENT_PHASE_FAILED DeploymentPhase = 5
 	// Terminal: user explicitly cancelled
-	DeploymentPhase_CANCELED DeploymentPhase = 6
+	DeploymentPhase_DEPLOYMENT_PHASE_CANCELED DeploymentPhase = 6
 )
 
 // Enum value maps for DeploymentPhase.
 var (
 	DeploymentPhase_name = map[int32]string{
-		0: "UNSPECIFIED",
-		1: "PENDING",
-		2: "DEPLOYING",
-		3: "RUNNING",
-		4: "SUCCEEDED",
-		5: "FAILED",
-		6: "CANCELED",
+		0: "DEPLOYMENT_PHASE_UNSPECIFIED",
+		1: "DEPLOYMENT_PHASE_PENDING",
+		2: "DEPLOYMENT_PHASE_DEPLOYING",
+		3: "DEPLOYMENT_PHASE_RUNNING",
+		4: "DEPLOYMENT_PHASE_SUCCEEDED",
+		5: "DEPLOYMENT_PHASE_FAILED",
+		6: "DEPLOYMENT_PHASE_CANCELED",
 	}
 	DeploymentPhase_value = map[string]int32{
-		"UNSPECIFIED": 0,
-		"PENDING":     1,
-		"DEPLOYING":   2,
-		"RUNNING":     3,
-		"SUCCEEDED":   4,
-		"FAILED":      5,
-		"CANCELED":    6,
+		"DEPLOYMENT_PHASE_UNSPECIFIED": 0,
+		"DEPLOYMENT_PHASE_PENDING":     1,
+		"DEPLOYMENT_PHASE_DEPLOYING":   2,
+		"DEPLOYMENT_PHASE_RUNNING":     3,
+		"DEPLOYMENT_PHASE_SUCCEEDED":   4,
+		"DEPLOYMENT_PHASE_FAILED":      5,
+		"DEPLOYMENT_PHASE_CANCELED":    6,
 	}
 )
 
@@ -821,7 +821,7 @@ func (x *Deployment) GetStatus() DeploymentPhase {
 	if x != nil {
 		return x.Status
 	}
-	return DeploymentPhase_UNSPECIFIED
+	return DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
 }
 
 func (x *Deployment) GetIsActive() bool {
@@ -1295,7 +1295,7 @@ func (x *WatchDeploymentResponse) GetStatus() DeploymentPhase {
 	if x != nil {
 		return x.Status
 	}
-	return DeploymentPhase_UNSPECIFIED
+	return DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
 }
 
 func (x *WatchDeploymentResponse) GetMessage() string {
@@ -1511,16 +1511,15 @@ const file_deployment_v1_deployment_proto_rawDesc = "" +
 	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\">\n" +
 	"\x17DeleteDeploymentRequest\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\x1a\n" +
-	"\x18DeleteDeploymentResponse*t\n" +
-	"\x0fDeploymentPhase\x12\x0f\n" +
-	"\vUNSPECIFIED\x10\x00\x12\v\n" +
-	"\aPENDING\x10\x01\x12\r\n" +
-	"\tDEPLOYING\x10\x02\x12\v\n" +
-	"\aRUNNING\x10\x03\x12\r\n" +
-	"\tSUCCEEDED\x10\x04\x12\n" +
-	"\n" +
-	"\x06FAILED\x10\x05\x12\f\n" +
-	"\bCANCELED\x10\x062\xb1\x04\n" +
+	"\x18DeleteDeploymentResponse*\xeb\x01\n" +
+	"\x0fDeploymentPhase\x12 \n" +
+	"\x1cDEPLOYMENT_PHASE_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18DEPLOYMENT_PHASE_PENDING\x10\x01\x12\x1e\n" +
+	"\x1aDEPLOYMENT_PHASE_DEPLOYING\x10\x02\x12\x1c\n" +
+	"\x18DEPLOYMENT_PHASE_RUNNING\x10\x03\x12\x1e\n" +
+	"\x1aDEPLOYMENT_PHASE_SUCCEEDED\x10\x04\x12\x1b\n" +
+	"\x17DEPLOYMENT_PHASE_FAILED\x10\x05\x12\x1d\n" +
+	"\x19DEPLOYMENT_PHASE_CANCELED\x10\x062\xb1\x04\n" +
 	"\x11DeploymentService\x12m\n" +
 	"\x10CreateDeployment\x12+.loco.deployment.v1.CreateDeploymentRequest\x1a,.loco.deployment.v1.CreateDeploymentResponse\x12d\n" +
 	"\rGetDeployment\x12(.loco.deployment.v1.GetDeploymentRequest\x1a).loco.deployment.v1.GetDeploymentResponse\x12j\n" +

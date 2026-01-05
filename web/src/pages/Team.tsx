@@ -21,7 +21,7 @@ export function Team() {
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 	const queryClient = useQueryClient();
-	const [cursors, setCursors] = useState<Array<bigint | null>>([null]);
+	const [cursors, setCursors] = useState<Array<string | null>>([null]);
 	const [currentPage, setCurrentPage] = useState(0);
 	const ITEMS_PER_PAGE = 10;
 
@@ -54,14 +54,14 @@ export function Team() {
 		firstWorkspaceId
 			? {
 					workspaceId: firstWorkspaceId,
-					limit: ITEMS_PER_PAGE,
-					afterCursor: cursors[currentPage] ?? undefined,
+					pageSize: ITEMS_PER_PAGE,
+					pageToken: cursors[currentPage] ?? undefined,
 			  }
 			: undefined,
 		{ enabled: !!firstWorkspaceId }
 	);
 	const members = membersRes?.members ?? [];
-	const nextCursor = membersRes?.nextCursor ?? null;
+	const nextCursor = membersRes?.nextPageToken ?? null;
 	const hasNextPage = nextCursor !== null;
 
 	// todo: fix admin checks after tvm
@@ -139,7 +139,7 @@ export function Team() {
 								variant="outline"
 								size="sm"
 								onClick={() => {
-									if (hasNextPage) {
+									if (hasNextPage && nextCursor) {
 										setCursors((prev) => [...prev, nextCursor]);
 										setCurrentPage((p) => p + 1);
 									}

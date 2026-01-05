@@ -13,33 +13,33 @@ option go_package = "github.com/team-loco/loco/shared/proto/resource/v1;resource
 // ResourceType categorizes the type of resource being deployed.
 enum ResourceType {
   RESOURCE_TYPE_UNSPECIFIED = 0;
-  SERVICE                   = 1;
-  DATABASE                  = 2;
-  FUNCTION                  = 3;
-  CACHE                     = 4;
-  QUEUE                     = 5;
-  BLOB                      = 6;
+  RESOURCE_TYPE_SERVICE     = 1;
+  RESOURCE_TYPE_DATABASE    = 2;
+  RESOURCE_TYPE_FUNCTION    = 3;
+  RESOURCE_TYPE_CACHE       = 4;
+  RESOURCE_TYPE_QUEUE       = 5;
+  RESOURCE_TYPE_BLOB        = 6;
 }
 
 // ResourceStatus represents the operational status of a resource based on current deployment and health checks.
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
-  HEALTHY                     = 1;
-  DEPLOYING                   = 2;
-  DEGRADED                    = 3;
-  UNAVAILABLE                 = 4;
-  SUSPENDED                   = 5;
+  RESOURCE_STATUS_HEALTHY     = 1;
+  RESOURCE_STATUS_DEPLOYING   = 2;
+  RESOURCE_STATUS_DEGRADED    = 3;
+  RESOURCE_STATUS_UNAVAILABLE = 4;
+  RESOURCE_STATUS_SUSPENDED   = 5;
 }
 
 // RegionIntentStatus represents the state of a region intent for a resource.
 enum RegionIntentStatus {
-  REGION_INTENT_STATUS_UNSPECIFIED = 0;
-  REGION_INTENT_DESIRED            = 1;
-  REGION_INTENT_PROVISIONING       = 2;
-  REGION_INTENT_ACTIVE             = 3;
-  REGION_INTENT_DEGRADED           = 4;
-  REGION_INTENT_REMOVING           = 5;
-  REGION_INTENT_FAILED             = 6;
+  REGION_INTENT_STATUS_UNSPECIFIED  = 0;
+  REGION_INTENT_STATUS_DESIRED      = 1;
+  REGION_INTENT_STATUS_PROVISIONING = 2;
+  REGION_INTENT_STATUS_ACTIVE       = 3;
+  REGION_INTENT_STATUS_DEGRADED     = 4;
+  REGION_INTENT_STATUS_REMOVING     = 5;
+  REGION_INTENT_STATUS_FAILED       = 6;
 }
 
 // ResourceService manages resource lifecycle and operations.

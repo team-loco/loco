@@ -197,7 +197,7 @@ func (s *OAuthServer) GetOAuthDetails(
 	ctx context.Context, req *connect.Request[oAuth.GetOAuthDetailsRequest],
 ) (*connect.Response[oAuth.GetOAuthDetailsResponse], error) {
 	// Currently only GitHub is supported
-	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
 	}
 
@@ -214,7 +214,7 @@ func (s *OAuthServer) ExchangeOAuthToken(
 	req *connect.Request[oAuth.ExchangeOAuthTokenRequest],
 ) (*connect.Response[oAuth.ExchangeOAuthTokenResponse], error) {
 	// Currently only GitHub is supported
-	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
 	}
 
@@ -248,7 +248,7 @@ func (s *OAuthServer) GetOAuthAuthorizationURL(
 	req *connect.Request[oAuth.GetOAuthAuthorizationURLRequest],
 ) (*connect.Response[oAuth.GetOAuthAuthorizationURLResponse], error) {
 	// Currently only GitHub is supported
-	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
 	}
 
@@ -285,7 +285,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 	req *connect.Request[oAuth.ExchangeOAuthCodeRequest],
 ) (*connect.Response[oAuth.ExchangeOAuthCodeResponse], error) {
 	// Currently only GitHub is supported
-	if req.Msg.GetProvider() != oAuth.OAuthProvider_GITHUB {
+	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
 	}
 

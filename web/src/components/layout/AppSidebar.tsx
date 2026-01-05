@@ -125,10 +125,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const location = useLocation();
 	const { toggleSidebar } = useSidebar();
 
-	const { data: user } = useQuery(whoAmI, {});
+	const { data: whoAmIResponse } = useQuery(whoAmI, {});
+	const user = whoAmIResponse?.user;
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		user ? { userId: BigInt(user.id) } : undefined,
+		user ? { userId: user.id } : undefined,
 		{ enabled: !!user }
 	);
 
@@ -289,7 +290,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 						name: user?.name || "User",
 						email: user?.email || "",
 						avatar: user?.avatarUrl || "",
-					}}
+					}} 
 					workspaces={workspaces.map((ws) => ({
 						id: ws.id,
 						name: ws.name,

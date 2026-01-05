@@ -46,8 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	return (
 		<AuthContext.Provider
 			value={{
-				user: user ?? null,
-				isAuthenticated: !isLoggedOut && !!user,
+				user: user?.user ?? null,
+				isAuthenticated: !isLoggedOut && !!user?.user,
 				isLoading,
 				error: error instanceof Error ? error : null,
 				logout,

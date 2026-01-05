@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@connectrpc/connect";
 import { ResourceService } from "@/gen/resource/v1/resource_pb";
-import type { LogEntry } from "@/gen/resource/v1/resource_pb";
+import type { WatchLogsResponse } from "@/gen/resource/v1/resource_pb";
 import { createTransport } from "@/auth/connect-transport";
 
 export function useStreamLogs(resourceId: string, tailLimit?: number) {
-	const [logs, setLogs] = useState<LogEntry[]>([]);
+	const [logs, setLogs] = useState<WatchLogsResponse[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
 	const [refreshKey, setRefreshKey] = useState(0);
@@ -29,12 +29,12 @@ export function useStreamLogs(resourceId: string, tailLimit?: number) {
 		const streamLogs = async () => {
 			try {
 				const client = createClient(ResourceService, createTransport());
-				const logsList: LogEntry[] = [];
+				const logsList: WatchLogsResponse[] = [];
 				let isFirstUpdate = true;
 
 				// Stream logs from the server
 				for await (const logEntry of client.watchLogs(
-					{ resourceId: BigInt(resourceId), limit: tailLimit },
+					{ resourceId: BigInt(resourceId) },
 					{ signal: abortController.signal }
 				)) {
 					if (!isMounted) break;

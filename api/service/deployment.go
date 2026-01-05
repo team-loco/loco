@@ -42,19 +42,19 @@ var imagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
 	case genDb.DeploymentStatusPending:
-		return deploymentv1.DeploymentPhase_PENDING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
 	case genDb.DeploymentStatusDeploying:
-		return deploymentv1.DeploymentPhase_DEPLOYING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING
 	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentPhase_RUNNING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
 	case genDb.DeploymentStatusSucceeded:
-		return deploymentv1.DeploymentPhase_SUCCEEDED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentPhase_FAILED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
 	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentPhase_CANCELED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
 	default:
-		return deploymentv1.DeploymentPhase_UNSPECIFIED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
 	}
 }
 

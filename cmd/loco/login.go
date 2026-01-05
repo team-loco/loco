@@ -101,7 +101,7 @@ var loginCmd = &cobra.Command{
 		httpClient := shared.NewHTTPClient()
 		oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
 		resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
-			Provider: oAuth.OAuthProvider_GITHUB,
+			Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
 		}))
 		if err != nil {
 			logRequestID(cmd.Context(), err, "failed to get oAuth details")
@@ -167,7 +167,7 @@ var loginCmd = &cobra.Command{
 		}
 
 		locoResp, err := oAuthClient.ExchangeOAuthToken(cmd.Context(), connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
-			Provider:              oAuth.OAuthProvider_GITHUB,
+			Provider:              oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
 			Token:                 finalM.tokenResp.AccessToken,
 			CreateUserIfNotExists: true,
 		}))

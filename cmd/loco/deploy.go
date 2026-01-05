@@ -204,7 +204,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 		if loadedCfg.Config.DomainConfig.Type == "custom" {
 			// Custom domain - use the full hostname as-is
 			domainInput = &domainv1.DomainInput{
-				DomainSource: domainv1.DomainType_USER_PROVIDED,
+				DomainSource: domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED,
 				Domain:       &loadedCfg.Config.DomainConfig.Hostname,
 			}
 			slog.Info("using custom domain from config", "domain", loadedCfg.Config.DomainConfig.Hostname)
@@ -261,7 +261,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			}
 
 			domainInput = &domainv1.DomainInput{
-				DomainSource:     domainv1.DomainType_PLATFORM_PROVIDED,
+				DomainSource:     domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED,
 				Subdomain:        &subdomain,
 				PlatformDomainId: &foundDomainID,
 			}
@@ -277,7 +277,7 @@ func deployCmdFunc(cmd *cobra.Command) error {
 			WorkspaceId: workspaceID,
 			Name:        loadedCfg.Config.Metadata.Name,
 			// todo: add to loco config. we need to grab app type from there.
-			Type:   resourcev1.ResourceType_SERVICE,
+			Type:   resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 			Domain: domainInput,
 			Spec:   resourceSpec,
 		})
@@ -489,7 +489,7 @@ func deployApp(ctx context.Context,
 		logf("Waiting for deployment to complete...")
 		if err := apiClient.StreamDeployment(ctx, fmt.Sprintf("%d", deploymentID), func(event *deploymentv1.WatchDeploymentResponse) error {
 			logf(fmt.Sprintf("[%s] %s", event.Status, event.Message))
-			if event.Status == deploymentv1.DeploymentPhase_FAILED && event.Message != "" {
+			if event.Status == deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED && event.Message != "" {
 				logf(fmt.Sprintf("ERROR: %s", event.Message))
 				return errors.New(event.Message)
 			}

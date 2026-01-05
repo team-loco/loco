@@ -27,22 +27,22 @@ const (
 type DomainType int32
 
 const (
-	DomainType_DOMAIN_TYPE_UNSPECIFIED DomainType = 0
-	DomainType_PLATFORM_PROVIDED       DomainType = 1
-	DomainType_USER_PROVIDED           DomainType = 2
+	DomainType_DOMAIN_TYPE_UNSPECIFIED       DomainType = 0
+	DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED DomainType = 1
+	DomainType_DOMAIN_TYPE_USER_PROVIDED     DomainType = 2
 )
 
 // Enum value maps for DomainType.
 var (
 	DomainType_name = map[int32]string{
 		0: "DOMAIN_TYPE_UNSPECIFIED",
-		1: "PLATFORM_PROVIDED",
-		2: "USER_PROVIDED",
+		1: "DOMAIN_TYPE_PLATFORM_PROVIDED",
+		2: "DOMAIN_TYPE_USER_PROVIDED",
 	}
 	DomainType_value = map[string]int32{
-		"DOMAIN_TYPE_UNSPECIFIED": 0,
-		"PLATFORM_PROVIDED":       1,
-		"USER_PROVIDED":           2,
+		"DOMAIN_TYPE_UNSPECIFIED":       0,
+		"DOMAIN_TYPE_PLATFORM_PROVIDED": 1,
+		"DOMAIN_TYPE_USER_PROVIDED":     2,
 	}
 )
 
@@ -1588,12 +1588,12 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"\x1eCheckDomainAvailabilityRequest\x12\x16\n" +
 	"\x06domain\x18\x01 \x01(\tR\x06domain\"D\n" +
 	"\x1fCheckDomainAvailabilityResponse\x12!\n" +
-	"\fis_available\x18\x01 \x01(\bR\visAvailable*S\n" +
+	"\fis_available\x18\x01 \x01(\bR\visAvailable*k\n" +
 	"\n" +
 	"DomainType\x12\x1b\n" +
-	"\x17DOMAIN_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
-	"\x11PLATFORM_PROVIDED\x10\x01\x12\x11\n" +
-	"\rUSER_PROVIDED\x10\x022\x89\n" +
+	"\x17DOMAIN_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dDOMAIN_TYPE_PLATFORM_PROVIDED\x10\x01\x12\x1d\n" +
+	"\x19DOMAIN_TYPE_USER_PROVIDED\x10\x022\x89\n" +
 	"\n" +
 	"\rDomainService\x12q\n" +
 	"\x14CreatePlatformDomain\x12+.loco.domain.v1.CreatePlatformDomainRequest\x1a,.loco.domain.v1.CreatePlatformDomainResponse\x12h\n" +

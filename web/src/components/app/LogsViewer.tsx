@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useRef, useEffect } from "react";
-import type { LogEntry } from "@/gen/resource/v1/resource_pb";
+import type { WatchLogsResponse } from "@/gen/resource/v1/resource_pb";
 import {
 	Table,
 	TableBody,
@@ -156,7 +156,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 		document.body.removeChild(element);
 	};
 
-	const columns: ColumnDef<LogEntry>[] = [
+	const columns: ColumnDef<WatchLogsResponse>[] = [
 		{
 			accessorKey: "timestamp",
 			header: ({ column }) => (

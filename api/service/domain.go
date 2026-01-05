@@ -254,7 +254,7 @@ func (s *DomainServer) CreateResourceDomain(
 	platformDomainID := pgtype.Int8{Valid: false}
 	domainSource := genDb.DomainSourceUserProvided
 
-	if r.GetDomain().GetDomainSource() == domainv1.DomainType_PLATFORM_PROVIDED {
+	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
 		if r.GetDomain().GetSubdomain() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
 		}

@@ -39,7 +39,7 @@ export function ResourceSettings() {
 	const navigate = useNavigate();
 
 	const {
-		data: resource,
+		data: resourceResponse,
 		isLoading,
 		refetch,
 	} = useQuery(
@@ -49,6 +49,7 @@ export function ResourceSettings() {
 			enabled: !!resourceId,
 		}
 	);
+	const resource = resourceResponse?.resource;
 
 	const [name, setName] = useState(resource?.name || "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);

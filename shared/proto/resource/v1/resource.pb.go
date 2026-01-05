@@ -30,33 +30,33 @@ type ResourceType int32
 
 const (
 	ResourceType_RESOURCE_TYPE_UNSPECIFIED ResourceType = 0
-	ResourceType_SERVICE                   ResourceType = 1
-	ResourceType_DATABASE                  ResourceType = 2
-	ResourceType_FUNCTION                  ResourceType = 3
-	ResourceType_CACHE                     ResourceType = 4
-	ResourceType_QUEUE                     ResourceType = 5
-	ResourceType_BLOB                      ResourceType = 6
+	ResourceType_RESOURCE_TYPE_SERVICE     ResourceType = 1
+	ResourceType_RESOURCE_TYPE_DATABASE    ResourceType = 2
+	ResourceType_RESOURCE_TYPE_FUNCTION    ResourceType = 3
+	ResourceType_RESOURCE_TYPE_CACHE       ResourceType = 4
+	ResourceType_RESOURCE_TYPE_QUEUE       ResourceType = 5
+	ResourceType_RESOURCE_TYPE_BLOB        ResourceType = 6
 )
 
 // Enum value maps for ResourceType.
 var (
 	ResourceType_name = map[int32]string{
 		0: "RESOURCE_TYPE_UNSPECIFIED",
-		1: "SERVICE",
-		2: "DATABASE",
-		3: "FUNCTION",
-		4: "CACHE",
-		5: "QUEUE",
-		6: "BLOB",
+		1: "RESOURCE_TYPE_SERVICE",
+		2: "RESOURCE_TYPE_DATABASE",
+		3: "RESOURCE_TYPE_FUNCTION",
+		4: "RESOURCE_TYPE_CACHE",
+		5: "RESOURCE_TYPE_QUEUE",
+		6: "RESOURCE_TYPE_BLOB",
 	}
 	ResourceType_value = map[string]int32{
 		"RESOURCE_TYPE_UNSPECIFIED": 0,
-		"SERVICE":                   1,
-		"DATABASE":                  2,
-		"FUNCTION":                  3,
-		"CACHE":                     4,
-		"QUEUE":                     5,
-		"BLOB":                      6,
+		"RESOURCE_TYPE_SERVICE":     1,
+		"RESOURCE_TYPE_DATABASE":    2,
+		"RESOURCE_TYPE_FUNCTION":    3,
+		"RESOURCE_TYPE_CACHE":       4,
+		"RESOURCE_TYPE_QUEUE":       5,
+		"RESOURCE_TYPE_BLOB":        6,
 	}
 )
 
@@ -92,30 +92,30 @@ type ResourceStatus int32
 
 const (
 	ResourceStatus_RESOURCE_STATUS_UNSPECIFIED ResourceStatus = 0
-	ResourceStatus_HEALTHY                     ResourceStatus = 1
-	ResourceStatus_DEPLOYING                   ResourceStatus = 2
-	ResourceStatus_DEGRADED                    ResourceStatus = 3
-	ResourceStatus_UNAVAILABLE                 ResourceStatus = 4
-	ResourceStatus_SUSPENDED                   ResourceStatus = 5
+	ResourceStatus_RESOURCE_STATUS_HEALTHY     ResourceStatus = 1
+	ResourceStatus_RESOURCE_STATUS_DEPLOYING   ResourceStatus = 2
+	ResourceStatus_RESOURCE_STATUS_DEGRADED    ResourceStatus = 3
+	ResourceStatus_RESOURCE_STATUS_UNAVAILABLE ResourceStatus = 4
+	ResourceStatus_RESOURCE_STATUS_SUSPENDED   ResourceStatus = 5
 )
 
 // Enum value maps for ResourceStatus.
 var (
 	ResourceStatus_name = map[int32]string{
 		0: "RESOURCE_STATUS_UNSPECIFIED",
-		1: "HEALTHY",
-		2: "DEPLOYING",
-		3: "DEGRADED",
-		4: "UNAVAILABLE",
-		5: "SUSPENDED",
+		1: "RESOURCE_STATUS_HEALTHY",
+		2: "RESOURCE_STATUS_DEPLOYING",
+		3: "RESOURCE_STATUS_DEGRADED",
+		4: "RESOURCE_STATUS_UNAVAILABLE",
+		5: "RESOURCE_STATUS_SUSPENDED",
 	}
 	ResourceStatus_value = map[string]int32{
 		"RESOURCE_STATUS_UNSPECIFIED": 0,
-		"HEALTHY":                     1,
-		"DEPLOYING":                   2,
-		"DEGRADED":                    3,
-		"UNAVAILABLE":                 4,
-		"SUSPENDED":                   5,
+		"RESOURCE_STATUS_HEALTHY":     1,
+		"RESOURCE_STATUS_DEPLOYING":   2,
+		"RESOURCE_STATUS_DEGRADED":    3,
+		"RESOURCE_STATUS_UNAVAILABLE": 4,
+		"RESOURCE_STATUS_SUSPENDED":   5,
 	}
 )
 
@@ -150,34 +150,34 @@ func (ResourceStatus) EnumDescriptor() ([]byte, []int) {
 type RegionIntentStatus int32
 
 const (
-	RegionIntentStatus_REGION_INTENT_STATUS_UNSPECIFIED RegionIntentStatus = 0
-	RegionIntentStatus_REGION_INTENT_DESIRED            RegionIntentStatus = 1
-	RegionIntentStatus_REGION_INTENT_PROVISIONING       RegionIntentStatus = 2
-	RegionIntentStatus_REGION_INTENT_ACTIVE             RegionIntentStatus = 3
-	RegionIntentStatus_REGION_INTENT_DEGRADED           RegionIntentStatus = 4
-	RegionIntentStatus_REGION_INTENT_REMOVING           RegionIntentStatus = 5
-	RegionIntentStatus_REGION_INTENT_FAILED             RegionIntentStatus = 6
+	RegionIntentStatus_REGION_INTENT_STATUS_UNSPECIFIED  RegionIntentStatus = 0
+	RegionIntentStatus_REGION_INTENT_STATUS_DESIRED      RegionIntentStatus = 1
+	RegionIntentStatus_REGION_INTENT_STATUS_PROVISIONING RegionIntentStatus = 2
+	RegionIntentStatus_REGION_INTENT_STATUS_ACTIVE       RegionIntentStatus = 3
+	RegionIntentStatus_REGION_INTENT_STATUS_DEGRADED     RegionIntentStatus = 4
+	RegionIntentStatus_REGION_INTENT_STATUS_REMOVING     RegionIntentStatus = 5
+	RegionIntentStatus_REGION_INTENT_STATUS_FAILED       RegionIntentStatus = 6
 )
 
 // Enum value maps for RegionIntentStatus.
 var (
 	RegionIntentStatus_name = map[int32]string{
 		0: "REGION_INTENT_STATUS_UNSPECIFIED",
-		1: "REGION_INTENT_DESIRED",
-		2: "REGION_INTENT_PROVISIONING",
-		3: "REGION_INTENT_ACTIVE",
-		4: "REGION_INTENT_DEGRADED",
-		5: "REGION_INTENT_REMOVING",
-		6: "REGION_INTENT_FAILED",
+		1: "REGION_INTENT_STATUS_DESIRED",
+		2: "REGION_INTENT_STATUS_PROVISIONING",
+		3: "REGION_INTENT_STATUS_ACTIVE",
+		4: "REGION_INTENT_STATUS_DEGRADED",
+		5: "REGION_INTENT_STATUS_REMOVING",
+		6: "REGION_INTENT_STATUS_FAILED",
 	}
 	RegionIntentStatus_value = map[string]int32{
-		"REGION_INTENT_STATUS_UNSPECIFIED": 0,
-		"REGION_INTENT_DESIRED":            1,
-		"REGION_INTENT_PROVISIONING":       2,
-		"REGION_INTENT_ACTIVE":             3,
-		"REGION_INTENT_DEGRADED":           4,
-		"REGION_INTENT_REMOVING":           5,
-		"REGION_INTENT_FAILED":             6,
+		"REGION_INTENT_STATUS_UNSPECIFIED":  0,
+		"REGION_INTENT_STATUS_DESIRED":      1,
+		"REGION_INTENT_STATUS_PROVISIONING": 2,
+		"REGION_INTENT_STATUS_ACTIVE":       3,
+		"REGION_INTENT_STATUS_DEGRADED":     4,
+		"REGION_INTENT_STATUS_REMOVING":     5,
+		"REGION_INTENT_STATUS_FAILED":       6,
 	}
 )
 
@@ -2835,30 +2835,30 @@ const file_resource_v1_resource_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\t\n" +
 	"\a_region\"\x1b\n" +
-	"\x19UpdateResourceEnvResponse*v\n" +
+	"\x19UpdateResourceEnvResponse*\xca\x01\n" +
 	"\fResourceType\x12\x1d\n" +
-	"\x19RESOURCE_TYPE_UNSPECIFIED\x10\x00\x12\v\n" +
-	"\aSERVICE\x10\x01\x12\f\n" +
-	"\bDATABASE\x10\x02\x12\f\n" +
-	"\bFUNCTION\x10\x03\x12\t\n" +
-	"\x05CACHE\x10\x04\x12\t\n" +
-	"\x05QUEUE\x10\x05\x12\b\n" +
-	"\x04BLOB\x10\x06*{\n" +
+	"\x19RESOURCE_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15RESOURCE_TYPE_SERVICE\x10\x01\x12\x1a\n" +
+	"\x16RESOURCE_TYPE_DATABASE\x10\x02\x12\x1a\n" +
+	"\x16RESOURCE_TYPE_FUNCTION\x10\x03\x12\x17\n" +
+	"\x13RESOURCE_TYPE_CACHE\x10\x04\x12\x17\n" +
+	"\x13RESOURCE_TYPE_QUEUE\x10\x05\x12\x16\n" +
+	"\x12RESOURCE_TYPE_BLOB\x10\x06*\xcb\x01\n" +
 	"\x0eResourceStatus\x12\x1f\n" +
-	"\x1bRESOURCE_STATUS_UNSPECIFIED\x10\x00\x12\v\n" +
-	"\aHEALTHY\x10\x01\x12\r\n" +
-	"\tDEPLOYING\x10\x02\x12\f\n" +
-	"\bDEGRADED\x10\x03\x12\x0f\n" +
-	"\vUNAVAILABLE\x10\x04\x12\r\n" +
-	"\tSUSPENDED\x10\x05*\xe1\x01\n" +
+	"\x1bRESOURCE_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17RESOURCE_STATUS_HEALTHY\x10\x01\x12\x1d\n" +
+	"\x19RESOURCE_STATUS_DEPLOYING\x10\x02\x12\x1c\n" +
+	"\x18RESOURCE_STATUS_DEGRADED\x10\x03\x12\x1f\n" +
+	"\x1bRESOURCE_STATUS_UNAVAILABLE\x10\x04\x12\x1d\n" +
+	"\x19RESOURCE_STATUS_SUSPENDED\x10\x05*\x8b\x02\n" +
 	"\x12RegionIntentStatus\x12$\n" +
-	" REGION_INTENT_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15REGION_INTENT_DESIRED\x10\x01\x12\x1e\n" +
-	"\x1aREGION_INTENT_PROVISIONING\x10\x02\x12\x18\n" +
-	"\x14REGION_INTENT_ACTIVE\x10\x03\x12\x1a\n" +
-	"\x16REGION_INTENT_DEGRADED\x10\x04\x12\x1a\n" +
-	"\x16REGION_INTENT_REMOVING\x10\x05\x12\x18\n" +
-	"\x14REGION_INTENT_FAILED\x10\x062\xfc\b\n" +
+	" REGION_INTENT_STATUS_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cREGION_INTENT_STATUS_DESIRED\x10\x01\x12%\n" +
+	"!REGION_INTENT_STATUS_PROVISIONING\x10\x02\x12\x1f\n" +
+	"\x1bREGION_INTENT_STATUS_ACTIVE\x10\x03\x12!\n" +
+	"\x1dREGION_INTENT_STATUS_DEGRADED\x10\x04\x12!\n" +
+	"\x1dREGION_INTENT_STATUS_REMOVING\x10\x05\x12\x1f\n" +
+	"\x1bREGION_INTENT_STATUS_FAILED\x10\x062\xfc\b\n" +
 	"\x0fResourceService\x12c\n" +
 	"\x0eCreateResource\x12'.loco.resource.v1.CreateResourceRequest\x1a(.loco.resource.v1.CreateResourceResponse\x12Z\n" +
 	"\vGetResource\x12$.loco.resource.v1.GetResourceRequest\x1a%.loco.resource.v1.GetResourceResponse\x12c\n" +

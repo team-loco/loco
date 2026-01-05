@@ -10,8 +10,8 @@ option go_package = "github.com/team-loco/loco/shared/proto/domain/v1;domainv1";
 // DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {
   DOMAIN_TYPE_UNSPECIFIED = 0;
-  PLATFORM_PROVIDED = 1;
-  USER_PROVIDED     = 2;
+  DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
+  DOMAIN_TYPE_USER_PROVIDED     = 2;
 }
 
 // --- Messages ---

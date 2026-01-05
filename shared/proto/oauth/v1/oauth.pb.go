@@ -25,19 +25,19 @@ const (
 type OAuthProvider int32
 
 const (
-	OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED OAuthProvider = 0
-	OAuthProvider_GITHUB                     OAuthProvider = 1
+	OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED OAuthProvider = 0
+	OAuthProvider_O_AUTH_PROVIDER_GITHUB      OAuthProvider = 1
 )
 
 // Enum value maps for OAuthProvider.
 var (
 	OAuthProvider_name = map[int32]string{
-		0: "OAUTH_PROVIDER_UNSPECIFIED",
-		1: "GITHUB",
+		0: "O_AUTH_PROVIDER_UNSPECIFIED",
+		1: "O_AUTH_PROVIDER_GITHUB",
 	}
 	OAuthProvider_value = map[string]int32{
-		"OAUTH_PROVIDER_UNSPECIFIED": 0,
-		"GITHUB":                     1,
+		"O_AUTH_PROVIDER_UNSPECIFIED": 0,
+		"O_AUTH_PROVIDER_GITHUB":      1,
 	}
 )
 
@@ -110,7 +110,7 @@ func (x *GetOAuthDetailsRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
 // GetOAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
@@ -210,7 +210,7 @@ func (x *ExchangeOAuthTokenRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
 func (x *ExchangeOAuthTokenRequest) GetToken() string {
@@ -340,7 +340,7 @@ func (x *GetOAuthAuthorizationURLRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
 func (x *GetOAuthAuthorizationURLRequest) GetState() string {
@@ -455,7 +455,7 @@ func (x *ExchangeOAuthCodeRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
 func (x *ExchangeOAuthCodeRequest) GetCode() string {
@@ -577,11 +577,10 @@ const file_oauth_v1_oauth_proto_rawDesc = "" +
 	"\n" +
 	"expires_in\x18\x01 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name*;\n" +
-	"\rOAuthProvider\x12\x1e\n" +
-	"\x1aOAUTH_PROVIDER_UNSPECIFIED\x10\x00\x12\n" +
-	"\n" +
-	"\x06GITHUB\x10\x012\xc6\x03\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name*L\n" +
+	"\rOAuthProvider\x12\x1f\n" +
+	"\x1bO_AUTH_PROVIDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16O_AUTH_PROVIDER_GITHUB\x10\x012\xc6\x03\n" +
 	"\fOAuthService\x12b\n" +
 	"\x0fGetOAuthDetails\x12%.loco.oauth.v1.GetOAuthDetailsRequest\x1a&.loco.oauth.v1.GetOAuthDetailsResponse\"\x00\x12i\n" +
 	"\x12ExchangeOAuthToken\x12(.loco.oauth.v1.ExchangeOAuthTokenRequest\x1a).loco.oauth.v1.ExchangeOAuthTokenResponse\x12}\n" +

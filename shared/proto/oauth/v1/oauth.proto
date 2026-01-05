@@ -6,8 +6,8 @@ option go_package = "github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1";
 
 // OAuthProvider represents supported OAuth identity providers.
 enum OAuthProvider {
-  OAUTH_PROVIDER_UNSPECIFIED = 0;
-  GITHUB                     = 1;
+  O_AUTH_PROVIDER_UNSPECIFIED = 0;
+  O_AUTH_PROVIDER_GITHUB      = 1;
 }
 
 // GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
