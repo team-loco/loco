@@ -20,7 +20,7 @@ export function useResourceDetails(resourceId: string) {
 			),
 			createQueryOptions(
 				listDeployments,
-				{ limit: 10, resourceId: BigInt(resourceId) },
+				{ pageSize: 10, resourceId: BigInt(resourceId) },
 				{ transport }
 			),
 		],

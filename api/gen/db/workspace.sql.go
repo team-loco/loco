@@ -178,15 +178,19 @@ SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
 FROM workspace_members wm
 JOIN users u ON wm.user_id = u.id
 WHERE wm.workspace_id = $1
-  AND ($3::bigint IS NULL OR wm.user_id > $3::bigint)
-ORDER BY wm.user_id ASC
+  AND ($3::text IS NULL
+       OR (wm.created_at, wm.user_id) < (
+         (SELECT created_at FROM workspace_members WHERE workspace_id = $1 AND user_id = $3::bigint),
+         $3::bigint
+       ))
+ORDER BY wm.created_at DESC, wm.user_id DESC
 LIMIT $2
 `
 
 type ListWorkspaceMembersWithUserDetailsParams struct {
 	WorkspaceID int64       `json:"workspaceId"`
 	Limit       int32       `json:"limit"`
-	AfterCursor pgtype.Int8 `json:"afterCursor"`
+	PageToken   pgtype.Text `json:"pageToken"`
 }
 
 type ListWorkspaceMembersWithUserDetailsRow struct {
@@ -200,7 +204,7 @@ type ListWorkspaceMembersWithUserDetailsRow struct {
 }
 
 func (q *Queries) ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error) {
-	rows, err := q.db.Query(ctx, listWorkspaceMembersWithUserDetails, arg.WorkspaceID, arg.Limit, arg.AfterCursor)
+	rows, err := q.db.Query(ctx, listWorkspaceMembersWithUserDetails, arg.WorkspaceID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}
@@ -232,11 +236,23 @@ SELECT DISTINCT w.id, w.org_id, w.name, w.description, w.created_by, w.created_a
 FROM workspaces w
 JOIN workspace_members wm ON wm.workspace_id = w.id
 WHERE wm.user_id = $1
-ORDER BY w.created_at DESC
+  AND ($3::text IS NULL
+       OR (w.created_at, w.id) < (
+         (SELECT created_at FROM workspaces WHERE id = $3::bigint),
+         $3::bigint
+       ))
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2
 `
 
-func (q *Queries) ListWorkspacesForUser(ctx context.Context, userID int64) ([]Workspace, error) {
-	rows, err := q.db.Query(ctx, listWorkspacesForUser, userID)
+type ListWorkspacesForUserParams struct {
+	UserID    int64       `json:"userId"`
+	Limit     int32       `json:"limit"`
+	PageToken pgtype.Text `json:"pageToken"`
+}
+
+func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error) {
+	rows, err := q.db.Query(ctx, listWorkspacesForUser, arg.UserID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}
@@ -264,13 +280,25 @@ func (q *Queries) ListWorkspacesForUser(ctx context.Context, userID int64) ([]Wo
 }
 
 const listWorkspacesInOrg = `-- name: ListWorkspacesInOrg :many
-SELECT id, org_id, name, description, created_by, created_at, updated_at FROM workspaces
-WHERE org_id = $1
-ORDER BY created_at DESC
+SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at FROM workspaces w
+WHERE w.org_id = $1
+  AND ($3::text IS NULL
+       OR (w.created_at, w.id) < (
+         (SELECT created_at FROM workspaces WHERE id = $3::bigint),
+         $3::bigint
+       ))
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2
 `
 
-func (q *Queries) ListWorkspacesInOrg(ctx context.Context, orgID int64) ([]Workspace, error) {
-	rows, err := q.db.Query(ctx, listWorkspacesInOrg, orgID)
+type ListWorkspacesInOrgParams struct {
+	OrgID     int64       `json:"orgId"`
+	Limit     int32       `json:"limit"`
+	PageToken pgtype.Text `json:"pageToken"`
+}
+
+func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error) {
+	rows, err := q.db.Query(ctx, listWorkspacesInOrg, arg.OrgID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}

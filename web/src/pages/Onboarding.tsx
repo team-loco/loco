@@ -9,19 +9,20 @@ import { useNavigate } from "react-router";
 export function Onboarding() {
 	const navigate = useNavigate();
 	const hasStarted = useRef(false);
-	const { data: user } = useQuery(whoAmI, {});
+	const { data: whoAmIResponse } = useQuery(whoAmI, {});
+	const user = whoAmIResponse?.user;
 	const { autoCreate, step, error, shouldAutoCreate } =
 		useAutoCreateOrgWorkspace();
 
 	useEffect(() => {
-		if (!shouldAutoCreate || hasStarted.current) {
+		if (!shouldAutoCreate || hasStarted.current || !user) {
 			return;
 		}
 
 		hasStarted.current = true;
 
 		// Start auto-creation
-		autoCreate(user!.email)
+		autoCreate(user.email)
 			.then(() => {
 				// Wait a moment for smooth UX, then redirect
 				setTimeout(() => {

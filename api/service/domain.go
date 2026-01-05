@@ -14,7 +14,6 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
 	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -71,7 +70,7 @@ func (s *DomainServer) CreatePlatformDomain(
 func (s *DomainServer) GetPlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.GetPlatformDomainRequest],
-) (*connect.Response[domainv1.PlatformDomain], error) {
+) (*connect.Response[domainv1.GetPlatformDomainResponse], error) {
 	r := req.Msg
 
 	var result genDb.PlatformDomain
@@ -91,12 +90,14 @@ func (s *DomainServer) GetPlatformDomain(
 		return nil, connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
 	}
 
-	return connect.NewResponse(&domainv1.PlatformDomain{
-		Id:        result.ID,
-		Domain:    result.Domain,
-		IsActive:  result.IsActive,
-		CreatedAt: timestamppb.New(result.CreatedAt.Time),
-		UpdatedAt: timestamppb.New(result.CreatedAt.Time),
+	return connect.NewResponse(&domainv1.GetPlatformDomainResponse{
+		PlatformDomain: &domainv1.PlatformDomain{
+			Id:        result.ID,
+			Domain:    result.Domain,
+			IsActive:  result.IsActive,
+			CreatedAt: timestamppb.New(result.CreatedAt.Time),
+			UpdatedAt: timestamppb.New(result.CreatedAt.Time),
+		},
 	}), nil
 }
 
@@ -136,7 +137,6 @@ func (s *DomainServer) ListPlatformDomains(
 
 	return connect.NewResponse(&domainv1.ListPlatformDomainsResponse{
 		PlatformDomains: domains,
-		TotalCount:      int64(len(domains)),
 	}), nil
 }
 
@@ -177,7 +177,7 @@ func (s *DomainServer) UpdatePlatformDomain(
 func (s *DomainServer) DeletePlatformDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.DeletePlatformDomainRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[domainv1.DeletePlatformDomainResponse], error) {
 	r := req.Msg
 
 	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -198,7 +198,7 @@ func (s *DomainServer) DeletePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete platform domain: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&domainv1.DeletePlatformDomainResponse{}), nil
 }
 
 // ListLocoOwnedDomains lists all loco-owned (subdomain) domains (admin only)
@@ -254,7 +254,7 @@ func (s *DomainServer) CreateResourceDomain(
 	platformDomainID := pgtype.Int8{Valid: false}
 	domainSource := genDb.DomainSourceUserProvided
 
-	if r.GetDomain().GetDomainSource() == domainv1.DomainType_PLATFORM_PROVIDED {
+	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
 		if r.GetDomain().GetSubdomain() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
 		}
@@ -390,7 +390,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 func (s *DomainServer) DeleteResourceDomain(
 	ctx context.Context,
 	req *connect.Request[domainv1.DeleteResourceDomainRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[domainv1.DeleteResourceDomainResponse], error) {
 	r := req.Msg
 
 	// get the domain to check its resource and whether it's primary
@@ -423,7 +423,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&domainv1.DeleteResourceDomainResponse{}), nil
 }
 
 // CheckDomainAvailability checks if a domain is available

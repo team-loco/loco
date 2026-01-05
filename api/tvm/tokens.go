@@ -3,7 +3,6 @@ package tvm
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/jackc/pgx/v5"
@@ -12,7 +11,6 @@ import (
 
 func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.Entity, []queries.EntityScope, error) {
 	tokenData, err := tvm.queries.GetToken(ctx, token)
-	fmt.Println("what is token", token)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		if errors.Is(err, pgx.ErrNoRows) {

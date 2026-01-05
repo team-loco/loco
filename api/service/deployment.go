@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -24,7 +25,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
 	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,19 +42,19 @@ var imagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
 	case genDb.DeploymentStatusPending:
-		return deploymentv1.DeploymentPhase_PENDING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
 	case genDb.DeploymentStatusDeploying:
-		return deploymentv1.DeploymentPhase_DEPLOYING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING
 	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentPhase_RUNNING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
 	case genDb.DeploymentStatusSucceeded:
-		return deploymentv1.DeploymentPhase_SUCCEEDED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentPhase_FAILED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
 	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentPhase_CANCELED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
 	default:
-		return deploymentv1.DeploymentPhase_UNSPECIFIED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
 	}
 }
 
@@ -272,7 +272,7 @@ func (s *DeploymentServer) CreateDeployment(
 func (s *DeploymentServer) GetDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.GetDeploymentRequest],
-) (*connect.Response[deploymentv1.Deployment], error) {
+) (*connect.Response[deploymentv1.GetDeploymentResponse], error) {
 	r := req.Msg
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
@@ -293,7 +293,9 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	return connect.NewResponse(deploymentToProto(deploymentData, string(resource.Type))), nil
+	return connect.NewResponse(&deploymentv1.GetDeploymentResponse{
+		Deployment: deploymentToProto(deploymentData, string(resource.Type)),
+	}), nil
 }
 
 // ListDeployments lists deployments for a resource
@@ -314,22 +316,24 @@ func (s *DeploymentServer) ListDeployments(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	limit := r.GetLimit()
-	if limit == 0 {
-		limit = 50
-	}
-	offset := r.GetOffset()
+	pageSize := normalizePageSize(r.GetPageSize())
 
-	total, err := s.queries.CountDeploymentsForResource(ctx, r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
 	}
 
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
 		ResourceID: r.GetResourceId(),
-		Limit:      limit,
-		Offset:     offset,
+		Limit:      pageSize,
+		PageToken:  pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -341,9 +345,14 @@ func (s *DeploymentServer) ListDeployments(
 		deployments = append(deployments, deploymentToProto(d, string(resource.Type)))
 	}
 
+	var nextPageToken string
+	if len(deploymentList) == int(pageSize) {
+		nextPageToken = encodeCursor(deploymentList[len(deploymentList)-1].ID)
+	}
+
 	return connect.NewResponse(&deploymentv1.ListDeploymentsResponse{
-		Deployments: deployments,
-		Total:       total,
+		Deployments:   deployments,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 
@@ -351,7 +360,7 @@ func (s *DeploymentServer) ListDeployments(
 func (s *DeploymentServer) DeleteDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.DeleteDeploymentRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
 	r := req.Msg
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
@@ -386,14 +395,14 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&deploymentv1.DeleteDeploymentResponse{}), nil
 }
 
 // WatchDeployment streams deployment status updates
 func (s *DeploymentServer) WatchDeployment(
 	ctx context.Context,
 	req *connect.Request[deploymentv1.WatchDeploymentRequest],
-	stream *connect.ServerStream[deploymentv1.DeploymentEvent],
+	stream *connect.ServerStream[deploymentv1.WatchDeploymentResponse],
 ) error {
 	r := req.Msg
 
@@ -440,7 +449,7 @@ func (s *DeploymentServer) WatchDeployment(
 
 func (s *DeploymentServer) sendDeploymentEvent(
 	ctx context.Context,
-	stream *connect.ServerStream[deploymentv1.DeploymentEvent],
+	stream *connect.ServerStream[deploymentv1.WatchDeploymentResponse],
 	deploymentID string,
 	lastStatus *string,
 ) error {
@@ -461,7 +470,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	message := deployment.Message
 
 	if statusStr != *lastStatus {
-		event := &deploymentv1.DeploymentEvent{
+		event := &deploymentv1.WatchDeploymentResponse{
 			DeploymentId: parsedDeploymentID,
 			Status:       statusPhase,
 			Message:      message,

@@ -9,13 +9,15 @@ RETURNING id;
 SELECT * FROM deployments WHERE id = $1;
 
 -- name: ListDeploymentsForResource :many
-SELECT * FROM deployments
-WHERE resource_id = $1
-ORDER BY created_at DESC
-LIMIT $2 OFFSET $3;
-
--- name: CountDeploymentsForResource :one
-SELECT COUNT(*) FROM deployments WHERE resource_id = $1;
+SELECT * FROM deployments d
+WHERE d.resource_id = $1
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (d.created_at, d.id) < (
+         (SELECT created_at FROM deployments WHERE id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY d.created_at DESC, d.id DESC
+LIMIT $2;
 
 -- name: MarkPreviousDeploymentsNotActive :exec
 UPDATE deployments

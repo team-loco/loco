@@ -25,19 +25,19 @@ const (
 type OAuthProvider int32
 
 const (
-	OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED OAuthProvider = 0
-	OAuthProvider_GITHUB                     OAuthProvider = 1
+	OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED OAuthProvider = 0
+	OAuthProvider_O_AUTH_PROVIDER_GITHUB      OAuthProvider = 1
 )
 
 // Enum value maps for OAuthProvider.
 var (
 	OAuthProvider_name = map[int32]string{
-		0: "OAUTH_PROVIDER_UNSPECIFIED",
-		1: "GITHUB",
+		0: "O_AUTH_PROVIDER_UNSPECIFIED",
+		1: "O_AUTH_PROVIDER_GITHUB",
 	}
 	OAuthProvider_value = map[string]int32{
-		"OAUTH_PROVIDER_UNSPECIFIED": 0,
-		"GITHUB":                     1,
+		"O_AUTH_PROVIDER_UNSPECIFIED": 0,
+		"O_AUTH_PROVIDER_GITHUB":      1,
 	}
 )
 
@@ -68,28 +68,28 @@ func (OAuthProvider) EnumDescriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{0}
 }
 
-// OAuthDetailsRequest is the request to get OAuth configuration for a provider.
-type OAuthDetailsRequest struct {
+// GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
+type GetOAuthDetailsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
+	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=oauth.v1.OAuthProvider" json:"provider,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *OAuthDetailsRequest) Reset() {
-	*x = OAuthDetailsRequest{}
+func (x *GetOAuthDetailsRequest) Reset() {
+	*x = GetOAuthDetailsRequest{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OAuthDetailsRequest) String() string {
+func (x *GetOAuthDetailsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OAuthDetailsRequest) ProtoMessage() {}
+func (*GetOAuthDetailsRequest) ProtoMessage() {}
 
-func (x *OAuthDetailsRequest) ProtoReflect() protoreflect.Message {
+func (x *GetOAuthDetailsRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -101,20 +101,20 @@ func (x *OAuthDetailsRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OAuthDetailsRequest.ProtoReflect.Descriptor instead.
-func (*OAuthDetailsRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetOAuthDetailsRequest.ProtoReflect.Descriptor instead.
+func (*GetOAuthDetailsRequest) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *OAuthDetailsRequest) GetProvider() OAuthProvider {
+func (x *GetOAuthDetailsRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
-// OAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
-type OAuthDetailsResponse struct {
+// GetOAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
+type GetOAuthDetailsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	TokenTtl      float64                `protobuf:"fixed64,2,opt,name=token_ttl,json=tokenTtl,proto3" json:"token_ttl,omitempty"`
@@ -122,20 +122,20 @@ type OAuthDetailsResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *OAuthDetailsResponse) Reset() {
-	*x = OAuthDetailsResponse{}
+func (x *GetOAuthDetailsResponse) Reset() {
+	*x = GetOAuthDetailsResponse{}
 	mi := &file_oauth_v1_oauth_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OAuthDetailsResponse) String() string {
+func (x *GetOAuthDetailsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OAuthDetailsResponse) ProtoMessage() {}
+func (*GetOAuthDetailsResponse) ProtoMessage() {}
 
-func (x *OAuthDetailsResponse) ProtoReflect() protoreflect.Message {
+func (x *GetOAuthDetailsResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_oauth_v1_oauth_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -147,19 +147,19 @@ func (x *OAuthDetailsResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OAuthDetailsResponse.ProtoReflect.Descriptor instead.
-func (*OAuthDetailsResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetOAuthDetailsResponse.ProtoReflect.Descriptor instead.
+func (*GetOAuthDetailsResponse) Descriptor() ([]byte, []int) {
 	return file_oauth_v1_oauth_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *OAuthDetailsResponse) GetClientId() string {
+func (x *GetOAuthDetailsResponse) GetClientId() string {
 	if x != nil {
 		return x.ClientId
 	}
 	return ""
 }
 
-func (x *OAuthDetailsResponse) GetTokenTtl() float64 {
+func (x *GetOAuthDetailsResponse) GetTokenTtl() float64 {
 	if x != nil {
 		return x.TokenTtl
 	}
@@ -169,7 +169,7 @@ func (x *OAuthDetailsResponse) GetTokenTtl() float64 {
 // ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
 type ExchangeOAuthTokenRequest struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Provider              OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
+	Provider              OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=oauth.v1.OAuthProvider" json:"provider,omitempty"`
 	Token                 string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
 	CreateUserIfNotExists bool                   `protobuf:"varint,3,opt,name=create_user_if_not_exists,json=createUserIfNotExists,proto3" json:"create_user_if_not_exists,omitempty"`
 	unknownFields         protoimpl.UnknownFields
@@ -210,7 +210,7 @@ func (x *ExchangeOAuthTokenRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
 func (x *ExchangeOAuthTokenRequest) GetToken() string {
@@ -299,7 +299,7 @@ func (x *ExchangeOAuthTokenResponse) GetName() string {
 // GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
 type GetOAuthAuthorizationURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
+	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=oauth.v1.OAuthProvider" json:"provider,omitempty"`
 	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	RedirectUri   string                 `protobuf:"bytes,3,opt,name=redirect_uri,json=redirectUri,proto3" json:"redirect_uri,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -340,7 +340,7 @@ func (x *GetOAuthAuthorizationURLRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
 func (x *GetOAuthAuthorizationURLRequest) GetState() string {
@@ -413,7 +413,7 @@ func (x *GetOAuthAuthorizationURLResponse) GetState() string {
 // ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
 type ExchangeOAuthCodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=loco.oauth.v1.OAuthProvider" json:"provider,omitempty"`
+	Provider      OAuthProvider          `protobuf:"varint,1,opt,name=provider,proto3,enum=oauth.v1.OAuthProvider" json:"provider,omitempty"`
 	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
 	State         string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
 	RedirectUri   string                 `protobuf:"bytes,4,opt,name=redirect_uri,json=redirectUri,proto3" json:"redirect_uri,omitempty"`
@@ -455,7 +455,7 @@ func (x *ExchangeOAuthCodeRequest) GetProvider() OAuthProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return OAuthProvider_OAUTH_PROVIDER_UNSPECIFIED
+	return OAuthProvider_O_AUTH_PROVIDER_UNSPECIFIED
 }
 
 func (x *ExchangeOAuthCodeRequest) GetCode() string {
@@ -544,14 +544,14 @@ var File_oauth_v1_oauth_proto protoreflect.FileDescriptor
 
 const file_oauth_v1_oauth_proto_rawDesc = "" +
 	"\n" +
-	"\x14oauth/v1/oauth.proto\x12\rloco.oauth.v1\"O\n" +
-	"\x13OAuthDetailsRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\"P\n" +
-	"\x14OAuthDetailsResponse\x12\x1b\n" +
+	"\x14oauth/v1/oauth.proto\x12\boauth.v1\"M\n" +
+	"\x16GetOAuthDetailsRequest\x123\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.oauth.v1.OAuthProviderR\bprovider\"S\n" +
+	"\x17GetOAuthDetailsResponse\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1b\n" +
-	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\xa5\x01\n" +
-	"\x19ExchangeOAuthTokenRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
+	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\xa0\x01\n" +
+	"\x19ExchangeOAuthTokenRequest\x123\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x128\n" +
 	"\x19create_user_if_not_exists\x18\x03 \x01(\bR\x15createUserIfNotExists\"\x87\x01\n" +
 	"\x1aExchangeOAuthTokenResponse\x12\x1d\n" +
@@ -560,16 +560,16 @@ const file_oauth_v1_oauth_proto_rawDesc = "" +
 	"\n" +
 	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04name\x18\x04 \x01(\tR\x04name\"\x94\x01\n" +
-	"\x1fGetOAuthAuthorizationURLRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"\x8f\x01\n" +
+	"\x1fGetOAuthAuthorizationURLRequest\x123\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12!\n" +
 	"\fredirect_uri\x18\x03 \x01(\tR\vredirectUri\"e\n" +
 	" GetOAuthAuthorizationURLResponse\x12+\n" +
 	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\"\xa1\x01\n" +
-	"\x18ExchangeOAuthCodeRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x12\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"\x9c\x01\n" +
+	"\x18ExchangeOAuthCodeRequest\x123\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.oauth.v1.OAuthProviderR\bprovider\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x14\n" +
 	"\x05state\x18\x03 \x01(\tR\x05state\x12!\n" +
 	"\fredirect_uri\x18\x04 \x01(\tR\vredirectUri\"g\n" +
@@ -577,16 +577,15 @@ const file_oauth_v1_oauth_proto_rawDesc = "" +
 	"\n" +
 	"expires_in\x18\x01 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name*;\n" +
-	"\rOAuthProvider\x12\x1e\n" +
-	"\x1aOAUTH_PROVIDER_UNSPECIFIED\x10\x00\x12\n" +
-	"\n" +
-	"\x06GITHUB\x10\x012\xc0\x03\n" +
-	"\fOAuthService\x12\\\n" +
-	"\x0fGetOAuthDetails\x12\".loco.oauth.v1.OAuthDetailsRequest\x1a#.loco.oauth.v1.OAuthDetailsResponse\"\x00\x12i\n" +
-	"\x12ExchangeOAuthToken\x12(.loco.oauth.v1.ExchangeOAuthTokenRequest\x1a).loco.oauth.v1.ExchangeOAuthTokenResponse\x12}\n" +
-	"\x18GetOAuthAuthorizationURL\x12..loco.oauth.v1.GetOAuthAuthorizationURLRequest\x1a/.loco.oauth.v1.GetOAuthAuthorizationURLResponse\"\x00\x12h\n" +
-	"\x11ExchangeOAuthCode\x12'.loco.oauth.v1.ExchangeOAuthCodeRequest\x1a(.loco.oauth.v1.ExchangeOAuthCodeResponse\"\x00B9Z7github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1b\x06proto3"
+	"\x04name\x18\x03 \x01(\tR\x04name*L\n" +
+	"\rOAuthProvider\x12\x1f\n" +
+	"\x1bO_AUTH_PROVIDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16O_AUTH_PROVIDER_GITHUB\x10\x012\x9e\x03\n" +
+	"\fOAuthService\x12X\n" +
+	"\x0fGetOAuthDetails\x12 .oauth.v1.GetOAuthDetailsRequest\x1a!.oauth.v1.GetOAuthDetailsResponse\"\x00\x12_\n" +
+	"\x12ExchangeOAuthToken\x12#.oauth.v1.ExchangeOAuthTokenRequest\x1a$.oauth.v1.ExchangeOAuthTokenResponse\x12s\n" +
+	"\x18GetOAuthAuthorizationURL\x12).oauth.v1.GetOAuthAuthorizationURLRequest\x1a*.oauth.v1.GetOAuthAuthorizationURLResponse\"\x00\x12^\n" +
+	"\x11ExchangeOAuthCode\x12\".oauth.v1.ExchangeOAuthCodeRequest\x1a#.oauth.v1.ExchangeOAuthCodeResponse\"\x00B9Z7github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1b\x06proto3"
 
 var (
 	file_oauth_v1_oauth_proto_rawDescOnce sync.Once
@@ -603,29 +602,29 @@ func file_oauth_v1_oauth_proto_rawDescGZIP() []byte {
 var file_oauth_v1_oauth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_oauth_v1_oauth_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_oauth_v1_oauth_proto_goTypes = []any{
-	(OAuthProvider)(0),                       // 0: loco.oauth.v1.OAuthProvider
-	(*OAuthDetailsRequest)(nil),              // 1: loco.oauth.v1.OAuthDetailsRequest
-	(*OAuthDetailsResponse)(nil),             // 2: loco.oauth.v1.OAuthDetailsResponse
-	(*ExchangeOAuthTokenRequest)(nil),        // 3: loco.oauth.v1.ExchangeOAuthTokenRequest
-	(*ExchangeOAuthTokenResponse)(nil),       // 4: loco.oauth.v1.ExchangeOAuthTokenResponse
-	(*GetOAuthAuthorizationURLRequest)(nil),  // 5: loco.oauth.v1.GetOAuthAuthorizationURLRequest
-	(*GetOAuthAuthorizationURLResponse)(nil), // 6: loco.oauth.v1.GetOAuthAuthorizationURLResponse
-	(*ExchangeOAuthCodeRequest)(nil),         // 7: loco.oauth.v1.ExchangeOAuthCodeRequest
-	(*ExchangeOAuthCodeResponse)(nil),        // 8: loco.oauth.v1.ExchangeOAuthCodeResponse
+	(OAuthProvider)(0),                       // 0: oauth.v1.OAuthProvider
+	(*GetOAuthDetailsRequest)(nil),           // 1: oauth.v1.GetOAuthDetailsRequest
+	(*GetOAuthDetailsResponse)(nil),          // 2: oauth.v1.GetOAuthDetailsResponse
+	(*ExchangeOAuthTokenRequest)(nil),        // 3: oauth.v1.ExchangeOAuthTokenRequest
+	(*ExchangeOAuthTokenResponse)(nil),       // 4: oauth.v1.ExchangeOAuthTokenResponse
+	(*GetOAuthAuthorizationURLRequest)(nil),  // 5: oauth.v1.GetOAuthAuthorizationURLRequest
+	(*GetOAuthAuthorizationURLResponse)(nil), // 6: oauth.v1.GetOAuthAuthorizationURLResponse
+	(*ExchangeOAuthCodeRequest)(nil),         // 7: oauth.v1.ExchangeOAuthCodeRequest
+	(*ExchangeOAuthCodeResponse)(nil),        // 8: oauth.v1.ExchangeOAuthCodeResponse
 }
 var file_oauth_v1_oauth_proto_depIdxs = []int32{
-	0, // 0: loco.oauth.v1.OAuthDetailsRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	0, // 1: loco.oauth.v1.ExchangeOAuthTokenRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	0, // 2: loco.oauth.v1.GetOAuthAuthorizationURLRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	0, // 3: loco.oauth.v1.ExchangeOAuthCodeRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	1, // 4: loco.oauth.v1.OAuthService.GetOAuthDetails:input_type -> loco.oauth.v1.OAuthDetailsRequest
-	3, // 5: loco.oauth.v1.OAuthService.ExchangeOAuthToken:input_type -> loco.oauth.v1.ExchangeOAuthTokenRequest
-	5, // 6: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:input_type -> loco.oauth.v1.GetOAuthAuthorizationURLRequest
-	7, // 7: loco.oauth.v1.OAuthService.ExchangeOAuthCode:input_type -> loco.oauth.v1.ExchangeOAuthCodeRequest
-	2, // 8: loco.oauth.v1.OAuthService.GetOAuthDetails:output_type -> loco.oauth.v1.OAuthDetailsResponse
-	4, // 9: loco.oauth.v1.OAuthService.ExchangeOAuthToken:output_type -> loco.oauth.v1.ExchangeOAuthTokenResponse
-	6, // 10: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:output_type -> loco.oauth.v1.GetOAuthAuthorizationURLResponse
-	8, // 11: loco.oauth.v1.OAuthService.ExchangeOAuthCode:output_type -> loco.oauth.v1.ExchangeOAuthCodeResponse
+	0, // 0: oauth.v1.GetOAuthDetailsRequest.provider:type_name -> oauth.v1.OAuthProvider
+	0, // 1: oauth.v1.ExchangeOAuthTokenRequest.provider:type_name -> oauth.v1.OAuthProvider
+	0, // 2: oauth.v1.GetOAuthAuthorizationURLRequest.provider:type_name -> oauth.v1.OAuthProvider
+	0, // 3: oauth.v1.ExchangeOAuthCodeRequest.provider:type_name -> oauth.v1.OAuthProvider
+	1, // 4: oauth.v1.OAuthService.GetOAuthDetails:input_type -> oauth.v1.GetOAuthDetailsRequest
+	3, // 5: oauth.v1.OAuthService.ExchangeOAuthToken:input_type -> oauth.v1.ExchangeOAuthTokenRequest
+	5, // 6: oauth.v1.OAuthService.GetOAuthAuthorizationURL:input_type -> oauth.v1.GetOAuthAuthorizationURLRequest
+	7, // 7: oauth.v1.OAuthService.ExchangeOAuthCode:input_type -> oauth.v1.ExchangeOAuthCodeRequest
+	2, // 8: oauth.v1.OAuthService.GetOAuthDetails:output_type -> oauth.v1.GetOAuthDetailsResponse
+	4, // 9: oauth.v1.OAuthService.ExchangeOAuthToken:output_type -> oauth.v1.ExchangeOAuthTokenResponse
+	6, // 10: oauth.v1.OAuthService.GetOAuthAuthorizationURL:output_type -> oauth.v1.GetOAuthAuthorizationURLResponse
+	8, // 11: oauth.v1.OAuthService.ExchangeOAuthCode:output_type -> oauth.v1.ExchangeOAuthCodeResponse
 	8, // [8:12] is the sub-list for method output_type
 	4, // [4:8] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name

@@ -28,6 +28,11 @@ SELECT * FROM platform_domains
 WHERE is_active = true
 ORDER BY domain;
 
+-- name: ListPlatformDomains :many
+SELECT * FROM platform_domains
+WHERE (sqlc.narg('active_only')::boolean IS NULL OR is_active = sqlc.narg('active_only')::boolean)
+ORDER BY domain;
+
 -- name: DeactivatePlatformDomain :one
 UPDATE platform_domains
 SET is_active = false

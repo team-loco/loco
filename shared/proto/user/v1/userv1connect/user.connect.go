@@ -9,7 +9,6 @@ import (
 	context "context"
 	errors "errors"
 	v1 "github.com/team-loco/loco/shared/proto/user/v1"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	http "net/http"
 	strings "strings"
 )
@@ -23,7 +22,7 @@ const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// UserServiceName is the fully-qualified name of the UserService service.
-	UserServiceName = "loco.user.v1.UserService"
+	UserServiceName = "user.v1.UserService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -35,41 +34,41 @@ const (
 // period.
 const (
 	// UserServiceCreateUserProcedure is the fully-qualified name of the UserService's CreateUser RPC.
-	UserServiceCreateUserProcedure = "/loco.user.v1.UserService/CreateUser"
+	UserServiceCreateUserProcedure = "/user.v1.UserService/CreateUser"
 	// UserServiceGetUserProcedure is the fully-qualified name of the UserService's GetUser RPC.
-	UserServiceGetUserProcedure = "/loco.user.v1.UserService/GetUser"
+	UserServiceGetUserProcedure = "/user.v1.UserService/GetUser"
 	// UserServiceWhoAmIProcedure is the fully-qualified name of the UserService's WhoAmI RPC.
-	UserServiceWhoAmIProcedure = "/loco.user.v1.UserService/WhoAmI"
+	UserServiceWhoAmIProcedure = "/user.v1.UserService/WhoAmI"
 	// UserServiceUpdateUserProcedure is the fully-qualified name of the UserService's UpdateUser RPC.
-	UserServiceUpdateUserProcedure = "/loco.user.v1.UserService/UpdateUser"
+	UserServiceUpdateUserProcedure = "/user.v1.UserService/UpdateUser"
 	// UserServiceListUsersProcedure is the fully-qualified name of the UserService's ListUsers RPC.
-	UserServiceListUsersProcedure = "/loco.user.v1.UserService/ListUsers"
+	UserServiceListUsersProcedure = "/user.v1.UserService/ListUsers"
 	// UserServiceDeleteUserProcedure is the fully-qualified name of the UserService's DeleteUser RPC.
-	UserServiceDeleteUserProcedure = "/loco.user.v1.UserService/DeleteUser"
+	UserServiceDeleteUserProcedure = "/user.v1.UserService/DeleteUser"
 	// UserServiceLogoutProcedure is the fully-qualified name of the UserService's Logout RPC.
-	UserServiceLogoutProcedure = "/loco.user.v1.UserService/Logout"
+	UserServiceLogoutProcedure = "/user.v1.UserService/Logout"
 )
 
-// UserServiceClient is a client for the loco.user.v1.UserService service.
+// UserServiceClient is a client for the user.v1.UserService service.
 type UserServiceClient interface {
 	// CreateUser creates a new user account.
 	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// GetUser retrieves a user by ID or email.
-	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.User], error)
+	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// WhoAmI retrieves the current authenticated user.
-	WhoAmI(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.User], error)
+	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
 	// UpdateUser updates user information.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// ListUsers lists users with pagination.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// DeleteUser deletes a user account.
-	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 	// Logout logs out the current user.
-	Logout(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
-// NewUserServiceClient constructs a client for the loco.user.v1.UserService service. By default, it
-// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// NewUserServiceClient constructs a client for the user.v1.UserService service. By default, it uses
+// the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
 // uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
 // connect.WithGRPCWeb() options.
 //
@@ -85,13 +84,13 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("CreateUser")),
 			connect.WithClientOptions(opts...),
 		),
-		getUser: connect.NewClient[v1.GetUserRequest, v1.User](
+		getUser: connect.NewClient[v1.GetUserRequest, v1.GetUserResponse](
 			httpClient,
 			baseURL+UserServiceGetUserProcedure,
 			connect.WithSchema(userServiceMethods.ByName("GetUser")),
 			connect.WithClientOptions(opts...),
 		),
-		whoAmI: connect.NewClient[emptypb.Empty, v1.User](
+		whoAmI: connect.NewClient[v1.WhoAmIRequest, v1.WhoAmIResponse](
 			httpClient,
 			baseURL+UserServiceWhoAmIProcedure,
 			connect.WithSchema(userServiceMethods.ByName("WhoAmI")),
@@ -109,13 +108,13 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(userServiceMethods.ByName("ListUsers")),
 			connect.WithClientOptions(opts...),
 		),
-		deleteUser: connect.NewClient[v1.DeleteUserRequest, emptypb.Empty](
+		deleteUser: connect.NewClient[v1.DeleteUserRequest, v1.DeleteUserResponse](
 			httpClient,
 			baseURL+UserServiceDeleteUserProcedure,
 			connect.WithSchema(userServiceMethods.ByName("DeleteUser")),
 			connect.WithClientOptions(opts...),
 		),
-		logout: connect.NewClient[emptypb.Empty, emptypb.Empty](
+		logout: connect.NewClient[v1.LogoutRequest, v1.LogoutResponse](
 			httpClient,
 			baseURL+UserServiceLogoutProcedure,
 			connect.WithSchema(userServiceMethods.ByName("Logout")),
@@ -127,65 +126,65 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
 	createUser *connect.Client[v1.CreateUserRequest, v1.CreateUserResponse]
-	getUser    *connect.Client[v1.GetUserRequest, v1.User]
-	whoAmI     *connect.Client[emptypb.Empty, v1.User]
+	getUser    *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
+	whoAmI     *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
 	updateUser *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
 	listUsers  *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
-	deleteUser *connect.Client[v1.DeleteUserRequest, emptypb.Empty]
-	logout     *connect.Client[emptypb.Empty, emptypb.Empty]
+	deleteUser *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
+	logout     *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
 }
 
-// CreateUser calls loco.user.v1.UserService.CreateUser.
+// CreateUser calls user.v1.UserService.CreateUser.
 func (c *userServiceClient) CreateUser(ctx context.Context, req *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
 	return c.createUser.CallUnary(ctx, req)
 }
 
-// GetUser calls loco.user.v1.UserService.GetUser.
-func (c *userServiceClient) GetUser(ctx context.Context, req *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.User], error) {
+// GetUser calls user.v1.UserService.GetUser.
+func (c *userServiceClient) GetUser(ctx context.Context, req *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
 	return c.getUser.CallUnary(ctx, req)
 }
 
-// WhoAmI calls loco.user.v1.UserService.WhoAmI.
-func (c *userServiceClient) WhoAmI(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[v1.User], error) {
+// WhoAmI calls user.v1.UserService.WhoAmI.
+func (c *userServiceClient) WhoAmI(ctx context.Context, req *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error) {
 	return c.whoAmI.CallUnary(ctx, req)
 }
 
-// UpdateUser calls loco.user.v1.UserService.UpdateUser.
+// UpdateUser calls user.v1.UserService.UpdateUser.
 func (c *userServiceClient) UpdateUser(ctx context.Context, req *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
 	return c.updateUser.CallUnary(ctx, req)
 }
 
-// ListUsers calls loco.user.v1.UserService.ListUsers.
+// ListUsers calls user.v1.UserService.ListUsers.
 func (c *userServiceClient) ListUsers(ctx context.Context, req *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error) {
 	return c.listUsers.CallUnary(ctx, req)
 }
 
-// DeleteUser calls loco.user.v1.UserService.DeleteUser.
-func (c *userServiceClient) DeleteUser(ctx context.Context, req *connect.Request[v1.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error) {
+// DeleteUser calls user.v1.UserService.DeleteUser.
+func (c *userServiceClient) DeleteUser(ctx context.Context, req *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
 	return c.deleteUser.CallUnary(ctx, req)
 }
 
-// Logout calls loco.user.v1.UserService.Logout.
-func (c *userServiceClient) Logout(ctx context.Context, req *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error) {
+// Logout calls user.v1.UserService.Logout.
+func (c *userServiceClient) Logout(ctx context.Context, req *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
 	return c.logout.CallUnary(ctx, req)
 }
 
-// UserServiceHandler is an implementation of the loco.user.v1.UserService service.
+// UserServiceHandler is an implementation of the user.v1.UserService service.
 type UserServiceHandler interface {
 	// CreateUser creates a new user account.
 	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// GetUser retrieves a user by ID or email.
-	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.User], error)
+	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// WhoAmI retrieves the current authenticated user.
-	WhoAmI(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.User], error)
+	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
 	// UpdateUser updates user information.
 	UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error)
 	// ListUsers lists users with pagination.
 	ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error)
 	// DeleteUser deletes a user account.
-	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error)
+	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 	// Logout logs out the current user.
-	Logout(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error)
+	Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error)
 }
 
 // NewUserServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -237,7 +236,7 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(userServiceMethods.ByName("Logout")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/loco.user.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/user.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case UserServiceCreateUserProcedure:
 			userServiceCreateUserHandler.ServeHTTP(w, r)
@@ -263,29 +262,29 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 type UnimplementedUserServiceHandler struct{}
 
 func (UnimplementedUserServiceHandler) CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.CreateUser is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.CreateUser is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.User], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.GetUser is not implemented"))
+func (UnimplementedUserServiceHandler) GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.GetUser is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) WhoAmI(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[v1.User], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.WhoAmI is not implemented"))
+func (UnimplementedUserServiceHandler) WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.WhoAmI is not implemented"))
 }
 
 func (UnimplementedUserServiceHandler) UpdateUser(context.Context, *connect.Request[v1.UpdateUserRequest]) (*connect.Response[v1.UpdateUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.UpdateUser is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.UpdateUser is not implemented"))
 }
 
 func (UnimplementedUserServiceHandler) ListUsers(context.Context, *connect.Request[v1.ListUsersRequest]) (*connect.Response[v1.ListUsersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.ListUsers is not implemented"))
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.ListUsers is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[emptypb.Empty], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.DeleteUser is not implemented"))
+func (UnimplementedUserServiceHandler) DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.DeleteUser is not implemented"))
 }
 
-func (UnimplementedUserServiceHandler) Logout(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.Logout is not implemented"))
+func (UnimplementedUserServiceHandler) Logout(context.Context, *connect.Request[v1.LogoutRequest]) (*connect.Response[v1.LogoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("user.v1.UserService.Logout is not implemented"))
 }

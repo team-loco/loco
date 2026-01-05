@@ -24,7 +24,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
 	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,7 +102,7 @@ func (s *ResourceServer) CreateResource(
 	var subdomainLabel pgtype.Text
 	var platformDomainID pgtype.Int8
 
-	if r.GetDomain().GetDomainSource() == domainv1.DomainType_PLATFORM_PROVIDED {
+	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
 		if r.GetDomain().GetSubdomain() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
 		}
@@ -237,7 +236,7 @@ func (s *ResourceServer) CreateResource(
 func (s *ResourceServer) GetResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.GetResourceRequest],
-) (*connect.Response[resourcev1.Resource], error) {
+) (*connect.Response[resourcev1.GetResourceResponse], error) {
 	r := req.Msg
 
 	var resourceId int64
@@ -273,7 +272,9 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(dbResourceToProto(resource, resourceDomains, resourceRegions)), nil
+	return connect.NewResponse(&resourcev1.GetResourceResponse{
+		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
+	}), nil
 }
 
 // ListWorkspaceResources lists all resources in a workspace
@@ -289,7 +290,25 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, r.GetWorkspaceId())
+	pageSize := normalizePageSize(r.GetPageSize())
+
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
+	}
+
+	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, genDb.ListResourcesForWorkspaceParams{
+		WorkspaceID: r.GetWorkspaceId(),
+		Limit:       pageSize,
+		PageToken:   pageToken,
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resources", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -310,8 +329,14 @@ func (s *ResourceServer) ListWorkspaceResources(
 		resources = append(resources, dbResourceToProto(dbResource, resourceDomains, resourceRegions))
 	}
 
+	var nextPageToken string
+	if len(dbResources) == int(pageSize) {
+		nextPageToken = encodeCursor(dbResources[len(dbResources)-1].ID)
+	}
+
 	return connect.NewResponse(&resourcev1.ListWorkspaceResourcesResponse{
-		Resources: resources,
+		Resources:     resources,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 
@@ -348,7 +373,7 @@ func (s *ResourceServer) UpdateResource(
 func (s *ResourceServer) DeleteResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.DeleteResourceRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[resourcev1.DeleteResourceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteResource, r.GetResourceId())); err != nil {
@@ -373,7 +398,7 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&resourcev1.DeleteResourceResponse{}), nil
 }
 
 // GetResourceStatus retrieves a resource and its current deployment status
@@ -397,7 +422,7 @@ func (s *ResourceServer) GetResourceStatus(
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
 		ResourceID: r.ResourceId,
 		Limit:      1,
-		Offset:     0,
+		PageToken:  pgtype.Text{}, // empty for first page
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -474,7 +499,7 @@ func (s *ResourceServer) ListRegions(
 func (s *ResourceServer) WatchLogs(
 	ctx context.Context,
 	req *connect.Request[resourcev1.WatchLogsRequest],
-	stream *connect.ServerStream[resourcev1.LogEntry],
+	stream *connect.ServerStream[resourcev1.WatchLogsResponse],
 ) error {
 	r := req.Msg
 
@@ -521,7 +546,7 @@ func (s *ResourceServer) WatchLogs(
 		case <-ctx.Done():
 			return ctx.Err()
 		case entry := <-logStream.Entries():
-			protoLog := &resourcev1.LogEntry{
+			protoLog := &resourcev1.WatchLogsResponse{
 				PodName:   entry.PodName,
 				Namespace: entry.Namespace,
 				Container: entry.Container,
@@ -611,7 +636,7 @@ func (s *ResourceServer) ListResourceEvents(
 func (s *ResourceServer) ScaleResource(
 	ctx context.Context,
 	req *connect.Request[resourcev1.ScaleResourceRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ScaleResource, r.GetResourceId())); err != nil {
@@ -796,14 +821,14 @@ func (s *ResourceServer) ScaleResource(
 	}
 	slog.InfoContext(ctx, "updated Application after scaling", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
 }
 
 // UpdateResourceEnv updates environment variables for a resource
 func (s *ResourceServer) UpdateResourceEnv(
 	ctx context.Context,
 	req *connect.Request[resourcev1.UpdateResourceEnvRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[resourcev1.UpdateResourceEnvResponse], error) {
 	r := req.Msg
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateResourceEnv, r.GetResourceId())); err != nil {
@@ -936,24 +961,24 @@ func (s *ResourceServer) UpdateResourceEnv(
 	}
 	slog.InfoContext(ctx, "updated Application after env update", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate, "deploymentId", deploymentId)
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
 }
 
 // resourceStatusToProto converts database resource status to proto enum
 func resourceStatusToProto(status genDb.ResourceStatus) resourcev1.ResourceStatus {
 	switch status {
 	case genDb.ResourceStatusHealthy:
-		return resourcev1.ResourceStatus_HEALTHY
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
 	case genDb.ResourceStatusDeploying:
-		return resourcev1.ResourceStatus_DEPLOYING
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING
 	case genDb.ResourceStatusDegraded:
-		return resourcev1.ResourceStatus_DEGRADED
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
 	case genDb.ResourceStatusUnavailable:
-		return resourcev1.ResourceStatus_UNAVAILABLE
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
 	case genDb.ResourceStatusSuspended:
-		return resourcev1.ResourceStatus_SUSPENDED
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_SUSPENDED
 	default:
-		return resourcev1.ResourceStatus_HEALTHY
+		return resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
 	}
 }
 
@@ -961,19 +986,19 @@ func resourceStatusToProto(status genDb.ResourceStatus) resourcev1.ResourceStatu
 func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
 	case genDb.DeploymentStatusPending:
-		return deploymentv1.DeploymentPhase_PENDING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
 	case genDb.DeploymentStatusDeploying:
-		return deploymentv1.DeploymentPhase_DEPLOYING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING
 	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentPhase_RUNNING
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
 	case genDb.DeploymentStatusSucceeded:
-		return deploymentv1.DeploymentPhase_SUCCEEDED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentPhase_FAILED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
 	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentPhase_CANCELED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
 	default:
-		return deploymentv1.DeploymentPhase_UNSPECIFIED
+		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
 	}
 }
 
@@ -981,9 +1006,9 @@ func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.Deploym
 func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.ResourceDomain {
 	var protoDomains []*domainv1.ResourceDomain
 	for _, d := range domains {
-		domainSource := domainv1.DomainType_USER_PROVIDED
+		domainSource := domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED
 		if d.DomainSource == genDb.DomainSourcePlatformProvided {
-			domainSource = domainv1.DomainType_PLATFORM_PROVIDED
+			domainSource = domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED
 		}
 
 		domain := &domainv1.ResourceDomain{
@@ -1015,19 +1040,19 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 	var resourceType resourcev1.ResourceType
 	switch resource.Type {
 	case "service":
-		resourceType = resourcev1.ResourceType_SERVICE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	case "database":
-		resourceType = resourcev1.ResourceType_DATABASE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_DATABASE
 	case "function":
-		resourceType = resourcev1.ResourceType_FUNCTION
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION
 	case "cache":
-		resourceType = resourcev1.ResourceType_CACHE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_CACHE
 	case "queue":
-		resourceType = resourcev1.ResourceType_QUEUE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_QUEUE
 	case "blob":
-		resourceType = resourcev1.ResourceType_BLOB
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_BLOB
 	default:
-		resourceType = resourcev1.ResourceType_SERVICE
+		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	}
 
 	resourceStatus := resourceStatusToProto(resource.Status)

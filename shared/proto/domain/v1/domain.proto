@@ -1,8 +1,7 @@
 syntax = "proto3";
 
-package loco.domain.v1;
+package domain.v1;
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -10,9 +9,9 @@ option go_package = "github.com/team-loco/loco/shared/proto/domain/v1;domainv1";
 
 // DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {
-  DOMAIN_TYPE_UNSPECIFIED = 0;
-  PLATFORM_PROVIDED = 1;
-  USER_PROVIDED     = 2;
+  DOMAIN_TYPE_UNSPECIFIED       = 0;
+  DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
+  DOMAIN_TYPE_USER_PROVIDED     = 2;
 }
 
 // --- Messages ---
@@ -55,13 +54,13 @@ service DomainService {
   // CreatePlatformDomain creates a new platform-provided domain.
   rpc CreatePlatformDomain(CreatePlatformDomainRequest) returns (CreatePlatformDomainResponse);
   // GetPlatformDomain retrieves a platform domain by ID or name.
-  rpc GetPlatformDomain(GetPlatformDomainRequest) returns (PlatformDomain);
+  rpc GetPlatformDomain(GetPlatformDomainRequest) returns (GetPlatformDomainResponse);
   // ListPlatformDomains lists platform domains with optional filters.
   rpc ListPlatformDomains(ListPlatformDomainsRequest) returns (ListPlatformDomainsResponse);
   // UpdatePlatformDomain updates a platform domain.
   rpc UpdatePlatformDomain(UpdatePlatformDomainRequest) returns (UpdatePlatformDomainResponse);
   // DeletePlatformDomain deletes a platform domain.
-  rpc DeletePlatformDomain(DeletePlatformDomainRequest) returns (google.protobuf.Empty);
+  rpc DeletePlatformDomain(DeletePlatformDomainRequest) returns (DeletePlatformDomainResponse);
 
   // Resource Domain Management
   // CreateResourceDomain assigns a domain to a resource.
@@ -71,14 +70,14 @@ service DomainService {
   // SetPrimaryResourceDomain sets the primary domain for a resource.
   rpc SetPrimaryResourceDomain(SetPrimaryResourceDomainRequest) returns (SetPrimaryResourceDomainResponse);
   // DeleteResourceDomain removes a domain from a resource.
-  rpc DeleteResourceDomain(DeleteResourceDomainRequest) returns (google.protobuf.Empty);
+  rpc DeleteResourceDomain(DeleteResourceDomainRequest) returns (DeleteResourceDomainResponse);
 
   // Queries
   // ListLocoOwnedDomains lists all domains owned by Loco with resources.
   rpc ListLocoOwnedDomains(ListLocoOwnedDomainsRequest) returns (ListLocoOwnedDomainsResponse);
   // CheckDomainAvailability checks if a domain is available.
   rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
-  }
+}
 
 // --- Platform Domain Requests/Responses ---
 
@@ -101,17 +100,19 @@ message GetPlatformDomainRequest {
   }
 }
 
+// GetPlatformDomainResponse is the response containing the platform domain.
+message GetPlatformDomainResponse {
+  PlatformDomain platform_domain = 1;
+}
+
 // ListPlatformDomainsRequest is the request to list platform domains.
 message ListPlatformDomainsRequest {
   optional bool active_only = 1;
-  int32         limit       = 2;
-  int32         offset      = 3;
 }
 
 // ListPlatformDomainsResponse contains the list of platform domains.
 message ListPlatformDomainsResponse {
   repeated PlatformDomain platform_domains = 1;
-  int64                   total_count      = 2;
 }
 
 // UpdatePlatformDomainRequest is the request to update a platform domain.
@@ -131,6 +132,9 @@ message UpdatePlatformDomainResponse {
 message DeletePlatformDomainRequest {
   int64 id = 1;
 }
+
+// DeletePlatformDomainResponse is the response after deleting a platform domain.
+message DeletePlatformDomainResponse {}
 
 // --- List Loco Owned Domains ---
 
@@ -190,17 +194,20 @@ message SetPrimaryResourceDomainResponse {
 
 // DeleteResourceDomainRequest is the request to remove a domain from a resource.
 message DeleteResourceDomainRequest {
-   int64 domain_id = 1;
+  int64 domain_id = 1;
 }
+
+// DeleteResourceDomainResponse is the response after removing a domain from a resource.
+message DeleteResourceDomainResponse {}
 
 // --- Domain Availability ---
 
 // CheckDomainAvailabilityRequest is the request to check if a domain is available.
 message CheckDomainAvailabilityRequest {
-   string domain = 1;
+  string domain = 1;
 }
 
 // CheckDomainAvailabilityResponse contains the availability check result.
 message CheckDomainAvailabilityResponse {
-   bool is_available = 1;
+  bool is_available = 1;
 }

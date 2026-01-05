@@ -6,6 +6,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -18,9 +20,6 @@ type Querier interface {
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy int64) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID int64) (bool, error)
-	CountDeploymentsForResource(ctx context.Context, resourceID int64) (int64, error)
-	CountOrgsForUser(ctx context.Context, userID int64) (int64, error)
-	CountUsers(ctx context.Context) (int64, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (int64, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
@@ -101,9 +100,10 @@ type Querier interface {
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
 	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
+	ListPlatformDomains(ctx context.Context, activeOnly pgtype.Bool) ([]PlatformDomain, error)
 	ListResourceDomains(ctx context.Context, resourceID int64) ([]ResourceDomain, error)
 	ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error)
-	ListResourcesForWorkspace(ctx context.Context, workspaceID int64) ([]Resource, error)
+	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
 	// which tokens exist on behalf of entity y?
 	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]ListTokensForEntityRow, error)
 	ListUserOrganizations(ctx context.Context, userID int64) ([]Organization, error)
@@ -111,9 +111,9 @@ type Querier interface {
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWorkspaceMembers(ctx context.Context, workspaceID int64) ([]ListWorkspaceMembersRow, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
-	ListWorkspacesForOrg(ctx context.Context, orgID int64) ([]ListWorkspacesForOrgRow, error)
-	ListWorkspacesForUser(ctx context.Context, userID int64) ([]Workspace, error)
-	ListWorkspacesInOrg(ctx context.Context, orgID int64) ([]Workspace, error)
+	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
+	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error)
+	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
 	MarkDeploymentNotActive(ctx context.Context, id int64) error
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID int64) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID int64) (bool, error)

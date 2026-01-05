@@ -376,11 +376,23 @@ const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
 SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
-ORDER BY r.created_at DESC
+  AND ($3::text IS NULL
+       OR (r.created_at, r.id) < (
+         (SELECT created_at FROM resources WHERE id = $3::bigint),
+         $3::bigint
+       ))
+ORDER BY r.created_at DESC, r.id DESC
+LIMIT $2
 `
 
-func (q *Queries) ListResourcesForWorkspace(ctx context.Context, workspaceID int64) ([]Resource, error) {
-	rows, err := q.db.Query(ctx, listResourcesForWorkspace, workspaceID)
+type ListResourcesForWorkspaceParams struct {
+	WorkspaceID int64       `json:"workspaceId"`
+	Limit       int32       `json:"limit"`
+	PageToken   pgtype.Text `json:"pageToken"`
+}
+
+func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error) {
+	rows, err := q.db.Query(ctx, listResourcesForWorkspace, arg.WorkspaceID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}

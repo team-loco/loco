@@ -59,8 +59,8 @@ func NewRegistryServer(
 // Requires authenticated request (user must have valid token in context)
 func (s *RegistryServer) GetGitlabToken(
 	ctx context.Context,
-	req *connect.Request[registryv1.GitlabTokenRequest],
-) (*connect.Response[registryv1.GitlabTokenResponse], error) {
+	req *connect.Request[registryv1.GetGitlabTokenRequest],
+) (*connect.Response[registryv1.GetGitlabTokenResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(db.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
@@ -92,7 +92,7 @@ func (s *RegistryServer) GetGitlabToken(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create deploy token: %w", err))
 	}
 
-	res := connect.NewResponse(&registryv1.GitlabTokenResponse{
+	res := connect.NewResponse(&registryv1.GetGitlabTokenResponse{
 		Username: tokenResp.Username,
 		Token:    tokenResp.Token,
 	})

@@ -56,6 +56,7 @@ CREATE TABLE resources (
 );
 
 CREATE INDEX idx_resources_workspace_id ON resources (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources (workspace_id, created_at DESC, id DESC);
 
 -- Resource regions table (declarative intent)
 CREATE TABLE resource_regions (
@@ -138,3 +139,4 @@ CREATE INDEX idx_deployments_region ON deployments (region);
 CREATE INDEX idx_deployments_is_active ON deployments (resource_id, is_active) WHERE is_active = true;
 CREATE INDEX idx_deployments_resource_region_active ON deployments (resource_id, region, is_active) WHERE is_active = true;
 CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deployments (resource_id, created_at DESC, id DESC);

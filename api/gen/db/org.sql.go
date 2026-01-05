@@ -26,17 +26,6 @@ func (q *Queries) AddOrgMember(ctx context.Context, arg AddOrgMemberParams) erro
 	return err
 }
 
-const countOrgsForUser = `-- name: CountOrgsForUser :one
-SELECT COUNT(*) FROM organization_members WHERE user_id = $1
-`
-
-func (q *Queries) CountOrgsForUser(ctx context.Context, userID int64) (int64, error) {
-	row := q.db.QueryRow(ctx, countOrgsForUser, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const createOrg = `-- name: CreateOrg :one
 INSERT INTO organizations (name, created_by)
 VALUES ($1, $2)
@@ -154,19 +143,23 @@ SELECT DISTINCT o.id, o.name, o.created_by, o.created_at, o.updated_at
 FROM organizations o
 JOIN organization_members om ON om.organization_id = o.id
 WHERE om.user_id = $1
-ORDER BY o.created_at DESC
-OFFSET $2
-LIMIT $3
+  AND ($3::text IS NULL
+       OR (o.created_at, o.id) < (
+         (SELECT created_at FROM organizations WHERE id = $3::bigint),
+         $3::bigint
+       ))
+ORDER BY o.created_at DESC, o.id DESC
+LIMIT $2
 `
 
 type ListOrgsForUserParams struct {
-	UserID int64 `json:"userId"`
-	Offset int32 `json:"offset"`
-	Limit  int32 `json:"limit"`
+	UserID    int64       `json:"userId"`
+	Limit     int32       `json:"limit"`
+	PageToken pgtype.Text `json:"pageToken"`
 }
 
 func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error) {
-	rows, err := q.db.Query(ctx, listOrgsForUser, arg.UserID, arg.Offset, arg.Limit)
+	rows, err := q.db.Query(ctx, listOrgsForUser, arg.UserID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +185,23 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 }
 
 const listWorkspacesForOrg = `-- name: ListWorkspacesForOrg :many
-SELECT id, name, created_by, created_at
-FROM workspaces
-WHERE org_id = $1
-ORDER BY created_at DESC
+SELECT w.id, w.name, w.created_by, w.created_at
+FROM workspaces w
+WHERE w.org_id = $1
+  AND ($3::text IS NULL
+       OR (w.created_at, w.id) < (
+         (SELECT created_at FROM workspaces WHERE id = $3::bigint),
+         $3::bigint
+       ))
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2
 `
+
+type ListWorkspacesForOrgParams struct {
+	OrgID     int64       `json:"orgId"`
+	Limit     int32       `json:"limit"`
+	PageToken pgtype.Text `json:"pageToken"`
+}
 
 type ListWorkspacesForOrgRow struct {
 	ID        int64              `json:"id"`
@@ -205,8 +210,8 @@ type ListWorkspacesForOrgRow struct {
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
 }
 
-func (q *Queries) ListWorkspacesForOrg(ctx context.Context, orgID int64) ([]ListWorkspacesForOrgRow, error) {
-	rows, err := q.db.Query(ctx, listWorkspacesForOrg, orgID)
+func (q *Queries) ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspacesForOrg, arg.OrgID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}

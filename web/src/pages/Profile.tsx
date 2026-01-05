@@ -19,7 +19,8 @@ import Loader from "@/assets/loader.svg?react";
 export function Profile() {
 	const { logout } = useAuth();
 	const navigate = useNavigate();
-	const { data: user, isLoading } = useQuery(whoAmI, {});
+	const { data: whoAmIResponse, isLoading } = useQuery(whoAmI, {});
+	const user = whoAmIResponse?.user;
 
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const deleteUserMutation = useMutation(deleteUser);

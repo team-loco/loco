@@ -14,12 +14,24 @@ SELECT DISTINCT w.*
 FROM workspaces w
 JOIN workspace_members wm ON wm.workspace_id = w.id
 WHERE wm.user_id = $1
-ORDER BY w.created_at DESC;
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (w.created_at, w.id) < (
+         (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2;
 
 -- name: ListWorkspacesInOrg :many
-SELECT * FROM workspaces
-WHERE org_id = $1
-ORDER BY created_at DESC;
+SELECT w.* FROM workspaces w
+WHERE w.org_id = $1
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (w.created_at, w.id) < (
+         (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY w.created_at DESC, w.id DESC
+LIMIT $2;
 
 -- name: IsWorkspaceNameUniqueInOrg :one
 SELECT COUNT(*) = 0 as is_unique
@@ -70,8 +82,12 @@ SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
 FROM workspace_members wm
 JOIN users u ON wm.user_id = u.id
 WHERE wm.workspace_id = $1
-  AND (sqlc.narg('after_cursor')::bigint IS NULL OR wm.user_id > sqlc.narg('after_cursor')::bigint)
-ORDER BY wm.user_id ASC
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR (wm.created_at, wm.user_id) < (
+         (SELECT created_at FROM workspace_members WHERE workspace_id = $1 AND user_id = sqlc.narg('page_token')::bigint),
+         sqlc.narg('page_token')::bigint
+       ))
+ORDER BY wm.created_at DESC, wm.user_id DESC
 LIMIT $2;
 
 

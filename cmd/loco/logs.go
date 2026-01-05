@@ -101,7 +101,7 @@ func streamLogsAsJson(cmd *cobra.Command) error {
 		followPtr = &follow
 	}
 
-	err = apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *resourcev1.LogEntry) error {
+	err = apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *resourcev1.WatchLogsResponse) error {
 		jsonLog, marshalErr := json.Marshal(logEntry)
 		if marshalErr != nil {
 			slog.Debug("failed to marshal log entry to json", "error", marshalErr)
@@ -193,7 +193,7 @@ func streamLogsInteractive(cmd *cobra.Command) error {
 		Bold(false)
 	t.SetStyles(s)
 
-	logsChan := make(chan *resourcev1.LogEntry)
+	logsChan := make(chan *resourcev1.WatchLogsResponse)
 	errChan := make(chan error)
 
 	var linesPtr *int32
@@ -207,7 +207,7 @@ func streamLogsInteractive(cmd *cobra.Command) error {
 	}
 
 	go func() {
-		err := apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *resourcev1.LogEntry) error {
+		err := apiClient.StreamLogs(ctx, appID, linesPtr, followPtr, func(logEntry *resourcev1.WatchLogsResponse) error {
 			logsChan <- logEntry
 			return nil
 		})
@@ -249,7 +249,7 @@ type errMsg struct{ error }
 type logModel struct {
 	table     table.Model
 	baseStyle lipgloss.Style
-	logsChan  chan *resourcev1.LogEntry
+	logsChan  chan *resourcev1.WatchLogsResponse
 	errChan   chan error
 	logs      []table.Row
 	ctx       context.Context

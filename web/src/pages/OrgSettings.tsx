@@ -23,7 +23,7 @@ export function OrgSettings() {
 	const [orgName, setOrgName] = useState("");
 
 	const {
-		data: orgRes,
+		data: orgResponse,
 		isLoading: orgLoading,
 		refetch,
 	} = useQuery(
@@ -32,7 +32,7 @@ export function OrgSettings() {
 		{ enabled: !!orgId }
 	);
 
-	const org = orgRes;
+	const org = orgResponse?.organization;
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,

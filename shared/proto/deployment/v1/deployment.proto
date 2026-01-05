@@ -1,27 +1,26 @@
 syntax = "proto3";
 
-package loco.deployment.v1;
+package deployment.v1;
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/deployment/v1;deploymentv1";
 
 // DeploymentPhase indicates the current state of a deployment lifecycle.
 enum DeploymentPhase {
-  UNSPECIFIED = 0;
+  DEPLOYMENT_PHASE_UNSPECIFIED = 0;
   // Pre-deployment: created in DB, waiting for controller to pick it up
-  PENDING = 1;
+  DEPLOYMENT_PHASE_PENDING = 1;
   // Active: controller is actively deploying (pulling image, creating pods, etc)
-  DEPLOYING = 2;
+  DEPLOYMENT_PHASE_DEPLOYING = 2;
   // Running: pods are up, healthy, ready to serve traffic
-  RUNNING = 3;
+  DEPLOYMENT_PHASE_RUNNING = 3;
   // Terminal: one-off jobs completed successfully
-  SUCCEEDED = 4;
+  DEPLOYMENT_PHASE_SUCCEEDED = 4;
   // Terminal: error during deployment or runtime
-  FAILED = 5;
+  DEPLOYMENT_PHASE_FAILED = 5;
   // Terminal: user explicitly cancelled
-  CANCELED = 6;
+  DEPLOYMENT_PHASE_CANCELED = 6;
 }
 
 // DeploymentService manages resource deployments.
@@ -29,13 +28,13 @@ service DeploymentService {
   // CreateDeployment creates a new deployment for a resource.
   rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
   // GetDeployment retrieves a deployment by ID.
-  rpc GetDeployment(GetDeploymentRequest) returns (Deployment);
+  rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
   // ListDeployments lists deployments for a resource.
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
   // WatchDeployment streams deployment events in real-time.
-  rpc WatchDeployment(WatchDeploymentRequest) returns (stream DeploymentEvent);
+  rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
   // DeleteDeployment deletes/inactivates a deployment.
-  rpc DeleteDeployment(DeleteDeploymentRequest) returns (google.protobuf.Empty);
+  rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
 }
 
 // Port defines a network port configuration.
@@ -148,17 +147,22 @@ message GetDeploymentRequest {
   int64 deployment_id = 1;
 }
 
+// GetDeploymentResponse is the response containing the deployment.
+message GetDeploymentResponse {
+  Deployment deployment = 1;
+}
+
 // ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
-  int64          resource_id = 1;
-  optional int32 limit       = 2;
-  optional int32 offset      = 3;
+  int64  resource_id = 1;
+  int32  page_size   = 2; // default: 50, max: 200
+  string page_token  = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListDeploymentsResponse is the response containing deployment list.
 message ListDeploymentsResponse {
-  repeated Deployment deployments = 1;
-  int64               total       = 2;
+  repeated Deployment deployments     = 1;
+  string              next_page_token = 2; // empty if no more pages
 }
 
 // WatchDeploymentRequest is the request to stream deployment events.
@@ -166,8 +170,8 @@ message WatchDeploymentRequest {
   int64 deployment_id = 1;
 }
 
-// DeploymentEvent represents a deployment event.
-message DeploymentEvent {
+// WatchDeploymentResponse represents a deployment event stream response.
+message WatchDeploymentResponse {
   int64                     deployment_id = 1;
   DeploymentPhase           status        = 2;
   string                    message       = 3;
@@ -178,3 +182,6 @@ message DeploymentEvent {
 message DeleteDeploymentRequest {
   int64 deployment_id = 1;
 }
+
+// DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
+message DeleteDeploymentResponse {}

@@ -21,27 +21,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GitlabTokenRequest is the request to get a GitLab token for pulling container images.
-type GitlabTokenRequest struct {
+// GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
+type GetGitlabTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GitlabTokenRequest) Reset() {
-	*x = GitlabTokenRequest{}
+func (x *GetGitlabTokenRequest) Reset() {
+	*x = GetGitlabTokenRequest{}
 	mi := &file_registry_v1_registry_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GitlabTokenRequest) String() string {
+func (x *GetGitlabTokenRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GitlabTokenRequest) ProtoMessage() {}
+func (*GetGitlabTokenRequest) ProtoMessage() {}
 
-func (x *GitlabTokenRequest) ProtoReflect() protoreflect.Message {
+func (x *GetGitlabTokenRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_registry_v1_registry_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -53,13 +53,13 @@ func (x *GitlabTokenRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GitlabTokenRequest.ProtoReflect.Descriptor instead.
-func (*GitlabTokenRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetGitlabTokenRequest.ProtoReflect.Descriptor instead.
+func (*GetGitlabTokenRequest) Descriptor() ([]byte, []int) {
 	return file_registry_v1_registry_proto_rawDescGZIP(), []int{0}
 }
 
-// GitlabTokenResponse contains GitLab registry credentials for container image authentication.
-type GitlabTokenResponse struct {
+// GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
+type GetGitlabTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
 	Token         string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
@@ -67,20 +67,20 @@ type GitlabTokenResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GitlabTokenResponse) Reset() {
-	*x = GitlabTokenResponse{}
+func (x *GetGitlabTokenResponse) Reset() {
+	*x = GetGitlabTokenResponse{}
 	mi := &file_registry_v1_registry_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GitlabTokenResponse) String() string {
+func (x *GetGitlabTokenResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GitlabTokenResponse) ProtoMessage() {}
+func (*GetGitlabTokenResponse) ProtoMessage() {}
 
-func (x *GitlabTokenResponse) ProtoReflect() protoreflect.Message {
+func (x *GetGitlabTokenResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_registry_v1_registry_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -92,19 +92,19 @@ func (x *GitlabTokenResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GitlabTokenResponse.ProtoReflect.Descriptor instead.
-func (*GitlabTokenResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetGitlabTokenResponse.ProtoReflect.Descriptor instead.
+func (*GetGitlabTokenResponse) Descriptor() ([]byte, []int) {
 	return file_registry_v1_registry_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GitlabTokenResponse) GetUsername() string {
+func (x *GetGitlabTokenResponse) GetUsername() string {
 	if x != nil {
 		return x.Username
 	}
 	return ""
 }
 
-func (x *GitlabTokenResponse) GetToken() string {
+func (x *GetGitlabTokenResponse) GetToken() string {
 	if x != nil {
 		return x.Token
 	}
@@ -115,13 +115,13 @@ var File_registry_v1_registry_proto protoreflect.FileDescriptor
 
 const file_registry_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1aregistry/v1/registry.proto\x12\x10loco.registry.v1\"\x14\n" +
-	"\x12GitlabTokenRequest\"G\n" +
-	"\x13GitlabTokenResponse\x12\x1a\n" +
+	"\x1aregistry/v1/registry.proto\x12\vregistry.v1\"\x17\n" +
+	"\x15GetGitlabTokenRequest\"J\n" +
+	"\x16GetGitlabTokenResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token2r\n" +
-	"\x0fRegistryService\x12_\n" +
-	"\x0eGetGitlabToken\x12$.loco.registry.v1.GitlabTokenRequest\x1a%.loco.registry.v1.GitlabTokenResponse\"\x00B?Z=github.com/team-loco/loco/shared/proto/registry/v1;registryv1b\x06proto3"
+	"\x05token\x18\x02 \x01(\tR\x05token2n\n" +
+	"\x0fRegistryService\x12[\n" +
+	"\x0eGetGitlabToken\x12\".registry.v1.GetGitlabTokenRequest\x1a#.registry.v1.GetGitlabTokenResponse\"\x00B?Z=github.com/team-loco/loco/shared/proto/registry/v1;registryv1b\x06proto3"
 
 var (
 	file_registry_v1_registry_proto_rawDescOnce sync.Once
@@ -137,12 +137,12 @@ func file_registry_v1_registry_proto_rawDescGZIP() []byte {
 
 var file_registry_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_registry_v1_registry_proto_goTypes = []any{
-	(*GitlabTokenRequest)(nil),  // 0: loco.registry.v1.GitlabTokenRequest
-	(*GitlabTokenResponse)(nil), // 1: loco.registry.v1.GitlabTokenResponse
+	(*GetGitlabTokenRequest)(nil),  // 0: registry.v1.GetGitlabTokenRequest
+	(*GetGitlabTokenResponse)(nil), // 1: registry.v1.GetGitlabTokenResponse
 }
 var file_registry_v1_registry_proto_depIdxs = []int32{
-	0, // 0: loco.registry.v1.RegistryService.GetGitlabToken:input_type -> loco.registry.v1.GitlabTokenRequest
-	1, // 1: loco.registry.v1.RegistryService.GetGitlabToken:output_type -> loco.registry.v1.GitlabTokenResponse
+	0, // 0: registry.v1.RegistryService.GetGitlabToken:input_type -> registry.v1.GetGitlabTokenRequest
+	1, // 1: registry.v1.RegistryService.GetGitlabToken:output_type -> registry.v1.GetGitlabTokenResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

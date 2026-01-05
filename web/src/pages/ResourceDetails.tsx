@@ -14,7 +14,8 @@ import Loader from "@/assets/loader.svg?react";
 
 export function ResourceDetails() {
 	const { resourceId } = useParams<{ resourceId: string }>();
-	const { resource, deployments, isLoading, error } = useResourceDetails(resourceId ?? "");
+	const { resource: resourceResponse, deployments, isLoading, error } = useResourceDetails(resourceId ?? "");
+	const resource = resourceResponse?.resource;
 
 	// Subscribe to real-time resource-specific events
 	useEffect(() => {

@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
 	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 var (
@@ -117,7 +116,7 @@ func (s *UserServer) CreateUser(
 func (s *UserServer) GetUser(
 	ctx context.Context,
 	req *connect.Request[userv1.GetUserRequest],
-) (*connect.Response[userv1.User], error) {
+) (*connect.Response[userv1.GetUserResponse], error) {
 	r := req.Msg
 
 	var targetUserID int64
@@ -154,14 +153,14 @@ func (s *UserServer) GetUser(
 		return nil, err
 	}
 
-	return connect.NewResponse(user), nil
+	return connect.NewResponse(&userv1.GetUserResponse{User: user}), nil
 }
 
 // WhoAmI retrieves the current authenticated user
 func (s *UserServer) WhoAmI(
 	ctx context.Context,
-	req *connect.Request[emptypb.Empty],
-) (*connect.Response[userv1.User], error) {
+	req *connect.Request[userv1.WhoAmIRequest],
+) (*connect.Response[userv1.WhoAmIResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
@@ -186,7 +185,7 @@ func (s *UserServer) WhoAmI(
 	}
 	slog.InfoContext(ctx, "returning user")
 
-	return connect.NewResponse(user), nil
+	return connect.NewResponse(&userv1.WhoAmIResponse{User: user}), nil
 }
 
 // UpdateUser updates user information
@@ -245,28 +244,23 @@ func (s *UserServer) ListUsers(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	limit := r.GetLimit()
-	if limit < 1 {
-		limit = 50
-	}
-	if limit > 100 {
-		limit = 100
-	}
+	pageSize := normalizePageSize(r.GetPageSize())
 
-	offset := r.GetOffset()
-	if offset < 0 {
-		offset = 0
-	}
-
-	totalCount, err := s.queries.CountUsers(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to count users", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	var pageToken pgtype.Text
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = pgtype.Text{
+			String: fmt.Sprintf("%d", cursorID),
+			Valid:  true,
+		}
 	}
 
 	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
-		Limit:  limit,
-		Offset: offset,
+		Limit:     pageSize,
+		PageToken: pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list users", "error", err)
@@ -278,9 +272,14 @@ func (s *UserServer) ListUsers(
 		users = append(users, dbUserToProto(dbUser))
 	}
 
+	var nextPageToken string
+	if len(dbUsers) == int(pageSize) {
+		nextPageToken = encodeCursor(dbUsers[len(dbUsers)-1].ID)
+	}
+
 	return connect.NewResponse(&userv1.ListUsersResponse{
-		Users:      users,
-		TotalCount: int64(totalCount),
+		Users:         users,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 
@@ -288,7 +287,7 @@ func (s *UserServer) ListUsers(
 func (s *UserServer) DeleteUser(
 	ctx context.Context,
 	req *connect.Request[userv1.DeleteUserRequest],
-) (*connect.Response[emptypb.Empty], error) {
+) (*connect.Response[userv1.DeleteUserResponse], error) {
 	r := req.Msg
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -336,15 +335,15 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	return connect.NewResponse(&emptypb.Empty{}), nil
+	return connect.NewResponse(&userv1.DeleteUserResponse{}), nil
 }
 
 // Logout logs out the user by clearing the session cookie
 func (s *UserServer) Logout(
 	ctx context.Context,
-	req *connect.Request[emptypb.Empty],
-) (*connect.Response[emptypb.Empty], error) {
-	res := connect.NewResponse(&emptypb.Empty{})
+	req *connect.Request[userv1.LogoutRequest],
+) (*connect.Response[userv1.LogoutResponse], error) {
+	res := connect.NewResponse(&userv1.LogoutResponse{})
 	res.Header().Set("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
 
 	token, ok := ctx.Value(contextkeys.TokenKey).(string)

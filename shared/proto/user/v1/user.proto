@@ -1,10 +1,9 @@
 syntax = "proto3";
 
-package loco.user.v1;
+package user.v1;
 
-import "google/protobuf/timestamp.proto";
 import "google/protobuf/field_mask.proto";
-import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/user/v1;userv1";
 
@@ -13,36 +12,36 @@ service UserService {
   // CreateUser creates a new user account.
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   // GetUser retrieves a user by ID or email.
-  rpc GetUser(GetUserRequest) returns (User);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // WhoAmI retrieves the current authenticated user.
-  rpc WhoAmI(google.protobuf.Empty) returns (User);
+  rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse);
   // UpdateUser updates user information.
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // ListUsers lists users with pagination.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   // DeleteUser deletes a user account.
-  rpc DeleteUser(DeleteUserRequest) returns (google.protobuf.Empty);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Logout logs out the current user.
-  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
 }
 
 // User represents a user account with OAuth identity and profile information.
 message User {
-  int64 id = 1;
-  string external_id = 2;
-  string email = 3;
-  string avatar_url = 4;
-  string name = 5;
-  google.protobuf.Timestamp created_at = 6;
-  google.protobuf.Timestamp updated_at = 7;
+  int64                     id          = 1;
+  string                    external_id = 2;
+  string                    email       = 3;
+  string                    avatar_url  = 4;
+  string                    name        = 5;
+  google.protobuf.Timestamp created_at  = 6;
+  google.protobuf.Timestamp updated_at  = 7;
 }
 
 // CreateUserRequest is the request to create a new user.
 message CreateUserRequest {
-  string external_id = 1;
-  string email = 2;
-  optional string name = 3;
-  optional string avatar_url = 4;
+  string          external_id = 1;
+  string          email       = 2;
+  optional string name        = 3;
+  optional string avatar_url  = 4;
 }
 
 // CreateUserResponse is the response containing the created user ID.
@@ -56,6 +55,11 @@ message GetUserRequest {
     int64  user_id = 1;
     string email   = 2;
   }
+}
+
+// GetUserResponse is the response containing the user.
+message GetUserResponse {
+  User user = 1;
 }
 
 // UpdateUserRequest is the request to update user information.
@@ -73,17 +77,34 @@ message UpdateUserResponse {
 
 // ListUsersRequest is the request to list users.
 message ListUsersRequest {
-  int32 limit = 1;
-  int32 offset = 2;
+  int32  page_size  = 1; // default: 50, max: 200
+  string page_token = 2; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListUsersResponse is the response containing user list.
 message ListUsersResponse {
-  repeated User users = 1;
-  int64 total_count = 2;
+  repeated User users           = 1;
+  string        next_page_token = 2; // empty if no more pages
+}
+
+// WhoAmIRequest is the request to get the current authenticated user.
+message WhoAmIRequest {}
+
+// WhoAmIResponse is the response containing the current user.
+message WhoAmIResponse {
+  User user = 1;
 }
 
 // DeleteUserRequest is the request to delete a user.
 message DeleteUserRequest {
   int64 user_id = 1;
 }
+
+// DeleteUserResponse is the response after deleting a user.
+message DeleteUserResponse {}
+
+// LogoutRequest is the request to logout the current user.
+message LogoutRequest {}
+
+// LogoutResponse is the response after logging out.
+message LogoutResponse {}

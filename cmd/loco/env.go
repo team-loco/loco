@@ -120,7 +120,7 @@ func envCmdFunc(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to get app '%s': %w", appName, err)
 	}
 
-	appID := getAppByNameResp.Msg.Id
+	appID := getAppByNameResp.Msg.Resource.Id
 	slog.Debug("found app by name", "app_name", appName, "app_id", appID)
 
 	apiClient := client.NewClient(host, locoToken.Token)
