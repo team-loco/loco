@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { LoginModal } from "@/components/LoginModal";
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -9,13 +10,14 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Cloud, Gauge, Network, Rocket, TrendingUp } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
+import { useState } from "react";
 
 export function Splash() {
 	const { isAuthenticated } = useAuth();
-	console.log("component mountded", isAuthenticated);
+	const [loginModalOpen, setLoginModalOpen] = useState(false);
 
 	return (
-		<div className="min-h-screen flex flex-col bg-linear-to-b from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20">
+		<div className="min-h-screen flex flex-col bg-linear-to-b from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 relative">
 			<header className="sticky top-0 z-50 w-full bg-linear-to-b from-orange-50/50 to-amber-50/50 dark:from-orange-950/10 dark:to-amber-950/10 backdrop-blur-md">
 				<div className="mx-auto max-w-[95%] py-2">
 					<div className="flex items-center justify-between">
@@ -106,17 +108,17 @@ export function Splash() {
 								<>
 									<Button
 										variant="ghost"
-										asChild
 										className="text-sm text-foreground h-9"
+										onClick={() => setLoginModalOpen(true)}
 									>
-										<a href="/login">Sign In</a>
+										Sign In
 									</Button>
 									<Button
 										size="sm"
 										className="bg-primary hover:bg-orange-600 text-primary-foreground h-9"
-										asChild
+										onClick={() => setLoginModalOpen(true)}
 									>
-										<a href="/login">Get Started</a>
+										Get Started
 									</Button>
 								</>
 							)}
@@ -167,9 +169,9 @@ export function Splash() {
 							<Button
 								size="lg"
 								className="bg-white text-orange-600 hover:bg-gray-100"
-								asChild
+								onClick={() => setLoginModalOpen(true)}
 							>
-								<a href="/login">Deploy Your First App</a>
+								Deploy Your First App
 							</Button>
 							<Button
 								size="lg"
@@ -212,6 +214,12 @@ export function Splash() {
 					<div className="absolute bottom-0 left-0 right-0 h-64 bg-linear-to-t from-background to-transparent pointer-events-none"></div>
 				</div>
 			</section>
+
+			{/* Login Modal */}
+			<LoginModal
+				open={loginModalOpen}
+				onOpenChange={setLoginModalOpen}
+			/>
 		</div>
 	);
 }
