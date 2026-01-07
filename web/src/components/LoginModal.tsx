@@ -72,7 +72,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 						className="w-full h-full object-cover scale-110"
 					/>
 					{/* Color overlay/tint */}
-					<div className="absolute inset-0 bg-orange-950/20"></div>
+					<div className="absolute inset-0 bg-orange-400/20"></div>
 				</div>
 				<style>{`
 					@keyframes swirl {
