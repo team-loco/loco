@@ -11,7 +11,7 @@ interface LayoutProps {
 
 export function Layout({ children, header }: LayoutProps) {
 	return (
-		<div className="flex flex-col bg-white">
+		<div className="flex flex-col bg-background">
 			{/* <Navbar user={user} /> */}
 			<div className="flex items-start justify-between gap-4 px-6 py-4">
 				<div className="flex-1">{header}</div>

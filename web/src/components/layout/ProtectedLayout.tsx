@@ -7,6 +7,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
+import "@/styles/dot-grid.css";
 
 interface ProtectedLayoutProps {
 	children: ReactNode;
@@ -43,7 +44,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			<div className="flex flex-1 pt-[70px]">
 				<AppSidebar />
 				<SidebarInset className="flex flex-col flex-1 overflow-hidden">
-					<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center">
+					<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center dot-grid">
 						<div className="w-[85%] mx-auto">{children}</div>
 					</main>
 				</SidebarInset>

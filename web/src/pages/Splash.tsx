@@ -105,22 +105,13 @@ export function Splash() {
 									<a href="/dashboard">Dashboard</a>
 								</Button>
 							) : (
-								<>
-									<Button
-										variant="ghost"
-										className="text-sm text-foreground h-9"
-										onClick={() => setLoginModalOpen(true)}
-									>
-										Sign In
-									</Button>
-									<Button
-										size="sm"
-										className="bg-primary hover:bg-orange-600 text-primary-foreground h-9"
-										onClick={() => setLoginModalOpen(true)}
-									>
-										Get Started
-									</Button>
-								</>
+								<Button
+									size="sm"
+									className="bg-primary hover:bg-orange-600 text-primary-foreground h-9"
+									onClick={() => setLoginModalOpen(true)}
+								>
+									Get Started
+								</Button>
 							)}
 						</div>
 					</div>

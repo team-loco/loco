@@ -55,7 +55,7 @@ export function SiteHeader() {
 					variant="ghost"
 					size="icon"
 					onClick={toggleSidebar}
-					className={`h-8 w-8 shrink-0 transition-colors ${
+					className={`h-8 w-8 transition-colors ${
 						open ? "bg-accent text-accent-foreground" : ""
 					}`}
 					aria-label="Toggle Sidebar"
@@ -90,16 +90,16 @@ export function SiteHeader() {
 							<span className="text-foreground">{resourceName}</span>
 						</>
 					)}
-					</nav>
-					<Button
+				</nav>
+				<Button
 					onClick={() => navigate("/create-resource")}
 					className="ml-auto"
 					size="sm"
 					variant="default"
-					>
+				>
 					<Plus className="h-4 w-4 mr-2" />
 					New Resource
-					</Button>
+				</Button>
 			</div>
 		</header>
 	);

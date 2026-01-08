@@ -74,7 +74,7 @@
 	--muted-foreground: #626d7d;
 
 	/* Accent - very subtle hover state */
-	--accent: #e8b78e;
+	--accent: #e07a2a;
 	--accent-foreground: #151b26;
 
 	/* Status colors */
@@ -96,7 +96,7 @@
 	/* Sidebar */
 	--sidebar: #ffffff;
 	--sidebar-foreground: #151b26;
-	--sidebar-accent: #e8b78e;
+	--sidebar-accent: #d99070;
 	--sidebar-border: #e8eaed;
 }
 
