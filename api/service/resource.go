@@ -223,7 +223,10 @@ func (s *ResourceServer) CreateResource(
 	resourceID, err := s.queries.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("a resource with this name already exists in this workspace"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create resource"))
 	}
 
 	// Create resource regions (first region is primary)

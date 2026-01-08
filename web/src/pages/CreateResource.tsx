@@ -25,7 +25,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import type { ResourceSpec } from "@/gen/resource/v1";
 import {
 	ResourceType,
 	createResource,
@@ -38,7 +37,11 @@ import {
 	ResourceSpecSchema,
 } from "@/gen/resource/v1";
 import { create } from "@bufbuild/protobuf";
-import { DomainType, listPlatformDomains } from "@/gen/domain/v1";
+import {
+	DomainType,
+	listPlatformDomains,
+	checkDomainAvailability,
+} from "@/gen/domain/v1";
 import { listUserOrgs } from "@/gen/org/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { createDeployment } from "@/gen/deployment/v1";
@@ -129,10 +132,13 @@ export function CreateResource() {
 	const [subdomain, setSubdomain] = useState("");
 	const [selectedPlatformDomain, setSelectedPlatformDomain] =
 		useState<string>("");
-	const [subdomainAvailability] = useState<
+	const [subdomainAvailability, setSubdomainAvailability] = useState<
 		"available" | "unavailable" | "checking" | null
 	>(null);
 	const hasUserEditedSubdomain = useRef(false);
+	const checkSubdomainTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+		null
+	);
 
 	// Docker deployment fields
 	const [dockerImageUrl, setDockerImageUrl] = useState("");
@@ -238,6 +244,7 @@ export function CreateResource() {
 
 	const createResourceMutation = useMutation(createResource);
 	const createDeploymentMutation = useMutation(createDeployment);
+	const checkSubdomainMutation = useMutation(checkDomainAvailability);
 
 	// Set default platform domain on load
 	useEffect(() => {
@@ -256,6 +263,42 @@ export function CreateResource() {
 			.replace(/^-+|-+$/g, "");
 		setSubdomain(sanitized);
 	}, [resourceName]);
+
+	// Check subdomain availability as user types (debounced)
+	useEffect(() => {
+		// Clear previous timeout
+		if (checkSubdomainTimeoutRef.current) {
+			clearTimeout(checkSubdomainTimeoutRef.current);
+		}
+
+		if (!subdomain.trim()) {
+			setSubdomainAvailability(null);
+			return;
+		}
+
+		setSubdomainAvailability("checking");
+
+		checkSubdomainTimeoutRef.current = setTimeout(async () => {
+			try {
+				const fullDomain = `${subdomain.trim()}.${selectedPlatformDomain}`;
+				const availabilityRes = await checkSubdomainMutation.mutateAsync({
+					domain: fullDomain,
+				});
+
+				setSubdomainAvailability(
+					availabilityRes.isAvailable ? "available" : "unavailable"
+				);
+			} catch (error) {
+				setSubdomainAvailability(null);
+			}
+		}, 500); // 500ms debounce
+
+		return () => {
+			if (checkSubdomainTimeoutRef.current) {
+				clearTimeout(checkSubdomainTimeoutRef.current);
+			}
+		};
+	}, [subdomain, selectedPlatformDomain, platformDomains]);
 
 	// Validate Docker image URL
 	const validateDockerImage = (image: string): string => {
@@ -302,8 +345,6 @@ export function CreateResource() {
 		return "";
 	};
 
-	// TODO: Implement subdomain availability check when API is available
-
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 
@@ -314,11 +355,6 @@ export function CreateResource() {
 
 		if (!workspaceId) {
 			toast.error("No workspace available");
-			return;
-		}
-
-		if (subdomainAvailability === "unavailable") {
-			toast.error("The chosen subdomain is not available");
 			return;
 		}
 
@@ -336,66 +372,69 @@ export function CreateResource() {
 			}
 		}
 
+		// Block if subdomain is unavailable (checked in real-time as user types)
+		if (subdomain.trim() && subdomainAvailability === "unavailable") {
+			toast.error("The chosen subdomain is not available");
+			return;
+		}
+
 		try {
 			const platformDomain = platformDomains.find(
 				(d) => d.domain === selectedPlatformDomain
 			);
 
 			// Build spec based on resource type
-			let spec: ResourceSpec = {};
-			if (resourceType === "SERVICE") {
-				const routing = create(RoutingConfigSchema, {
-					port: parseInt(appPort || "3000", 10) || 3000,
-					pathPrefix: "/",
-					idleTimeout: 30,
-				});
+			const routing = create(RoutingConfigSchema, {
+				port: parseInt(appPort || "3000", 10) || 3000,
+				pathPrefix: "/",
+				idleTimeout: 30,
+			});
 
-				const logging = create(LoggingConfigSchema, {
-					enabled: true,
-					retentionPeriod: "7d",
-					structured: true,
-				});
+			const logging = create(LoggingConfigSchema, {
+				enabled: true,
+				retentionPeriod: "7d",
+				structured: true,
+			});
 
-				const metrics = create(MetricsConfigSchema, {
-					enabled: true,
-					path: "/metrics",
-					port: 9090,
-				});
+			const metrics = create(MetricsConfigSchema, {
+				enabled: true,
+				path: "/metrics",
+				port: 9090,
+			});
 
-				const tracing = create(TracingConfigSchema, {
-					enabled: false,
-					sampleRate: 0.1,
-					tags: {},
-				});
+			const tracing = create(TracingConfigSchema, {
+				enabled: false,
+				sampleRate: 0.1,
+				tags: {},
+			});
 
-				const regionTarget = create(RegionTargetSchema, {
-					enabled: true,
-					primary: true,
-					cpu: CPU_OPTIONS[cpuIndex],
-					memory: MEMORY_OPTIONS[memoryIndex],
-					minReplicas: 1,
-					maxReplicas: 1,
-				});
+			const regionTarget = create(RegionTargetSchema, {
+				enabled: true,
+				primary: true,
+				cpu: CPU_OPTIONS[cpuIndex],
+				memory: MEMORY_OPTIONS[memoryIndex],
+				minReplicas: 1,
+				maxReplicas: 1,
+			});
 
-				const serviceSpec = create(ServiceSpecSchema, {
-					routing,
-					observability: {
-						logging,
-						metrics,
-						tracing,
-					},
-					regions: {
-						[region]: regionTarget,
-					},
-				});
+			const serviceSpec = create(ServiceSpecSchema, {
+				routing,
+				observability: {
+					logging,
+					metrics,
+					tracing,
+				},
+				regions: {
+					[region]: regionTarget,
+				},
+			});
 
-				spec = create(ResourceSpecSchema, {
-					spec: {
-						case: "service",
-						value: serviceSpec,
-					},
-				});
-			}
+			const spec = create(ResourceSpecSchema, {
+				spec: {
+					case: "service",
+					value: serviceSpec,
+				},
+			});
 
 			// Create the resource
 			const resource = await createResourceMutation.mutateAsync({
@@ -622,19 +661,26 @@ export function CreateResource() {
 												<Loader className="h-4 w-4 animate-spin text-foreground" />
 											)}
 											{subdomainAvailability === "available" && (
-												<Check className="h-4 w-4 text-success-text" />
+												<Check className="h-4 w-4 text-green-600" />
 											)}
 											{subdomainAvailability === "unavailable" && (
-												<X className="h-4 w-4 text-error-text" />
+												<X className="h-4 w-4 text-destructive" />
 											)}
 										</div>
 									)}
 								</div>
-								{subdomain && selectedPlatformDomain && (
-									<p className="text-xs text-muted-foreground">
-										Full URL: https://{subdomain}.{selectedPlatformDomain}
+								{subdomainAvailability === "unavailable" && (
+									<p className="text-xs text-destructive">
+										This domain is not available.
 									</p>
 								)}
+								{subdomain &&
+									selectedPlatformDomain &&
+									subdomainAvailability !== "unavailable" && (
+										<p className="text-xs text-muted-foreground">
+											Full URL: https://{subdomain}.{selectedPlatformDomain}
+										</p>
+									)}
 							</div>
 						</div>
 					</CardContent>

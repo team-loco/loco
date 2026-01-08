@@ -206,6 +206,7 @@ func (s *DeploymentServer) CreateDeployment(
 	if region == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("region is required"))
 	}
+
 	// Get active cluster for the specified region
 	cluster, err := s.queries.GetActiveClusterByRegion(ctx, region)
 	if err != nil {
