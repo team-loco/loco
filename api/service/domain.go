@@ -41,8 +41,13 @@ func (s *DomainServer) CreatePlatformDomain(
 ) (*connect.Response[domainv1.CreatePlatformDomainResponse], error) {
 	r := req.Msg
 
-	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.CreatePlatformDomain, 0)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreatePlatformDomain, 0)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -147,8 +152,13 @@ func (s *DomainServer) UpdatePlatformDomain(
 ) (*connect.Response[domainv1.UpdatePlatformDomainResponse], error) {
 	r := req.Msg
 
-	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.UpdatePlatformDomain, 0)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdatePlatformDomain, 0)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -180,8 +190,13 @@ func (s *DomainServer) DeletePlatformDomain(
 ) (*connect.Response[domainv1.DeletePlatformDomainResponse], error) {
 	r := req.Msg
 
-	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.DeletePlatformDomain, 0)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeletePlatformDomain, 0)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -206,8 +221,13 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	ctx context.Context,
 	req *connect.Request[domainv1.ListLocoOwnedDomainsRequest],
 ) (*connect.Response[domainv1.ListLocoOwnedDomainsResponse], error) {
-	entityScopes := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListLocoOwnedDomains, 0)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListLocoOwnedDomains, 0)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list loco owned domains")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -241,7 +261,13 @@ func (s *DomainServer) CreateResourceDomain(
 ) (*connect.Response[domainv1.CreateResourceDomainResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.AddDomain, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.AddDomain, r.GetResourceId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	if r.GetDomain() == nil {
@@ -323,8 +349,14 @@ func (s *DomainServer) UpdateResourceDomain(
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
 
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
 	// verify user has access to this resource
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateDomain, domainRow.ResourceID)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateDomain, domainRow.ResourceID)); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -361,7 +393,13 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 ) (*connect.Response[domainv1.SetPrimaryResourceDomainResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.SetPrimaryDomain, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.SetPrimaryDomain, r.GetResourceId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -399,7 +437,13 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.RemoveDomain, domainRow.ResourceID)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.RemoveDomain, domainRow.ResourceID)); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
