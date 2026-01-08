@@ -45,7 +45,7 @@ import {
 import { listUserOrgs } from "@/gen/org/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { createDeployment } from "@/gen/deployment/v1";
-import { getErrorMessage } from "@/lib/error-handler";
+import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useAuth } from "@/auth/AuthProvider";
 import {
@@ -289,6 +289,7 @@ export function CreateResource() {
 					availabilityRes.isAvailable ? "available" : "unavailable"
 				);
 			} catch (error) {
+				toastConnectError(error);
 				setSubdomainAvailability(null);
 			}
 		}, 500); // 500ms debounce
