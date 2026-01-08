@@ -49,13 +49,16 @@ export function SiteHeader() {
 	)?.name;
 
 	return (
-		<header className="bg-white dark:bg-[oklch(0.2553_0.0226_262.4337)] fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700 dark:text-white">
-			<div className="flex h-12 w-full items-center gap-3 px-6">
+		<header
+			className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700"
+			style={{ backgroundColor: "#fff9f0" }}
+		>
+			<div className="flex h-11 w-full items-center gap-3 px-6">
 				<Button
 					variant="ghost"
 					size="icon"
 					onClick={toggleSidebar}
-					className={`h-8 w-8 transition-colors ${
+					className={`h-8 w-8 transition-all duration-75 ${
 						open ? "bg-accent text-accent-foreground" : ""
 					}`}
 					aria-label="Toggle Sidebar"
@@ -66,19 +69,19 @@ export function SiteHeader() {
 						<PanelLeftIcon className="h-4 w-4" />
 					)}
 				</Button>
-				<nav className="hidden sm:flex items-center gap-3 text-sm font-mono">
+				<nav className="hidden sm:flex items-center gap-1.5 text-sm font-medium">
 					<Link
 						to="/dashboard"
-						className="hover:text-foreground text-muted-foreground transition-colors"
+						className="hover:bg-white/80 px-2.5 py-1.5 rounded-lg transition-all duration-75 text-foreground/70 hover:text-foreground"
 					>
 						Home
 					</Link>
 					{!isHome && workspaceName && activeWorkspaceId && (
 						<>
-							<span className="text-muted-foreground">/</span>
+							<span className="text-foreground/40 font-bold">/</span>
 							<Link
 								to={`/dashboard?workspace=${activeWorkspaceId}`}
-								className="hover:text-foreground text-foreground transition-colors"
+								className="hover:bg-white/80 px-2.5 py-1.5 rounded-lg transition-all duration-75 text-foreground font-semibold"
 							>
 								{workspaceName}
 							</Link>
@@ -86,16 +89,17 @@ export function SiteHeader() {
 					)}
 					{!isHome && resourceName && activeResourceId && activeWorkspaceId && (
 						<>
-							<span className="text-muted-foreground">/</span>
-							<span className="text-foreground">{resourceName}</span>
+							<span className="text-foreground/40 font-bold">/</span>
+							<span className="px-2.5 py-1.5 text-foreground font-semibold">
+								{resourceName}
+							</span>
 						</>
 					)}
 				</nav>
 				<Button
 					onClick={() => navigate("/create-resource")}
-					className="ml-auto"
+					className="ml-auto bg-[#f1843f] hover:bg-[#f1843f]/90 text-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-75 h-8 text-sm"
 					size="sm"
-					variant="default"
 				>
 					<Plus className="h-4 w-4 mr-2" />
 					New Resource

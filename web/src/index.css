@@ -49,11 +49,11 @@
 :root {
 	--radius: 6px;
 
-	/* Backgrounds - light and clean */
-	--background: #fafbfc;
+	/* Backgrounds - warm cream everywhere */
+	--background: #fff9f0;
 	--foreground: #151b26;
 
-	/* Cards and surfaces */
+	/* Cards and surfaces - pure white for contrast */
 	--card: #ffffff;
 	--card-foreground: #151b26;
 
