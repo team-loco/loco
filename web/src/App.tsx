@@ -11,6 +11,7 @@ import { Home } from "@/pages/Home";
 import { Login } from "@/pages/Login";
 import { OAuthCallback } from "@/pages/OAuthCallback";
 import { Onboarding } from "@/pages/Onboarding";
+import { Organizations } from "@/pages/Organizations";
 import { OrgSettings } from "@/pages/OrgSettings";
 import { Profile } from "@/pages/Profile";
 import { Splash } from "@/pages/Splash";
@@ -71,6 +72,7 @@ function AppRoutes() {
 				<Route path="/events" element={<Events />} />
 				<Route path="/team" element={<Team />} />
 				<Route path="/profile" element={<Profile />} />
+				<Route path="/organizations" element={<Organizations />} />
 				<Route path="/org/:orgId/settings" element={<OrgSettings />} />
 				<Route
 					path="/workspace/:workspaceId/settings"

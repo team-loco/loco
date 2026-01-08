@@ -13,14 +13,24 @@ import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
-import { useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import Loader from "@/assets/loader.svg?react";
+import { CreateWorkspaceDialog } from "@/components/workspace/CreateWorkspaceDialog";
+import { DeleteWorkspaceDialog } from "@/components/workspace/DeleteWorkspaceDialog";
+import { DeleteOrgDialog } from "@/components/org/DeleteOrgDialog";
 
 export function OrgSettings() {
 	const { orgId } = useParams<{ orgId: string }>();
+	const navigate = useNavigate();
 	const [isEditing, setIsEditing] = useState(false);
 	const [orgName, setOrgName] = useState("");
+	const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
+	const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
+	const [deleteWorkspaceId, setDeleteWorkspaceId] = useState<bigint | null>(
+		null
+	);
+	const [deleteWorkspaceName, setDeleteWorkspaceName] = useState("");
 
 	const {
 		data: orgResponse,
@@ -34,7 +44,7 @@ export function OrgSettings() {
 
 	const org = orgResponse?.organization;
 
-	const { data: workspacesRes } = useQuery(
+	const { data: workspacesRes, refetch: refetchWorkspaces } = useQuery(
 		listOrgWorkspaces,
 		orgId ? { orgId: BigInt(orgId) } : undefined,
 		{ enabled: !!orgId }
@@ -89,8 +99,9 @@ export function OrgSettings() {
 				<p className="text-muted-foreground">Manage {org.name}</p>
 			</div>
 
-			{/* Org Info */}
-			<Card className="mb-6">
+			<div className="space-y-6">
+				{/* Org Info */}
+				<Card>
 				<CardHeader>
 					<CardTitle className="text-lg">Organization Information</CardTitle>
 				</CardHeader>
@@ -161,10 +172,10 @@ export function OrgSettings() {
 						)}
 					</div>
 				</CardContent>
-			</Card>
+				</Card>
 
-			{/* Workspaces */}
-			<Card>
+				{/* Workspaces */}
+				<Card>
 				<CardHeader>
 					<CardTitle className="text-lg">Workspaces</CardTitle>
 					<CardDescription>
@@ -179,27 +190,26 @@ export function OrgSettings() {
 							{workspaces.map((ws) => (
 								<div
 									key={ws.id}
-									className="flex items-center justify-between p-4 border border-border rounded-lg"
+									className="flex items-center justify-between p-3 border border-border rounded-lg"
 								>
 									<div>
 										<p className="font-medium text-foreground">{ws.name}</p>
-										<p className="text-xs text-muted-foreground mt-1">
-											ID: {ws.id}
-										</p>
 									</div>
 									<div className="flex gap-2">
 										<Button
 											variant="secondary"
 											size="sm"
-											onClick={() => console.log("Edit workspace", ws.id)}
+											onClick={() => navigate(`/workspace/${ws.id}/settings`)}
 										>
 											Edit
 										</Button>
 										<Button
-											variant="secondary"
+											variant="destructive"
 											size="sm"
-											className="text-red-600 border-red-200 hover:bg-red-50"
-											onClick={() => console.log("Delete workspace", ws.id)}
+											onClick={() => {
+												setDeleteWorkspaceId(ws.id);
+												setDeleteWorkspaceName(ws.name);
+											}}
 										>
 											Delete
 										</Button>
@@ -212,17 +222,69 @@ export function OrgSettings() {
 					<div className="mt-4 pt-4 border-t border-border">
 						<Button
 							variant="secondary"
-							onClick={() => console.log("Create workspace")}
-							disabled
+							onClick={() => setCreateWorkspaceOpen(true)}
 						>
 							Create New Workspace
 						</Button>
-						<p className="text-xs text-muted-foreground mt-2">
-							Workspace management coming in Phase 6
-						</p>
 					</div>
 				</CardContent>
-			</Card>
+				</Card>
+
+				{/* Danger Zone */}
+				<Card className="border-red-200 bg-red-50/50 dark:border-red-900/50 dark:bg-red-900/10">
+				<CardHeader>
+					<CardTitle className="text-lg text-red-700 dark:text-red-500">
+						Danger Zone
+					</CardTitle>
+					<CardDescription>Irreversible actions</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Button variant="destructive" onClick={() => setDeleteOrgOpen(true)}>
+						Delete Organization
+					</Button>
+					<p className="text-xs text-muted-foreground mt-3">
+						This will permanently delete this organization, all workspaces, and
+						all resources.
+					</p>
+				</CardContent>
+				</Card>
+			</div>
+
+			{/* Dialogs */}
+			{orgId && org && (
+				<>
+					<CreateWorkspaceDialog
+						open={createWorkspaceOpen}
+						onOpenChange={setCreateWorkspaceOpen}
+						orgId={BigInt(orgId)}
+						onSuccess={() => {
+							refetchWorkspaces();
+						}}
+					/>
+					{deleteWorkspaceId && (
+						<DeleteWorkspaceDialog
+							open={deleteWorkspaceId !== null}
+							onOpenChange={(open) => {
+								if (!open) {
+									setDeleteWorkspaceId(null);
+									setDeleteWorkspaceName("");
+								}
+							}}
+							workspaceId={deleteWorkspaceId}
+							workspaceName={deleteWorkspaceName}
+							onSuccess={() => {
+								refetchWorkspaces();
+							}}
+						/>
+					)}
+					<DeleteOrgDialog
+						open={deleteOrgOpen}
+						onOpenChange={setDeleteOrgOpen}
+						orgId={BigInt(orgId)}
+						orgName={org.name}
+					/>
+				</>
+			)}
 		</div>
 	);
 }

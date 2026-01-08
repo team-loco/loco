@@ -122,8 +122,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 					<Button
 						onClick={handleGithubLogin}
 						disabled={isGithubLoading}
-						variant="outline"
-						className="w-full h-10 flex items-center justify-center gap-2"
+						className="w-full h-10 flex items-center justify-center gap-2 bg-black text-white hover:bg-gray-900"
 					>
 						{isGithubLoading ? (
 							<Loader className="w-4 h-4" />
@@ -142,8 +141,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 					</Button>
 
 					<Button
-						variant="outline"
-						className="w-full h-10 flex items-center justify-center gap-2 relative"
+						className="w-full h-10 flex items-center justify-center gap-2 relative bg-black text-white hover:bg-gray-900"
 					>
 						<svg viewBox="0 0 24 24" className="w-4 h-4">
 							<path
