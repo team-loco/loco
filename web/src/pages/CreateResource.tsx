@@ -25,7 +25,19 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { ResourceType, createResource } from "@/gen/resource/v1";
+import type { ResourceSpec } from "@/gen/resource/v1";
+import {
+	ResourceType,
+	createResource,
+	RoutingConfigSchema,
+	LoggingConfigSchema,
+	MetricsConfigSchema,
+	TracingConfigSchema,
+	RegionTargetSchema,
+	ServiceSpecSchema,
+	ResourceSpecSchema,
+} from "@/gen/resource/v1";
+import { create } from "@bufbuild/protobuf";
 import { DomainType, listPlatformDomains } from "@/gen/domain/v1";
 import { listUserOrgs } from "@/gen/org/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
@@ -329,6 +341,62 @@ export function CreateResource() {
 				(d) => d.domain === selectedPlatformDomain
 			);
 
+			// Build spec based on resource type
+			let spec: ResourceSpec = {};
+			if (resourceType === "SERVICE") {
+				const routing = create(RoutingConfigSchema, {
+					port: parseInt(appPort || "3000", 10) || 3000,
+					pathPrefix: "/",
+					idleTimeout: 30,
+				});
+
+				const logging = create(LoggingConfigSchema, {
+					enabled: true,
+					retentionPeriod: "7d",
+					structured: true,
+				});
+
+				const metrics = create(MetricsConfigSchema, {
+					enabled: true,
+					path: "/metrics",
+					port: 9090,
+				});
+
+				const tracing = create(TracingConfigSchema, {
+					enabled: false,
+					sampleRate: 0.1,
+					tags: {},
+				});
+
+				const regionTarget = create(RegionTargetSchema, {
+					enabled: true,
+					primary: true,
+					cpu: CPU_OPTIONS[cpuIndex],
+					memory: MEMORY_OPTIONS[memoryIndex],
+					minReplicas: 1,
+					maxReplicas: 1,
+				});
+
+				const serviceSpec = create(ServiceSpecSchema, {
+					routing,
+					observability: {
+						logging,
+						metrics,
+						tracing,
+					},
+					regions: {
+						[region]: regionTarget,
+					},
+				});
+
+				spec = create(ResourceSpecSchema, {
+					spec: {
+						case: "service",
+						value: serviceSpec,
+					},
+				});
+			}
+
 			// Create the resource
 			const resource = await createResourceMutation.mutateAsync({
 				name: resourceName,
@@ -340,6 +408,7 @@ export function CreateResource() {
 					subdomain: subdomain,
 					platformDomainId: platformDomain?.id || BigInt(0),
 				},
+				spec,
 			});
 
 			if (!resource?.resourceId) {

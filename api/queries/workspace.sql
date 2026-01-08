@@ -1,6 +1,6 @@
 -- name: CreateWorkspace :one
-INSERT INTO workspaces (org_id, name, description)
-VALUES ($1, $2, $3)
+INSERT INTO workspaces (org_id, name, description, created_by)
+VALUES ($1, $2, $3, $4)
 RETURNING id;
 
 -- name: GetWorkspaceByIDQuery :one

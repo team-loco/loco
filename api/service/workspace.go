@@ -75,17 +75,26 @@ func (s *WorkspaceServer) CreateWorkspace(
 
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
+	}
+	// make sure that requester is a user and has permission to create orgs (user:write on oneself)
+	if entity.Type != genDb.EntityTypeUser {
+		slog.WarnContext(ctx, "only users can create organizations", "entityId", entity.ID, "entityType", entity.Type)
+		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
+	}
 	wsID, err := s.queries.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
 		OrgID:       r.GetOrgId(),
 		Name:        r.GetName(),
 		Description: description,
+		CreatedBy:   entity.ID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	entity := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	err = s.machine.UpdateRoles(ctx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},

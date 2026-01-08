@@ -435,3 +435,6 @@ clickhouse is named weirdly and so is our controller.
 - test scale/env. clean up cli implementation to not require config.
 - should potentially be able to chop off cilium-envoy
 - potentially use vtprotobuf.
+- need a list regions endpoint
+
+- ensure ppl are actually using the account, not just creating it, and leaving stuff there. so some sort of background process to clean up unused accounts, release domains, and whatnot?

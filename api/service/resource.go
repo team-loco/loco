@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
-	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -40,6 +39,26 @@ var (
 	ErrInvalidCPU            = errors.New("invalid CPU format")
 	ErrInvalidMemory         = errors.New("invalid memory format")
 )
+
+// protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
+func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, error) {
+	switch rt {
+	case resourcev1.ResourceType_RESOURCE_TYPE_SERVICE:
+		return genDb.ResourceTypeService, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_DATABASE:
+		return genDb.ResourceTypeDatabase, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_CACHE:
+		return genDb.ResourceTypeCache, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_QUEUE:
+		return genDb.ResourceTypeQueue, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_BLOB:
+		return genDb.ResourceTypeBlob, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION:
+		return genDb.ResourceTypeService, nil
+	default:
+		return "", ErrInvalidResourceType
+	}
+}
 
 // computeNamespace derives a Kubernetes namespace from resource ID
 // format: app-{resourceID}
@@ -181,18 +200,20 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown resource spec type"))
 	}
 
+	resourceType, err := protoResourceTypeToDb(r.GetType())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
 	params := genDb.CreateResourceParams{
 		WorkspaceID: r.GetWorkspaceId(),
 		Name:        r.GetName(),
-		Type:        genDb.ResourceType(strings.ToLower(r.GetType().String())),
+		Type:        resourceType,
 		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
 		SpecVersion: version.SpecVersionV1,
-		// TODO PRIORITY: change createby to entity
-		CreatedBy:   0,
 		Description: r.GetDescription(),
 	}
-
 	resourceID, err := s.queries.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
@@ -1079,7 +1100,6 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		Spec:        spec,
 		Domains:     resourceDomainToListProto(domains),
 		Regions:     protoRegions,
-		CreatedBy:   resource.CreatedBy,
 		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
 		Status:      resourceStatus,

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"reflect"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -47,7 +46,6 @@ func (s *OrgServer) CreateOrg(
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
-		slog.ErrorContext(ctx, "entity not found in context", "entityType", reflect.TypeOf(ctx.Value(contextkeys.EntityKey)))
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 	// make sure that requester is a user and has permission to create orgs (user:write on oneself)

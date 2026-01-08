@@ -13,8 +13,8 @@ import (
 
 const createResource = `-- name: CreateResource :one
 
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
@@ -26,7 +26,6 @@ type CreateResourceParams struct {
 	Status      ResourceStatus `json:"status"`
 	Spec        []byte         `json:"spec"`
 	SpecVersion int32          `json:"specVersion"`
-	CreatedBy   int64          `json:"createdBy"`
 }
 
 // Resource queries
@@ -39,7 +38,6 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.Status,
 		arg.Spec,
 		arg.SpecVersion,
-		arg.CreatedBy,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -164,7 +162,7 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -181,7 +179,6 @@ func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, erro
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
-		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -189,7 +186,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, erro
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -211,7 +208,6 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.Status,
 		&i.Spec,
 		&i.SpecVersion,
-		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -373,14 +369,14 @@ func (q *Queries) ListResourceRegions(ctx context.Context, resourceID int64) ([]
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
-  AND ($3::text IS NULL
-       OR (r.created_at, r.id) < (
-         (SELECT created_at FROM resources WHERE id = $3::bigint),
-         $3::bigint
-       ))
+   AND ($3::text IS NULL
+        OR (r.created_at, r.id) < (
+          (SELECT created_at FROM resources WHERE id = $3::bigint),
+          $3::bigint
+        ))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT $2
 `
@@ -409,7 +405,6 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.Status,
 			&i.Spec,
 			&i.SpecVersion,
-			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

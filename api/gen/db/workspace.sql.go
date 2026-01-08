@@ -12,8 +12,8 @@ import (
 )
 
 const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (org_id, name, description)
-VALUES ($1, $2, $3)
+INSERT INTO workspaces (org_id, name, description, created_by)
+VALUES ($1, $2, $3, $4)
 RETURNING id
 `
 
@@ -21,10 +21,16 @@ type CreateWorkspaceParams struct {
 	OrgID       int64       `json:"orgId"`
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
+	CreatedBy   int64       `json:"createdBy"`
 }
 
 func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (int64, error) {
-	row := q.db.QueryRow(ctx, createWorkspace, arg.OrgID, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, createWorkspace,
+		arg.OrgID,
+		arg.Name,
+		arg.Description,
+		arg.CreatedBy,
+	)
 	var id int64
 	err := row.Scan(&id)
 	return id, err
