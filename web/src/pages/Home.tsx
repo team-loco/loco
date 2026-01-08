@@ -13,6 +13,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import Loader from "@/assets/loader.svg?react";
+import { useOrgContext } from "@/hooks/useOrgContext";
 
 export function Home() {
 	const navigate = useNavigate();
@@ -20,7 +21,6 @@ export function Home() {
 	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
-	const [selectedOrgId] = useState<bigint | null>(null);
 	const selectedWorkspaceId = workspaceFromUrl
 		? BigInt(workspaceFromUrl)
 		: null;
@@ -36,7 +36,9 @@ export function Home() {
 	});
 	const orgs = useMemo(() => orgsQueryRes?.orgs ?? [], [orgsQueryRes]);
 
-	const currentOrgId = selectedOrgId || (orgs.length > 0 ? orgs[0].id : null);
+	// Use org context from URL (managed by useOrgContext hook)
+	const { activeOrgId } = useOrgContext(orgs.map((o) => o.id));
+	const currentOrgId = activeOrgId ?? (orgs.length > 0 ? orgs[0].id : null);
 
 	// Fetch workspaces for selected org
 	const { data: listWorkspacesRes } = useQuery(

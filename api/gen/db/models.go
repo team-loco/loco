@@ -387,7 +387,6 @@ type Resource struct {
 	Status      ResourceStatus     `json:"status"`
 	Spec        []byte             `json:"spec"`
 	SpecVersion int32              `json:"specVersion"`
-	CreatedBy   int64              `json:"createdBy"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
 }

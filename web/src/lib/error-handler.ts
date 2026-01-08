@@ -28,5 +28,7 @@ export function getErrorMessage(error: unknown, fallback = "An error occurred"):
 
 export function toastConnectError(error: unknown, fallback = "An unexpected error occurred."): void {
 	const message = getErrorMessage(error, fallback);
-	toast.error(message);
+	toast.error(message, {
+		duration: 5000,
+	});
 }

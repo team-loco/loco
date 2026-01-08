@@ -49,7 +49,6 @@ CREATE TABLE resources (
     status resource_status NOT NULL,
     spec JSONB NOT NULL,
     spec_version INT NOT NULL,
-    created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (workspace_id, name)

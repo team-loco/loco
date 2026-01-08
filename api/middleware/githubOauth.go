@@ -53,10 +53,10 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 		req connect.AnyRequest,
 	) (connect.AnyResponse, error) {
 		// todo: need to fix the service name
-		if req.Spec().Procedure == "oauth.v1.OAuthService/GetOAuthDetails" ||
-			req.Spec().Procedure == "oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
-			req.Spec().Procedure == "oauth.v1.OAuthService/ExchangeOAuthCode" ||
-			req.Spec().Procedure == "oauth.v1.OAuthService/ExchangeOAuthToken" {
+		if req.Spec().Procedure == "/oauth.v1.OAuthService/GetOAuthDetails" ||
+			req.Spec().Procedure == "/oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
+			req.Spec().Procedure == "/oauth.v1.OAuthService/ExchangeOAuthCode" ||
+			req.Spec().Procedure == "/oauth.v1.OAuthService/ExchangeOAuthToken" {
 			return next(ctx, req)
 		}
 
@@ -101,10 +101,10 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 		ctx context.Context,
 		conn connect.StreamingHandlerConn,
 	) error {
-		if conn.Spec().Procedure == "oauth.v1.OAuthService/GetOAuthDetails" ||
-			conn.Spec().Procedure == "oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
-			conn.Spec().Procedure == "oauth.v1.OAuthService/ExchangeOAuthCode" ||
-			conn.Spec().Procedure == "oauth.v1.OAuthService/ExchangeOAuthToken" {
+		if conn.Spec().Procedure == "/oauth.v1.OAuthService/GetOAuthDetails" ||
+			conn.Spec().Procedure == "/oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
+			conn.Spec().Procedure == "/oauth.v1.OAuthService/ExchangeOAuthCode" ||
+			conn.Spec().Procedure == "/oauth.v1.OAuthService/ExchangeOAuthToken" {
 			return next(ctx, conn)
 		}
 

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
-	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -41,6 +40,26 @@ var (
 	ErrInvalidMemory         = errors.New("invalid memory format")
 )
 
+// protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
+func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, error) {
+	switch rt {
+	case resourcev1.ResourceType_RESOURCE_TYPE_SERVICE:
+		return genDb.ResourceTypeService, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_DATABASE:
+		return genDb.ResourceTypeDatabase, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_CACHE:
+		return genDb.ResourceTypeCache, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_QUEUE:
+		return genDb.ResourceTypeQueue, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_BLOB:
+		return genDb.ResourceTypeBlob, nil
+	case resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION:
+		return genDb.ResourceTypeService, nil
+	default:
+		return "", ErrInvalidResourceType
+	}
+}
+
 // computeNamespace derives a Kubernetes namespace from resource ID
 // format: app-{resourceID}
 func computeNamespace(workspaceID, resourceID int64) string {
@@ -74,7 +93,13 @@ func (s *ResourceServer) CreateResource(
 ) (*connect.Response[resourcev1.CreateResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateResource, r.GetWorkspaceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateResource, r.GetWorkspaceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create resource", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -181,22 +206,27 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unknown resource spec type"))
 	}
 
+	resourceType, err := protoResourceTypeToDb(r.GetType())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
 	params := genDb.CreateResourceParams{
 		WorkspaceID: r.GetWorkspaceId(),
 		Name:        r.GetName(),
-		Type:        genDb.ResourceType(strings.ToLower(r.GetType().String())),
+		Type:        resourceType,
 		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
 		SpecVersion: version.SpecVersionV1,
-		// TODO PRIORITY: change createby to entity
-		CreatedBy:   0,
 		Description: r.GetDescription(),
 	}
-
 	resourceID, err := s.queries.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("a resource with this name already exists in this workspace"))
+		}
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create resource"))
 	}
 
 	// Create resource regions (first region is primary)
@@ -249,7 +279,13 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("resource_id or name_key is required"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResource, resourceId)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetResource, resourceId)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", resourceId)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -285,7 +321,14 @@ func (s *ResourceServer) ListWorkspaceResources(
 	r := req.Msg
 
 	slog.InfoContext(ctx, "received req to list resources", "workspaceId", r.GetWorkspaceId())
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListResources, r.GetWorkspaceId())); err != nil {
+
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListResources, r.GetWorkspaceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list resources", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -347,7 +390,13 @@ func (s *ResourceServer) UpdateResource(
 ) (*connect.Response[resourcev1.UpdateResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateResource, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateResource, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update resource", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -376,7 +425,13 @@ func (s *ResourceServer) DeleteResource(
 ) (*connect.Response[resourcev1.DeleteResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteResource, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteResource, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete resource", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -408,7 +463,13 @@ func (s *ResourceServer) GetResourceStatus(
 ) (*connect.Response[resourcev1.GetResourceStatusResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResourceStatus, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetResourceStatus, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource status", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -503,7 +564,13 @@ func (s *ResourceServer) WatchLogs(
 ) error {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.StreamResourceLogs, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.StreamResourceLogs, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to stream logs for resource", "resourceId", r.GetResourceId())
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -577,7 +644,13 @@ func (s *ResourceServer) ListResourceEvents(
 ) (*connect.Response[resourcev1.ListResourceEventsResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetResourceEvents, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetResourceEvents, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get events for resource", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -639,7 +712,13 @@ func (s *ResourceServer) ScaleResource(
 ) (*connect.Response[resourcev1.ScaleResourceResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ScaleResource, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ScaleResource, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to scale resource", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -831,7 +910,13 @@ func (s *ResourceServer) UpdateResourceEnv(
 ) (*connect.Response[resourcev1.UpdateResourceEnvResponse], error) {
 	r := req.Msg
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.UpdateResourceEnv, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateResourceEnv, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update resource env", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -1079,7 +1164,6 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		Spec:        spec,
 		Domains:     resourceDomainToListProto(domains),
 		Regions:     protoRegions,
-		CreatedBy:   resource.CreatedBy,
 		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
 		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
 		Status:      resourceStatus,

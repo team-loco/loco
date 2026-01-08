@@ -9,25 +9,35 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getWorkspace } from "@/gen/workspace/v1";
-import { useQuery } from "@connectrpc/connect-query";
+import { getWorkspace, updateWorkspace } from "@/gen/workspace/v1";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 import Loader from "@/assets/loader.svg?react";
+import { DeleteWorkspaceDialog } from "@/components/workspace/DeleteWorkspaceDialog";
+import { getErrorMessage } from "@/lib/error-handler";
 
 export function WorkspaceSettings() {
 	const { workspaceId } = useParams<{ workspaceId: string }>();
 	const [isEditing, setIsEditing] = useState(false);
 	const [wsName, setWsName] = useState("");
 	const [wsDescription, setWsDescription] = useState("");
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
-	const { data: workspaceResponse, isLoading: wsLoading } = useQuery(
+	const {
+		data: workspaceResponse,
+		isLoading: wsLoading,
+		refetch,
+	} = useQuery(
 		getWorkspace,
 		workspaceId ? { workspaceId: BigInt(workspaceId) } : undefined,
 		{ enabled: !!workspaceId }
 	);
 	const workspace = workspaceResponse?.workspace;
+
+	const { mutate: mutateUpdateWorkspace, isPending: isUpdatePending } =
+		useMutation(updateWorkspace);
 
 	// Update state when workspace data loads
 	if (workspace && !wsName && !isEditing) {
@@ -36,14 +46,25 @@ export function WorkspaceSettings() {
 	}
 
 	const handleSave = () => {
-		toast.success("Workspace updated");
-		setIsEditing(false);
-	};
+		if (!workspaceId) return;
 
-	const handleDelete = () => {
-		if (confirm("Are you sure? This action cannot be undone.")) {
-			toast.success("Workspace deleted");
-		}
+		mutateUpdateWorkspace(
+			{
+				workspaceId: BigInt(workspaceId),
+				name: wsName.trim(),
+				description: wsDescription.trim() || undefined,
+			},
+			{
+				onSuccess: () => {
+					refetch();
+					toast.success("Workspace updated");
+					setIsEditing(false);
+				},
+				onError: (error) => {
+					toast.error(getErrorMessage(error, "Failed to update workspace"));
+				},
+			}
+		);
 	};
 
 	if (wsLoading || !workspace) {
@@ -117,10 +138,20 @@ export function WorkspaceSettings() {
 										setWsName(workspace.name);
 										setWsDescription(workspace.description ?? "");
 									}}
+									disabled={isUpdatePending}
 								>
 									Cancel
 								</Button>
-								<Button onClick={handleSave}>Save Changes</Button>
+								<Button onClick={handleSave} disabled={isUpdatePending}>
+									{isUpdatePending ? (
+										<>
+											<Loader className="w-4 h-4 mr-2" />
+											Saving...
+										</>
+									) : (
+										"Save Changes"
+									)}
+								</Button>
 							</>
 						)}
 					</div>
@@ -148,24 +179,35 @@ export function WorkspaceSettings() {
 			</Card>
 
 			{/* Danger Zone */}
-			<Card className="border-red-200 bg-red-50/50">
+			<Card className="border-red-200 bg-red-50/50 dark:border-red-900/50 dark:bg-red-900/10">
 				<CardHeader>
-					<CardTitle className="text-lg text-red-700">Danger Zone</CardTitle>
+					<CardTitle className="text-lg text-red-700 dark:text-red-500">
+						Danger Zone
+					</CardTitle>
 					<CardDescription>Irreversible actions</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<Button
-						variant="secondary"
-						className="text-red-600 border-red-200 hover:bg-red-50"
-						onClick={handleDelete}
+						variant="destructive"
+						onClick={() => setDeleteDialogOpen(true)}
 					>
 						Delete Workspace
 					</Button>
 					<p className="text-xs text-muted-foreground mt-3">
-						This will permanently delete this workspace and all its apps.
+						This will permanently delete this workspace and all its resources.
 					</p>
 				</CardContent>
 			</Card>
+
+			{/* Delete Dialog */}
+			{workspaceId && workspace && (
+				<DeleteWorkspaceDialog
+					open={deleteDialogOpen}
+					onOpenChange={setDeleteDialogOpen}
+					workspaceId={BigInt(workspaceId)}
+					workspaceName={workspace.name}
+				/>
+			)}
 		</div>
 	);
 }

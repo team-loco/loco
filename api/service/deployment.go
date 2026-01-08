@@ -157,7 +157,13 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.CreateDeployment, r.GetResourceId())); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateDeployment, r.GetResourceId())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -200,6 +206,7 @@ func (s *DeploymentServer) CreateDeployment(
 	if region == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("region is required"))
 	}
+
 	// Get active cluster for the specified region
 	cluster, err := s.queries.GetActiveClusterByRegion(ctx, region)
 	if err != nil {
@@ -287,8 +294,14 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
 	// check if user has permission to get deployment (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.GetDeployment, resource.ID)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetDeployment, resource.ID)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get deployment", "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -305,8 +318,14 @@ func (s *DeploymentServer) ListDeployments(
 ) (*connect.Response[deploymentv1.ListDeploymentsResponse], error) {
 	r := req.Msg
 
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
 	// check if requester has permission to list deployments (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.ListDeployments, r.GetResourceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListDeployments, r.GetResourceId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -375,7 +394,13 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.DeleteDeployment, resource.ID)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteDeployment, resource.ID)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", resource.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -418,7 +443,13 @@ func (s *DeploymentServer) WatchDeployment(
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope), actions.New(actions.StreamDeployment, resource.ID)); err != nil {
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.StreamDeployment, resource.ID)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resource.ID)
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}

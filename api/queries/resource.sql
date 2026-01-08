@@ -1,29 +1,29 @@
 -- Resource queries
 
 -- name: CreateResource :one
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
-  AND (sqlc.narg('page_token')::text IS NULL
-       OR (r.created_at, r.id) < (
-         (SELECT created_at FROM resources WHERE id = sqlc.narg('page_token')::bigint),
-         sqlc.narg('page_token')::bigint
-       ))
+   AND (sqlc.narg('page_token')::text IS NULL
+        OR (r.created_at, r.id) < (
+          (SELECT created_at FROM resources WHERE id = sqlc.narg('page_token')::bigint),
+          sqlc.narg('page_token')::bigint
+        ))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT $2;
 

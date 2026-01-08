@@ -1,6 +1,7 @@
 import {
 	Activity,
 	BookOpen,
+	Building2,
 	Calendar,
 	CheckCircle,
 	Home,
@@ -35,6 +36,7 @@ import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
 import { ThemeToggle } from "./ThemeToggle";
+import { useOrgContext } from "@/hooks/useOrgContext";
 
 type NavItemBase = {
 	title: string;
@@ -96,7 +98,13 @@ const data = {
 			items: [],
 		},
 		{
-			section: "Resources",
+			title: "Organizations",
+			url: "/organizations",
+			icon: Building2,
+			items: [],
+		},
+		{
+			section: "Help & Resources",
 			items: [
 				{
 					title: "Docs",
@@ -134,12 +142,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	);
 
 	const orgs = orgsRes?.orgs ?? [];
-	const firstOrgId = orgs[0]?.id ?? null;
+	const { activeOrgId } = useOrgContext(orgs.map((o) => o.id));
+
+	// Use active org from context, fallback to first org
+	const currentOrgId = activeOrgId ?? orgs[0]?.id ?? null;
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
-		firstOrgId ? { orgId: firstOrgId } : undefined,
-		{ enabled: !!firstOrgId }
+		currentOrgId ? { orgId: currentOrgId } : undefined,
+		{ enabled: !!currentOrgId }
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 
@@ -173,6 +184,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	return (
 		<Sidebar {...props}>
 			<SidebarHeader className="pt-14">
+				{/* Loco Branding */}
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton
@@ -290,12 +302,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 						name: user?.name || "User",
 						email: user?.email || "",
 						avatar: user?.avatarUrl || "",
-					}} 
+					}}
 					workspaces={workspaces.map((ws) => ({
 						id: ws.id,
 						name: ws.name,
 					}))}
 					activeWorkspaceId={activeWorkspaceId}
+					orgs={orgs}
 				/>
 			</SidebarGroup>
 

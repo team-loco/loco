@@ -26,8 +26,7 @@ export function getPhaseTooltip(deployment: Deployment): string {
 
 	const tooltips: Record<DeploymentPhase, string> = {
 		[DeploymentPhase.UNSPECIFIED]: "Unknown status",
-		[DeploymentPhase.PENDING]:
-			"Waiting for the deployment to start. Your app is queued and ready to go.",
+		[DeploymentPhase.PENDING]: "Waiting for the deployment to start.",
 		[DeploymentPhase.DEPLOYING]:
 			"In progress. We're pulling your image, creating pods, and getting everything ready.",
 		[DeploymentPhase.RUNNING]:
@@ -49,8 +48,7 @@ export function getResourceStatusTooltip(statusLabel: string): string {
 			"Your app is being deployed. We're pulling the image and creating pods.",
 		degraded:
 			"Your app has issues but is still partially operational. Check the logs for details.",
-		unavailable:
-			"Your app is currently unavailable. A deployment may be in progress or an error occurred.",
+		unavailable: "Your app is currently unavailable.",
 		stopped: "Your app is stopped and not running.",
 		pending: "Waiting to deploy. Your app is queued.",
 		failed: "Deployment failed. Check the logs for more information.",

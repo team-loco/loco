@@ -63,7 +63,7 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs); err != nil {
 		return err
 	}
-	if resourceIds, err = seedResources(ctx, q, wksIDs, userIDs); err != nil {
+	if resourceIds, err = seedResources(ctx, q, wksIDs); err != nil {
 		return err
 	}
 	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, resourceIds, userIDs); err != nil {
@@ -232,7 +232,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64) ([
 	return wksIDs, nil
 }
 
-func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, userIDs []int64) ([]int64, error) {
+func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64) ([]int64, error) {
 	var resourceIds []int64
 
 	if resource1Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
@@ -243,7 +243,6 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, use
 		Status:      db.ResourceStatusHealthy,
 		Spec:        specExample,
 		SpecVersion: 1,
-		CreatedBy:   userIDs[2], // user 3
 	}); err != nil {
 		return nil, fmt.Errorf("creating resource 1: %w", err)
 	} else {
@@ -258,7 +257,6 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, use
 		Status:      db.ResourceStatusHealthy,
 		Spec:        specExample,
 		SpecVersion: 1,
-		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
 		return nil, fmt.Errorf("creating resource 2: %w", err)
 	} else {
@@ -273,7 +271,6 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, use
 		Status:      db.ResourceStatusHealthy,
 		Spec:        specExample,
 		SpecVersion: 1,
-		CreatedBy:   userIDs[2], // user 3
 	}); err != nil {
 		return nil, fmt.Errorf("creating resource 3: %w", err)
 	} else {
@@ -288,7 +285,6 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, use
 		Status:      db.ResourceStatusHealthy,
 		Spec:        specExample,
 		SpecVersion: 1,
-		CreatedBy:   userIDs[0], // user 1
 	}); err != nil {
 		return nil, fmt.Errorf("creating resource 4: %w", err)
 	} else {
@@ -303,7 +299,6 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, use
 		Status:      db.ResourceStatusHealthy,
 		Spec:        specExample,
 		SpecVersion: 1,
-		CreatedBy:   userIDs[3], // user 4
 	}); err != nil {
 		return nil, fmt.Errorf("creating resource 5: %w", err)
 	} else {
@@ -318,7 +313,6 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64, use
 		Status:      db.ResourceStatusHealthy,
 		Spec:        specExample,
 		SpecVersion: 1,
-		CreatedBy:   userIDs[1], // user 2
 	}); err != nil {
 		return nil, fmt.Errorf("creating resource 6: %w", err)
 	} else {
