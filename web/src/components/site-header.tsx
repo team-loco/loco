@@ -1,52 +1,63 @@
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import { listWorkspaceResources } from "@/gen/resource/v1";
-import { listUserOrgs } from "@/gen/org/v1";
-import { listOrgWorkspaces } from "@/gen/workspace/v1";
-import { useAuth } from "@/auth/AuthProvider";
-import { useQuery } from "@connectrpc/connect-query";
 import { PanelLeftCloseIcon, PanelLeftIcon, Plus } from "lucide-react";
-import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate } from "react-router";
+import { useMemo } from "react";
+
+// Navigation items matching AppSidebar structure
+const navItems = [
+	{ title: "Dashboard", url: "/dashboard" },
+	{ title: "Resources", url: "/resources" },
+	{ title: "Observability", url: "/observability" },
+	{ title: "Events", url: "/events" },
+	{ title: "Usage", url: "/usage" },
+	{ title: "Tokens", url: "/tokens" },
+	{ title: "Team", url: "/team" },
+	{ title: "Organizations", url: "/organizations" },
+	{ title: "Docs", url: "/docs" },
+	{ title: "Packages", url: "/packages" },
+];
 
 export function SiteHeader() {
 	const location = useLocation();
-	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
 	const { open, toggleSidebar } = useSidebar();
-	const { user } = useAuth();
 
-	const workspaceFromUrl = searchParams.get("workspace");
-	const activeWorkspaceId = workspaceFromUrl ? BigInt(workspaceFromUrl) : null;
+	// Find the active nav item based on current path
+	const pageTitle = useMemo(() => {
+		// Special cases for settings pages
+		if (location.pathname.startsWith("/org-settings")) {
+			return "Organization Settings";
+		}
+		if (location.pathname.startsWith("/workspace-settings")) {
+			return "Workspace Settings";
+		}
+		if (location.pathname.startsWith("/resource-settings") || location.pathname.includes("/settings")) {
+			return "Settings";
+		}
+		if (location.pathname.startsWith("/profile")) {
+			return "Profile";
+		}
+		if (location.pathname.startsWith("/create-resource")) {
+			return "Create Resource";
+		}
 
-	const resourceIdMatch = location.pathname.match(/\/resource\/(\d+)/);
-	const activeResourceId = resourceIdMatch ? BigInt(resourceIdMatch[1]) : null;
+		// Special case for resource details page - show "Resources"
+		if (location.pathname.startsWith("/resource/")) {
+			return "Resources";
+		}
 
-	const { data: orgsRes } = useQuery(
-		listUserOrgs,
-		user ? { userId: BigInt(user.id) } : undefined,
-		{ enabled: !!user }
-	);
-	const firstOrgId = orgsRes?.orgs?.[0]?.id ?? null;
+		// Find matching nav item
+		const activeNavItem = navItems.find((item) => {
+			if (item.url === "/dashboard") {
+				// Dashboard matches both /dashboard and /home
+				return location.pathname === "/dashboard" || location.pathname === "/home";
+			}
+			return location.pathname.startsWith(item.url);
+		});
 
-	const { data: workspacesRes } = useQuery(
-		listOrgWorkspaces,
-		firstOrgId ? { orgId: firstOrgId } : undefined,
-		{ enabled: !!firstOrgId }
-	);
-
-	const { data: resourcesRes } = useQuery(
-		listWorkspaceResources,
-		{ workspaceId: activeWorkspaceId ?? 0n },
-		{ enabled: !!activeWorkspaceId }
-	);
-
-	const isHome = !activeResourceId && !activeWorkspaceId;
-	const workspaceName = workspacesRes?.workspaces?.find(
-		(ws) => ws.id === activeWorkspaceId
-	)?.name;
-	const resourceName = resourcesRes?.resources?.find(
-		(resource) => resource.id === activeResourceId
-	)?.name;
+		return activeNavItem?.title ?? "Dashboard";
+	}, [location.pathname]);
 
 	return (
 		<header
@@ -68,33 +79,9 @@ export function SiteHeader() {
 						<PanelLeftIcon className="h-4 w-4" />
 					)}
 				</Button>
-				<nav className="hidden sm:flex items-center gap-1.5 text-sm font-medium">
-					<Link
-						to="/dashboard"
-						className="hover:bg-white/80 px-2.5 py-1.5 rounded-lg transition-all duration-75 text-foreground/70 hover:text-foreground"
-					>
-						Home
-					</Link>
-					{!isHome && workspaceName && activeWorkspaceId && (
-						<>
-							<span className="text-foreground/40 font-bold">/</span>
-							<Link
-								to={`/dashboard?workspace=${activeWorkspaceId}`}
-								className="hover:bg-white/80 px-2.5 py-1.5 rounded-lg transition-all duration-75 text-foreground font-semibold"
-							>
-								{workspaceName}
-							</Link>
-						</>
-					)}
-					{!isHome && resourceName && activeResourceId && activeWorkspaceId && (
-						<>
-							<span className="text-foreground/40 font-bold">/</span>
-							<span className="px-2.5 py-1.5 text-foreground font-semibold">
-								{resourceName}
-							</span>
-						</>
-					)}
-				</nav>
+				<h1 className="text-lg font-semibold text-foreground">
+					{pageTitle}
+				</h1>
 				<Button
 					onClick={() => navigate("/create-resource")}
 					className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_#000] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-75 h-8 text-sm"

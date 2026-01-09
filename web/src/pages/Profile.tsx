@@ -54,13 +54,6 @@ export function Profile() {
 
 	return (
 		<div className="mx-auto py-8">
-			<div className="mb-8">
-				<h1 className="text-3xl text-foreground mb-2">Profile Settings</h1>
-				<p className="text-muted-foreground">
-					Manage your account and preferences
-				</p>
-			</div>
-
 			{/* Profile Info */}
 			<Card className="mb-6">
 				<CardHeader>

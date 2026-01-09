@@ -82,13 +82,7 @@ export function Events() {
 		<div className="min-h-screen bg-background">
 			{/* Header */}
 			<div className="border-b-2 border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-10">
-				<div className="container px-4 py-4 flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-bold">Events</h1>
-						<p className="text-sm text-foreground opacity-70 mt-1">
-							View all workspace events and activity
-						</p>
-					</div>
+				<div className="container px-4 py-4 flex items-center justify-end">
 					{events.length > 0 && (
 						<Button
 							variant="destructive"

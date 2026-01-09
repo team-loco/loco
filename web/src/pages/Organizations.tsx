@@ -77,15 +77,7 @@ export function Organizations() {
 
 	return (
 		<div className="max-w-6xl mx-auto py-8 px-4">
-			<div className="flex items-center justify-between mb-8">
-				<div>
-					<h1 className="text-3xl font-bold text-foreground mb-2">
-						Organizations
-					</h1>
-					<p className="text-muted-foreground">
-						Manage your organizations and workspaces
-					</p>
-				</div>
+			<div className="flex items-center justify-end mb-8">
 				<Button onClick={() => setCreateOrgOpen(true)}>
 					<Plus className="size-4 mr-2" />
 					Create Organization
