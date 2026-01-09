@@ -37,7 +37,7 @@ export function OrgCard({
 		: "Unknown";
 
 	return (
-		<Card className="hover:border-primary/50 transition-colors">
+		<Card>
 			<CardHeader>
 				<div className="flex items-start justify-between">
 					<div className="flex items-center gap-3">
@@ -47,7 +47,9 @@ export function OrgCard({
 						<div>
 							<CardTitle className="text-xl">{org.name}</CardTitle>
 							<CardDescription className="mt-1">
-								{workspaceCount} {workspaceCount === 1 ? "workspace" : "workspaces"} · Created {createdDate}
+								{workspaceCount}{" "}
+								{workspaceCount === 1 ? "workspace" : "workspaces"} · Created{" "}
+								{createdDate}
 							</CardDescription>
 						</div>
 					</div>

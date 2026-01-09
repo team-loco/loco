@@ -36,6 +36,8 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/auth/AuthProvider";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/use-theme";
+import "./layout/ThemeToggle.css";
 
 export interface Workspace {
 	id: bigint;
@@ -62,8 +64,22 @@ export function NavUser({
 	const { logout } = useAuth();
 	const [searchParams] = useSearchParams();
 	const { activeOrgId, setActiveOrgId } = useOrgContext(orgs.map((o) => o.id));
+	const { theme, toggleTheme } = useTheme();
 
 	const activeOrg = orgs.find((org) => org.id === activeOrgId);
+
+	const playSound = async (isDark: boolean) => {
+		new window.AudioContext(); // necessary fix audio delay on Safari
+		const audio = new Audio(`${isDark ? "/lightMode.wav" : "/darkMode.wav"}`);
+		audio.volume = 0.9;
+		await audio.play();
+	};
+
+	const handleThemeToggle = async () => {
+		const isDark = theme === "dark";
+		toggleTheme();
+		await playSound(isDark);
+	};
 
 	// Dialog state
 	const [createOrgOpen, setCreateOrgOpen] = useState(false);
@@ -107,7 +123,7 @@ export function NavUser({
 					<DropdownMenuTrigger asChild>
 						<SidebarMenuButton
 							size="lg"
-							className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
+							className="data-[state=open]:bg-sidebar-accent/90 cursor-pointer"
 						>
 							<Avatar className="h-8 w-8 rounded-lg">
 								<AvatarImage src={user.avatar} alt={user.name} />
@@ -232,6 +248,21 @@ export function NavUser({
 							<DropdownMenuItem className="cursor-pointer">
 								<HelpCircle />
 								Support
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={(e) => {
+									e.preventDefault();
+									void handleThemeToggle();
+								}}
+								onSelect={(e) => e.preventDefault()}
+								className="cursor-pointer"
+							>
+								{theme === "dark" ? (
+									<div className="div-toggle-btn-dark border-0 shadow-none h-4 w-4"></div>
+								) : (
+									<div className="div-toggle-btn-light border-0 shadow-none h-4 w-4"></div>
+								)}
+								{theme === "dark" ? "Light Mode" : "Dark Mode"}
 							</DropdownMenuItem>
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />

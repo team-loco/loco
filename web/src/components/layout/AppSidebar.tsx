@@ -35,7 +35,6 @@ import { whoAmI } from "@/gen/user/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
-import { ThemeToggle } from "./ThemeToggle";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
 type NavItemBase = {
@@ -197,12 +196,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								onClick={(e) => e.preventDefault()}
 								className="cursor-default"
 							>
-								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-									<Zap className="size-4" />
+								<div className="flex aspect-square size-8 items-center justify-center rounded-md bg-white border">
+									<Zap className="size-4" fill="#000" />
 								</div>
 								<div className="flex flex-col gap-0.5 leading-none">
-									<span className="font-medium">Loco</span>
-									<span className="text-xs">Deploy & Scale</span>
+									<span className="font-bold text-sm">LOCO</span>
+									<span className="text-[10px] font-medium opacity-70">
+										Deploy & Scale
+									</span>
 								</div>
 							</a>
 						</SidebarMenuButton>
@@ -254,7 +255,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 					const navItem = item as RegularNavItem;
 					return (
-						<SidebarGroup key={navItem.title || idx}>
+						<SidebarGroup key={navItem.title || idx} className="mb-2">
 							<SidebarMenu>
 								<SidebarMenuItem>
 									<SidebarMenuButton
@@ -293,23 +294,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				})}
 			</SidebarContent>
 
-			<SidebarGroup className="mt-auto border-t ">
-				<div className="border-b pb-1 pt-1">
-					<ThemeToggle />
+			<SidebarGroup className="mt-auto">
+				<div className="px-2 pb-2">
+					<NavUser
+						user={{
+							name: user?.name || "User",
+							email: user?.email || "",
+							avatar: user?.avatarUrl || "",
+						}}
+						workspaces={workspaces.map((ws) => ({
+							id: ws.id,
+							name: ws.name,
+						}))}
+						activeWorkspaceId={activeWorkspaceId}
+						orgs={orgs}
+					/>
 				</div>
-				<NavUser
-					user={{
-						name: user?.name || "User",
-						email: user?.email || "",
-						avatar: user?.avatarUrl || "",
-					}}
-					workspaces={workspaces.map((ws) => ({
-						id: ws.id,
-						name: ws.name,
-					}))}
-					activeWorkspaceId={activeWorkspaceId}
-					orgs={orgs}
-				/>
 			</SidebarGroup>
 
 			<SidebarRail />

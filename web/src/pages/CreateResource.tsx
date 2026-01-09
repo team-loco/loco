@@ -550,12 +550,12 @@ export function CreateResource() {
 											type.available && setResourceType(type.value)
 										}
 										disabled={!type.available}
-										className={`relative p-5 rounded-xl border-2 text-left transition-all duration-200 ${
+										className={`relative p-5 rounded-xl text-left transition-all duration-200 ${
 											isSelected
-												? "border-main bg-main/10 shadow-lg scale-[1.02]"
+												? "bg-main/10 shadow-lg scale-[1.02]"
 												: type.available
-												? "border-border hover:border-main/50 hover:shadow-md hover:scale-[1.01]"
-												: "border-border/50 opacity-60 cursor-not-allowed"
+												? "hover:shadow-md hover:scale-[1.01]"
+												: "opacity-60 cursor-not-allowed"
 										}`}
 									>
 										<div className="flex items-start gap-3 mb-3">
