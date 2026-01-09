@@ -50,8 +50,7 @@ export function SiteHeader() {
 
 	return (
 		<header
-			className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700"
-			style={{ backgroundColor: "#fff9f0" }}
+			className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-neutral-300 dark:border-neutral-700 bg-header-bg"
 		>
 			<div className="flex h-11 w-full items-center gap-3 px-6">
 				<Button
@@ -98,7 +97,7 @@ export function SiteHeader() {
 				</nav>
 				<Button
 					onClick={() => navigate("/create-resource")}
-					className="ml-auto bg-[#f1843f] hover:bg-[#f1843f]/90 text-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-75 h-8 text-sm"
+					className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_#000] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-75 h-8 text-sm"
 					size="sm"
 				>
 					<Plus className="h-4 w-4 mr-2" />

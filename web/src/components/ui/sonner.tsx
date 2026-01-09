@@ -7,9 +7,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
 		<>
 			<style>{`
         [data-sonner-toaster] {
-          --toast-background: #fff9f0;
+          --toast-background: hsl(var(--card));
           --toast-border: #000;
-          --toast-text: #000;
+          --toast-text: hsl(var(--foreground));
         }
 
         [data-sonner-toast] {
@@ -18,8 +18,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           box-shadow: 2px 2px 0px 0px #000 !important;
           padding: 20px 24px !important;
           gap: 16px !important;
-          background-color: #fff9f0 !important;
-          color: #000 !important;
+          background-color: hsl(var(--card)) !important;
+          color: hsl(var(--foreground)) !important;
           font-family: inherit !important;
         }
 
@@ -57,8 +57,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
         [data-sonner-toast-cancel-button] {
           border: 2px solid #000 !important;
           border-radius: 12px !important;
-          background-color: #f1843f !important;
-          color: #000 !important;
+          background-color: hsl(var(--primary)) !important;
+          color: hsl(var(--primary-foreground)) !important;
           font-weight: 500 !important;
           padding: 8px 16px !important;
           cursor: pointer !important;

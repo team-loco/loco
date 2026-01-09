@@ -37,12 +37,12 @@ export function Splash() {
 										Product
 									</NavigationMenuTrigger>
 									<NavigationMenuContent>
-										<ul className="grid w-[320px] gap-2 p-4">
+										<ul className="grid w-[320px] gap-2 p-4 border-2 border-black rounded-lg bg-card shadow-[4px_4px_0px_0px_#000] dark:border-neutral-700">
 											<li>
 												<NavigationMenuLink asChild>
 													<a
 														href="#features"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
 													>
 														<div className="text-sm font-medium">Features</div>
 													</a>
@@ -52,7 +52,7 @@ export function Splash() {
 												<NavigationMenuLink asChild>
 													<a
 														href="#"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
 													>
 														<div className="text-sm font-medium">Pricing</div>
 													</a>
@@ -66,13 +66,13 @@ export function Splash() {
 										Resources
 									</NavigationMenuTrigger>
 									<NavigationMenuContent>
-										<ul className="grid w-[320px] gap-2 p-4">
+										<ul className="grid w-[320px] gap-2 p-4 border-2 border-black rounded-lg bg-card shadow-[4px_4px_0px_0px_#000] dark:border-neutral-700">
 											<li>
 												<NavigationMenuLink asChild>
 													<a
 														href="https://github.com/team-loco/loco"
 														target="_blank"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
 													>
 														<div className="text-sm font-medium">GitHub</div>
 													</a>
@@ -82,7 +82,7 @@ export function Splash() {
 												<NavigationMenuLink asChild>
 													<a
 														href="#"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
+														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
 													>
 														<div className="text-sm font-medium">Docs</div>
 													</a>
@@ -166,7 +166,7 @@ export function Splash() {
 							</Button>
 							<Button
 								size="lg"
-								className="bg-white/10 backdrop-blur text-white hover:bg-white/20 border border-white/30"
+								className="bg-white text-black border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none"
 								asChild
 							>
 								<a href="#features">Learn More</a>

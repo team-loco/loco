@@ -10,13 +10,13 @@ const buttonVariants = cva(
 		variants: {
 			variant: {
 				default:
-					"border-2 border-black bg-primary text-primary-foreground shadow-[4px_4px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-white dark:shadow-[4px_4px_0px_0px_#fff]",
+					"border-2 border-black bg-primary text-primary-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
 				destructive:
-					"border-2 border-black bg-destructive text-destructive-foreground shadow-[4px_4px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-white dark:shadow-[4px_4px_0px_0px_#fff]",
+					"border-2 border-black bg-destructive text-destructive-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
 				outline:
-					"border-2 border-black bg-background text-foreground shadow-[4px_4px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-white dark:shadow-[4px_4px_0px_0px_#fff]",
+					"border-2 border-black bg-background text-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
 				secondary:
-					"border-2 border-black bg-secondary text-secondary-foreground shadow-[4px_4px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-white dark:shadow-[4px_4px_0px_0px_#fff]",
+					"border-2 border-black bg-secondary text-secondary-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
 				ghost: "hover:bg-accent hover:text-accent-foreground",
 				link: "text-primary underline-offset-4 hover:underline",
 			},

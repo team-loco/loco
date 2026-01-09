@@ -1,7 +1,8 @@
 import { useAuth } from "@/auth/AuthProvider";
-import { AppCard } from "@/components/AppCard";
 import { EmptyState } from "@/components/EmptyState";
 import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
+import { ApplicationsTable } from "@/components/dashboard/ApplicationsTable";
+import { RecentDeployments } from "@/components/dashboard/RecentDeployments";
 import { Card, CardContent } from "@/components/ui/card";
 import { useHeader } from "@/context/HeaderContext";
 import { listWorkspaceResources } from "@/gen/resource/v1";
@@ -163,46 +164,36 @@ export function Home() {
 				/>
 			)}
 
-			{/* Resources Grid */}
-			<div className="space-y-4">
-				<div className="flex items-center justify-between">
-					<h3 className="text-2xl font-heading">
-						{searchTerm ? "Search Results" : "Resources"}
-					</h3>
-					{allResources.length > 0 && (
-						<p className="text-sm text-foreground opacity-60">
-							{filteredResources.length} of {allResources.length}
-						</p>
-					)}
-				</div>
+			{/* Applications and Deployments */}
+			{filteredResources.length > 0 ? (
+				<div className="space-y-6">
+					{/* Applications Table */}
+					<ApplicationsTable
+						resources={filteredResources}
+						workspaceId={currentWorkspaceId || undefined}
+					/>
 
-				{filteredResources.length > 0 ? (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-						{filteredResources.map((resource) => (
-							<AppCard
-								key={resource.id}
-								resource={resource}
-								onResourceDeleted={() => refetchResources()}
-								workspaceId={currentWorkspaceId || undefined}
-							/>
-						))}
-					</div>
-				) : allResources.length > 0 ? (
-					<EmptyState
-						title="No Results"
-						description={`No resources match "${searchTerm}"`}
+					{/* Recent Deployments */}
+					<RecentDeployments
+						resources={filteredResources}
+						workspaceId={currentWorkspaceId || undefined}
 					/>
-				) : (
-					<EmptyState
-						title="No Resources Yet"
-						description="Create your first resource to get started with Loco"
-						action={{
-							label: "Create Your First Resource",
-							onClick: () => navigate("/create-resource"),
-						}}
-					/>
-				)}
-			</div>
+				</div>
+			) : allResources.length > 0 ? (
+				<EmptyState
+					title="No Results"
+					description={`No resources match "${searchTerm}"`}
+				/>
+			) : (
+				<EmptyState
+					title="No Resources Yet"
+					description="Create your first resource to get started with Loco"
+					action={{
+						label: "Create Your First Resource",
+						onClick: () => navigate("/create-resource"),
+					}}
+				/>
+			)}
 		</div>
 	);
 }

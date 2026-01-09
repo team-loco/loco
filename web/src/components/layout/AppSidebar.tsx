@@ -35,7 +35,6 @@ import { whoAmI } from "@/gen/user/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
-import { ThemeToggle } from "./ThemeToggle";
 import { useOrgContext } from "@/hooks/useOrgContext";
 
 type NavItemBase = {
@@ -256,7 +255,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 					const navItem = item as RegularNavItem;
 					return (
-						<SidebarGroup key={navItem.title || idx}>
+						<SidebarGroup key={navItem.title || idx} className="mb-2">
 							<SidebarMenu>
 								<SidebarMenuItem>
 									<SidebarMenuButton
@@ -296,9 +295,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarContent>
 
 			<SidebarGroup className="mt-auto">
-				<div className="pb-2 pt-1">
-					<ThemeToggle />
-				</div>
 				<div className="px-2 pb-2">
 					<NavUser
 						user={{

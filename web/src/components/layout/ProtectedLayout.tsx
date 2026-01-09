@@ -41,7 +41,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	return (
 		<SidebarProvider className="flex flex-col w-full min-h-screen">
 			<SiteHeader />
-			<div className="flex flex-1 pt-[70px]">
+			<div className="flex flex-1 pt-[50px]">
 				<AppSidebar />
 				<SidebarInset className="flex flex-col flex-1 overflow-hidden bg-background">
 					<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center dot-grid bg-background">

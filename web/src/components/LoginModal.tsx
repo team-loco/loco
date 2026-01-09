@@ -63,7 +63,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-sm w-full p-10 rounded-3xl flex! flex-col gap-6 overflow-hidden border-none bg-transparent!">
+			<DialogContent className="max-w-sm w-full p-10 rounded-3xl flex! flex-col gap-6 overflow-hidden border-none">
 				{/* Gradient background - scaled to cover rounded corners */}
 				<div className="absolute inset-0 -z-10 rounded-3xl overflow-hidden">
 					<img
@@ -122,7 +122,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 					<Button
 						onClick={handleGithubLogin}
 						disabled={isGithubLoading}
-						className="w-full h-10 bg-black text-white !shadow-none hover:!opacity-90 active:translate-x-1 active:translate-y-1 border-0"
+						className="w-full h-10 bg-black text-white shadow-none! hover:opacity-90! active:translate-x-1 active:translate-y-1 border-0"
 					>
 						{isGithubLoading ? (
 							<Loader className="w-4 h-4" />
@@ -140,9 +140,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 						{isGithubLoading ? "Redirecting..." : "Continue with GitHub"}
 					</Button>
 
-					<Button
-						className="w-full h-10 bg-black text-white !shadow-none hover:!opacity-90 active:translate-x-1 active:translate-y-1 border-0"
-					>
+					<Button className="w-full h-10 bg-black text-white shadow-none! hover:opacity-90! active:translate-x-1 active:translate-y-1 border-0">
 						<svg viewBox="0 0 24 24" className="w-4 h-4">
 							<path
 								d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
