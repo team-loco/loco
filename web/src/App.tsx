@@ -16,6 +16,7 @@ import { OrgSettings } from "@/pages/OrgSettings";
 import { Profile } from "@/pages/Profile";
 import { Splash } from "@/pages/Splash";
 import { Team } from "@/pages/Team";
+import { Tokens } from "@/pages/Tokens";
 import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -71,6 +72,7 @@ function AppRoutes() {
 				<Route path="/create-resource" element={<CreateResource />} />
 				<Route path="/events" element={<Events />} />
 				<Route path="/team" element={<Team />} />
+				<Route path="/tokens" element={<Tokens />} />
 				<Route path="/profile" element={<Profile />} />
 				<Route path="/organizations" element={<Organizations />} />
 				<Route path="/org/:orgId/settings" element={<OrgSettings />} />
