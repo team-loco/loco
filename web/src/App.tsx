@@ -18,6 +18,9 @@ import { Splash } from "@/pages/Splash";
 import { Team } from "@/pages/Team";
 import { Tokens } from "@/pages/Tokens";
 import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
+import { Observability } from "@/pages/Observability";
+import { Resources } from "@/pages/Resources";
+import { Usage } from "@/pages/Usage";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient } from "@tanstack/react-query";
@@ -71,6 +74,9 @@ function AppRoutes() {
 				<Route path="/resource/:resourceId/settings" element={<ResourceSettings />} />
 				<Route path="/create-resource" element={<CreateResource />} />
 				<Route path="/events" element={<Events />} />
+				<Route path="/observability" element={<Observability />} />
+				<Route path="/resources" element={<Resources />} />
+				<Route path="/usage" element={<Usage />} />
 				<Route path="/team" element={<Team />} />
 				<Route path="/tokens" element={<Tokens />} />
 				<Route path="/profile" element={<Profile />} />

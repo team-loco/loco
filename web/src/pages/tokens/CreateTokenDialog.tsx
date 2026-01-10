@@ -34,12 +34,18 @@ import {
 	ShieldCheck,
 	ShieldAlert,
 	ChevronRight,
+	Box,
 } from "lucide-react";
 import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -128,21 +134,30 @@ function WorkspaceTreeItem({
 			<div className="space-y-1">
 				{/* Workspace header row */}
 				<div className="flex gap-1.5 items-center">
-					<CollapsibleTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							className="h-7 w-7 p-0"
-						>
-							<ChevronRight
-								className={cn(
-									"h-4 w-4 transition-transform duration-200",
-									isExpanded && "rotate-90"
-								)}
-							/>
-						</Button>
-					</CollapsibleTrigger>
+					<Tooltip>
+						<CollapsibleTrigger asChild>
+							<TooltipTrigger asChild>
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="h-7 w-7 p-0"
+								>
+									<ChevronRight
+										className={cn(
+											"h-4 w-4 transition-transform duration-200",
+											isExpanded && "rotate-90"
+										)}
+									/>
+								</Button>
+							</TooltipTrigger>
+						</CollapsibleTrigger>
+						<TooltipContent side="left">
+							<p className="text-xs">
+								{isExpanded ? "Hide resources" : "Show resources"}
+							</p>
+						</TooltipContent>
+					</Tooltip>
 					<span className="text-sm flex-1 truncate">{workspace.name}</span>
 					{scopeOptions.map((scopeOption) => {
 						const Icon = scopeOption.icon;
@@ -178,6 +193,7 @@ function WorkspaceTreeItem({
 									key={resource.id.toString()}
 									className="flex gap-1.5 items-center py-0.5"
 								>
+									<Box className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
 									<span className="text-sm flex-1 truncate text-muted-foreground">
 										{resource.name}
 									</span>
@@ -325,8 +341,8 @@ export function CreateTokenDialog({
 			return ws?.name ?? `Workspace ${eId}`;
 		}
 		if (eType === EntityType.RESOURCE) {
-			const res = resources.find((r) => r.id === eId);
-			return res?.name ?? `Resource ${eId}`;
+			// Resource names are passed via entityName parameter when scope is selected
+			return `Resource ${eId}`;
 		}
 		return `Entity ${eId}`;
 	};
@@ -391,7 +407,7 @@ export function CreateTokenDialog({
 		setTokenName("");
 		setExpiresInSec(30 * 24 * 60 * 60);
 		setSelectedScopes([]);
-		setSelectedWorkspaceId(null);
+		setExpandedWorkspaceIds(new Set());
 		onOpenChange(false);
 	};
 
@@ -469,7 +485,7 @@ export function CreateTokenDialog({
 								{/* Self Permissions */}
 								<div className="space-y-1.5">
 									<Label className="text-xs text-muted-foreground">
-										{getEntityTypeDisplay(entityType)}
+										Account
 									</Label>
 									<div className="flex gap-1.5">
 										<span className="text-sm flex-1 truncate">
@@ -542,121 +558,27 @@ export function CreateTokenDialog({
 									</div>
 								)}
 
-								{/* Workspace Scopes */}
+								{/* Workspaces & Resources */}
 								{activeOrgId && workspaces.length > 0 && (
 									<div className="space-y-1.5">
 										<Label className="text-xs text-muted-foreground">
-											Workspaces
-										</Label>
-										{workspaces.map((workspace) => (
-											<div
-												key={workspace.id.toString()}
-												className="flex gap-1.5 items-center"
-											>
-												<span className="text-sm flex-1 truncate">
-													{workspace.name}
-												</span>
-												{SCOPE_OPTIONS.map((scopeOption) => {
-													const Icon = scopeOption.icon;
-													return (
-														<Button
-															key={scopeOption.value}
-															type="button"
-															variant="outline"
-															size="sm"
-															onClick={() =>
-																addScopeSelection(
-																	EntityType.WORKSPACE,
-																	workspace.id,
-																	scopeOption.value,
-																	workspace.name
-																)
-															}
-															title={scopeOption.description}
-															className="h-7 w-7 p-0"
-														>
-															<Icon
-																className={`h-3.5 w-3.5 ${scopeOption.color}`}
-															/>
-														</Button>
-													);
-												})}
-											</div>
-										))}
-									</div>
-								)}
-
-								{/* Resource Scopes */}
-								{workspaces.length > 0 && (
-									<div className="space-y-1.5">
-										<Label className="text-xs text-muted-foreground">
-											Resources
+											Workspaces & Resources
 										</Label>
 										<div className="space-y-1">
-											<Select
-												value={selectedWorkspaceId?.toString() ?? ""}
-												onValueChange={(value) =>
-													setSelectedWorkspaceId(BigInt(value))
-												}
-											>
-												<SelectTrigger className="border-border h-7 text-sm">
-													<SelectValue placeholder="Select a workspace to view resources..." />
-												</SelectTrigger>
-												<SelectContent>
-													{workspaces.map((ws) => (
-														<SelectItem
-															key={ws.id.toString()}
-															value={ws.id.toString()}
-														>
-															{ws.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-											{selectedWorkspaceId && resources.length > 0 && (
-												<div className="space-y-1 pl-2 border-l-2 border-border">
-													{resources.map((resource) => (
-														<div
-															key={resource.id.toString()}
-															className="flex gap-1.5 items-center"
-														>
-															<span className="text-sm flex-1 truncate">
-																{resource.name}
-															</span>
-															{SCOPE_OPTIONS.map((scopeOption) => {
-																const Icon = scopeOption.icon;
-																return (
-																	<Button
-																		key={scopeOption.value}
-																		type="button"
-																		variant="outline"
-																		size="sm"
-																		onClick={() =>
-																			addScopeSelection(
-																				EntityType.RESOURCE,
-																				resource.id,
-																				scopeOption.value,
-																				resource.name
-																			)
-																		}
-																		title={scopeOption.description}
-																		className="h-7 w-7 p-0"
-																	>
-																		<Icon
-																			className={`h-3.5 w-3.5 ${scopeOption.color}`}
-																		/>
-																	</Button>
-																);
-															})}
-														</div>
-													))}
-												</div>
-											)}
-											{selectedWorkspaceId && resources.length === 0 && (
-												<p className="text-xs text-muted-foreground italic pl-2">
-													No resources in this workspace
-												</p>
-											)}
+											{workspaces.map((workspace) => (
+												<WorkspaceTreeItem
+													key={workspace.id.toString()}
+													workspace={workspace}
+													isExpanded={expandedWorkspaceIds.has(
+														workspace.id.toString()
+													)}
+													onToggleExpand={() =>
+														toggleWorkspaceExpansion(workspace.id)
+													}
+													onScopeSelect={addScopeSelection}
+													scopeOptions={SCOPE_OPTIONS}
+												/>
+											))}
 										</div>
 									</div>
 								)}
@@ -685,10 +607,11 @@ export function CreateTokenDialog({
 										</>
 									)}
 								</Label>
-								<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20 min-h-[3rem]">
+								<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20 min-h-12">
 									{selectedScopes.length === 0 ? (
-										<span className="text-xs text-muted-foreground italic">
-											No permissions selected. Click the icons above to add permissions.
+										<span className="text-xs text-muted-foreground">
+											No permissions selected. Click the icons above to add
+											permissions.
 										</span>
 									) : (
 										(() => {
@@ -819,8 +742,8 @@ export function CreateTokenDialog({
 								!tokenName.trim()
 									? "Token name is required"
 									: selectedScopes.length === 0
-										? "At least one scope is required"
-										: undefined
+									? "At least one scope is required"
+									: undefined
 							}
 							className={
 								!tokenName.trim() || selectedScopes.length === 0

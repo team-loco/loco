@@ -76,7 +76,7 @@ export function Organizations() {
 	}
 
 	return (
-		<div className="max-w-6xl mx-auto py-8 px-4">
+		<div className="w-full">
 			<div className="flex items-center justify-end mb-8">
 				<Button onClick={() => setCreateOrgOpen(true)}>
 					<Plus className="size-4 mr-2" />
