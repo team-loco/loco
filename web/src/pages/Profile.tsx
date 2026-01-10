@@ -1,13 +1,7 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteUser, whoAmI } from "@/gen/user/v1";
 import { listTokens } from "@/gen/token/v1";
 import { EntityType } from "@/gen/token/v1/token_pb";
@@ -131,7 +125,7 @@ export function Profile() {
 																			.seconds
 																  ) * 1000
 																: token.expiresAt
-														  ).toLocaleDateString()
+													  ).toLocaleDateString()
 													: "never"}
 											</p>
 										</div>
