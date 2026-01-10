@@ -22,7 +22,6 @@ var (
 	ErrInvalidTokenDuration = errors.New("invalid token duration")
 	ErrInvalidScopes        = errors.New("invalid scopes")
 	ErrTokenUnauthorized    = errors.New("unauthorized")
-	MaxTokenDuration        = time.Hour * 24 * 30 // 30 days
 )
 
 // TokenServer implements the TokenService gRPC server
@@ -54,7 +53,7 @@ func (s *TokenServer) CreateToken(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("entity_type is required"))
 	}
 
-	if r.GetExpiresInSec() <= 0 || r.GetExpiresInSec() > int64(MaxTokenDuration.Seconds()) {
+	if r.GetExpiresInSec() <= 0 || r.GetExpiresInSec() > int64(s.tvm.Cfg.MaxTokenDuration.Seconds()) {
 		slog.ErrorContext(ctx, "invalid token duration", "expires_in_sec", r.GetExpiresInSec())
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidTokenDuration)
 	}
@@ -86,7 +85,7 @@ func (s *TokenServer) CreateToken(
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeWrite,
 	}); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create token for entity", "entity_type", targetEntity.Type, "entity_id", targetEntity.ID)
+		slog.WarnContext(ctx, "unauthorized to create token for entity", "entityType", targetEntity.Type, "entityId", targetEntity.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -122,7 +121,7 @@ func (s *TokenServer) CreateToken(
 
 	tokenMetadata := dbTokenGetRowToProto(tokenData)
 
-	slog.InfoContext(ctx, "created token", "name", r.GetName(), "entity_type", targetEntity.Type, "entity_id", targetEntity.ID)
+	slog.InfoContext(ctx, "created token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID)
 
 	return connect.NewResponse(&tokenv1.CreateTokenResponse{
 		Token:         token,
@@ -158,7 +157,7 @@ func (s *TokenServer) ListTokens(
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
 	}); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list tokens for entity", "entity_type", targetEntity.Type, "entity_id", targetEntity.ID)
+		slog.WarnContext(ctx, "unauthorized to list tokens for entity", "entityType", targetEntity.Type, "entityId", targetEntity.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -211,7 +210,7 @@ func (s *TokenServer) GetToken(
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
 	}); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get token for entity", "entity_type", targetEntity.Type, "entity_id", targetEntity.ID)
+		slog.WarnContext(ctx, "unauthorized to get token for entity", "entityType", targetEntity.Type, "entityId", targetEntity.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -273,7 +272,7 @@ func (s *TokenServer) RevokeToken(
 	isOwnToken := targetEntity.Type == genDb.EntityTypeUser && targetEntity.ID == entity.ID
 
 	if !hasWritePermission && !isOwnToken {
-		slog.WarnContext(ctx, "unauthorized to revoke token", "entity_type", targetEntity.Type, "entity_id", targetEntity.ID, "user_id", entity.ID)
+		slog.WarnContext(ctx, "unauthorized to revoke token", "entityType", targetEntity.Type, "entityId", targetEntity.ID, "user_id", entity.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("insufficient permissions to revoke token"))
 	}
 
@@ -287,7 +286,7 @@ func (s *TokenServer) RevokeToken(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", err))
 	}
 
-	slog.InfoContext(ctx, "revoked token", "name", r.GetName(), "entity_type", targetEntity.Type, "entity_id", targetEntity.ID)
+	slog.InfoContext(ctx, "revoked token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID)
 
 	return connect.NewResponse(&tokenv1.RevokeTokenResponse{}), nil
 }

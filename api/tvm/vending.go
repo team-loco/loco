@@ -12,7 +12,7 @@ import (
 type VendingMachine struct {
 	pool       *pgxpool.Pool
 	queries    queries.Querier
-	cfg        Config
+	Cfg        Config
 	cancelFunc context.CancelFunc
 }
 
@@ -47,7 +47,7 @@ func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *Vendi
 	return &VendingMachine{
 		pool:       pool,
 		queries:    q,
-		cfg:        cfg,
+		Cfg:        cfg,
 		cancelFunc: cancel,
 	}
 }
