@@ -1,5 +1,27 @@
-@import url("https://rsms.me/inter/inter.css");
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap");
+@font-face {
+	font-family: "Space Grotesk";
+	src: url("/fonts/space-grotesk/regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Space Grotesk";
+	src: url("/fonts/space-grotesk/medium.woff2") format("woff2");
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Space Grotesk";
+	src: url("/fonts/space-grotesk/bold.woff2") format("woff2");
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
 @import "tailwindcss";
 @plugin "tailwindcss-animate";
 @custom-variant dark (&:is(.dark *));
@@ -81,7 +103,7 @@
 	--accent-foreground: #151b26;
 
 	/* Status colors */
-	--destructive: #d1242f;
+	--destructive: #e85d5d;
 	--success: #118122;
 	--warning: #c49617;
 
@@ -140,7 +162,7 @@
 	--accent-foreground: #e5eaef;
 
 	/* Status colors */
-	--destructive: #ff6b6b;
+	--destructive: #ff8787;
 	--success: #51cf66;
 	--warning: #ffd43b;
 
