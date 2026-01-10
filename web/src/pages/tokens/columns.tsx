@@ -96,7 +96,7 @@ const scopeDisplay: Record<
 
 interface ActionsCellProps {
 	token: Token;
-	onRevokeToken: (tokenName: string) => void;
+	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: bigint) => void;
 	isRevoking: boolean;
 }
 
@@ -130,7 +130,7 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={() => {
-								onRevokeToken(token.name);
+								onRevokeToken(token.name, token.entityType, token.entityId);
 								setOpen(false);
 							}}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -145,7 +145,7 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 }
 
 export function getTokenColumns(
-	onRevokeToken: (tokenName: string) => void,
+	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: bigint) => void,
 	isRevoking: boolean
 ): ColumnDef<Token>[] {
 	return [

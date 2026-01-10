@@ -4,6 +4,7 @@ import { createToken } from "@/gen/token/v1";
 import { EntityType, Scope, EntityScopeSchema } from "@/gen/token/v1/token_pb";
 import { listUserOrgs } from "@/gen/org/v1";
 import { listOrgWorkspaces } from "@/gen/workspace/v1";
+import { listWorkspaceResources } from "@/gen/resource/v1";
 import { useAuth } from "@/auth/AuthProvider";
 import {
 	Dialog,
@@ -32,7 +33,14 @@ import {
 	Shield,
 	ShieldCheck,
 	ShieldAlert,
+	ChevronRight,
 } from "lucide-react";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-handler";
 import { create } from "@bufbuild/protobuf";
@@ -40,8 +48,7 @@ import { create } from "@bufbuild/protobuf";
 interface CreateTokenDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	entityType: EntityType;
-	entityId: bigint;
+	activeOrgId: bigint | null;
 	onSuccess: (tokenString: string) => void;
 }
 
@@ -84,40 +91,190 @@ const EXPIRATION_OPTIONS = [
 	{ label: "90 days", value: 90 * 24 * 60 * 60 },
 ];
 
+interface WorkspaceTreeItemProps {
+	workspace: { id: bigint; name: string };
+	isExpanded: boolean;
+	onToggleExpand: () => void;
+	onScopeSelect: (
+		entityType: EntityType,
+		entityId: bigint,
+		scope: Scope,
+		entityName?: string
+	) => void;
+	scopeOptions: typeof SCOPE_OPTIONS;
+}
+
+function WorkspaceTreeItem({
+	workspace,
+	isExpanded,
+	onToggleExpand,
+	onScopeSelect,
+	scopeOptions,
+}: WorkspaceTreeItemProps) {
+	// Fetch resources only when expanded
+	const { data: resourcesRes } = useQuery(
+		listWorkspaceResources,
+		{ workspaceId: workspace.id },
+		{ enabled: isExpanded }
+	);
+
+	const resources = useMemo(
+		() => resourcesRes?.resources ?? [],
+		[resourcesRes]
+	);
+
+	return (
+		<Collapsible open={isExpanded} onOpenChange={onToggleExpand}>
+			<div className="space-y-1">
+				{/* Workspace header row */}
+				<div className="flex gap-1.5 items-center">
+					<CollapsibleTrigger asChild>
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="h-7 w-7 p-0"
+						>
+							<ChevronRight
+								className={cn(
+									"h-4 w-4 transition-transform duration-200",
+									isExpanded && "rotate-90"
+								)}
+							/>
+						</Button>
+					</CollapsibleTrigger>
+					<span className="text-sm flex-1 truncate">{workspace.name}</span>
+					{scopeOptions.map((scopeOption) => {
+						const Icon = scopeOption.icon;
+						return (
+							<Button
+								key={scopeOption.value}
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() =>
+									onScopeSelect(
+										EntityType.WORKSPACE,
+										workspace.id,
+										scopeOption.value,
+										workspace.name
+									)
+								}
+								title={scopeOption.description}
+								className="h-7 w-7 p-0"
+							>
+								<Icon className={`h-3.5 w-3.5 ${scopeOption.color}`} />
+							</Button>
+						);
+					})}
+				</div>
+
+				{/* Resources content */}
+				<CollapsibleContent>
+					<div className="pl-8 space-y-1 border-l-2 border-border ml-3 mt-1">
+						{resources.length > 0 ? (
+							resources.map((resource) => (
+								<div
+									key={resource.id.toString()}
+									className="flex gap-1.5 items-center py-0.5"
+								>
+									<span className="text-sm flex-1 truncate text-muted-foreground">
+										{resource.name}
+									</span>
+									{scopeOptions.map((scopeOption) => {
+										const Icon = scopeOption.icon;
+										return (
+											<Button
+												key={scopeOption.value}
+												type="button"
+												variant="outline"
+												size="sm"
+												onClick={() =>
+													onScopeSelect(
+														EntityType.RESOURCE,
+														resource.id,
+														scopeOption.value,
+														resource.name
+													)
+												}
+												title={scopeOption.description}
+												className="h-7 w-7 p-0"
+											>
+												<Icon className={`h-3.5 w-3.5 ${scopeOption.color}`} />
+											</Button>
+										);
+									})}
+								</div>
+							))
+						) : (
+							<p className="text-xs text-muted-foreground italic py-1">
+								No resources in this workspace
+							</p>
+						)}
+					</div>
+				</CollapsibleContent>
+			</div>
+		</Collapsible>
+	);
+}
+
 export function CreateTokenDialog({
 	open,
 	onOpenChange,
-	entityType,
-	entityId,
+	activeOrgId,
 	onSuccess,
 }: CreateTokenDialogProps) {
 	const { user } = useAuth();
+
+	// Tokens are created for the user entity
+	// The activeOrgId provides context for which org's resources the user can grant access to
+	const entityType = EntityType.USER;
+	const entityId = user?.id ?? 0n;
 	const [tokenName, setTokenName] = useState("");
 	const [expiresInSec, setExpiresInSec] = useState(30 * 24 * 60 * 60); // 30 days default
 	const [selectedScopes, setSelectedScopes] = useState<ScopeSelection[]>([]);
 
-	// Fetch orgs and workspaces for scope selection
+	// Fetch the active org and its workspaces for scope selection
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
 		{ userId: user?.id ?? 0n },
 		{ enabled: !!user && open }
 	);
-	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
+	const activeOrg = useMemo(() => {
+		const allOrgs = orgsRes?.orgs ?? [];
+		return allOrgs.find((org) => org.id === activeOrgId);
+	}, [orgsRes, activeOrgId]);
 
-	const [selectedOrgForScopes, setSelectedOrgForScopes] = useState<
-		bigint | null
-	>(null);
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
-		selectedOrgForScopes ? { orgId: selectedOrgForScopes } : undefined,
-		{ enabled: !!selectedOrgForScopes && open }
+		activeOrgId ? { orgId: activeOrgId } : undefined,
+		{ enabled: !!activeOrgId && open }
 	);
 	const workspaces = useMemo(
 		() => workspacesRes?.workspaces ?? [],
 		[workspacesRes]
 	);
 
+	// Track which workspaces are expanded to show resources
+	const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(
+		new Set()
+	);
+
 	const { mutate: createTokenMutation, isPending } = useMutation(createToken);
+
+	// Toggle workspace expansion
+	const toggleWorkspaceExpansion = (workspaceId: bigint) => {
+		setExpandedWorkspaceIds((prev) => {
+			const next = new Set(prev);
+			const key = workspaceId.toString();
+			if (next.has(key)) {
+				next.delete(key);
+			} else {
+				next.add(key);
+			}
+			return next;
+		});
+	};
 
 	// Add a scope selection
 	const addScopeSelection = (
@@ -144,6 +301,15 @@ export function CreateTokenDialog({
 		if (!exists) {
 			setSelectedScopes([...selectedScopes, newScope]);
 		}
+
+		// Auto-expand workspace when workspace scope is selected
+		if (scopeEntityType === EntityType.WORKSPACE) {
+			setExpandedWorkspaceIds((prev) => {
+				const next = new Set(prev);
+				next.add(scopeEntityId.toString());
+				return next;
+			});
+		}
 	};
 
 	// Get entity name for display
@@ -152,12 +318,15 @@ export function CreateTokenDialog({
 			return user?.name || user?.email || "User";
 		}
 		if (eType === EntityType.ORGANIZATION) {
-			const org = orgs.find((o) => o.id === eId);
-			return org?.name ?? `Organization ${eId}`;
+			return activeOrg?.name ?? `Organization ${eId}`;
 		}
 		if (eType === EntityType.WORKSPACE) {
 			const ws = workspaces.find((w) => w.id === eId);
 			return ws?.name ?? `Workspace ${eId}`;
+		}
+		if (eType === EntityType.RESOURCE) {
+			const res = resources.find((r) => r.id === eId);
+			return res?.name ?? `Resource ${eId}`;
 		}
 		return `Entity ${eId}`;
 	};
@@ -222,7 +391,7 @@ export function CreateTokenDialog({
 		setTokenName("");
 		setExpiresInSec(30 * 24 * 60 * 60);
 		setSelectedScopes([]);
-		setSelectedOrgForScopes(null);
+		setSelectedWorkspaceId(null);
 		onOpenChange(false);
 	};
 
@@ -335,70 +504,46 @@ export function CreateTokenDialog({
 								</div>
 
 								{/* Organization Scopes */}
-								{orgs.length > 0 && (
+								{activeOrg && (
 									<div className="space-y-1.5">
 										<Label className="text-xs text-muted-foreground">
-											Organizations
+											Organization
 										</Label>
 										<div className="flex gap-1.5">
-											<Select
-												value={selectedOrgForScopes?.toString() ?? ""}
-												onValueChange={(value) =>
-													setSelectedOrgForScopes(BigInt(value))
-												}
-											>
-												<SelectTrigger className="border-border flex-1 h-7 text-sm">
-													<SelectValue placeholder="Select..." />
-												</SelectTrigger>
-												<SelectContent>
-													{orgs.map((org) => (
-														<SelectItem
-															key={org.id.toString()}
-															value={org.id.toString()}
-														>
-															{org.name}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-											{selectedOrgForScopes && (
-												<>
-													{SCOPE_OPTIONS.map((scopeOption) => {
-														const Icon = scopeOption.icon;
-														return (
-															<Button
-																key={scopeOption.value}
-																type="button"
-																variant="outline"
-																size="sm"
-																onClick={() => {
-																	const org = orgs.find(
-																		(o) => o.id === selectedOrgForScopes
-																	);
-																	addScopeSelection(
-																		EntityType.ORGANIZATION,
-																		selectedOrgForScopes,
-																		scopeOption.value,
-																		org?.name
-																	);
-																}}
-																title={scopeOption.description}
-																className="h-7 w-7 p-0"
-															>
-																<Icon
-																	className={`h-3.5 w-3.5 ${scopeOption.color}`}
-																/>
-															</Button>
-														);
-													})}
-												</>
-											)}
+											<span className="text-sm flex-1 truncate">
+												{activeOrg.name}
+											</span>
+											{SCOPE_OPTIONS.map((scopeOption) => {
+												const Icon = scopeOption.icon;
+												return (
+													<Button
+														key={scopeOption.value}
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={() =>
+															addScopeSelection(
+																EntityType.ORGANIZATION,
+																activeOrg.id,
+																scopeOption.value,
+																activeOrg.name
+															)
+														}
+														title={scopeOption.description}
+														className="h-7 w-7 p-0"
+													>
+														<Icon
+															className={`h-3.5 w-3.5 ${scopeOption.color}`}
+														/>
+													</Button>
+												);
+											})}
 										</div>
 									</div>
 								)}
 
 								{/* Workspace Scopes */}
-								{selectedOrgForScopes && workspaces.length > 0 && (
+								{activeOrgId && workspaces.length > 0 && (
 									<div className="space-y-1.5">
 										<Label className="text-xs text-muted-foreground">
 											Workspaces
@@ -440,29 +585,113 @@ export function CreateTokenDialog({
 										))}
 									</div>
 								)}
+
+								{/* Resource Scopes */}
+								{workspaces.length > 0 && (
+									<div className="space-y-1.5">
+										<Label className="text-xs text-muted-foreground">
+											Resources
+										</Label>
+										<div className="space-y-1">
+											<Select
+												value={selectedWorkspaceId?.toString() ?? ""}
+												onValueChange={(value) =>
+													setSelectedWorkspaceId(BigInt(value))
+												}
+											>
+												<SelectTrigger className="border-border h-7 text-sm">
+													<SelectValue placeholder="Select a workspace to view resources..." />
+												</SelectTrigger>
+												<SelectContent>
+													{workspaces.map((ws) => (
+														<SelectItem
+															key={ws.id.toString()}
+															value={ws.id.toString()}
+														>
+															{ws.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											{selectedWorkspaceId && resources.length > 0 && (
+												<div className="space-y-1 pl-2 border-l-2 border-border">
+													{resources.map((resource) => (
+														<div
+															key={resource.id.toString()}
+															className="flex gap-1.5 items-center"
+														>
+															<span className="text-sm flex-1 truncate">
+																{resource.name}
+															</span>
+															{SCOPE_OPTIONS.map((scopeOption) => {
+																const Icon = scopeOption.icon;
+																return (
+																	<Button
+																		key={scopeOption.value}
+																		type="button"
+																		variant="outline"
+																		size="sm"
+																		onClick={() =>
+																			addScopeSelection(
+																				EntityType.RESOURCE,
+																				resource.id,
+																				scopeOption.value,
+																				resource.name
+																			)
+																		}
+																		title={scopeOption.description}
+																		className="h-7 w-7 p-0"
+																	>
+																		<Icon
+																			className={`h-3.5 w-3.5 ${scopeOption.color}`}
+																		/>
+																	</Button>
+																);
+															})}
+														</div>
+													))}
+												</div>
+											)}
+											{selectedWorkspaceId && resources.length === 0 && (
+												<p className="text-xs text-muted-foreground italic pl-2">
+													No resources in this workspace
+												</p>
+											)}
+										</div>
+									</div>
+								)}
 							</div>
 
 							{/* Selected Scopes List */}
-							{selectedScopes.length > 0 && (
-								<div className="space-y-1.5">
-									<Label className="text-xs">
-										Selected (
-										{(() => {
-											// Group by entity to count unique entities
-											const entities = new Map<string, Set<number>>();
-											selectedScopes.forEach((scope) => {
-												const key = `${scope.entityType}-${scope.entityId}`;
-												if (!entities.has(key)) {
-													entities.set(key, new Set());
-												}
-												entities.get(key)!.add(scope.scope);
-											});
-											return entities.size;
-										})()}
-										)
-									</Label>
-									<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20">
-										{(() => {
+							<div className="space-y-1.5">
+								<Label className="text-xs">
+									Selected{" "}
+									{selectedScopes.length > 0 && (
+										<>
+											(
+											{(() => {
+												// Group by entity to count unique entities
+												const entities = new Map<string, Set<number>>();
+												selectedScopes.forEach((scope) => {
+													const key = `${scope.entityType}-${scope.entityId}`;
+													if (!entities.has(key)) {
+														entities.set(key, new Set());
+													}
+													entities.get(key)!.add(scope.scope);
+												});
+												return entities.size;
+											})()}
+											)
+										</>
+									)}
+								</Label>
+								<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20 min-h-[3rem]">
+									{selectedScopes.length === 0 ? (
+										<span className="text-xs text-muted-foreground italic">
+											No permissions selected. Click the icons above to add permissions.
+										</span>
+									) : (
+										(() => {
 											// Group scopes by entity
 											const entityGroups = new Map<
 												string,
@@ -532,11 +761,11 @@ export function CreateTokenDialog({
 													return (
 														<div
 															key={key}
-															className="inline-flex items-center rounded-sm border-2 border-black dark:border-neutral-700 overflow-hidden"
+															className="inline-flex items-center gap-1"
 														>
 															<Badge
 																variant={entityVariantMap[group.entityType]}
-																className="h-5 text-[10px] px-1.5 py-0 rounded-none border-0 shadow-none"
+																className="h-5 text-[10px] px-1.5 py-0"
 															>
 																{entityTypeLabel}:{" "}
 																{group.entityName ||
@@ -557,7 +786,7 @@ export function CreateTokenDialog({
 																	);
 																	setSelectedScopes(newScopes);
 																}}
-																className="h-5 w-5 p-0 hover:bg-destructive/10 rounded-none border-l border-black dark:border-neutral-700"
+																className="h-5 w-5 p-0 hover:bg-destructive/10"
 															>
 																<X className="h-3 w-3" />
 															</Button>
@@ -565,10 +794,10 @@ export function CreateTokenDialog({
 													);
 												}
 											);
-										})()}
-									</div>
+										})()
+									)}
 								</div>
-							)}
+							</div>
 						</div>
 					</div>
 

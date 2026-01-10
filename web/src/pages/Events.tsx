@@ -7,6 +7,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
@@ -80,61 +81,55 @@ export function Events() {
 
 	return (
 		<div className="min-h-screen bg-background">
-			{/* Header */}
-			<div className="border-b-2 border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-10">
-				<div className="container px-4 py-4 flex items-center justify-end">
-					{events.length > 0 && (
-						<Button
-							variant="destructive"
-							size="sm"
-							onClick={handleClearAll}
-							className="flex items-center gap-2"
-						>
-							<Trash2 className="h-4 w-4" />
-							Clear All
-						</Button>
-					)}
-				</div>
-			</div>
+			<div className="container px-4 py-6">
+				<Card>
+					<CardContent>
+						{events.length > 0 && (
+							<div className="flex justify-end mb-4">
+								<Button
+									variant="destructive"
+									size="sm"
+									onClick={handleClearAll}
+									className="flex items-center gap-2"
+								>
+									<Trash2 className="h-4 w-4" />
+									Clear All
+								</Button>
+							</div>
+						)}
+						<div className="flex flex-col sm:flex-row gap-4 mb-4">
+							<div className="flex-1">
+								<Input
+									placeholder="Search events by app or message..."
+									value={searchTerm}
+									onChange={(e) => setSearchTerm(e.target.value)}
+								/>
+							</div>
+							<Select value={severityFilter} onValueChange={setSeverityFilter}>
+								<SelectTrigger className="w-full sm:w-40">
+									<SelectValue placeholder="All severities" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All severities</SelectItem>
+									<SelectItem value="error">Error</SelectItem>
+									<SelectItem value="warning">Warning</SelectItem>
+									<SelectItem value="success">Success</SelectItem>
+									<SelectItem value="info">Info</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
 
-			{/* Filters */}
-			<div className="container px-4 py-6 space-y-4">
-				<div className="flex flex-col sm:flex-row gap-4">
-					<div className="flex-1">
-						<Input
-							placeholder="Search events by app or message..."
-							value={searchTerm}
-							onChange={(e) => setSearchTerm(e.target.value)}
-							className="border-2 border-border rounded-lg"
-						/>
-					</div>
-					<Select value={severityFilter} onValueChange={setSeverityFilter}>
-						<SelectTrigger className="w-full sm:w-40 border-2 border-border rounded-lg">
-							<SelectValue placeholder="All severities" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All severities</SelectItem>
-							<SelectItem value="error">Error</SelectItem>
-							<SelectItem value="warning">Warning</SelectItem>
-							<SelectItem value="success">Success</SelectItem>
-							<SelectItem value="info">Info</SelectItem>
-						</SelectContent>
-					</Select>
-				</div>
+						{/* Event count and info */}
+						<div className="flex items-center justify-between mb-4">
+							<div className="text-xs text-foreground opacity-70">
+								Showing {filteredEvents.length} of {events.length} events
+							</div>
+							<div className="text-xs text-foreground opacity-60">
+								Most recent first
+							</div>
+						</div>
 
-				{/* Event count and info */}
-				<div className="flex items-center justify-between">
-					<div className="text-xs text-foreground opacity-70">
-						Showing {filteredEvents.length} of {events.length} events
-					</div>
-					<div className="text-xs text-foreground opacity-60">
-						Most recent first
-					</div>
-				</div>
-			</div>
-
-			{/* Events List */}
-			<div className="container px-4 pb-8">
+						{/* Events List */}
 				{filteredEvents.length === 0 ? (
 					<div className="py-12 text-center">
 						<AlertCircle className="h-12 w-12 mx-auto text-foreground opacity-30 mb-3" />
@@ -163,7 +158,7 @@ export function Events() {
 							return (
 								<div
 									key={event.id}
-									className={`border-2 border-border rounded-lg p-4 ${
+									className={`border border-border rounded-md p-4 ${
 										severityColors[severity] || ""
 									}`}
 								>
@@ -208,6 +203,8 @@ export function Events() {
 						})}
 					</div>
 				)}
+					</CardContent>
+				</Card>
 			</div>
 		</div>
 	);
