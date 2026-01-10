@@ -33,6 +33,7 @@ import (
 	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
 	"github.com/team-loco/loco/shared/proto/registry/v1/registryv1connect"
 	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/shared/proto/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
 	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
@@ -167,6 +168,7 @@ func main() {
 	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
 	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
+	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,
@@ -186,6 +188,7 @@ func main() {
 	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(resourceServiceHandler, interceptors)
 	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(deploymentServiceHandler, interceptors)
 	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, interceptors)
+	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, interceptors)
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
@@ -249,6 +252,12 @@ func main() {
 		domainv1connect.DomainServiceListLocoOwnedDomainsProcedure,
 		domainv1connect.DomainServiceCheckDomainAvailabilityProcedure,
 
+		// token service
+		tokenv1connect.TokenServiceCreateTokenProcedure,
+		tokenv1connect.TokenServiceListTokensProcedure,
+		tokenv1connect.TokenServiceGetTokenProcedure,
+		tokenv1connect.TokenServiceRevokeTokenProcedure,
+
 		// registry service
 		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
 	)
@@ -264,6 +273,7 @@ func main() {
 	mux.Handle(resourcePath, resourceHandler)
 	mux.Handle(deploymentPath, deploymentHandler)
 	mux.Handle(domainPath, domainHandler)
+	mux.Handle(tokenPath, tokenHandler)
 	mux.Handle(registryPath, registryHandler)
 
 	muxWCors := withCORS(ac.LocoDomainBase)(mux)

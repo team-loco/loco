@@ -41,6 +41,7 @@ type Querier interface {
 	DeleteResource(ctx context.Context, id int64) error
 	DeleteResourceDomain(ctx context.Context, id int64) error
 	DeleteToken(ctx context.Context, name string) error
+	DeleteTokenByNameAndEntity(ctx context.Context, arg DeleteTokenByNameAndEntityParams) error
 	DeleteTokensForEntity(ctx context.Context, arg DeleteTokensForEntityParams) error
 	DeleteUser(ctx context.Context, id int64) error
 	DeleteWorkspace(ctx context.Context, id int64) error
@@ -68,6 +69,7 @@ type Querier interface {
 	GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error)
 	GetResourceWorkspaceID(ctx context.Context, id int64) (int64, error)
 	GetToken(ctx context.Context, token string) (Token, error)
+	GetTokenByName(ctx context.Context, arg GetTokenByNameParams) (GetTokenByNameRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByExternalID(ctx context.Context, externalID string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)

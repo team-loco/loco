@@ -121,8 +121,14 @@ DELETE FROM user_scopes WHERE user_id = $1;
 -- name: StoreToken :exec
 INSERT INTO tokens (name, token, entity_type, entity_id, scopes, expires_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;
 
+-- name: GetTokenByName :one
+SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
+
 -- name: DeleteToken :exec
 DELETE FROM tokens WHERE name = $1;
+
+-- name: DeleteTokenByNameAndEntity :exec
+DELETE FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 
 -- name: DeleteTokensForEntity :exec
 DELETE FROM tokens WHERE entity_type = $1 AND entity_id = $2;
