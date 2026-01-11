@@ -438,3 +438,15 @@ clickhouse is named weirdly and so is our controller.
 - need a list regions endpoint
 
 - ensure ppl are actually using the account, not just creating it, and leaving stuff there. so some sort of background process to clean up unused accounts, release domains, and whatnot?
+
+- we need to create a dependency chart, on all our dependencies.
+- break it down by component and whatnot.
+- as long as we keep that in sync, we can always tell if we change something what will break.
+
+- questions:
+- is the current sql even correct.
+
+reduce scope::
+
+- no longer let ppl bring in their custom domains.
+-
