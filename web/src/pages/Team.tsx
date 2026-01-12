@@ -131,6 +131,11 @@ export function Team() {
 							<Button
 								variant="outline"
 								size="sm"
+								className={`${
+									currentPage === 0 || isLoading
+										? "opacity-30 text-muted-foreground"
+										: ""
+								}`}
 								onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
 								disabled={currentPage === 0 || isLoading}
 							>
@@ -139,6 +144,11 @@ export function Team() {
 							<Button
 								variant="outline"
 								size="sm"
+								className={`${
+									!hasNextPage || isLoading
+										? "opacity-30 text-muted-foreground"
+										: ""
+								}`}
 								onClick={() => {
 									if (hasNextPage && nextCursor) {
 										setCursors((prev) => [...prev, nextCursor]);

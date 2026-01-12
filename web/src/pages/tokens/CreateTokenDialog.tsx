@@ -435,7 +435,6 @@ export function CreateTokenDialog({
 									placeholder="e.g., CI/CD Pipeline"
 									value={tokenName}
 									onChange={(e) => setTokenName(e.target.value)}
-									className="border-border"
 									autoFocus
 								/>
 							</div>
@@ -450,7 +449,7 @@ export function CreateTokenDialog({
 										setExpiresInSec(parseInt(value, 10))
 									}
 								>
-									<SelectTrigger id="expiration" className="border-border">
+									<SelectTrigger id="expiration">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
