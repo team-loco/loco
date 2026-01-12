@@ -1,5 +1,14 @@
 - Make loco work multi-cluster
 
+  - likely that there will be a controlplane and a dataplane for loco.
+  - controlplane can be deployed anywhere tbh. we just need a cache, service, db.
+  - dataplane will need to chat with the controlplane like loco-api.
+  - options:
+
+    - karmada
+    - ocm
+    - custom built.
+
   - currently loco-api gets deployed into a cluster and manipulates kubernetes thru there
   - but we will need multi-cluster for things like different envs, as well as multi-region
   - can we get cross cluster metrics dashboards :O
