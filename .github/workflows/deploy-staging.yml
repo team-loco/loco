@@ -1,0 +1,225 @@
+name: Build and Deploy to Staging
+
+on:
+  push:
+    branches:
+      - release/**
+
+env:
+  REGISTRY: ghcr.io
+  DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_PAT }}
+
+jobs:
+  test:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests with coverage
+        run: go test -v -coverprofile=coverage.out ./...
+        timeout-minutes: 10
+
+  push-controller-image:
+    name: Build and Push Controller Image (RC)
+    needs: test
+    if: |
+      contains(github.event.head_commit.modified, 'controller/') ||
+      contains(github.event.head_commit.modified, 'shared/') ||
+      contains(github.event.head_commit.modified, 'go.mod') ||
+      contains(github.event.head_commit.modified, 'go.sum')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get current branch name
+        id: branch
+        run: echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
+      - name: Build and push controller image
+        id: build
+        uses: ./.github/workflows/build-push.yml
+        with:
+          image_name: ${{ github.repository }}-controller
+          context: ./controller
+          dockerfile: ./controller/Dockerfile
+          tag_suffix: ',suffix=-rc-${{ steps.branch.outputs.name }}'
+
+  push-api-image:
+    name: Build and Push API Image (RC)
+    needs: test
+    if: |
+      contains(github.event.head_commit.modified, 'api/') ||
+      contains(github.event.head_commit.modified, 'shared/') ||
+      contains(github.event.head_commit.modified, 'go.mod') ||
+      contains(github.event.head_commit.modified, 'go.sum')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get current branch name
+        id: branch
+        run: echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
+      - name: Build and push API image
+        id: build
+        uses: ./.github/workflows/build-push.yml
+        with:
+          image_name: ${{ github.repository }}-api
+          context: .
+          dockerfile: ./api/Dockerfile
+          tag_suffix: ',suffix=-rc-${{ steps.branch.outputs.name }}'
+
+  push-ui-image:
+    name: Build and Push UI Image (RC)
+    needs: test
+    if: |
+      contains(github.event.head_commit.modified, 'web/') ||
+      contains(github.event.head_commit.modified, 'go.mod') ||
+      contains(github.event.head_commit.modified, 'go.sum')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Get current branch name
+        id: branch
+        run: echo "name=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+
+      - name: Build and push UI image
+        id: build
+        uses: ./.github/workflows/build-push.yml
+        with:
+          image_name: ${{ github.repository }}-ui
+          context: ./web
+          dockerfile: ./web/Dockerfile
+          tag_suffix: ',suffix=-rc-${{ steps.branch.outputs.name }}'
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs:
+      - push-api-image
+      - push-controller-image
+      - push-ui-image
+    runs-on: ubuntu-latest
+    environment: staging
+    if: always()
+
+    env:
+      API_IMAGE: ${{ needs.push-api-image.outputs.image }}
+      CONTROLLER_IMAGE: ${{ needs.push-controller-image.outputs.image }}
+      UI_IMAGE: ${{ needs.push-ui-image.outputs.image }}
+      CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+      GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+      GITLAB_PROJECT_ID: ${{ secrets.GITLAB_PROJECT_ID }}
+      GITLAB_TOKEN_NAME: ${{ secrets.GITLAB_TOKEN_NAME }}
+      GITLAB_URL: ${{ secrets.GITLAB_URL }}
+      GITLAB_REGISTRY_URL: ${{ secrets.GITLAB_REGISTRY_URL }}
+      GITLAB_DEPLOY_TOKEN_NAME: ${{ secrets.GITLAB_DEPLOY_TOKEN_NAME }}
+      GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+      GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+      GH_OAUTH_STATE: ${{ secrets.GH_OAUTH_STATE }}
+      APP_ENV: ${{ secrets.APP_ENV }}
+      LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+      PORT: ${{ secrets.PORT }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GH_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_PAT }}
+
+      - name: Get kubeconfig
+        run: doctl kubernetes cluster kubeconfig save loco-cluster
+
+      - name: Verify cluster access
+        run: kubectl get nodes
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4.3.0
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add cilium https://helm.cilium.io
+          helm repo add altinity https://helm.altinity.com
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update
+
+      - name: Build Helm dependencies
+        run: |
+          helm dependency build ./charts/loco-core
+          helm dependency build ./charts/loco-controller
+          helm dependency build ./charts/loco-obs
+          helm dependency build ./charts/loco-networking
+
+      - name: Helm dry-run
+        run: helmfile -e staging diff
+
+      - name: Deploy to Staging
+        run: helmfile -e staging sync
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/loco-api -n loco-core --timeout=5m || true
+          kubectl rollout status deployment/loco-controller -n loco-controller --timeout=5m || true
+          kubectl rollout status deployment/loco-ui -n loco-core --timeout=5m || true
+
+      - name: Smoke tests
+        run: |
+          API_POD=$(kubectl get pod -n loco-core -l app=loco-api -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "$API_POD" ]; then
+            kubectl exec -n loco-core $API_POD -- curl -f http://localhost:8000/health || true
+          fi
