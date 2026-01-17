@@ -67,6 +67,7 @@ jobs:
           reporter: github-pr-review
           level: warning
           workdir: ${{ matrix.working-directory }}
+        if: github.event_name == 'pull_request'
 
   buf:
     name: Buf Lint
