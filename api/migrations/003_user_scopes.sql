@@ -2,7 +2,7 @@ CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'resourc
 CREATE TYPE entity_scope AS (
     scope TEXT,
     entity_type entity_type,
-    entity_id INTEGER
+    entity_id BIGINT
 );
 
 CREATE TABLE user_scopes (

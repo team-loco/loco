@@ -15,7 +15,7 @@ import (
 // has already verified this.
 func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID int64, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	// gotta make sure the requested duration does not exceed the max allowed duration
-	if duration > tvm.cfg.MaxTokenDuration {
+	if duration > tvm.Cfg.MaxTokenDuration {
 		return "", ErrDurationExceedsMaxAllowed
 	}
 

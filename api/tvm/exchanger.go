@@ -40,7 +40,7 @@ func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailRe
 	token, err := tvm.issueNoCheck(ctx, fmt.Sprintf("login token for user %d created at %s", user.ID, time.Now().Format(time.RFC1123)), queries.Entity{
 		Type: queries.EntityTypeUser,
 		ID:   user.ID,
-	}, userWithScopes.Scopes, tvm.cfg.LoginTokenDuration)
+	}, userWithScopes.Scopes, tvm.Cfg.LoginTokenDuration)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return queries.User{}, "", fmt.Errorf("issue login token: %w", err)
