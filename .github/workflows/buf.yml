@@ -1,0 +1,22 @@
+name: Buf
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  buf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: bufbuild/buf-action@v1
+        with:
+          token: ${{ secrets.BUF_TOKEN }}
+          breaking: |
+            contains(fromJSON('["push", "pull_request"]'), github.event_name) &&
+            !contains(github.event.head_commit.message, 'BREAK_BUF')
+          breaking_against_registry: true
