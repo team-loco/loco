@@ -46,29 +46,6 @@ jobs:
         if: always()
         run: go tool cover -func=coverage.out
 
-      - name: Upload coverage to Codecov
-        if: always()
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage.out
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
-
-      - name: Comment PR with coverage
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const coverage = require('child_process').execSync('go tool cover -func=coverage.out | tail -1').toString().trim();
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `📊 **Test Coverage**: ${coverage}`
-            });
-
   buf-check:
     name: Protocol Buffer Lint and Breaking Changes
     runs-on: ubuntu-latest
