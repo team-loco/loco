@@ -461,7 +461,11 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 							<Button
 								variant="outline"
 								size="sm"
-								className="h-8 px-2"
+								className={`h-8 px-2 ${
+									!table.getCanPreviousPage()
+										? "opacity-30 text-muted-foreground"
+										: ""
+								}`}
 								onClick={() => table.previousPage()}
 								disabled={!table.getCanPreviousPage()}
 							>
@@ -470,7 +474,11 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 							<Button
 								variant="outline"
 								size="sm"
-								className="h-8 px-2"
+								className={`h-8 px-2 ${
+									!table.getCanNextPage()
+										? "opacity-30 text-muted-foreground"
+										: ""
+								}`}
 								onClick={() => table.nextPage()}
 								disabled={!table.getCanNextPage()}
 							>
