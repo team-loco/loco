@@ -1,0 +1,29 @@
+name: Controller Tests
+
+on:
+  push:
+    paths:
+      - "controller/**"
+      - "go.mod"
+      - "go.sum"
+  pull_request:
+    paths:
+      - "controller/**"
+      - "go.mod"
+      - "go.sum"
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: cd controller && go mod tidy
+
+      - run: cd controller && make test

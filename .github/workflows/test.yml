@@ -32,6 +32,11 @@ jobs:
       - run: go tool cover -func=coverage.out
         if: always()
 
+  lint:
+    name: Go Lint
+    uses: ./.github/workflows/golangci-lint.yml
+    secrets: inherit
+
   buf:
     name: Buf Lint and Breaking Changes
     uses: ./.github/workflows/buf.yml
