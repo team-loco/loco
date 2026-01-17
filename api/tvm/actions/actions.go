@@ -291,6 +291,8 @@ var (
 		entityType: db.EntityTypeUser,
 		scope:      db.ScopeRead,
 	}
+
+	// Token management actions are dynamically defined.
 )
 
 func New(a Action, entityID int64) db.EntityScope {
