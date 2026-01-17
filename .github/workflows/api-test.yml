@@ -1,0 +1,36 @@
+name: API Tests
+
+on:
+  push:
+    paths:
+      - 'api/**'
+      - 'shared/**'
+      - 'go.mod'
+      - 'go.sum'
+  pull_request:
+    paths:
+      - 'api/**'
+      - 'shared/**'
+      - 'go.mod'
+      - 'go.sum'
+
+jobs:
+  test:
+    name: API Unit Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - run: go test -v -coverprofile=coverage.out ./api/... ./shared/...
+        timeout-minutes: 10
+
+      - run: go tool cover -func=coverage.out
+        if: always()
