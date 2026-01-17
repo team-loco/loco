@@ -1,46 +1,68 @@
-name: Test and Lint
+name: Tests
 
 on:
-  pull_request:
-    branches:
-      - main
-      - staging
   push:
     branches:
       - main
       - staging
-  workflow_call:
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "controller/**"
+      - "main.go"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
+  pull_request:
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "controller/**"
+      - "main.go"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
 
 jobs:
   test:
-    name: Go Tests
+    name: ${{ matrix.component }} Tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
+
+    strategy:
+      matrix:
+        include:
+          - component: API
+            working-directory: api
+            test-command: go test -v -coverprofile=coverage.out ./...
+            timeout: 10
+
+          - component: CLI
+            working-directory: "."
+            test-command: go test -v -coverprofile=coverage.out ./cmd/...
+            timeout: 10
+
+          - component: Controller
+            working-directory: controller
+            test-command: make test
+            timeout: 10
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
 
-      - run: go test -v -coverprofile=coverage.out ./...
-        timeout-minutes: 10
+      - name: Tidy dependencies
+        if: matrix.component == 'Controller'
+        run: cd ${{ matrix.working-directory }} && go mod tidy
 
-      - run: go tool cover -func=coverage.out
-        if: always()
+      - name: Run tests
+        run: cd ${{ matrix.working-directory }} && ${{ matrix.test-command }}
+        timeout-minutes: ${{ matrix.timeout }}
 
-  lint:
-    name: Go Lint
-    uses: ./.github/workflows/golangci-lint.yml
-    secrets: inherit
-
-  buf:
-    name: Buf Lint and Breaking Changes
-    uses: ./.github/workflows/buf.yml
-    secrets: inherit
-    permissions:
-      contents: read
-      pull-requests: write
+      - name: Display coverage
+        if: always() && matrix.component != 'Controller'
+        run: cd ${{ matrix.working-directory }} && go tool cover -func=coverage.out

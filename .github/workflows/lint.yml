@@ -1,0 +1,80 @@
+name: Lint
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "controller/**"
+      - "main.go"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
+      - "**.proto"
+      - "**/buf.yaml"
+      - "**/buf.lock"
+  pull_request:
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "controller/**"
+      - "main.go"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
+      - "**.proto"
+      - "**/buf.yaml"
+      - "**/buf.lock"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  golangci:
+    name: ${{ matrix.component }} Lint
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - component: API
+            working-directory: api
+
+          - component: CLI
+            working-directory: "."
+
+          - component: Controller
+            working-directory: controller
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: reviewdog/action-golangci-lint@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          golangci_lint_flags: "--timeout=3m"
+          reporter: github-pr-review
+          level: warning
+          workdir: ${{ matrix.working-directory }}
+
+  buf:
+    name: Buf Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: bufbuild/buf-action@v1
+        with:
+          token: ${{ secrets.BUF_TOKEN }}
+          breaking: ${{ github.event_name == 'pull_request' && !contains(github.event.head_commit.message, 'BREAK_BUF') }}
+          breaking_against_registry: true
