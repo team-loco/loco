@@ -2,6 +2,14 @@ name: Buf
 
 on:
   workflow_call:
+  push:
+    paths:
+      - "**.proto"
+      - "**/buf.yaml"
+      - "**/buf.lock"
+      - "**/buf.md"
+      - "**/README.md"
+      - "**/LICENSE"
 
 permissions:
   contents: read
@@ -16,7 +24,5 @@ jobs:
       - uses: bufbuild/buf-action@v1
         with:
           token: ${{ secrets.BUF_TOKEN }}
-          breaking: |
-            contains(fromJSON('["push", "pull_request"]'), github.event_name) &&
-            !contains(github.event.head_commit.message, 'BREAK_BUF')
+          breaking: ${{ github.event_name == 'pull_request' && !contains(github.event.head_commit.message, 'BREAK_BUF') }}
           breaking_against_registry: true
