@@ -58,6 +58,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+          cache-dependency-path: ${{ matrix.working-directory }}/go.sum
 
       - uses: reviewdog/action-golangci-lint@v2
         with:
