@@ -1,10 +1,8 @@
 - Make loco work multi-cluster
-
   - likely that there will be a controlplane and a dataplane for loco.
   - controlplane can be deployed anywhere tbh. we just need a cache, service, db.
   - dataplane will need to chat with the controlplane like loco-api.
   - options:
-
     - karmada
     - ocm
     - custom built.
@@ -20,7 +18,6 @@
 - potential fix for this is to maybe have a designated cluster/ perhaps per region that manages stuff like this. aka the 'leader'
 
 - Metrics/Logging/Tracing
-
   - created some initial setup via handrolling otel, clickhouse, grafana.
   - we are likely pushing completely un-necessary metrics and pushing high cardinality attributes we likely do not need at all.
     - need to come up with a processor, that drops all the metrics we don't use.
@@ -34,7 +31,6 @@
   - tracing will be a to-do
 
 - Profiles
-
   - introduce multi-profile deployments to handle dev, uat, prod deployments.
   - `loco deploy --profile=dev`
     - maybe profiles are just staging and production
@@ -53,21 +49,17 @@
     ```
 
 - Health Checks
-
   - should eventually support non-http health checks.
 
 - GRPC Support
-
   - i believe the current implementation actually allows GRPC services, but need to double check.
 
 - Logs
-
   - get logs from clickhouse instead.
   - only for live tail can we grab logs from kubernetes.
   - CLI table should support a simple freeze as well.
 
 - Deploy Command
-
   - take a token non-interactively via std in, maybe with simple output as well. `loco deploy --non-interactive --token {GH-TOKEN}`
   - take an image id, so that loco doesnt build the image and we get to skip some steps.
   - these image ids for now can only be from public container registries like ghcr.
@@ -75,16 +67,13 @@
 - Scanning Docker Images; we have a TDD for this
 
 - Pre-deployment loco needs to check if we can sustain the requested deployment (atleast 2x the requested resources to be safe.)
-
   - not sure how to do this.
 
 - Loco CLI:
-
   - New Commands:
   - loco web : opens loco website in browser.
     - --dashboard, --traces? --logs, -- docs, --account
   - loco org/wks/app/account manipulation?
-
     - dont wanna overload the cli, i wanna keep it simple.
 
   - loco logout (never gonna support loco multi-account login. thats boring. logout and logback in kid.)
@@ -92,14 +81,12 @@
   -
 
 - Builders
-
   - Sometimes docker client is sleeping; we need to give better errors, and maybe tell users to just specify --image if stuff keeps going wrong. we need to check the status of docker before even trying to connect to it.
   - need to ensure we can deploy OCI compliant images.
   - need to validate docker image is safe.
   - need to validate docker image is not too large!
 
 - Service Mesh
-
   - need to let apps deployed in the same workspace, allowed to connect via egressing to internet
 
 - Inject Loco Env Vars
@@ -116,7 +103,6 @@
 ## to-do in the future
 
 - Resurrector
-
   - deployed separately from the cluster, and will always resurrect just one cluster.
   - maybe cluster interface with like clone cluster or something.
   - continously monitors and pings cluster health status
@@ -160,7 +146,6 @@
 - Review API contracts to make sure they make sense
 
 - Docker image enhancements?
-
   - Consider a private registry that has tag-prefix/name-prefix based access-controls.
   - OSS solutions like Harbor / Quay exist.
   - come with different scanners like trivvy and multi tenant.
@@ -179,13 +164,11 @@ Eventually...
 - Support and test different deployment types: UI, cache (Redis), DB, Blob
 - Respect/Allow specifying .dockerignore files / .gitignore files when building container images.
 - Secrets integration
-
   - Secrets need to be pulled and injected
   - but user can also do this in their own container, just access aws ssm no?
   - but how are they gonna get the aws secret key and whatnot?
 
 - how are we handling security patches?
-
   - depends on provider config, they will be auto managed for us if using things like fargate, otherwise our issue.
   - might need to do some sort of blue-green deployment for kubernetes.
   - what about bumping stuff like envoy gateway and things like that.
@@ -197,7 +180,6 @@ may be nice to have some sort of secrets integration? like pull ur aws ssm, vaul
 too much for MVP
 
 - Next Steps:
-
   - Respect more of the loco.toml
     - allow setting GRPCServices and if provided, create a GRPC route, maybe we need a GRPCport?
   - loco init is chunky, introduce minimal vs full flag.
@@ -224,7 +206,6 @@ sleep mode; if app not used in last 7 days or something. deployment is removed; 
 - there is value to having an admin dashboard, for those who are planning to bring your own cloud. but need to figure out keys and roles and whatnot.
 
 - some sort of env for configuring deployment behavior:
-
   - max_concurrent_app_deployments => 3
 
 - resource management needs to be evaluated. how many resources are we using ? what are we wasting ?
@@ -235,11 +216,9 @@ sleep mode; if app not used in last 7 days or something. deployment is removed; 
 - remove host from persistent flag.
 - update system design diagram to represent observability.
 - deploy needs to do a diff of the previous deployment done on loco, vs the incoming, and only update the resources that need changing.
-
   - can likely do this client side as well
 
 - should run cleanup resources if deployment fails anywhere.
-
   - simple implementation is done.
 
 - need to configure a decent HPA for the nodes themselves on kubernetes.
@@ -250,7 +229,6 @@ sleep mode; if app not used in last 7 days or something. deployment is removed; 
 - if we wanna continue with some gitlab container registry, we can use the container registry
 
 - Secrets we need to manage
-
   - Terraform Cloud secret
   - Gitlab secret
   - Digital Ocean / Cloud provder secret for provisioning.
@@ -284,18 +262,15 @@ Clickhouse logs issues:
 - on successful routing, we should add the loco-tenant-id, we will be able to pull it later in otel for dashboarding? not 100% what that looks like.
 
 - loco admin dashboard
-
   - see how many apps are deployed on loco
   - how many requests are currently being handled.
 
 - theres actually tons of metrics being exported into clickhouse currently
-
   - we should spend some time and optimize whats being sent.
   - we should do this when we revisit the otel table structures
 
 - for obs, we need to run cleanups after sometime for each tenant's data.
 - how do we run the cleanups?
-
   - should this be defined as some sort of kubernetes cronjob?
   - if this is in-cluster, what if cluster crashes, any chance of data not being properly removed?
 
@@ -306,7 +281,6 @@ Clickhouse logs issues:
 - a user's wkspace's apps must always be deployed to the same cluster.
 - to reduce network chatter between their services; or else they won't be able to chat with their own network and will have to egress.
 - when user deletes wkspc/app. we need to kick off metrics/logs deletion for that entire application.
-
   - save absolutely nothing.
 
 - lol tests.
@@ -319,14 +293,12 @@ Clickhouse logs issues:
 Phase I ends Here
 
 - Loco Packages (eventually) -> Phase II of MVP.
-
   - a bundle of services. always deployed to 1 wkspc.
   - maybe deploy to existing workspace.
   - support recursive deployments on the cli with the -r flag. where we discover all apps and do it?
   - should support one click deletes.
 
 - Loco UI
-
   - neobrutalism no cap.
   - in orange.
 
@@ -340,7 +312,6 @@ Phase I ends Here
 - Deploy Loco via a Helm Chart?
 
 - Loco Docs.
-
   - we will autogenerate using code x AI. i know man.
 
 - Health Endpoint
@@ -363,7 +334,6 @@ Phase I ends Here
 
 - sql unique checks should ignore the current id;
 - inefficient order by in a lot of spots.
-
   - we order by created_at a lot. we need to add index for whereveer we do that.
   - lack of auditing. we will need an audit table? or atleast some sort of events recording.
 
@@ -382,7 +352,6 @@ Phase I ends Here
 - imageTag is built on the cli; just feels weird.
 
 - 2 tone jwt secrets.
-
   - basically let a jwt be parseable with 2 different secrets. (only one is really correct)
   - but this lets us swap jwt secrets?
   - could probably just do this with a kubernetes job?
@@ -463,4 +432,5 @@ clickhouse is named weirdly and so is our controller.
   reduce scope::
 
 - no longer let ppl bring in their custom domains.
--
+- loco cli enhancements. focus on resource, followed by the actual action
+- disable color output in cli flag/env
