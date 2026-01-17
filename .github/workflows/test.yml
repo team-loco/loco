@@ -51,3 +51,6 @@ jobs:
     name: Buf Lint and Breaking Changes
     uses: ./.github/workflows/buf.yml
     secrets: inherit
+    permissions:
+      contents: read
+      pull-requests: write
