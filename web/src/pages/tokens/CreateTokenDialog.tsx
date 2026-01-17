@@ -606,7 +606,7 @@ export function CreateTokenDialog({
 										</>
 									)}
 								</Label>
-								<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20 min-h-12">
+								<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20">
 									{selectedScopes.length === 0 ? (
 										<span className="text-xs text-muted-foreground">
 											No permissions selected. Click the icons above to add
