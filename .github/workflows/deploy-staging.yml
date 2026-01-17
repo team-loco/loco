@@ -3,7 +3,7 @@ name: Build and Deploy to Staging
 on:
   push:
     branches:
-      - release/**
+      - release
 
 env:
   REGISTRY: ghcr.io
@@ -72,7 +72,7 @@ jobs:
           image_name: ${{ github.repository }}-controller
           context: ./controller
           dockerfile: ./controller/Dockerfile
-          tag_suffix: ',suffix=-rc-${{ steps.branch.outputs.name }}'
+          tag_suffix: ",suffix=-rc-${{ steps.branch.outputs.name }}"
 
   push-api-image:
     name: Build and Push API Image (RC)
@@ -106,7 +106,7 @@ jobs:
           image_name: ${{ github.repository }}-api
           context: .
           dockerfile: ./api/Dockerfile
-          tag_suffix: ',suffix=-rc-${{ steps.branch.outputs.name }}'
+          tag_suffix: ",suffix=-rc-${{ steps.branch.outputs.name }}"
 
   push-ui-image:
     name: Build and Push UI Image (RC)
@@ -139,7 +139,7 @@ jobs:
           image_name: ${{ github.repository }}-ui
           context: ./web
           dockerfile: ./web/Dockerfile
-          tag_suffix: ',suffix=-rc-${{ steps.branch.outputs.name }}'
+          tag_suffix: ",suffix=-rc-${{ steps.branch.outputs.name }}"
 
   deploy-staging:
     name: Deploy to Staging
