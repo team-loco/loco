@@ -6,6 +6,7 @@ CLUSTER_NAME=${1:-clickstack-test}
 echo "Creating kind cluster: $CLUSTER_NAME"
 kind create cluster --name "$CLUSTER_NAME" --config c.yaml
 
+# todo: need to fix default coredns setup
 echo "Configuring CoreDNS to use 8.8.8.8..."
 kubectl get configmap coredns -n kube-system -o yaml --context "kind-$CLUSTER_NAME" | \
   sed 's|forward . /etc/resolv.conf|forward . 8.8.8.8|g' | \

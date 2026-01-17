@@ -454,8 +454,13 @@ clickhouse is named weirdly and so is our controller.
 
 - questions:
 - is the current sql even correct.
-
-reduce scope::
+- the deployment or create app request, must be heavily rate limited.
+- trace data needs to hold region/env info as well.
+- try to understand whether we should do loco-api distributed in cluster itself or not.
+- sure potentially clickhouse cloud, but we also need to do ttls on data. and use custom table setups.
+- clusters need to be tagged with some metadata? some tolerations / some taints?
+- do we need to record on our side.
+  reduce scope::
 
 - no longer let ppl bring in their custom domains.
 -
