@@ -3,16 +3,16 @@ name: API Tests
 on:
   push:
     paths:
-      - 'api/**'
-      - 'shared/**'
-      - 'go.mod'
-      - 'go.sum'
+      - "api/**"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
   pull_request:
     paths:
-      - 'api/**'
-      - 'shared/**'
-      - 'go.mod'
-      - 'go.sum'
+      - "api/**"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
 
 jobs:
   test:
@@ -24,12 +24,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
 
-      - run: go test -v -coverprofile=coverage.out ./api/... ./shared/...
+      - run: cd api && go test -v -coverprofile=coverage.out ./...
         timeout-minutes: 10
 
       - run: go tool cover -func=coverage.out

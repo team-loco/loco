@@ -7,16 +7,16 @@ on:
       - main
       - staging
     paths:
-      - 'cmd/**'
-      - 'main.go'
-      - 'go.mod'
-      - 'go.sum'
+      - "cmd/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
   pull_request:
     paths:
-      - 'cmd/**'
-      - 'main.go'
-      - 'go.mod'
-      - 'go.sum'
+      - "cmd/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
 
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: true
@@ -37,6 +37,6 @@ jobs:
       - uses: reviewdog/action-golangci-lint@v2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          golangci_lint_flags: '--timeout=3m'
+          golangci_lint_flags: "--timeout=3m"
           reporter: github-pr-review
           level: warning
