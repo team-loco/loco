@@ -435,7 +435,6 @@ export function CreateTokenDialog({
 									placeholder="e.g., CI/CD Pipeline"
 									value={tokenName}
 									onChange={(e) => setTokenName(e.target.value)}
-									className="border-border"
 									autoFocus
 								/>
 							</div>
@@ -450,7 +449,7 @@ export function CreateTokenDialog({
 										setExpiresInSec(parseInt(value, 10))
 									}
 								>
-									<SelectTrigger id="expiration" className="border-border">
+									<SelectTrigger id="expiration">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
@@ -607,7 +606,7 @@ export function CreateTokenDialog({
 										</>
 									)}
 								</Label>
-								<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20 min-h-12">
+								<div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-2 border border-border rounded-md bg-muted/20">
 									{selectedScopes.length === 0 ? (
 										<span className="text-xs text-muted-foreground">
 											No permissions selected. Click the icons above to add

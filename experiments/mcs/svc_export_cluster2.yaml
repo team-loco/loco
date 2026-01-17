@@ -3,3 +3,6 @@ kind: ServiceExport
 metadata:
   name: backend
   namespace: default
+spec:
+  exportedAnnotations:
+    service.cilium.io/global-sync-endpoint-slices: "true"
