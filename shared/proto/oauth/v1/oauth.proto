@@ -7,7 +7,7 @@ option go_package = "github.com/team-loco/loco/shared/proto/oauth/v1;oauthv1";
 // OAuthProvider represents supported OAuth identity providers.
 enum OAuthProvider {
   O_AUTH_PROVIDER_UNSPECIFIED = 0;
-  O_AUTH_PROVIDER_GITHUB      = 1;
+  O_AUTH_PROVIDER_GITHUB = 1;
 }
 
 // GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
@@ -23,45 +23,45 @@ message GetOAuthDetailsResponse {
 
 // ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
 message ExchangeOAuthTokenRequest {
-  OAuthProvider provider                  = 1;
-  string        token                     = 2;
-  bool          create_user_if_not_exists = 3;
+  OAuthProvider provider = 1;
+  string token = 2;
+  bool create_user_if_not_exists = 3;
 }
 
 // ExchangeOAuthTokenResponse contains the Loco token and user info from OAuth token exchange.
 message ExchangeOAuthTokenResponse {
   string loco_token = 1;
-  int64  expires_in = 2; // seconds
-  int64  user_id    = 3;
-  string name       = 4;
+  int64 expires_in = 2; // seconds
+  int64 user_id = 3;
+  string name = 4;
 }
 
 // GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
 message GetOAuthAuthorizationURLRequest {
-  OAuthProvider provider     = 1;
-  string        state        = 2;
-  string        redirect_uri = 3;
+  OAuthProvider provider = 1;
+  string state = 2;
+  string redirect_uri = 3;
 }
 
 // GetOAuthAuthorizationURLResponse contains the OAuth authorization URL for client redirect.
 message GetOAuthAuthorizationURLResponse {
   string authorization_url = 1;
-  string state             = 2;
+  string state = 2;
 }
 
 // ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
 message ExchangeOAuthCodeRequest {
-  OAuthProvider provider     = 1;
-  string        code         = 2;
-  string        state        = 3;
-  string        redirect_uri = 4;
+  OAuthProvider provider = 1;
+  string code = 2;
+  string state = 3;
+  string redirect_uri = 4;
 }
 
 // ExchangeOAuthCodeResponse contains the Loco token and user info from OAuth code exchange.
 message ExchangeOAuthCodeResponse {
-  int64  expires_in = 1;
-  int64  user_id    = 2;
-  string name       = 3;
+  int64 expires_in = 1;
+  int64 user_id = 2;
+  string name = 3;
 }
 
 // OAuthService handles OAuth authentication flows.

@@ -27,21 +27,21 @@ service UserService {
 
 // User represents a user account with OAuth identity and profile information.
 message User {
-  int64                     id          = 1;
-  string                    external_id = 2;
-  string                    email       = 3;
-  string                    avatar_url  = 4;
-  string                    name        = 5;
-  google.protobuf.Timestamp created_at  = 6;
-  google.protobuf.Timestamp updated_at  = 7;
+  int64 id = 1;
+  string external_id = 2;
+  string email = 3;
+  string avatar_url = 4;
+  string name = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
 // CreateUserRequest is the request to create a new user.
 message CreateUserRequest {
-  string          external_id = 1;
-  string          email       = 2;
-  optional string name        = 3;
-  optional string avatar_url  = 4;
+  string external_id = 1;
+  string email = 2;
+  optional string name = 3;
+  optional string avatar_url = 4;
 }
 
 // CreateUserResponse is the response containing the created user ID.
@@ -52,8 +52,8 @@ message CreateUserResponse {
 // GetUserRequest is the request to retrieve a user.
 message GetUserRequest {
   oneof key {
-    int64  user_id = 1;
-    string email   = 2;
+    int64 user_id = 1;
+    string email = 2;
   }
 }
 
@@ -64,10 +64,10 @@ message GetUserResponse {
 
 // UpdateUserRequest is the request to update user information.
 message UpdateUserRequest {
-  int64                     user_id     = 1;
+  int64 user_id = 1;
   google.protobuf.FieldMask update_mask = 2;
-  optional string           avatar_url  = 3;
-  optional string           name        = 4;
+  optional string avatar_url = 3;
+  optional string name = 4;
 }
 
 // UpdateUserResponse is the response containing the updated user ID.
@@ -77,14 +77,14 @@ message UpdateUserResponse {
 
 // ListUsersRequest is the request to list users.
 message ListUsersRequest {
-  int32  page_size  = 1; // default: 50, max: 200
+  int32 page_size = 1; // default: 50, max: 200
   string page_token = 2; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListUsersResponse is the response containing user list.
 message ListUsersResponse {
-  repeated User users           = 1;
-  string        next_page_token = 2; // empty if no more pages
+  repeated User users = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // WhoAmIRequest is the request to get the current authenticated user.

@@ -2,44 +2,43 @@ syntax = "proto3";
 
 package resource.v1;
 
-import "google/protobuf/field_mask.proto";
-import "google/protobuf/timestamp.proto";
-
 import "deployment/v1/deployment.proto";
 import "domain/v1/domain.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/shared/proto/resource/v1;resourcev1";
 
 // ResourceType categorizes the type of resource being deployed.
 enum ResourceType {
   RESOURCE_TYPE_UNSPECIFIED = 0;
-  RESOURCE_TYPE_SERVICE     = 1;
-  RESOURCE_TYPE_DATABASE    = 2;
-  RESOURCE_TYPE_FUNCTION    = 3;
-  RESOURCE_TYPE_CACHE       = 4;
-  RESOURCE_TYPE_QUEUE       = 5;
-  RESOURCE_TYPE_BLOB        = 6;
+  RESOURCE_TYPE_SERVICE = 1;
+  RESOURCE_TYPE_DATABASE = 2;
+  RESOURCE_TYPE_FUNCTION = 3;
+  RESOURCE_TYPE_CACHE = 4;
+  RESOURCE_TYPE_QUEUE = 5;
+  RESOURCE_TYPE_BLOB = 6;
 }
 
 // ResourceStatus represents the operational status of a resource based on current deployment and health checks.
 enum ResourceStatus {
   RESOURCE_STATUS_UNSPECIFIED = 0;
-  RESOURCE_STATUS_HEALTHY     = 1;
-  RESOURCE_STATUS_DEPLOYING   = 2;
-  RESOURCE_STATUS_DEGRADED    = 3;
+  RESOURCE_STATUS_HEALTHY = 1;
+  RESOURCE_STATUS_DEPLOYING = 2;
+  RESOURCE_STATUS_DEGRADED = 3;
   RESOURCE_STATUS_UNAVAILABLE = 4;
-  RESOURCE_STATUS_SUSPENDED   = 5;
+  RESOURCE_STATUS_SUSPENDED = 5;
 }
 
 // RegionIntentStatus represents the state of a region intent for a resource.
 enum RegionIntentStatus {
-  REGION_INTENT_STATUS_UNSPECIFIED  = 0;
-  REGION_INTENT_STATUS_DESIRED      = 1;
+  REGION_INTENT_STATUS_UNSPECIFIED = 0;
+  REGION_INTENT_STATUS_DESIRED = 1;
   REGION_INTENT_STATUS_PROVISIONING = 2;
-  REGION_INTENT_STATUS_ACTIVE       = 3;
-  REGION_INTENT_STATUS_DEGRADED     = 4;
-  REGION_INTENT_STATUS_REMOVING     = 5;
-  REGION_INTENT_STATUS_FAILED       = 6;
+  REGION_INTENT_STATUS_ACTIVE = 3;
+  REGION_INTENT_STATUS_DEGRADED = 4;
+  REGION_INTENT_STATUS_REMOVING = 5;
+  REGION_INTENT_STATUS_FAILED = 6;
 }
 
 // ResourceService manages resource lifecycle and operations.
@@ -77,30 +76,30 @@ service ResourceService {
 
 // RoutingConfig defines routing configuration for a resource.
 message RoutingConfig {
-  int32  port         = 1; // application port
-  string path_prefix  = 2; // e.g., "/"
-  int32  idle_timeout = 3; // seconds
+  int32 port = 1; // application port
+  string path_prefix = 2; // e.g., "/"
+  int32 idle_timeout = 3; // seconds
 }
 
 // LoggingConfig defines logging configuration.
 message LoggingConfig {
-  bool   enabled          = 1;
+  bool enabled = 1;
   string retention_period = 2; // e.g., "7d", "30d"
-  bool   structured       = 3; // parse as JSON
+  bool structured = 3; // parse as JSON
 }
 
 // MetricsConfig defines metrics scraping configuration.
 message MetricsConfig {
-  bool   enabled = 1;
-  string path    = 2; // e.g., "/metrics"
-  int32  port    = 3; // e.g., 9090
+  bool enabled = 1;
+  string path = 2; // e.g., "/metrics"
+  int32 port = 3; // e.g., 9090
 }
 
 // TracingConfig defines distributed tracing configuration.
 message TracingConfig {
-  bool                enabled     = 1;
-  double              sample_rate = 2; // 0.0 to 1.0
-  map<string, string> tags        = 3;
+  bool enabled = 1;
+  double sample_rate = 2; // 0.0 to 1.0
+  map<string, string> tags = 3;
 }
 
 // ObservabilityConfig defines observability settings.
@@ -112,21 +111,21 @@ message ObservabilityConfig {
 
 // RegionTarget defines the desired state for a specific region.
 message RegionTarget {
-  bool                           enabled      = 1;
-  bool                           primary      = 2;
-  string                         cpu          = 3; // e.g., "100m"
-  string                         memory       = 4; // e.g., "256Mi"
-  int32                          min_replicas = 5;
-  int32                          max_replicas = 6;
-  optional deployment.v1.Scalers scalers      = 7; // autoscaling config
+  bool enabled = 1;
+  bool primary = 2;
+  string cpu = 3; // e.g., "100m"
+  string memory = 4; // e.g., "256Mi"
+  int32 min_replicas = 5;
+  int32 max_replicas = 6;
+  optional deployment.v1.Scalers scalers = 7; // autoscaling config
 }
 
 // ServiceSpec is the resource specification for SERVICE type resources.
 message ServiceSpec {
-  RoutingConfig                            routing       = 1;
-  ObservabilityConfig                      observability = 2;
-  map<string, RegionTarget>                regions       = 3; // key = region name
-  optional deployment.v1.HealthCheckConfig health_check  = 4; // health check defaults
+  RoutingConfig routing = 1;
+  ObservabilityConfig observability = 2;
+  map<string, RegionTarget> regions = 3; // key = region name
+  optional deployment.v1.HealthCheckConfig health_check = 4; // health check defaults
 }
 
 // DatabaseSpec is a placeholder for DATABASE type resources (future implementation).
@@ -153,49 +152,49 @@ message BlobSpec {
 // Uses oneof to support different resource types.
 message ResourceSpec {
   oneof spec {
-    ServiceSpec  service  = 1;
+    ServiceSpec service = 1;
     DatabaseSpec database = 2;
-    CacheSpec    cache    = 3;
-    QueueSpec    queue    = 4;
-    BlobSpec     blob     = 5;
+    CacheSpec cache = 3;
+    QueueSpec queue = 4;
+    BlobSpec blob = 5;
   }
 }
 
 // Resource represents a resource in a workspace.
 message Resource {
-  int64                             id           = 1;
-  int64                             workspace_id = 2;
-  string                            name         = 3;
-  ResourceType                      type         = 4;
-  repeated domain.v1.ResourceDomain domains      = 5;
-  repeated RegionConfig             regions      = 6;
-  ResourceStatus                    status       = 7;
-  optional ResourceSpec             spec         = 8;
-  int32                             spec_version = 9;
-  optional string                   description  = 10;
-  int64                             created_by   = 11;
-  google.protobuf.Timestamp         created_at   = 12;
-  google.protobuf.Timestamp         updated_at   = 13;
+  int64 id = 1;
+  int64 workspace_id = 2;
+  string name = 3;
+  ResourceType type = 4;
+  repeated domain.v1.ResourceDomain domains = 5;
+  repeated RegionConfig regions = 6;
+  ResourceStatus status = 7;
+  optional ResourceSpec spec = 8;
+  int32 spec_version = 9;
+  optional string description = 10;
+  int64 created_by = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
 }
 
 // RegionConfig represents a region deployment intent for a resource.
 message RegionConfig {
-  string             region     = 1;
-  bool               is_primary = 2;
-  RegionIntentStatus status     = 3;
-  optional string    last_error = 4;
+  string region = 1;
+  bool is_primary = 2;
+  RegionIntentStatus status = 3;
+  optional string last_error = 4;
 }
 
 // --- CRUD ---
 
 // CreateResourceRequest is the request to create a new resource.
 message CreateResourceRequest {
-  int64                 workspace_id = 1;
-  string                name         = 2;
-  ResourceType          type         = 3;
-  domain.v1.DomainInput domain       = 4;
-  ResourceSpec          spec         = 5;
-  optional string       description  = 6;
+  int64 workspace_id = 1;
+  string name = 2;
+  ResourceType type = 3;
+  domain.v1.DomainInput domain = 4;
+  ResourceSpec spec = 5;
+  optional string description = 6;
 }
 
 // CreateResourceResponse is the response containing the created resource ID.
@@ -205,15 +204,15 @@ message CreateResourceResponse {
 
 // GetResourceNameKey is used to lookup a resource by name within a workspace.
 message GetResourceNameKey {
-  int64  workspace_id = 1;
-  string name         = 2;
+  int64 workspace_id = 1;
+  string name = 2;
 }
 
 // GetResourceRequest is the request to retrieve a resource.
 message GetResourceRequest {
   oneof key {
-    int64              resource_id = 1;
-    GetResourceNameKey name_key    = 2;
+    int64 resource_id = 1;
+    GetResourceNameKey name_key = 2;
   }
 }
 
@@ -224,23 +223,23 @@ message GetResourceResponse {
 
 // ListWorkspaceResourcesRequest is the request to list resources.
 message ListWorkspaceResourcesRequest {
-  int64  workspace_id = 1;
-  int32  page_size    = 2; // default: 50, max: 200
-  string page_token   = 3; // cursor from previous page (base64-encoded timestamp+id)
+  int64 workspace_id = 1;
+  int32 page_size = 2; // default: 50, max: 200
+  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListWorkspaceResourcesResponse is the response containing the list of resources.
 message ListWorkspaceResourcesResponse {
-  repeated Resource resources       = 1;
-  string            next_page_token = 2; // empty if no more pages
+  repeated Resource resources = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // UpdateResourceRequest is the request to update a resource.
 message UpdateResourceRequest {
-  int64                     resource_id = 1;
+  int64 resource_id = 1;
   google.protobuf.FieldMask update_mask = 2;
-  optional string           name        = 3;
-  optional string           description = 4;
+  optional string name = 3;
+  optional string description = 4;
 }
 
 // UpdateResourceResponse is the response containing the updated resource ID.
@@ -258,14 +257,13 @@ message DeleteResourceResponse {}
 
 // RegionInfo represents available region information.
 message RegionInfo {
-  string region        = 1;
-  bool   is_default    = 2;
+  string region = 1;
+  bool is_default = 2;
   string health_status = 3;
 }
 
 // ListRegionsRequest is the request to list available deployment regions.
-message ListRegionsRequest {
-}
+message ListRegionsRequest {}
 
 // ListRegionsResponse is the response containing available regions.
 message ListRegionsResponse {
@@ -279,15 +277,15 @@ message GetResourceStatusRequest {
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
 message DeploymentStatus {
-  int64                         id       = 1;
-  deployment.v1.DeploymentPhase status   = 2;
-  int32                         replicas = 3;
-  optional string               message  = 4;
+  int64 id = 1;
+  deployment.v1.DeploymentPhase status = 2;
+  int32 replicas = 3;
+  optional string message = 4;
 }
 
 // GetResourceStatusResponse is the response containing resource status information.
 message GetResourceStatusResponse {
-  Resource         resource           = 1;
+  Resource resource = 1;
   DeploymentStatus current_deployment = 2;
 }
 
@@ -295,19 +293,19 @@ message GetResourceStatusResponse {
 
 // WatchLogsRequest is the request to stream resource logs.
 message WatchLogsRequest {
-  int64          resource_id = 1;
-  optional int32 limit       = 2;
-  optional bool  follow      = 3;
+  int64 resource_id = 1;
+  optional int32 limit = 2;
+  optional bool follow = 3;
 }
 
 // WatchLogsResponse represents a single log line from a pod container within a resource.
 message WatchLogsResponse {
-  string                    pod_name  = 1;
-  string                    namespace = 2;
-  string                    container = 3;
+  string pod_name = 1;
+  string namespace = 2;
+  string container = 3;
   google.protobuf.Timestamp timestamp = 4;
-  string                    log       = 5;
-  string                    level     = 6;
+  string log = 5;
+  string level = 6;
 }
 
 // --- Events ---
@@ -315,16 +313,16 @@ message WatchLogsResponse {
 // Event represents a Kubernetes event related to a resource (e.g., pod created, failed, crash loop).
 message Event {
   google.protobuf.Timestamp timestamp = 1;
-  string                    reason    = 2;
-  string                    message   = 3;
-  string                    type      = 4;
-  string                    pod_name  = 5;
+  string reason = 2;
+  string message = 3;
+  string type = 4;
+  string pod_name = 5;
 }
 
 // ListResourceEventsRequest is the request to retrieve resource events.
 message ListResourceEventsRequest {
-  int64          resource_id = 1;
-  optional int32 limit       = 2; // max number of events to return
+  int64 resource_id = 1;
+  optional int32 limit = 2; // max number of events to return
 }
 
 // ListResourceEventsResponse is the response containing resource events.
@@ -336,11 +334,11 @@ message ListResourceEventsResponse {
 
 // ScaleResourceRequest is the request to scale a resource.
 message ScaleResourceRequest {
-  int64           resource_id = 1;
-  optional int32  replicas    = 2;
-  optional string cpu         = 3;
-  optional string memory      = 4;
-  optional string region      = 5; // if provided, scale only this region; otherwise scale all regions
+  int64 resource_id = 1;
+  optional int32 replicas = 2;
+  optional string cpu = 3;
+  optional string memory = 4;
+  optional string region = 5; // if provided, scale only this region; otherwise scale all regions
 }
 
 // ScaleResourceResponse is the response after scaling a resource.
@@ -348,9 +346,9 @@ message ScaleResourceResponse {}
 
 // UpdateResourceEnvRequest is the request to update resource environment variables.
 message UpdateResourceEnvRequest {
-  int64               resource_id = 1;
-  map<string, string> env         = 2;
-  optional string     region      = 3; // if provided, update only this region; otherwise update all regions
+  int64 resource_id = 1;
+  map<string, string> env = 2;
+  optional string region = 3; // if provided, update only this region; otherwise update all regions
 }
 
 // UpdateResourceEnvResponse is the response after updating resource environment variables.

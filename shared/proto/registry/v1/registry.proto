@@ -10,7 +10,7 @@ message GetGitlabTokenRequest {}
 // GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
 message GetGitlabTokenResponse {
   string username = 1;
-  string token    = 2;
+  string token = 2;
 }
 
 // RegistryService manages container registry access.
