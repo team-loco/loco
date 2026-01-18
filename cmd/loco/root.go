@@ -8,6 +8,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/org"
+	"github.com/team-loco/loco/cmd/loco/service"
+	"github.com/team-loco/loco/cmd/loco/token"
+	"github.com/team-loco/loco/cmd/loco/workspace"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -65,5 +69,12 @@ func initLogger(cmd *cobra.Command) error {
 }
 
 func init() {
-	RootCmd.AddCommand(loginCmd, useCmd, buildWhoAmICmd(), initCmd, validateCmd, deployCmd, destroyCmd, scaleCmd, envCmd, statusCmd, logsCmd, eventsCmd, webCmd)
+	// Root-level commands
+	RootCmd.AddCommand(loginCmd, useCmd, buildWhoAmICmd(), initCmd, validateCmd, webCmd)
+
+	// Resource-based commands
+	RootCmd.AddCommand(service.BuildServiceCmd())
+	RootCmd.AddCommand(org.BuildOrgCmd())
+	RootCmd.AddCommand(workspace.BuildWorkspaceCmd())
+	RootCmd.AddCommand(token.BuildTokenCmd())
 }

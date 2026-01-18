@@ -23,9 +23,9 @@ See https://kubernetes.io/docs/concepts/configuration/manage-resources-container
 }
 
 func validateCmdFunc(cmd *cobra.Command) error {
-	configPath, err := parseLocoTomlPath(cmd)
+	configPath, err := getLocoTomlPath(cmd)
 	if err != nil {
-		return fmt.Errorf("error reading config flag: %w", err)
+		return err
 	}
 
 	loadedCfg, err := config.Load(configPath)
