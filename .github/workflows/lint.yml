@@ -64,8 +64,9 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           golangci_lint_flags: "--timeout=3m"
           reporter: github-pr-review
+          level: error
+          fail-on-error: true
           workdir: ${{ matrix.working-directory }}
-        if: github.event_name == 'pull_request'
 
   buf:
     name: Buf Lint
