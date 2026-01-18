@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { scaleResource } from "@/gen/resource/v1";
+import { scaleResource } from "@/gen/loco/resource/v1";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { Loader2, Cpu, HardDrive, Layers } from "lucide-react";
-import type { Deployment } from "@/gen/deployment/v1/deployment_pb";
+import type { Deployment } from "@/gen/loco/deployment/v1/deployment_pb";
 import { getServiceSpec } from "@/lib/deployment-utils";
 
 interface ScaleCardProps {

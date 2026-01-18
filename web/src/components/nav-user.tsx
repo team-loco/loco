@@ -13,7 +13,7 @@ import {
 import { useNavigate, useSearchParams } from "react-router";
 import { toastConnectError } from "@/lib/error-handler";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import type { Organization } from "@/gen/org/v1/org_pb";
+import type { Organization } from "@/gen/loco/org/v1/org_pb";
 import { CreateOrgDialog } from "@/components/org/CreateOrgDialog";
 import { CreateWorkspaceDialog } from "@/components/workspace/CreateWorkspaceDialog";
 import { useState } from "react";

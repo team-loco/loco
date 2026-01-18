@@ -1,4 +1,4 @@
-import { listResourceEvents } from "@/gen/resource/v1";
+import { listResourceEvents } from "@/gen/loco/resource/v1";
 import { useQuery } from "@connectrpc/connect-query";
 
 export interface KubernetesEvent {

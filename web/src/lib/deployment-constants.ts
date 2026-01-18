@@ -1,4 +1,4 @@
-import { DeploymentPhase } from "@/gen/deployment/v1/deployment_pb";
+import { DeploymentPhase } from "@/gen/loco/deployment/v1/deployment_pb";
 
 export const PHASE_COLOR_MAP: Record<DeploymentPhase, string> = {
 	[DeploymentPhase.UNSPECIFIED]:

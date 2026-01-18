@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
 import { CheckCircle, XCircle } from "lucide-react";
-import type { Resource } from "@/gen/resource/v1/resource_pb";
+import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 
 interface RecentDeploymentsProps {
 	resources: Resource[];

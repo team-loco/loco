@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { listTokens, revokeToken } from "@/gen/token/v1";
-import { EntityType } from "@/gen/token/v1/token_pb";
-import { listUserOrgs } from "@/gen/org/v1";
+import { listTokens, revokeToken } from "@/gen/loco/token/v1";
+import { EntityType } from "@/gen/loco/token/v1/token_pb";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgContext } from "@/hooks/useOrgContext";
 import {

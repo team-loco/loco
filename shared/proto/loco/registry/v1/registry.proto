@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package loco.registry.v1;
+
+option go_package = "github.com/team-loco/loco/shared/proto/loco/registry/v1;registryv1";
+
+// GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
+message GetGitlabTokenRequest {}
+
+// GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
+message GetGitlabTokenResponse {
+  string username = 1;
+  string token    = 2;
+}
+
+// RegistryService manages container registry access.
+service RegistryService {
+  // GetGitlabToken retrieves GitLab registry credentials.
+  rpc GetGitlabToken(GetGitlabTokenRequest) returns (GetGitlabTokenResponse) {}
+}

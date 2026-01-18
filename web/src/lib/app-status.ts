@@ -1,5 +1,5 @@
-import { ResourceStatus } from "@/gen/resource/v1/resource_pb";
-import { DeploymentPhase } from "@/gen/deployment/v1/deployment_pb";
+import { ResourceStatus } from "@/gen/loco/resource/v1/resource_pb";
+import { DeploymentPhase } from "@/gen/loco/deployment/v1/deployment_pb";
 
 export function getStatusLabel(status?: number): string {
 	if (status === undefined || status === null) return "pending";

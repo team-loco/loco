@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/auth/AuthProvider";
-import { listUserOrgs } from "@/gen/org/v1";
-import { listOrgWorkspaces } from "@/gen/workspace/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import Loader from "@/assets/loader.svg?react";
 import { Plus } from "lucide-react";
@@ -11,7 +11,7 @@ import { OrgCard } from "@/components/org/OrgCard";
 import { CreateOrgDialog } from "@/components/org/CreateOrgDialog";
 import { DeleteOrgDialog } from "@/components/org/DeleteOrgDialog";
 import { useOrgContext } from "@/hooks/useOrgContext";
-import type { Organization } from "@/gen/org/v1/org_pb";
+import type { Organization } from "@/gen/loco/org/v1/org_pb";
 
 export function Organizations() {
 	const navigate = useNavigate();

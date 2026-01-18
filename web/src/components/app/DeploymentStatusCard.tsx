@@ -10,11 +10,11 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { scaleResource } from "@/gen/resource/v1";
+import { scaleResource } from "@/gen/loco/resource/v1";
 import {
 	DeploymentPhase,
 	type Deployment,
-} from "@/gen/deployment/v1/deployment_pb";
+} from "@/gen/loco/deployment/v1/deployment_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { useState, useMemo } from "react";

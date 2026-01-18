@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
-import { listWorkspaceResources, listResourceEvents } from "@/gen/resource/v1";
-import type { Event } from "@/gen/resource/v1/resource_pb";
+import { listWorkspaceResources, listResourceEvents } from "@/gen/loco/resource/v1";
+import type { Event } from "@/gen/loco/resource/v1/resource_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
 export interface WorkspaceEventWithResource extends Event {

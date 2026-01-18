@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteWorkspace } from "@/gen/workspace/v1";
+import { deleteWorkspace } from "@/gen/loco/workspace/v1";
 import { useMutation } from "@connectrpc/connect-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-handler";

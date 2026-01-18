@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useRef, useEffect } from "react";
-import type { WatchLogsResponse } from "@/gen/resource/v1/resource_pb";
+import type { WatchLogsResponse } from "@/gen/loco/resource/v1/resource_pb";
 import {
 	Table,
 	TableBody,

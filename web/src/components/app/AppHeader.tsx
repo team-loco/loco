@@ -2,7 +2,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import type { Resource } from "@/gen/resource/v1/resource_pb";
+import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 import { Copy, ExternalLink, Pencil } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";

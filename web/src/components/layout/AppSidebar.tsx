@@ -30,9 +30,9 @@ import {
 	SidebarRail,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { listUserOrgs } from "@/gen/org/v1";
-import { whoAmI } from "@/gen/user/v1";
-import { listOrgWorkspaces } from "@/gen/workspace/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { whoAmI } from "@/gen/loco/user/v1";
+import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
 import { useOrgContext } from "@/hooks/useOrgContext";

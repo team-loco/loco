@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { type Token } from "@/gen/token/v1/token_pb";
+import { type Token } from "@/gen/loco/token/v1/token_pb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Trash2, Shield, ShieldCheck, ShieldAlert } from "lucide-react";
-import { EntityType, Scope } from "@/gen/token/v1/token_pb";
+import { EntityType, Scope } from "@/gen/loco/token/v1/token_pb";
 
 function formatRelativeTimeFuture(date: Date): string {
 	const now = new Date();
