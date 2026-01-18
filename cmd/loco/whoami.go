@@ -14,7 +14,7 @@ import (
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
-	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
+	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
 )
 
 type whoamiDeps struct {

@@ -15,7 +15,7 @@ import (
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	workspacev1 "github.com/team-loco/loco/shared/proto/workspace/v1"
+	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
 )
 
 var (

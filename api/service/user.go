@@ -14,7 +14,7 @@ import (
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
+	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
 )
 
 var (

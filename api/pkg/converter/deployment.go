@@ -5,8 +5,8 @@ import (
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
-	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
-	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/ui"
-	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
 )
 
 var logsCmd = &cobra.Command{

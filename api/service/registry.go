@@ -14,7 +14,7 @@ import (
 	"github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	registryv1 "github.com/team-loco/loco/shared/proto/registry/v1"
+	registryv1 "github.com/team-loco/loco/shared/proto/loco/registry/v1"
 )
 
 // RegistryServer implements the RegistryService

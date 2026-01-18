@@ -19,7 +19,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/providers"
-	oAuth "github.com/team-loco/loco/shared/proto/oauth/v1"
+	oAuth "github.com/team-loco/loco/shared/proto/loco/oauth/v1"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 )

@@ -14,16 +14,16 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/shared"
-	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
-	"github.com/team-loco/loco/shared/proto/deployment/v1/deploymentv1connect"
-	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
-	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
-	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
-	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
-	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
-	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
-	workspacev1 "github.com/team-loco/loco/shared/proto/workspace/v1"
-	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
+	"github.com/team-loco/loco/shared/proto/loco/deployment/v1/deploymentv1connect"
+	orgv1 "github.com/team-loco/loco/shared/proto/loco/org/v1"
+	"github.com/team-loco/loco/shared/proto/loco/org/v1/orgv1connect"
+	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
+	"github.com/team-loco/loco/shared/proto/loco/resource/v1/resourcev1connect"
+	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
+	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
+	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
 )
 
 // todo: is this too bloated? we likely need to fix this.

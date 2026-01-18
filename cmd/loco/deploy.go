@@ -18,13 +18,13 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
 	"github.com/team-loco/loco/shared/config"
-	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
-	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
-	"github.com/team-loco/loco/shared/proto/domain/v1/domainv1connect"
-	registryv1 "github.com/team-loco/loco/shared/proto/registry/v1"
-	registryv1connect "github.com/team-loco/loco/shared/proto/registry/v1/registryv1connect"
-	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
-	"github.com/team-loco/loco/shared/proto/resource/v1/resourcev1connect"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
+	domainv1 "github.com/team-loco/loco/shared/proto/loco/domain/v1"
+	"github.com/team-loco/loco/shared/proto/loco/domain/v1/domainv1connect"
+	registryv1 "github.com/team-loco/loco/shared/proto/loco/registry/v1"
+	registryv1connect "github.com/team-loco/loco/shared/proto/loco/registry/v1/registryv1connect"
+	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
+	"github.com/team-loco/loco/shared/proto/loco/resource/v1/resourcev1connect"
 )
 
 var deployCmd = &cobra.Command{

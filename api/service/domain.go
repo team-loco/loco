@@ -13,7 +13,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	domainv1 "github.com/team-loco/loco/shared/proto/domain/v1"
+	domainv1 "github.com/team-loco/loco/shared/proto/loco/domain/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

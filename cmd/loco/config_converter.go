@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/team-loco/loco/shared/config"
-	deploymentv1 "github.com/team-loco/loco/shared/proto/deployment/v1"
-	resourcev1 "github.com/team-loco/loco/shared/proto/resource/v1"
+	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
 )
 
 // configToResourceSpec converts a LocoConfig to a proto ResourceSpec.
