@@ -1,0 +1,68 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "controller/**"
+      - "main.go"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
+  pull_request:
+    paths:
+      - "api/**"
+      - "cmd/**"
+      - "controller/**"
+      - "main.go"
+      - "shared/**"
+      - "go.mod"
+      - "go.sum"
+
+jobs:
+  test:
+    name: ${{ matrix.component }} Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        include:
+          - component: API
+            working-directory: api
+            test-command: go test -v -coverprofile=coverage.out ./...
+            timeout: 10
+
+          - component: CLI
+            working-directory: "."
+            test-command: go test -v -coverprofile=coverage.out ./cmd/...
+            timeout: 10
+
+          - component: Controller
+            working-directory: controller
+            test-command: make test
+            timeout: 10
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Tidy dependencies
+        if: matrix.component == 'Controller'
+        run: cd ${{ matrix.working-directory }} && go mod tidy
+
+      - name: Run tests
+        run: cd ${{ matrix.working-directory }} && ${{ matrix.test-command }}
+        timeout-minutes: ${{ matrix.timeout }}
+
+      - name: Display coverage
+        if: always() && matrix.component != 'Controller'
+        run: cd ${{ matrix.working-directory }} && go tool cover -func=coverage.out

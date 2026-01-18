@@ -1,4 +1,4 @@
-import type { User } from "@/gen/user/v1/user_pb";
+import type { User } from "@/gen/loco/user/v1/user_pb";
 import type { ReactNode } from "react";
 import { EventBell } from "./layout/EventBell";
 import { SidebarTrigger } from "./ui/sidebar";

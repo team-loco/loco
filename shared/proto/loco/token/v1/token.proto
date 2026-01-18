@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package loco.token.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/shared/proto/loco/token/v1;tokenv1";
+
+// TokenService manages personal access tokens and fine-grained tokens.
+service TokenService {
+  // CreateToken issues a new token for a specific entity with defined scopes.
+  rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse);
+  // ListTokens lists all tokens associated with an entity.
+  rpc ListTokens(ListTokensRequest) returns (ListTokensResponse);
+  // GetToken retrieves metadata for a specific token (does not return the token string).
+  rpc GetToken(GetTokenRequest) returns (GetTokenResponse);
+  // RevokeToken revokes/deletes a token.
+  rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
+}
+
+// EntityType represents the type of entity a token can be associated with.
+enum EntityType {
+  ENTITY_TYPE_UNSPECIFIED  = 0;
+  ENTITY_TYPE_SYSTEM       = 1;
+  ENTITY_TYPE_ORGANIZATION = 2;
+  ENTITY_TYPE_WORKSPACE    = 3;
+  ENTITY_TYPE_RESOURCE     = 4;
+  ENTITY_TYPE_USER         = 5;
+}
+
+// Scope represents the permission level.
+enum Scope {
+  SCOPE_UNSPECIFIED = 0;
+  SCOPE_READ        = 1;
+  SCOPE_WRITE       = 2;
+  SCOPE_ADMIN       = 3;
+}
+
+// EntityScope represents a permission on a specific entity.
+message EntityScope {
+  Scope      scope       = 1;
+  EntityType entity_type = 2;
+  int64      entity_id   = 3;
+}
+
+// Token represents token metadata (without the actual token string).
+message Token {
+  string                    name        = 1;
+  EntityType                entity_type = 2;
+  int64                     entity_id   = 3;
+  repeated EntityScope      scopes      = 4;
+  google.protobuf.Timestamp expires_at  = 5;
+  google.protobuf.Timestamp created_at  = 6;
+}
+
+// CreateTokenRequest is the request to create a new token.
+message CreateTokenRequest {
+  string               name           = 1; // Human-readable token name
+  EntityType           entity_type    = 2; // Entity type the token is for
+  int64                entity_id      = 3; // Entity ID the token is for
+  repeated EntityScope scopes         = 4; // Scopes to grant to the token
+  int64                expires_in_sec = 5; // Expiration duration in seconds (max: 2592000 = 30 days)
+}
+
+// CreateTokenResponse contains the newly created token string and metadata.
+message CreateTokenResponse {
+  string token          = 1; // The actual token string (only returned on creation)
+  Token  token_metadata = 2; // Token metadata
+}
+
+// ListTokensRequest is the request to list tokens for an entity.
+message ListTokensRequest {
+  EntityType entity_type = 1;
+  int64      entity_id   = 2;
+}
+
+// ListTokensResponse contains a list of token metadata.
+message ListTokensResponse {
+  repeated Token tokens = 1;
+}
+
+// GetTokenRequest is the request to get a specific token's metadata.
+message GetTokenRequest {
+  string     name        = 1;
+  EntityType entity_type = 2;
+  int64      entity_id   = 3;
+}
+
+// GetTokenResponse contains the token metadata.
+message GetTokenResponse {
+  Token token = 1;
+}
+
+// RevokeTokenRequest is the request to revoke a token.
+message RevokeTokenRequest {
+  string     name        = 1;
+  EntityType entity_type = 2;
+  int64      entity_id   = 3;
+}
+
+// RevokeTokenResponse is the response after revoking a token.
+message RevokeTokenResponse {}

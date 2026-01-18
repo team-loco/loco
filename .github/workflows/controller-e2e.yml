@@ -1,0 +1,39 @@
+# name: Controller E2E Tests
+
+# on:
+#   push:
+#     paths:
+#       - "controller/**"
+#       - "go.mod"
+#       - "go.sum"
+#   pull_request:
+#     paths:
+#       - "controller/**"
+#       - "go.mod"
+#       - "go.sum"
+
+# jobs:
+#   e2e:
+#     name: E2E Tests
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v6
+
+#       - uses: actions/setup-go@v6
+#         with:
+#           go-version-file: go.mod
+
+#       - name: Install kind
+#         run: |
+#           curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)
+#           chmod +x ./kind
+#           sudo mv ./kind /usr/local/bin/kind
+
+#       - name: Verify kind installation
+#         run: kind version
+
+#       - name: Run E2E tests
+#         run: |
+#           cd controller
+#           go mod tidy
+#           make test-e2e

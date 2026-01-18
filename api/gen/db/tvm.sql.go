@@ -49,6 +49,21 @@ func (q *Queries) DeleteToken(ctx context.Context, name string) error {
 	return err
 }
 
+const deleteTokenByNameAndEntity = `-- name: DeleteTokenByNameAndEntity :exec
+DELETE FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3
+`
+
+type DeleteTokenByNameAndEntityParams struct {
+	Name       string     `json:"name"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
+}
+
+func (q *Queries) DeleteTokenByNameAndEntity(ctx context.Context, arg DeleteTokenByNameAndEntityParams) error {
+	_, err := q.db.Exec(ctx, deleteTokenByNameAndEntity, arg.Name, arg.EntityType, arg.EntityID)
+	return err
+}
+
 const deleteTokensForEntity = `-- name: DeleteTokensForEntity :exec
 DELETE FROM tokens WHERE entity_type = $1 AND entity_id = $2
 `
@@ -76,6 +91,37 @@ func (q *Queries) GetToken(ctx context.Context, token string) (Token, error) {
 		&i.Scopes,
 		&i.EntityType,
 		&i.EntityID,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
+const getTokenByName = `-- name: GetTokenByName :one
+SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3
+`
+
+type GetTokenByNameParams struct {
+	Name       string     `json:"name"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   int64      `json:"entityId"`
+}
+
+type GetTokenByNameRow struct {
+	Name       string        `json:"name"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   int64         `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
+}
+
+func (q *Queries) GetTokenByName(ctx context.Context, arg GetTokenByNameParams) (GetTokenByNameRow, error) {
+	row := q.db.QueryRow(ctx, getTokenByName, arg.Name, arg.EntityType, arg.EntityID)
+	var i GetTokenByNameRow
+	err := row.Scan(
+		&i.Name,
+		&i.EntityType,
+		&i.EntityID,
+		&i.Scopes,
 		&i.ExpiresAt,
 	)
 	return i, err

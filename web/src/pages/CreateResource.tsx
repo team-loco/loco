@@ -35,16 +35,16 @@ import {
 	RegionTargetSchema,
 	ServiceSpecSchema,
 	ResourceSpecSchema,
-} from "@/gen/resource/v1";
+} from "@/gen/loco/resource/v1";
 import { create } from "@bufbuild/protobuf";
 import {
 	DomainType,
 	listPlatformDomains,
 	checkDomainAvailability,
-} from "@/gen/domain/v1";
-import { listUserOrgs } from "@/gen/org/v1";
-import { listOrgWorkspaces } from "@/gen/workspace/v1";
-import { createDeployment } from "@/gen/deployment/v1";
+} from "@/gen/loco/domain/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { createDeployment } from "@/gen/loco/deployment/v1";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useAuth } from "@/auth/AuthProvider";

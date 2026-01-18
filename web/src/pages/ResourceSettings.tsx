@@ -16,7 +16,7 @@ import {
 	getResource,
 	scaleResource,
 	updateResource,
-} from "@/gen/resource/v1";
+} from "@/gen/loco/resource/v1";
 import {
 	createResourceDomain,
 	checkDomainAvailability,
@@ -24,9 +24,9 @@ import {
 	deleteResourceDomain,
 	setPrimaryResourceDomain,
 	updateResourceDomain,
-} from "@/gen/domain/v1";
-import type { ResourceDomain } from "@/gen/domain/v1/domain_pb";
-import { DomainType } from "@/gen/domain/v1/domain_pb";
+} from "@/gen/loco/domain/v1";
+import type { ResourceDomain } from "@/gen/loco/domain/v1/domain_pb";
+import { DomainType } from "@/gen/loco/domain/v1/domain_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Cpu, HardDrive } from "lucide-react";

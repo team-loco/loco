@@ -1,7 +1,7 @@
 import { createContext, useContext, type ReactNode, useState } from "react";
 import { useQuery } from "@connectrpc/connect-query";
-import { whoAmI, logout as logoutMethod } from "@/gen/user/v1";
-import type { User } from "@/gen/user/v1/user_pb";
+import { whoAmI, logout as logoutMethod } from "@/gen/loco/user/v1";
+import type { User } from "@/gen/loco/user/v1/user_pb";
 
 interface AuthContextType {
 	user: User | null;

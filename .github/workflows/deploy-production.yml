@@ -1,0 +1,297 @@
+name: Build and Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  DIGITALOCEAN_TOKEN: ${{ secrets.DIGITALOCEAN_PAT }}
+
+jobs:
+  test:
+    name: Run Tests
+    uses: ./.github/workflows/test.yml
+
+  push-controller-image:
+    name: Build and Push Controller Image
+    needs: test
+    if: |
+      contains(github.event.head_commit.modified, 'controller/') ||
+      contains(github.event.head_commit.modified, 'shared/') ||
+      contains(github.event.head_commit.modified, 'go.mod') ||
+      contains(github.event.head_commit.modified, 'go.sum')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build and push controller image
+        id: build
+        uses: ./.github/workflows/build-push.yml
+        with:
+          image_name: ${{ github.repository }}-controller
+          context: ./controller
+          dockerfile: ./controller/Dockerfile
+
+  push-api-image:
+    name: Build and Push API Image
+    needs: test
+    if: |
+      contains(github.event.head_commit.modified, 'api/') ||
+      contains(github.event.head_commit.modified, 'shared/') ||
+      contains(github.event.head_commit.modified, 'go.mod') ||
+      contains(github.event.head_commit.modified, 'go.sum')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build and push API image
+        id: build
+        uses: ./.github/workflows/build-push.yml
+        with:
+          image_name: ${{ github.repository }}-api
+          context: .
+          dockerfile: ./api/Dockerfile
+
+  push-ui-image:
+    name: Build and Push UI Image
+    needs: test
+    if: |
+      contains(github.event.head_commit.modified, 'web/') ||
+      contains(github.event.head_commit.modified, 'go.mod') ||
+      contains(github.event.head_commit.modified, 'go.sum')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build and push UI image
+        id: build
+        uses: ./.github/workflows/build-push.yml
+        with:
+          image_name: ${{ github.repository }}-ui
+          context: ./web
+          dockerfile: ./web/Dockerfile
+
+  build-cli:
+    name: Build CLI Binaries
+    needs: test
+    if: |
+      contains(github.event.head_commit.modified, 'cmd/') ||
+      contains(github.event.head_commit.modified, 'main.go') ||
+      contains(github.event.head_commit.modified, 'go.mod') ||
+      contains(github.event.head_commit.modified, 'go.sum')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+
+      - name: Build Linux binary
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/loco-linux-amd64 -v
+
+      - name: Build macOS AMD64 binary
+        run: CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o bin/loco-darwin-amd64 -v
+
+      - name: Build macOS ARM64 binary
+        run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/loco-darwin-arm64 -v
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: loco-binaries
+          path: bin/loco-*
+
+  deploy-production:
+    name: Deploy to Production
+    needs:
+      - push-api-image
+      - push-controller-image
+      - push-ui-image
+      - build-cli
+    runs-on: ubuntu-latest
+    environment: production
+    if: always()
+
+    env:
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+      API_IMAGE: ${{ needs.push-api-image.outputs.image }}
+      CONTROLLER_IMAGE: ${{ needs.push-controller-image.outputs.image }}
+      UI_IMAGE: ${{ needs.push-ui-image.outputs.image }}
+      CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+      GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
+      GITLAB_PROJECT_ID: ${{ secrets.GITLAB_PROJECT_ID }}
+      GITLAB_TOKEN_NAME: ${{ secrets.GITLAB_TOKEN_NAME }}
+      GITLAB_URL: ${{ secrets.GITLAB_URL }}
+      GITLAB_REGISTRY_URL: ${{ secrets.GITLAB_REGISTRY_URL }}
+      GITLAB_DEPLOY_TOKEN_NAME: ${{ secrets.GITLAB_DEPLOY_TOKEN_NAME }}
+      GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+      GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+      GH_OAUTH_STATE: ${{ secrets.GH_OAUTH_STATE }}
+      APP_ENV: ${{ secrets.APP_ENV }}
+      LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+      PORT: ${{ secrets.PORT }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GH_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: cd terraform && terraform init
+
+      - name: Terraform Plan
+        run: cd terraform && terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: cd terraform && terraform apply -auto-approve "tfplan"
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_PAT }}
+
+      - name: Get kubeconfig
+        run: doctl kubernetes cluster kubeconfig save loco-cluster
+
+      - name: Verify cluster access
+        run: kubectl get nodes
+
+      - name: Wait for nodes to be ready
+        run: kubectl wait --for=condition=Ready node --all --timeout=180s
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4.3.0
+
+      - name: Add Helm repositories
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add cilium https://helm.cilium.io
+          helm repo add altinity https://helm.altinity.com
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update
+
+      - name: Build Helm dependencies
+        run: |
+          helm dependency build ./charts/loco-core
+          helm dependency build ./charts/loco-controller
+          helm dependency build ./charts/loco-obs
+          helm dependency build ./charts/loco-networking
+
+      - name: Helm dry-run
+        uses: helmfile/helmfile-action@v2.0.4
+        with:
+          helmfile-args: diff --environment prod
+
+      - name: Deploy to Production
+        uses: helmfile/helmfile-action@v2.0.4
+        with:
+          helmfile-args: sync --environment prod
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/loco-api -n loco-core --timeout=5m || true
+          kubectl rollout status deployment/loco-controller -n loco-controller --timeout=5m || true
+          kubectl rollout status deployment/loco-ui -n loco-core --timeout=5m || true
+
+      - name: Smoke tests
+        run: |
+          API_POD=$(kubectl get pod -n loco-core -l app=loco-api -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "$API_POD" ]; then
+            kubectl exec -n loco-core $API_POD -- curl -f http://localhost:8000/health || true
+          fi
+
+  release:
+    name: Create GitHub Release
+    needs: deploy-production
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download CLI binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: loco-binaries
+          path: bin
+
+      - name: Determine next version tag
+        id: version
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+
+          major=$(echo $latest_tag | cut -d. -f1 | tr -d v)
+          minor=$(echo $latest_tag | cut -d. -f2)
+          patch=$(echo $latest_tag | cut -d. -f3)
+
+          new_tag="v${major}.${minor}.$((patch + 1))"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$latest_tag" ]; then
+            log=$(git log --pretty=format:"* %s (%h)" )
+          else
+            log=$(git log ${latest_tag}..HEAD --pretty=format:"* %s (%h)")
+          fi
+
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$log" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create and push Git tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag ${{ steps.version.outputs.new_tag }}
+          git push origin ${{ steps.version.outputs.new_tag }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.version.outputs.new_tag }} \
+            --title "Release ${{ steps.version.outputs.new_tag }}" \
+            --notes "${{ steps.changelog.outputs.changelog }}" \
+            bin/loco-*

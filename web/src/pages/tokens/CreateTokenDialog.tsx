@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { createToken } from "@/gen/token/v1";
-import { EntityType, Scope, EntityScopeSchema } from "@/gen/token/v1/token_pb";
-import { listUserOrgs } from "@/gen/org/v1";
-import { listOrgWorkspaces } from "@/gen/workspace/v1";
-import { listWorkspaceResources } from "@/gen/resource/v1";
+import { createToken } from "@/gen/loco/token/v1";
+import { EntityType, Scope, EntityScopeSchema } from "@/gen/loco/token/v1/token_pb";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { useAuth } from "@/auth/AuthProvider";
 import {
 	Dialog,

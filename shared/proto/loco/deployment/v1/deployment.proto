@@ -1,0 +1,187 @@
+syntax = "proto3";
+
+package loco.deployment.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/shared/proto/loco/deployment/v1;deploymentv1";
+
+// DeploymentPhase indicates the current state of a deployment lifecycle.
+enum DeploymentPhase {
+  DEPLOYMENT_PHASE_UNSPECIFIED = 0;
+  // Pre-deployment: created in DB, waiting for controller to pick it up
+  DEPLOYMENT_PHASE_PENDING = 1;
+  // Active: controller is actively deploying (pulling image, creating pods, etc)
+  DEPLOYMENT_PHASE_DEPLOYING = 2;
+  // Running: pods are up, healthy, ready to serve traffic
+  DEPLOYMENT_PHASE_RUNNING = 3;
+  // Terminal: one-off jobs completed successfully
+  DEPLOYMENT_PHASE_SUCCEEDED = 4;
+  // Terminal: error during deployment or runtime
+  DEPLOYMENT_PHASE_FAILED = 5;
+  // Terminal: user explicitly cancelled
+  DEPLOYMENT_PHASE_CANCELED = 6;
+}
+
+// DeploymentService manages resource deployments.
+service DeploymentService {
+  // CreateDeployment creates a new deployment for a resource.
+  rpc CreateDeployment(CreateDeploymentRequest) returns (CreateDeploymentResponse);
+  // GetDeployment retrieves a deployment by ID.
+  rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
+  // ListDeployments lists deployments for a resource.
+  rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
+  // WatchDeployment streams deployment events in real-time.
+  rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
+  // DeleteDeployment deletes/inactivates a deployment.
+  rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
+}
+
+// Port defines a network port configuration.
+message Port {
+  int32  port     = 1;
+  string protocol = 2;
+}
+
+// ResourceSpec defines CPU and memory resource constraints.
+message ResourceSpec {
+  optional string cpu    = 1;
+  optional string memory = 2;
+}
+
+// HealthCheckConfig defines health check parameters.
+message HealthCheckConfig {
+  string path                  = 1;
+  int32  initial_delay_seconds = 2;
+  int32  interval_seconds      = 3; // how often to probe
+  int32  timeout_seconds       = 4; // how long to wait for response
+  int32  failure_threshold     = 5; // number of failures before marking unhealthy
+}
+
+// Scalers defines autoscaling configuration.
+message Scalers {
+  bool           enabled       = 1; // enable autoscaling
+  optional int32 cpu_target    = 2; // target CPU percentage (0-100)
+  optional int32 memory_target = 3; // target memory percentage (0-100)
+}
+
+// BuildSource defines where the code comes from.
+message BuildSource {
+  string          type            = 1; // "dockerfile", "buildpack", "image"
+  string          image           = 2; // final image or pre-built
+  optional string dockerfile_path = 3;
+}
+
+// ServiceDeploymentSpec is the deployment specification for SERVICE type resources.
+message ServiceDeploymentSpec {
+  BuildSource                build        = 1;
+  optional HealthCheckConfig health_check = 2;
+  optional string            cpu          = 3; // e.g., "100m" (defaults from resource if omitted)
+  optional string            memory       = 4; // e.g., "256Mi" (defaults from resource if omitted)
+  optional int32             min_replicas = 5; // defaults from resource if omitted
+  optional int32             max_replicas = 6; // defaults from resource if omitted
+  optional Scalers           scalers      = 7; // autoscaling config (defaults from resource if omitted)
+  map<string, string>        env          = 8;
+  int32                      port         = 9;
+}
+
+// DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
+message DatabaseDeploymentSpec {
+  // reserved for future expansion
+}
+
+// CacheDeploymentSpec is a placeholder for CACHE type deployments (future implementation).
+message CacheDeploymentSpec {
+  // reserved for future expansion
+}
+
+// QueueDeploymentSpec is a placeholder for QUEUE type deployments (future implementation).
+message QueueDeploymentSpec {
+  // reserved for future expansion
+}
+
+// DeploymentSpec is the immutable runtime snapshot for a deployment.
+// Uses oneof to support different resource types.
+message DeploymentSpec {
+  oneof spec {
+    ServiceDeploymentSpec  service  = 1;
+    DatabaseDeploymentSpec database = 2;
+    CacheDeploymentSpec    cache    = 3;
+    QueueDeploymentSpec    queue    = 4;
+  }
+}
+
+// Deployment represents a resource deployment (immutable, single-region).
+message Deployment {
+  int64                              id           = 1;
+  int64                              resource_id  = 2;
+  int64                              cluster_id   = 3;
+  string                             region       = 4;
+  int32                              replicas     = 5;
+  DeploymentPhase                    status       = 6;
+  bool                               is_active    = 7;
+  string                             message      = 8;
+  google.protobuf.Timestamp          created_at   = 9;
+  optional google.protobuf.Timestamp started_at   = 10;
+  optional google.protobuf.Timestamp completed_at = 11;
+  google.protobuf.Timestamp          updated_at   = 12;
+  int32                              spec_version = 13;
+  DeploymentSpec                     spec         = 14;
+}
+
+// CreateDeploymentRequest is the request to create a new deployment.
+message CreateDeploymentRequest {
+  int64          resource_id = 1;
+  int64          cluster_id  = 2;
+  string         region      = 3;
+  DeploymentSpec spec        = 4;
+}
+
+// CreateDeploymentResponse is the response containing the created deployment ID.
+message CreateDeploymentResponse {
+  int64 deployment_id = 1;
+}
+
+// GetDeploymentRequest is the request to retrieve a deployment.
+message GetDeploymentRequest {
+  int64 deployment_id = 1;
+}
+
+// GetDeploymentResponse is the response containing the deployment.
+message GetDeploymentResponse {
+  Deployment deployment = 1;
+}
+
+// ListDeploymentsRequest is the request to list deployments.
+message ListDeploymentsRequest {
+  int64  resource_id = 1;
+  int32  page_size   = 2; // default: 50, max: 200
+  string page_token  = 3; // cursor from previous page (base64-encoded timestamp+id)
+}
+
+// ListDeploymentsResponse is the response containing deployment list.
+message ListDeploymentsResponse {
+  repeated Deployment deployments     = 1;
+  string              next_page_token = 2; // empty if no more pages
+}
+
+// WatchDeploymentRequest is the request to stream deployment events.
+message WatchDeploymentRequest {
+  int64 deployment_id = 1;
+}
+
+// WatchDeploymentResponse represents a deployment event stream response.
+message WatchDeploymentResponse {
+  int64                     deployment_id = 1;
+  DeploymentPhase           status        = 2;
+  string                    message       = 3;
+  google.protobuf.Timestamp timestamp     = 4;
+}
+
+// DeleteDeploymentRequest is the request to delete/inactivate a deployment.
+message DeleteDeploymentRequest {
+  int64 deployment_id = 1;
+}
+
+// DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
+message DeleteDeploymentResponse {}

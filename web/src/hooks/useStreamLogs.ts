@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@connectrpc/connect";
-import { ResourceService } from "@/gen/resource/v1/resource_pb";
-import type { WatchLogsResponse } from "@/gen/resource/v1/resource_pb";
+import { ResourceService } from "@/gen/loco/resource/v1/resource_pb";
+import type { WatchLogsResponse } from "@/gen/loco/resource/v1/resource_pb";
 import { createTransport } from "@/auth/connect-transport";
 
 export function useStreamLogs(resourceId: string, tailLimit?: number) {

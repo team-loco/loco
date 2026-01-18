@@ -8,7 +8,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import type { Organization } from "@/gen/org/v1/org_pb";
+import type { Organization } from "@/gen/loco/org/v1/org_pb";
 
 interface OrgCardProps {
 	org: Organization;

@@ -12,7 +12,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { type WorkspaceMemberWithUser } from "@/gen/workspace/v1/workspace_pb";
+import { type WorkspaceMemberWithUser } from "@/gen/loco/workspace/v1/workspace_pb";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 
