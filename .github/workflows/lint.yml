@@ -57,17 +57,12 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: false
 
-      - uses: reviewdog/action-golangci-lint@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          golangci_lint_flags: "--timeout=3m"
-          reporter: github-pr-check
-          level: error
-          fail_level: error
-          filter_mode: nofilter
-          workdir: ${{ matrix.working-directory }}
+          version: v2.6
+          working-directory: ${{ matrix.working-directory }}
 
   buf:
     name: Buf Lint
