@@ -65,7 +65,7 @@ jobs:
           golangci_lint_flags: "--timeout=3m"
           reporter: github-pr-review
           level: error
-          fail_on_error: true
+          fail_level: warning
           workdir: ${{ matrix.working-directory }}
 
   buf:
