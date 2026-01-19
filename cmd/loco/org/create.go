@@ -2,19 +2,33 @@ package org
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/org/internal"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/shared"
 	orgv1 "github.com/team-loco/loco/shared/proto/loco/org/v1"
+	"github.com/team-loco/loco/shared/proto/loco/org/v1/orgv1connect"
 )
 
-type createRunner struct {
-	deps *internal.OrgDeps
-	name string
+type createDeps struct {
+	NewOrgClient func(host string) orgv1connect.OrgServiceClient
+	Output       io.Writer
 }
 
-func buildCreateCmd(deps *internal.OrgDeps) *cobra.Command {
+func buildCreateCmd() *cobra.Command {
+	deps := createDeps{
+		NewOrgClient: func(host string) orgv1connect.OrgServiceClient {
+			return orgv1connect.NewOrgServiceClient(shared.NewHTTPClient(), host)
+		},
+		Output: os.Stdout,
+	}
+	return newCreateCmd(deps)
+}
+
+func newCreateCmd(deps createDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create [name]",
 		Short: "Create an organization",
@@ -25,39 +39,46 @@ func buildCreateCmd(deps *internal.OrgDeps) *cobra.Command {
 
   # Create an organization with an auto-generated name
   loco org create`,
-	}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 
-	if deps != nil {
-		cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			host, err := cmdutil.GetHost(cmd)
+			if err != nil {
+				return err
+			}
+			locoToken, err := cmdutil.GetCurrentLocoToken()
+			if err != nil {
+				return err
+			}
+
+			orgClient := deps.NewOrgClient(host)
+			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
 			var name string
 			if len(args) > 0 {
 				name = args[0]
 			}
-			runner := &createRunner{deps: deps, name: name}
-			return runner.Run(cmd)
-		}
+
+			createReq := &orgv1.CreateOrgRequest{}
+			if name != "" {
+				createReq.Name = &name
+			}
+
+			req := connect.NewRequest(createReq)
+			req.Header().Set("Authorization", authHeader)
+
+			resp, err := orgClient.CreateOrg(ctx, req)
+			if err != nil {
+				if name != "" {
+					return fmt.Errorf("unable to create organization %q: %w", name, err)
+				}
+				return fmt.Errorf("unable to create organization: %w", err)
+			}
+
+			fmt.Fprintf(deps.Output, "Organization created successfully (ID: %d)\n", resp.Msg.OrgId)
+			return nil
+		},
 	}
 
 	return cmd
-}
-
-func (r *createRunner) Run(cmd *cobra.Command) error {
-	ctx := cmd.Context()
-
-	createReq := &orgv1.CreateOrgRequest{}
-	if r.name != "" {
-		createReq.Name = &r.name
-	}
-
-	req := connect.NewRequest(createReq)
-	req.Header().Set("Authorization", r.deps.AuthHeader())
-
-	resp, err := r.deps.CreateOrg(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to create organization: %w", err)
-	}
-
-	fmt.Fprintf(r.deps.Stdout, "Organization created successfully (ID: %d)\n", resp.Msg.OrgId)
-
-	return nil
 }

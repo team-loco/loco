@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 import { getStatusLabel } from "@/lib/app-status";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -61,11 +62,14 @@ export function ApplicationsTable({
 	workspaceId,
 }: ApplicationsTableProps) {
 	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const orgId = activeOrgId;
+	const wsId = activeWorkspaceId || workspaceId;
 
 	const handleRowClick = (resourceId: bigint) => {
-		navigate(
-			`/resource/${resourceId}${workspaceId ? `?workspace=${workspaceId}` : ""}`
-		);
+		if (orgId && wsId) {
+			navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
+		}
 	};
 
 	return (

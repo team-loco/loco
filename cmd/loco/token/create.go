@@ -2,104 +2,165 @@ package token
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/token/internal"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/shared"
 	tokenv1 "github.com/team-loco/loco/shared/proto/loco/token/v1"
-	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
+	"github.com/team-loco/loco/shared/proto/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
 )
 
-type createRunner struct {
-	deps *internal.TokenDeps
-	name string
+type createDeps struct {
+	NewTokenClient func(host string) tokenv1connect.TokenServiceClient
+	NewUserClient  func(host string) userv1connect.UserServiceClient
+	Output         io.Writer
 }
 
-func buildCreateCmd(deps *internal.TokenDeps) *cobra.Command {
+func buildCreateCmd() *cobra.Command {
+	deps := createDeps{
+		NewTokenClient: func(host string) tokenv1connect.TokenServiceClient {
+			return tokenv1connect.NewTokenServiceClient(shared.NewHTTPClient(), host)
+		},
+		NewUserClient: func(host string) userv1connect.UserServiceClient {
+			return userv1connect.NewUserServiceClient(shared.NewHTTPClient(), host)
+		},
+		Output: os.Stdout,
+	}
+	return newCreateCmd(deps)
+}
+
+func newCreateCmd(deps createDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a new API token",
-		Long: `Create a new personal access token with specified scopes.
+		Long: `Create a new access token with specified scopes.
 
 The token string is only displayed once upon creation - save it securely.
 
-Examples:
-  loco token create my-ci-token --scope read
-  loco token create deploy-token --scope write --expires 7d`,
+Tokens can be scoped to different entity types:
+  - user (default): Personal tokens for your account
+  - org: Organization-level tokens
+  - workspace: Workspace-scoped tokens
+  - resource: Resource-specific tokens`,
 		Args: cobra.ExactArgs(1),
+		Example: `  # Create a personal API token with read access
+  loco token create my-ci-token --scope read
+
+  # Create a personal token with write access, expires in 7 days
+  loco token create deploy-token --scope write --expires 7d
+
+  # Create an organization-scoped token
+  loco token create org-deploy-token --entity-type org --entity-id 123 --scope write
+
+  # Create a workspace-scoped token
+  loco token create ws-token --entity-type workspace --entity-id 456 --scope admin`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			host, err := cmdutil.GetHost(cmd)
+			if err != nil {
+				return err
+			}
+			locoToken, err := cmdutil.GetCurrentLocoToken()
+			if err != nil {
+				return err
+			}
+
+			tokenClient := deps.NewTokenClient(host)
+			userClient := deps.NewUserClient(host)
+			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+			name := args[0]
+
+			entityTypeStr, _ := cmd.Flags().GetString("entity-type")
+			entityID, _ := cmd.Flags().GetInt64("entity-id")
+
+			entityType, err := parseEntityType(entityTypeStr)
+			if err != nil {
+				return err
+			}
+
+			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityID == 0 {
+				entityID, err = getCurrentUserID(ctx, userClient, authHeader)
+				if err != nil {
+					return err
+				}
+			} else if entityID == 0 {
+				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
+			}
+
+			scopeStrs, _ := cmd.Flags().GetStringSlice("scope")
+			var scopes []*tokenv1.EntityScope
+			for _, s := range scopeStrs {
+				scope, err := parseScope(s)
+				if err != nil {
+					return err
+				}
+				scopes = append(scopes, &tokenv1.EntityScope{
+					Scope:      scope,
+					EntityType: entityType,
+					EntityId:   entityID,
+				})
+			}
+
+			expiresStr, _ := cmd.Flags().GetString("expires")
+			expiresSec, err := parseDuration(expiresStr)
+			if err != nil {
+				return err
+			}
+
+			req := connect.NewRequest(&tokenv1.CreateTokenRequest{
+				Name:         name,
+				EntityType:   entityType,
+				EntityId:     entityID,
+				Scopes:       scopes,
+				ExpiresInSec: expiresSec,
+			})
+			req.Header().Set("Authorization", authHeader)
+
+			resp, err := tokenClient.CreateToken(ctx, req)
+			if err != nil {
+				return fmt.Errorf("failed to create token: %w", err)
+			}
+
+			fmt.Fprintln(deps.Output, "Token created successfully!")
+			fmt.Fprintln(deps.Output, "")
+			fmt.Fprintf(deps.Output, "Name: %s\n", resp.Msg.TokenMetadata.Name)
+			fmt.Fprintf(deps.Output, "Entity: %s (ID: %d)\n", entityTypeStr, entityID)
+			fmt.Fprintf(deps.Output, "Token: %s\n", resp.Msg.Token)
+			fmt.Fprintln(deps.Output, "")
+			fmt.Fprintln(deps.Output, "Save this token - it won't be shown again!")
+			return nil
+		},
 	}
 
 	cmd.Flags().StringSlice("scope", []string{"read"}, "Token scopes: read, write, admin")
 	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d, 30d)")
-
-	if deps != nil {
-		cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			runner := &createRunner{deps: deps, name: args[0]}
-			return runner.Run(cmd)
-		}
-	}
+	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
+	cmd.Flags().Int64("entity-id", 0, "Entity ID (required for non-user entity types)")
 
 	return cmd
 }
 
-func (r *createRunner) Run(cmd *cobra.Command) error {
-	ctx := cmd.Context()
-
-	// Get current user
-	whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
-	whoAmIReq.Header().Set("Authorization", r.deps.AuthHeader())
-
-	whoAmIResp, err := r.deps.WhoAmI(ctx, whoAmIReq)
-	if err != nil {
-		return fmt.Errorf("failed to get current user: %w", err)
+func parseEntityType(s string) (tokenv1.EntityType, error) {
+	switch strings.ToLower(s) {
+	case "user":
+		return tokenv1.EntityType_ENTITY_TYPE_USER, nil
+	case "org", "organization":
+		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, nil
+	case "workspace", "ws":
+		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, nil
+	case "resource":
+		return tokenv1.EntityType_ENTITY_TYPE_RESOURCE, nil
+	default:
+		return tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED, fmt.Errorf("invalid entity type %q: must be user, org, workspace, or resource", s)
 	}
-
-	// Parse scopes
-	scopeStrs, _ := cmd.Flags().GetStringSlice("scope")
-	var scopes []*tokenv1.EntityScope
-	for _, s := range scopeStrs {
-		scope, err := parseScope(s)
-		if err != nil {
-			return err
-		}
-		scopes = append(scopes, &tokenv1.EntityScope{
-			Scope:      scope,
-			EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
-			EntityId:   whoAmIResp.Msg.User.Id,
-		})
-	}
-
-	// Parse expiration
-	expiresStr, _ := cmd.Flags().GetString("expires")
-	expiresSec, err := parseDuration(expiresStr)
-	if err != nil {
-		return err
-	}
-
-	req := connect.NewRequest(&tokenv1.CreateTokenRequest{
-		Name:         r.name,
-		EntityType:   tokenv1.EntityType_ENTITY_TYPE_USER,
-		EntityId:     whoAmIResp.Msg.User.Id,
-		Scopes:       scopes,
-		ExpiresInSec: expiresSec,
-	})
-	req.Header().Set("Authorization", r.deps.AuthHeader())
-
-	resp, err := r.deps.CreateToken(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to create token: %w", err)
-	}
-
-	fmt.Fprintln(r.deps.Stdout, "Token created successfully!")
-	fmt.Fprintln(r.deps.Stdout, "")
-	fmt.Fprintf(r.deps.Stdout, "Name: %s\n", resp.Msg.TokenMetadata.Name)
-	fmt.Fprintf(r.deps.Stdout, "Token: %s\n", resp.Msg.Token)
-	fmt.Fprintln(r.deps.Stdout, "")
-	fmt.Fprintln(r.deps.Stdout, "⚠️  Save this token - it won't be shown again!")
-
-	return nil
 }
 
 func parseScope(s string) (tokenv1.Scope, error) {
@@ -126,7 +187,6 @@ func parseDuration(s string) (int64, error) {
 		return int64(d) * 24 * 60 * 60, nil
 	}
 
-	// Try parsing as Go duration
 	dur, err := time.ParseDuration(s)
 	if err != nil {
 		return 0, fmt.Errorf("invalid duration %q: use format like 1d, 7d, 30d or Go duration", s)

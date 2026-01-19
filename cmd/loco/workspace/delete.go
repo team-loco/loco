@@ -2,21 +2,37 @@ package workspace
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/workspace/internal"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/ui"
+	"github.com/team-loco/loco/shared"
 	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
 )
 
-type deleteRunner struct {
-	deps *internal.WorkspaceDeps
-	id   int64
+type deleteDeps struct {
+	NewWorkspaceClient func(host string) workspacev1connect.WorkspaceServiceClient
+	AskYesNo           func(prompt string) (bool, error)
+	Output             io.Writer
 }
 
-func buildDeleteCmd(deps *internal.WorkspaceDeps) *cobra.Command {
+func buildDeleteCmd() *cobra.Command {
+	deps := deleteDeps{
+		NewWorkspaceClient: func(host string) workspacev1connect.WorkspaceServiceClient {
+			return workspacev1connect.NewWorkspaceServiceClient(shared.NewHTTPClient(), host)
+		},
+		AskYesNo: ui.AskYesNo,
+		Output:   os.Stdout,
+	}
+	return newDeleteCmd(deps)
+}
+
+func newDeleteCmd(deps deleteDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <workspace-id>",
 		Short: "Delete a workspace",
@@ -26,78 +42,72 @@ func buildDeleteCmd(deps *internal.WorkspaceDeps) *cobra.Command {
   loco workspace delete 456
 
   # Delete a workspace without confirmation
-  loco workspace delete 456 --force
+  loco workspace delete 456 --yes
 
   # Delete a workspace and all its apps
-  loco workspace delete 456 --force --confirm-delete-apps`,
-	}
+  loco workspace delete 456 --yes --confirm-delete-apps`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 
-	cmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-	cmd.Flags().Bool("confirm-delete-apps", false, "Confirm deletion of all apps in the workspace")
-
-	if deps != nil {
-		cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			id, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid workspace ID: %w", err)
 			}
-			runner := &deleteRunner{deps: deps, id: id}
-			return runner.Run(cmd, args)
-		}
+
+			host, err := cmdutil.GetHost(cmd)
+			if err != nil {
+				return err
+			}
+			locoToken, err := cmdutil.GetCurrentLocoToken()
+			if err != nil {
+				return err
+			}
+
+			wsClient := deps.NewWorkspaceClient(host)
+			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+			getReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
+				WorkspaceId: id,
+			})
+			getReq.Header().Set("Authorization", authHeader)
+
+			getResp, err := wsClient.GetWorkspace(ctx, getReq)
+			if err != nil {
+				return fmt.Errorf("failed to find workspace: %w", err)
+			}
+
+			yes, _ := cmd.Flags().GetBool("yes")
+			confirmDeleteApps, _ := cmd.Flags().GetBool("confirm-delete-apps")
+
+			if !yes {
+				confirm, err := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %d)? This cannot be undone.", getResp.Msg.Workspace.Name, id))
+				if err != nil {
+					return fmt.Errorf("failed to prompt for confirmation: %w", err)
+				}
+				if !confirm {
+					fmt.Fprintln(deps.Output, "Aborted.")
+					return nil
+				}
+			}
+
+			delReq := connect.NewRequest(&workspacev1.DeleteWorkspaceRequest{
+				WorkspaceId:       id,
+				ConfirmDeleteApps: confirmDeleteApps,
+			})
+			delReq.Header().Set("Authorization", authHeader)
+
+			_, err = wsClient.DeleteWorkspace(ctx, delReq)
+			if err != nil {
+				return fmt.Errorf("failed to delete workspace: %w", err)
+			}
+
+			fmt.Fprintf(deps.Output, "Workspace %q deleted successfully.\n", getResp.Msg.Workspace.Name)
+			return nil
+		},
 	}
+
+	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
+	cmd.Flags().Bool("confirm-delete-apps", false, "Confirm deletion of all apps in the workspace")
 
 	return cmd
-}
-
-func (r *deleteRunner) Run(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	// Parse ID if not already set
-	if r.id == 0 {
-		id, err := strconv.ParseInt(args[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid workspace ID: %w", err)
-		}
-		r.id = id
-	}
-
-	// Get workspace info first
-	getReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
-		WorkspaceId: r.id,
-	})
-	getReq.Header().Set("Authorization", r.deps.AuthHeader())
-
-	getResp, err := r.deps.GetWorkspace(ctx, getReq)
-	if err != nil {
-		return fmt.Errorf("failed to find workspace: %w", err)
-	}
-
-	force, _ := cmd.Flags().GetBool("force")
-	confirmDeleteApps, _ := cmd.Flags().GetBool("confirm-delete-apps")
-
-	if !force {
-		confirm, err := ui.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %d)? This cannot be undone.", getResp.Msg.Workspace.Name, r.id))
-		if err != nil {
-			return fmt.Errorf("failed to prompt for confirmation: %w", err)
-		}
-		if !confirm {
-			fmt.Fprintln(r.deps.Stdout, "Aborted.")
-			return nil
-		}
-	}
-
-	delReq := connect.NewRequest(&workspacev1.DeleteWorkspaceRequest{
-		WorkspaceId:       r.id,
-		ConfirmDeleteApps: confirmDeleteApps,
-	})
-	delReq.Header().Set("Authorization", r.deps.AuthHeader())
-
-	_, err = r.deps.DeleteWorkspace(ctx, delReq)
-	if err != nil {
-		return fmt.Errorf("failed to delete workspace: %w", err)
-	}
-
-	fmt.Fprintf(r.deps.Stdout, "Workspace %q deleted successfully.\n", getResp.Msg.Workspace.Name)
-
-	return nil
 }

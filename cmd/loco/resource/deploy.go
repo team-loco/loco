@@ -1,9 +1,10 @@
-package service
+package resource
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"maps"
 	"os"
@@ -12,15 +13,60 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/service/internal"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/internal/client"
+	internalconfig "github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/docker"
 	"github.com/team-loco/loco/internal/ui"
+	"github.com/team-loco/loco/shared"
 	"github.com/team-loco/loco/shared/config"
 	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
+	"github.com/team-loco/loco/shared/proto/loco/deployment/v1/deploymentv1connect"
+	"github.com/team-loco/loco/shared/proto/loco/domain/v1/domainv1connect"
 	registryv1 "github.com/team-loco/loco/shared/proto/loco/registry/v1"
+	"github.com/team-loco/loco/shared/proto/loco/registry/v1/registryv1connect"
 	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
+	"github.com/team-loco/loco/shared/proto/loco/resource/v1/resourcev1connect"
 )
 
-func buildDeployCmd(deps *internal.ServiceDeps) *cobra.Command {
+type deployDeps struct {
+	LoadSessionConfig  func() (*internalconfig.SessionConfig, error)
+	LoadLocoConfig     func(path string) (*config.LoadedConfig, error)
+	NewAPIClient       func(host, token string) *client.Client
+	NewResourceClient  func(host string) resourcev1connect.ResourceServiceClient
+	NewDeploymentClient func(host string) deploymentv1connect.DeploymentServiceClient
+	NewDomainClient    func(host string) domainv1connect.DomainServiceClient
+	NewRegistryClient  func(host string) registryv1connect.RegistryServiceClient
+	NewDockerClient    func(cfg *config.LoadedConfig) (*docker.DockerClient, error)
+	SelectFromList     func(title string, options []ui.SelectOption) (any, error)
+	Stdout             io.Writer
+}
+
+func buildDeployCmd() *cobra.Command {
+	deps := deployDeps{
+		LoadSessionConfig: internalconfig.Load,
+		LoadLocoConfig:    config.Load,
+		NewAPIClient:      client.NewClient,
+		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
+			return resourcev1connect.NewResourceServiceClient(shared.NewHTTPClient(), host)
+		},
+		NewDeploymentClient: func(host string) deploymentv1connect.DeploymentServiceClient {
+			return deploymentv1connect.NewDeploymentServiceClient(shared.NewHTTPClient(), host)
+		},
+		NewDomainClient: func(host string) domainv1connect.DomainServiceClient {
+			return domainv1connect.NewDomainServiceClient(shared.NewHTTPClient(), host)
+		},
+		NewRegistryClient: func(host string) registryv1connect.RegistryServiceClient {
+			return registryv1connect.NewRegistryServiceClient(shared.NewHTTPClient(), host)
+		},
+		NewDockerClient: docker.NewClient,
+		SelectFromList:  ui.SelectFromList,
+		Stdout:          os.Stdout,
+	}
+	return newDeployCmd(deps)
+}
+
+func newDeployCmd(deps deployDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy <name>",
 		Short: "Deploy a service to Loco",
@@ -37,12 +83,88 @@ Examples:
   loco service deploy myapp --image myregistry/myimage:tag`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			name := args[0]
-			runner := &deployRunner{
-				deps: deps,
-				name: name,
+
+			// Get host and token
+			host, err := cmdutil.GetHost(cmd)
+			if err != nil {
+				return err
 			}
-			return runner.Run(cmd)
+
+			locoToken, err := cmdutil.GetCurrentLocoToken()
+			if err != nil {
+				return fmt.Errorf("login required - please run 'loco login'")
+			}
+			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+			// Resolve org and workspace IDs
+			apiClient := deps.NewAPIClient(host, locoToken.Token)
+			orgID, err := resolveOrgID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			if err != nil {
+				return err
+			}
+
+			workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			if err != nil {
+				return err
+			}
+
+			// Load config file
+			loadedCfg, err := loadDeployConfig(cmd, deps, name)
+			if err != nil {
+				return err
+			}
+
+			// Override name from positional arg
+			loadedCfg.Config.Metadata.Name = name
+
+			// Validate and fill defaults
+			if validateErr := config.Validate(loadedCfg.Config); validateErr != nil {
+				return fmt.Errorf("config validation failed: %w", validateErr)
+			}
+			config.FillSensibleDefaults(loadedCfg.Config)
+
+			cfgValid := lipgloss.NewStyle().Render("Config validated. Beginning deployment!")
+			fmt.Fprintln(deps.Stdout, cfgValid)
+
+			// Create clients
+			resourceClient := deps.NewResourceClient(host)
+			deploymentClient := deps.NewDeploymentClient(host)
+			domainClient := deps.NewDomainClient(host)
+			registryClient := deps.NewRegistryClient(host)
+
+			// Get or create resource
+			resourceID, err := getOrCreateResource(ctx, resourceClient, domainClient, deps.SelectFromList, authHeader, workspaceID, loadedCfg.Config)
+			if err != nil {
+				return err
+			}
+
+			// Build and push image
+			imageID, _ := cmd.Flags().GetString("image")
+			imageName, err := buildAndPushImage(ctx, deps, registryClient, authHeader, orgID, workspaceID, resourceID, loadedCfg, imageID)
+			if err != nil {
+				return err
+			}
+
+			// Create deployment
+			wait, _ := cmd.Flags().GetBool("wait")
+			if err := createDeployment(ctx, deploymentClient, authHeader, resourceID, imageName, loadedCfg.Config, wait); err != nil {
+				return err
+			}
+
+			// Success message
+			successMsg := "\n🎉 Deployment scheduled!"
+			if wait {
+				successMsg = "\n🎉 Service deployed!"
+			}
+			s := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoLightGreen).Render(successMsg)
+			fmt.Fprintln(deps.Stdout, s)
+
+			tip := lipgloss.NewStyle().Foreground(ui.LocoOrange).Render("\nTip: Keep tabs on your service using `loco service status " + name + "`")
+			fmt.Fprintln(deps.Stdout, tip)
+
+			return nil
 		},
 	}
 
@@ -56,92 +178,16 @@ Examples:
 	return cmd
 }
 
-type deployRunner struct {
-	deps *internal.ServiceDeps
-	name string
-}
-
-func (r *deployRunner) Run(cmd *cobra.Command) error {
-	ctx := cmd.Context()
-
-	resolver := internal.NewContextResolver(r.deps)
-	gatherer := internal.NewConfigGatherer(r.deps)
-
-	// Resolve org and workspace
-	orgID, err := resolver.ResolveOrgID(ctx, cmd)
-	if err != nil {
-		return err
-	}
-
-	workspaceID, err := resolver.ResolveWorkspaceID(ctx, cmd, orgID)
-	if err != nil {
-		return err
-	}
-
-	// Load or gather config
-	loadedCfg, err := r.loadOrGatherConfig(ctx, cmd, gatherer)
-	if err != nil {
-		return err
-	}
-
-	// Override name from positional arg
-	loadedCfg.Config.Metadata.Name = r.name
-
-	// Validate and fill defaults
-	if validateErr := config.Validate(loadedCfg.Config); validateErr != nil {
-		return fmt.Errorf("config validation failed: %w", validateErr)
-	}
-	config.FillSensibleDefaults(loadedCfg.Config)
-
-	cfgValid := lipgloss.NewStyle().Render("Config validated. Beginning deployment!")
-	fmt.Fprintln(r.deps.Stdout, cfgValid)
-
-	// Get or create resource
-	resourceID, err := r.getOrCreateResource(ctx, workspaceID, loadedCfg.Config, gatherer)
-	if err != nil {
-		return err
-	}
-
-	// Build and push image
-	imageID, _ := cmd.Flags().GetString("image")
-	imageName, err := r.buildAndPushImage(ctx, cmd, orgID, workspaceID, resourceID, loadedCfg, imageID)
-	if err != nil {
-		return err
-	}
-
-	// Create deployment
-	wait, _ := cmd.Flags().GetBool("wait")
-	if err := r.createDeployment(ctx, resourceID, imageName, loadedCfg.Config, wait); err != nil {
-		return err
-	}
-
-	// Success message
-	successMsg := "\n🎉 Deployment scheduled!"
-	if wait {
-		successMsg = "\n🎉 Service deployed!"
-	}
-	s := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoLightGreen).Render(successMsg)
-	fmt.Fprintln(r.deps.Stdout, s)
-
-	tip := lipgloss.NewStyle().Foreground(ui.LocoOrange).Render("\nTip: Keep tabs on your service using `loco service status " + r.name + "`")
-	fmt.Fprintln(r.deps.Stdout, tip)
-
-	return nil
-}
-
-func (r *deployRunner) loadOrGatherConfig(ctx context.Context, cmd *cobra.Command, gatherer *internal.ConfigGatherer) (*config.LoadedConfig, error) {
+func loadDeployConfig(cmd *cobra.Command, deps deployDeps, name string) (*config.LoadedConfig, error) {
 	configPath, _ := cmd.Flags().GetString("config")
 	if configPath == "" {
 		configPath = "loco.toml"
 	}
 
-	// Try to load config file
-	loadedCfg, err := r.deps.LoadLocoConfig(configPath)
+	loadedCfg, err := deps.LoadLocoConfig(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// No config file - gather interactively
-			slog.Info("no loco.toml found, gathering config interactively")
-			return gatherer.GatherDeployConfig(ctx, r.name)
+			return nil, fmt.Errorf("no loco.toml found at %s", configPath)
 		}
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
@@ -149,7 +195,15 @@ func (r *deployRunner) loadOrGatherConfig(ctx context.Context, cmd *cobra.Comman
 	return loadedCfg, nil
 }
 
-func (r *deployRunner) getOrCreateResource(ctx context.Context, workspaceID int64, cfg *config.LocoConfig, gatherer *internal.ConfigGatherer) (int64, error) {
+func getOrCreateResource(
+	ctx context.Context,
+	resourceClient resourcev1connect.ResourceServiceClient,
+	domainClient domainv1connect.DomainServiceClient,
+	selectFromList func(title string, options []ui.SelectOption) (any, error),
+	authHeader string,
+	workspaceID int64,
+	cfg *config.LocoConfig,
+) (int64, error) {
 	// Check if resource already exists
 	getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
@@ -159,9 +213,9 @@ func (r *deployRunner) getOrCreateResource(ctx context.Context, workspaceID int6
 			},
 		},
 	})
-	getReq.Header().Set("Authorization", r.deps.AuthHeader())
+	getReq.Header().Set("Authorization", authHeader)
 
-	resp, err := r.deps.GetResource(ctx, getReq)
+	resp, err := resourceClient.GetResource(ctx, getReq)
 	if err == nil {
 		slog.Debug("found existing resource", "resource_id", resp.Msg.Resource.Id, "name", resp.Msg.Resource.Name)
 		return resp.Msg.Resource.Id, nil
@@ -175,7 +229,7 @@ func (r *deployRunner) getOrCreateResource(ctx context.Context, workspaceID int6
 	slog.Info("no existing resource found, creating new one")
 
 	// Resolve domain input
-	domainInput, err := gatherer.ResolveDomainInput(ctx, cfg)
+	domainInput, err := resolveDomainInput(ctx, domainClient, selectFromList, authHeader, cfg)
 	if err != nil {
 		return 0, err
 	}
@@ -193,9 +247,9 @@ func (r *deployRunner) getOrCreateResource(ctx context.Context, workspaceID int6
 		Domain:      domainInput,
 		Spec:        resourceSpec,
 	})
-	createReq.Header().Set("Authorization", r.deps.AuthHeader())
+	createReq.Header().Set("Authorization", authHeader)
 
-	createResp, err := r.deps.CreateResource(ctx, createReq)
+	createResp, err := resourceClient.CreateResource(ctx, createReq)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create resource: %w", err)
 	}
@@ -204,8 +258,16 @@ func (r *deployRunner) getOrCreateResource(ctx context.Context, workspaceID int6
 	return createResp.Msg.ResourceId, nil
 }
 
-func (r *deployRunner) buildAndPushImage(ctx context.Context, cmd *cobra.Command, orgID, workspaceID, resourceID int64, loadedCfg *config.LoadedConfig, imageID string) (string, error) {
-	dockerClient, err := r.deps.NewDockerClient(loadedCfg)
+func buildAndPushImage(
+	ctx context.Context,
+	deps deployDeps,
+	registryClient registryv1connect.RegistryServiceClient,
+	authHeader string,
+	orgID, workspaceID, resourceID int64,
+	loadedCfg *config.LoadedConfig,
+	imageID string,
+) (string, error) {
+	dockerClient, err := deps.NewDockerClient(loadedCfg)
 	if err != nil {
 		return "", fmt.Errorf("failed to create docker client: %w", err)
 	}
@@ -213,13 +275,11 @@ func (r *deployRunner) buildAndPushImage(ctx context.Context, cmd *cobra.Command
 
 	imageBase := "registry.gitlab.com/locomotive-group/loco-ecr"
 	imageName := dockerClient.GenerateImageTag(imageBase, orgID, workspaceID, resourceID)
-	dockerClient.ImageName = imageName
 	slog.Debug("generated image name", "imageBase", imageBase, "imageName", imageName)
 
 	var steps []ui.Step
 
 	if imageID != "" {
-		// Validate and tag existing image
 		steps = append(steps, ui.Step{
 			Title: "Validate and tag Docker image",
 			Run: func(logf func(string)) error {
@@ -233,7 +293,6 @@ func (r *deployRunner) buildAndPushImage(ctx context.Context, cmd *cobra.Command
 			},
 		})
 	} else {
-		// Build image
 		steps = append(steps, ui.Step{
 			Title: "Build Docker image",
 			Run: func(logf func(string)) error {
@@ -245,15 +304,13 @@ func (r *deployRunner) buildAndPushImage(ctx context.Context, cmd *cobra.Command
 		})
 	}
 
-	// Push image
 	steps = append(steps, ui.Step{
 		Title: "Push image to registry",
 		Run: func(logf func(string)) error {
-			// Get registry credentials
 			tokenReq := connect.NewRequest(&registryv1.GetGitlabTokenRequest{})
-			tokenReq.Header().Set("Authorization", r.deps.AuthHeader())
+			tokenReq.Header().Set("Authorization", authHeader)
 
-			tokenResp, tokenErr := r.deps.GetGitlabToken(ctx, tokenReq)
+			tokenResp, tokenErr := registryClient.GetGitlabToken(ctx, tokenReq)
 			if tokenErr != nil {
 				return fmt.Errorf("failed to fetch registry credentials: %w", tokenErr)
 			}
@@ -278,12 +335,20 @@ func (r *deployRunner) buildAndPushImage(ctx context.Context, cmd *cobra.Command
 	return imageName, nil
 }
 
-func (r *deployRunner) createDeployment(ctx context.Context, resourceID int64, imageName string, cfg *config.LocoConfig, wait bool) error {
+func createDeployment(
+	ctx context.Context,
+	deploymentClient deploymentv1connect.DeploymentServiceClient,
+	authHeader string,
+	resourceID int64,
+	imageName string,
+	cfg *config.LocoConfig,
+	wait bool,
+) error {
 	steps := []ui.Step{
 		{
 			Title: "Create deployment",
 			Run: func(logf func(string)) error {
-				return r.doCreateDeployment(ctx, resourceID, imageName, cfg, logf, wait)
+				return doCreateDeployment(ctx, deploymentClient, authHeader, resourceID, imageName, cfg, logf, wait)
 			},
 		},
 	}
@@ -291,7 +356,16 @@ func (r *deployRunner) createDeployment(ctx context.Context, resourceID int64, i
 	return ui.RunSteps(steps)
 }
 
-func (r *deployRunner) doCreateDeployment(ctx context.Context, resourceID int64, imageName string, cfg *config.LocoConfig, logf func(string), wait bool) error {
+func doCreateDeployment(
+	ctx context.Context,
+	deploymentClient deploymentv1connect.DeploymentServiceClient,
+	authHeader string,
+	resourceID int64,
+	imageName string,
+	cfg *config.LocoConfig,
+	logf func(string),
+	wait bool,
+) error {
 	buildSource := &deploymentv1.BuildSource{
 		Type:           cfg.Build.Type,
 		Image:          imageName,
@@ -306,7 +380,6 @@ func (r *deployRunner) doCreateDeployment(ctx context.Context, resourceID int64,
 		FailureThreshold:    cfg.Health.FailThreshold,
 	}
 
-	// Get primary region config
 	primaryRegion := cfg.RegionConfig[cfg.Metadata.Region]
 
 	var scalers *deploymentv1.Scalers
@@ -318,7 +391,6 @@ func (r *deployRunner) doCreateDeployment(ctx context.Context, resourceID int64,
 		}
 	}
 
-	// Build env from file and variables
 	env := make(map[string]string)
 	if cfg.Env.File != "" {
 		f, openErr := os.Open(cfg.Env.File)
@@ -358,9 +430,9 @@ func (r *deployRunner) doCreateDeployment(ctx context.Context, resourceID int64,
 		ResourceId: resourceID,
 		Spec:       deploymentSpec,
 	})
-	createReq.Header().Set("Authorization", r.deps.AuthHeader())
+	createReq.Header().Set("Authorization", authHeader)
 
-	resp, err := r.deps.CreateDeployment(ctx, createReq)
+	resp, err := deploymentClient.CreateDeployment(ctx, createReq)
 	if err != nil {
 		logf(fmt.Sprintf("Failed to create deployment: %v", err))
 		return err
@@ -374,9 +446,9 @@ func (r *deployRunner) doCreateDeployment(ctx context.Context, resourceID int64,
 		watchReq := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{
 			DeploymentId: deploymentID,
 		})
-		watchReq.Header().Set("Authorization", r.deps.AuthHeader())
+		watchReq.Header().Set("Authorization", authHeader)
 
-		stream, err := r.deps.WatchDeployment(ctx, watchReq)
+		stream, err := deploymentClient.WatchDeployment(ctx, watchReq)
 		if err != nil {
 			return fmt.Errorf("failed to watch deployment: %w", err)
 		}

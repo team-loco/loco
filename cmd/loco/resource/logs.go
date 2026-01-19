@@ -1,10 +1,12 @@
-package service
+package resource
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"time"
 
 	"connectrpc.com/connect"
@@ -12,12 +14,35 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/service/internal"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
+	"github.com/team-loco/loco/shared"
 	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
+	"github.com/team-loco/loco/shared/proto/loco/resource/v1/resourcev1connect"
 )
 
-func buildLogsCmd(deps *internal.ServiceDeps) *cobra.Command {
+type logsDeps struct {
+	LoadSessionConfig func() (*config.SessionConfig, error)
+	NewAPIClient      func(host, token string) *client.Client
+	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
+	Stdout            io.Writer
+}
+
+func buildLogsCmd() *cobra.Command {
+	deps := logsDeps{
+		LoadSessionConfig: config.Load,
+		NewAPIClient:      client.NewClient,
+		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
+			return resourcev1connect.NewResourceServiceClient(shared.NewHTTPClient(), host)
+		},
+		Stdout: os.Stdout,
+	}
+	return newLogsCmd(deps)
+}
+
+func newLogsCmd(deps logsDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs <name>",
 		Short: "View service logs",
@@ -30,11 +55,20 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
-			runner := &logsRunner{
-				deps: deps,
-				name: name,
+
+			output, err := cmd.Flags().GetString("output")
+			if err != nil {
+				return fmt.Errorf("error reading output flag: %w", err)
 			}
-			return runner.Run(cmd)
+
+			switch output {
+			case "json":
+				return streamLogsJSON(cmd, deps, name)
+			case "table", "":
+				return streamLogsInteractive(cmd, deps, name)
+			default:
+				return fmt.Errorf("invalid output format: %s", output)
+			}
 		},
 	}
 
@@ -48,28 +82,7 @@ Examples:
 	return cmd
 }
 
-type logsRunner struct {
-	deps *internal.ServiceDeps
-	name string
-}
-
-func (r *logsRunner) Run(cmd *cobra.Command) error {
-	output, err := cmd.Flags().GetString("output")
-	if err != nil {
-		return fmt.Errorf("error reading output flag: %w", err)
-	}
-
-	switch output {
-	case "json":
-		return r.streamLogsJSON(cmd)
-	case "table", "":
-		return r.streamLogsInteractive(cmd)
-	default:
-		return fmt.Errorf("invalid output format: %s", output)
-	}
-}
-
-func (r *logsRunner) streamLogsJSON(cmd *cobra.Command) error {
+func streamLogsJSON(cmd *cobra.Command, deps logsDeps, name string) error {
 	ctx := cmd.Context()
 
 	lines, err := cmd.Flags().GetInt32("lines")
@@ -82,14 +95,46 @@ func (r *logsRunner) streamLogsJSON(cmd *cobra.Command) error {
 		return fmt.Errorf("error reading follow flag: %w", err)
 	}
 
-	// Resolve resource
-	resolver := internal.NewContextResolver(r.deps)
-	resource, err := resolver.ResolveResourceByName(ctx, cmd, r.name)
+	// Get host and token
+	host, err := cmdutil.GetHost(cmd)
 	if err != nil {
 		return err
 	}
 
-	slog.Debug("streaming logs as json", "resource_id", resource.Id, "name", r.name)
+	locoToken, err := cmdutil.GetCurrentLocoToken()
+	if err != nil {
+		return fmt.Errorf("login required - please run 'loco login'")
+	}
+
+	// Resolve workspace ID
+	apiClient := deps.NewAPIClient(host, locoToken.Token)
+	workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+	if err != nil {
+		return err
+	}
+
+	// Create resource client
+	resourceClient := deps.NewResourceClient(host)
+	authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+	// Get resource by name
+	getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+		Key: &resourcev1.GetResourceRequest_NameKey{
+			NameKey: &resourcev1.GetResourceNameKey{
+				WorkspaceId: workspaceID,
+				Name:        name,
+			},
+		},
+	})
+	getReq.Header().Set("Authorization", authHeader)
+
+	resourceResp, err := resourceClient.GetResource(ctx, getReq)
+	if err != nil {
+		return fmt.Errorf("service '%s' not found: %w", name, err)
+	}
+
+	resource := resourceResp.Msg.Resource
+	slog.Debug("streaming logs as json", "resource_id", resource.Id, "name", name)
 
 	var linesPtr *int32
 	if lines > 0 {
@@ -101,14 +146,14 @@ func (r *logsRunner) streamLogsJSON(cmd *cobra.Command) error {
 		followPtr = &follow
 	}
 
-	req := connect.NewRequest(&resourcev1.WatchLogsRequest{
+	logsReq := connect.NewRequest(&resourcev1.WatchLogsRequest{
 		ResourceId: resource.Id,
 		Limit:      linesPtr,
 		Follow:     followPtr,
 	})
-	req.Header().Set("Authorization", r.deps.AuthHeader())
+	logsReq.Header().Set("Authorization", authHeader)
 
-	stream, err := r.deps.WatchLogs(ctx, req)
+	stream, err := resourceClient.WatchLogs(ctx, logsReq)
 	if err != nil {
 		return fmt.Errorf("failed to stream logs: %w", err)
 	}
@@ -118,10 +163,10 @@ func (r *logsRunner) streamLogsJSON(cmd *cobra.Command) error {
 		jsonLog, marshalErr := json.Marshal(logEntry)
 		if marshalErr != nil {
 			slog.Debug("failed to marshal log entry", "error", marshalErr)
-			fmt.Fprintf(r.deps.Stderr, "Error marshaling log: %v\n", marshalErr)
+			fmt.Fprintf(deps.Stdout, "Error marshaling log: %v\n", marshalErr)
 			continue
 		}
-		fmt.Fprintln(r.deps.Stdout, string(jsonLog))
+		fmt.Fprintln(deps.Stdout, string(jsonLog))
 	}
 
 	if err := stream.Err(); err != nil {
@@ -131,7 +176,7 @@ func (r *logsRunner) streamLogsJSON(cmd *cobra.Command) error {
 	return nil
 }
 
-func (r *logsRunner) streamLogsInteractive(cmd *cobra.Command) error {
+func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error {
 	ctx := cmd.Context()
 
 	lines, err := cmd.Flags().GetInt32("lines")
@@ -144,14 +189,46 @@ func (r *logsRunner) streamLogsInteractive(cmd *cobra.Command) error {
 		return fmt.Errorf("error reading follow flag: %w", err)
 	}
 
-	// Resolve resource
-	resolver := internal.NewContextResolver(r.deps)
-	resource, err := resolver.ResolveResourceByName(ctx, cmd, r.name)
+	// Get host and token
+	host, err := cmdutil.GetHost(cmd)
 	if err != nil {
 		return err
 	}
 
-	slog.Debug("streaming logs interactively", "resource_id", resource.Id, "name", r.name)
+	locoToken, err := cmdutil.GetCurrentLocoToken()
+	if err != nil {
+		return fmt.Errorf("login required - please run 'loco login'")
+	}
+
+	// Resolve workspace ID
+	apiClient := deps.NewAPIClient(host, locoToken.Token)
+	workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+	if err != nil {
+		return err
+	}
+
+	// Create resource client
+	resourceClient := deps.NewResourceClient(host)
+	authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+	// Get resource by name
+	getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
+		Key: &resourcev1.GetResourceRequest_NameKey{
+			NameKey: &resourcev1.GetResourceNameKey{
+				WorkspaceId: workspaceID,
+				Name:        name,
+			},
+		},
+	})
+	getReq.Header().Set("Authorization", authHeader)
+
+	resourceResp, err := resourceClient.GetResource(ctx, getReq)
+	if err != nil {
+		return fmt.Errorf("service '%s' not found: %w", name, err)
+	}
+
+	resource := resourceResp.Msg.Resource
+	slog.Debug("streaming logs interactively", "resource_id", resource.Id, "name", name)
 
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
@@ -192,14 +269,14 @@ func (r *logsRunner) streamLogsInteractive(cmd *cobra.Command) error {
 	}
 
 	go func() {
-		req := connect.NewRequest(&resourcev1.WatchLogsRequest{
+		logsReq := connect.NewRequest(&resourcev1.WatchLogsRequest{
 			ResourceId: resource.Id,
 			Limit:      linesPtr,
 			Follow:     followPtr,
 		})
-		req.Header().Set("Authorization", r.deps.AuthHeader())
+		logsReq.Header().Set("Authorization", authHeader)
 
-		stream, streamErr := r.deps.WatchLogs(ctx, req)
+		stream, streamErr := resourceClient.WatchLogs(ctx, logsReq)
 		if streamErr != nil {
 			errChan <- streamErr
 			return
@@ -224,7 +301,7 @@ func (r *logsRunner) streamLogsInteractive(cmd *cobra.Command) error {
 	}
 
 	if finalModel, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
-		fmt.Fprintf(r.deps.Stderr, "Error running log viewer: %v\n", err)
+		fmt.Fprintf(deps.Stdout, "Error running log viewer: %v\n", err)
 		return err
 	} else if fm, ok := finalModel.(logModel); ok && fm.err != nil {
 		return fm.err

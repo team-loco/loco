@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -38,13 +39,20 @@ const ListItem = ({
 
 export function NavMenu() {
 	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const dashboardUrl = activeOrgId && activeWorkspaceId 
+		? `/org/${activeOrgId}/wks/${activeWorkspaceId}/dashboard`
+		: "/dashboard";
+	const createResourceUrl = activeOrgId && activeWorkspaceId
+		? `/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource`
+		: "/create-resource";
 
 	return (
 		<NavigationMenu className="hidden md:flex">
 			<NavigationMenuList className="gap-2">
 				<NavigationMenuItem>
 					<NavigationMenuLink
-						onClick={() => navigate("/dashboard")}
+						onClick={() => navigate(dashboardUrl)}
 						className={cn(navigationMenuTriggerStyle(), "cursor-pointer")}
 					>
 						Dashboard
@@ -55,10 +63,10 @@ export function NavMenu() {
 					<NavigationMenuTrigger>Resources</NavigationMenuTrigger>
 					<NavigationMenuContent>
 						<ul className="grid gap-3 p-4 w-[300px]">
-							<ListItem href="/dashboard" title="All Resources">
+							<ListItem href={dashboardUrl} title="All Resources">
 								View and manage all your resources
 							</ListItem>
-							<ListItem href="/create-resource" title="Create App">
+							<ListItem href={createResourceUrl} title="Create App">
 								Deploy a new application to Loco
 							</ListItem>
 						</ul>

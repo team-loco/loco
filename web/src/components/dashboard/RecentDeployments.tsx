@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { CheckCircle, XCircle } from "lucide-react";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 
@@ -93,13 +94,18 @@ function DeploymentStatusIcon({ status }: { status: "success" | "failed" }) {
 
 export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsProps) {
 	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const orgId = activeOrgId;
+	const wsId = activeWorkspaceId || workspaceId;
 
 	const recentDeployments = useMemo(() => {
 		return generateMockDeployments(resources);
 	}, [resources]);
 
 	const handleViewApp = (resourceId: bigint) => {
-		navigate(`/resource/${resourceId}${workspaceId ? `?workspace=${workspaceId}` : ""}`);
+		if (orgId && wsId) {
+			navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
+		}
 	};
 
 	return (

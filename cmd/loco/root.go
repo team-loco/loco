@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/org"
-	"github.com/team-loco/loco/cmd/loco/service"
+	"github.com/team-loco/loco/cmd/loco/resource"
 	"github.com/team-loco/loco/cmd/loco/token"
 	"github.com/team-loco/loco/cmd/loco/workspace"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -73,7 +73,7 @@ func init() {
 	RootCmd.AddCommand(loginCmd, useCmd, buildWhoAmICmd(), initCmd, validateCmd, webCmd)
 
 	// Resource-based commands
-	RootCmd.AddCommand(service.BuildServiceCmd())
+	RootCmd.AddCommand(resource.BuildResourceCmd())
 	RootCmd.AddCommand(org.BuildOrgCmd())
 	RootCmd.AddCommand(workspace.BuildWorkspaceCmd())
 	RootCmd.AddCommand(token.BuildTokenCmd())

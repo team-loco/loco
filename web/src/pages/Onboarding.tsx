@@ -2,17 +2,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { whoAmI } from "@/gen/loco/user/v1";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router";
 
 export function Onboarding() {
-	const navigate = useNavigate();
 	const hasStarted = useRef(false);
 	const { data: whoAmIResponse } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
 	const { autoCreate, step, error, shouldAutoCreate } =
 		useAutoCreateOrgWorkspace();
+	const { setActiveOrg } = useOrgWorkspace();
 
 	useEffect(() => {
 		if (!shouldAutoCreate || hasStarted.current || !user) {
@@ -23,16 +23,18 @@ export function Onboarding() {
 
 		// Start auto-creation
 		autoCreate(user.email)
-			.then(() => {
+			.then((result) => {
 				// Wait a moment for smooth UX, then redirect
 				setTimeout(() => {
-					navigate("/dashboard");
+					if (result?.orgId) {
+						setActiveOrg(result.orgId);
+					}
 				}, 500);
 			})
 			.catch(() => {
 				// Error is handled in hook state
 			});
-	}, [user, navigate, autoCreate, shouldAutoCreate]);
+	}, [user, autoCreate, shouldAutoCreate, setActiveOrg]);
 
 	if (!user) {
 		return null;

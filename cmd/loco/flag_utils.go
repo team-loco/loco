@@ -30,3 +30,16 @@ func getHost(cmd *cobra.Command) (string, error) {
 	slog.Debug("defaulting to prod url")
 	return locoProdHost, nil
 }
+
+func getLocoTomlPath(cmd *cobra.Command) (string, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return "", fmt.Errorf("error reading config flag: %w", err)
+	}
+
+	if configPath == "" {
+		configPath = "loco.toml"
+	}
+
+	return configPath, nil
+}

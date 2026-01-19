@@ -10,11 +10,22 @@ import {
 } from "@/components/ui/navigation-menu";
 import { Cloud, Gauge, Network, Rocket, TrendingUp } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
-import { useState } from "react";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 
 export function Splash() {
 	const { isAuthenticated } = useAuth();
+	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [loginModalOpen, setLoginModalOpen] = useState(false);
+
+	const dashboardHref = useMemo(() => {
+		if (isAuthenticated && activeOrgId && activeWorkspaceId) {
+			return `/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`;
+		}
+		return "/organizations";
+	}, [isAuthenticated, activeOrgId, activeWorkspaceId]);
 
 	return (
 		<div className="min-h-screen flex flex-col bg-linear-to-b from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 relative">
@@ -100,9 +111,9 @@ export function Splash() {
 								<Button
 									size="sm"
 									className="bg-primary hover:bg-orange-600 text-primary-foreground h-9"
-									asChild
+									onClick={() => navigate(dashboardHref)}
 								>
-									<a href="/dashboard">Dashboard</a>
+									Dashboard
 								</Button>
 							) : (
 								<Button
@@ -207,10 +218,7 @@ export function Splash() {
 			</section>
 
 			{/* Login Modal */}
-			<LoginModal
-				open={loginModalOpen}
-				onOpenChange={setLoginModalOpen}
-			/>
+			<LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} />
 		</div>
 	);
 }

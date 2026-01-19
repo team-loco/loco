@@ -32,11 +32,13 @@ import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Cpu, HardDrive } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { toast } from "sonner";
 
 export function ResourceSettings() {
 	const { resourceId } = useParams<{ resourceId: string }>();
 	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	const {
 		data: resourceResponse,
@@ -98,7 +100,9 @@ export function ResourceSettings() {
 				resourceId: BigInt(resourceId),
 			});
 			toast.success("Resource deleted successfully");
-			navigate("/dashboard");
+			if (activeOrgId && activeWorkspaceId) {
+				navigate(`/org/${activeOrgId}/wks/${activeWorkspaceId}`);
+			}
 		} catch (error) {
 			toastConnectError(error);
 			console.error("Failed to delete resource:", error);

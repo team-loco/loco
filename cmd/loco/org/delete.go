@@ -2,20 +2,36 @@ package org
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/org/internal"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/ui"
+	"github.com/team-loco/loco/shared"
 	orgv1 "github.com/team-loco/loco/shared/proto/loco/org/v1"
+	"github.com/team-loco/loco/shared/proto/loco/org/v1/orgv1connect"
 )
 
-type deleteRunner struct {
-	deps *internal.OrgDeps
-	name string
+type deleteDeps struct {
+	NewOrgClient func(host string) orgv1connect.OrgServiceClient
+	AskYesNo     func(prompt string) (bool, error)
+	Output       io.Writer
 }
 
-func buildDeleteCmd(deps *internal.OrgDeps) *cobra.Command {
+func buildDeleteCmd() *cobra.Command {
+	deps := deleteDeps{
+		NewOrgClient: func(host string) orgv1connect.OrgServiceClient {
+			return orgv1connect.NewOrgServiceClient(shared.NewHTTPClient(), host)
+		},
+		AskYesNo: ui.AskYesNo,
+		Output:   os.Stdout,
+	}
+	return newDeleteCmd(deps)
+}
+
+func newDeleteCmd(deps deleteDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an organization",
@@ -25,58 +41,62 @@ func buildDeleteCmd(deps *internal.OrgDeps) *cobra.Command {
   loco org delete my-org
 
   # Delete an organization without confirmation
-  loco org delete my-org --force`,
+  loco org delete my-org --yes`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			host, err := cmdutil.GetHost(cmd)
+			if err != nil {
+				return err
+			}
+			locoToken, err := cmdutil.GetCurrentLocoToken()
+			if err != nil {
+				return err
+			}
+
+			orgClient := deps.NewOrgClient(host)
+			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+			name := args[0]
+			yes, _ := cmd.Flags().GetBool("yes")
+
+			getReq := connect.NewRequest(&orgv1.GetOrgRequest{
+				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},
+			})
+			getReq.Header().Set("Authorization", authHeader)
+
+			getResp, err := orgClient.GetOrg(ctx, getReq)
+			if err != nil {
+				return fmt.Errorf("organization %q not found: %w", name, err)
+			}
+
+			if !yes {
+				confirm, err := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete organization %q? This cannot be undone.", name))
+				if err != nil {
+					return fmt.Errorf("unable to prompt for confirmation: %w", err)
+				}
+				if !confirm {
+					fmt.Fprintln(deps.Output, "Aborted.")
+					return nil
+				}
+			}
+
+			delReq := connect.NewRequest(&orgv1.DeleteOrgRequest{
+				OrgId: getResp.Msg.Organization.Id,
+			})
+			delReq.Header().Set("Authorization", authHeader)
+
+			_, err = orgClient.DeleteOrg(ctx, delReq)
+			if err != nil {
+				return fmt.Errorf("unable to delete organization %q: %w", name, err)
+			}
+
+			fmt.Fprintf(deps.Output, "Organization %q deleted successfully.\n", name)
+			return nil
+		},
 	}
 
-	cmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
-
-	if deps != nil {
-		cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			runner := &deleteRunner{deps: deps, name: args[0]}
-			return runner.Run(cmd)
-		}
-	}
+	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 
 	return cmd
-}
-
-func (r *deleteRunner) Run(cmd *cobra.Command) error {
-	ctx := cmd.Context()
-
-	// First, get the org by name to get its ID
-	getReq := connect.NewRequest(&orgv1.GetOrgRequest{
-		Key: &orgv1.GetOrgRequest_OrgName{OrgName: r.name},
-	})
-	getReq.Header().Set("Authorization", r.deps.AuthHeader())
-
-	getResp, err := r.deps.GetOrg(ctx, getReq)
-	if err != nil {
-		return fmt.Errorf("failed to find organization %q: %w", r.name, err)
-	}
-
-	force, _ := cmd.Flags().GetBool("force")
-	if !force {
-		confirm, err := ui.AskYesNo(fmt.Sprintf("Are you sure you want to delete organization %q? This cannot be undone.", r.name))
-		if err != nil {
-			return fmt.Errorf("failed to prompt for confirmation: %w", err)
-		}
-		if !confirm {
-			fmt.Fprintln(r.deps.Stdout, "Aborted.")
-			return nil
-		}
-	}
-
-	delReq := connect.NewRequest(&orgv1.DeleteOrgRequest{
-		OrgId: getResp.Msg.Organization.Id,
-	})
-	delReq.Header().Set("Authorization", r.deps.AuthHeader())
-
-	_, err = r.deps.DeleteOrg(ctx, delReq)
-	if err != nil {
-		return fmt.Errorf("failed to delete organization: %w", err)
-	}
-
-	fmt.Fprintf(r.deps.Stdout, "Organization %q deleted successfully.\n", r.name)
-
-	return nil
 }

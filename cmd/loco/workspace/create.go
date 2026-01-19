@@ -2,19 +2,33 @@ package workspace
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/workspace/internal"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/shared"
 	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
 )
 
-type createRunner struct {
-	deps *internal.WorkspaceDeps
-	name string
+type createDeps struct {
+	NewWorkspaceClient func(host string) workspacev1connect.WorkspaceServiceClient
+	Output             io.Writer
 }
 
-func buildCreateCmd(deps *internal.WorkspaceDeps) *cobra.Command {
+func buildCreateCmd() *cobra.Command {
+	deps := createDeps{
+		NewWorkspaceClient: func(host string) workspacev1connect.WorkspaceServiceClient {
+			return workspacev1connect.NewWorkspaceServiceClient(shared.NewHTTPClient(), host)
+		},
+		Output: os.Stdout,
+	}
+	return newCreateCmd(deps)
+}
+
+func newCreateCmd(deps createDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a workspace",
@@ -25,45 +39,49 @@ func buildCreateCmd(deps *internal.WorkspaceDeps) *cobra.Command {
 
   # Create a workspace with a description
   loco workspace create my-workspace --org-id 123 --description "Production environment"`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			host, err := cmdutil.GetHost(cmd)
+			if err != nil {
+				return err
+			}
+			locoToken, err := cmdutil.GetCurrentLocoToken()
+			if err != nil {
+				return err
+			}
+
+			wsClient := deps.NewWorkspaceClient(host)
+			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+
+			name := args[0]
+			orgID, _ := cmd.Flags().GetInt64("org-id")
+			description, _ := cmd.Flags().GetString("description")
+
+			createReq := &workspacev1.CreateWorkspaceRequest{
+				OrgId: orgID,
+				Name:  name,
+			}
+			if description != "" {
+				createReq.Description = &description
+			}
+
+			req := connect.NewRequest(createReq)
+			req.Header().Set("Authorization", authHeader)
+
+			resp, err := wsClient.CreateWorkspace(ctx, req)
+			if err != nil {
+				return fmt.Errorf("failed to create workspace: %w", err)
+			}
+
+			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %d)\n", name, resp.Msg.WorkspaceId)
+			return nil
+		},
 	}
 
 	cmd.Flags().Int64("org-id", 0, "Organization ID (required)")
 	cmd.Flags().String("description", "", "Workspace description")
-	cmd.MarkFlagRequired("org-id")
-
-	if deps != nil {
-		cmd.RunE = func(cmd *cobra.Command, args []string) error {
-			runner := &createRunner{deps: deps, name: args[0]}
-			return runner.Run(cmd)
-		}
-	}
+	_ = cmd.MarkFlagRequired("org-id")
 
 	return cmd
-}
-
-func (r *createRunner) Run(cmd *cobra.Command) error {
-	ctx := cmd.Context()
-
-	orgID, _ := cmd.Flags().GetInt64("org-id")
-	description, _ := cmd.Flags().GetString("description")
-
-	createReq := &workspacev1.CreateWorkspaceRequest{
-		OrgId: orgID,
-		Name:  r.name,
-	}
-	if description != "" {
-		createReq.Description = &description
-	}
-
-	req := connect.NewRequest(createReq)
-	req.Header().Set("Authorization", r.deps.AuthHeader())
-
-	resp, err := r.deps.CreateWorkspace(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to create workspace: %w", err)
-	}
-
-	fmt.Fprintf(r.deps.Stdout, "Workspace %q created successfully (ID: %d)\n", r.name, resp.Msg.WorkspaceId)
-
-	return nil
 }

@@ -14,6 +14,7 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { toast } from "sonner";
 import Loader from "@/assets/loader.svg?react";
 import { CreateWorkspaceDialog } from "@/components/workspace/CreateWorkspaceDialog";
@@ -23,6 +24,7 @@ import { DeleteOrgDialog } from "@/components/org/DeleteOrgDialog";
 export function OrgSettings() {
 	const { orgId } = useParams<{ orgId: string }>();
 	const navigate = useNavigate();
+	const { activeOrgId } = useOrgWorkspace();
 	const [isEditing, setIsEditing] = useState(false);
 	const [orgName, setOrgName] = useState("");
 	const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
@@ -192,7 +194,7 @@ export function OrgSettings() {
 										<Button
 											variant="secondary"
 											size="sm"
-											onClick={() => navigate(`/workspace/${ws.id}/settings`)}
+											onClick={() => navigate(`/org/${activeOrgId}/wks/${ws.id}/settings`)}
 										>
 											Edit
 										</Button>

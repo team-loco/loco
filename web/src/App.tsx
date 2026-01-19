@@ -21,6 +21,7 @@ import { WorkspaceSettings } from "@/pages/WorkspaceSettings";
 import { Observability } from "@/pages/Observability";
 import { Resources } from "@/pages/Resources";
 import { Usage } from "@/pages/Usage";
+import { DashboardRedirect } from "@/pages/DashboardRedirect";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient } from "@tanstack/react-query";
@@ -67,28 +68,34 @@ function AppRoutes() {
 			<Route path="/oauth/callback" element={<OAuthCallback />} />
 			<Route path="/onboarding" element={<Onboarding />} />
 
-			{/* Protected routes */}
+			{/* Protected routes - all under org/workspace structure */}
 			<Route element={<ProtectedRoute />}>
-				<Route path="/dashboard" element={<Home />} />
-				<Route path="/resource/:resourceId" element={<ResourceDetails />} />
-				<Route path="/resource/:resourceId/settings" element={<ResourceSettings />} />
-				<Route path="/create-resource" element={<CreateResource />} />
-				<Route path="/events" element={<Events />} />
-				<Route path="/observability" element={<Observability />} />
-				<Route path="/resources" element={<Resources />} />
-				<Route path="/usage" element={<Usage />} />
+				{/* Dashboard redirect to first workspace */}
+				<Route path="/dashboard" element={<DashboardRedirect />} />
+
+				{/* Org-level routes */}
+				<Route path="/org/:orgId/settings" element={<OrgSettings />} />
+				<Route path="/organizations" element={<Organizations />} />
+				<Route path="/profile" element={<Profile />} />
 				<Route path="/team" element={<Team />} />
 				<Route path="/tokens" element={<Tokens />} />
-				<Route path="/profile" element={<Profile />} />
-				<Route path="/organizations" element={<Organizations />} />
-				<Route path="/org/:orgId/settings" element={<OrgSettings />} />
-				<Route
-					path="/workspace/:workspaceId/settings"
-					element={<WorkspaceSettings />}
-				/>
+
+				{/* Workspace-scoped routes */}
+				<Route path="/org/:orgId/wks/:workspaceId">
+					<Route path="" element={<Home />} />
+					<Route path="dashboard" element={<Home />} />
+					<Route path="resources" element={<Resources />} />
+					<Route path="resource/:resourceId" element={<ResourceDetails />} />
+					<Route path="resource/:resourceId/settings" element={<ResourceSettings />} />
+					<Route path="create-resource" element={<CreateResource />} />
+					<Route path="events" element={<Events />} />
+					<Route path="observability" element={<Observability />} />
+					<Route path="usage" element={<Usage />} />
+					<Route path="settings" element={<WorkspaceSettings />} />
+				</Route>
 			</Route>
 
-			{/* Default redirect */}
+			{/* Catch-all - redirect to workspace if authenticated, else to splash */}
 			<Route path="*" element={<Navigate to="/" />} />
 		</Routes>
 	);
