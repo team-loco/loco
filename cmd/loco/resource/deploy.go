@@ -141,14 +141,20 @@ Examples:
 			}
 
 			// Build and push image
-			imageID, _ := cmd.Flags().GetString("image")
+			imageID, err := cmd.Flags().GetString("image")
+			if err != nil {
+				return fmt.Errorf("failed to get image flag: %w", err)
+			}
 			imageName, err := buildAndPushImage(ctx, deps, registryClient, authHeader, orgID, workspaceID, resourceID, loadedCfg, imageID)
 			if err != nil {
 				return err
 			}
 
 			// Create deployment
-			wait, _ := cmd.Flags().GetBool("wait")
+			wait, err := cmd.Flags().GetBool("wait")
+			if err != nil {
+				return fmt.Errorf("failed to get wait flag: %w", err)
+			}
 			if err := createDeployment(ctx, deploymentClient, authHeader, resourceID, imageName, loadedCfg.Config, wait); err != nil {
 				return err
 			}
@@ -179,7 +185,10 @@ Examples:
 }
 
 func loadDeployConfig(cmd *cobra.Command, deps deployDeps, name string) (*config.LoadedConfig, error) {
-	configPath, _ := cmd.Flags().GetString("config")
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get config flag: %w", err)
+	}
 	if configPath == "" {
 		configPath = "loco.toml"
 	}
