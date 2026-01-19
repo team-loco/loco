@@ -69,14 +69,6 @@
 - Pre-deployment loco needs to check if we can sustain the requested deployment (atleast 2x the requested resources to be safe.)
   - not sure how to do this.
 
-- Loco CLI:
-  - New Commands:
-  - loco web : opens loco website in browser.
-    - --dashboard, --traces? --logs, -- docs, --account
-  - loco org/wks/app/account manipulation?
-    - dont wanna overload the cli, i wanna keep it simple.
-
-  - loco logout (never gonna support loco multi-account login. thats boring. logout and logback in kid.)
   - needs to build everything from
   -
 
@@ -351,19 +343,16 @@ Phase I ends Here
 - short lived id, ttl 30 mins. this will be better for async processing for container request and whatnot
 - imageTag is built on the cli; just feels weird.
 
-- 2 tone jwt secrets.
-  - basically let a jwt be parseable with 2 different secrets. (only one is really correct)
-  - but this lets us swap jwt secrets?
-  - could probably just do this with a kubernetes job?
-
 - eventually use.go should be able to switch between different scopes.
 - we should have a way to list all the scopes and switch between them.
 
 - connect does not have any out of the box validation for requests coming in. we need to manually all incoming params
 
-- create a logs service that can get logs from clickhouse or live tail the application.
+- clickhouse integration to get logs, metrics, and tracing.
 - need an invitations microservice alongside an emailing microservice.
-- helm chart for loco. and make loco deploy as the chart instead.
+- helm charts even for 'loco-core' need to be separated
+  - technically, umami and loco backend api should be configurable for the UI.
+- technically no longer deploying API/ UI into there.
 - never return db errors directly to client, we need to clean that logic up and return a generic error message only for now.
 - missing concept of schema versioning for the app config that should be scoped inside DB
 - potentially setup umami for analytics on the frontend?
@@ -383,7 +372,6 @@ the configmaps for apps/deployments
 the data in clickhouse
 the audit events.
 
-rename loco_example to loco_full_example
 make deploying user apps, an all or nothing approach.
 is it all or nothing to deploy a single app in one region?
 have a full kubernetes export function where users can literally take their loco.toml config and convert to a kubernetes yaml.

@@ -70,7 +70,7 @@ func initLogger(cmd *cobra.Command) error {
 
 func init() {
 	// Root-level commands
-	RootCmd.AddCommand(loginCmd, useCmd, buildWhoAmICmd(), initCmd, validateCmd, webCmd)
+	RootCmd.AddCommand(loginCmd, buildLogoutCmd(), useCmd, buildWhoAmICmd(), initCmd, validateCmd, webCmd)
 
 	// Resource-based commands
 	RootCmd.AddCommand(resource.BuildResourceCmd())
