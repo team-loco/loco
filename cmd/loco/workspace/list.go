@@ -57,7 +57,10 @@ func buildListCmd() *cobra.Command {
 				Output:             os.Stdout,
 			}
 
-			orgID, _ := cmd.Flags().GetInt64("org-id")
+			orgID, err := cmd.Flags().GetInt64("org-id")
+			if err != nil {
+				return fmt.Errorf("failed to get org-id flag: %w", err)
+			}
 			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 
 			if orgID != 0 {

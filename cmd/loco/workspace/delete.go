@@ -76,8 +76,14 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return fmt.Errorf("failed to find workspace: %w", err)
 			}
 
-			yes, _ := cmd.Flags().GetBool("yes")
-			confirmDeleteApps, _ := cmd.Flags().GetBool("confirm-delete-apps")
+			yes, err := cmd.Flags().GetBool("yes")
+			if err != nil {
+				return fmt.Errorf("failed to get yes flag: %w", err)
+			}
+			confirmDeleteApps, err := cmd.Flags().GetBool("confirm-delete-apps")
+			if err != nil {
+				return fmt.Errorf("failed to get confirm-delete-apps flag: %w", err)
+			}
 
 			if !yes {
 				confirm, confirmErr := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %d)? This cannot be undone.", getResp.Msg.Workspace.Name, id))

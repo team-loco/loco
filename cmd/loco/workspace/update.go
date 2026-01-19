@@ -43,8 +43,14 @@ func buildUpdateCmd() *cobra.Command {
 				return fmt.Errorf("invalid workspace ID: %w", err)
 			}
 
-			name, _ := cmd.Flags().GetString("name")
-			description, _ := cmd.Flags().GetString("description")
+			name, err := cmd.Flags().GetString("name")
+			if err != nil {
+				return fmt.Errorf("failed to get name flag: %w", err)
+			}
+			description, err := cmd.Flags().GetString("description")
+			if err != nil {
+				return fmt.Errorf("failed to get description flag: %w", err)
+			}
 
 			if name == "" && description == "" {
 				return fmt.Errorf("at least one update flag is required (--name or --description)")

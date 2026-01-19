@@ -40,7 +40,10 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			newName, _ := cmd.Flags().GetString("new-name")
+			newName, err := cmd.Flags().GetString("new-name")
+			if err != nil {
+				return fmt.Errorf("failed to get new-name flag: %w", err)
+			}
 			if newName == "" {
 				return fmt.Errorf("at least one update flag is required (e.g., --new-name)")
 			}

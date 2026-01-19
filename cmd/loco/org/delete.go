@@ -58,7 +58,10 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 
 			name := args[0]
-			yes, _ := cmd.Flags().GetBool("yes")
+			yes, err := cmd.Flags().GetBool("yes")
+			if err != nil {
+				return fmt.Errorf("failed to get yes flag: %w", err)
+			}
 
 			getReq := connect.NewRequest(&orgv1.GetOrgRequest{
 				Key: &orgv1.GetOrgRequest_OrgName{OrgName: name},

@@ -55,8 +55,14 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 
 			name := args[0]
-			orgID, _ := cmd.Flags().GetInt64("org-id")
-			description, _ := cmd.Flags().GetString("description")
+			orgID, err := cmd.Flags().GetInt64("org-id")
+			if err != nil {
+				return fmt.Errorf("failed to get org-id flag: %w", err)
+			}
+			description, err := cmd.Flags().GetString("description")
+			if err != nil {
+				return fmt.Errorf("failed to get description flag: %w", err)
+			}
 
 			createReq := &workspacev1.CreateWorkspaceRequest{
 				OrgId: orgID,
