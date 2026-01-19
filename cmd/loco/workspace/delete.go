@@ -80,9 +80,9 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			confirmDeleteApps, _ := cmd.Flags().GetBool("confirm-delete-apps")
 
 			if !yes {
-				confirm, err := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %d)? This cannot be undone.", getResp.Msg.Workspace.Name, id))
-				if err != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", err)
+				confirm, confirmErr := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %d)? This cannot be undone.", getResp.Msg.Workspace.Name, id))
+				if confirmErr != nil {
+					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
 				}
 				if !confirm {
 					fmt.Fprintln(deps.Output, "Aborted.")

@@ -1,8 +1,6 @@
 # Loco Dependencies
 
-This document outlines all major dependencies for the Loco platform, organized by component. Focus is on external services, Kubernetes components, Helm charts, and their relationships—not granular Go packages.
-
----
+Goal is to track everything Loco is directly/indirectly dependent on, so we can map any inter-dependencies and version things properly.
 
 ## Overview
 
@@ -10,7 +8,7 @@ Loco is a container orchestration platform with the following components:
 
 - **CLI**: Terminal-based interface for deployments
 - **API**: ConnectRPC backend serving the CLI and UI
-- **Controller**: Kubernetes operator managing application deployments
+- **Controller**: Kubernetes operator managing the kubernetes resources
 - **UI**: React-based web dashboard
 
 ---
@@ -19,17 +17,10 @@ Loco is a container orchestration platform with the following components:
 
 ### External Services & Platforms
 
-- **Container Registries**: Docker Hub, GitHub Container Registry (ghcr.io)
+- **Container Registries**: Gitlab Container Registry
+  - we have secrets for this we need to manage in the API as well.
 - **Docker API**: Local Docker daemon for building and pushing images
 - **Go Modules**: Standard library, CLI framework libraries (Cobra, Charm Bubble Tea, Lipgloss), protobuf
-
-### Authentication & Secrets
-
-- **System Keyring**: OS-level credential storage (darwin/linux/windows support)
-
-### Configuration
-
-- **TOML Parser**: For reading `loco.toml` user config files
 
 ---
 
@@ -38,7 +29,7 @@ Loco is a container orchestration platform with the following components:
 ### Core Dependencies
 
 - **PostgreSQL Database**: User accounts, deployments, credentials
-- **Protobuf**: API contract definitions (shared with CLI)
+- **Protobuf**: API contract definitions (shared with CLI/UI)
 - **ConnectRPC**: HTTP-based RPC for CLI/UI communication
 
 ### Kubernetes Integration

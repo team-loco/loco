@@ -68,8 +68,14 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 
 			name := args[0]
 
-			entityTypeStr, _ := cmd.Flags().GetString("entity-type")
-			entityID, _ := cmd.Flags().GetInt64("entity-id")
+			entityTypeStr, err := cmd.Flags().GetString("entity-type")
+			if err != nil {
+				return fmt.Errorf("failed to get entity-type flag: %w", err)
+			}
+			entityID, err := cmd.Flags().GetInt64("entity-id")
+			if err != nil {
+				return fmt.Errorf("failed to get entity-id flag: %w", err)
+			}
 
 			entityType, err := parseEntityType(entityTypeStr)
 			if err != nil {
@@ -85,11 +91,14 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 			}
 
-			yes, _ := cmd.Flags().GetBool("yes")
+			yes, err := cmd.Flags().GetBool("yes")
+			if err != nil {
+				return fmt.Errorf("failed to get yes flag: %w", err)
+			}
 			if !yes {
-				confirm, err := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete token %q? This cannot be undone.", name))
-				if err != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", err)
+				confirm, confirmErr := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete token %q? This cannot be undone.", name))
+				if confirmErr != nil {
+					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
 				}
 				if !confirm {
 					fmt.Fprintln(deps.Output, "Aborted.")

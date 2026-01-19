@@ -51,11 +51,14 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				return fmt.Errorf("not logged in - nothing to revoke")
 			}
 
-			yes, _ := cmd.Flags().GetBool("yes")
+			yes, err := cmd.Flags().GetBool("yes")
+			if err != nil {
+				return fmt.Errorf("failed to get yes flag: %w", err)
+			}
 			if !yes {
-				confirm, err := deps.AskYesNo("Are you sure you want to revoke your token? You will need to login again.")
-				if err != nil {
-					return fmt.Errorf("failed to prompt for confirmation: %w", err)
+				confirm, confirmErr := deps.AskYesNo("Are you sure you want to revoke your token? You will need to login again.")
+				if confirmErr != nil {
+					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
 				}
 				if !confirm {
 					fmt.Fprintln(deps.Output, "Aborted.")

@@ -66,8 +66,14 @@ func newListCmd(deps listDeps) *cobra.Command {
 			userClient := deps.NewUserClient(host)
 			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 
-			entityTypeStr, _ := cmd.Flags().GetString("entity-type")
-			entityID, _ := cmd.Flags().GetInt64("entity-id")
+			entityTypeStr, err := cmd.Flags().GetString("entity-type")
+			if err != nil {
+				return fmt.Errorf("failed to get entity-type flag: %w", err)
+			}
+			entityID, err := cmd.Flags().GetInt64("entity-id")
+			if err != nil {
+				return fmt.Errorf("failed to get entity-id flag: %w", err)
+			}
 
 			entityType, err := parseEntityType(entityTypeStr)
 			if err != nil {

@@ -25,8 +25,8 @@ message GetDefaultServiceConfigResponse {
 // These values are used when users don't specify explicit configuration.
 message DefaultServiceConfig {
   // Default build configuration
-  string build_type           = 1; // e.g., "dockerfile"
-  string dockerfile_path      = 2; // e.g., "Dockerfile"
+  string build_type = 1; // e.g., "dockerfile"
+  string dockerfile_path = 2; // e.g., "Dockerfile"
 
   // Default routing configuration
   resource.v1.RoutingConfig routing = 3;
@@ -35,10 +35,10 @@ message DefaultServiceConfig {
   deployment.v1.HealthCheckConfig health_check = 4;
 
   // Default resource allocation
-  string cpu          = 5; // e.g., "0.25"
-  string memory       = 6; // e.g., "256Mi"
-  int32  min_replicas = 7;
-  int32  max_replicas = 8;
+  string cpu = 5; // e.g., "0.25"
+  string memory = 6; // e.g., "256Mi"
+  int32 min_replicas = 7;
+  int32 max_replicas = 8;
 
   // Default observability configuration
   resource.v1.ObservabilityConfig observability = 9;

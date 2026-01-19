@@ -81,7 +81,9 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 
 	cmd.Flags().Int64("org-id", 0, "Organization ID (required)")
 	cmd.Flags().String("description", "", "Workspace description")
-	_ = cmd.MarkFlagRequired("org-id")
+	if err := cmd.MarkFlagRequired("org-id"); err != nil {
+		panic(fmt.Sprintf("failed to mark org-id as required: %v", err))
+	}
 
 	return cmd
 }

@@ -46,7 +46,10 @@ func newShowCmd(deps showDeps) *cobra.Command {
 				return fmt.Errorf("not logged in - please run 'loco login'")
 			}
 
-			raw, _ := cmd.Flags().GetBool("raw")
+			raw, err := cmd.Flags().GetBool("raw")
+			if err != nil {
+				return fmt.Errorf("failed to get raw flag: %w", err)
+			}
 
 			if raw {
 				fmt.Fprintln(deps.Output, token.Token)

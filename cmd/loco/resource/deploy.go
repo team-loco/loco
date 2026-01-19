@@ -30,16 +30,16 @@ import (
 )
 
 type deployDeps struct {
-	LoadSessionConfig  func() (*internalconfig.SessionConfig, error)
-	LoadLocoConfig     func(path string) (*config.LoadedConfig, error)
-	NewAPIClient       func(host, token string) *client.Client
-	NewResourceClient  func(host string) resourcev1connect.ResourceServiceClient
+	LoadSessionConfig   func() (*internalconfig.SessionConfig, error)
+	LoadLocoConfig      func(path string) (*config.LoadedConfig, error)
+	NewAPIClient        func(host, token string) *client.Client
+	NewResourceClient   func(host string) resourcev1connect.ResourceServiceClient
 	NewDeploymentClient func(host string) deploymentv1connect.DeploymentServiceClient
-	NewDomainClient    func(host string) domainv1connect.DomainServiceClient
-	NewRegistryClient  func(host string) registryv1connect.RegistryServiceClient
-	NewDockerClient    func(cfg *config.LoadedConfig) (*docker.DockerClient, error)
-	SelectFromList     func(title string, options []ui.SelectOption) (any, error)
-	Stdout             io.Writer
+	NewDomainClient     func(host string) domainv1connect.DomainServiceClient
+	NewRegistryClient   func(host string) registryv1connect.RegistryServiceClient
+	NewDockerClient     func(cfg *config.LoadedConfig) (*docker.DockerClient, error)
+	SelectFromList      func(title string, options []ui.SelectOption) (any, error)
+	Stdout              io.Writer
 }
 
 func buildDeployCmd() *cobra.Command {

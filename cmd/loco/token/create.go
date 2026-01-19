@@ -78,8 +78,14 @@ Tokens can be scoped to different entity types:
 
 			name := args[0]
 
-			entityTypeStr, _ := cmd.Flags().GetString("entity-type")
-			entityID, _ := cmd.Flags().GetInt64("entity-id")
+			entityTypeStr, err := cmd.Flags().GetString("entity-type")
+			if err != nil {
+				return fmt.Errorf("failed to get entity-type flag: %w", err)
+			}
+			entityID, err := cmd.Flags().GetInt64("entity-id")
+			if err != nil {
+				return fmt.Errorf("failed to get entity-id flag: %w", err)
+			}
 
 			entityType, err := parseEntityType(entityTypeStr)
 			if err != nil {
@@ -95,21 +101,27 @@ Tokens can be scoped to different entity types:
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 			}
 
-			scopeStrs, _ := cmd.Flags().GetStringSlice("scope")
+			scopeStrs, err := cmd.Flags().GetStringSlice("scope")
+			if err != nil {
+				return fmt.Errorf("failed to get scope flag: %w", err)
+			}
 			var scopes []*tokenv1.EntityScope
 			for _, s := range scopeStrs {
-				scope, err := parseScope(s)
-				if err != nil {
-					return err
+				parsedScope, parseErr := parseScope(s)
+				if parseErr != nil {
+					return parseErr
 				}
 				scopes = append(scopes, &tokenv1.EntityScope{
-					Scope:      scope,
+					Scope:      parsedScope,
 					EntityType: entityType,
 					EntityId:   entityID,
 				})
 			}
 
-			expiresStr, _ := cmd.Flags().GetString("expires")
+			expiresStr, err := cmd.Flags().GetString("expires")
+			if err != nil {
+				return fmt.Errorf("failed to get expires flag: %w", err)
+			}
 			expiresSec, err := parseDuration(expiresStr)
 			if err != nil {
 				return err
