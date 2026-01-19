@@ -30,7 +30,7 @@ type Step struct {
 }
 
 type model struct {
-	program     *tea.Program
+	program *tea.Program
 	sync.Mutex
 	steps       []Step
 	logs        map[int][]string

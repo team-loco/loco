@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import {
 	Select,
 	SelectContent,
@@ -35,16 +36,16 @@ import {
 	RegionTargetSchema,
 	ServiceSpecSchema,
 	ResourceSpecSchema,
-} from "@/gen/resource/v1";
+} from "@/gen/loco/resource/v1";
 import { create } from "@bufbuild/protobuf";
 import {
 	DomainType,
 	listPlatformDomains,
 	checkDomainAvailability,
-} from "@/gen/domain/v1";
-import { listUserOrgs } from "@/gen/org/v1";
-import { listOrgWorkspaces } from "@/gen/workspace/v1";
-import { createDeployment } from "@/gen/deployment/v1";
+} from "@/gen/loco/domain/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { createDeployment } from "@/gen/loco/deployment/v1";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useAuth } from "@/auth/AuthProvider";
@@ -125,10 +126,11 @@ export function CreateResource() {
 	const navigate = useNavigate();
 	const { workspaceId: paramWorkspaceId } = useParams();
 	const [searchParams] = useSearchParams();
-	const workspaceFromUrl = searchParams.get("workspace");
+	const typeFromUrl = searchParams.get("type") || "SERVICE";
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	const [resourceName, setResourceName] = useState("");
-	const [resourceType, setResourceType] = useState("SERVICE");
+	const resourceType = typeFromUrl;
 	const [subdomain, setSubdomain] = useState("");
 	const [selectedPlatformDomain, setSelectedPlatformDomain] =
 		useState<string>("");
@@ -137,7 +139,7 @@ export function CreateResource() {
 	>(null);
 	const hasUserEditedSubdomain = useRef(false);
 	const checkSubdomainTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
-		null
+		null,
 	);
 
 	// Docker deployment fields
@@ -164,7 +166,7 @@ export function CreateResource() {
 	const updateEnvVar = (
 		index: number,
 		field: "key" | "value",
-		value: string
+		value: string,
 	) => {
 		const updated = [...envVars];
 		updated[index][field] = value;
@@ -211,7 +213,7 @@ export function CreateResource() {
 		toast.success(
 			`Imported ${parsed.length} environment variable${
 				parsed.length !== 1 ? "s" : ""
-			}`
+			}`,
 		);
 	};
 
@@ -220,7 +222,7 @@ export function CreateResource() {
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
 		{ userId: user?.id ?? 0n },
-		{ enabled: !!user }
+		{ enabled: !!user },
 	);
 	const orgs = orgsRes?.orgs ?? [];
 	const firstOrgId = orgs.length > 0 ? orgs[0].id : null;
@@ -228,7 +230,7 @@ export function CreateResource() {
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
 		firstOrgId ? { orgId: firstOrgId } : undefined,
-		{ enabled: !!firstOrgId }
+		{ enabled: !!firstOrgId },
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 	const workspaceId =
@@ -239,7 +241,7 @@ export function CreateResource() {
 	});
 	const platformDomains = useMemo(
 		() => platformDomainsRes?.platformDomains ?? [],
-		[platformDomainsRes?.platformDomains]
+		[platformDomainsRes?.platformDomains],
 	);
 
 	const createResourceMutation = useMutation(createResource);
@@ -286,7 +288,7 @@ export function CreateResource() {
 				});
 
 				setSubdomainAvailability(
-					availabilityRes.isAvailable ? "available" : "unavailable"
+					availabilityRes.isAvailable ? "available" : "unavailable",
 				);
 			} catch (error) {
 				toastConnectError(error);
@@ -381,7 +383,7 @@ export function CreateResource() {
 
 		try {
 			const platformDomain = platformDomains.find(
-				(d) => d.domain === selectedPlatformDomain
+				(d) => d.domain === selectedPlatformDomain,
 			);
 
 			// Build spec based on resource type
@@ -495,8 +497,8 @@ export function CreateResource() {
 					toast.warning(
 						`Resource created, but deployment failed: ${getErrorMessage(
 							deployError,
-							"Unknown error"
-						)}`
+							"Unknown error",
+						)}`,
 					);
 				}
 			} else {
@@ -504,84 +506,31 @@ export function CreateResource() {
 			}
 
 			// Navigate to resource details
-			navigate(
-				`/resource/${resource.resourceId}${
-					workspaceFromUrl ? `?workspace=${workspaceFromUrl}` : ""
-				}`
-			);
+			if (activeOrgId && activeWorkspaceId) {
+				navigate(
+					`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.resourceId}`,
+				);
+			}
 		} catch (error) {
 			toast.error(getErrorMessage(error, "Failed to create resource"));
 		}
 	};
 
 	const selectedResourceType = RESOURCE_TYPES.find(
-		(t) => t.value === resourceType
+		(t) => t.value === resourceType,
 	);
 	const isCreating =
 		createResourceMutation.isPending || createDeploymentMutation.isPending;
 
 	return (
 		<div className="max-w-4xl mx-auto">
-			<div className="mb-8">
+			{/* <div className="">
 				<h1 className="text-3xl font-heading text-foreground mb-2">
 					Create New Resource
 				</h1>
-			</div>
+			</div> */}
 
 			<form onSubmit={handleSubmit} className="space-y-6">
-				{/* Resource Type Selection - Featured Section */}
-				<Card className="border-2">
-					<CardHeader>
-						<CardTitle className="text-xl">Choose Resource Type</CardTitle>
-						<CardDescription>
-							Select the type of resource you want to deploy
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{RESOURCE_TYPES.map((type) => {
-								const Icon = type.icon;
-								const isSelected = resourceType === type.value;
-								return (
-									<button
-										key={type.value}
-										type="button"
-										onClick={() =>
-											type.available && setResourceType(type.value)
-										}
-										disabled={!type.available}
-										className={`relative p-5 rounded-xl text-left transition-all duration-200 ${
-											isSelected
-												? "bg-main/10 shadow-lg scale-[1.02]"
-												: type.available
-												? "hover:shadow-md hover:scale-[1.01]"
-												: "opacity-60 cursor-not-allowed"
-										}`}
-									>
-										<div className="flex items-start gap-3 mb-3">
-											<div
-												className={`p-2 rounded-lg ${
-													isSelected ? "bg-main text-white" : "bg-secondary"
-												}`}
-											>
-												<Icon className="h-5 w-5" />
-											</div>
-											<div className="flex-1">
-												<div className="font-semibold text-foreground">
-													{type.label}
-												</div>
-											</div>
-										</div>
-										<div className="text-xs text-muted-foreground">
-											{type.description}
-										</div>
-									</button>
-								);
-							})}
-						</div>
-					</CardContent>
-				</Card>
-
 				{/* Resource Configuration */}
 				<Card>
 					<CardHeader>
@@ -599,7 +548,6 @@ export function CreateResource() {
 								placeholder="my-awesome-app"
 								value={resourceName}
 								onChange={(e) => setResourceName(e.target.value)}
-								className="border-border"
 							/>
 							<p className="text-xs text-muted-foreground">
 								Choose a descriptive name for your resource
@@ -623,7 +571,7 @@ export function CreateResource() {
 									value={selectedPlatformDomain}
 									onValueChange={setSelectedPlatformDomain}
 								>
-									<SelectTrigger id="platform-domain" className="border-border">
+									<SelectTrigger id="platform-domain">
 										<SelectValue placeholder="Select a platform domain" />
 									</SelectTrigger>
 									<SelectContent>
@@ -648,12 +596,12 @@ export function CreateResource() {
 										onChange={(e) => {
 											hasUserEditedSubdomain.current = true;
 											setSubdomain(
-												e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")
+												e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
 											);
 										}}
-										className="border-border flex-1"
+										className="flex-1"
 									/>
-									<div className="flex items-center px-3 bg-secondary rounded-lg border border-border text-sm text-muted-foreground shrink-0 min-w-fit">
+									<div className="flex items-center px-3 bg-secondary rounded-lg border text-sm text-muted-foreground shrink-0 min-w-fit">
 										.{selectedPlatformDomain}
 									</div>
 									{subdomainAvailability && (
@@ -689,7 +637,7 @@ export function CreateResource() {
 
 				{/* Deployment Configuration - Only show for SERVICE type */}
 				{selectedResourceType?.available && resourceType === "SERVICE" && (
-					<Card className="border-dashed border-2 border-main/30 bg-main/5">
+					<Card className="border-dashed shadow-none">
 						<CardHeader>
 							<CardTitle className="text-lg flex items-center gap-2">
 								<Server className="h-5 w-5 text-main" />
@@ -717,7 +665,7 @@ export function CreateResource() {
 											setDockerImageError("");
 										}
 									}}
-									className={`border-border bg-background ${
+									className={` bg-background ${
 										dockerImageError ? "border-error-text" : ""
 									}`}
 								/>
@@ -744,7 +692,7 @@ export function CreateResource() {
 											placeholder="8080"
 											value={appPort}
 											onChange={(e) => setAppPort(e.target.value)}
-											className="border-border bg-background w-32"
+											className=" bg-background w-32"
 											min="1"
 											max="65535"
 										/>
@@ -759,10 +707,7 @@ export function CreateResource() {
 											Region
 										</Label>
 										<Select value={region} onValueChange={setRegion}>
-											<SelectTrigger
-												id="region"
-												className="border-border bg-background"
-											>
+											<SelectTrigger id="region" className=" bg-background">
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
@@ -779,7 +724,7 @@ export function CreateResource() {
 									</div>
 
 									{/* Resource Configuration */}
-									<div className="space-y-4 pt-3 border-t border-border">
+									<div className="space-y-4 pt-3 border-t ">
 										<Label className="text-sm font-medium">
 											Resource Limits (Optional)
 										</Label>
@@ -837,7 +782,7 @@ export function CreateResource() {
 									</div>
 
 									{/* Environment Variables */}
-									<div className="space-y-3 pt-3 border-t border-border">
+									<div className="space-y-3 pt-3 border-t ">
 										<div className="flex items-center justify-between">
 											<Label className="text-sm font-medium">
 												Environment Variables (Optional)
@@ -879,7 +824,7 @@ export function CreateResource() {
 															onChange={(e) =>
 																updateEnvVar(index, "key", e.target.value)
 															}
-															className="border-border bg-background flex-1 font-mono text-sm"
+															className=" bg-background flex-1 font-mono text-sm"
 														/>
 														<Input
 															placeholder="value"
@@ -887,7 +832,7 @@ export function CreateResource() {
 															onChange={(e) =>
 																updateEnvVar(index, "value", e.target.value)
 															}
-															className="border-border bg-background flex-1"
+															className=" bg-background flex-1"
 														/>
 														<Button
 															type="button"
@@ -914,7 +859,13 @@ export function CreateResource() {
 					<Button
 						type="button"
 						variant="secondary"
-						onClick={() => navigate("/dashboard")}
+						onClick={() => {
+							if (activeOrgId && activeWorkspaceId) {
+								navigate(
+									`/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`
+								);
+							}
+						}}
 						disabled={isCreating}
 					>
 						Cancel
@@ -961,7 +912,7 @@ export function CreateResource() {
 							value={envFileContent}
 							onChange={(e) => setEnvFileContent(e.target.value)}
 							placeholder="DATABASE_URL=postgresql://user:pass@localhost:5432/db&#10;API_KEY=your-api-key-here&#10;NODE_ENV=production&#10;# Comments are supported"
-							className="font-mono text-sm min-h-[400px] resize-none border-border"
+							className="font-mono text-sm min-h-[400px] resize-none "
 							spellCheck={false}
 						/>
 						<p className="text-xs text-muted-foreground">

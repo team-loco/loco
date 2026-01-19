@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { listUserOrgs } from "@/gen/org/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { useAuth } from "@/auth/AuthProvider";
 import {
 	Select,

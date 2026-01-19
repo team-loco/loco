@@ -1,20 +1,17 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/auth/AuthProvider";
-import { listUserOrgs } from "@/gen/org/v1";
-import { listOrgWorkspaces } from "@/gen/workspace/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import Loader from "@/assets/loader.svg?react";
 import { Plus } from "lucide-react";
 import { OrgCard } from "@/components/org/OrgCard";
 import { CreateOrgDialog } from "@/components/org/CreateOrgDialog";
 import { DeleteOrgDialog } from "@/components/org/DeleteOrgDialog";
-import { useOrgContext } from "@/hooks/useOrgContext";
-import type { Organization } from "@/gen/org/v1/org_pb";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import type { Organization } from "@/gen/loco/org/v1/org_pb";
 
 export function Organizations() {
-	const navigate = useNavigate();
 	const { user } = useAuth();
 	const [createOrgOpen, setCreateOrgOpen] = useState(false);
 	const [deleteOrgId, setDeleteOrgId] = useState<bigint | null>(null);
@@ -29,25 +26,10 @@ export function Organizations() {
 	});
 
 	const orgs = orgsRes?.orgs ?? [];
-	const { setActiveOrgId } = useOrgContext(orgs.map((o) => o.id));
-
-	// Fetch workspace counts for each org
-	const workspaceCounts = new Map<string, number>();
-	orgs.forEach((org) => {
-		const { data: workspacesRes } = useQuery(
-			listOrgWorkspaces,
-			{ orgId: org.id },
-			{ enabled: true }
-		);
-		workspaceCounts.set(
-			org.id.toString(),
-			workspacesRes?.workspaces?.length ?? 0
-		);
-	});
+	const { setActiveOrg } = useOrgWorkspace();
 
 	const handleSwitchOrg = (orgId: bigint) => {
-		setActiveOrgId(orgId);
-		navigate(`/dashboard?org=${orgId}`);
+		setActiveOrg(orgId);
 	};
 
 	const handleDeleteOrg = (org: Organization) => {
@@ -106,7 +88,6 @@ export function Organizations() {
 						<OrgCard
 							key={org.id.toString()}
 							org={org}
-							workspaceCount={workspaceCounts.get(org.id.toString())}
 							onSwitch={handleSwitchOrg}
 							onDelete={handleDeleteOrg}
 						/>

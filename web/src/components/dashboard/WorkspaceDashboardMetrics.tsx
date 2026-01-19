@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 
-import { listWorkspaceResources } from "@/gen/resource/v1";
-import { listWorkspaceMembers } from "@/gen/workspace/v1";
+import { listWorkspaceResources } from "@/gen/loco/resource/v1";
+import { listWorkspaceMembers } from "@/gen/loco/workspace/v1";
 import {
 	Card,
 	CardContent,

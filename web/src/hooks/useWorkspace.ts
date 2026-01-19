@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { listUserWorkspaces } from "@/gen/workspace/v1";
+import { listUserWorkspaces } from "@/gen/loco/workspace/v1";
 
 export function useWorkspace() {
 	const { data } = useQuery(listUserWorkspaces, {});

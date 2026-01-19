@@ -7,18 +7,18 @@ import {
 	Check,
 	HelpCircle,
 	Building2,
-	Settings,
 	Plus,
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 import { toastConnectError } from "@/lib/error-handler";
-import { useOrgContext } from "@/hooks/useOrgContext";
-import type { Organization } from "@/gen/org/v1/org_pb";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import type { Organization } from "@/gen/loco/org/v1/org_pb";
 import { CreateOrgDialog } from "@/components/org/CreateOrgDialog";
 import { CreateWorkspaceDialog } from "@/components/workspace/CreateWorkspaceDialog";
 import { useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -28,6 +28,12 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	SidebarMenu,
 	SidebarMenuButton,
@@ -47,7 +53,6 @@ export interface Workspace {
 export function NavUser({
 	user,
 	workspaces = [],
-	activeWorkspaceId,
 	orgs = [],
 }: {
 	user: {
@@ -56,14 +61,13 @@ export function NavUser({
 		avatar: string;
 	};
 	workspaces?: Workspace[];
-	activeWorkspaceId?: bigint | null;
 	orgs?: Organization[];
 }) {
 	const { isMobile } = useSidebar();
 	const navigate = useNavigate();
 	const { logout } = useAuth();
-	const [searchParams] = useSearchParams();
-	const { activeOrgId, setActiveOrgId } = useOrgContext(orgs.map((o) => o.id));
+	const { activeOrgId, activeWorkspaceId, setActiveOrg, setActiveWorkspace } =
+		useOrgWorkspace();
 	const { theme, toggleTheme } = useTheme();
 
 	const activeOrg = orgs.find((org) => org.id === activeOrgId);
@@ -84,36 +88,25 @@ export function NavUser({
 	// Dialog state
 	const [createOrgOpen, setCreateOrgOpen] = useState(false);
 	const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
+	const [switchContextOpen, setSwitchContextOpen] = useState(false);
 
 	const handleOrgSwitch = (orgId: bigint) => {
 		if (orgId === activeOrgId) return;
-		setActiveOrgId(orgId);
-		// Navigate to dashboard with new org context
-		navigate(`/dashboard?org=${orgId}`);
+		setActiveOrg(orgId);
 	};
 
 	const handleWorkspaceSwitch = (workspaceId: bigint) => {
-		// Preserve org context when switching workspaces
-		const orgParam = searchParams.get("org");
-		const url = orgParam
-			? `/dashboard?org=${orgParam}&workspace=${workspaceId}`
-			: `/dashboard?workspace=${workspaceId}`;
-		navigate(url);
+		setActiveWorkspace(workspaceId);
 	};
 
 	const handleCreateOrgSuccess = (orgId: bigint) => {
 		// Switch to the new org
-		setActiveOrgId(orgId);
-		navigate(`/dashboard?org=${orgId}`);
+		setActiveOrg(orgId);
 	};
 
 	const handleCreateWorkspaceSuccess = (workspaceId: bigint) => {
 		// Switch to the new workspace
-		const orgParam = searchParams.get("org");
-		const url = orgParam
-			? `/dashboard?org=${orgParam}&workspace=${workspaceId}`
-			: `/dashboard?workspace=${workspaceId}`;
-		navigate(url);
+		setActiveWorkspace(workspaceId);
 	};
 
 	return (
@@ -149,91 +142,50 @@ export function NavUser({
 						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
 
-						{/* Organization Switcher */}
-						{orgs.length > 0 && (
-							<>
-								<DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-									Organization
-								</DropdownMenuLabel>
-								<DropdownMenuGroup>
-									{orgs.map((org) => (
-										<DropdownMenuItem
-											key={org.id.toString()}
-											onClick={() => handleOrgSwitch(org.id)}
-											className="flex items-center justify-between gap-2 cursor-pointer"
+						{/* Current Organization & Workspace */}
+						{activeOrg && (
+							<div className="px-2 py-3 space-y-2">
+								<div className="space-y-2">
+									<div className="text-xs font-semibold text-muted-foreground">
+										Organization
+									</div>
+									<button
+										onClick={() => setSwitchContextOpen(true)}
+										className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-secondary hover:bg-secondary/80 transition-colors text-sm font-medium"
+									>
+										<div className="flex items-center gap-2 min-w-0">
+											<Building2 className="size-4 shrink-0" />
+											<span className="truncate">{activeOrg.name}</span>
+										</div>
+										<ChevronsUpDown className="size-3 shrink-0 opacity-50" />
+									</button>
+								</div>
+								{workspaces.length > 0 && (
+									<div className="space-y-2">
+										<div className="text-xs font-semibold text-muted-foreground">
+											Workspace
+										</div>
+										<button
+											onClick={() => setSwitchContextOpen(true)}
+											className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-secondary hover:bg-secondary/80 transition-colors text-sm font-medium"
 										>
-											<div className="flex items-center gap-2 flex-1 min-w-0">
-												<Building2 className="size-4 shrink-0 text-muted-foreground" />
-												<span className="truncate">{org.name}</span>
-											</div>
-											<div className="flex items-center gap-1 shrink-0">
-												{activeOrgId === org.id && (
-													<Check className="size-4 text-primary" />
-												)}
-												<button
-													onClick={(e) => {
-														e.stopPropagation();
-														navigate(`/org/${org.id}/settings`);
-													}}
-													className="p-1 hover:bg-accent rounded-sm transition-colors cursor-pointer"
-													aria-label="Organization settings"
-												>
-													<Settings className="size-3 text-muted-foreground hover:text-foreground" />
-												</button>
-											</div>
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuGroup>
-
-								{/* Create Org Button */}
-								<DropdownMenuItem
-									onClick={() => setCreateOrgOpen(true)}
-									className="cursor-pointer text-primary"
-								>
-									<Plus className="size-4" />
-									<span>Create Organization</span>
-								</DropdownMenuItem>
-
-								<DropdownMenuSeparator />
-							</>
+											<span className="truncate">
+												{workspaces.find((w) => w.id === activeWorkspaceId)
+													?.name || "Select workspace"}
+											</span>
+											<ChevronsUpDown className="size-3 shrink-0 opacity-50" />
+										</button>
+									</div>
+								)}
+							</div>
 						)}
-
-						{/* Workspace Switcher */}
-						{workspaces.length > 0 && (
-							<>
-								<DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-									Workspaces{activeOrg ? ` (${activeOrg.name})` : ""}
-								</DropdownMenuLabel>
-								<DropdownMenuGroup>
-									{workspaces.map((workspace) => (
-										<DropdownMenuItem
-											key={workspace.id.toString()}
-											onClick={() => handleWorkspaceSwitch(workspace.id)}
-											className="flex items-center justify-between cursor-pointer"
-										>
-											<span>{workspace.name}</span>
-											{activeWorkspaceId === workspace.id && (
-												<Check className="h-4 w-4" />
-											)}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuGroup>
-
-								{/* Create Workspace Button */}
-								<DropdownMenuItem
-									onClick={() => setCreateWorkspaceOpen(true)}
-									className="cursor-pointer text-primary"
-								>
-									<Plus className="size-4" />
-									<span>Create Workspace</span>
-								</DropdownMenuItem>
-
-								<DropdownMenuSeparator />
-							</>
-						)}
+						<DropdownMenuSeparator />
 
 						<DropdownMenuGroup>
-							<DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
+							<DropdownMenuItem
+								onClick={() => navigate("/profile")}
+								className="cursor-pointer"
+							>
 								<BadgeCheck />
 								Account
 							</DropdownMenuItem>
@@ -299,6 +251,93 @@ export function NavUser({
 					onSuccess={handleCreateWorkspaceSuccess}
 				/>
 			)}
+
+			{/* Context Switch Dialog */}
+			<Dialog open={switchContextOpen} onOpenChange={setSwitchContextOpen}>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Switch Context</DialogTitle>
+					</DialogHeader>
+					<div className="grid grid-cols-2 gap-4">
+						{/* Left side - Organizations */}
+						<div className="space-y-2 border-r pr-4">
+							<div className="text-sm font-semibold">Organizations</div>
+							<div className="space-y-1 overflow-y-auto max-h-64">
+								{orgs.map((org) => (
+									<button
+										key={org.id.toString()}
+										onClick={() => handleOrgSwitch(org.id)}
+										className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
+											activeOrgId === org.id
+												? "bg-primary text-primary-foreground"
+												: "hover:bg-secondary"
+										}`}
+									>
+										<Building2 className="size-4 shrink-0" />
+										<span className="truncate">{org.name}</span>
+										{activeOrgId === org.id && (
+											<Check className="size-3 ml-auto shrink-0" />
+										)}
+									</button>
+								))}
+								<button
+									onClick={() => setCreateOrgOpen(true)}
+									className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
+								>
+									<Plus className="size-4" />
+									<span>Create Organization</span>
+								</button>
+							</div>
+						</div>
+
+						{/* Right side - Workspaces */}
+						<div className="space-y-2 pl-4">
+							<div className="text-sm font-semibold">Workspaces</div>
+							<div className="space-y-1 overflow-y-auto max-h-64">
+								{workspaces.length > 0 ? (
+									<>
+										{workspaces.map((workspace) => (
+											<button
+												key={workspace.id.toString()}
+												onClick={() => handleWorkspaceSwitch(workspace.id)}
+												className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${
+													activeWorkspaceId === workspace.id
+														? "bg-primary text-primary-foreground"
+														: "hover:bg-secondary"
+												}`}
+											>
+												<span className="truncate">{workspace.name}</span>
+												{activeWorkspaceId === workspace.id && (
+													<Check className="size-3 shrink-0" />
+												)}
+											</button>
+										))}
+										<button
+											onClick={() => setCreateWorkspaceOpen(true)}
+											className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
+										>
+											<Plus className="size-4" />
+											<span>Create Workspace</span>
+										</button>
+									</>
+								) : (
+									<div className="text-sm text-muted-foreground py-4">
+										No workspaces in this organization
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
+					<div className="flex justify-end gap-2 pt-4">
+						<Button
+							variant="outline"
+							onClick={() => setSwitchContextOpen(false)}
+						>
+							Done
+						</Button>
+					</div>
+				</DialogContent>
+			</Dialog>
 		</SidebarMenu>
 	);
 }

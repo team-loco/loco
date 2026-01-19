@@ -1,63 +1,130 @@
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import { PanelLeftCloseIcon, PanelLeftIcon, Plus } from "lucide-react";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PanelLeftCloseIcon, PanelLeftIcon, Plus, Server, Database, Zap, Layers, Mail, HardDrive } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 import { useMemo } from "react";
 
-// Navigation items matching AppSidebar structure
-const navItems = [
-	{ title: "Dashboard", url: "/dashboard" },
-	{ title: "Resources", url: "/resources" },
-	{ title: "Observability", url: "/observability" },
-	{ title: "Events", url: "/events" },
-	{ title: "Usage", url: "/usage" },
-	{ title: "Tokens", url: "/tokens" },
-	{ title: "Team", url: "/team" },
-	{ title: "Organizations", url: "/organizations" },
-	{ title: "Docs", url: "/docs" },
-	{ title: "Packages", url: "/packages" },
+const RESOURCE_TYPES = [
+	{
+		value: "SERVICE",
+		label: "Service",
+		icon: Server,
+		available: true,
+		color: "text-blue-600",
+	},
+	{
+		value: "DATABASE",
+		label: "Database",
+		icon: Database,
+		available: false,
+		color: "text-orange-600",
+	},
+	{
+		value: "FUNCTION",
+		label: "Function",
+		icon: Zap,
+		available: false,
+		color: "text-yellow-600",
+	},
+	{
+		value: "CACHE",
+		label: "Cache",
+		icon: Layers,
+		available: false,
+		color: "text-purple-600",
+	},
+	{
+		value: "QUEUE",
+		label: "Queue",
+		icon: Mail,
+		available: false,
+		color: "text-pink-600",
+	},
+	{
+		value: "BLOB",
+		label: "Blob Storage",
+		icon: HardDrive,
+		available: false,
+		color: "text-green-600",
+	},
 ];
 
 export function SiteHeader() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { open, toggleSidebar } = useSidebar();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	// Find the active nav item based on current path
 	const pageTitle = useMemo(() => {
+		const path = location.pathname;
+
 		// Special cases for settings pages
-		if (location.pathname.startsWith("/org-settings")) {
-			return "Organization Settings";
-		}
-		if (location.pathname.startsWith("/workspace-settings")) {
-			return "Workspace Settings";
-		}
-		if (location.pathname.startsWith("/resource-settings") || location.pathname.includes("/settings")) {
+		if (path.includes("/settings")) {
+			if (path.includes("/resource/") && path.includes("/settings")) {
+				return "Resource Settings";
+			}
+			if (path.includes("/wks/") && path.includes("/settings")) {
+				return "Workspace Settings";
+			}
+			if (path.includes("/org/") && path.includes("/settings")) {
+				return "Organization Settings";
+			}
 			return "Settings";
 		}
-		if (location.pathname.startsWith("/profile")) {
+
+		if (path.includes("/profile")) {
 			return "Profile";
 		}
-		if (location.pathname.startsWith("/create-resource")) {
+
+		// Check for org-level routes FIRST (before workspace routes)
+		if (path.includes("/tokens")) {
+			return "Tokens";
+		}
+		if (path.includes("/team")) {
+			return "Team";
+		}
+		if (path.includes("/organizations")) {
+			return "Organizations";
+		}
+
+		if (path.includes("/create-resource")) {
 			return "Create Resource";
 		}
 
 		// Special case for resource details page - show "Resources"
-		if (location.pathname.startsWith("/resource/")) {
+		if (path.includes("/resource/") && !path.includes("/settings")) {
 			return "Resources";
 		}
 
-		// Find matching nav item
-		const activeNavItem = navItems.find((item) => {
-			if (item.url === "/dashboard") {
-				// Dashboard matches both /dashboard and /home
-				return location.pathname === "/dashboard" || location.pathname === "/home";
+		// Check for workspace-scoped routes
+		if (path.includes("/wks/")) {
+			if (path.includes("/dashboard") || path.endsWith("/wks/" + activeWorkspaceId?.toString())) {
+				return "Dashboard";
 			}
-			return location.pathname.startsWith(item.url);
-		});
+			if (path.includes("/resources")) {
+				return "Resources";
+			}
+			if (path.includes("/observability")) {
+				return "Observability";
+			}
+			if (path.includes("/events")) {
+				return "Events";
+			}
+			if (path.includes("/usage")) {
+				return "Usage";
+			}
+		}
 
-		return activeNavItem?.title ?? "Dashboard";
-	}, [location.pathname]);
+		return "Dashboard";
+	}, [location.pathname, activeWorkspaceId]);
 
 	return (
 		<header
@@ -82,14 +149,37 @@ export function SiteHeader() {
 				<h1 className="text-lg font-semibold text-foreground">
 					{pageTitle}
 				</h1>
-				<Button
-					onClick={() => navigate("/create-resource")}
-					className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_#000] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-75 h-8 text-sm"
-					size="sm"
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					New Resource
-				</Button>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_#000] hover:shadow-[1px_1px_0px_0px_#000] active:shadow-none active:translate-x-0.5 active:translate-y-0.5 transition-all duration-75 h-8 text-sm"
+							size="sm"
+						>
+							<Plus className="h-4 w-4 mr-2" />
+							New Resource
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-48">
+						{RESOURCE_TYPES.map((type) => {
+							const Icon = type.icon;
+							return (
+								<DropdownMenuItem
+									key={type.value}
+									onClick={() => {
+										if (activeOrgId && activeWorkspaceId) {
+											navigate(`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`);
+										}
+									}}
+									disabled={!type.available}
+									className="cursor-pointer"
+								>
+									<Icon className={`h-4 w-4 mr-2 ${type.color}`} />
+									<span>{type.label}</span>
+								</DropdownMenuItem>
+							);
+						})}
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 		</header>
 	);

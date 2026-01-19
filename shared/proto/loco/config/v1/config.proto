@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package loco.config.v1;
+
+import "loco/deployment/v1/deployment.proto";
+import "loco/resource/v1/resource.proto";
+
+option go_package = "github.com/team-loco/loco/shared/proto/loco/config/v1;configv1";
+
+// ConfigService provides static configuration values.
+service ConfigService {
+  // GetDefaultServiceConfig retrieves the default configuration for service deployments.
+  rpc GetDefaultServiceConfig(GetDefaultServiceConfigRequest) returns (GetDefaultServiceConfigResponse);
+}
+
+// GetDefaultServiceConfigRequest is the request to retrieve default service configuration.
+message GetDefaultServiceConfigRequest {}
+
+// GetDefaultServiceConfigResponse contains the default service configuration.
+message GetDefaultServiceConfigResponse {
+  DefaultServiceConfig config = 1;
+}
+
+// DefaultServiceConfig contains default values for service deployments.
+// These values are used when users don't specify explicit configuration.
+message DefaultServiceConfig {
+  // Default build configuration
+  string build_type = 1; // e.g., "dockerfile"
+  string dockerfile_path = 2; // e.g., "Dockerfile"
+
+  // Default routing configuration
+  resource.v1.RoutingConfig routing = 3;
+
+  // Default health check configuration
+  deployment.v1.HealthCheckConfig health_check = 4;
+
+  // Default resource allocation
+  string cpu = 5; // e.g., "0.25"
+  string memory = 6; // e.g., "256Mi"
+  int32 min_replicas = 7;
+  int32 max_replicas = 8;
+
+  // Default observability configuration
+  resource.v1.ObservabilityConfig observability = 9;
+}

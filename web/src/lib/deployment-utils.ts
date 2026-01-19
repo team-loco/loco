@@ -1,8 +1,8 @@
 import type {
 	Deployment,
 	ServiceDeploymentSpec,
-} from "@/gen/deployment/v1/deployment_pb";
-import { DeploymentPhase } from "@/gen/deployment/v1/deployment_pb";
+} from "@/gen/loco/deployment/v1/deployment_pb";
+import { DeploymentPhase } from "@/gen/loco/deployment/v1/deployment_pb";
 
 export function getServiceSpec(
 	deployment: Deployment

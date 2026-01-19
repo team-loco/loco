@@ -14,7 +14,7 @@ import (
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
+	orgv1 "github.com/team-loco/loco/shared/proto/loco/org/v1"
 )
 
 var (

@@ -18,7 +18,7 @@ import {
 import {
 	DeploymentPhase,
 	type Deployment,
-} from "@/gen/deployment/v1/deployment_pb";
+} from "@/gen/loco/deployment/v1/deployment_pb";
 import {
 	flexRender,
 	getCoreRowModel,

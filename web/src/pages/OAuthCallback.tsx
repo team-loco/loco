@@ -1,5 +1,5 @@
-import { exchangeOAuthCode, OAuthProvider } from "@/gen/oauth/v1";
-import { listUserOrgs } from "@/gen/org/v1";
+import { exchangeOAuthCode, OAuthProvider } from "@/gen/loco/oauth/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo } from "react";
@@ -90,6 +90,7 @@ export function OAuthCallback() {
 
 			if (hasOrgs) {
 				console.log("OAuthCallback: User has orgs, navigating to dashboard");
+				// Will be redirected by DashboardRedirect component
 				navigate("/dashboard");
 			} else {
 				console.log(

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { type Token } from "@/gen/token/v1/token_pb";
+import { type Token } from "@/gen/loco/token/v1/token_pb";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,14 +13,9 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Trash2, Shield, ShieldCheck, ShieldAlert } from "lucide-react";
-import { EntityType, Scope } from "@/gen/token/v1/token_pb";
+
+import { Trash2 } from "lucide-react";
+import { EntityType } from "@/gen/loco/token/v1/token_pb";
 
 function formatRelativeTimeFuture(date: Date): string {
 	const now = new Date();
@@ -36,6 +31,11 @@ function formatRelativeTimeFuture(date: Date): string {
 	if (diffHour < 24) return `in ${diffHour} hour${diffHour !== 1 ? "s" : ""}`;
 	if (diffDay < 30) return `in ${diffDay} day${diffDay !== 1 ? "s" : ""}`;
 	return `in ${diffMonth} month${diffMonth !== 1 ? "s" : ""}`;
+}
+
+function maskToken(token: string): string {
+	if (token.length < 4) return token;
+	return token.substring(0, 4) + "...";
 }
 
 // Entity type display helpers - using badge variants
@@ -68,31 +68,7 @@ const entityTypeDisplay: Record<
 	},
 };
 
-// Scope display helpers - using badge variants
-const scopeDisplay: Record<
-	number,
-	{
-		label: string;
-		icon: typeof Shield;
-		variant: "neo-gray" | "neo-blue" | "neo-red";
-	}
-> = {
-	[Scope.READ]: {
-		label: "Read",
-		icon: Shield,
-		variant: "neo-gray",
-	},
-	[Scope.WRITE]: {
-		label: "Write",
-		icon: ShieldCheck,
-		variant: "neo-blue",
-	},
-	[Scope.ADMIN]: {
-		label: "Admin",
-		icon: ShieldAlert,
-		variant: "neo-red",
-	},
-};
+
 
 interface ActionsCellProps {
 	token: Token;
@@ -154,22 +130,23 @@ export function getTokenColumns(
 			header: "Token Name",
 			cell: ({ row }) => {
 				const token = row.original;
-				const createdDate = token.createdAt
-					? new Date(Number(token.createdAt.seconds) * 1000)
-					: null;
 				return (
-					<div className="flex flex-col gap-0.5">
-						<span className="font-medium text-xs">{token.name}</span>
-						{createdDate && (
-							<span className="text-[10px] text-muted-foreground">
-								{createdDate.toLocaleDateString()}{" "}
-								{createdDate.toLocaleTimeString([], {
-									hour: "2-digit",
-									minute: "2-digit",
-								})}
-							</span>
-						)}
+					<div className="flex flex-col gap-0.5 max-w-48">
+						<span className="font-medium text-sm truncate" title={token.name}>{token.name}</span>
 					</div>
+				);
+			},
+		},
+		{
+			id: "token",
+			header: "Token Preview",
+			cell: ({ row }) => {
+				const token = row.original;
+				// Note: The actual token value is only shown at creation time for security
+				return (
+					<code className="text-xs bg-muted px-2 py-1 rounded font-mono font-semibold border border-border">
+						{maskToken(token.name)}
+					</code>
 				);
 			},
 		},
@@ -178,54 +155,48 @@ export function getTokenColumns(
 			header: "Permissions",
 			cell: ({ row }) => {
 				const token = row.original;
-				const scopeGroups = new Map<number, Set<number>>();
+				const scopeGroups = new Map<number, Map<bigint, Set<number>>>();
 
-				// Group scopes by entity type
+				// Group scopes by entity type and entity ID
 				token.scopes.forEach((scope) => {
 					if (!scopeGroups.has(scope.entityType)) {
-						scopeGroups.set(scope.entityType, new Set());
+						scopeGroups.set(scope.entityType, new Map());
 					}
-					scopeGroups.get(scope.entityType)!.add(scope.scope);
+					const entityMap = scopeGroups.get(scope.entityType)!;
+					if (!entityMap.has(scope.entityId)) {
+						entityMap.set(scope.entityId, new Set());
+					}
+					entityMap.get(scope.entityId)!.add(scope.scope);
 				});
 
 				return (
 					<div className="flex flex-wrap gap-1">
-						{Array.from(scopeGroups.entries()).map(([entityType, scopes]) => {
+						{Array.from(scopeGroups.entries()).map(([entityType, entityMap]) => {
 							const entityInfo = entityTypeDisplay[entityType];
-							const scopeList = Array.from(scopes);
+							
+							return Array.from(entityMap.entries()).map(([entityId, scopes]) => {
+								const scopeList = Array.from(scopes);
+								const scopeShortMap: Record<number, string> = {
+									0: "?",
+									1: "R",
+									2: "W",
+									3: "A",
+								};
+								const scopeStr = Array.from(scopeList)
+									.sort()
+									.map((s) => scopeShortMap[s] || "?")
+									.join("");
 
-							return (
-								<TooltipProvider key={entityType}>
-									<Tooltip>
-										<TooltipTrigger>
-											<Badge
-												variant={entityInfo.variant}
-												className="h-5 text-[10px] px-1.5 py-0"
-											>
-												{entityInfo.label}: {scopeList.length} scope
-												{scopeList.length !== 1 ? "s" : ""}
-											</Badge>
-										</TooltipTrigger>
-										<TooltipContent neo>
-											<div className="space-y-1">
-												{scopeList.map((scope) => {
-													const scopeInfo = scopeDisplay[scope];
-													const ScopeIcon = scopeInfo.icon;
-													return (
-														<div
-															key={scope}
-															className="flex items-center gap-2 text-xs"
-														>
-															<ScopeIcon className="h-3 w-3" />
-															{scopeInfo.label}
-														</div>
-													);
-												})}
-											</div>
-										</TooltipContent>
-									</Tooltip>
-								</TooltipProvider>
-							);
+								return (
+									<Badge
+										key={`${entityType}-${entityId}`}
+										variant={entityInfo.variant}
+										className="h-5 text-[10px] px-1.5 py-0"
+									>
+										{entityInfo.label}: {entityId.toString()}: {scopeStr}
+									</Badge>
+								);
+							});
 						})}
 					</div>
 				);

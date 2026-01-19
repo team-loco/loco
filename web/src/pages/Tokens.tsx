@@ -1,17 +1,14 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { listTokens, revokeToken } from "@/gen/token/v1";
-import { EntityType } from "@/gen/token/v1/token_pb";
-import { listUserOrgs } from "@/gen/org/v1";
+import { listTokens, revokeToken } from "@/gen/loco/token/v1";
+import { EntityType } from "@/gen/loco/token/v1/token_pb";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { useAuth } from "@/auth/AuthProvider";
-import { useOrgContext } from "@/hooks/useOrgContext";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import {
 	Card,
 	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -32,15 +29,16 @@ export function Tokens() {
 		null
 	);
 
-	// Get active org from global context
+	// Get active org from context
+	const { activeOrgId } = useOrgWorkspace();
+
+	// Fetch orgs to display org name in description
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		{ userId: user?.id ?? 0n },
-		{ enabled: !!user }
+		user?.id ? { userId: user.id } : undefined,
+		{ enabled: !!user?.id }
 	);
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
-	const orgIds = useMemo(() => orgs.map((o) => o.id), [orgs]);
-	const { activeOrgId } = useOrgContext(orgIds);
 
 	// Fetch tokens for the current user
 	// TVM will filter based on what the user has access to within their org context
@@ -107,28 +105,39 @@ export function Tokens() {
 	const activeOrg = orgs.find((o) => o.id === activeOrgId);
 
 	return (
-		<div className="space-y-6">
-			<Card>
-				<CardHeader>
-					<div className="flex items-start justify-between">
-						<div>
-							<CardTitle>API Tokens</CardTitle>
-							<CardDescription>
-								{activeOrg
-									? `Manage API tokens for the organization: ${activeOrg.name}`
-									: "Create and manage API tokens for programmatic access"}
-							</CardDescription>
+		<div className="space-y-4">
+			<div className="flex items-center justify-between">
+				<div>
+					<h1 className="text-3xl font-bold text-foreground">API Tokens</h1>
+					<p className="text-xs text-muted-foreground mt-2 uppercase tracking-wide">
+						{activeOrg
+							? `Organization: ${activeOrg.name}`
+							: "Manage API tokens for programmatic access"}
+					</p>
+				</div>
+				<Button 
+					onClick={() => setIsCreateDialogOpen(true)}
+				>
+					<Plus className="h-4 w-4 mr-2" />
+					Create Token
+				</Button>
+			</div>
+
+			{isLoading ? (
+				<Card>
+					<CardContent className="flex items-center justify-center py-12">
+						<div className="text-center">
+							<div className="flex flex-col gap-2 items-center">
+								<div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+								<p className="text-foreground text-sm">Loading tokens...</p>
+							</div>
 						</div>
-						<Button onClick={() => setIsCreateDialogOpen(true)}>
-							<Plus className="h-4 w-4 mr-2" />
-							Create Token
-						</Button>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					<DataTable columns={columns} data={tokens} isLoading={isLoading} />
-					{!isLoading && tokens.length === 0 && (
-						<div className="text-center py-12">
+					</CardContent>
+				</Card>
+			) : tokens.length === 0 ? (
+				<Card>
+					<CardContent className="flex items-center justify-center py-12">
+						<div className="text-center">
 							<p className="text-muted-foreground mb-4">
 								No tokens yet. Create one to get started.
 							</p>
@@ -140,9 +149,11 @@ export function Tokens() {
 								Create Your First Token
 							</Button>
 						</div>
-					)}
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
+			) : (
+				<DataTable columns={columns} data={tokens} isLoading={isLoading} />
+			)}
 
 			{/* Create Token Dialog */}
 			<CreateTokenDialog

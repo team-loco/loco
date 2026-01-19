@@ -4,8 +4,8 @@ import {
 	listWorkspaceMembers,
 	listOrgWorkspaces,
 	deleteMember,
-} from "@/gen/workspace/v1";
-import { listUserOrgs } from "@/gen/org/v1";
+} from "@/gen/loco/workspace/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { toastConnectError } from "@/lib/error-handler";
 import { useAuth } from "@/auth/AuthProvider";
 import {

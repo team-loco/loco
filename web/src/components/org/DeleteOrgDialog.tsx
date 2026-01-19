@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteOrg } from "@/gen/org/v1";
+import { deleteOrg } from "@/gen/loco/org/v1";
 import { useMutation } from "@connectrpc/connect-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -33,7 +33,7 @@ export function DeleteOrgDialog({
 	orgName,
 	onSuccess,
 }: DeleteOrgDialogProps) {
-	const navigate = useNavigate();
+	const { clearContext } = useOrgWorkspace();
 	const [confirmName, setConfirmName] = useState("");
 
 	const { mutate: mutateDeleteOrg, isPending } = useMutation(deleteOrg);
@@ -52,12 +52,11 @@ export function DeleteOrgDialog({
 					setConfirmName("");
 					onOpenChange(false);
 
-					// Call success callback if provided, otherwise navigate to dashboard
+					// Call success callback if provided, otherwise navigate to organizations
 					if (onSuccess) {
 						onSuccess();
 					} else {
-						// Navigate to dashboard without org param (will default to first org)
-						navigate("/dashboard");
+						clearContext();
 					}
 				},
 				onError: (error) => {

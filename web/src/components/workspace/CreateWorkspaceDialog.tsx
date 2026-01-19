@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createWorkspace } from "@/gen/workspace/v1";
+import { createWorkspace } from "@/gen/loco/workspace/v1";
 import { useMutation } from "@connectrpc/connect-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -31,8 +31,7 @@ export function CreateWorkspaceDialog({
 	orgId,
 	onSuccess,
 }: CreateWorkspaceDialogProps) {
-	const navigate = useNavigate();
-	const [searchParams] = useSearchParams();
+	const { setActiveWorkspace } = useOrgWorkspace();
 	const [workspaceName, setWorkspaceName] = useState("");
 	const [description, setDescription] = useState("");
 
@@ -62,16 +61,12 @@ export function CreateWorkspaceDialog({
 						setDescription("");
 						onOpenChange(false);
 
-						// Call success callback if provided, otherwise navigate
+						// Call success callback if provided, otherwise switch to new workspace
 						if (onSuccess) {
 							onSuccess(newWorkspaceId);
 						} else {
-							// Switch to new workspace and navigate to dashboard
-							const orgParam = searchParams.get("org");
-							const url = orgParam
-								? `/dashboard?org=${orgParam}&workspace=${newWorkspaceId}`
-								: `/dashboard?workspace=${newWorkspaceId}`;
-							navigate(url);
+							// Switch to new workspace (will navigate to workspace)
+							setActiveWorkspace(newWorkspaceId);
 						}
 					}
 				},

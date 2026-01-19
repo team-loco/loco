@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { getWorkspace, updateWorkspace } from "@/gen/workspace/v1";
+import { getWorkspace, updateWorkspace } from "@/gen/loco/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";
 import { useParams } from "react-router";

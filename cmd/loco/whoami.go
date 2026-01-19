@@ -14,7 +14,7 @@ import (
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
-	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
+	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
 )
 
 type whoamiDeps struct {
@@ -69,11 +69,11 @@ func newWhoAmICmd(deps whoamiDeps) *cobra.Command {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
 
-			cfg, err := deps.LoadConfig()
+			cfg, cfgErr := deps.LoadConfig()
 			var currentOrg, currentWorkspace string
-			if err == nil {
-				scope, err := cfg.GetScope()
-				if err == nil {
+			if cfgErr == nil {
+				scope, scopeErr := cfg.GetScope()
+				if scopeErr == nil {
 					currentOrg = scope.Organization.Name
 					currentWorkspace = scope.Workspace.Name
 				}

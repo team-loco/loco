@@ -1,6 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import { createOrg, listUserOrgs } from "@/gen/org/v1";
-import { createWorkspace, listOrgWorkspaces } from "@/gen/workspace/v1";
+import { createOrg, listUserOrgs } from "@/gen/loco/org/v1";
+import { createWorkspace, listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useCallback, useState } from "react";
 import { useAuth } from "@/auth/AuthProvider";
