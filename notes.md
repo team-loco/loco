@@ -290,10 +290,6 @@ Phase I ends Here
   - support recursive deployments on the cli with the -r flag. where we discover all apps and do it?
   - should support one click deletes.
 
-- Loco UI
-  - neobrutalism no cap.
-  - in orange.
-
 - Resurrector
 - cluster management
 - Profiles

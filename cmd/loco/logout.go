@@ -19,10 +19,10 @@ import (
 )
 
 type logoutDeps struct {
-	Logout           func(ctx context.Context, host, token string) error
-	GetLocoToken     func(username string) (*keychain.UserToken, error)
-	DeleteLocoToken  func(username string) error
-	Output           io.Writer
+	Logout          func(ctx context.Context, host, token string) error
+	GetLocoToken    func(username string) (*keychain.UserToken, error)
+	DeleteLocoToken func(username string) error
+	Output          io.Writer
 }
 
 func buildLogoutCmd() *cobra.Command {
