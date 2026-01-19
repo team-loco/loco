@@ -3,10 +3,13 @@ import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { whoAmI } from "@/gen/loco/user/v1";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
+import { ContextProvider } from "@/context/ContextProvider";
 import "@/styles/dot-grid.css";
 
 interface ProtectedLayoutProps {
@@ -15,8 +18,25 @@ interface ProtectedLayoutProps {
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const navigate = useNavigate();
-	const { logout } = useAuth();
+	const { orgId: orgParam } = useParams();
+	const { logout, user } = useAuth();
 	const { isLoading, error } = useQuery(whoAmI, {});
+
+	const { data: orgsRes } = useQuery(
+		listUserOrgs,
+		{ userId: user?.id ?? 0n },
+		{ enabled: !!user }
+	);
+	const orgs = orgsRes?.orgs ?? [];
+
+	const activeOrgId = orgParam ? BigInt(orgParam) : orgs[0]?.id ?? null;
+
+	const { data: workspacesRes } = useQuery(
+		listOrgWorkspaces,
+		activeOrgId ? { orgId: activeOrgId } : undefined,
+		{ enabled: !!activeOrgId }
+	);
+	const workspaces = workspacesRes?.workspaces ?? [];
 
 	// Handle auth failures by redirecting to login
 	useEffect(() => {
@@ -39,16 +59,18 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	}
 
 	return (
-		<SidebarProvider className="flex flex-col w-full min-h-screen">
-			<SiteHeader />
-			<div className="flex flex-1 pt-[50px]">
-				<AppSidebar />
-				<SidebarInset className="flex flex-col flex-1 overflow-hidden bg-background">
-					<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center dot-grid bg-background">
-						<div className="w-full">{children}</div>
-					</main>
-				</SidebarInset>
-			</div>
-		</SidebarProvider>
+		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces}>
+			<SidebarProvider className="flex flex-col w-full min-h-screen">
+				<SiteHeader />
+				<div className="flex flex-1 pt-[50px]">
+					<AppSidebar />
+					<SidebarInset className="flex flex-col flex-1 overflow-hidden bg-background">
+						<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center dot-grid bg-background">
+							<div className="w-full">{children}</div>
+						</main>
+					</SidebarInset>
+				</div>
+			</SidebarProvider>
+		</ContextProvider>
 	);
 }

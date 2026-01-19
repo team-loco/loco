@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -28,7 +28,7 @@ export function CreateOrgDialog({
 	onOpenChange,
 	onSuccess,
 }: CreateOrgDialogProps) {
-	const navigate = useNavigate();
+	const { setActiveOrg } = useOrgWorkspace();
 	const [orgName, setOrgName] = useState("");
 
 	const { mutate: mutateCreateOrg, isPending } = useMutation(createOrg);
@@ -51,12 +51,12 @@ export function CreateOrgDialog({
 						setOrgName("");
 						onOpenChange(false);
 
-						// Call success callback if provided, otherwise navigate
+						// Call success callback if provided, otherwise switch to new org
 						if (onSuccess) {
 							onSuccess(newOrgId);
 						} else {
-							// Switch to new org and navigate to dashboard
-							navigate(`/dashboard?org=${newOrgId}`);
+							// Switch to new org (will navigate to first workspace)
+							setActiveOrg(newOrgId);
 						}
 					}
 				},

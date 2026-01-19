@@ -32,3 +32,7 @@ func GetLocoToken(user string) (*UserToken, error) {
 	err = json.Unmarshal([]byte(pass), t)
 	return t, err
 }
+
+func DeleteLocoToken(user string) error {
+	return keyring.Delete(Service, user)
+}

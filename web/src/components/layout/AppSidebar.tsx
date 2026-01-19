@@ -35,7 +35,7 @@ import { whoAmI } from "@/gen/loco/user/v1";
 import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
-import { useOrgContext } from "@/hooks/useOrgContext";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 
 type NavItemBase = {
 	title: string;
@@ -52,80 +52,78 @@ type RegularNavItem = NavItemBase & {
 	items: Array<{ title: string; url: string }>;
 };
 
-const data = {
-	navMain: [
-		{
-			title: "Dashboard",
-			url: "/dashboard",
-			icon: Home,
-			items: [],
-		},
-		{
-			title: "Resources",
-			url: "/resources",
-			icon: Package,
-			items: [],
-		},
-		{
-			title: "Observability",
-			url: "/observability",
-			icon: Activity,
-			items: [],
-		},
-		{
-			title: "Events",
-			url: "/events",
-			icon: Calendar,
-			items: [],
-		},
-		{
-			title: "Usage",
-			url: "/usage",
-			icon: TrendingUp,
-			items: [],
-		},
-		{
-			title: "Tokens",
-			url: "/tokens",
-			icon: Key,
-			items: [],
-		},
-		{
-			title: "Team",
-			url: "/team",
-			icon: Users,
-			items: [],
-		},
-		{
-			title: "Organizations",
-			url: "/organizations",
-			icon: Building2,
-			items: [],
-		},
-		{
-			section: "Help & Resources",
-			items: [
-				{
-					title: "Docs",
-					url: "/docs",
-					icon: BookOpen,
-				},
-				{
-					title: "Packages",
-					url: "/packages",
-					icon: Package,
-					badge: "Coming Soon",
-				},
-				{
-					title: "Status Page",
-					url: "#",
-					icon: CheckCircle,
-					badge: "Coming Soon",
-				},
-			],
-		},
-	],
-};
+const getNavMainItems = (orgId?: bigint, workspaceId?: bigint) => [
+	{
+		title: "Dashboard",
+		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/dashboard` : "/dashboard",
+		icon: Home,
+		items: [],
+	},
+	{
+		title: "Resources",
+		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/resources` : "/resources",
+		icon: Package,
+		items: [],
+	},
+	{
+		title: "Observability",
+		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/observability` : "/observability",
+		icon: Activity,
+		items: [],
+	},
+	{
+		title: "Events",
+		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/events` : "/events",
+		icon: Calendar,
+		items: [],
+	},
+	{
+		title: "Usage",
+		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/usage` : "/usage",
+		icon: TrendingUp,
+		items: [],
+	},
+	{
+		title: "Tokens",
+		url: "/tokens",
+		icon: Key,
+		items: [],
+	},
+	{
+		title: "Team",
+		url: "/team",
+		icon: Users,
+		items: [],
+	},
+	{
+		title: "Organizations",
+		url: "/organizations",
+		icon: Building2,
+		items: [],
+	},
+	{
+		section: "Help & Resources",
+		items: [
+			{
+				title: "Docs",
+				url: "/docs",
+				icon: BookOpen,
+			},
+			{
+				title: "Packages",
+				url: "/packages",
+				icon: Package,
+				badge: "Coming Soon",
+			},
+			{
+				title: "Status Page",
+				url: "#",
+				icon: CheckCircle,
+				badge: "Coming Soon",
+			},
+		],
+	},
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const navigate = useNavigate();
@@ -141,10 +139,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	);
 
 	const orgs = orgsRes?.orgs ?? [];
-	const { activeOrgId } = useOrgContext(orgs.map((o) => o.id));
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
-	// Use active org from context, fallback to first org
-	const currentOrgId = activeOrgId ?? orgs[0]?.id ?? null;
+	// Use active org from context
+	const currentOrgId = activeOrgId;
+	const currentWorkspaceId = activeWorkspaceId;
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
@@ -153,15 +152,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 
-	const activeWorkspaceId = new URLSearchParams(location.search).get(
-		"workspace"
-	)
-		? BigInt(new URLSearchParams(location.search).get("workspace") || "0")
-		: null;
-
 	const isActive = (url: string) => {
 		if (url === "#") return false;
-		return location.pathname === url || location.pathname.startsWith(url + "/");
+		// Exact match for most routes
+		if (location.pathname === url) return true;
+		// For nested subroutes, only match if URL is a parent directory
+		if (location.pathname.startsWith(url + "/")) {
+			// But not if the URL is a dashboard link and we're in a subroute
+			if (url.endsWith("/dashboard")) return false;
+			return true;
+		}
+		return false;
 	};
 
 	React.useEffect(() => {
@@ -212,7 +213,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarHeader>
 
 			<SidebarContent>
-				{data.navMain.map((item, idx) => {
+				{getNavMainItems(currentOrgId || undefined, currentWorkspaceId || undefined).map((item, idx) => {
 					if ("section" in item) {
 						const sectionItem = item as SectionNavItem;
 						return (
@@ -306,7 +307,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 							id: ws.id,
 							name: ws.name,
 						}))}
-						activeWorkspaceId={activeWorkspaceId}
 						orgs={orgs}
 					/>
 				</div>

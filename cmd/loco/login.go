@@ -18,14 +18,14 @@ import (
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
-	oAuth "github.com/team-loco/loco/shared/proto/oauth/v1"
-	"github.com/team-loco/loco/shared/proto/oauth/v1/oauthv1connect"
-	orgv1 "github.com/team-loco/loco/shared/proto/org/v1"
-	"github.com/team-loco/loco/shared/proto/org/v1/orgv1connect"
-	userv1 "github.com/team-loco/loco/shared/proto/user/v1"
-	"github.com/team-loco/loco/shared/proto/user/v1/userv1connect"
-	workspacev1 "github.com/team-loco/loco/shared/proto/workspace/v1"
-	"github.com/team-loco/loco/shared/proto/workspace/v1/workspacev1connect"
+	oAuth "github.com/team-loco/loco/shared/proto/loco/oauth/v1"
+	"github.com/team-loco/loco/shared/proto/loco/oauth/v1/oauthv1connect"
+	orgv1 "github.com/team-loco/loco/shared/proto/loco/org/v1"
+	"github.com/team-loco/loco/shared/proto/loco/org/v1/orgv1connect"
+	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
+	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
+	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
 )
 
 type DeviceCodeRequest struct {

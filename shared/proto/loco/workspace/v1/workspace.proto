@@ -33,38 +33,38 @@ service WorkspaceService {
 
 // Workspace represents a project container within an organization where resources are deployed and managed.
 message Workspace {
-  int64                     id          = 1;
-  int64                     org_id      = 2;
-  string                    name        = 3;
-  string                    description = 4;
-  int64                     created_by  = 5;
-  google.protobuf.Timestamp created_at  = 6;
-  google.protobuf.Timestamp updated_at  = 7;
+  int64 id = 1;
+  int64 org_id = 2;
+  string name = 3;
+  string description = 4;
+  int64 created_by = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
 }
 
 // WorkspaceMember represents a user's membership and role assignment in a workspace.
 message WorkspaceMember {
-  int64                     workspace_id = 1;
-  int64                     user_id      = 2;
-  string                    role         = 3;
-  google.protobuf.Timestamp created_at   = 4;
+  int64 workspace_id = 1;
+  int64 user_id = 2;
+  string role = 3;
+  google.protobuf.Timestamp created_at = 4;
 }
 
 // WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
 message WorkspaceMemberWithUser {
-  int64                     workspace_id    = 1;
-  int64                     user_id         = 2;
-  string                    role            = 3;
-  google.protobuf.Timestamp created_at      = 4;
-  string                    user_name       = 5;
-  string                    user_email      = 6;
-  string                    user_avatar_url = 7;
+  int64 workspace_id = 1;
+  int64 user_id = 2;
+  string role = 3;
+  google.protobuf.Timestamp created_at = 4;
+  string user_name = 5;
+  string user_email = 6;
+  string user_avatar_url = 7;
 }
 
 // CreateWorkspaceRequest is the request to create a new workspace.
 message CreateWorkspaceRequest {
-  int64           org_id      = 1;
-  string          name        = 2;
+  int64 org_id = 1;
+  string name = 2;
   optional string description = 3;
 }
 
@@ -85,36 +85,36 @@ message GetWorkspaceResponse {
 
 // ListUserWorkspacesRequest is the request to list workspaces for a user.
 message ListUserWorkspacesRequest {
-  int64  user_id    = 1;
-  int32  page_size  = 2; // default: 50, max: 200
+  int64 user_id = 1;
+  int32 page_size = 2; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListUserWorkspacesResponse contains the list of user's workspaces.
 message ListUserWorkspacesResponse {
-  repeated Workspace workspaces      = 1;
-  string             next_page_token = 2; // empty if no more pages
+  repeated Workspace workspaces = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 message ListOrgWorkspacesRequest {
-  int64  org_id     = 1;
-  int32  page_size  = 2; // default: 50, max: 200
+  int64 org_id = 1;
+  int32 page_size = 2; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListOrgWorkspacesResponse contains the list of workspaces.
 message ListOrgWorkspacesResponse {
-  repeated Workspace workspaces      = 1;
-  string             next_page_token = 2; // empty if no more pages
+  repeated Workspace workspaces = 1;
+  string next_page_token = 2; // empty if no more pages
 }
 
 // UpdateWorkspaceRequest is the request to update a workspace.
 message UpdateWorkspaceRequest {
-  int64                     workspace_id = 1;
-  google.protobuf.FieldMask update_mask  = 2;
-  optional string           name         = 3;
-  optional string           description  = 4;
+  int64 workspace_id = 1;
+  google.protobuf.FieldMask update_mask = 2;
+  optional string name = 3;
+  optional string description = 4;
 }
 
 // UpdateWorkspaceResponse is the response containing the updated workspace ID.
@@ -124,8 +124,8 @@ message UpdateWorkspaceResponse {
 
 // DeleteWorkspaceRequest is the request to delete a workspace.
 message DeleteWorkspaceRequest {
-  int64 workspace_id        = 1;
-  bool  confirm_delete_apps = 2;
+  int64 workspace_id = 1;
+  bool confirm_delete_apps = 2;
 }
 
 // DeleteWorkspaceResponse is the response after deleting a workspace.
@@ -133,21 +133,21 @@ message DeleteWorkspaceResponse {}
 
 // CreateMemberRequest is the request to add a member to a workspace.
 message CreateMemberRequest {
-  int64  workspace_id = 1;
-  int64  user_id      = 2;
-  string role         = 3;
+  int64 workspace_id = 1;
+  int64 user_id = 2;
+  string role = 3;
 }
 
 // CreateMemberResponse is the response containing the workspace and user IDs.
 message CreateMemberResponse {
   int64 workspace_id = 1;
-  int64 user_id      = 2;
+  int64 user_id = 2;
 }
 
 // DeleteMemberRequest is the request to remove a member from a workspace.
 message DeleteMemberRequest {
   int64 workspace_id = 1;
-  int64 user_id      = 2;
+  int64 user_id = 2;
 }
 
 // DeleteMemberResponse is the response after removing a member from a workspace.
@@ -155,13 +155,13 @@ message DeleteMemberResponse {}
 
 // ListWorkspaceMembersRequest is the request to list members of a workspace.
 message ListWorkspaceMembersRequest {
-  int64  workspace_id = 1;
-  int32  page_size    = 2; // default: 50, max: 200
-  string page_token   = 3; // cursor from previous page (base64-encoded timestamp+id)
+  int64 workspace_id = 1;
+  int32 page_size = 2; // default: 50, max: 200
+  string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
 // ListWorkspaceMembersResponse contains the list of workspace members.
 message ListWorkspaceMembersResponse {
-  repeated WorkspaceMemberWithUser members         = 1;
-  string                           next_page_token = 2; // empty if no more pages
+  repeated WorkspaceMemberWithUser members = 1;
+  string next_page_token = 2; // empty if no more pages
 }

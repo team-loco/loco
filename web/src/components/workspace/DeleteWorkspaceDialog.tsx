@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -33,8 +33,7 @@ export function DeleteWorkspaceDialog({
 	workspaceName,
 	onSuccess,
 }: DeleteWorkspaceDialogProps) {
-	const navigate = useNavigate();
-	const [searchParams] = useSearchParams();
+	const { activeOrgId, setActiveOrg } = useOrgWorkspace();
 	const [confirmName, setConfirmName] = useState("");
 
 	const { mutate: mutateDeleteWorkspace, isPending } =
@@ -54,14 +53,12 @@ export function DeleteWorkspaceDialog({
 					setConfirmName("");
 					onOpenChange(false);
 
-					// Call success callback if provided, otherwise navigate to dashboard
+					// Call success callback if provided, otherwise navigate to org
 					if (onSuccess) {
 						onSuccess();
-					} else {
-						// Navigate to dashboard, preserving org context
-						const orgParam = searchParams.get("org");
-						const url = orgParam ? `/dashboard?org=${orgParam}` : "/dashboard";
-						navigate(url);
+					} else if (activeOrgId) {
+						// Switch to first workspace in org (setActiveOrg does this)
+						setActiveOrg(activeOrgId);
 					}
 				},
 				onError: (error) => {

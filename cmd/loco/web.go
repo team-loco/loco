@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/config"
 )
 
 var webCmd = &cobra.Command{
-	Use:   "web [dashboard|logs|docs|account]",
+	Use:   "web [dashboard|resources|events|observability|usage|settings|profile|tokens|organizations|team]",
 	Short: "Open loco pages in your browser",
-	Long:  "Open loco pages in your browser. Defaults to home if no argument provided.",
+	Long:  "Open loco pages in your browser. Defaults to dashboard if no argument provided.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return webCmdFunc(cmd, args)
 	},
@@ -31,27 +32,47 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 		page = args[0]
 	}
 
+	// Load config to get current org/workspace for workspace-scoped routes
+	cfg, cfgErr := config.Load()
+	var orgID, workspaceID int64
+	if cfgErr == nil {
+		if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
+			orgID = scope.Organization.ID
+			workspaceID = scope.Workspace.ID
+		}
+	}
+
 	var path string
 	switch page {
-	case "dashboard":
-		path = "/dashboard"
-	case "logs":
-		path = "/logs"
-	case "docs":
-		path = "/docs"
-	case "account":
+	case "dashboard", "":
+		path = buildWorkspacePath(orgID, workspaceID, "")
+	case "resources":
+		path = buildWorkspacePath(orgID, workspaceID, "/resources")
+	case "events":
+		path = buildWorkspacePath(orgID, workspaceID, "/events")
+	case "observability":
+		path = buildWorkspacePath(orgID, workspaceID, "/observability")
+	case "usage":
+		path = buildWorkspacePath(orgID, workspaceID, "/usage")
+	case "settings":
+		path = buildWorkspacePath(orgID, workspaceID, "/settings")
+	case "profile", "account":
 		path = "/profile"
-	case "":
-		path = "/"
+	case "tokens":
+		path = "/tokens"
+	case "organizations", "orgs":
+		path = "/organizations"
+	case "team":
+		path = "/team"
 	default:
-		return fmt.Errorf("invalid page: %s. Valid options are: dashboard, logs, docs, account", page)
+		return fmt.Errorf("invalid page: %s. Valid options are: dashboard, resources, events, observability, usage, settings, profile, tokens, organizations, team", page)
 	}
 
 	url := host + path
 
 	displayPage := page
 	if displayPage == "" {
-		displayPage = "home"
+		displayPage = "dashboard"
 	}
 
 	slog.Debug("opening url in browser", "url", url, "page", displayPage)
@@ -91,4 +112,11 @@ func openBrowser(url string) error {
 
 func init() {
 	webCmd.Flags().String("host", "", "Set the host URL")
+}
+
+func buildWorkspacePath(orgID, workspaceID int64, subpath string) string {
+	if orgID == 0 || workspaceID == 0 {
+		return "/dashboard"
+	}
+	return fmt.Sprintf("/org/%d/wks/%d%s", orgID, workspaceID, subpath)
 }

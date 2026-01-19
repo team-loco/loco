@@ -7,6 +7,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 import { useMutation } from "@connectrpc/connect-query";
 import { deleteResource } from "@/gen/loco/resource/v1";
@@ -20,6 +21,7 @@ interface AppMenuProps {
 
 export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 	const deleteResourceMutation = useMutation(deleteResource);
@@ -51,7 +53,11 @@ export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 					<DropdownMenuItem
 						onClick={(e) => {
 							e.stopPropagation();
-							navigate(`/resource/${resource.id}/settings`);
+							if (activeOrgId && activeWorkspaceId) {
+								navigate(
+									`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.id}/settings`
+								);
+							}
 						}}
 					>
 						Settings

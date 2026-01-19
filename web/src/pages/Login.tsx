@@ -6,6 +6,7 @@ export function Login() {
 	const { isAuthenticated } = useAuth();
 
 	if (isAuthenticated) {
+		// Will be redirected by DashboardRedirect component from AuthProvider
 		return <Navigate to="/dashboard" />;
 	}
 

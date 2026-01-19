@@ -90,6 +90,7 @@ export function OAuthCallback() {
 
 			if (hasOrgs) {
 				console.log("OAuthCallback: User has orgs, navigating to dashboard");
+				// Will be redirected by DashboardRedirect component
 				navigate("/dashboard");
 			} else {
 				console.log(

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 import { Copy, ExternalLink, Pencil } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { toast } from "sonner";
 import { getStatusLabel } from "@/lib/app-status";
 
@@ -15,6 +16,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ resource, isLoading = false }: AppHeaderProps) {
 	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	if (isLoading) {
 		return (
@@ -87,7 +89,13 @@ export function AppHeader({ resource, isLoading = false }: AppHeaderProps) {
 					<Button
 						variant="outline"
 						size="sm"
-						onClick={() => navigate(`/resource/${resource.id}/settings`)}
+						onClick={() => {
+							if (activeOrgId && activeWorkspaceId) {
+								navigate(
+									`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.id}/settings`
+								);
+							}
+						}}
 						className="flex-1 sm:flex-none"
 					>
 						<Pencil className="w-4 h-4 mr-2" />

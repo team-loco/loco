@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteUser, whoAmI } from "@/gen/loco/user/v1";
 import { listTokens } from "@/gen/loco/token/v1";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useMemo, useState } from "react";
@@ -18,6 +19,14 @@ export function Profile() {
 	const navigate = useNavigate();
 	const { data: whoAmIResponse, isLoading } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
+
+	// Fetch user's orgs to redirect to tokens
+	const { data: orgsRes } = useQuery(
+		listUserOrgs,
+		user?.id ? { userId: user.id } : undefined,
+		{ enabled: !!user?.id }
+	);
+	const firstOrgId = useMemo(() => orgsRes?.orgs?.[0]?.id, [orgsRes]);
 
 	// Fetch user's tokens
 	const { data: tokensRes, isLoading: isTokensLoading } = useQuery(
@@ -90,7 +99,15 @@ export function Profile() {
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
 							<h3 className="font-semibold text-foreground">Tokens</h3>
-							<Button size="sm" onClick={() => navigate("/tokens")}>
+							<Button 
+								size="sm" 
+								onClick={() => {
+									if (firstOrgId) {
+										navigate(`/org/${firstOrgId}/tokens`);
+									}
+								}}
+								disabled={!firstOrgId}
+							>
 								Manage Tokens
 								<ArrowRight className="h-4 w-4 ml-2" />
 							</Button>

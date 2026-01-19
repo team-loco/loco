@@ -63,7 +63,7 @@ jobs:
         with:
           version: v2.6
           working-directory: ${{ matrix.working-directory }}
-
+          args: --timeout=5m
   buf:
     name: Buf Lint
     runs-on: ubuntu-latest

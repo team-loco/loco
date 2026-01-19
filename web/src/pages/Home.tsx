@@ -14,7 +14,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import Loader from "@/assets/loader.svg?react";
-import { useOrgContext } from "@/hooks/useOrgContext";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 
 export function Home() {
 	const navigate = useNavigate();
@@ -37,8 +37,8 @@ export function Home() {
 	});
 	const orgs = useMemo(() => orgsQueryRes?.orgs ?? [], [orgsQueryRes]);
 
-	// Use org context from URL (managed by useOrgContext hook)
-	const { activeOrgId } = useOrgContext(orgs.map((o) => o.id));
+	// Use org/workspace from context
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const currentOrgId = activeOrgId ?? (orgs.length > 0 ? orgs[0].id : null);
 
 	// Fetch workspaces for selected org
@@ -52,7 +52,9 @@ export function Home() {
 		[listWorkspacesRes]
 	);
 	const currentWorkspaceId =
-		selectedWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
+		activeWorkspaceId ||
+		selectedWorkspaceId ||
+		(workspaces.length > 0 ? workspaces[0].id : null);
 
 	// Fetch resources in parallel after we have workspace ID
 	const {
@@ -188,10 +190,17 @@ export function Home() {
 				<EmptyState
 					title="No Resources Yet"
 					description="Create your first resource to get started with Loco"
-					action={{
-						label: "Create Your First Resource",
-						onClick: () => navigate("/create-resource"),
-					}}
+					action={
+						currentOrgId && currentWorkspaceId
+							? {
+									label: "Create Your First Resource",
+									onClick: () =>
+										navigate(
+											`/org/${currentOrgId}/wks/${currentWorkspaceId}/create-resource`
+										),
+								}
+							: undefined
+					}
 				/>
 			)}
 		</div>
