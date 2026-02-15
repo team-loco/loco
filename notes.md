@@ -404,10 +404,11 @@ clickhouse is named weirdly and so is our controller.
 - we need to create a dependency chart, on all our dependencies.
 - break it down by component and whatnot.
 - as long as we keep that in sync, we can always tell if we change something what will break.
+- basic rate limiter for envoy.
 
 - questions:
 - is the current sql even correct.
-- the deployment or create app request, must be heavily rate limited.
+- the deployment or create app request for loco, must be heavily rate limited.
 - trace data needs to hold region/env info as well.
 - try to understand whether we should do loco-api distributed in cluster itself or not.
 - sure potentially clickhouse cloud, but we also need to do ttls on data. and use custom table setups.
@@ -418,3 +419,6 @@ clickhouse is named weirdly and so is our controller.
 - no longer let ppl bring in their custom domains.
 - loco cli enhancements. focus on resource, followed by the actual action
 - disable color output in cli flag/env
+- eventually will need canaries against our service.
+
+- loco init should also grab defaults from the static config endpoint.
