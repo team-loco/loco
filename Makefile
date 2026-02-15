@@ -63,6 +63,15 @@ ui:
 	@echo "Starting UI..."
 	@cd web && npm run dev
 
+dev: ## Start all local components (UI, API, Controller)
+	@echo "Starting all local components..."
+	@(trap 'kill $(jobs -p) 2>/dev/null' EXIT; \
+		$(MAKE) reload-api & \
+		$(MAKE) reload-cli & \
+		$(MAKE) ui & \
+		cd controller && $(MAKE) run & \
+		wait)
+
 helm-repos: ## Add/update helm repositories
 	helm repo add jetstack https://charts.jetstack.io
 	helm repo add cilium https://helm.cilium.io
