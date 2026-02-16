@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/allegro/bigcache/v3"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/providers"
 	oAuth "github.com/team-loco/loco/shared/proto/loco/oauth/v1"
@@ -24,23 +24,18 @@ import (
 	"golang.org/x/oauth2/github"
 )
 
-// OAuthStateCache uses bigcache for storing OAuth state tokens
-// todo: this is a temporary in-memory solution; we will eventually move to distributed cache
+// OAuthStateCache wraps the cache interface for storing OAuth state tokens
 type OAuthStateCache struct {
-	cache *bigcache.BigCache
+	cache cache.Cache
 }
 
-func NewOAuthStateCache(ttl time.Duration) (*OAuthStateCache, error) {
-	config := bigcache.DefaultConfig(ttl)
-	cache, err := bigcache.New(context.Background(), config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create bigcache: %w", err)
-	}
-	return &OAuthStateCache{cache: cache}, nil
+func NewOAuthStateCache(c cache.Cache) *OAuthStateCache {
+	return &OAuthStateCache{cache: c}
 }
 
 func (c *OAuthStateCache) StoreState(ctx context.Context, state string) error {
-	if err := c.cache.Set(state, []byte("1")); err != nil {
+	key := "loco_api:oauth:state:" + state
+	if err := c.cache.Set(ctx, key, []byte("1"), OAuthStateTTL); err != nil {
 		slog.ErrorContext(ctx, "failed to store oauth state", "error", err)
 		return fmt.Errorf("failed to store state: %w", err)
 	}
@@ -50,8 +45,9 @@ func (c *OAuthStateCache) StoreState(ctx context.Context, state string) error {
 
 func (c *OAuthStateCache) VerifyAndDeleteState(ctx context.Context, state string) error {
 	slog.InfoContext(ctx, "looking for state", "state", state)
-	_, err := c.cache.Get(state)
-	if err == bigcache.ErrEntryNotFound {
+	key := "loco_api:oauth:state:" + state
+	_, err := c.cache.Get(ctx, key)
+	if errors.Is(err, cache.ErrNotFound) {
 		return errors.New("invalid or expired state")
 	}
 	if err != nil {
@@ -60,17 +56,13 @@ func (c *OAuthStateCache) VerifyAndDeleteState(ctx context.Context, state string
 	}
 
 	// delete the state (one-time use)
-	if err := c.cache.Delete(state); err != nil {
+	if err := c.cache.Delete(ctx, key); err != nil {
 		slog.ErrorContext(ctx, "failed to delete state", "error", err)
 		return fmt.Errorf("failed to delete state: %w", err)
 	}
 
 	slog.InfoContext(ctx, "verified and deleted oauth state")
 	return nil
-}
-
-func (c *OAuthStateCache) Close() error {
-	return c.cache.Close()
 }
 
 type OAuthServer struct {
@@ -110,19 +102,14 @@ func generateSecureRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Client, machine *tvm.VendingMachine) (*OAuthServer, error) {
-	stateCache, err := NewOAuthStateCache(OAuthStateTTL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create oauth state cache: %w", err)
-	}
-
+func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Client, machine *tvm.VendingMachine, stateCache *OAuthStateCache) *OAuthServer {
 	return &OAuthServer{
 		db:         db,
 		queries:    queries,
 		httpClient: httpClient,
 		stateCache: stateCache,
 		machine:    machine,
-	}, nil
+	}
 }
 
 func (s *OAuthServer) fetchGithubUserData(token string) (*GithubUser, error) {

@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/middleware"
+	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/kube"
 	"github.com/team-loco/loco/api/pkg/statuswatcher"
 	"github.com/team-loco/loco/api/service"
@@ -54,6 +55,8 @@ type ApiConfig struct {
 	LocoNamespace   string // Loco system namespace
 	LocoDomainBase  string // Base domain (e.g., deploy-app.com)
 	LocoDomainAPI   string // API domain (e.g., api.deploy-app.com)
+	CacheType       string // Cache backend type: "in-memory" or "valkey"
+	CacheAddr       string // Valkey address (when CacheType is "valkey")
 }
 
 func newApiConfig() *ApiConfig {
@@ -63,6 +66,11 @@ func newApiConfig() *ApiConfig {
 		if parsed, err := strconv.Atoi(logLevelStr); err == nil {
 			logLevel = slog.Level(parsed)
 		}
+	}
+
+	cacheType := os.Getenv("CACHE_TYPE")
+	if cacheType == "" {
+		cacheType = "in-memory"
 	}
 
 	return &ApiConfig{
@@ -79,6 +87,8 @@ func newApiConfig() *ApiConfig {
 		LocoNamespace:   os.Getenv("LOCO_NAMESPACE"),
 		LocoDomainBase:  os.Getenv("LOCO_DOMAIN_BASE"),
 		LocoDomainAPI:   os.Getenv("LOCO_DOMAIN_API"),
+		CacheType:       cacheType,
+		CacheAddr:       os.Getenv("CACHE_ADDR"),
 	}
 }
 
@@ -90,6 +100,20 @@ func isAllowedOrigin(hostname, baseDomain string) bool {
 		return false
 	}
 	return hostname == baseDomain || hostname == "www."+baseDomain
+}
+
+func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
+	switch cacheType {
+	case "valkey":
+		if CacheAddr == "" {
+			return nil, fmt.Errorf("CACHE_ADDR required when CACHE_TYPE=valkey")
+		}
+		return cache.NewValkey(CacheAddr, defaultTTL)
+	case "in-memory", "":
+		return cache.NewBigCache(defaultTTL)
+	default:
+		return nil, fmt.Errorf("unknown cache type: %s", cacheType)
+	}
 }
 
 func withCORS(baseDomain string) func(http.Handler) http.Handler {
@@ -146,7 +170,13 @@ func main() {
 
 	kubeClient := kube.NewClient(ac.Env)
 
-	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries)
+	appCache, err := newCache(ac.CacheType, ac.CacheAddr, 24*time.Hour)
+	if err != nil {
+		log.Fatalf("failed to create cache: %v", err)
+	}
+	defer appCache.Close()
+
+	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries, appCache, ac.LocoNamespace)
 	watcherCtx, watcherCancel := context.WithCancel(context.Background())
 	defer watcherCancel()
 
@@ -158,10 +188,8 @@ func main() {
 
 	httpClient := shared.NewHTTPClient()
 
-	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, machine)
-	if err != nil {
-		log.Fatal(err)
-	}
+	oauthStateCache := service.NewOAuthStateCache(appCache)
+	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache)
 	userServiceHandler := service.NewUserServer(pool, queries, machine)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)

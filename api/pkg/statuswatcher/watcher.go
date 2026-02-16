@@ -5,37 +5,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"reflect"
-	"strconv"
-	"time"
 
-	"github.com/allegro/bigcache/v3"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/kube"
 	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
-	"k8s.io/client-go/tools/cache"
+	k8scache "k8s.io/client-go/tools/cache"
 	crClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const appCacheTTL = 0 // use default TTL from cache configuration
+
 type StatusWatcher struct {
-	kubeClient              *kube.Client
-	queries                 genDb.Querier
-	lastKnownStatus         *bigcache.BigCache
-	lastKnownResourceStatus *bigcache.BigCache
-	locoNamespace           string
+	kubeClient    *kube.Client
+	queries       genDb.Querier
+	appCache      cache.Cache
+	locoNamespace string
 }
 
-func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier) *StatusWatcher {
-	statusCache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(24*time.Hour))
-	resourceStatusCache, _ := bigcache.New(context.Background(), bigcache.DefaultConfig(24*time.Hour))
-
+func NewStatusWatcher(kubeClient *kube.Client, queries genDb.Querier, appCache cache.Cache, locoNamespace string) *StatusWatcher {
 	return &StatusWatcher{
-		kubeClient:              kubeClient,
-		queries:                 queries,
-		lastKnownStatus:         statusCache,
-		lastKnownResourceStatus: resourceStatusCache,
-		locoNamespace:           os.Getenv("LOCO_NAMESPACE"),
+		kubeClient:    kubeClient,
+		queries:       queries,
+		appCache:      appCache,
+		locoNamespace: locoNamespace,
 	}
 }
 
@@ -54,7 +48,7 @@ func (w *StatusWatcher) Start(ctx context.Context) error {
 		return err
 	}
 
-	if !cache.WaitForCacheSync(ctx.Done(), locoInformer.HasSynced) {
+	if !k8scache.WaitForCacheSync(ctx.Done(), locoInformer.HasSynced) {
 		slog.ErrorContext(ctx, "failed to wait for cache sync")
 		return ctx.Err()
 	}
@@ -64,7 +58,7 @@ func (w *StatusWatcher) Start(ctx context.Context) error {
 		return err
 	}
 
-	locoInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	locoInformer.AddEventHandler(k8scache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj any) {
 			oldLR := oldObj.(*locoControllerV1.Application)
 			newLR := newObj.(*locoControllerV1.Application)
@@ -115,8 +109,8 @@ func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.
 	status := convertPhase(locoRes.Status.Phase)
 	message := locoRes.Status.Message
 
-	key := strconv.FormatInt(locoRes.Spec.ResourceId, 10)
-	cached, err := w.lastKnownStatus.Get(key)
+	key := fmt.Sprintf("loco_api:status:deployment:%d", locoRes.Spec.ResourceId)
+	cached, err := w.appCache.Get(ctx, key)
 	if err == nil {
 		var last struct{ phase, message string }
 		if json.Unmarshal(cached, &last) == nil {
@@ -149,7 +143,7 @@ func (w *StatusWatcher) syncToDB(ctx context.Context, locoRes *locoControllerV1.
 		phase:   locoRes.Status.Phase,
 		message: message,
 	})
-	w.lastKnownStatus.Set(key, data)
+	w.appCache.Set(ctx, key, data, appCacheTTL)
 
 	w.syncResourceStatus(ctx, locoRes.Spec.ResourceId)
 }
@@ -166,8 +160,8 @@ func (w *StatusWatcher) syncResourceStatus(ctx context.Context, resourceID int64
 
 	computedStatus := computeResourceStatus(deploymentStatuses)
 
-	key := strconv.FormatInt(resourceID, 10)
-	cached, err := w.lastKnownResourceStatus.Get(key)
+	key := fmt.Sprintf("loco_api:status:resource:%d", resourceID)
+	cached, err := w.appCache.Get(ctx, key)
 	if err == nil {
 		if string(cached) == string(computedStatus) {
 			return
@@ -192,7 +186,7 @@ func (w *StatusWatcher) syncResourceStatus(ctx context.Context, resourceID int64
 		"status", computedStatus,
 	)
 
-	w.lastKnownResourceStatus.Set(key, []byte(computedStatus))
+	w.appCache.Set(ctx, key, []byte(computedStatus), appCacheTTL)
 }
 
 func computeResourceStatus(deploymentStatuses []genDb.DeploymentStatus) genDb.ResourceStatus {

@@ -14,6 +14,7 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/team-loco/loco/controller v0.0.0
 	github.com/team-loco/loco/shared v0.0.0
+	github.com/valkey-io/valkey-go v1.0.71
 	golang.org/x/oauth2 v0.35.0
 	k8s.io/api v0.35.1
 	k8s.io/apimachinery v0.35.1
@@ -27,7 +28,6 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/prometheus/client_golang v1.23.2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
