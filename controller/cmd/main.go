@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
 	"github.com/team-loco/loco/controller/internal/controller"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 

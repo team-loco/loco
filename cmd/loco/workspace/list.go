@@ -10,10 +10,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/shared"
-	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
-	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
-	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
-	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
+	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
+	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
+	workspacev1 "github.com/team-loco/loco/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 )
 
 type listDeps struct {

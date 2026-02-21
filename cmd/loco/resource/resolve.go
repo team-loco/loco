@@ -14,8 +14,8 @@ import (
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
 	sharedconfig "github.com/team-loco/loco/shared/config"
-	domainv1 "github.com/team-loco/loco/shared/proto/loco/domain/v1"
-	"github.com/team-loco/loco/shared/proto/loco/domain/v1/domainv1connect"
+	domainv1 "github.com/team-loco/loco/proto/loco/domain/v1"
+	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
 )
 
 // resolveOrg resolves organization name from flag > env > config.

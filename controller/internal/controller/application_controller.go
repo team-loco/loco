@@ -41,7 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
-	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 // todo: finalize on the domain we wanna use inside kubernetes.

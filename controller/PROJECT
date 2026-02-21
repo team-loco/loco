@@ -20,6 +20,6 @@ resources:
   domain: loco.io
   group: infra
   kind: Application
-  path: github.com/team-loco/loco/controller/api/v1alpha1
+  path: github.com/team-loco/loco/k8sapi/v1alpha1
   version: v1alpha1
 version: "3"

@@ -11,23 +11,22 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/api/pkg/kube"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	locoControllerV1 "github.com/team-loco/loco/controller/api/v1alpha1"
-	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
-	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
+	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
 	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
@@ -38,6 +37,26 @@ var (
 )
 
 var imagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$`)
+
+// DeployCommandPayload is the payload sent to agents for deploy commands.
+type DeployCommandPayload struct {
+	DeploymentID  int64                           `json:"deployment_id"`
+	ResourceID    int64                           `json:"resource_id"`
+	WorkspaceID   int64                           `json:"workspace_id"`
+	ResourceName  string                          `json:"resource_name"`
+	ResourceType  string                          `json:"resource_type"`
+	Region        string                          `json:"region"`
+	Hostname      string                          `json:"hostname"`
+	LocoNamespace string                          `json:"loco_namespace"`
+	AppSpec       *locoControllerV1.ApplicationSpec `json:"app_spec"`
+}
+
+// DeleteCommandPayload is the payload sent to agents for delete commands.
+type DeleteCommandPayload struct {
+	DeploymentID  int64  `json:"deployment_id"`
+	ResourceID    int64  `json:"resource_id"`
+	LocoNamespace string `json:"loco_namespace"`
+}
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
@@ -128,19 +147,19 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 type DeploymentServer struct {
 	db            *pgxpool.Pool
 	queries       genDb.Querier
-	kubeClient    *kube.Client
 	locoNamespace string
 	machine       *tvm.VendingMachine
+	commandBus    commandbus.CommandBus
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, kubeClient *kube.Client, locoNamespace string) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string, commandBus commandbus.CommandBus) *DeploymentServer {
 	return &DeploymentServer{
 		db:            db,
 		queries:       queries,
-		kubeClient:    kubeClient,
 		locoNamespace: locoNamespace,
 		machine:       machine,
+		commandBus:    commandBus,
 	}
 }
 
@@ -241,38 +260,77 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
+	// Get resource region for deployment record
+	resourceRegion, err := s.queries.GetResourceRegionByResourceAndRegion(ctx, genDb.GetResourceRegionByResourceAndRegionParams{
+		ResourceID: r.GetResourceId(),
+		Region:     region,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get resource region", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource region not found: %w", err))
+	}
+
 	// Create deployment transactionally, finalizing previous deployments in the same region
 	deploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID:  r.GetResourceId(),
-		ClusterID:   cluster.ID,
-		Region:      region,
-		Replicas:    replicas,
-		Status:      genDb.DeploymentStatusPending,
-		IsActive:    true,
-		Message:     "Scheduling deployment",
-		Spec:        specJSON,
-		SpecVersion: version.SpecVersionV1,
+		ResourceID:       r.GetResourceId(),
+		ResourceRegionID: resourceRegion.ID,
+		ClusterID:        cluster.ID,
+		Region:           region,
+		Replicas:         replicas,
+		Status:           genDb.DeploymentStatusPending,
+		IsActive:         true,
+		Message:          "Scheduling deployment",
+		Spec:             specJSON,
+		SpecVersion:      version.SpecVersionV1,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	// create Application in loco-system namespace (pass merged spec WITH env to controller)
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, mergedSpec, s.locoNamespace, region)
+	// Build the Application spec for the agent
+	appSpec, err := buildApplicationSpec(resource, resourceSpec, domain.Domain, mergedSpec, region)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create Application", "error", err, "resourceId", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create Application: %w", err))
-	}
-	slog.InfoContext(ctx, "created/updated Application", "resourceId", resource.ID, "resource_name", resource.Name)
-
-	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get created deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
 	}
 
-	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deployment.ID}), nil
+	// Create command payload with all info the agent needs
+	cmdPayload := DeployCommandPayload{
+		DeploymentID:  deploymentID,
+		ResourceID:    resource.ID,
+		WorkspaceID:   resource.WorkspaceID,
+		ResourceName:  resource.Name,
+		ResourceType:  string(resource.Type),
+		Region:        region,
+		Hostname:      domain.Domain,
+		LocoNamespace: s.locoNamespace,
+		AppSpec:       appSpec,
+	}
+
+	payloadJSON, err := json.Marshal(cmdPayload)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal command payload", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
+	}
+
+	// Dispatch deploy command to the agent via CommandBus
+	cmd := &commandbus.Command{
+		ID:        uuid.NewString(),
+		ClusterID: cluster.ID,
+		Type:      commandbus.CommandTypeDeploy,
+		Payload:   payloadJSON,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.commandBus.Send(ctx, cmd); err != nil {
+		slog.ErrorContext(ctx, "failed to dispatch deploy command", "cluster_id", cluster.ID, "error", err)
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+	}
+
+	slog.InfoContext(ctx, "deploy command dispatched to agent", "command_id", cmd.ID, "cluster_id", cluster.ID, "resourceId", resource.ID)
+
+	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deploymentID}), nil
 }
 
 // GetDeployment retrieves a deployment by ID
@@ -407,10 +465,34 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	// if this is the active deployment, delete the Application
 	if deployment.IsActive {
-		if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
-			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resourceId", resource.ID)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup Application: %w", err))
+		// Create delete command payload
+		cmdPayload := DeleteCommandPayload{
+			DeploymentID:  deployment.ID,
+			ResourceID:    resource.ID,
+			LocoNamespace: s.locoNamespace,
 		}
+
+		payloadJSON, err := json.Marshal(cmdPayload)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
+		}
+
+		// Dispatch delete command to the agent via CommandBus
+		cmd := &commandbus.Command{
+			ID:        uuid.NewString(),
+			ClusterID: deployment.ClusterID,
+			Type:      commandbus.CommandTypeDelete,
+			Payload:   payloadJSON,
+			CreatedAt: time.Now(),
+		}
+
+			if err := s.commandBus.Send(ctx, cmd); err != nil {
+			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", err)
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+		}
+
+		slog.InfoContext(ctx, "delete command dispatched to agent", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "resourceId", resource.ID)
 	}
 
 	// mark deployment as inactive
@@ -519,22 +601,19 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	return nil
 }
 
-// createLocoResource creates a Application in the loco-system namespace
-func createLocoResource(
-	ctx context.Context,
-	kubeClient *kube.Client,
+// buildApplicationSpec builds the ApplicationSpec for the loco controller.
+// This is used both for direct k8s calls and for agent command payloads.
+func buildApplicationSpec(
 	resource genDb.Resource,
 	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
 	deploymentSpec *deploymentv1.DeploymentSpec,
-	locoNamespace string,
 	region string,
-) error {
+) (*locoControllerV1.ApplicationSpec, error) {
 	// convert proto to controller CRD types
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
-	slog.InfoContext(ctx, "converted deployment spec", "image", crdServiceDeploymentSpec.Image, "port", crdServiceDeploymentSpec.Port)
 
-	locoResourceSpec := locoControllerV1.ApplicationSpec{
+	appSpec := &locoControllerV1.ApplicationSpec{
 		ResourceId:  resource.ID,
 		WorkspaceId: resource.WorkspaceID,
 		Region:      region,
@@ -543,14 +622,14 @@ func createLocoResource(
 	switch resource.Type {
 	case genDb.ResourceTypeService:
 		if resourceSpec.GetService() == nil {
-			return fmt.Errorf("resource spec missing service configuration")
+			return nil, fmt.Errorf("resource spec missing service configuration")
 		}
-		locoResourceSpec.Type = "SERVICE"
+		appSpec.Type = "SERVICE"
 		resourcesSpec, err := buildResourcesSpec(resourceSpec.GetService(), deploymentSpec, region)
 		if err != nil {
-			return fmt.Errorf("failed to build resources spec: %w", err)
+			return nil, fmt.Errorf("failed to build resources spec: %w", err)
 		}
-		locoResourceSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
+		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
 			Resources:  resourcesSpec,
 			Obs:        converter.ProtoToObsSpec(resourceSpec.GetService().GetObservability()),
@@ -558,69 +637,25 @@ func createLocoResource(
 		}
 
 	case genDb.ResourceTypeDatabase:
-		// TODO: implement database resource type
-		return fmt.Errorf("database resource type not yet implemented")
+		return nil, fmt.Errorf("database resource type not yet implemented")
 	case genDb.ResourceTypeCache:
-		// TODO: implement cache resource type
-		return fmt.Errorf("cache resource type not yet implemented")
+		return nil, fmt.Errorf("cache resource type not yet implemented")
 	case genDb.ResourceTypeQueue:
-		// TODO: implement queue resource type
-		return fmt.Errorf("queue resource type not yet implemented")
+		return nil, fmt.Errorf("queue resource type not yet implemented")
 	case genDb.ResourceTypeBlob:
-		// TODO: implement blob resource type
-		return fmt.Errorf("blob resource type not yet implemented")
+		return nil, fmt.Errorf("blob resource type not yet implemented")
 	default:
-		return fmt.Errorf("unknown resource type: %s", resource.Type)
+		return nil, fmt.Errorf("unknown resource type: %s", resource.Type)
 	}
 
-	// validate the ApplicationSpec before creating/updating
-	if err := locoResourceSpec.Validate(); err != nil {
-		slog.ErrorContext(ctx, "failed to validate application spec", "error", err)
-		return fmt.Errorf("invalid application spec: %w", err)
+	// validate the ApplicationSpec before returning
+	if err := appSpec.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid application spec: %w", err)
 	}
 
-	// build Application
-
-	locoRes := &locoControllerV1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("resource-%d", resource.ID),
-			Namespace: locoNamespace,
-			Labels:    map[string]string{},
-		},
-		Spec: locoResourceSpec,
-	}
-
-	specJSON, _ := json.MarshalIndent(locoResourceSpec, "", "  ")
-	slog.InfoContext(ctx, "building Application", "resourceId", resource.ID, "spec", string(specJSON))
-
-	// create or update the Application
-	err := kubeClient.ControllerClient.Get(ctx, client.ObjectKey{
-		Name:      locoRes.Name,
-		Namespace: locoRes.Namespace,
-	}, locoRes)
-
-	if err == nil {
-		// resource exists, update it
-		if err := kubeClient.ControllerClient.Update(ctx, locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to update Application", "error", err, "resourceId", resource.ID)
-			return err
-		}
-		slog.InfoContext(ctx, "updated existing Application", "resourceId", resource.ID)
-	} else if client.IgnoreNotFound(err) == nil {
-		// resource does not exist, create it
-		if err := kubeClient.ControllerClient.Create(ctx, locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to create Application", "error", err, "resourceId", resource.ID)
-			return err
-		}
-		slog.InfoContext(ctx, "created new Application", "resourceId", resource.ID)
-	} else {
-		// some other error occurred
-		slog.ErrorContext(ctx, "failed to check if Application exists", "error", err, "resourceId", resource.ID)
-		return err
-	}
-
-	return nil
+	return appSpec, nil
 }
+
 
 // buildResourcesSpec builds ResourcesSpec, using deployment-time
 // overrides if present, otherwise falling back to the target region's defaults from ServiceSpec
@@ -690,21 +725,3 @@ func buildResourcesSpec(
 	return resourcesSpec, nil
 }
 
-// deleteLocoResource deletes a Application from the loco-system namespace
-func deleteLocoResource(ctx context.Context, kubeClient *kube.Client, resourceID int64, locoNamespace string) error {
-	locoRes := &locoControllerV1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("resource-%d", resourceID),
-			Namespace: locoNamespace,
-		},
-	}
-
-	if err := kubeClient.ControllerClient.Delete(ctx, locoRes); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			slog.ErrorContext(ctx, "failed to delete Application", "error", err, "resourceId", resourceID)
-			return err
-		}
-	}
-	slog.InfoContext(ctx, "deleted Application", "resourceId", resourceID)
-	return nil
-}

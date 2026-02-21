@@ -14,8 +14,8 @@ import (
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
-	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
-	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
+	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
+	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 )
 
 type logoutDeps struct {

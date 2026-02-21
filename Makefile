@@ -115,6 +115,7 @@ upgrade-rpc:
 	go install github.com/bufbuild/buf/cmd/buf@latest
 	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
 	npm install -g @connectrpc/protoc-gen-connect-query @bufbuild/protoc-gen-es
+
 lint: clean
 	@(golangci-lint run)
 

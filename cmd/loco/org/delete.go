@@ -10,8 +10,8 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
-	orgv1 "github.com/team-loco/loco/shared/proto/loco/org/v1"
-	"github.com/team-loco/loco/shared/proto/loco/org/v1/orgv1connect"
+	orgv1 "github.com/team-loco/loco/proto/loco/org/v1"
+	"github.com/team-loco/loco/proto/loco/org/v1/orgv1connect"
 )
 
 type deleteDeps struct {

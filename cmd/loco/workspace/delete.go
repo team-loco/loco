@@ -11,8 +11,8 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
-	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
-	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
+	workspacev1 "github.com/team-loco/loco/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 )
 
 type deleteDeps struct {

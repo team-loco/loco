@@ -26,7 +26,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	locov1alpha1 "github.com/team-loco/loco/controller/api/v1alpha1"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 var _ = Describe("Application Controller", func() {

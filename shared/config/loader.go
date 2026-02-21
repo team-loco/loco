@@ -18,17 +18,6 @@ var AllowedSchemaVersions = []string{
 	"0.1",
 }
 
-// BannedSubdomains are reserved subdomains that cannot be used
-// todo: user-hosted domain is different from loco's real domain.
-// this avoids conflict instead of a hardcoded list.
-// todo: remove this once we have separate domains
-var BannedSubdomains = []string{
-	"api", "admin", "dashboard", "console",
-	"login", "auth", "user", "users", "support", "help", "loco", "monitoring",
-	"metrics", "stats", "status", "health", "system", "service", "services",
-	"config", "configuration", "settings", "setup", "install", "uninstall",
-}
-
 // Default provides sensible defaults for a new LocoConfig
 var Default = &LocoConfig{
 	Metadata: Metadata{
@@ -297,17 +286,6 @@ func ExtractSubdomainFromHostname(hostname string) string {
 		return parts[0]
 	}
 	return hostname
-}
-
-// isBannedSubdomain checks if a subdomain is in the banned list
-// todo: revisit, we no longer keep subdomains around.
-func isBannedSubdomain(subdomain string) bool {
-	for _, banned := range BannedSubdomains {
-		if strings.EqualFold(subdomain, banned) {
-			return true
-		}
-	}
-	return false
 }
 
 // isAllowedSchemaVersion checks if a schema version is in the allowed list

@@ -18,8 +18,8 @@ import (
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/shared"
-	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
-	"github.com/team-loco/loco/shared/proto/loco/resource/v1/resourcev1connect"
+	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
+	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
 )
 
 type eventsDeps struct {

@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/shared"
-	tokenv1 "github.com/team-loco/loco/shared/proto/loco/token/v1"
-	"github.com/team-loco/loco/shared/proto/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
+	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
+	"github.com/team-loco/loco/proto/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 )
 
 type createDeps struct {
