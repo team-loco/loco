@@ -43,7 +43,7 @@ jobs:
       - name: Build and load controller image
         run: |
           go mod tidy -C controller
-          cd controller && make docker-build IMG=controller:v0.1.0
+          make -C controller docker-build IMG=controller:v0.1.0
           kind load docker-image controller:v0.1.0
 
       - name: Install Helm
