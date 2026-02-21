@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY api ./api
 COPY shared ./shared
+COPY k8sapi ./k8sapi
 COPY controller ./controller
 
 WORKDIR /app/api
