@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
 	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
@@ -20,7 +20,7 @@ import (
 type whoamiDeps struct {
 	GetCurrentUser func(ctx context.Context, host, token string) (*userv1.User, error) // Pass context
 	GetLocoToken   func(username string) (*keychain.UserToken, error)
-	LoadConfig     func() (*config.SessionConfig, error)
+	LoadConfig     func() (*session.SessionConfig, error)
 	Output         io.Writer
 }
 
@@ -33,8 +33,8 @@ func buildWhoAmICmd() *cobra.Command {
 		GetLocoToken: func(username string) (*keychain.UserToken, error) {
 			return keychain.GetLocoToken(username)
 		},
-		LoadConfig: func() (*config.SessionConfig, error) {
-			return config.Load()
+		LoadConfig: func() (*session.SessionConfig, error) {
+			return session.Load()
 		},
 		Output: os.Stdout,
 	}

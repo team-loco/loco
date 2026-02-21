@@ -8,7 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/shared"
+	"github.com/team-loco/loco/internal/httputil"
 	orgv1 "github.com/team-loco/loco/proto/loco/org/v1"
 	"github.com/team-loco/loco/proto/loco/org/v1/orgv1connect"
 )
@@ -21,7 +21,7 @@ type createDeps struct {
 func buildCreateCmd() *cobra.Command {
 	deps := createDeps{
 		NewOrgClient: func(host string) orgv1connect.OrgServiceClient {
-			return orgv1connect.NewOrgServiceClient(shared.NewHTTPClient(), host)
+			return orgv1connect.NewOrgServiceClient(httputil.NewHTTPClient(), host)
 		},
 		Output: os.Stdout,
 	}

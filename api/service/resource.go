@@ -23,7 +23,6 @@ import (
 	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/proto/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
-	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -212,7 +211,7 @@ func (s *ResourceServer) CreateResource(
 		Type:        resourceType,
 		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
-		SpecVersion: version.SpecVersionV1,
+		SpecVersion: int32(1),
 		Description: r.GetDescription(),
 	}
 	resourceID, err := s.queries.CreateResource(ctx, params)
@@ -746,7 +745,7 @@ func (s *ResourceServer) ScaleResource(
 		IsActive:    true,
 		Message:     "Scheduled scaling event.",
 		Spec:        specJson,
-		SpecVersion: version.SpecVersionV1,
+		SpecVersion: int32(1),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -927,7 +926,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		IsActive:    true,
 		Message:     "Scheduled environment update",
 		Spec:        specJson,
-		SpecVersion: version.SpecVersionV1,
+		SpecVersion: int32(1),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)

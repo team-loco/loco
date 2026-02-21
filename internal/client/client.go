@@ -13,7 +13,7 @@ import (
 	json "github.com/goccy/go-json"
 
 	"connectrpc.com/connect"
-	"github.com/team-loco/loco/shared"
+	"github.com/team-loco/loco/internal/httputil"
 	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
 	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
 	orgv1 "github.com/team-loco/loco/proto/loco/org/v1"
@@ -43,7 +43,7 @@ type Client struct {
 }
 
 func NewClient(host, token string) *Client {
-	httpClient := shared.NewHTTPClient()
+	httpClient := httputil.NewHTTPClient()
 
 	return &Client{
 		host:       host,

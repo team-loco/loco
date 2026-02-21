@@ -16,15 +16,15 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/shared"
+	"github.com/team-loco/loco/internal/httputil"
 	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
 	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
 )
 
 type logsDeps struct {
-	LoadSessionConfig func() (*config.SessionConfig, error)
+	LoadSessionConfig func() (*session.SessionConfig, error)
 	NewAPIClient      func(host, token string) *client.Client
 	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
 	Stdout            io.Writer
@@ -32,10 +32,10 @@ type logsDeps struct {
 
 func buildLogsCmd() *cobra.Command {
 	deps := logsDeps{
-		LoadSessionConfig: config.Load,
+		LoadSessionConfig: session.Load,
 		NewAPIClient:      client.NewClient,
 		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
-			return resourcev1connect.NewResourceServiceClient(shared.NewHTTPClient(), host)
+			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
 		},
 		Stdout: os.Stdout,
 	}

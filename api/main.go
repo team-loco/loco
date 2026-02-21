@@ -35,7 +35,6 @@ import (
 	"github.com/team-loco/loco/proto/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
-	"github.com/team-loco/loco/shared"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -173,7 +172,9 @@ func main() {
 	}
 	defer appCache.Close()
 
-	httpClient := shared.NewHTTPClient()
+	transport := &http.Transport{}
+	http2.ConfigureTransport(transport)
+	httpClient := &http.Client{Transport: transport}
 
 	// Initialize command bus for agent communication
 	cmdBus, err := commandbus.New(&commandbus.Config{

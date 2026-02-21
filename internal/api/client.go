@@ -8,7 +8,7 @@ import (
 	"time"
 
 	json "github.com/goccy/go-json"
-	"github.com/team-loco/loco/shared"
+	"github.com/team-loco/loco/internal/httputil"
 )
 
 type Client struct {
@@ -17,7 +17,7 @@ type Client struct {
 }
 
 func NewClient(baseURL string) *Client {
-	httpClient := shared.NewHTTPClient()
+	httpClient := httputil.NewHTTPClient()
 	httpClient.Timeout = 10 * time.Second
 	return &Client{
 		BaseURL:    baseURL,

@@ -1,4 +1,4 @@
-package shared
+package httputil
 
 import (
 	"net/http"
@@ -9,6 +9,9 @@ import (
 // NewHTTPClient creates an HTTP client with HTTP/2 support enabled.
 func NewHTTPClient() *http.Client {
 	transport := &http.Transport{}
-	http2.ConfigureTransport(transport)
+	err := http2.ConfigureTransport(transport)
+	if err != nil {
+		panic("failed to configure HTTP/2 transport: " + err.Error())
+	}
 	return &http.Client{Transport: transport}
 }

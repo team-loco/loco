@@ -13,7 +13,6 @@ require (
 	github.com/rs/cors v1.11.1
 	github.com/team-loco/loco/k8sapi v0.0.0
 	github.com/team-loco/loco/proto v0.0.0
-	github.com/team-loco/loco/shared v0.0.0
 	github.com/valkey-io/valkey-go v1.0.71
 	golang.org/x/oauth2 v0.35.0
 	k8s.io/apimachinery v0.35.1
@@ -64,8 +63,6 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
 )
-
-replace github.com/team-loco/loco/shared => ../shared
 
 replace github.com/team-loco/loco/proto => ../proto
 

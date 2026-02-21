@@ -24,7 +24,6 @@ import (
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
-	"github.com/team-loco/loco/shared/version"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -281,7 +280,7 @@ func (s *DeploymentServer) CreateDeployment(
 		IsActive:         true,
 		Message:          "Scheduling deployment",
 		Spec:             specJSON,
-		SpecVersion:      version.SpecVersionV1,
+		SpecVersion:      int32(1),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)

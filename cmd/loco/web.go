@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 )
 
 var webCmd = &cobra.Command{
@@ -33,7 +33,7 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load config to get current org/workspace for workspace-scoped routes
-	cfg, cfgErr := config.Load()
+	cfg, cfgErr := session.Load()
 	var orgID, workspaceID int64
 	if cfgErr == nil {
 		if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
