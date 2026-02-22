@@ -50,7 +50,7 @@ type RegularNavItem = NavItemBase & {
 	items: Array<{ title: string; url: string }>;
 };
 
-const getNavMainItems = (orgId?: bigint, workspaceId?: bigint) => [
+const getNavMainItems = (orgId?: string, workspaceId?: string) => [
 	{
 		title: "Dashboard",
 		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/dashboard` : "/dashboard",

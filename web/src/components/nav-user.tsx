@@ -94,20 +94,20 @@ export function NavUser({
 	const [newOrgName, setNewOrgName] = useState("");
 	const [newWorkspaceName, setNewWorkspaceName] = useState("");
 	const [newWorkspaceDescription, setNewWorkspaceDescription] = useState("");
-	const [pendingOrgId, setPendingOrgId] = useState<bigint | null>(null);
-	const [pendingWorkspaceId, setPendingWorkspaceId] = useState<bigint | null>(null);
+	const [pendingOrgId, setPendingOrgId] = useState<string | null>(null);
+	const [pendingWorkspaceId, setPendingWorkspaceId] = useState<string | null>(null);
 
 	const { mutate: mutateCreateOrg, isPending: isCreatingOrg } =
 		useMutation(createOrg);
 	const { mutate: mutateCreateWorkspace, isPending: isCreatingWorkspace } =
 		useMutation(createWorkspace);
 
-	const handleOrgSwitch = (orgId: bigint) => {
+	const handleOrgSwitch = (orgId: string) => {
 		if (orgId === activeOrgId) return;
 		setActiveOrg(orgId);
 	};
 
-	const handleWorkspaceSwitch = (workspaceId: bigint) => {
+	const handleWorkspaceSwitch = (workspaceId: string) => {
 		setActiveWorkspace(workspaceId);
 	};
 
@@ -191,7 +191,7 @@ export function NavUser({
 					<DropdownMenuTrigger asChild>
 						<SidebarMenuButton
 							size="lg"
-							className="data-[state=open]:bg-sidebar-accent/90 data-[state=open]:border-2 data-[state=open]:border-black dark:data-[state=open]:border-neutral-700 data-[state=open]:shadow-[2px_2px_0px_0px_#000] cursor-pointer"
+							className="data-[state=open]:bg-sidebar-accent/10 cursor-pointer"
 						>
 							<Avatar className="h-8 w-8 rounded-lg">
 								<AvatarImage src={user.avatar} alt={user.name} />

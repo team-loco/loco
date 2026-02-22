@@ -21,7 +21,7 @@ import { AlertTriangle } from "lucide-react";
 interface DeleteOrgDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: bigint;
+	orgId: string;
 	orgName: string;
 	onSuccess?: () => void;
 }

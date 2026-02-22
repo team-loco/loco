@@ -20,7 +20,7 @@ import Loader from "@/assets/loader.svg?react";
 interface CreateOrgDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSuccess?: (orgId: bigint) => void;
+	onSuccess?: (orgId: string) => void;
 }
 
 export function CreateOrgDialog({

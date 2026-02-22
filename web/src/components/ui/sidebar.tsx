@@ -236,7 +236,7 @@ function Sidebar({
 					// Adjust the padding for floating and inset variants.
 					variant === "floating" || variant === "inset"
 						? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-						: "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r border-neutral-300 dark:border-neutral-700 group-data-[side=right]:border-l",
+						: "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r border-border group-data-[side=right]:border-l",
 					className
 				)}
 				{...props}
@@ -477,7 +477,7 @@ const sidebarMenuButtonVariants = cva(
 		variants: {
 			variant: {
 				default:
-					"hover:bg-sidebar-accent/30 data-[active=true]:bg-sidebar-accent/90 data-[active=true]:font-semibold data-[active=true]:border-2 data-[active=true]:border-black dark:data-[active=true]:border-neutral-700 data-[active=true]:shadow-[2px_2px_0px_0px_#000]",
+					"hover:bg-sidebar-accent/30 data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:font-semibold",
 				outline:
 					"bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]",
 			},

@@ -36,27 +36,21 @@ function TooltipContent({
 	className,
 	sideOffset = 4,
 	children,
-	neo = false,
 	...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content> & { neo?: boolean }) {
+}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
 	return (
 		<TooltipPrimitive.Portal>
 			<TooltipPrimitive.Content
 				data-slot="tooltip-content"
 				sideOffset={sideOffset}
 				className={cn(
-					"animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-md px-2.5 py-1.5 text-xs text-balance",
-					neo
-						? "bg-card text-foreground border-2 border-black dark:border-neutral-700 shadow-[2px_2px_0px_0px_#000]"
-						: "bg-popover text-popover-foreground border border-border",
+					"animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit origin-(--radix-tooltip-content-transform-origin) rounded-lg px-2.5 py-1.5 text-xs text-balance bg-popover text-popover-foreground border border-border shadow-md",
 					className
 				)}
 				{...props}
 			>
 				{children}
-				{!neo && (
-					<TooltipPrimitive.Arrow className="fill-popover size-2 translate-y-[calc(-50%-1px)]" />
-				)}
+				<TooltipPrimitive.Arrow className="fill-popover size-2 translate-y-[calc(-50%-1px)]" />
 			</TooltipPrimitive.Content>
 		</TooltipPrimitive.Portal>
 	);

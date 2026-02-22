@@ -52,7 +52,7 @@ function getInitials(name: string): string {
 interface ActionsCellProps {
 	member: WorkspaceMemberWithUser;
 	isAdmin: boolean;
-	onRemoveMember: (userId: bigint) => void;
+	onRemoveMember: (userId: string) => void;
 	isRemoving: boolean;
 }
 
@@ -109,7 +109,7 @@ function ActionsCell({
 
 export function getColumns(
 	isAdmin: boolean,
-	onRemoveMember: (userId: bigint) => void,
+	onRemoveMember: (userId: string) => void,
 	isRemoving: boolean
 ): ColumnDef<WorkspaceMemberWithUser>[] {
 	return [

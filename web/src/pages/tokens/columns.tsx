@@ -43,28 +43,28 @@ const entityTypeDisplay: Record<
 	number,
 	{
 		label: string;
-		variant: "neo-blue" | "neo-purple" | "neo-green" | "neo-orange" | "neo-red";
+		variant: "info" | "default" | "success" | "warning" | "error";
 	}
 > = {
 	[EntityType.USER]: {
 		label: "User",
-		variant: "neo-blue",
+		variant: "info",
 	},
 	[EntityType.ORGANIZATION]: {
 		label: "Organization",
-		variant: "neo-purple",
+		variant: "default",
 	},
 	[EntityType.WORKSPACE]: {
 		label: "Workspace",
-		variant: "neo-green",
+		variant: "success",
 	},
 	[EntityType.RESOURCE]: {
 		label: "Resource",
-		variant: "neo-orange",
+		variant: "warning",
 	},
 	[EntityType.SYSTEM]: {
 		label: "System",
-		variant: "neo-red",
+		variant: "error",
 	},
 };
 
@@ -72,7 +72,7 @@ const entityTypeDisplay: Record<
 
 interface ActionsCellProps {
 	token: Token;
-	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: bigint) => void;
+	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: string) => void;
 	isRevoking: boolean;
 }
 
@@ -121,7 +121,7 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 }
 
 export function getTokenColumns(
-	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: bigint) => void,
+	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: string) => void,
 	isRevoking: boolean
 ): ColumnDef<Token>[] {
 	return [
@@ -155,7 +155,7 @@ export function getTokenColumns(
 			header: "Permissions",
 			cell: ({ row }) => {
 				const token = row.original;
-				const scopeGroups = new Map<number, Map<bigint, Set<number>>>();
+				const scopeGroups = new Map<number, Map<string, Set<number>>>();
 
 				// Group scopes by entity type and entity ID
 				token.scopes.forEach((scope) => {

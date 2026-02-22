@@ -249,7 +249,7 @@ export function CreateTokenDialog({
 	// Tokens are created for the user entity
 	// The activeOrgId provides context for which org's resources the user can grant access to
 	const entityType = EntityType.USER;
-	const entityId = user?.id;
+	const entityId = user?.id ?? "";
 	const [tokenName, setTokenName] = useState("");
 	const [expiresInSec, setExpiresInSec] = useState(30 * 24 * 60 * 60); // 30 days default
 	const [selectedScopes, setSelectedScopes] = useState<ScopeSelection[]>([]);
@@ -651,19 +651,19 @@ export function CreateTokenDialog({
 											// Map entity type to badge variant
 											const entityVariantMap: Record<
 												EntityType,
-												| "neo-blue"
-												| "neo-purple"
-												| "neo-green"
-												| "neo-orange"
-												| "neo-red"
-												| "neo-gray"
+												| "info"
+												| "default"
+												| "success"
+												| "warning"
+												| "error"
+												| "secondary"
 											> = {
-												[EntityType.USER]: "neo-blue",
-												[EntityType.ORGANIZATION]: "neo-purple",
-												[EntityType.WORKSPACE]: "neo-green",
-												[EntityType.RESOURCE]: "neo-orange",
-												[EntityType.SYSTEM]: "neo-red",
-												[EntityType.UNSPECIFIED]: "neo-gray",
+												[EntityType.USER]: "info",
+												[EntityType.ORGANIZATION]: "default",
+												[EntityType.WORKSPACE]: "success",
+												[EntityType.RESOURCE]: "warning",
+												[EntityType.SYSTEM]: "error",
+												[EntityType.UNSPECIFIED]: "secondary",
 											};
 
 											// Get short scope label

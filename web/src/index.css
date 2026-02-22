@@ -28,14 +28,14 @@
 
 /* ---------------------------
    THEME CSS VARIABLES
-   Cloudflare Dashboard (Current)
+   Loco Design Language
 ---------------------------- */
 
 @theme inline {
-	--radius-sm: 4px;
-	--radius-md: 6px;
-	--radius-lg: 8px;
-	--radius-xl: 12px;
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 12px;
+	--radius-xl: 14px;
 
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
@@ -45,6 +45,7 @@
 	--color-popover: var(--popover);
 	--color-popover-foreground: var(--popover-foreground);
 	--color-primary: var(--primary);
+	--color-primary-hover: var(--primary-hover);
 	--color-primary-foreground: var(--primary-foreground);
 	--color-secondary: var(--secondary);
 	--color-secondary-foreground: var(--secondary-foreground);
@@ -65,134 +66,138 @@
 	--color-warning: var(--warning);
 	--color-success-soft: var(--success-soft);
 	--color-success-border: var(--success-border);
+
+	--transition-duration-fast: 180ms;
+	--transition-duration-medium: 220ms;
+	--transition-duration-slow: 350ms;
 }
 
 /* ---------------------------
    LIGHT THEME
+   Warm, editorial, professional
 ---------------------------- */
 :root {
-	--radius: 6px;
+	--radius: 8px;
 
-	/* Backgrounds - linen paper-like base */
-	--background: #faf3e6; /* Linen - main app background */
-	--foreground: #151b26;
+	/* Backgrounds */
+	--background: #FDFCFA;
+	--foreground: #1C1917;
 
-	/* Cards and surfaces - clean white for contrast */
-	--card: #ffffff; /* Pure white cards for readability */
-	--card-foreground: #151b26;
+	/* Cards and surfaces */
+	--card: #FFFFFF;
+	--card-foreground: #1C1917;
 
 	/* Popovers */
-	--popover: #ffffff;
-	--popover-foreground: #151b26;
+	--popover: #FFFFFF;
+	--popover-foreground: #1C1917;
 
-	/* Primary - signature orange */
-	--primary: #e07a2a;
-	--primary-foreground: #ffffff;
+	/* Primary - Terracotta */
+	--primary: #C7654F;
+	--primary-hover: #B55942;
+	--primary-foreground: #FFFFFF;
 
-	/* Secondary - light gray background */
-	--secondary: #f5f7fa;
-	--secondary-foreground: #151b26;
+	/* Secondary */
+	--secondary: #F7F5F2;
+	--secondary-foreground: #1C1917;
 
-	/* Muted - subtle gray for inactive states */
-	--muted: #f5f7fa;
-	--muted-foreground: #626d7d;
+	/* Muted */
+	--muted: #F7F5F2;
+	--muted-foreground: #78716C;
 
-	/* Base accent color */
-	--accent-color: #e07a2a;
-	--accent: var(--accent-color);
-	--accent-foreground: #151b26;
+	/* Accent */
+	--accent-color: #C7654F;
+	--accent: #F0EDE8;
+	--accent-foreground: #1C1917;
 
 	/* Status colors */
-	--destructive: #e85d5d;
-	--success: #118122;
-	--warning: #c49617;
+	--destructive: #A85751;
+	--success: #52796F;
+	--warning: #B8956A;
 
-	/* Success soft colors for deployment cards */
-	--success-soft: #eaf3e6;
-	--success-border: #b4cea4;
+	/* Success soft */
+	--success-soft: #EEF3F1;
+	--success-border: #C5D5CF;
 
-	/* Borders - extremely subtle */
-	--border: #e8eaed;
-	--input: #e8eaed;
+	/* Borders */
+	--border: #E7E5E0;
+	--input: #D6D3CE;
 
 	/* Focus ring */
-	--ring: #e8b78e;
+	--ring: rgba(199, 101, 79, 0.3);
 
-	/* Sidebar - subtle warm tone for hierarchy */
-	--sidebar: #f0e8d8; /* Subtle darker linen, closer to background */
-	--sidebar-foreground: #151b26;
-	--sidebar-accent: var(--accent-color);
-	--sidebar-border: #e0d7c8;
+	/* Sidebar */
+	--sidebar: #FFFFFF;
+	--sidebar-foreground: #1C1917;
+	--sidebar-accent: #C7654F;
+	--sidebar-border: #E7E5E0;
 
 	/* Additional semantic tokens */
-	--card-accent: #fffef9; /* Very light off-white for subtle card variations */
-	--header-bg: #f0e8d8; /* Slightly darker linen for header */
+	--card-accent: #FDFCFA;
+	--header-bg: #FFFFFF;
 }
 
 /* ---------------------------
    DARK THEME
+   Warm dark adaptation
 ---------------------------- */
 .dark {
-	/* Dark backgrounds */
-	--background: #080d12;
-	--foreground: #e5eaef;
+	/* Warm dark backgrounds */
+	--background: #1C1917;
+	--foreground: #E7E5E0;
 
-	/* Cards darker */
-	--card: #0d1318;
-	--card-foreground: #e5eaef;
+	/* Cards */
+	--card: #292524;
+	--card-foreground: #E7E5E0;
 
 	/* Popovers */
-	--popover: #0d1318;
-	--popover-foreground: #e5eaef;
+	--popover: #292524;
+	--popover-foreground: #E7E5E0;
 
-	/* Primary orange same in dark */
-	--primary: #f48120;
-	--primary-foreground: #ffffff;
+	/* Primary - brighter terracotta for dark */
+	--primary: #D4795F;
+	--primary-hover: #C96952;
+	--primary-foreground: #FFFFFF;
 
 	/* Secondary */
-	--secondary: #1a202c;
-	--secondary-foreground: #e5eaef;
+	--secondary: #292524;
+	--secondary-foreground: #E7E5E0;
 
 	/* Muted */
-	--muted: #1a202c;
-	--muted-foreground: #999da3;
+	--muted: #292524;
+	--muted-foreground: #A8A29E;
 
 	/* Accent */
-	--accent: #1a202c;
-	--accent-foreground: #e5eaef;
+	--accent: #44403C;
+	--accent-foreground: #E7E5E0;
 
 	/* Status colors */
-	--destructive: #ff8787;
-	--success: #51cf66;
-	--warning: #ffd43b;
+	--destructive: #D4756F;
+	--success: #7BAA9E;
+	--warning: #D4B48A;
 
-	/* Success soft colors for deployment cards */
-	--success-soft: #eaf3e6;
-	--success-border: #b4cea4;
+	/* Success soft */
+	--success-soft: #2A3530;
+	--success-border: #3D5A50;
 
-	/* Borders in dark */
-	--border: #2a3139;
-	--input: #2a3139;
+	/* Borders */
+	--border: #44403C;
+	--input: #57534E;
 
 	/* Ring */
-	--ring: #f48120;
+	--ring: rgba(212, 121, 95, 0.4);
 
-	/* Base accent color for dark mode */
-	--accent-color: #f48120;
+	/* Accent color */
+	--accent-color: #D4795F;
 
 	/* Sidebar */
-	--sidebar: #0d1318;
-	--sidebar-foreground: #e5eaef;
-	--sidebar-accent: var(--accent-color);
-	--sidebar-border: #2a3139;
+	--sidebar: #292524;
+	--sidebar-foreground: #E7E5E0;
+	--sidebar-accent: #D4795F;
+	--sidebar-border: #44403C;
 
 	/* Card */
-	--card: #0d1318;
-	--card-foreground: #e5eaef;
-
-	/* Additional semantic tokens */
-	--card-accent: #1a202c;
-	--header-bg: #0d1318;
+	--card-accent: #292524;
+	--header-bg: #292524;
 }
 
 /* ---------------------------
@@ -217,7 +222,7 @@
 	input:focus-visible,
 	textarea:focus-visible,
 	select:focus-visible {
-		box-shadow: 0 0 0 3px rgba(244, 129, 32, 0.4);
+		box-shadow: 0 0 0 3px var(--ring);
 	}
 
 	html {
@@ -229,22 +234,93 @@
 		font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
 			"Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
 			"Helvetica Neue", sans-serif;
-		/* Subtle paper texture */
-		background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
 	}
 
-	/* Typography - tight information-dense scale */
+	/* Dotted grid background pattern */
+	body::before {
+		content: "";
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-image: radial-gradient(
+			circle,
+			rgba(28, 25, 23, 0.06) 1px,
+			transparent 1px
+		);
+		background-size: 28px 28px;
+		pointer-events: none;
+		z-index: 0;
+	}
+
+	/* Warm gradient overlay */
+	body::after {
+		content: "";
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: radial-gradient(
+				ellipse 80% 50% at 10% 20%,
+				rgba(199, 101, 79, 0.04) 0%,
+				transparent 50%
+			),
+			radial-gradient(
+				ellipse 60% 40% at 90% 80%,
+				rgba(107, 142, 127, 0.04) 0%,
+				transparent 50%
+			);
+		pointer-events: none;
+		z-index: 0;
+	}
+
+	/* Dark mode: dimmer patterns */
+	.dark body::before {
+		background-image: radial-gradient(
+			circle,
+			rgba(231, 229, 224, 0.04) 1px,
+			transparent 1px
+		);
+	}
+
+	.dark body::after {
+		background: radial-gradient(
+				ellipse 80% 50% at 10% 20%,
+				rgba(212, 121, 95, 0.03) 0%,
+				transparent 50%
+			),
+			radial-gradient(
+				ellipse 60% 40% at 90% 80%,
+				rgba(123, 170, 158, 0.03) 0%,
+				transparent 50%
+			);
+	}
+
+	/* Typography - Loco editorial scale */
 	h1 {
-		@apply text-2xl font-semibold leading-tight;
+		font-size: 38px;
+		font-weight: 700;
+		line-height: 1.2;
+		letter-spacing: -0.025em;
 	}
 	h2 {
-		@apply text-xl font-semibold leading-tight;
+		font-size: 22px;
+		font-weight: 700;
+		line-height: 1.3;
+		letter-spacing: -0.015em;
 	}
 	h3 {
-		@apply text-lg font-semibold leading-snug;
+		font-size: 20px;
+		font-weight: 600;
+		line-height: 1.35;
+		letter-spacing: -0.01em;
 	}
 	h4 {
-		@apply text-base font-semibold leading-snug;
+		font-size: 15px;
+		font-weight: 600;
+		line-height: 1.5;
 	}
 
 	p,
@@ -273,56 +349,79 @@
 @layer components {
 	/* Surface - base card/panel style */
 	.surface {
-		@apply bg-card text-card-foreground border border-border rounded-lg;
+		@apply bg-card text-card-foreground border border-border rounded-xl;
+		box-shadow: 0 1px 2px rgba(28, 25, 23, 0.03);
 	}
 
 	/* Interactive states */
 	.interactive {
-		@apply transition-all duration-75 cursor-pointer;
+		@apply transition-all duration-fast cursor-pointer;
 	}
 
-	/* Menu item - for dropdowns, nav items, list items */
+	/* Menu item */
 	.menu-item {
-		@apply px-3 py-2 text-sm rounded-md transition-colors
+		@apply px-3 py-2 text-sm rounded-md transition-all duration-fast
 			hover:bg-accent hover:text-foreground
-			focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+			focus-visible:bg-accent focus-visible:outline-none
 			data-[active=true]:bg-accent data-[active=true]:font-medium
 			aria-selected:bg-accent aria-selected:font-medium;
 	}
 
-	/* Table row - consistent hover state */
+	/* Table row */
 	.table-row {
 		@apply border-b border-border last:border-0
-			hover:bg-accent transition-colors duration-75;
+			hover:bg-accent transition-all duration-fast;
 	}
 
-	/* Button base - consistent structure */
+	/* Button base */
 	.btn-base {
 		@apply inline-flex items-center justify-center gap-2
-			rounded-md px-3 py-1.5 text-sm font-medium
-			transition-all duration-75
-			focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+			rounded-md px-[22px] py-3 text-sm font-semibold
+			transition-all duration-fast
+			focus-visible:outline-none;
 	}
 
 	/* Button primary */
 	.btn-primary {
-		@apply bg-primary text-primary-foreground hover:opacity-90 active:opacity-75;
+		@apply text-white;
+		background: linear-gradient(135deg, #C7654F 0%, #B55942 100%);
+		box-shadow:
+			0 2px 4px rgba(28, 25, 23, 0.04),
+			0 1px 2px rgba(28, 25, 23, 0.02),
+			inset 0 1px 0 rgba(255, 255, 255, 0.15);
+	}
+
+	.btn-primary:hover {
+		box-shadow:
+			0 4px 12px rgba(28, 25, 23, 0.06),
+			0 2px 4px rgba(28, 25, 23, 0.03),
+			inset 0 1px 0 rgba(255, 255, 255, 0.15);
+		transform: translateY(-1px);
+	}
+
+	.btn-primary:active {
+		transform: translateY(0);
 	}
 
 	/* Button secondary */
 	.btn-secondary {
 		@apply bg-secondary text-secondary-foreground border border-border
-			hover:bg-accent active:bg-border;
+			hover:bg-accent;
+		box-shadow: 0 1px 2px rgba(28, 25, 23, 0.03);
 	}
 
 	/* Button ghost */
 	.btn-ghost {
-		@apply hover:bg-accent active:bg-border text-foreground;
+		@apply hover:bg-accent text-foreground;
 	}
 
 	/* Button destructive */
 	.btn-destructive {
-		@apply bg-destructive text-white hover:opacity-90 active:opacity-75;
+		@apply text-white;
+		background: linear-gradient(135deg, #A85751 0%, #8e4842 100%);
+		box-shadow:
+			0 2px 4px rgba(28, 25, 23, 0.04),
+			0 1px 2px rgba(28, 25, 23, 0.02);
 	}
 
 	/* Button disabled */
@@ -335,36 +434,43 @@
 		@apply flex w-full rounded-md border border-input bg-background
 			px-3 py-2 text-sm
 			placeholder:text-muted-foreground
-			transition-colors duration-75
-			focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+			transition-all duration-fast
 			disabled:opacity-50 disabled:cursor-not-allowed;
+		box-shadow: 0 1px 2px rgba(28, 25, 23, 0.03);
+	}
+
+	.input-base:focus-visible {
+		box-shadow: 0 0 0 3px var(--ring);
+		border-color: var(--primary);
 	}
 
 	/* Badge */
 	.badge {
 		@apply inline-flex items-center gap-1.5
-			rounded-full px-2 py-1
-			text-xs font-medium;
+			rounded-lg px-3 py-1
+			text-xs font-bold;
 	}
 
-	/* Badge default */
 	.badge-default {
 		@apply bg-secondary text-secondary-foreground;
 	}
 
-	/* Badge success */
 	.badge-success {
-		@apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200;
+		background: #EEF3F1;
+		color: #52796F;
+		border: 1px solid #C5D5CF;
 	}
 
-	/* Badge warning */
 	.badge-warning {
-		@apply bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200;
+		background: #F9F6F0;
+		color: #B8956A;
+		border: 1px solid #E5DCCF;
 	}
 
-	/* Badge destructive */
 	.badge-destructive {
-		@apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+		background: #F8F1F0;
+		color: #A85751;
+		border: 1px solid #E2C9C6;
 	}
 
 	/* Separator */

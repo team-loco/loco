@@ -62,7 +62,7 @@ export function RecentDeployments({
 		pageIndex: 0,
 		pageSize: 10,
 	});
-	const [expandedId, setExpandedId] = useState<bigint | null>(null);
+	const [expandedId, setExpandedId] = useState<string | null>(null);
 
 	const formatTimestamp = (timestamp: unknown): string => {
 		if (!timestamp) return "unknown";

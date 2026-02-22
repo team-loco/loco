@@ -62,7 +62,7 @@ export function ResourceSettings() {
 		"platform",
 	);
 	const [platformDomainId, setPlatformDomainId] = useState<string>("");
-	const [editingDomainId, setEditingDomainId] = useState<bigint | null>(null);
+	const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
 	const [editDomainValue, setEditDomainValue] = useState("");
 	const [cpuValue, setCpuValue] = useState<number[]>([500]);
 	const [memoryValue, setMemoryValue] = useState<number[]>([512]);
@@ -141,7 +141,7 @@ export function ResourceSettings() {
 		}
 	};
 
-	const handleSetPrimary = async (domainId: bigint) => {
+	const handleSetPrimary = async (domainId: string) => {
 		if (!resourceId) return;
 		try {
 			await setPrimaryMutation.mutateAsync({
@@ -156,7 +156,7 @@ export function ResourceSettings() {
 		}
 	};
 
-	const handleRemoveDomain = async (domainId: bigint) => {
+	const handleRemoveDomain = async (domainId: string) => {
 		try {
 			await removeDomainMutation.mutateAsync({ domainId });
 			toast.success("Domain removed successfully");
@@ -373,7 +373,7 @@ export function ResourceSettings() {
 														size="sm"
 														className="text-xs border-2 shrink-0"
 														onClick={() =>
-															handleSetPrimary(BigInt(domain.id || 0))
+															handleSetPrimary(domain.id)
 														}
 														disabled={setPrimaryMutation.isPending}
 													>
@@ -385,7 +385,7 @@ export function ResourceSettings() {
 													size="sm"
 													className="text-xs border-2 border-error-border text-error-text shrink-0"
 													onClick={() =>
-														handleRemoveDomain(BigInt(domain.id || 0))
+														handleRemoveDomain(domain.id)
 													}
 													disabled={
 														removeDomainMutation.isPending || domain.isPrimary
