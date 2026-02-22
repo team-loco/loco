@@ -18,7 +18,7 @@ global:
       limits:
         cpu: 250m
         memory: 256Mi
-    api:
+    agent:
       requests:
         cpu: 200m
         memory: 512Mi
@@ -33,11 +33,11 @@ global:
   # Replica counts
   replicas:
     ui: 1
-    api: 1
+    agent: 1
 
   # Container ports
   ports:
-    api: 8000
+    agent: 8000
     ui: 8080
 
 # Cert-manager configuration
@@ -47,9 +47,9 @@ certManager:
     email: "" # Override in environment-specific values
     server: https://acme-v02.api.letsencrypt.org/directory
 
-api:
+agent:
   image:
-    repository: ghcr.io/team-loco/loco-api
+    repository: ghcr.io/team-loco/loco-agent
     tag: latest
   imagePullPolicy: Always
 
@@ -63,22 +63,7 @@ secrets:
   cloudflareToken: ""
 
 env:
-  GITLAB_PAT: ""
-  GITLAB_PROJECT_ID: ""
-  GITLAB_TOKEN_NAME: ""
-  GH_OAUTH_CLIENT_ID: ""
-  GITLAB_URL: ""
-  GITLAB_REGISTRY_URL: ""
-  GITLAB_DEPLOY_TOKEN_NAME: ""
-  APP_ENV: DEVELOPMENT
   LOG_LEVEL: "-4"
-  PORT: ":8000"
-  GH_OAUTH_CLIENT_SECRET: ""
-  GH_OAUTH_STATE: ""
-  DATABASE_URL: ""
-  REGISTRY_TAG: ""
-  CACHE_TYPE: "in-memory" # "in-memory" or "valkey"
-  CACHE_ADDR: "" # Required when CACHE_TYPE=valkey (e.g., "valkey-host:6379")
 
 gateway-helm:
   enabled: true

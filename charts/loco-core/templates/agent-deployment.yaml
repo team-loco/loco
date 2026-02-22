@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-agent
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-agent
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-agent
+  replicas: {{ .Values.global.replicas.agent }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-agent
+    spec:
+      shareProcessNamespace: true
+      serviceAccountName: {{ .Release.Name }}-agent
+      containers:
+        - name: {{ .Release.Name }}-agent
+          image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+          imagePullPolicy: {{ .Values.agent.imagePullPolicy }}
+          env:
+            - name: LOCO_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: LOCO_DOMAIN_BASE
+              value: {{ .Values.global.domain.base | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-env
+          ports:
+            - containerPort: {{ .Values.global.ports.agent }}
+          resources:
+            {{- toYaml .Values.global.resources.agent | nindent 12 }}
+      restartPolicy: Always

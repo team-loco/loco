@@ -119,6 +119,15 @@ upgrade-rpc:
 lint: clean
 	@(golangci-lint run)
 
+e2e: ## Run end-to-end tests (full setup + teardown)
+	./e2e/run.sh
+
+e2e-no-teardown: ## Run e2e tests, keep infra running for debugging
+	./e2e/run.sh --no-teardown
+
+e2e-teardown: ## Tear down e2e infrastructure
+	./e2e/run.sh --teardown-only
+
 help: ## show help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make <command>\ncommands:\033[36m\033[0m\n"} /^[$$()% a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
