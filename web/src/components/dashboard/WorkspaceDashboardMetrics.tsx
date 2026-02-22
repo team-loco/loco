@@ -63,8 +63,8 @@ export function WorkspaceDashboardMetrics({
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 			{/* Total Apps (Active) */}
-			<Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group">
-				<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-500 to-teal-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+			<Card className="hover:border-border-strong group">
+				<div className="absolute inset-x-0 top-0 h-1.5 bg-linear-to-r from-primary to-amber-500 opacity-80 transition-opacity duration-200 group-hover:opacity-100" />
 				<CardHeader className="relative pb-2">
 					<CardDescription>Active Apps</CardDescription>
 					<CardTitle className="text-3xl font-semibold tabular-nums">
@@ -86,8 +86,8 @@ export function WorkspaceDashboardMetrics({
 			</Card>
 
 			{/* Recent Deployments (30d) */}
-			<Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group">
-				<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-500 to-teal-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+			<Card className="hover:border-border-strong group">
+				<div className="absolute inset-x-0 top-0 h-1.5 bg-linear-to-r from-primary to-amber-500 opacity-80 transition-opacity duration-200 group-hover:opacity-100" />
 				<CardHeader className="pb-2">
 					<CardDescription>Deployments (30d)</CardDescription>
 					<CardTitle className="text-3xl font-semibold tabular-nums">
@@ -100,8 +100,8 @@ export function WorkspaceDashboardMetrics({
 			</Card>
 
 			{/* Workspace Members by Role */}
-			<Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group">
-				<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-500 to-teal-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+			<Card className="hover:border-border-strong group">
+				<div className="absolute inset-x-0 top-0 h-1.5 bg-linear-to-r from-primary to-amber-500 opacity-80 transition-opacity duration-200 group-hover:opacity-100" />
 				<CardHeader className="pb-2">
 					<CardDescription>Team Members</CardDescription>
 					<CardTitle className="text-3xl font-semibold tabular-nums">
