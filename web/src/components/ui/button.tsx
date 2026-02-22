@@ -5,14 +5,14 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-	"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all duration-fast focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer",
+	"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all duration-fast focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer relative",
 	{
 		variants: {
 			variant: {
 				default:
-					"bg-[#1e1e1e] text-white shadow-sm hover:bg-[#1e1e1e]/90 hover:shadow-md active:shadow-sm",
+					"bg-[#1e1e1e]/85 text-[#faf9f6] shadow-sm hover:shadow-md active:shadow-sm backdrop-blur-sm",
 				destructive:
-					"bg-[#c62828] text-white shadow-sm hover:bg-[#c62828]/90 hover:shadow-md active:shadow-sm",
+					"bg-[#c62828]/85 text-[#faf9f6] shadow-sm hover:shadow-md active:shadow-sm backdrop-blur-sm",
 				outline:
 					"border border-border bg-card text-foreground shadow-xs hover:bg-accent hover:border-border-strong hover:shadow-sm",
 				secondary:
@@ -55,20 +55,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
-// eslint-disable-next-line react-refresh/only-export-components
 // eslint-disable-next-line react-refresh/only-export-components
 // eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants };

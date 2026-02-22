@@ -80,7 +80,7 @@
 	--radius: 8px;
 
 	/* Backgrounds */
-	--background: #FDFCFA;
+	--background: #faf9f6;
 	--foreground: #1C1917;
 
 	/* Cards and surfaces */
@@ -440,8 +440,7 @@
 	}
 
 	.input-base:focus-visible {
-		box-shadow: 0 0 0 3px var(--ring);
-		border-color: var(--primary);
+		outline: none;
 	}
 
 	/* Badge */
@@ -482,4 +481,117 @@
 	.disabled {
 		@apply opacity-50 cursor-not-allowed pointer-events-none;
 	}
+
+
+}
+
+/* Button rotating glow animation */
+@keyframes glow-rotate {
+	0% {
+		box-shadow: 
+			4px 0 8px rgba(249, 115, 22, 0.4),
+			0 4px 8px rgba(20, 184, 166, 0.25);
+	}
+	12.5% {
+		box-shadow: 
+			3px 3px 8px rgba(249, 115, 22, 0.4),
+			-3px 3px 8px rgba(20, 184, 166, 0.25);
+	}
+	25% {
+		box-shadow: 
+			0 4px 8px rgba(249, 115, 22, 0.4),
+			-4px 0 8px rgba(20, 184, 166, 0.25);
+	}
+	37.5% {
+		box-shadow: 
+			-3px 3px 8px rgba(249, 115, 22, 0.4),
+			-3px -3px 8px rgba(20, 184, 166, 0.25);
+	}
+	50% {
+		box-shadow: 
+			-4px 0 8px rgba(249, 115, 22, 0.4),
+			0 -4px 8px rgba(20, 184, 166, 0.25);
+	}
+	62.5% {
+		box-shadow: 
+			-3px -3px 8px rgba(249, 115, 22, 0.4),
+			3px -3px 8px rgba(20, 184, 166, 0.25);
+	}
+	75% {
+		box-shadow: 
+			0 -4px 8px rgba(249, 115, 22, 0.4),
+			4px 0 8px rgba(20, 184, 166, 0.25);
+	}
+	87.5% {
+		box-shadow: 
+			3px -3px 8px rgba(249, 115, 22, 0.4),
+			3px 3px 8px rgba(20, 184, 166, 0.25);
+	}
+	100% {
+		box-shadow: 
+			4px 0 8px rgba(249, 115, 22, 0.4),
+			0 4px 8px rgba(20, 184, 166, 0.25);
+	}
+}
+
+@keyframes glow-rotate-destructive {
+	0% {
+		box-shadow: 
+			4px 0 8px rgba(239, 68, 68, 0.4),
+			0 4px 8px rgba(244, 63, 94, 0.25);
+	}
+	12.5% {
+		box-shadow: 
+			3px 3px 8px rgba(239, 68, 68, 0.4),
+			-3px 3px 8px rgba(244, 63, 94, 0.25);
+	}
+	25% {
+		box-shadow: 
+			0 4px 8px rgba(239, 68, 68, 0.4),
+			-4px 0 8px rgba(244, 63, 94, 0.25);
+	}
+	37.5% {
+		box-shadow: 
+			-3px 3px 8px rgba(239, 68, 68, 0.4),
+			-3px -3px 8px rgba(244, 63, 94, 0.25);
+	}
+	50% {
+		box-shadow: 
+			-4px 0 8px rgba(239, 68, 68, 0.4),
+			0 -4px 8px rgba(244, 63, 94, 0.25);
+	}
+	62.5% {
+		box-shadow: 
+			-3px -3px 8px rgba(239, 68, 68, 0.4),
+			3px -3px 8px rgba(244, 63, 94, 0.25);
+	}
+	75% {
+		box-shadow: 
+			0 -4px 8px rgba(239, 68, 68, 0.4),
+			4px 0 8px rgba(244, 63, 94, 0.25);
+	}
+	87.5% {
+		box-shadow: 
+			3px -3px 8px rgba(239, 68, 68, 0.4),
+			3px 3px 8px rgba(244, 63, 94, 0.25);
+	}
+	100% {
+		box-shadow: 
+			4px 0 8px rgba(239, 68, 68, 0.4),
+			0 4px 8px rgba(244, 63, 94, 0.25);
+	}
+}
+
+/* Button gradient glow effect */
+.btn-gradient-border {
+	position: relative;
+	transition: all 0.3s ease-out;
+}
+
+.btn-gradient-border:hover {
+	animation: glow-rotate 4s linear infinite;
+}
+
+.btn-gradient-border.destructive:hover {
+	animation: glow-rotate-destructive 4s linear infinite;
 }
