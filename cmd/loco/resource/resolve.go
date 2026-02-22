@@ -11,15 +11,15 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
-	sharedconfig "github.com/team-loco/loco/shared/config"
-	domainv1 "github.com/team-loco/loco/shared/proto/loco/domain/v1"
-	"github.com/team-loco/loco/shared/proto/loco/domain/v1/domainv1connect"
+	"github.com/team-loco/loco/internal/config"
+	domainv1 "github.com/team-loco/loco/proto/loco/domain/v1"
+	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
 )
 
 // resolveOrg resolves organization name from flag > env > config.
-func resolveOrg(cmd *cobra.Command, loadConfig func() (*config.SessionConfig, error)) (string, error) {
+func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error)) (string, error) {
 	org, err := cmd.Flags().GetString("org")
 	if err != nil {
 		return "", fmt.Errorf("error reading org flag: %w", err)
@@ -51,7 +51,7 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*config.SessionConfig, er
 }
 
 // resolveWorkspace resolves workspace name from flag > env > config.
-func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*config.SessionConfig, error)) (string, error) {
+func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error)) (string, error) {
 	workspace, err := cmd.Flags().GetString("workspace")
 	if err != nil {
 		return "", fmt.Errorf("error reading workspace flag: %w", err)
@@ -83,7 +83,7 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*config.SessionConf
 }
 
 // resolveOrgID resolves organization ID, first checking config cache then API.
-func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*config.SessionConfig, error), apiClient *client.Client) (int64, error) {
+func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (int64, error) {
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load config", "error", err)
@@ -128,7 +128,7 @@ func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*c
 }
 
 // resolveWorkspaceID resolves workspace ID, first checking config cache then API.
-func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*config.SessionConfig, error), apiClient *client.Client) (int64, error) {
+func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (int64, error) {
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load config", "error", err)
@@ -184,13 +184,13 @@ func resolveDomainInput(
 	domainClient domainv1connect.DomainServiceClient,
 	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	authHeader string,
-	cfg *sharedconfig.LocoConfig,
+	cfg *config.LocoConfig,
 ) (*domainv1.DomainInput, error) {
 	if cfg.DomainConfig.Type == "custom" {
 		return nil, errors.New("custom domains are not supported - please use a platform domain")
 	}
 
-	subdomain := sharedconfig.ExtractSubdomainFromHostname(cfg.DomainConfig.Hostname)
+	subdomain := config.ExtractSubdomainFromHostname(cfg.DomainConfig.Hostname)
 	if subdomain == "" {
 		return nil, errors.New("failed to extract subdomain from hostname")
 	}

@@ -13,9 +13,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/shared"
-	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
-	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
+	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 )
 
 type logoutDeps struct {
@@ -28,7 +28,7 @@ type logoutDeps struct {
 func buildLogoutCmd() *cobra.Command {
 	deps := logoutDeps{
 		Logout: func(ctx context.Context, host, token string) error {
-			httpClient := shared.NewHTTPClient()
+			httpClient := httputil.NewHTTPClient()
 			userClient := userv1connect.NewUserServiceClient(httpClient, host)
 			req := connect.NewRequest(&userv1.LogoutRequest{})
 			req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))

@@ -8,9 +8,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/shared"
-	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
-	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	workspacev1 "github.com/team-loco/loco/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 )
 
 type createDeps struct {
@@ -21,7 +21,7 @@ type createDeps struct {
 func buildCreateCmd() *cobra.Command {
 	deps := createDeps{
 		NewWorkspaceClient: func(host string) workspacev1connect.WorkspaceServiceClient {
-			return workspacev1connect.NewWorkspaceServiceClient(shared.NewHTTPClient(), host)
+			return workspacev1connect.NewWorkspaceServiceClient(httputil.NewHTTPClient(), host)
 		},
 		Output: os.Stdout,
 	}

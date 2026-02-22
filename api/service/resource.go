@@ -2,30 +2,30 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"sort"
+	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/api/pkg/klogmux"
-	"github.com/team-loco/loco/api/pkg/kube"
+	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
-	domainv1 "github.com/team-loco/loco/shared/proto/loco/domain/v1"
-	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
-	"github.com/team-loco/loco/shared/version"
+	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
+	domainv1 "github.com/team-loco/loco/proto/loco/domain/v1"
+	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -60,29 +60,23 @@ func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, erro
 	}
 }
 
-// computeNamespace derives a Kubernetes namespace from resource ID
-// format: app-{resourceID}
-func computeNamespace(workspaceID, resourceID int64) string {
-	return fmt.Sprintf("wks-%d-res-%d", workspaceID, resourceID)
-}
-
 type ResourceServer struct {
+	resourcev1connect.UnimplementedResourceServiceHandler
 	db            *pgxpool.Pool
 	queries       genDb.Querier
 	machine       *tvm.VendingMachine
-	kubeClient    *kube.Client
 	locoNamespace string
+	commandBus    commandbus.CommandBus
 }
 
 // NewResourceServer creates a new ResourceServer instance
-func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, kubeClient *kube.Client, locoNamespace string) *ResourceServer {
-	// todo: move this out.
+func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string, commandBus commandbus.CommandBus) *ResourceServer {
 	return &ResourceServer{
 		db:            db,
 		queries:       queries,
 		machine:       machine,
-		kubeClient:    kubeClient,
 		locoNamespace: locoNamespace,
+		commandBus:    commandBus,
 	}
 }
 
@@ -217,7 +211,7 @@ func (s *ResourceServer) CreateResource(
 		Type:        resourceType,
 		Status:      genDb.ResourceStatusUnavailable,
 		Spec:        specJSON,
-		SpecVersion: version.SpecVersionV1,
+		SpecVersion: int32(1),
 		Description: r.GetDescription(),
 	}
 	resourceID, err := s.queries.CreateResource(ctx, params)
@@ -442,9 +436,41 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	if err := deleteLocoResource(ctx, s.kubeClient, resource.ID, s.locoNamespace); err != nil {
-		slog.ErrorContext(ctx, "failed to delete Application during resource deletion", "error", err, "resourceId", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to cleanup Application: %w", err))
+	// Get active deployments to determine which clusters need delete commands
+	activeDeployments, err := s.queries.ListActiveDeploymentsForResource(ctx, r.GetResourceId())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	// Dispatch delete commands to all clusters with active deployments
+	for _, deployment := range activeDeployments {
+		cmdPayload := DeleteCommandPayload{
+			DeploymentID:  deployment.ID,
+			ResourceID:    resource.ID,
+			LocoNamespace: s.locoNamespace,
+		}
+
+		payloadJSON, err := json.Marshal(cmdPayload)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
+		}
+
+		cmd := &commandbus.Command{
+			ID:        uuid.NewString(),
+			ClusterID: deployment.ClusterID,
+			Type:      commandbus.CommandTypeDelete,
+			Payload:   payloadJSON,
+			CreatedAt: time.Now(),
+		}
+
+		if err := s.commandBus.Send(ctx, cmd); err != nil {
+			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", err)
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+		}
+
+		slog.InfoContext(ctx, "delete command dispatched to agent", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "resourceId", resource.ID)
 	}
 
 	err = s.queries.DeleteResource(ctx, r.GetResourceId())
@@ -553,155 +579,6 @@ func (s *ResourceServer) ListRegions(
 
 	return connect.NewResponse(&resourcev1.ListRegionsResponse{
 		Regions: protoRegions,
-	}), nil
-}
-
-// WatchLogs streams logs for a resource
-func (s *ResourceServer) WatchLogs(
-	ctx context.Context,
-	req *connect.Request[resourcev1.WatchLogsRequest],
-	stream *connect.ServerStream[resourcev1.WatchLogsResponse],
-) error {
-	r := req.Msg
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
-	}
-
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.StreamResourceLogs, r.GetResourceId())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to stream logs for resource", "resourceId", r.GetResourceId())
-		return connect.NewError(connect.CodePermissionDenied, err)
-	}
-
-	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
-		return connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	slog.InfoContext(ctx, "fetching logs for resource", "resourceId", r.GetResourceId())
-
-	follow := false
-	if r.Follow != nil {
-		follow = *r.Follow
-	}
-
-	tailLines := int64(100)
-	if r.Limit != nil {
-		tailLines = int64(r.GetLimit())
-	}
-
-	namespace := computeNamespace(resource.WorkspaceID, resource.ID)
-
-	logStream := klogmux.NewBuilder(s.kubeClient.ClientSet).
-		Namespace(namespace).
-		Follow(follow).
-		TailLines(tailLines).
-		Timestamps(true).
-		Build()
-
-	if err := logStream.Start(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to start log stream", "error", err)
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to start log stream: %w", err))
-	}
-	defer logStream.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case entry := <-logStream.Entries():
-			protoLog := &resourcev1.WatchLogsResponse{
-				PodName:   entry.PodName,
-				Namespace: entry.Namespace,
-				Container: entry.Container,
-				Timestamp: timestamppb.New(entry.Timestamp),
-				Log:       entry.Message,
-				Level:     "",
-			}
-			if entry.IsError {
-				protoLog.Level = "error"
-			}
-			if err := stream.Send(protoLog); err != nil {
-				slog.ErrorContext(ctx, "failed to send log to client", "error", err)
-				return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to send logs: %w", err))
-			}
-		case err := <-logStream.Errors():
-			if err != nil {
-				slog.ErrorContext(ctx, "log stream error", "error", err)
-				return connect.NewError(connect.CodeInternal, fmt.Errorf("log stream error: %w", err))
-			}
-		}
-	}
-}
-
-// ListResourceEvents retrieves Kubernetes events for a resource
-func (s *ResourceServer) ListResourceEvents(
-	ctx context.Context,
-	req *connect.Request[resourcev1.ListResourceEventsRequest],
-) (*connect.Response[resourcev1.ListResourceEventsResponse], error) {
-	r := req.Msg
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
-	}
-
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetResourceEvents, r.GetResourceId())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get events for resource", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	}
-
-	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
-	if err != nil {
-		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
-	}
-
-	namespace := computeNamespace(resource.WorkspaceID, resource.ID)
-
-	slog.InfoContext(ctx, "fetching events for resource", "resourceId", r.GetResourceId(), "resource_namespace", namespace)
-
-	eventList, err := s.kubeClient.ClientSet.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list events from kubernetes", "error", err, "namespace", namespace)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch events: %w", err))
-	}
-
-	var protoEvents []*resourcev1.Event
-	for _, k8sEvent := range eventList.Items {
-		// filter events to those related to this resource's pods
-		if k8sEvent.InvolvedObject.Kind != "Pod" {
-			continue
-		}
-
-		protoEvent := &resourcev1.Event{
-			Timestamp: timestamppb.New(k8sEvent.FirstTimestamp.Time),
-			Reason:    k8sEvent.Reason,
-			Message:   k8sEvent.Message,
-			Type:      k8sEvent.Type,
-			PodName:   k8sEvent.InvolvedObject.Name,
-		}
-		protoEvents = append(protoEvents, protoEvent)
-	}
-
-	// sort by timestamp descending (newest first)
-	sort.Slice(protoEvents, func(i, j int) bool {
-		return protoEvents[i].Timestamp.AsTime().After(protoEvents[j].Timestamp.AsTime())
-	})
-
-	// apply limit if specified
-	if r.GetLimit() > 0 && int(r.GetLimit()) < len(protoEvents) {
-		protoEvents = protoEvents[:r.GetLimit()]
-	}
-
-	slog.DebugContext(ctx, "fetched events for resource", "resourceId", r.GetResourceId(), "event_count", len(protoEvents))
-
-	return connect.NewResponse(&resourcev1.ListResourceEventsResponse{
-		Events: protoEvents,
 	}), nil
 }
 
@@ -868,7 +745,7 @@ func (s *ResourceServer) ScaleResource(
 		IsActive:    true,
 		Message:     "Scheduled scaling event.",
 		Spec:        specJson,
-		SpecVersion: version.SpecVersionV1,
+		SpecVersion: int32(1),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -893,12 +770,47 @@ func (s *ResourceServer) ScaleResource(
 		},
 	}
 
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, updatedDeploymentSpec, s.locoNamespace, regionToScale)
+	// Build the Application spec for the agent
+	appSpec, err := buildApplicationSpec(resource, resourceSpec, domain.Domain, updatedDeploymentSpec, regionToScale)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resourceId", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
+		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
 	}
-	slog.InfoContext(ctx, "updated Application after scaling", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToScale)
+
+	// Create command payload with all info the agent needs
+	cmdPayload := DeployCommandPayload{
+		DeploymentID:  0, // Will be set by the deployment creation above - TODO: capture the ID
+		ResourceID:    resource.ID,
+		WorkspaceID:   resource.WorkspaceID,
+		ResourceName:  resource.Name,
+		ResourceType:  string(resource.Type),
+		Region:        regionToScale,
+		Hostname:      domain.Domain,
+		LocoNamespace: s.locoNamespace,
+		AppSpec:       appSpec,
+	}
+
+	payloadJSON, err := json.Marshal(cmdPayload)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal command payload", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
+	}
+
+	// Dispatch deploy command to the agent via CommandBus
+	cmd := &commandbus.Command{
+		ID:        uuid.NewString(),
+		ClusterID: cluster.ID,
+		Type:      commandbus.CommandTypeDeploy,
+		Payload:   payloadJSON,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.commandBus.Send(ctx, cmd); err != nil {
+		slog.ErrorContext(ctx, "failed to dispatch scale command", "cluster_id", cluster.ID, "error", err)
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+	}
+
+	slog.InfoContext(ctx, "scale command dispatched to agent", "command_id", cmd.ID, "cluster_id", cluster.ID, "resourceId", resource.ID, "regions", regionsToScale)
 
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
 }
@@ -1014,7 +926,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		IsActive:    true,
 		Message:     "Scheduled environment update",
 		Spec:        specJson,
-		SpecVersion: version.SpecVersionV1,
+		SpecVersion: int32(1),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
@@ -1039,12 +951,47 @@ func (s *ResourceServer) UpdateResourceEnv(
 		},
 	}
 
-	err = createLocoResource(ctx, s.kubeClient, resource, resourceSpec, domain.Domain, updatedDeploymentSpec, s.locoNamespace, regionToUpdate)
+	// Build the Application spec for the agent
+	appSpec, err := buildApplicationSpec(resource, resourceSpec, domain.Domain, updatedDeploymentSpec, regionToUpdate)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update Application", "error", err, "resourceId", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to update Application: %w", err))
+		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
 	}
-	slog.InfoContext(ctx, "updated Application after env update", "resourceId", resource.ID, "resource_name", resource.Name, "regions", regionsToUpdate, "deploymentId", deploymentId)
+
+	// Create command payload with all info the agent needs
+	cmdPayload := DeployCommandPayload{
+		DeploymentID:  deploymentId,
+		ResourceID:    resource.ID,
+		WorkspaceID:   resource.WorkspaceID,
+		ResourceName:  resource.Name,
+		ResourceType:  string(resource.Type),
+		Region:        regionToUpdate,
+		Hostname:      domain.Domain,
+		LocoNamespace: s.locoNamespace,
+		AppSpec:       appSpec,
+	}
+
+	payloadJSON, err := json.Marshal(cmdPayload)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to marshal command payload", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
+	}
+
+	// Dispatch deploy command to the agent via CommandBus
+	cmd := &commandbus.Command{
+		ID:        uuid.NewString(),
+		ClusterID: cluster.ID,
+		Type:      commandbus.CommandTypeDeploy,
+		Payload:   payloadJSON,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.commandBus.Send(ctx, cmd); err != nil {
+		slog.ErrorContext(ctx, "failed to dispatch env update command", "cluster_id", cluster.ID, "error", err)
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+	}
+
+	slog.InfoContext(ctx, "env update command dispatched to agent", "command_id", cmd.ID, "cluster_id", cluster.ID, "resourceId", resource.ID, "regions", regionsToUpdate, "deploymentId", deploymentId)
 
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
 }

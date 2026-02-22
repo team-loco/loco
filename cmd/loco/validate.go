@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/shared/config"
+	"github.com/team-loco/loco/internal/config"
 )
 
 var validateCmd = &cobra.Command{

@@ -14,18 +14,18 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/api"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/shared"
-	oAuth "github.com/team-loco/loco/shared/proto/loco/oauth/v1"
-	"github.com/team-loco/loco/shared/proto/loco/oauth/v1/oauthv1connect"
-	orgv1 "github.com/team-loco/loco/shared/proto/loco/org/v1"
-	"github.com/team-loco/loco/shared/proto/loco/org/v1/orgv1connect"
-	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
-	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
-	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
-	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	oAuth "github.com/team-loco/loco/proto/loco/oauth/v1"
+	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
+	orgv1 "github.com/team-loco/loco/proto/loco/org/v1"
+	"github.com/team-loco/loco/proto/loco/org/v1/orgv1connect"
+	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
+	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
+	workspacev1 "github.com/team-loco/loco/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 )
 
 type DeviceCodeRequest struct {
@@ -98,7 +98,7 @@ var loginCmd = &cobra.Command{
 		}
 		c := api.NewClient("https://github.com")
 
-		httpClient := shared.NewHTTPClient()
+		httpClient := httputil.NewHTTPClient()
 		oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
 		resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
 			Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
@@ -178,7 +178,7 @@ var loginCmd = &cobra.Command{
 		orgClient := orgv1connect.NewOrgServiceClient(httpClient, host)
 		wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 
-		existingCfg, err := config.Load()
+		existingCfg, err := session.Load()
 		if err != nil {
 			slog.Debug("failed to load existing config", "error", err)
 		}
@@ -297,10 +297,10 @@ var loginCmd = &cobra.Command{
 				return fmt.Errorf("failed to get created workspace: %w", err)
 			}
 
-			cfg := config.NewSessionConfig()
+			cfg := session.NewSessionConfig()
 			if err := cfg.SetDefaultScope(
-				config.SimpleOrg{ID: getOrgResp.Msg.Organization.Id, Name: getOrgResp.Msg.Organization.Name},
-				config.SimpleWorkspace{ID: getWSResp.Msg.Workspace.Id, Name: getWSResp.Msg.Workspace.Name},
+				session.SimpleOrg{ID: getOrgResp.Msg.Organization.Id, Name: getOrgResp.Msg.Organization.Name},
+				session.SimpleWorkspace{ID: getWSResp.Msg.Workspace.Id, Name: getWSResp.Msg.Workspace.Name},
 			); err != nil {
 				slog.Error(err.Error())
 				return err
@@ -365,10 +365,10 @@ var loginCmd = &cobra.Command{
 			selectedWorkspace = workspaces[0]
 		}
 
-		cfg := config.NewSessionConfig()
+		cfg := session.NewSessionConfig()
 		if err := cfg.SetDefaultScope(
-			config.SimpleOrg{ID: selectedOrg.Id, Name: selectedOrg.Name},
-			config.SimpleWorkspace{ID: selectedWorkspace.Id, Name: selectedWorkspace.Name},
+			session.SimpleOrg{ID: selectedOrg.Id, Name: selectedOrg.Name},
+			session.SimpleWorkspace{ID: selectedWorkspace.Id, Name: selectedWorkspace.Name},
 		); err != nil {
 			slog.Error(err.Error())
 			return err

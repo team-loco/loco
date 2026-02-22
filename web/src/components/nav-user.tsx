@@ -8,13 +8,16 @@ import {
 	HelpCircle,
 	Building2,
 	Plus,
+	Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { toastConnectError } from "@/lib/error-handler";
+import { toastConnectError, getErrorMessage } from "@/lib/error-handler";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Organization } from "@/gen/loco/org/v1/org_pb";
-import { CreateOrgDialog } from "@/components/org/CreateOrgDialog";
-import { CreateWorkspaceDialog } from "@/components/workspace/CreateWorkspaceDialog";
+import type { Workspace } from "@/gen/loco/workspace/v1/workspace_pb";
+import { createOrg } from "@/gen/loco/org/v1";
+import { createWorkspace } from "@/gen/loco/workspace/v1";
+import { useMutation } from "@connectrpc/connect-query";
 import { useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,29 +48,28 @@ import { toast } from "sonner";
 import { useTheme } from "@/lib/use-theme";
 import "./layout/ThemeToggle.css";
 
-export interface Workspace {
-	id: bigint;
-	name: string;
-}
-
 export function NavUser({
 	user,
-	workspaces = [],
-	orgs = [],
 }: {
 	user: {
 		name: string;
 		email: string;
 		avatar: string;
 	};
-	workspaces?: Workspace[];
-	orgs?: Organization[];
 }) {
 	const { isMobile } = useSidebar();
 	const navigate = useNavigate();
 	const { logout } = useAuth();
-	const { activeOrgId, activeWorkspaceId, setActiveOrg, setActiveWorkspace } =
-		useOrgWorkspace();
+	const {
+		activeOrgId,
+		activeWorkspaceId,
+		orgs,
+		workspaces,
+		setActiveOrg,
+		setActiveWorkspace,
+		addOrg,
+		addWorkspace,
+	} = useOrgWorkspace();
 	const { theme, toggleTheme } = useTheme();
 
 	const activeOrg = orgs.find((org) => org.id === activeOrgId);
@@ -86,9 +88,19 @@ export function NavUser({
 	};
 
 	// Dialog state
-	const [createOrgOpen, setCreateOrgOpen] = useState(false);
-	const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
 	const [switchContextOpen, setSwitchContextOpen] = useState(false);
+	const [showCreateOrgForm, setShowCreateOrgForm] = useState(false);
+	const [showCreateWorkspaceForm, setShowCreateWorkspaceForm] = useState(false);
+	const [newOrgName, setNewOrgName] = useState("");
+	const [newWorkspaceName, setNewWorkspaceName] = useState("");
+	const [newWorkspaceDescription, setNewWorkspaceDescription] = useState("");
+	const [pendingOrgId, setPendingOrgId] = useState<bigint | null>(null);
+	const [pendingWorkspaceId, setPendingWorkspaceId] = useState<bigint | null>(null);
+
+	const { mutate: mutateCreateOrg, isPending: isCreatingOrg } =
+		useMutation(createOrg);
+	const { mutate: mutateCreateWorkspace, isPending: isCreatingWorkspace } =
+		useMutation(createWorkspace);
 
 	const handleOrgSwitch = (orgId: bigint) => {
 		if (orgId === activeOrgId) return;
@@ -99,14 +111,77 @@ export function NavUser({
 		setActiveWorkspace(workspaceId);
 	};
 
-	const handleCreateOrgSuccess = (orgId: bigint) => {
-		// Switch to the new org
-		setActiveOrg(orgId);
+	const handleCreateOrg = (e: React.FormEvent) => {
+		e.preventDefault();
+
+		if (!newOrgName.trim()) {
+			toast.error("Organization name is required");
+			return;
+		}
+
+		mutateCreateOrg(
+			{ name: newOrgName.trim() },
+			{
+				onSuccess: (response) => {
+					const newOrgId = response.orgId;
+					if (newOrgId) {
+						toast.success(`Organization "${newOrgName}" created`);
+						// Add to context
+						addOrg({
+							id: newOrgId,
+							name: newOrgName,
+						} as Organization);
+						// Store as pending - will switch when user clicks Done
+						setPendingOrgId(newOrgId);
+						setNewOrgName("");
+						setShowCreateOrgForm(false);
+					}
+				},
+				onError: (error) => {
+					toast.error(getErrorMessage(error, "Failed to create organization"));
+				},
+			},
+		);
 	};
 
-	const handleCreateWorkspaceSuccess = (workspaceId: bigint) => {
-		// Switch to the new workspace
-		setActiveWorkspace(workspaceId);
+	const handleCreateWorkspace = (e: React.FormEvent) => {
+		e.preventDefault();
+
+		if (!newWorkspaceName.trim() || !activeOrgId) {
+			toast.error("Workspace name is required");
+			return;
+		}
+
+		mutateCreateWorkspace(
+			{
+				orgId: activeOrgId,
+				name: newWorkspaceName.trim(),
+				description: newWorkspaceDescription.trim() || undefined,
+			},
+			{
+				onSuccess: (response) => {
+					const newWorkspaceId = response.workspaceId;
+					if (newWorkspaceId) {
+						toast.success(`Workspace "${newWorkspaceName}" created`);
+						// Add to context
+						addWorkspace({
+							id: newWorkspaceId,
+							orgId: activeOrgId!,
+							name: newWorkspaceName,
+							description: newWorkspaceDescription,
+						} as Workspace);
+						// Store as pending - will switch when user clicks Done
+						setPendingWorkspaceId(newWorkspaceId);
+						setNewWorkspaceName("");
+						setNewWorkspaceDescription("");
+						setShowCreateWorkspaceForm(false);
+					}
+				},
+				onError: (error) => {
+					toast.error(getErrorMessage(error, "Failed to create workspace"));
+				},
+			},
+		);
 	};
 
 	return (
@@ -237,105 +312,208 @@ export function NavUser({
 				</DropdownMenu>
 			</SidebarMenuItem>
 
-			{/* Dialogs */}
-			<CreateOrgDialog
-				open={createOrgOpen}
-				onOpenChange={setCreateOrgOpen}
-				onSuccess={handleCreateOrgSuccess}
-			/>
-			{activeOrgId && (
-				<CreateWorkspaceDialog
-					open={createWorkspaceOpen}
-					onOpenChange={setCreateWorkspaceOpen}
-					orgId={activeOrgId}
-					onSuccess={handleCreateWorkspaceSuccess}
-				/>
-			)}
-
-			{/* Context Switch Dialog */}
+			{/* Context Switch Dialog with Inline Forms */}
 			<Dialog open={switchContextOpen} onOpenChange={setSwitchContextOpen}>
 				<DialogContent className="max-w-2xl">
 					<DialogHeader>
-						<DialogTitle>Switch Context</DialogTitle>
+						<DialogTitle>
+							{showCreateOrgForm
+								? "Create Organization"
+								: showCreateWorkspaceForm
+									? "Create Workspace"
+									: "Switch Context"}
+						</DialogTitle>
 					</DialogHeader>
-					<div className="grid grid-cols-2 gap-4">
-						{/* Left side - Organizations */}
-						<div className="space-y-2 border-r pr-4">
-							<div className="text-sm font-semibold">Organizations</div>
-							<div className="space-y-1 overflow-y-auto max-h-64">
-								{orgs.map((org) => (
-									<button
-										key={org.id.toString()}
-										onClick={() => handleOrgSwitch(org.id)}
-										className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
-											activeOrgId === org.id
-												? "bg-primary text-primary-foreground"
-												: "hover:bg-secondary"
-										}`}
-									>
-										<Building2 className="size-4 shrink-0" />
-										<span className="truncate">{org.name}</span>
-										{activeOrgId === org.id && (
-											<Check className="size-3 ml-auto shrink-0" />
-										)}
-									</button>
-								))}
-								<button
-									onClick={() => setCreateOrgOpen(true)}
-									className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
-								>
-									<Plus className="size-4" />
-									<span>Create Organization</span>
-								</button>
-							</div>
-						</div>
 
-						{/* Right side - Workspaces */}
-						<div className="space-y-2 pl-4">
-							<div className="text-sm font-semibold">Workspaces</div>
-							<div className="space-y-1 overflow-y-auto max-h-64">
-								{workspaces.length > 0 ? (
-									<>
-										{workspaces.map((workspace) => (
+					{/* Create Organization Form */}
+					{showCreateOrgForm && (
+						<form onSubmit={handleCreateOrg} className="space-y-4">
+							<div className="space-y-2">
+								<label className="text-sm font-medium">Organization Name</label>
+								<input
+									type="text"
+									placeholder="My Organization"
+									value={newOrgName}
+									onChange={(e) => setNewOrgName(e.target.value)}
+									disabled={isCreatingOrg}
+									autoFocus
+									className="w-full px-3 py-2 border rounded-md bg-background"
+								/>
+							</div>
+							<div className="flex gap-2 justify-end">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => setShowCreateOrgForm(false)}
+									disabled={isCreatingOrg}
+								>
+									Back
+								</Button>
+								<Button
+									type="submit"
+									disabled={isCreatingOrg || !newOrgName.trim()}
+								>
+									{isCreatingOrg ? (
+										<>
+											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+											Creating...
+										</>
+									) : (
+										"Create Organization"
+									)}
+								</Button>
+							</div>
+						</form>
+					)}
+
+					{/* Create Workspace Form */}
+					{showCreateWorkspaceForm && (
+						<form onSubmit={handleCreateWorkspace} className="space-y-4">
+							<div className="space-y-2">
+								<label className="text-sm font-medium">Workspace Name</label>
+								<input
+									type="text"
+									placeholder="Production"
+									value={newWorkspaceName}
+									onChange={(e) => setNewWorkspaceName(e.target.value)}
+									disabled={isCreatingWorkspace}
+									autoFocus
+									className="w-full px-3 py-2 border rounded-md bg-background"
+								/>
+							</div>
+							<div className="space-y-2">
+								<label className="text-sm font-medium">
+									Description{" "}
+									<span className="text-muted-foreground">(optional)</span>
+								</label>
+								<textarea
+									placeholder="Production environment for customer-facing applications"
+									value={newWorkspaceDescription}
+									onChange={(e) => setNewWorkspaceDescription(e.target.value)}
+									disabled={isCreatingWorkspace}
+									rows={3}
+									className="w-full px-3 py-2 border rounded-md bg-background"
+								/>
+							</div>
+							<div className="flex gap-2 justify-end">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => setShowCreateWorkspaceForm(false)}
+									disabled={isCreatingWorkspace}
+								>
+									Back
+								</Button>
+								<Button
+									type="submit"
+									disabled={isCreatingWorkspace || !newWorkspaceName.trim()}
+								>
+									{isCreatingWorkspace ? (
+										<>
+											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+											Creating...
+										</>
+									) : (
+										"Create Workspace"
+									)}
+								</Button>
+							</div>
+						</form>
+					)}
+
+					{/* Main Context Switcher View */}
+					{!showCreateOrgForm && !showCreateWorkspaceForm && (
+						<>
+							<div className="grid grid-cols-2 gap-4">
+								{/* Left side - Organizations */}
+								<div className="space-y-2 border-r pr-4">
+									<div className="text-sm font-semibold">Organizations</div>
+									<div className="space-y-1 overflow-y-auto max-h-64">
+										{orgs.map((org) => (
 											<button
-												key={workspace.id.toString()}
-												onClick={() => handleWorkspaceSwitch(workspace.id)}
-												className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${
-													activeWorkspaceId === workspace.id
+												key={org.id.toString()}
+												onClick={() => handleOrgSwitch(org.id)}
+												className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
+													activeOrgId === org.id
 														? "bg-primary text-primary-foreground"
 														: "hover:bg-secondary"
 												}`}
 											>
-												<span className="truncate">{workspace.name}</span>
-												{activeWorkspaceId === workspace.id && (
-													<Check className="size-3 shrink-0" />
+												<Building2 className="size-4 shrink-0" />
+												<span className="truncate">{org.name}</span>
+												{activeOrgId === org.id && (
+													<Check className="size-3 ml-auto shrink-0" />
 												)}
 											</button>
 										))}
 										<button
-											onClick={() => setCreateWorkspaceOpen(true)}
+											onClick={() => setShowCreateOrgForm(true)}
 											className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
 										>
 											<Plus className="size-4" />
-											<span>Create Workspace</span>
+											<span>Create Organization</span>
 										</button>
-									</>
-								) : (
-									<div className="text-sm text-muted-foreground py-4">
-										No workspaces in this organization
 									</div>
-								)}
+								</div>
+
+								{/* Right side - Workspaces */}
+								<div className="space-y-2 pl-4">
+									<div className="text-sm font-semibold">Workspaces</div>
+									<div className="space-y-1 overflow-y-auto max-h-64">
+										{workspaces.length > 0 ? (
+											<>
+												{workspaces.map((workspace) => (
+													<button
+														key={workspace.id.toString()}
+														onClick={() => handleWorkspaceSwitch(workspace.id)}
+														className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${
+															activeWorkspaceId === workspace.id
+																? "bg-primary text-primary-foreground"
+																: "hover:bg-secondary"
+														}`}
+													>
+														<span className="truncate">{workspace.name}</span>
+														{activeWorkspaceId === workspace.id && (
+															<Check className="size-3 shrink-0" />
+														)}
+													</button>
+												))}
+												<button
+													onClick={() => setShowCreateWorkspaceForm(true)}
+													className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
+												>
+													<Plus className="size-4" />
+													<span>Create Workspace</span>
+												</button>
+											</>
+										) : (
+											<div className="text-sm text-muted-foreground py-4">
+												No workspaces in this organization
+											</div>
+										)}
+									</div>
+								</div>
 							</div>
-						</div>
-					</div>
-					<div className="flex justify-end gap-2 pt-4">
-						<Button
-							variant="outline"
-							onClick={() => setSwitchContextOpen(false)}
-						>
-							Done
-						</Button>
-					</div>
+							<div className="flex justify-end gap-2 pt-4">
+								<Button
+									variant="outline"
+									onClick={() => {
+										// Switch to pending org/workspace if any
+										if (pendingOrgId) {
+											setActiveOrg(pendingOrgId);
+											setPendingOrgId(null);
+										} else if (pendingWorkspaceId) {
+											setActiveWorkspace(pendingWorkspaceId);
+											setPendingWorkspaceId(null);
+										}
+										setSwitchContextOpen(false);
+									}}
+								>
+									Done
+								</Button>
+							</div>
+						</>
+					)}
 				</DialogContent>
 			</Dialog>
 		</SidebarMenu>

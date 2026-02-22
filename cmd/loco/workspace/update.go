@@ -10,9 +10,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/shared"
-	workspacev1 "github.com/team-loco/loco/shared/proto/loco/workspace/v1"
-	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	workspacev1 "github.com/team-loco/loco/proto/loco/workspace/v1"
+	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
@@ -65,7 +65,7 @@ func buildUpdateCmd() *cobra.Command {
 				return err
 			}
 
-			httpClient := shared.NewHTTPClient()
+			httpClient := httputil.NewHTTPClient()
 			wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 
 			deps := updateDeps{

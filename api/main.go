@@ -22,20 +22,19 @@ import (
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/middleware"
-	"github.com/team-loco/loco/api/pkg/kube"
-	"github.com/team-loco/loco/api/pkg/statuswatcher"
+	"github.com/team-loco/loco/api/pkg/cache"
+	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/shared"
-	"github.com/team-loco/loco/shared/proto/loco/deployment/v1/deploymentv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/domain/v1/domainv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/oauth/v1/oauthv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/org/v1/orgv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/registry/v1/registryv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/shared/proto/loco/token/v1/tokenv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/workspace/v1/workspacev1connect"
+	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
+	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
+	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
+	"github.com/team-loco/loco/proto/loco/org/v1/orgv1connect"
+	"github.com/team-loco/loco/proto/loco/registry/v1/registryv1connect"
+	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/proto/loco/token/v1/tokenv1connect"
+	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
+	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -54,6 +53,8 @@ type ApiConfig struct {
 	LocoNamespace   string // Loco system namespace
 	LocoDomainBase  string // Base domain (e.g., deploy-app.com)
 	LocoDomainAPI   string // API domain (e.g., api.deploy-app.com)
+	CacheType       string // Cache backend type: "in-memory" or "valkey"
+	CacheAddr       string // Valkey address (when CacheType is "valkey")
 }
 
 func newApiConfig() *ApiConfig {
@@ -63,6 +64,11 @@ func newApiConfig() *ApiConfig {
 		if parsed, err := strconv.Atoi(logLevelStr); err == nil {
 			logLevel = slog.Level(parsed)
 		}
+	}
+
+	cacheType := os.Getenv("CACHE_TYPE")
+	if cacheType == "" {
+		cacheType = "in-memory"
 	}
 
 	return &ApiConfig{
@@ -79,6 +85,8 @@ func newApiConfig() *ApiConfig {
 		LocoNamespace:   os.Getenv("LOCO_NAMESPACE"),
 		LocoDomainBase:  os.Getenv("LOCO_DOMAIN_BASE"),
 		LocoDomainAPI:   os.Getenv("LOCO_DOMAIN_API"),
+		CacheType:       cacheType,
+		CacheAddr:       os.Getenv("CACHE_ADDR"),
 	}
 }
 
@@ -90,6 +98,20 @@ func isAllowedOrigin(hostname, baseDomain string) bool {
 		return false
 	}
 	return hostname == baseDomain || hostname == "www."+baseDomain
+}
+
+func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
+	switch cacheType {
+	case "valkey":
+		if CacheAddr == "" {
+			return nil, fmt.Errorf("CACHE_ADDR required when CACHE_TYPE=valkey")
+		}
+		return cache.NewValkey(CacheAddr, defaultTTL)
+	case "in-memory", "":
+		return cache.NewBigCache(defaultTTL)
+	default:
+		return nil, fmt.Errorf("unknown cache type: %s", cacheType)
+	}
 }
 
 func withCORS(baseDomain string) func(http.Handler) http.Handler {
@@ -144,29 +166,33 @@ func main() {
 		fmt.Fprintln(w, "Server is healthy.")
 	})
 
-	kubeClient := kube.NewClient(ac.Env)
-
-	watcher := statuswatcher.NewStatusWatcher(kubeClient, queries)
-	watcherCtx, watcherCancel := context.WithCancel(context.Background())
-	defer watcherCancel()
-
-	go func() {
-		if err := watcher.Start(watcherCtx); err != nil {
-			slog.Error("status watcher failed", "error", err)
-		}
-	}()
-
-	httpClient := shared.NewHTTPClient()
-
-	oAuthServiceHandler, err := service.NewOAuthServer(pool, queries, httpClient, machine)
+	appCache, err := newCache(ac.CacheType, ac.CacheAddr, 24*time.Hour)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to create cache: %v", err)
 	}
+	defer appCache.Close()
+
+	transport := &http.Transport{}
+	http2.ConfigureTransport(transport)
+	httpClient := &http.Client{Transport: transport}
+
+	// Initialize command bus for agent communication
+	cmdBus, err := commandbus.New(&commandbus.Config{
+		Type:       "grpc",
+		MaxRetries: 3,
+	})
+	if err != nil {
+		log.Fatalf("failed to create command bus: %v", err)
+	}
+	defer cmdBus.Close()
+
+	oauthStateCache := service.NewOAuthStateCache(appCache)
+	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache)
 	userServiceHandler := service.NewUserServer(pool, queries, machine)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, kubeClient, ac.LocoNamespace)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
@@ -299,8 +325,6 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
-		// stop the k8s resources watcher and tvm
-		watcherCancel()
 		machine.Close()
 
 		if err := server.Shutdown(shutdownCtx); err != nil {

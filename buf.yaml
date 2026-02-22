@@ -7,5 +7,5 @@ breaking:
   use:
     - FILE
 modules:
-  - path: shared/proto
+  - path: proto
     name: buf.build/team-loco/loco

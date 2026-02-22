@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -36,7 +36,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 	orgName := parts[0]
 	workspaceName := parts[1]
 
-	cfg, err := config.Load()
+	cfg, err := session.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -99,8 +99,8 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := cfg.SetDefaultScope(
-		config.SimpleOrg{ID: orgID, Name: orgName},
-		config.SimpleWorkspace{ID: workspaceID, Name: workspaceName},
+		session.SimpleOrg{ID: orgID, Name: orgName},
+		session.SimpleWorkspace{ID: workspaceID, Name: workspaceName},
 	); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}

@@ -1,10 +1,10 @@
 version: v2
 plugins:
   - local: protoc-gen-go
-    out: ./shared/proto
+    out: ./proto
     opt: paths=source_relative
   - local: protoc-gen-connect-go
-    out: ./shared/proto
+    out: ./proto
     opt: paths=source_relative
   - local: protoc-gen-es
     out: web/src/gen

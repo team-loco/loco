@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package loco.agent.v1;
+
+import "google/protobuf/timestamp.proto";
+import "loco/deployment/v1/deployment.proto";
+
+option go_package = "github.com/team-loco/loco/proto/loco/agent/v1;agentv1";
+
+// AgentService handles communication between the control plane and data plane agents.
+service AgentService {
+  // Register announces an agent to the control plane and returns the cluster ID.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // CommandStream is a bidirectional stream for command dispatch.
+  // Control plane sends commands, agent sends acks back.
+  rpc CommandStream(stream CommandStreamRequest) returns (stream CommandStreamResponse);
+
+  // Heartbeat is a bidirectional stream for agent health reporting.
+  // Agent sends periodic heartbeats, control plane can send directives back.
+  rpc Heartbeat(stream HeartbeatRequest) returns (stream HeartbeatResponse);
+
+  // ReportStatus reports deployment status changes from the agent.
+  rpc ReportStatus(ReportStatusRequest) returns (ReportStatusResponse);
+}
+
+// RegisterRequest is sent by the agent on startup to announce itself.
+message RegisterRequest {
+  string cluster_name = 1;
+  string region = 2;
+  string agent_version = 3;
+  AgentCapacity capacity = 4;
+}
+
+// RegisterResponse contains the assigned cluster ID.
+message RegisterResponse {
+  int64 cluster_id = 1;
+}
+
+// CommandType identifies the type of command.
+enum CommandType {
+  COMMAND_TYPE_UNSPECIFIED = 0;
+  COMMAND_TYPE_DEPLOY = 1;
+  COMMAND_TYPE_DELETE = 2;
+  COMMAND_TYPE_SCALE = 3;
+  COMMAND_TYPE_UPDATE_ENV = 4;
+}
+
+// CommandStreamResponse represents a unit of work to be executed by an agent.
+message CommandStreamResponse {
+  string command_id = 1;
+  int64 cluster_id = 2;
+  google.protobuf.Timestamp created_at = 3;
+  CommandType type = 4;
+
+  oneof payload {
+    DeployCommand deploy = 10;
+    DeleteCommand delete = 11;
+    ScaleCommand scale = 12;
+    UpdateEnvCommand update_env = 13;
+  }
+}
+
+// DeployCommand instructs the agent to deploy an application.
+message DeployCommand {
+  int64 resource_id = 1;
+  int64 deployment_id = 2;
+  int64 workspace_id = 3;
+  string namespace = 4;
+  bytes application_spec = 5; // JSON-serialized Application CRD spec
+}
+
+// DeleteCommand instructs the agent to delete an application.
+message DeleteCommand {
+  int64 resource_id = 1;
+  string namespace = 2;
+}
+
+// ScaleCommand instructs the agent to scale an application.
+message ScaleCommand {
+  int64 resource_id = 1;
+  int32 replicas = 2;
+  string namespace = 3;
+}
+
+// UpdateEnvCommand instructs the agent to update environment variables.
+message UpdateEnvCommand {
+  int64 resource_id = 1;
+  map<string, string> env = 2;
+  string namespace = 3;
+}
+
+// CommandStreamRequest is sent by the agent to acknowledge command processing.
+message CommandStreamRequest {
+  string command_id = 1;
+  bool success = 2;
+  string error_message = 3; // populated if success = false
+  bool retry = 4; // if true and failed, control plane should retry
+}
+
+// HeartbeatRequest is sent periodically by the agent.
+message HeartbeatRequest {
+  int64 cluster_id = 1;
+  AgentCapacity capacity = 2;
+  AgentHealth health = 3;
+}
+
+// HeartbeatResponse may contain directives from the control plane.
+message HeartbeatResponse {
+  oneof directive {
+    DrainDirective drain = 1;
+    ReloadConfigDirective reload_config = 2;
+    ResyncDirective resync = 3;
+  }
+}
+
+// DrainDirective requests the agent to prepare for graceful shutdown.
+message DrainDirective {
+  int32 timeout_seconds = 1;
+}
+
+// ReloadConfigDirective requests the agent to reload configuration.
+message ReloadConfigDirective {
+  map<string, string> config = 1;
+}
+
+// ResyncDirective requests the agent to re-report status for resources.
+message ResyncDirective {
+  repeated int64 resource_ids = 1; // empty means resync all
+}
+
+// AgentCapacity reports cluster resource capacity.
+message AgentCapacity {
+  int64 cpu_millicores_total = 1;
+  int64 cpu_millicores_used = 2;
+  int64 memory_bytes_total = 3;
+  int64 memory_bytes_used = 4;
+  int32 pods_total = 5;
+  int32 pods_running = 6;
+}
+
+// AgentHealth reports agent and cluster health status.
+message AgentHealth {
+  bool kubernetes_healthy = 1;
+  bool controller_healthy = 2;
+  string message = 3;
+}
+
+// ReportStatusRequest is sent by the agent when deployment status changes.
+message ReportStatusRequest {
+  int64 cluster_id = 1;
+  int64 resource_id = 2;
+  int64 deployment_id = 3;
+  loco.deployment.v1.DeploymentPhase phase = 4;
+  string message = 5;
+  repeated Condition conditions = 6;
+}
+
+// ReportStatusResponse acknowledges the status report.
+message ReportStatusResponse {}
+
+// Condition represents a Kubernetes-style condition.
+message Condition {
+  string type = 1;
+  string status = 2; // "True", "False", "Unknown"
+  string reason = 3;
+  string message = 4;
+  google.protobuf.Timestamp last_transition_time = 5;
+}

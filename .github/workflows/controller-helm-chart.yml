@@ -4,12 +4,14 @@ on:
   push:
     paths:
       - "controller/**"
+      - "k8sapi/**"
       - "charts/**"
       - "go.mod"
       - "go.sum"
   pull_request:
     paths:
       - "controller/**"
+      - "k8sapi/**"
       - "charts/**"
       - "go.mod"
       - "go.sum"
@@ -40,9 +42,8 @@ jobs:
 
       - name: Build and load controller image
         run: |
-          cd controller
-          go mod tidy
-          make docker-build IMG=controller:v0.1.0
+          go mod tidy -C controller
+          make -C controller docker-build IMG=controller:v0.1.0
           kind load docker-image controller:v0.1.0
 
       - name: Install Helm

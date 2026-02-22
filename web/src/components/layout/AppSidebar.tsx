@@ -30,9 +30,7 @@ import {
 	SidebarRail,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { listUserOrgs } from "@/gen/loco/org/v1";
 import { whoAmI } from "@/gen/loco/user/v1";
-import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { useQuery } from "@connectrpc/connect-query";
 import { useLocation, useNavigate } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -132,25 +130,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 	const { data: whoAmIResponse } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
-	const { data: orgsRes } = useQuery(
-		listUserOrgs,
-		user ? { userId: user.id } : undefined,
-		{ enabled: !!user }
-	);
 
-	const orgs = orgsRes?.orgs ?? [];
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-
-	// Use active org from context
-	const currentOrgId = activeOrgId;
-	const currentWorkspaceId = activeWorkspaceId;
-
-	const { data: workspacesRes } = useQuery(
-		listOrgWorkspaces,
-		currentOrgId ? { orgId: currentOrgId } : undefined,
-		{ enabled: !!currentOrgId }
-	);
-	const workspaces = workspacesRes?.workspaces ?? [];
 
 	const isActive = (url: string) => {
 		if (url === "#") return false;
@@ -213,7 +194,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			</SidebarHeader>
 
 			<SidebarContent>
-				{getNavMainItems(currentOrgId || undefined, currentWorkspaceId || undefined).map((item, idx) => {
+				{getNavMainItems(activeOrgId || undefined, activeWorkspaceId || undefined).map((item, idx) => {
 					if ("section" in item) {
 						const sectionItem = item as SectionNavItem;
 						return (
@@ -303,11 +284,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 							email: user?.email || "",
 							avatar: user?.avatarUrl || "",
 						}}
-						workspaces={workspaces.map((ws) => ({
-							id: ws.id,
-							name: ws.name,
-						}))}
-						orgs={orgs}
 					/>
 				</div>
 			</SidebarGroup>

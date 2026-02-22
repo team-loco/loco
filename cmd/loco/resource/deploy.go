@@ -15,22 +15,22 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/client"
-	internalconfig "github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/docker"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/shared"
-	"github.com/team-loco/loco/shared/config"
-	deploymentv1 "github.com/team-loco/loco/shared/proto/loco/deployment/v1"
-	"github.com/team-loco/loco/shared/proto/loco/deployment/v1/deploymentv1connect"
-	"github.com/team-loco/loco/shared/proto/loco/domain/v1/domainv1connect"
-	registryv1 "github.com/team-loco/loco/shared/proto/loco/registry/v1"
-	"github.com/team-loco/loco/shared/proto/loco/registry/v1/registryv1connect"
-	resourcev1 "github.com/team-loco/loco/shared/proto/loco/resource/v1"
-	"github.com/team-loco/loco/shared/proto/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/config"
+	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
+	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
+	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
+	registryv1 "github.com/team-loco/loco/proto/loco/registry/v1"
+	"github.com/team-loco/loco/proto/loco/registry/v1/registryv1connect"
+	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
+	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
 )
 
 type deployDeps struct {
-	LoadSessionConfig   func() (*internalconfig.SessionConfig, error)
+	LoadSessionConfig   func() (*session.SessionConfig, error)
 	LoadLocoConfig      func(path string) (*config.LoadedConfig, error)
 	NewAPIClient        func(host, token string) *client.Client
 	NewResourceClient   func(host string) resourcev1connect.ResourceServiceClient
@@ -44,20 +44,20 @@ type deployDeps struct {
 
 func buildDeployCmd() *cobra.Command {
 	deps := deployDeps{
-		LoadSessionConfig: internalconfig.Load,
+		LoadSessionConfig: session.Load,
 		LoadLocoConfig:    config.Load,
 		NewAPIClient:      client.NewClient,
 		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
-			return resourcev1connect.NewResourceServiceClient(shared.NewHTTPClient(), host)
+			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
 		},
 		NewDeploymentClient: func(host string) deploymentv1connect.DeploymentServiceClient {
-			return deploymentv1connect.NewDeploymentServiceClient(shared.NewHTTPClient(), host)
+			return deploymentv1connect.NewDeploymentServiceClient(httputil.NewHTTPClient(), host)
 		},
 		NewDomainClient: func(host string) domainv1connect.DomainServiceClient {
-			return domainv1connect.NewDomainServiceClient(shared.NewHTTPClient(), host)
+			return domainv1connect.NewDomainServiceClient(httputil.NewHTTPClient(), host)
 		},
 		NewRegistryClient: func(host string) registryv1connect.RegistryServiceClient {
-			return registryv1connect.NewRegistryServiceClient(shared.NewHTTPClient(), host)
+			return registryv1connect.NewRegistryServiceClient(httputil.NewHTTPClient(), host)
 		},
 		NewDockerClient: docker.NewClient,
 		SelectFromList:  ui.SelectFromList,

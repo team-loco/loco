@@ -10,11 +10,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	"github.com/team-loco/loco/shared"
-	tokenv1 "github.com/team-loco/loco/shared/proto/loco/token/v1"
-	"github.com/team-loco/loco/shared/proto/loco/token/v1/tokenv1connect"
-	userv1 "github.com/team-loco/loco/shared/proto/loco/user/v1"
-	"github.com/team-loco/loco/shared/proto/loco/user/v1/userv1connect"
+	"github.com/team-loco/loco/internal/httputil"
+	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
+	"github.com/team-loco/loco/proto/loco/token/v1/tokenv1connect"
+	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
+	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 )
 
 type listDeps struct {
@@ -26,10 +26,10 @@ type listDeps struct {
 func buildListCmd() *cobra.Command {
 	deps := listDeps{
 		NewTokenClient: func(host string) tokenv1connect.TokenServiceClient {
-			return tokenv1connect.NewTokenServiceClient(shared.NewHTTPClient(), host)
+			return tokenv1connect.NewTokenServiceClient(httputil.NewHTTPClient(), host)
 		},
 		NewUserClient: func(host string) userv1connect.UserServiceClient {
-			return userv1connect.NewUserServiceClient(shared.NewHTTPClient(), host)
+			return userv1connect.NewUserServiceClient(httputil.NewHTTPClient(), host)
 		},
 		Output: os.Stdout,
 	}
