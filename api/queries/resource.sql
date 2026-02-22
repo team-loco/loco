@@ -54,7 +54,7 @@ FROM resource_regions
 WHERE resource_id = $1 AND region = $2;
 
 -- name: GetClusterDetails :one
-SELECT id, is_active, health_status
+SELECT id, is_active, health_status, agent_version, last_heartbeat
 FROM clusters
 WHERE id = $1;
 
@@ -62,21 +62,27 @@ WHERE id = $1;
 SELECT workspace_id FROM resources WHERE id = $1;
 
 -- name: GetActiveClusterByRegion :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE region = $1 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
 LIMIT 1;
 
 -- name: ListClustersActive :many
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY region ASC;
 
 -- todo: eventually remove
 -- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY created_at ASC

@@ -326,17 +326,22 @@ func (ns NullWorkspaceRole) Value() (driver.Value, error) {
 }
 
 type Cluster struct {
-	ID              int64              `json:"id"`
-	Name            string             `json:"name"`
-	Region          string             `json:"region"`
-	Provider        string             `json:"provider"`
-	IsActive        bool               `json:"isActive"`
-	IsDefault       bool               `json:"isDefault"`
-	Endpoint        pgtype.Text        `json:"endpoint"`
-	HealthStatus    pgtype.Text        `json:"healthStatus"`
-	LastHealthCheck pgtype.Timestamptz `json:"lastHealthCheck"`
-	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
+	ID                    int64              `json:"id"`
+	Name                  string             `json:"name"`
+	Region                string             `json:"region"`
+	Provider              string             `json:"provider"`
+	IsActive              bool               `json:"isActive"`
+	IsDefault             bool               `json:"isDefault"`
+	Endpoint              pgtype.Text        `json:"endpoint"`
+	HealthStatus          pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
+	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text        `json:"agentVersion"`
 }
 
 type Deployment struct {

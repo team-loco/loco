@@ -46,14 +46,17 @@ type Querier interface {
 	DeleteUser(ctx context.Context, id int64) error
 	DeleteWorkspace(ctx context.Context, id int64) error
 	DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error
-	GetActiveClusterByRegion(ctx context.Context, region string) (Cluster, error)
+	GetActiveClusterByRegion(ctx context.Context, region string) (GetActiveClusterByRegionRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
+	// Cluster queries for agent operations
+	GetClusterByAgentToken(ctx context.Context, agentTokenHash pgtype.Text) (GetClusterByAgentTokenRow, error)
+	GetClusterByID(ctx context.Context, id int64) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error)
 	GetDeploymentByID(ctx context.Context, id int64) (Deployment, error)
 	GetDeploymentResourceID(ctx context.Context, id int64) (int64, error)
 	GetDomainByResourceId(ctx context.Context, resourceID int64) (GetDomainByResourceIdRow, error)
 	// todo: eventually remove
-	GetFirstActiveCluster(ctx context.Context) (Cluster, error)
+	GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error)
 	GetOrgByID(ctx context.Context, id int64) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationByID(ctx context.Context, id int64) (Organization, error)
@@ -98,7 +101,7 @@ type Querier interface {
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID int64) ([]Deployment, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
-	ListClustersActive(ctx context.Context) ([]Cluster, error)
+	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
 	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
@@ -125,9 +128,12 @@ type Querier interface {
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id int64) error
 	RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error
+	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (int64, error)
 	StoreToken(ctx context.Context, arg StoreTokenParams) error
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
+	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
+	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error
 	UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error
