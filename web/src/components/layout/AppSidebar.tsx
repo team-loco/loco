@@ -222,7 +222,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 														<span>{subItem.title}</span>
 													</div>
 													{subItem.badge && (
-														<Badge className="bg-yellow-500 border-0 text-xs font-mono">
+														<Badge className="bg-amber-100 border border-amber-200 text-amber-700">
 															{subItem.badge}
 														</Badge>
 													)}

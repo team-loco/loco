@@ -161,14 +161,8 @@ export function SiteHeader() {
 				<h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
 				<div className="ml-auto inline-flex items-center justify-center rounded-md shadow-sm btn-gradient-border">
 					<Button
-						className="rounded-r-none border-r border-[#404040] h-8 bg-[#1e1e1e]/85 px-3 text-xs font-medium text-[#faf9f6] shadow-none hover:shadow-none active:shadow-none backdrop-blur-sm"
-						onClick={() => {
-							if (activeOrgId && activeWorkspaceId) {
-								navigate(
-									`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=SERVICE`,
-								);
-							}
-						}}
+						className="rounded-r-none border-r border-[#404040] h-8 bg-[#1e1e1e]/85 px-3 text-accent font-medium shadow-none hover:shadow-none active:shadow-none backdrop-blur-sm"
+						onClick={() => setDropdownOpen(true)}
 					>
 						New Service
 					</Button>

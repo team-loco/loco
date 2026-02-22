@@ -20,7 +20,7 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 lg:gap-6 auto-rows-[minmax(120px,auto)]">
-			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-3 bg-transparent border-border rounded-2xl shadow-sm overflow-hidden flex flex-col relative group py-0">
+			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-3 border-border rounded-2xl shadow-sm overflow-hidden flex flex-col relative group py-0">
 				<div className="p-6 border-b border-border/50 flex justify-between items-center z-10">
 					<div>
 						<h2 className="text-xl font-bold font-mono tracking-tight text-foreground flex items-center gap-2">
@@ -88,7 +88,7 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 
 			{/* WIDGET 2: Active Deployments Feed (col-span-4, row-span-4) */}
 			<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-4 border-border rounded-2xl shadow-sm flex flex-col overflow-hidden py-0">
-				<div className="p-5 border-b border-border/50 bg-card">
+				<div className="p-5 border-b border-border/50">
 					<h3 className="font-bold text-foreground flex items-center gap-2">
 						<Terminal className="w-4 h-4" /> Activity Stream
 					</h3>
@@ -98,7 +98,7 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 					{[...Array(5)].map((_, i) => (
 						<div
 							key={i}
-							className="flex gap-3 relative before:absolute before:left-2.5 before:top-6 before:bottom-[-16px] before:w-px before:bg-border last:before:hidden"
+							className="flex gap-3 relative before:absolute before:left-2.5 before:top-6 before:-bottom-4 before:w-px before:bg-border last:before:hidden"
 						>
 							<div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 z-10">
 								<div className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -164,7 +164,6 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 
 			{/* WIDGET 4: Quick Cost/Traffic metrics (col-span-4, row-span-1) */}
 			<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-1 border-border rounded-2xl shadow-sm p-5 flex flex-col justify-center relative overflow-hidden">
-				<div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-2xl rounded-full translate-x-10 -translate-y-10 pointer-events-none" />
 				<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
 					<Activity className="w-4 h-4" /> Global Traffic
 				</h3>

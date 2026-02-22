@@ -1,80 +1,80 @@
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: normal;
 	font-weight: 300;
-	src: url('/fonts/satoshi/Satoshi-Light.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-Light.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: italic;
 	font-weight: 300;
-	src: url('/fonts/satoshi/Satoshi-LightItalic.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-LightItalic.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: normal;
 	font-weight: 400;
-	src: url('/fonts/satoshi/Satoshi-Regular.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-Regular.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: italic;
 	font-weight: 400;
-	src: url('/fonts/satoshi/Satoshi-Italic.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-Italic.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: normal;
 	font-weight: 500;
-	src: url('/fonts/satoshi/Satoshi-Medium.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-Medium.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: italic;
 	font-weight: 500;
-	src: url('/fonts/satoshi/Satoshi-MediumItalic.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-MediumItalic.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: normal;
 	font-weight: 700;
-	src: url('/fonts/satoshi/Satoshi-Bold.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-Bold.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: italic;
 	font-weight: 700;
-	src: url('/fonts/satoshi/Satoshi-BoldItalic.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-BoldItalic.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: normal;
 	font-weight: 900;
-	src: url('/fonts/satoshi/Satoshi-Black.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-Black.woff") format("woff");
 	font-display: swap;
 }
 
 @font-face {
-	font-family: 'Satoshi';
+	font-family: "Satoshi";
 	font-style: italic;
 	font-weight: 900;
-	src: url('/fonts/satoshi/Satoshi-BlackItalic.woff') format('woff');
+	src: url("/fonts/satoshi/Satoshi-BlackItalic.woff") format("woff");
 	font-display: swap;
 }
 
@@ -137,59 +137,59 @@
 
 	/* Backgrounds */
 	--background: #faf9f6;
-	--foreground: #1C1917;
+	--foreground: #1c1917;
 
 	/* Cards and surfaces */
-	--card: #FFFFFF;
-	--card-foreground: #1C1917;
+	--card: #fdfbf7;
+	--card-foreground: #1c1917;
 
 	/* Popovers */
-	--popover: #FFFFFF;
-	--popover-foreground: #1C1917;
+	--popover: #ffffff;
+	--popover-foreground: #1c1917;
 
 	/* Primary - Terracotta */
-	--primary: #C7654F;
-	--primary-hover: #B55942;
-	--primary-foreground: #FFFFFF;
+	--primary: #c7654f;
+	--primary-hover: #b55942;
+	--primary-foreground: #ffffff;
 
 	/* Secondary */
-	--secondary: #F7F5F2;
-	--secondary-foreground: #1C1917;
+	--secondary: #f7f5f2;
+	--secondary-foreground: #1c1917;
 
 	/* Muted */
-	--muted: #F7F5F2;
-	--muted-foreground: #78716C;
+	--muted: #f7f5f2;
+	--muted-foreground: #78716c;
 
 	/* Accent */
-	--accent-color: #C7654F;
-	--accent: #F0EDE8;
-	--accent-foreground: #1C1917;
+	--accent-color: #c7654f;
+	--accent: #f0ede8;
+	--accent-foreground: #1c1917;
 
 	/* Status colors */
-	--destructive: #A85751;
-	--success: #52796F;
-	--warning: #B8956A;
+	--destructive: #a85751;
+	--success: #52796f;
+	--warning: #b8956a;
 
 	/* Success soft */
-	--success-soft: #EEF3F1;
-	--success-border: #C5D5CF;
+	--success-soft: #eef3f1;
+	--success-border: #c5d5cf;
 
 	/* Borders */
-	--border: #E7E5E0;
-	--input: #D6D3CE;
+	--border: #e7e5e0;
+	--input: #d6d3ce;
 
 	/* Focus ring */
 	--ring: rgba(199, 101, 79, 0.3);
 
 	/* Sidebar */
-	--sidebar: #FFFFFF;
-	--sidebar-foreground: #1C1917;
-	--sidebar-accent: #C7654F;
-	--sidebar-border: #E7E5E0;
+	--sidebar: #faf9f6;
+	--sidebar-foreground: #1c1917;
+	--sidebar-accent: #c7654f;
+	--sidebar-border: #e7e5e0;
 
 	/* Additional semantic tokens */
-	--card-accent: #FDFCFA;
-	--header-bg: #FFFFFF;
+	--card-accent: #fdfcfa;
+	--header-bg: #faf9f6;
 }
 
 /* ---------------------------
@@ -198,62 +198,62 @@
 ---------------------------- */
 .dark {
 	/* Warm dark backgrounds */
-	--background: #1C1917;
-	--foreground: #E7E5E0;
+	--background: #1c1917;
+	--foreground: #e7e5e0;
 
 	/* Cards */
-	--card: #292524;
-	--card-foreground: #E7E5E0;
+	--card: #1e1e1e;
+	--card-foreground: #e7e5e0;
 
 	/* Popovers */
 	--popover: #292524;
-	--popover-foreground: #E7E5E0;
+	--popover-foreground: #e7e5e0;
 
 	/* Primary - brighter terracotta for dark */
-	--primary: #D4795F;
-	--primary-hover: #C96952;
-	--primary-foreground: #FFFFFF;
+	--primary: #d4795f;
+	--primary-hover: #c96952;
+	--primary-foreground: #ffffff;
 
 	/* Secondary */
 	--secondary: #292524;
-	--secondary-foreground: #E7E5E0;
+	--secondary-foreground: #e7e5e0;
 
 	/* Muted */
 	--muted: #292524;
-	--muted-foreground: #A8A29E;
+	--muted-foreground: #a8a29e;
 
 	/* Accent */
-	--accent: #44403C;
-	--accent-foreground: #E7E5E0;
+	--accent: #44403c;
+	--accent-foreground: #e7e5e0;
 
 	/* Status colors */
-	--destructive: #D4756F;
-	--success: #7BAA9E;
-	--warning: #D4B48A;
+	--destructive: #d4756f;
+	--success: #7baa9e;
+	--warning: #d4b48a;
 
 	/* Success soft */
-	--success-soft: #2A3530;
-	--success-border: #3D5A50;
+	--success-soft: #2a3530;
+	--success-border: #3d5a50;
 
 	/* Borders */
-	--border: #44403C;
-	--input: #57534E;
+	--border: #44403c;
+	--input: #57534e;
 
 	/* Ring */
 	--ring: rgba(212, 121, 95, 0.4);
 
 	/* Accent color */
-	--accent-color: #D4795F;
+	--accent-color: #d4795f;
 
 	/* Sidebar */
-	--sidebar: #292524;
-	--sidebar-foreground: #E7E5E0;
-	--sidebar-accent: #D4795F;
-	--sidebar-border: #44403C;
+	--sidebar: #faf9f6;
+	--sidebar-foreground: #e7e5e0;
+	--sidebar-accent: #d4795f;
+	--sidebar-border: #44403c;
 
 	/* Card */
 	--card-accent: #292524;
-	--header-bg: #292524;
+	--header-bg: #faf9f6;
 }
 
 /* ---------------------------
@@ -287,9 +287,20 @@
 
 	body {
 		@apply bg-background text-foreground antialiased;
-		font-family: "Satoshi", -apple-system, BlinkMacSystemFont, "Segoe UI",
-			"Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
-			"Helvetica Neue", sans-serif;
+		font-family:
+			"Satoshi",
+			-apple-system,
+			BlinkMacSystemFont,
+			"Segoe UI",
+			"Roboto",
+			"Oxygen",
+			"Ubuntu",
+			"Cantarell",
+			"Fira Sans",
+			"Droid Sans",
+			"Helvetica Neue",
+			sans-serif;
+		/* text-rendering: auto; */
 	}
 
 	/* Dotted grid background pattern */
@@ -300,10 +311,7 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background-image: radial-gradient(circle,
-				rgba(28, 25, 23, 0.06) 1px,
-				transparent 1px);
-		background-size: 28px 28px;
+		background-image: none;
 		pointer-events: none;
 		z-index: 0;
 	}
@@ -316,30 +324,42 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: radial-gradient(ellipse 80% 50% at 10% 20%,
+		background:
+			radial-gradient(
+				ellipse 80% 50% at 10% 20%,
 				rgba(199, 101, 79, 0.04) 0%,
-				transparent 50%),
-			radial-gradient(ellipse 60% 40% at 90% 80%,
+				transparent 50%
+			),
+			radial-gradient(
+				ellipse 60% 40% at 90% 80%,
 				rgba(107, 142, 127, 0.04) 0%,
-				transparent 50%);
+				transparent 50%
+			);
 		pointer-events: none;
 		z-index: 0;
 	}
 
 	/* Dark mode: dimmer patterns */
 	.dark body::before {
-		background-image: radial-gradient(circle,
-				rgba(231, 229, 224, 0.04) 1px,
-				transparent 1px);
+		background-image: radial-gradient(
+			circle,
+			rgba(231, 229, 224, 0.04) 1px,
+			transparent 1px
+		);
 	}
 
 	.dark body::after {
-		background: radial-gradient(ellipse 80% 50% at 10% 20%,
+		background:
+			radial-gradient(
+				ellipse 80% 50% at 10% 20%,
 				rgba(212, 121, 95, 0.03) 0%,
-				transparent 50%),
-			radial-gradient(ellipse 60% 40% at 90% 80%,
+				transparent 50%
+			),
+			radial-gradient(
+				ellipse 60% 40% at 90% 80%,
 				rgba(123, 170, 158, 0.03) 0%,
-				transparent 50%);
+				transparent 50%
+			);
 	}
 
 	/* Typography - Loco editorial scale */
@@ -394,7 +414,6 @@
 ---------------------------- */
 
 @layer components {
-
 	/* Surface - base card/panel style */
 	.surface {
 		@apply bg-card text-card-foreground border border-border rounded-xl;
@@ -483,21 +502,21 @@
 	}
 
 	.badge-success {
-		background: #EEF3F1;
-		color: #52796F;
-		border: 1px solid #C5D5CF;
+		background: #eef3f1;
+		color: #52796f;
+		border: 1px solid #c5d5cf;
 	}
 
 	.badge-warning {
-		background: #F9F6F0;
-		color: #B8956A;
-		border: 1px solid #E5DCCF;
+		background: #f9f6f0;
+		color: #b8956a;
+		border: 1px solid #e5dccf;
 	}
 
 	.badge-destructive {
-		background: #F8F1F0;
-		color: #A85751;
-		border: 1px solid #E2C9C6;
+		background: #f8f1f0;
+		color: #a85751;
+		border: 1px solid #e2c9c6;
 	}
 
 	/* Separator */
@@ -509,6 +528,4 @@
 	.disabled {
 		@apply opacity-50 cursor-not-allowed pointer-events-none;
 	}
-
-
 }
