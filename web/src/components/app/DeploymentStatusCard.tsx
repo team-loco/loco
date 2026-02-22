@@ -2,25 +2,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
 import { NumberInput } from "@/components/ui/number-input";
+import { Slider } from "@/components/ui/slider";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { scaleResource } from "@/gen/loco/resource/v1";
 import {
 	DeploymentPhase,
 	type Deployment,
 } from "@/gen/loco/deployment/v1/deployment_pb";
+import { scaleResource } from "@/gen/loco/resource/v1";
+import { BADGE_COLOR_MAP, PHASE_COLOR_MAP } from "@/lib/deployment-constants";
+import { getPhaseTooltip, getServiceSpec } from "@/lib/deployment-utils";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
-import { useState, useMemo } from "react";
-import { PHASE_COLOR_MAP, BADGE_COLOR_MAP } from "@/lib/deployment-constants";
-import { getPhaseTooltip, getServiceSpec } from "@/lib/deployment-utils";
 import { Cpu, HardDrive } from "lucide-react";
+import { useMemo, useState } from "react";
 
 interface DeploymentStatusCardProps {
 	resourceId: string;
@@ -74,10 +74,10 @@ export function DeploymentStatusCard({
 	const [isEditing, setIsEditing] = useState(false);
 	const [replicas, setReplicas] = useState(deployment?.replicas ?? 1);
 	const [cpuIndex, setCpuIndex] = useState<number>(
-		initialCpuIndex >= 0 ? initialCpuIndex : 3
+		initialCpuIndex >= 0 ? initialCpuIndex : 3,
 	);
 	const [memoryIndex, setMemoryIndex] = useState<number>(
-		initialMemoryIndex >= 0 ? initialMemoryIndex : 1
+		initialMemoryIndex >= 0 ? initialMemoryIndex : 1,
 	);
 
 	const scaleResourceMutation = useMutation(scaleResource);
@@ -132,7 +132,7 @@ export function DeploymentStatusCard({
 	const handleApply = async () => {
 		try {
 			await scaleResourceMutation.mutateAsync({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 				replicas,
 				cpu: cpuOptions[cpuIndex],
 				memory: memoryOptions[memoryIndex],

@@ -52,8 +52,8 @@ var _ = Describe("Application Controller", func() {
 					},
 					Spec: locov1alpha1.ApplicationSpec{
 						Type:        "SERVICE",
-						ResourceId:  1,
-						WorkspaceId: 1,
+						ResourceId:  "1",
+						WorkspaceId: "1",
 						Region:      "us-east-1",
 						ServiceSpec: &locov1alpha1.ServiceSpec{
 							Deployment: &locov1alpha1.ServiceDeploymentSpec{

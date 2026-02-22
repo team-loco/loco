@@ -12,7 +12,7 @@ import { AppMenu } from "./dashboard/AppMenu";
 interface AppCardProps {
 	resource: Resource;
 	onResourceDeleted?: () => void;
-	workspaceId?: bigint;
+	workspaceId?: string;
 }
 
 function getPrimaryDomain(domains?: ResourceDomain[]): ResourceDomain | null {

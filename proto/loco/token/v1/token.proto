@@ -40,14 +40,14 @@ enum Scope {
 message EntityScope {
   Scope scope = 1;
   EntityType entity_type = 2;
-  int64 entity_id = 3;
+  string entity_id = 3;
 }
 
 // Token represents token metadata (without the actual token string).
 message Token {
   string name = 1;
   EntityType entity_type = 2;
-  int64 entity_id = 3;
+  string entity_id = 3;
   repeated EntityScope scopes = 4;
   google.protobuf.Timestamp expires_at = 5;
   google.protobuf.Timestamp created_at = 6;
@@ -57,7 +57,7 @@ message Token {
 message CreateTokenRequest {
   string name = 1; // Human-readable token name
   EntityType entity_type = 2; // Entity type the token is for
-  int64 entity_id = 3; // Entity ID the token is for
+  string entity_id = 3; // Entity ID the token is for
   repeated EntityScope scopes = 4; // Scopes to grant to the token
   int64 expires_in_sec = 5; // Expiration duration in seconds (max: 2592000 = 30 days)
 }
@@ -71,7 +71,7 @@ message CreateTokenResponse {
 // ListTokensRequest is the request to list tokens for an entity.
 message ListTokensRequest {
   EntityType entity_type = 1;
-  int64 entity_id = 2;
+  string entity_id = 2;
 }
 
 // ListTokensResponse contains a list of token metadata.
@@ -83,7 +83,7 @@ message ListTokensResponse {
 message GetTokenRequest {
   string name = 1;
   EntityType entity_type = 2;
-  int64 entity_id = 3;
+  string entity_id = 3;
 }
 
 // GetTokenResponse contains the token metadata.
@@ -95,7 +95,7 @@ message GetTokenResponse {
 message RevokeTokenRequest {
   string name = 1;
   EntityType entity_type = 2;
-  int64 entity_id = 3;
+  string entity_id = 3;
 }
 
 // RevokeTokenResponse is the response after revoking a token.

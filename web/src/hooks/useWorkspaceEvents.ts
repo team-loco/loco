@@ -1,20 +1,24 @@
-import { useMemo } from "react";
-import { useQuery } from "@connectrpc/connect-query";
-import { listWorkspaceResources, listResourceEvents } from "@/gen/loco/resource/v1";
+import {
+	listResourceEvents,
+	listWorkspaceResources,
+} from "@/gen/loco/resource/v1";
 import type { Event } from "@/gen/loco/resource/v1/resource_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { useQuery } from "@connectrpc/connect-query";
+import { useMemo } from "react";
 
 export interface WorkspaceEventWithResource extends Event {
 	id: string;
-	resourceId: bigint;
+	resourceId: string;
 	resourceName: string;
 }
 
 function getTimestampMs(timestamp: Timestamp | undefined): number {
 	if (!timestamp) return 0;
-	const seconds = typeof timestamp.seconds === "bigint" 
-		? Number(timestamp.seconds) 
-		: timestamp.seconds || 0;
+	const seconds =
+		typeof timestamp.seconds === "bigint"
+			? Number(timestamp.seconds)
+			: timestamp.seconds || 0;
 	const nanos = timestamp.nanos || 0;
 	return seconds * 1000 + Math.floor(nanos / 1000000);
 }
@@ -22,10 +26,10 @@ function getTimestampMs(timestamp: Timestamp | undefined): number {
 export function useWorkspaceEvents(workspaceId: string) {
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
 		listWorkspaceResources,
-		workspaceId ? { workspaceId: BigInt(workspaceId) } : undefined,
+		workspaceId ? { workspaceId: workspaceId } : undefined,
 		{
 			enabled: !!workspaceId,
-		}
+		},
 	);
 
 	const resources = resourcesData?.resources || [];
@@ -38,7 +42,7 @@ export function useWorkspaceEvents(workspaceId: string) {
 		firstResource ? { resourceId: firstResource.id, limit: 100 } : undefined,
 		{
 			enabled: !!firstResource,
-		}
+		},
 	);
 
 	const { events, isLoading } = useMemo(() => {

@@ -1,5 +1,3 @@
-import { useQuery } from "@connectrpc/connect-query";
-import { listUserOrgs } from "@/gen/loco/org/v1";
 import { useAuth } from "@/auth/AuthProvider";
 import {
 	Select,
@@ -8,18 +6,20 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { useQuery } from "@connectrpc/connect-query";
 
 interface OrgFilterProps {
-	selectedOrgId: bigint | null;
-	onOrgChange: (orgId: bigint) => void;
+	selectedOrgId: string | null;
+	onOrgChange: (orgId: string) => void;
 }
 
 export function OrgFilter({ selectedOrgId, onOrgChange }: OrgFilterProps) {
 	const { user } = useAuth();
 	const { data: listUserOrgsRes, isLoading } = useQuery(
 		listUserOrgs,
-		user ? { userId: BigInt(user.id) } : undefined,
-		{ enabled: !!user }
+		user ? { userId: user.id } : undefined,
+		{ enabled: !!user },
 	);
 	const orgs = listUserOrgsRes?.orgs ?? [];
 
@@ -28,7 +28,10 @@ export function OrgFilter({ selectedOrgId, onOrgChange }: OrgFilterProps) {
 	}
 
 	return (
-		<Select value={selectedOrgId?.toString() ?? ""} onValueChange={(value) => onOrgChange(BigInt(value))}>
+		<Select
+			value={selectedOrgId?.toString() ?? ""}
+			onValueChange={(value) => onOrgChange(value)}
+		>
 			<SelectTrigger className="w-full sm:w-48">
 				<SelectValue placeholder="Select organization" />
 			</SelectTrigger>

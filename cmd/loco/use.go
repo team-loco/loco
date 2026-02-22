@@ -69,7 +69,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get organizations: %w", err)
 	}
 
-	var orgID int64
+	var orgID string
 	for _, org := range orgs {
 		if org.Name == orgName {
 			orgID = org.Id
@@ -77,7 +77,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if orgID == 0 {
+	if orgID == "" {
 		return fmt.Errorf("organization '%s' not found", orgName)
 	}
 
@@ -86,7 +86,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get workspaces: %w", err)
 	}
 
-	var workspaceID int64
+	var workspaceID string
 	for _, ws := range workspaces {
 		if ws.Name == workspaceName && ws.OrgId == orgID {
 			workspaceID = ws.Id
@@ -94,7 +94,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if workspaceID == 0 {
+	if workspaceID == "" {
 		return fmt.Errorf("workspace '%s' not found in organization '%s'", workspaceName, orgName)
 	}
 

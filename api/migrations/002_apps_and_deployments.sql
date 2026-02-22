@@ -41,8 +41,8 @@ CREATE TABLE platform_domains (
 
 -- Resources table
 CREATE TABLE resources (
-    id BIGSERIAL PRIMARY KEY,
-    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     type resource_type NOT NULL,
     description TEXT NOT NULL,
@@ -59,8 +59,8 @@ CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources 
 
 -- Resource regions table (declarative intent)
 CREATE TABLE resource_regions (
-    id BIGSERIAL PRIMARY KEY,
-    resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     region TEXT NOT NULL,
     is_primary BOOLEAN NOT NULL,
     status region_intent_status NOT NULL,
@@ -79,8 +79,8 @@ CREATE UNIQUE INDEX uniq_resource_primary_region
   WHERE is_primary = true;
 
 CREATE TABLE resource_domains (
-    id BIGSERIAL PRIMARY KEY,
-    resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     domain TEXT NOT NULL UNIQUE,
     domain_source domain_source NOT NULL,
     subdomain_label TEXT,
@@ -114,9 +114,9 @@ CREATE UNIQUE INDEX uniq_platform_subdomain
 
 -- Deployments table (immutable, single-region)
 CREATE TABLE deployments (
-    id BIGSERIAL PRIMARY KEY,
-    resource_id BIGINT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
-    resource_region_id BIGINT NOT NULL REFERENCES resource_regions(id) ON DELETE RESTRICT,
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    resource_id UUID NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    resource_region_id UUID NOT NULL REFERENCES resource_regions(id) ON DELETE RESTRICT,
     cluster_id BIGINT NOT NULL REFERENCES clusters(id) ON DELETE RESTRICT,
     region TEXT NOT NULL,
     replicas INT NOT NULL,

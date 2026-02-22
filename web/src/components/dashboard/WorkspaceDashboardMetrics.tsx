@@ -1,8 +1,7 @@
-import { useMemo } from "react";
 import { useQuery } from "@connectrpc/connect-query";
+import { useMemo } from "react";
 
-import { listWorkspaceResources } from "@/gen/loco/resource/v1";
-import { listWorkspaceMembers } from "@/gen/loco/workspace/v1";
+import { Badge } from "@/components/ui/badge";
 import {
 	Card,
 	CardContent,
@@ -10,11 +9,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { listWorkspaceResources } from "@/gen/loco/resource/v1";
+import { listWorkspaceMembers } from "@/gen/loco/workspace/v1";
 import { TrendingUpIcon } from "lucide-react";
 
 interface WorkspaceDashboardMetricsProps {
-	workspaceId: bigint;
+	workspaceId: string;
 	workspaceName?: string;
 }
 
@@ -25,22 +25,22 @@ export function WorkspaceDashboardMetrics({
 	const { data: resourcesRes } = useQuery(
 		listWorkspaceResources,
 		{ workspaceId },
-		{ enabled: !!workspaceId }
+		{ enabled: !!workspaceId },
 	);
 	const apps = useMemo(
 		() => resourcesRes?.resources ?? [],
-		[resourcesRes?.resources]
+		[resourcesRes?.resources],
 	);
 
 	// Fetch members
 	const { data: membersRes } = useQuery(
 		listWorkspaceMembers,
 		{ workspaceId },
-		{ enabled: !!workspaceId }
+		{ enabled: !!workspaceId },
 	);
 	const members = useMemo(
 		() => membersRes?.members ?? [],
-		[membersRes?.members]
+		[membersRes?.members],
 	);
 
 	// Group members by role
@@ -63,17 +63,15 @@ export function WorkspaceDashboardMetrics({
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 			{/* Total Apps (Active) */}
-			<Card>
+			<Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group">
+				<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-500 to-teal-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 				<CardHeader className="relative pb-2">
 					<CardDescription>Active Apps</CardDescription>
 					<CardTitle className="text-3xl font-semibold tabular-nums">
 						{activeAppsCount}
 					</CardTitle>
 					<div className="absolute right-4 top-4">
-						<Badge
-							variant="outline"
-							className="flex gap-1 rounded-lg text-xs"
-						>
+						<Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
 							<TrendingUpIcon className="size-3" />
 							{apps.length > 0
 								? Math.round((activeAppsCount / apps.length) * 100)
@@ -88,7 +86,8 @@ export function WorkspaceDashboardMetrics({
 			</Card>
 
 			{/* Recent Deployments (30d) */}
-			<Card>
+			<Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group">
+				<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-500 to-teal-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 				<CardHeader className="pb-2">
 					<CardDescription>Deployments (30d)</CardDescription>
 					<CardTitle className="text-3xl font-semibold tabular-nums">
@@ -101,7 +100,8 @@ export function WorkspaceDashboardMetrics({
 			</Card>
 
 			{/* Workspace Members by Role */}
-			<Card>
+			<Card className="relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 group">
+				<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-orange-500 to-teal-500 opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 				<CardHeader className="pb-2">
 					<CardDescription>Team Members</CardDescription>
 					<CardTitle className="text-3xl font-semibold tabular-nums">

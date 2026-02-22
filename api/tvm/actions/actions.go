@@ -1,6 +1,10 @@
 package actions
 
-import "github.com/team-loco/loco/api/gen/db"
+import (
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/team-loco/loco/api/gen/db"
+)
 
 // Action represents a permission to perform an operation on an entity of a given type.
 type Action struct {
@@ -295,10 +299,11 @@ var (
 	// Token management actions are dynamically defined.
 )
 
-func New(a Action, entityID int64) db.EntityScope {
+func New(a Action, entityID string) db.EntityScope {
+	parsed, _ := uuid.Parse(entityID)
 	return db.EntityScope{
 		EntityType: a.entityType,
-		EntityID:   entityID,
+		EntityID:   pgtype.UUID{Bytes: parsed, Valid: true},
 		Scope:      a.scope,
 	}
 }

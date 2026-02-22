@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/user/v1/user.proto.
  */
 export const file_loco_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIrgBCgRVc2VyEgoKAmlkGAEgASgDEhMKC2V4dGVybmFsX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkSDAoEbmFtZRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ7ChFDcmVhdGVVc2VyUmVxdWVzdBITCgtleHRlcm5hbF9pZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIRCgRuYW1lGAMgASgJSACIAQESFwoKYXZhdGFyX3VybBgEIAEoCUgBiAEBQgcKBV9uYW1lQg0KC19hdmF0YXJfdXJsIiUKEkNyZWF0ZVVzZXJSZXNwb25zZRIPCgd1c2VyX2lkGAEgASgDIjsKDkdldFVzZXJSZXF1ZXN0EhEKB3VzZXJfaWQYASABKANIABIPCgVlbWFpbBgCIAEoCUgAQgUKA2tleSIzCg9HZXRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIpkBChFVcGRhdGVVc2VyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIXCgphdmF0YXJfdXJsGAMgASgJSACIAQESEQoEbmFtZRgEIAEoCUgBiAEBQg0KC19hdmF0YXJfdXJsQgcKBV9uYW1lIiUKElVwZGF0ZVVzZXJSZXNwb25zZRIPCgd1c2VyX2lkGAEgASgDIjkKEExpc3RVc2Vyc1JlcXVlc3QSEQoJcGFnZV9zaXplGAEgASgFEhIKCnBhZ2VfdG9rZW4YAiABKAkiTwoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiDwoNV2hvQW1JUmVxdWVzdCIyCg5XaG9BbUlSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIiJAoRRGVsZXRlVXNlclJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoAyIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZTKgBAoLVXNlclNlcnZpY2USTwoKQ3JlYXRlVXNlchIfLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVzcG9uc2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USQwoGV2hvQW1JEhsubG9jby51c2VyLnYxLldob0FtSVJlcXVlc3QaHC5sb2NvLnVzZXIudjEuV2hvQW1JUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2VCNVozZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL3VzZXIvdjE7dXNlcnYxYgZwcm90bzM", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIrgBCgRVc2VyEgoKAmlkGAEgASgJEhMKC2V4dGVybmFsX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEhIKCmF2YXRhcl91cmwYBCABKAkSDAoEbmFtZRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ7ChFDcmVhdGVVc2VyUmVxdWVzdBITCgtleHRlcm5hbF9pZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIRCgRuYW1lGAMgASgJSACIAQESFwoKYXZhdGFyX3VybBgEIAEoCUgBiAEBQgcKBV9uYW1lQg0KC19hdmF0YXJfdXJsIiUKEkNyZWF0ZVVzZXJSZXNwb25zZRIPCgd1c2VyX2lkGAEgASgJIjsKDkdldFVzZXJSZXF1ZXN0EhEKB3VzZXJfaWQYASABKAlIABIPCgVlbWFpbBgCIAEoCUgAQgUKA2tleSIzCg9HZXRVc2VyUmVzcG9uc2USIAoEdXNlchgBIAEoCzISLmxvY28udXNlci52MS5Vc2VyIpkBChFVcGRhdGVVc2VyUmVxdWVzdBIPCgd1c2VyX2lkGAEgASgJEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIXCgphdmF0YXJfdXJsGAMgASgJSACIAQESEQoEbmFtZRgEIAEoCUgBiAEBQg0KC19hdmF0YXJfdXJsQgcKBV9uYW1lIiUKElVwZGF0ZVVzZXJSZXNwb25zZRIPCgd1c2VyX2lkGAEgASgJIjkKEExpc3RVc2Vyc1JlcXVlc3QSEQoJcGFnZV9zaXplGAEgASgFEhIKCnBhZ2VfdG9rZW4YAiABKAkiTwoRTGlzdFVzZXJzUmVzcG9uc2USIQoFdXNlcnMYASADKAsyEi5sb2NvLnVzZXIudjEuVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiDwoNV2hvQW1JUmVxdWVzdCIyCg5XaG9BbUlSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIiJAoRRGVsZXRlVXNlclJlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCSIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZTKgBAoLVXNlclNlcnZpY2USTwoKQ3JlYXRlVXNlchIfLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5DcmVhdGVVc2VyUmVzcG9uc2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USQwoGV2hvQW1JEhsubG9jby51c2VyLnYxLldob0FtSVJlcXVlc3QaHC5sb2NvLnVzZXIudjEuV2hvQW1JUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2VCNVozZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL3VzZXIvdjE7dXNlcnYxYgZwcm90bzM", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -21,9 +21,9 @@ export const file_loco_user_v1_user: GenFile = /*@__PURE__*/
  */
 export type User = Message<"loco.user.v1.User"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
-  id: bigint;
+  id: string;
 
   /**
    * @generated from field: string external_id = 2;
@@ -63,7 +63,7 @@ export type User = Message<"loco.user.v1.User"> & {
  */
 export type UserJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 
@@ -173,9 +173,9 @@ export const CreateUserRequestSchema: GenMessage<CreateUserRequest, {jsonType: C
  */
 export type CreateUserResponse = Message<"loco.user.v1.CreateUserResponse"> & {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
-  userId: bigint;
+  userId: string;
 };
 
 /**
@@ -185,7 +185,7 @@ export type CreateUserResponse = Message<"loco.user.v1.CreateUserResponse"> & {
  */
 export type CreateUserResponseJson = {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
   userId?: string;
 };
@@ -208,9 +208,9 @@ export type GetUserRequest = Message<"loco.user.v1.GetUserRequest"> & {
    */
   key: {
     /**
-     * @generated from field: int64 user_id = 1;
+     * @generated from field: string user_id = 1;
      */
-    value: bigint;
+    value: string;
     case: "userId";
   } | {
     /**
@@ -228,7 +228,7 @@ export type GetUserRequest = Message<"loco.user.v1.GetUserRequest"> & {
  */
 export type GetUserRequestJson = {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
   userId?: string;
 
@@ -283,9 +283,9 @@ export const GetUserResponseSchema: GenMessage<GetUserResponse, {jsonType: GetUs
  */
 export type UpdateUserRequest = Message<"loco.user.v1.UpdateUserRequest"> & {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
-  userId: bigint;
+  userId: string;
 
   /**
    * @generated from field: google.protobuf.FieldMask update_mask = 2;
@@ -310,7 +310,7 @@ export type UpdateUserRequest = Message<"loco.user.v1.UpdateUserRequest"> & {
  */
 export type UpdateUserRequestJson = {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
   userId?: string;
 
@@ -344,9 +344,9 @@ export const UpdateUserRequestSchema: GenMessage<UpdateUserRequest, {jsonType: U
  */
 export type UpdateUserResponse = Message<"loco.user.v1.UpdateUserResponse"> & {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
-  userId: bigint;
+  userId: string;
 };
 
 /**
@@ -356,7 +356,7 @@ export type UpdateUserResponse = Message<"loco.user.v1.UpdateUserResponse"> & {
  */
 export type UpdateUserResponseJson = {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
   userId?: string;
 };
@@ -523,9 +523,9 @@ export const WhoAmIResponseSchema: GenMessage<WhoAmIResponse, {jsonType: WhoAmIR
  */
 export type DeleteUserRequest = Message<"loco.user.v1.DeleteUserRequest"> & {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
-  userId: bigint;
+  userId: string;
 };
 
 /**
@@ -535,7 +535,7 @@ export type DeleteUserRequest = Message<"loco.user.v1.DeleteUserRequest"> & {
  */
 export type DeleteUserRequestJson = {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
   userId?: string;
 };

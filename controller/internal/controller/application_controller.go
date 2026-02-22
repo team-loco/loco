@@ -287,12 +287,12 @@ func (r *LocoResourceReconciler) handleDeletion(ctx context.Context, locoRes *lo
 
 // getName derives the app name from the Application
 func getName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("resource-%d", locoRes.Spec.ResourceId)
+	return fmt.Sprintf("resource-%v", locoRes.Spec.ResourceId)
 }
 
 // getNamespace derives the namespace from the Application
 func getNamespace(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("wks-%d-res-%d", locoRes.Spec.WorkspaceId, locoRes.Spec.ResourceId)
+	return fmt.Sprintf("wks-%v-res-%v", locoRes.Spec.WorkspaceId, locoRes.Spec.ResourceId)
 }
 
 func getImageSecretName(locoRes *locov1alpha1.Application) string {
@@ -1030,10 +1030,10 @@ func (r *LocoResourceReconciler) validateLocoResource(locoRes *locov1alpha1.Appl
 	if locoRes.Spec.ServiceSpec.Deployment.Image == "" {
 		return fmt.Errorf("Image is required")
 	}
-	if locoRes.Spec.ResourceId == 0 {
+	if locoRes.Spec.ResourceId == "" {
 		return fmt.Errorf("ResourceId is required")
 	}
-	if locoRes.Spec.WorkspaceId == 0 {
+	if locoRes.Spec.WorkspaceId == "" {
 		return fmt.Errorf("WorkspaceID is required")
 	}
 	return nil

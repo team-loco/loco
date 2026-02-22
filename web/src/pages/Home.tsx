@@ -22,9 +22,7 @@ export function Home() {
 	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
-	const selectedWorkspaceId = workspaceFromUrl
-		? BigInt(workspaceFromUrl)
-		: null;
+	const selectedWorkspaceId = workspaceFromUrl ?? null;
 	const [searchTerm] = useState("");
 
 	// Fetch all organizations
@@ -32,7 +30,7 @@ export function Home() {
 		data: orgsQueryRes,
 		isLoading: orgsLoading,
 		error: orgsError,
-	} = useQuery(listUserOrgs, user ? { userId: BigInt(user.id) } : undefined, {
+	} = useQuery(listUserOrgs, user ? { userId: user.id } : undefined, {
 		enabled: !!user,
 	});
 	const orgs = useMemo(() => orgsQueryRes?.orgs ?? [], [orgsQueryRes]);
@@ -64,7 +62,7 @@ export function Home() {
 		refetch: refetchResources,
 	} = useQuery(
 		listWorkspaceResources,
-		{ workspaceId: currentWorkspaceId ?? 0n },
+		currentWorkspaceId ? { workspaceId: currentWorkspaceId } : undefined,
 		{ enabled: !!currentWorkspaceId }
 	);
 

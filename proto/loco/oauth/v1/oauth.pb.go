@@ -232,7 +232,7 @@ type ExchangeOAuthTokenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LocoToken     string                 `protobuf:"bytes,1,opt,name=loco_token,json=locoToken,proto3" json:"loco_token,omitempty"`
 	ExpiresIn     int64                  `protobuf:"varint,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"` // seconds
-	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -282,11 +282,11 @@ func (x *ExchangeOAuthTokenResponse) GetExpiresIn() int64 {
 	return 0
 }
 
-func (x *ExchangeOAuthTokenResponse) GetUserId() int64 {
+func (x *ExchangeOAuthTokenResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 func (x *ExchangeOAuthTokenResponse) GetName() string {
@@ -483,7 +483,7 @@ func (x *ExchangeOAuthCodeRequest) GetRedirectUri() string {
 type ExchangeOAuthCodeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExpiresIn     int64                  `protobuf:"varint,1,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -526,11 +526,11 @@ func (x *ExchangeOAuthCodeResponse) GetExpiresIn() int64 {
 	return 0
 }
 
-func (x *ExchangeOAuthCodeResponse) GetUserId() int64 {
+func (x *ExchangeOAuthCodeResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 func (x *ExchangeOAuthCodeResponse) GetName() string {
@@ -559,7 +559,7 @@ const file_loco_oauth_v1_oauth_proto_rawDesc = "" +
 	"loco_token\x18\x01 \x01(\tR\tlocoToken\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x12\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\"\x94\x01\n" +
 	"\x1fGetOAuthAuthorizationURLRequest\x128\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
@@ -576,7 +576,7 @@ const file_loco_oauth_v1_oauth_proto_rawDesc = "" +
 	"\x19ExchangeOAuthCodeResponse\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x01 \x01(\x03R\texpiresIn\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name*L\n" +
 	"\rOAuthProvider\x12\x1f\n" +
 	"\x1bO_AUTH_PROVIDER_UNSPECIFIED\x10\x00\x12\x1a\n" +

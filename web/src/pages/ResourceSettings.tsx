@@ -1,3 +1,4 @@
+import Loader from "@/assets/loader.svg?react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,17 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import Loader from "@/assets/loader.svg?react";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import {
+	checkDomainAvailability,
+	createResourceDomain,
+	deleteResourceDomain,
+	listPlatformDomains,
+	setPrimaryResourceDomain,
+	updateResourceDomain,
+} from "@/gen/loco/domain/v1";
+import type { ResourceDomain } from "@/gen/loco/domain/v1/domain_pb";
+import { DomainType } from "@/gen/loco/domain/v1/domain_pb";
 import {
 	ResourceStatus,
 	deleteResource,
@@ -17,22 +28,11 @@ import {
 	scaleResource,
 	updateResource,
 } from "@/gen/loco/resource/v1";
-import {
-	createResourceDomain,
-	checkDomainAvailability,
-	listPlatformDomains,
-	deleteResourceDomain,
-	setPrimaryResourceDomain,
-	updateResourceDomain,
-} from "@/gen/loco/domain/v1";
-import type { ResourceDomain } from "@/gen/loco/domain/v1/domain_pb";
-import { DomainType } from "@/gen/loco/domain/v1/domain_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Cpu, HardDrive } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 import { toast } from "sonner";
 
 export function ResourceSettings() {
@@ -46,10 +46,12 @@ export function ResourceSettings() {
 		refetch,
 	} = useQuery(
 		getResource,
-		resourceId ? { key: { case: "resourceId" as const, value: BigInt(resourceId) } } : undefined,
+		resourceId
+			? { key: { case: "resourceId" as const, value: resourceId } }
+			: undefined,
 		{
 			enabled: !!resourceId,
-		}
+		},
 	);
 	const resource = resourceResponse?.resource;
 
@@ -57,7 +59,7 @@ export function ResourceSettings() {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [newDomain, setNewDomain] = useState("");
 	const [domainSource, setDomainSource] = useState<"platform" | "user">(
-		"platform"
+		"platform",
 	);
 	const [platformDomainId, setPlatformDomainId] = useState<string>("");
 	const [editingDomainId, setEditingDomainId] = useState<bigint | null>(null);
@@ -83,7 +85,7 @@ export function ResourceSettings() {
 		if (!resourceId) return;
 		try {
 			await updateResourceMutation.mutateAsync({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 				name: name || resource?.name || "",
 			});
 			toast.success("Resource updated successfully");
@@ -97,7 +99,7 @@ export function ResourceSettings() {
 		if (!resourceId) return;
 		try {
 			await deleteResourceMutation.mutateAsync({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 			});
 			toast.success("Resource deleted successfully");
 			if (activeOrgId && activeWorkspaceId) {
@@ -126,7 +128,7 @@ export function ResourceSettings() {
 			};
 
 			await addDomainMutation.mutateAsync({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 				domain: domainInput,
 			});
 			toast.success("Domain added successfully");
@@ -143,7 +145,7 @@ export function ResourceSettings() {
 		if (!resourceId) return;
 		try {
 			await setPrimaryMutation.mutateAsync({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 				domainId,
 			});
 			toast.success("Primary domain updated");
@@ -212,7 +214,7 @@ export function ResourceSettings() {
 		if (!resourceId) return;
 		try {
 			await scaleResourceMutation.mutateAsync({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 				cpu: `${cpuValue[0]}m`,
 				memory: `${memoryValue[0]}Mi`,
 			});

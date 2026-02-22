@@ -139,7 +139,7 @@ type EntityScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scope         Scope                  `protobuf:"varint,1,opt,name=scope,proto3,enum=loco.token.v1.Scope" json:"scope,omitempty"`
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
-	EntityId      int64                  `protobuf:"varint,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -188,11 +188,11 @@ func (x *EntityScope) GetEntityType() EntityType {
 	return EntityType_ENTITY_TYPE_UNSPECIFIED
 }
 
-func (x *EntityScope) GetEntityId() int64 {
+func (x *EntityScope) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
 	}
-	return 0
+	return ""
 }
 
 // Token represents token metadata (without the actual token string).
@@ -200,7 +200,7 @@ type Token struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
-	EntityId      int64                  `protobuf:"varint,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	Scopes        []*EntityScope         `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -252,11 +252,11 @@ func (x *Token) GetEntityType() EntityType {
 	return EntityType_ENTITY_TYPE_UNSPECIFIED
 }
 
-func (x *Token) GetEntityId() int64 {
+func (x *Token) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
 	}
-	return 0
+	return ""
 }
 
 func (x *Token) GetScopes() []*EntityScope {
@@ -285,7 +285,7 @@ type CreateTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                                              // Human-readable token name
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"` // Entity type the token is for
-	EntityId      int64                  `protobuf:"varint,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`                                     // Entity ID the token is for
+	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`                                      // Entity ID the token is for
 	Scopes        []*EntityScope         `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`                                                          // Scopes to grant to the token
 	ExpiresInSec  int64                  `protobuf:"varint,5,opt,name=expires_in_sec,json=expiresInSec,proto3" json:"expires_in_sec,omitempty"`                       // Expiration duration in seconds (max: 2592000 = 30 days)
 	unknownFields protoimpl.UnknownFields
@@ -336,11 +336,11 @@ func (x *CreateTokenRequest) GetEntityType() EntityType {
 	return EntityType_ENTITY_TYPE_UNSPECIFIED
 }
 
-func (x *CreateTokenRequest) GetEntityId() int64 {
+func (x *CreateTokenRequest) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
 	}
-	return 0
+	return ""
 }
 
 func (x *CreateTokenRequest) GetScopes() []*EntityScope {
@@ -414,7 +414,7 @@ func (x *CreateTokenResponse) GetTokenMetadata() *Token {
 type ListTokensRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EntityType    EntityType             `protobuf:"varint,1,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
-	EntityId      int64                  `protobuf:"varint,2,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,2,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -456,11 +456,11 @@ func (x *ListTokensRequest) GetEntityType() EntityType {
 	return EntityType_ENTITY_TYPE_UNSPECIFIED
 }
 
-func (x *ListTokensRequest) GetEntityId() int64 {
+func (x *ListTokensRequest) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
 	}
-	return 0
+	return ""
 }
 
 // ListTokensResponse contains a list of token metadata.
@@ -513,7 +513,7 @@ type GetTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
-	EntityId      int64                  `protobuf:"varint,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -562,11 +562,11 @@ func (x *GetTokenRequest) GetEntityType() EntityType {
 	return EntityType_ENTITY_TYPE_UNSPECIFIED
 }
 
-func (x *GetTokenRequest) GetEntityId() int64 {
+func (x *GetTokenRequest) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
 	}
-	return 0
+	return ""
 }
 
 // GetTokenResponse contains the token metadata.
@@ -619,7 +619,7 @@ type RevokeTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
-	EntityId      int64                  `protobuf:"varint,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -668,11 +668,11 @@ func (x *RevokeTokenRequest) GetEntityType() EntityType {
 	return EntityType_ENTITY_TYPE_UNSPECIFIED
 }
 
-func (x *RevokeTokenRequest) GetEntityId() int64 {
+func (x *RevokeTokenRequest) GetEntityId() string {
 	if x != nil {
 		return x.EntityId
 	}
-	return 0
+	return ""
 }
 
 // RevokeTokenResponse is the response after revoking a token.
@@ -721,12 +721,12 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\x05scope\x18\x01 \x01(\x0e2\x14.loco.token.v1.ScopeR\x05scope\x12:\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\x03R\bentityId\"\x9e\x02\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\"\x9e\x02\n" +
 	"\x05Token\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\x03R\bentityId\x122\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\x122\n" +
 	"\x06scopes\x18\x04 \x03(\v2\x1a.loco.token.v1.EntityScopeR\x06scopes\x129\n" +
 	"\n" +
 	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x129\n" +
@@ -736,7 +736,7 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\x03R\bentityId\x122\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\x122\n" +
 	"\x06scopes\x18\x04 \x03(\v2\x1a.loco.token.v1.EntityScopeR\x06scopes\x12$\n" +
 	"\x0eexpires_in_sec\x18\x05 \x01(\x03R\fexpiresInSec\"h\n" +
 	"\x13CreateTokenResponse\x12\x14\n" +
@@ -745,21 +745,21 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\x11ListTokensRequest\x12:\n" +
 	"\ventity_type\x18\x01 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x02 \x01(\x03R\bentityId\"B\n" +
+	"\tentity_id\x18\x02 \x01(\tR\bentityId\"B\n" +
 	"\x12ListTokensResponse\x12,\n" +
 	"\x06tokens\x18\x01 \x03(\v2\x14.loco.token.v1.TokenR\x06tokens\"~\n" +
 	"\x0fGetTokenRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\x03R\bentityId\">\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\">\n" +
 	"\x10GetTokenResponse\x12*\n" +
 	"\x05token\x18\x01 \x01(\v2\x14.loco.token.v1.TokenR\x05token\"\x81\x01\n" +
 	"\x12RevokeTokenRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\x03R\bentityId\"\x15\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\"\x15\n" +
 	"\x13RevokeTokenResponse*\xaa\x01\n" +
 	"\n" +
 	"EntityType\x12\x1b\n" +

@@ -57,15 +57,15 @@ func buildListCmd() *cobra.Command {
 				Output:             os.Stdout,
 			}
 
-			orgID, err := cmd.Flags().GetInt64("org-id")
+			orgIDInt, err := cmd.Flags().GetInt64("org-id")
 			if err != nil {
 				return fmt.Errorf("failed to get org-id flag: %w", err)
 			}
 			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 
-			if orgID != 0 {
+			if orgIDInt != 0 {
 				req := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
-					OrgId: orgID,
+					OrgId: fmt.Sprintf("%d", orgIDInt),
 				})
 				req.Header().Set("Authorization", authHeader)
 
@@ -84,7 +84,7 @@ func buildListCmd() *cobra.Command {
 					return err
 				}
 				for _, ws := range resp.Msg.Workspaces {
-					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %d)\n", ws.Name, ws.Id)
+					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.Name, ws.Id)
 					if err != nil {
 						return err
 					}
@@ -118,7 +118,7 @@ func buildListCmd() *cobra.Command {
 					return err
 				}
 				for _, ws := range resp.Msg.Workspaces {
-					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %d, Org: %d)\n", ws.Name, ws.Id, ws.OrgId)
+					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.Name, ws.Id)
 					if err != nil {
 						return err
 					}

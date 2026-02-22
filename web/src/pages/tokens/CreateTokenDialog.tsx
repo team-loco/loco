@@ -1,11 +1,11 @@
-import { useState, useMemo } from "react";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { createToken } from "@/gen/loco/token/v1";
-import { EntityType, Scope, EntityScopeSchema } from "@/gen/loco/token/v1/token_pb";
-import { listUserOrgs } from "@/gen/loco/org/v1";
-import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
-import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { useAuth } from "@/auth/AuthProvider";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
 	Dialog,
 	DialogContent,
@@ -14,7 +14,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,42 +24,47 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import {
-	Loader,
-	Plus,
-	X,
-	Shield,
-	ShieldCheck,
-	ShieldAlert,
-	ChevronRight,
-	Box,
-} from "lucide-react";
-import {
-	Collapsible,
-	CollapsibleContent,
-	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listWorkspaceResources } from "@/gen/loco/resource/v1";
+import { createToken } from "@/gen/loco/token/v1";
+import {
+	EntityScopeSchema,
+	EntityType,
+	Scope,
+} from "@/gen/loco/token/v1/token_pb";
+import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { getErrorMessage } from "@/lib/error-handler";
+import { cn } from "@/lib/utils";
 import { create } from "@bufbuild/protobuf";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
+import {
+	Box,
+	ChevronRight,
+	Loader,
+	Plus,
+	Shield,
+	ShieldAlert,
+	ShieldCheck,
+	X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 interface CreateTokenDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	activeOrgId: bigint | null;
+	activeOrgId: string | null;
 	onSuccess: (tokenString: string) => void;
 }
 
 interface ScopeSelection {
 	entityType: EntityType;
-	entityId: bigint;
+	entityId: string;
 	entityName?: string;
 	scope: Scope;
 }
@@ -98,14 +102,14 @@ const EXPIRATION_OPTIONS = [
 ];
 
 interface WorkspaceTreeItemProps {
-	workspace: { id: bigint; name: string };
+	workspace: { id: string; name: string };
 	isExpanded: boolean;
 	onToggleExpand: () => void;
 	onScopeSelect: (
 		entityType: EntityType,
-		entityId: bigint,
+		entityId: string,
 		scope: Scope,
-		entityName?: string
+		entityName?: string,
 	) => void;
 	scopeOptions: typeof SCOPE_OPTIONS;
 }
@@ -121,12 +125,12 @@ function WorkspaceTreeItem({
 	const { data: resourcesRes } = useQuery(
 		listWorkspaceResources,
 		{ workspaceId: workspace.id },
-		{ enabled: isExpanded }
+		{ enabled: isExpanded },
 	);
 
 	const resources = useMemo(
 		() => resourcesRes?.resources ?? [],
-		[resourcesRes]
+		[resourcesRes],
 	);
 
 	return (
@@ -146,7 +150,7 @@ function WorkspaceTreeItem({
 									<ChevronRight
 										className={cn(
 											"h-4 w-4 transition-transform duration-200",
-											isExpanded && "rotate-90"
+											isExpanded && "rotate-90",
 										)}
 									/>
 								</Button>
@@ -172,7 +176,7 @@ function WorkspaceTreeItem({
 										EntityType.WORKSPACE,
 										workspace.id,
 										scopeOption.value,
-										workspace.name
+										workspace.name,
 									)
 								}
 								title={scopeOption.description}
@@ -210,7 +214,7 @@ function WorkspaceTreeItem({
 														EntityType.RESOURCE,
 														resource.id,
 														scopeOption.value,
-														resource.name
+														resource.name,
 													)
 												}
 												title={scopeOption.description}
@@ -245,7 +249,7 @@ export function CreateTokenDialog({
 	// Tokens are created for the user entity
 	// The activeOrgId provides context for which org's resources the user can grant access to
 	const entityType = EntityType.USER;
-	const entityId = user?.id ?? 0n;
+	const entityId = user?.id;
 	const [tokenName, setTokenName] = useState("");
 	const [expiresInSec, setExpiresInSec] = useState(30 * 24 * 60 * 60); // 30 days default
 	const [selectedScopes, setSelectedScopes] = useState<ScopeSelection[]>([]);
@@ -253,8 +257,8 @@ export function CreateTokenDialog({
 	// Fetch the active org and its workspaces for scope selection
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		{ userId: user?.id ?? 0n },
-		{ enabled: !!user && open }
+		{ userId: user?.id },
+		{ enabled: !!user && open },
 	);
 	const activeOrg = useMemo(() => {
 		const allOrgs = orgsRes?.orgs ?? [];
@@ -264,22 +268,22 @@ export function CreateTokenDialog({
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
 		activeOrgId ? { orgId: activeOrgId } : undefined,
-		{ enabled: !!activeOrgId && open }
+		{ enabled: !!activeOrgId && open },
 	);
 	const workspaces = useMemo(
 		() => workspacesRes?.workspaces ?? [],
-		[workspacesRes]
+		[workspacesRes],
 	);
 
 	// Track which workspaces are expanded to show resources
 	const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(
-		new Set()
+		new Set(),
 	);
 
 	const { mutate: createTokenMutation, isPending } = useMutation(createToken);
 
 	// Toggle workspace expansion
-	const toggleWorkspaceExpansion = (workspaceId: bigint) => {
+	const toggleWorkspaceExpansion = (workspaceId: string) => {
 		setExpandedWorkspaceIds((prev) => {
 			const next = new Set(prev);
 			const key = workspaceId.toString();
@@ -295,9 +299,9 @@ export function CreateTokenDialog({
 	// Add a scope selection
 	const addScopeSelection = (
 		scopeEntityType: EntityType,
-		scopeEntityId: bigint,
+		scopeEntityId: string,
 		scope: Scope,
-		entityName?: string
+		entityName?: string,
 	) => {
 		const newScope: ScopeSelection = {
 			entityType: scopeEntityType,
@@ -311,7 +315,7 @@ export function CreateTokenDialog({
 			(s) =>
 				s.entityType === scopeEntityType &&
 				s.entityId === scopeEntityId &&
-				s.scope === scope
+				s.scope === scope,
 		);
 
 		if (!exists) {
@@ -329,7 +333,7 @@ export function CreateTokenDialog({
 	};
 
 	// Get entity name for display
-	const getEntityName = (eType: EntityType, eId: bigint): string => {
+	const getEntityName = (eType: EntityType, eId: string): string => {
 		if (eType === EntityType.USER && eId === user?.id) {
 			return user?.name || user?.email || "User";
 		}
@@ -377,7 +381,7 @@ export function CreateTokenDialog({
 				entityType: s.entityType,
 				entityId: s.entityId,
 				scope: s.scope,
-			})
+			}),
 		);
 
 		createTokenMutation(
@@ -399,7 +403,7 @@ export function CreateTokenDialog({
 				onError: (error) => {
 					toast.error(getErrorMessage(error, "Failed to create token"));
 				},
-			}
+			},
 		);
 	};
 
@@ -503,7 +507,7 @@ export function CreateTokenDialog({
 															entityType,
 															entityId,
 															scopeOption.value,
-															getEntityName(entityType, entityId)
+															getEntityName(entityType, entityId),
 														)
 													}
 													title={scopeOption.description}
@@ -541,7 +545,7 @@ export function CreateTokenDialog({
 																EntityType.ORGANIZATION,
 																activeOrg.id,
 																scopeOption.value,
-																activeOrg.name
+																activeOrg.name,
 															)
 														}
 														title={scopeOption.description}
@@ -569,7 +573,7 @@ export function CreateTokenDialog({
 													key={workspace.id.toString()}
 													workspace={workspace}
 													isExpanded={expandedWorkspaceIds.has(
-														workspace.id.toString()
+														workspace.id.toString(),
 													)}
 													onToggleExpand={() =>
 														toggleWorkspaceExpansion(workspace.id)
@@ -619,7 +623,7 @@ export function CreateTokenDialog({
 												string,
 												{
 													entityType: EntityType;
-													entityId: bigint;
+													entityId: string;
 													entityName: string | undefined;
 													scopes: Scope[];
 													indices: number[];
@@ -677,7 +681,7 @@ export function CreateTokenDialog({
 														.map((s) => scopeShortMap[s])
 														.join("");
 													const entityTypeLabel = getEntityTypeDisplay(
-														group.entityType
+														group.entityType,
 													);
 
 													return (
@@ -693,7 +697,7 @@ export function CreateTokenDialog({
 																{group.entityName ||
 																	getEntityName(
 																		group.entityType,
-																		group.entityId
+																		group.entityId,
 																	)}
 																: {scopeStr}
 															</Badge>
@@ -704,7 +708,7 @@ export function CreateTokenDialog({
 																onClick={() => {
 																	// Remove all scopes for this entity
 																	const newScopes = selectedScopes.filter(
-																		(_, idx) => !group.indices.includes(idx)
+																		(_, idx) => !group.indices.includes(idx),
 																	);
 																	setSelectedScopes(newScopes);
 																}}
@@ -714,7 +718,7 @@ export function CreateTokenDialog({
 															</Button>
 														</div>
 													);
-												}
+												},
 											);
 										})()
 									)}
@@ -741,8 +745,8 @@ export function CreateTokenDialog({
 								!tokenName.trim()
 									? "Token name is required"
 									: selectedScopes.length === 0
-									? "At least one scope is required"
-									: undefined
+										? "At least one scope is required"
+										: undefined
 							}
 							className={
 								!tokenName.trim() || selectedScopes.length === 0

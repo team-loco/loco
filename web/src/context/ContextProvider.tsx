@@ -7,12 +7,12 @@ const ORG_STORAGE_KEY = "loco_active_org_id";
 const WORKSPACE_STORAGE_KEY = "loco_active_workspace_id";
 
 interface OrgWorkspaceContextType {
-	activeOrgId: bigint | null;
-	activeWorkspaceId: bigint | null;
+	activeOrgId: string | null;
+	activeWorkspaceId: string | null;
 	orgs: Organization[];
 	workspaces: Workspace[];
-	setActiveOrg: (orgId: bigint) => void;
-	setActiveWorkspace: (workspaceId: bigint) => void;
+	setActiveOrg: (orgId: string) => void;
+	setActiveWorkspace: (workspaceId: string) => void;
 	setOrgs: (orgs: Organization[]) => void;
 	setWorkspaces: (workspaces: Workspace[]) => void;
 	addOrg: (org: Organization) => void;
@@ -50,19 +50,17 @@ export function ContextProvider({
 	// Derive active org ID - URL is canonical source of truth
 	const activeOrgId = useMemo(() => {
 		if (orgParam) {
-			const parsedId = BigInt(orgParam);
 			// If we have orgs, verify it exists; otherwise trust the URL
-			if (orgs.length === 0 || orgs.some((org) => org.id === parsedId)) {
-				return parsedId;
+			if (orgs.length === 0 || orgs.some((org) => org.id === orgParam)) {
+				return orgParam;
 			}
 		}
 
 		// Fallback to localStorage
 		const storedOrgId = localStorage.getItem(ORG_STORAGE_KEY);
 		if (storedOrgId) {
-			const parsedId = BigInt(storedOrgId);
-			if (orgs.length === 0 || orgs.some((org) => org.id === parsedId)) {
-				return parsedId;
+			if (orgs.length === 0 || orgs.some((org) => org.id === storedOrgId)) {
+				return storedOrgId;
 			}
 		}
 
@@ -73,19 +71,17 @@ export function ContextProvider({
 	// Derive active workspace ID - URL is canonical source of truth
 	const activeWorkspaceId = useMemo(() => {
 		if (workspaceParam) {
-			const parsedId = BigInt(workspaceParam);
 			// If we have workspaces, verify it exists; otherwise trust the URL
-			if (workspaces.length === 0 || workspaces.some((ws) => ws.id === parsedId)) {
-				return parsedId;
+			if (workspaces.length === 0 || workspaces.some((ws) => ws.id === workspaceParam)) {
+				return workspaceParam;
 			}
 		}
 
 		// Fallback to localStorage
 		const storedWsId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
 		if (storedWsId) {
-			const parsedId = BigInt(storedWsId);
-			if (workspaces.length === 0 || workspaces.some((ws) => ws.id === parsedId)) {
-				return parsedId;
+			if (workspaces.length === 0 || workspaces.some((ws) => ws.id === storedWsId)) {
+				return storedWsId;
 			}
 		}
 
@@ -96,33 +92,33 @@ export function ContextProvider({
 	// Persist active org to localStorage whenever it changes
 	useEffect(() => {
 		if (activeOrgId) {
-			localStorage.setItem(ORG_STORAGE_KEY, activeOrgId.toString());
+			localStorage.setItem(ORG_STORAGE_KEY, activeOrgId);
 		}
 	}, [activeOrgId]);
 
 	// Persist active workspace to localStorage whenever it changes
 	useEffect(() => {
 		if (activeWorkspaceId) {
-			localStorage.setItem(WORKSPACE_STORAGE_KEY, activeWorkspaceId.toString());
+			localStorage.setItem(WORKSPACE_STORAGE_KEY, activeWorkspaceId);
 		}
 	}, [activeWorkspaceId]);
 
-	const setActiveOrg = (orgId: bigint) => {
+	const setActiveOrg = (orgId: string) => {
 		// Navigate to the org with its first available workspace
 		const workspace = workspaces.find(
 			(ws) => ws.orgId === orgId
 		) ?? workspaces[0];
 		if (workspace) {
-			navigate(`/org/${orgId.toString()}/wks/${workspace.id.toString()}`);
+			navigate(`/org/${orgId}/wks/${workspace.id}`);
 		} else {
-			navigate(`/org/${orgId.toString()}/wks/select`);
+			navigate(`/org/${orgId}/wks/select`);
 		}
 	};
 
-	const setActiveWorkspace = (workspaceId: bigint) => {
+	const setActiveWorkspace = (workspaceId: string) => {
 		if (activeOrgId) {
 			navigate(
-				`/org/${activeOrgId.toString()}/wks/${workspaceId.toString()}`
+				`/org/${activeOrgId}/wks/${workspaceId}`
 			);
 		}
 	};

@@ -26,7 +26,7 @@ const (
 // User represents a user account with OAuth identity and profile information.
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ExternalId    string                 `protobuf:"bytes,2,opt,name=external_id,json=externalId,proto3" json:"external_id,omitempty"`
 	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
 	AvatarUrl     string                 `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
@@ -67,11 +67,11 @@ func (*User) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *User) GetId() int64 {
+func (x *User) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *User) GetExternalId() string {
@@ -188,7 +188,7 @@ func (x *CreateUserRequest) GetAvatarUrl() string {
 // CreateUserResponse is the response containing the created user ID.
 type CreateUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -223,11 +223,11 @@ func (*CreateUserResponse) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *CreateUserResponse) GetUserId() int64 {
+func (x *CreateUserResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 // GetUserRequest is the request to retrieve a user.
@@ -279,13 +279,13 @@ func (x *GetUserRequest) GetKey() isGetUserRequest_Key {
 	return nil
 }
 
-func (x *GetUserRequest) GetUserId() int64 {
+func (x *GetUserRequest) GetUserId() string {
 	if x != nil {
 		if x, ok := x.Key.(*GetUserRequest_UserId); ok {
 			return x.UserId
 		}
 	}
-	return 0
+	return ""
 }
 
 func (x *GetUserRequest) GetEmail() string {
@@ -302,7 +302,7 @@ type isGetUserRequest_Key interface {
 }
 
 type GetUserRequest_UserId struct {
-	UserId int64 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3,oneof"`
+	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3,oneof"`
 }
 
 type GetUserRequest_Email struct {
@@ -361,7 +361,7 @@ func (x *GetUserResponse) GetUser() *User {
 // UpdateUserRequest is the request to update user information.
 type UpdateUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	AvatarUrl     *string                `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
 	Name          *string                `protobuf:"bytes,4,opt,name=name,proto3,oneof" json:"name,omitempty"`
@@ -399,11 +399,11 @@ func (*UpdateUserRequest) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *UpdateUserRequest) GetUserId() int64 {
+func (x *UpdateUserRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateUserRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
@@ -430,7 +430,7 @@ func (x *UpdateUserRequest) GetName() string {
 // UpdateUserResponse is the response containing the updated user ID.
 type UpdateUserResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -465,11 +465,11 @@ func (*UpdateUserResponse) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *UpdateUserResponse) GetUserId() int64 {
+func (x *UpdateUserResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 // ListUsersRequest is the request to list users.
@@ -663,7 +663,7 @@ func (x *WhoAmIResponse) GetUser() *User {
 // DeleteUserRequest is the request to delete a user.
 type DeleteUserRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -698,11 +698,11 @@ func (*DeleteUserRequest) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *DeleteUserRequest) GetUserId() int64 {
+func (x *DeleteUserRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 // DeleteUserResponse is the response after deleting a user.
@@ -822,7 +822,7 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\n" +
 	"\x17loco/user/v1/user.proto\x12\floco.user.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf6\x01\n" +
 	"\x04User\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vexternal_id\x18\x02 \x01(\tR\n" +
 	"externalId\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x1d\n" +
@@ -843,15 +843,15 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\x05_nameB\r\n" +
 	"\v_avatar_url\"-\n" +
 	"\x12CreateUserResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"J\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"J\n" +
 	"\x0eGetUserRequest\x12\x19\n" +
-	"\auser_id\x18\x01 \x01(\x03H\x00R\x06userId\x12\x16\n" +
+	"\auser_id\x18\x01 \x01(\tH\x00R\x06userId\x12\x16\n" +
 	"\x05email\x18\x02 \x01(\tH\x00R\x05emailB\x05\n" +
 	"\x03key\"9\n" +
 	"\x0fGetUserResponse\x12&\n" +
 	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\"\xbe\x01\n" +
 	"\x11UpdateUserRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12;\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\x12\"\n" +
 	"\n" +
@@ -860,7 +860,7 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\v_avatar_urlB\a\n" +
 	"\x05_name\"-\n" +
 	"\x12UpdateUserResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"N\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"N\n" +
 	"\x10ListUsersRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
@@ -872,7 +872,7 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\x0eWhoAmIResponse\x12&\n" +
 	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\",\n" +
 	"\x11DeleteUserRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"\x14\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x14\n" +
 	"\x12DeleteUserResponse\"\x0f\n" +
 	"\rLogoutRequest\"\x10\n" +
 	"\x0eLogoutResponse2\xa0\x04\n" +

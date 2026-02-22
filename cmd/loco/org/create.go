@@ -73,10 +73,10 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 					return fmt.Errorf("unable to create organization %q: %w", name, err)
 				}
 				return fmt.Errorf("unable to create organization: %w", err)
-			}
+				}
 
-			fmt.Fprintf(deps.Output, "Organization created successfully (ID: %d)\n", resp.Msg.OrgId)
-			return nil
+				fmt.Fprintf(deps.Output, "Organization %q created successfully (ID: %s)\n", name, resp.Msg.OrgId)
+				return nil
 		},
 	}
 

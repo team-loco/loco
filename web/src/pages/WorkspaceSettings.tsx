@@ -31,7 +31,7 @@ export function WorkspaceSettings() {
 		refetch,
 	} = useQuery(
 		getWorkspace,
-		workspaceId ? { workspaceId: BigInt(workspaceId) } : undefined,
+		workspaceId ? { workspaceId } : undefined,
 		{ enabled: !!workspaceId }
 	);
 	const workspace = workspaceResponse?.workspace;
@@ -50,7 +50,7 @@ export function WorkspaceSettings() {
 
 		mutateUpdateWorkspace(
 			{
-				workspaceId: BigInt(workspaceId),
+				workspaceId,
 				name: wsName.trim(),
 				description: wsDescription.trim() || undefined,
 			},
@@ -204,7 +204,7 @@ export function WorkspaceSettings() {
 				<DeleteWorkspaceDialog
 					open={deleteDialogOpen}
 					onOpenChange={setDeleteDialogOpen}
-					workspaceId={BigInt(workspaceId)}
+					workspaceId={workspaceId}
 					workspaceName={workspace.name}
 				/>
 			)}

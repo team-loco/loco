@@ -34,7 +34,7 @@ export function useStreamLogs(resourceId: string, tailLimit?: number) {
 
 				// Stream logs from the server
 				for await (const logEntry of client.watchLogs(
-					{ resourceId: BigInt(resourceId) },
+					{ resourceId },
 					{ signal: abortController.signal }
 				)) {
 					if (!isMounted) break;

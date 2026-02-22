@@ -18,20 +18,20 @@ RETURNING id
 `
 
 type CreateWorkspaceParams struct {
-	OrgID       int64       `json:"orgId"`
+	OrgID       pgtype.UUID `json:"orgId"`
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
-	CreatedBy   int64       `json:"createdBy"`
+	CreatedBy   pgtype.UUID `json:"createdBy"`
 }
 
-func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (int64, error) {
+func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, createWorkspace,
 		arg.OrgID,
 		arg.Name,
 		arg.Description,
 		arg.CreatedBy,
 	)
-	var id int64
+	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -42,8 +42,8 @@ WHERE workspace_id = $1 AND user_id = $2
 `
 
 type DeleteWorkspaceMemberParams struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID pgtype.UUID `json:"workspaceId"`
+	UserID      pgtype.UUID `json:"userId"`
 }
 
 func (q *Queries) DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error {
@@ -55,9 +55,9 @@ const getOrganizationIDByWorkspaceID = `-- name: GetOrganizationIDByWorkspaceID 
 SELECT org_id FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error) {
+func (q *Queries) GetOrganizationIDByWorkspaceID(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, getOrganizationIDByWorkspaceID, id)
-	var org_id int64
+	var org_id pgtype.UUID
 	err := row.Scan(&org_id)
 	return org_id, err
 }
@@ -66,7 +66,7 @@ const getWorkspaceByIDQuery = `-- name: GetWorkspaceByIDQuery :one
 SELECT id, org_id, name, description, created_by, created_at, updated_at FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id int64) (Workspace, error) {
+func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id pgtype.UUID) (Workspace, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceByIDQuery, id)
 	var i Workspace
 	err := row.Scan(
@@ -87,8 +87,8 @@ WHERE workspace_id = $1 AND user_id = $2
 `
 
 type GetWorkspaceMemberRoleParams struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID pgtype.UUID `json:"workspaceId"`
+	UserID      pgtype.UUID `json:"userId"`
 }
 
 func (q *Queries) GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error) {
@@ -104,7 +104,7 @@ FROM workspace_members
 WHERE workspace_id = $1
 `
 
-func (q *Queries) GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([]WorkspaceMember, error) {
+func (q *Queries) GetWorkspaceMembers(ctx context.Context, workspaceID pgtype.UUID) ([]WorkspaceMember, error) {
 	rows, err := q.db.Query(ctx, getWorkspaceMembers, workspaceID)
 	if err != nil {
 		return nil, err
@@ -133,9 +133,9 @@ const getWorkspaceOrgID = `-- name: GetWorkspaceOrgID :one
 SELECT org_id FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error) {
+func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceOrgID, id)
-	var org_id int64
+	var org_id pgtype.UUID
 	err := row.Scan(&org_id)
 	return org_id, err
 }
@@ -148,8 +148,8 @@ SELECT EXISTS(
 `
 
 type IsWorkspaceMemberParams struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID pgtype.UUID `json:"workspaceId"`
+	UserID      pgtype.UUID `json:"userId"`
 }
 
 func (q *Queries) IsWorkspaceMember(ctx context.Context, arg IsWorkspaceMemberParams) (bool, error) {
@@ -167,8 +167,8 @@ AND name = $2
 `
 
 type IsWorkspaceNameUniqueInOrgParams struct {
-	OrgID int64  `json:"orgId"`
-	Name  string `json:"name"`
+	OrgID pgtype.UUID `json:"orgId"`
+	Name  string      `json:"name"`
 }
 
 func (q *Queries) IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error) {
@@ -186,22 +186,22 @@ JOIN users u ON wm.user_id = u.id
 WHERE wm.workspace_id = $1
   AND ($3::text IS NULL
        OR (wm.created_at, wm.user_id) < (
-         (SELECT created_at FROM workspace_members WHERE workspace_id = $1 AND user_id = $3::bigint),
-         $3::bigint
+         (SELECT created_at FROM workspace_members WHERE workspace_id = $1 AND user_id = $3::uuid),
+         $3::uuid
        ))
 ORDER BY wm.created_at DESC, wm.user_id DESC
 LIMIT $2
 `
 
 type ListWorkspaceMembersWithUserDetailsParams struct {
-	WorkspaceID int64       `json:"workspaceId"`
+	WorkspaceID pgtype.UUID `json:"workspaceId"`
 	Limit       int32       `json:"limit"`
 	PageToken   pgtype.Text `json:"pageToken"`
 }
 
 type ListWorkspaceMembersWithUserDetailsRow struct {
-	WorkspaceID int64              `json:"workspaceId"`
-	UserID      int64              `json:"userId"`
+	WorkspaceID pgtype.UUID        `json:"workspaceId"`
+	UserID      pgtype.UUID        `json:"userId"`
 	Role        WorkspaceRole      `json:"role"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 	Name        pgtype.Text        `json:"name"`
@@ -244,15 +244,15 @@ JOIN workspace_members wm ON wm.workspace_id = w.id
 WHERE wm.user_id = $1
   AND ($3::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = $3::bigint),
-         $3::bigint
+         (SELECT created_at FROM workspaces WHERE id = $3::uuid),
+         $3::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2
 `
 
 type ListWorkspacesForUserParams struct {
-	UserID    int64       `json:"userId"`
+	UserID    pgtype.UUID `json:"userId"`
 	Limit     int32       `json:"limit"`
 	PageToken pgtype.Text `json:"pageToken"`
 }
@@ -290,15 +290,15 @@ SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.upda
 WHERE w.org_id = $1
   AND ($3::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = $3::bigint),
-         $3::bigint
+         (SELECT created_at FROM workspaces WHERE id = $3::uuid),
+         $3::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2
 `
 
 type ListWorkspacesInOrgParams struct {
-	OrgID     int64       `json:"orgId"`
+	OrgID     pgtype.UUID `json:"orgId"`
 	Limit     int32       `json:"limit"`
 	PageToken pgtype.Text `json:"pageToken"`
 }
@@ -335,7 +335,7 @@ const removeWorkspace = `-- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) RemoveWorkspace(ctx context.Context, id int64) error {
+func (q *Queries) RemoveWorkspace(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, removeWorkspace, id)
 	return err
 }
@@ -350,14 +350,14 @@ RETURNING id
 `
 
 type UpdateWorkspaceParams struct {
-	ID          int64       `json:"id"`
+	ID          pgtype.UUID `json:"id"`
 	Name        pgtype.Text `json:"name"`
 	Description pgtype.Text `json:"description"`
 }
 
-func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (int64, error) {
+func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, updateWorkspace, arg.ID, arg.Name, arg.Description)
-	var id int64
+	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -371,14 +371,14 @@ RETURNING user_id
 `
 
 type UpsertWorkspaceMemberParams struct {
-	WorkspaceID int64         `json:"workspaceId"`
-	UserID      int64         `json:"userId"`
+	WorkspaceID pgtype.UUID   `json:"workspaceId"`
+	UserID      pgtype.UUID   `json:"userId"`
 	Role        WorkspaceRole `json:"role"`
 }
 
-func (q *Queries) UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (int64, error) {
+func (q *Queries) UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, upsertWorkspaceMember, arg.WorkspaceID, arg.UserID, arg.Role)
-	var user_id int64
+	var user_id pgtype.UUID
 	err := row.Scan(&user_id)
 	return user_id, err
 }

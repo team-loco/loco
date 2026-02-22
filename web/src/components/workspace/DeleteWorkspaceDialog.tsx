@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useOrgWorkspace } from "@/context/ContextProvider";
+import Loader from "@/assets/loader.svg?react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -11,17 +10,18 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { deleteWorkspace } from "@/gen/loco/workspace/v1";
-import { useMutation } from "@connectrpc/connect-query";
-import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-handler";
-import Loader from "@/assets/loader.svg?react";
+import { useMutation } from "@connectrpc/connect-query";
 import { AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface DeleteWorkspaceDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	workspaceId: bigint;
+	workspaceId: string;
 	workspaceName: string;
 	onSuccess?: () => void;
 }
@@ -64,7 +64,7 @@ export function DeleteWorkspaceDialog({
 				onError: (error) => {
 					toast.error(getErrorMessage(error, "Failed to delete workspace"));
 				},
-			}
+			},
 		);
 	};
 

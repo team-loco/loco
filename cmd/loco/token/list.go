@@ -70,7 +70,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get entity-type flag: %w", err)
 			}
-			entityID, err := cmd.Flags().GetInt64("entity-id")
+			entityIDInt, err := cmd.Flags().GetInt64("entity-id")
 			if err != nil {
 				return fmt.Errorf("failed to get entity-id flag: %w", err)
 			}
@@ -80,13 +80,16 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return err
 			}
 
-			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityID == 0 {
+			var entityID string
+			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInt == 0 {
 				entityID, err = getCurrentUserID(ctx, userClient, authHeader)
 				if err != nil {
 					return err
 				}
-			} else if entityID == 0 {
+			} else if entityIDInt == 0 {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
+			} else {
+				entityID = fmt.Sprintf("%d", entityIDInt)
 			}
 
 			req := connect.NewRequest(&tokenv1.ListTokensRequest{
@@ -133,13 +136,13 @@ func newListCmd(deps listDeps) *cobra.Command {
 	return cmd
 }
 
-func getCurrentUserID(ctx context.Context, userClient userv1connect.UserServiceClient, authHeader string) (int64, error) {
+func getCurrentUserID(ctx context.Context, userClient userv1connect.UserServiceClient, authHeader string) (string, error) {
 	whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
 	whoAmIReq.Header().Set("Authorization", authHeader)
 
 	whoAmIResp, err := userClient.WhoAmI(ctx, whoAmIReq)
 	if err != nil {
-		return 0, fmt.Errorf("failed to get current user: %w", err)
+		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
 	return whoAmIResp.Msg.User.Id, nil
 }

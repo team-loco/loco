@@ -19,7 +19,7 @@ RETURNING id
 `
 
 type CreateResourceParams struct {
-	WorkspaceID int64          `json:"workspaceId"`
+	WorkspaceID pgtype.UUID    `json:"workspaceId"`
 	Name        string         `json:"name"`
 	Type        ResourceType   `json:"type"`
 	Description string         `json:"description"`
@@ -29,7 +29,7 @@ type CreateResourceParams struct {
 }
 
 // Resource queries
-func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (int64, error) {
+func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, createResource,
 		arg.WorkspaceID,
 		arg.Name,
@@ -39,7 +39,7 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.Spec,
 		arg.SpecVersion,
 	)
-	var id int64
+	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -51,7 +51,7 @@ RETURNING id, resource_id, region, is_primary, status, last_error, created_at, u
 `
 
 type CreateResourceRegionParams struct {
-	ResourceID int64              `json:"resourceId"`
+	ResourceID pgtype.UUID        `json:"resourceId"`
 	Region     string             `json:"region"`
 	IsPrimary  bool               `json:"isPrimary"`
 	Status     RegionIntentStatus `json:"status"`
@@ -82,7 +82,7 @@ const deleteResource = `-- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1
 `
 
-func (q *Queries) DeleteResource(ctx context.Context, id int64) error {
+func (q *Queries) DeleteResource(ctx context.Context, id pgtype.UUID) error {
 	_, err := q.db.Exec(ctx, deleteResource, id)
 	return err
 }
@@ -167,7 +167,7 @@ FROM resources r
 WHERE r.id = $1
 `
 
-func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, error) {
+func (q *Queries) GetResourceByID(ctx context.Context, id pgtype.UUID) (Resource, error) {
 	row := q.db.QueryRow(ctx, getResourceByID, id)
 	var i Resource
 	err := row.Scan(
@@ -192,8 +192,8 @@ WHERE r.workspace_id = $1 AND r.name = $2
 `
 
 type GetResourceByNameAndWorkspaceParams struct {
-	WorkspaceID int64  `json:"workspaceId"`
-	Name        string `json:"name"`
+	WorkspaceID pgtype.UUID `json:"workspaceId"`
+	Name        string      `json:"name"`
 }
 
 func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error) {
@@ -221,8 +221,8 @@ WHERE resource_id = $1 AND region = $2
 `
 
 type GetResourceRegionByResourceAndRegionParams struct {
-	ResourceID int64  `json:"resourceId"`
-	Region     string `json:"region"`
+	ResourceID pgtype.UUID `json:"resourceId"`
+	Region     string      `json:"region"`
 }
 
 func (q *Queries) GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error) {
@@ -245,9 +245,9 @@ const getResourceWorkspaceID = `-- name: GetResourceWorkspaceID :one
 SELECT workspace_id FROM resources WHERE id = $1
 `
 
-func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id int64) (int64, error) {
+func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, getResourceWorkspaceID, id)
-	var workspace_id int64
+	var workspace_id pgtype.UUID
 	err := row.Scan(&workspace_id)
 	return workspace_id, err
 }
@@ -257,11 +257,11 @@ SELECT workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_
 `
 
 type GetWorkspaceOrganizationIDByResourceIDRow struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	OrgID       int64 `json:"orgId"`
+	WorkspaceID pgtype.UUID `json:"workspaceId"`
+	OrgID       pgtype.UUID `json:"orgId"`
 }
 
-func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (GetWorkspaceOrganizationIDByResourceIDRow, error) {
+func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id pgtype.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceOrganizationIDByResourceID, id)
 	var i GetWorkspaceOrganizationIDByResourceIDRow
 	err := row.Scan(&i.WorkspaceID, &i.OrgID)
@@ -273,7 +273,7 @@ SELECT status FROM deployments
 WHERE resource_id = $1 AND is_active = true
 `
 
-func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourceID int64) ([]DeploymentStatus, error) {
+func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourceID pgtype.UUID) ([]DeploymentStatus, error) {
 	rows, err := q.db.Query(ctx, listActiveDeploymentsByResourceID, resourceID)
 	if err != nil {
 		return nil, err
@@ -339,7 +339,7 @@ WHERE resource_id = $1
 ORDER BY is_primary DESC, region ASC
 `
 
-func (q *Queries) ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error) {
+func (q *Queries) ListResourceRegions(ctx context.Context, resourceID pgtype.UUID) ([]ResourceRegion, error) {
 	rows, err := q.db.Query(ctx, listResourceRegions, resourceID)
 	if err != nil {
 		return nil, err
@@ -374,15 +374,15 @@ FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
         OR (r.created_at, r.id) < (
-          (SELECT created_at FROM resources WHERE id = $3::bigint),
-          $3::bigint
+          (SELECT created_at FROM resources WHERE id = $3::uuid),
+          $3::uuid
         ))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT $2
 `
 
 type ListResourcesForWorkspaceParams struct {
-	WorkspaceID int64       `json:"workspaceId"`
+	WorkspaceID pgtype.UUID `json:"workspaceId"`
 	Limit       int32       `json:"limit"`
 	PageToken   pgtype.Text `json:"pageToken"`
 }
@@ -427,13 +427,13 @@ RETURNING id
 `
 
 type UpdateResourceParams struct {
-	ID   int64       `json:"id"`
+	ID   pgtype.UUID `json:"id"`
 	Name pgtype.Text `json:"name"`
 }
 
-func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (int64, error) {
+func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, updateResource, arg.ID, arg.Name)
-	var id int64
+	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -445,7 +445,7 @@ WHERE id = $1
 `
 
 type UpdateResourceStatusParams struct {
-	ID     int64          `json:"id"`
+	ID     pgtype.UUID    `json:"id"`
 	Status ResourceStatus `json:"status"`
 }
 

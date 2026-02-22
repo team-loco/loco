@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"strconv"
 
 	json "github.com/goccy/go-json"
 
@@ -121,7 +120,7 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 	return resp.Msg.User, nil
 }
 
-func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID int64) ([]*orgv1.Organization, error) {
+func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv1.Organization, error) {
 	req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
 		UserId:   userID,
 		PageSize: 100,
@@ -137,8 +136,9 @@ func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID int64) ([]*orgv1
 	return resp.Msg.Orgs, nil
 }
 
-func (c *Client) GetUserWorkspaces(ctx context.Context, userID int64) ([]*workspacev1.Workspace, error) {
+func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*workspacev1.Workspace, error) {
 	req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
+		UserId:   userID,
 		PageSize: 100,
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
@@ -153,14 +153,8 @@ func (c *Client) GetUserWorkspaces(ctx context.Context, userID int64) ([]*worksp
 }
 
 func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource, error) {
-	appIDInt, err := strconv.ParseInt(appID, 10, 64)
-	if err != nil {
-		logRequestID(ctx, err, "failed to parse app ID")
-		return nil, fmt.Errorf("invalid app ID: %w", err)
-	}
-
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: appIDInt},
+		Key: &resourcev1.GetResourceRequest_ResourceId{ResourceId: appID},
 	})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
@@ -174,13 +168,7 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 }
 
 func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev1.Resource, error) {
-	wsID, err := strconv.ParseInt(workspaceID, 10, 64)
-	if err != nil {
-		logRequestID(ctx, err, "failed to parse workspace ID")
-		return nil, fmt.Errorf("invalid workspace ID: %w", err)
-	}
-
-	req := connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: wsID})
+	req := connect.NewRequest(&resourcev1.ListWorkspaceResourcesRequest{WorkspaceId: workspaceID})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Resource.ListWorkspaceResources(ctx, req)
@@ -192,7 +180,7 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 	return resp.Msg.Resources, nil
 }
 
-func (c *Client) GetAppByName(ctx context.Context, workspaceID int64, appName string) (*resourcev1.Resource, error) {
+func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName string) (*resourcev1.Resource, error) {
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
 			NameKey: &resourcev1.GetResourceNameKey{
@@ -213,11 +201,7 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID int64, appName st
 }
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {
-	deploymentIDInt, err := strconv.ParseInt(deploymentID, 10, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid deployment ID: %w", err)
-	}
-	req := connect.NewRequest(&deploymentv1.GetDeploymentRequest{DeploymentId: deploymentIDInt})
+	req := connect.NewRequest(&deploymentv1.GetDeploymentRequest{DeploymentId: deploymentID})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.Deployment.GetDeployment(ctx, req)
@@ -230,11 +214,7 @@ func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deplo
 }
 
 func (c *Client) StreamDeployment(ctx context.Context, deploymentID string, eventHandler func(*deploymentv1.WatchDeploymentResponse) error) error {
-	deploymentIDInt, err := strconv.ParseInt(deploymentID, 10, 64)
-	if err != nil {
-		return err
-	}
-	req := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentIDInt})
+	req := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentID})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	stream, err := c.Deployment.WatchDeployment(ctx, req)
@@ -259,19 +239,15 @@ func (c *Client) StreamDeployment(ctx context.Context, deploymentID string, even
 }
 
 func (c *Client) DeleteApp(ctx context.Context, appID string) error {
-	appIDInt, err := strconv.ParseInt(appID, 10, 64)
-	if err != nil {
-		return fmt.Errorf("invalid app ID: %w", err)
-	}
-	req := connect.NewRequest(&resourcev1.DeleteResourceRequest{ResourceId: appIDInt})
+	req := connect.NewRequest(&resourcev1.DeleteResourceRequest{ResourceId: appID})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
-	_, err = c.Resource.DeleteResource(ctx, req)
+	_, err := c.Resource.DeleteResource(ctx, req)
 	logRequestID(ctx, err, "failed to delete app")
 	return err
 }
 
-func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu, memory *string) error {
+func (c *Client) ScaleApp(ctx context.Context, appID string, replicas *int32, cpu, memory *string) error {
 	req := connect.NewRequest(&resourcev1.ScaleResourceRequest{
 		ResourceId: appID,
 		Replicas:   replicas,
@@ -289,7 +265,7 @@ func (c *Client) ScaleApp(ctx context.Context, appID int64, replicas *int32, cpu
 	return nil
 }
 
-func (c *Client) UpdateAppEnv(ctx context.Context, appID int64, env map[string]string) error {
+func (c *Client) UpdateAppEnv(ctx context.Context, appID string, env map[string]string) error {
 	req := connect.NewRequest(&resourcev1.UpdateResourceEnvRequest{
 		ResourceId: appID,
 		Env:        env,
@@ -305,7 +281,7 @@ func (c *Client) UpdateAppEnv(ctx context.Context, appID int64, env map[string]s
 	return nil
 }
 
-func (c *Client) GetAppStatus(ctx context.Context, appID int64) (*resourcev1.GetResourceStatusResponse, error) {
+func (c *Client) GetAppStatus(ctx context.Context, appID string) (*resourcev1.GetResourceStatusResponse, error) {
 	req := connect.NewRequest(&resourcev1.GetResourceStatusRequest{
 		ResourceId: appID,
 	})
@@ -320,7 +296,7 @@ func (c *Client) GetAppStatus(ctx context.Context, appID int64) (*resourcev1.Get
 	return resp.Msg, nil
 }
 
-func (c *Client) StreamLogs(ctx context.Context, appID int64, limit *int32, follow *bool, logHandler func(*resourcev1.WatchLogsResponse) error) error {
+func (c *Client) StreamLogs(ctx context.Context, appID string, limit *int32, follow *bool, logHandler func(*resourcev1.WatchLogsResponse) error) error {
 	req := connect.NewRequest(&resourcev1.WatchLogsRequest{
 		ResourceId: appID,
 		Limit:      limit,
@@ -349,7 +325,7 @@ func (c *Client) StreamLogs(ctx context.Context, appID int64, limit *int32, foll
 	return nil
 }
 
-func (c *Client) GetEvents(ctx context.Context, appID int64, limit *int32) ([]*resourcev1.Event, error) {
+func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*resourcev1.Event, error) {
 	req := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
 		ResourceId: appID,
 		Limit:      limit,

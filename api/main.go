@@ -23,7 +23,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/middleware"
 	"github.com/team-loco/loco/api/pkg/cache"
-	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
@@ -176,23 +175,13 @@ func main() {
 	http2.ConfigureTransport(transport)
 	httpClient := &http.Client{Transport: transport}
 
-	// Initialize command bus for agent communication
-	cmdBus, err := commandbus.New(&commandbus.Config{
-		Type:       "grpc",
-		MaxRetries: 3,
-	})
-	if err != nil {
-		log.Fatalf("failed to create command bus: %v", err)
-	}
-	defer cmdBus.Close()
-
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache)
 	userServiceHandler := service.NewUserServer(pool, queries, machine)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.LocoNamespace)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, ac.LocoNamespace)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(

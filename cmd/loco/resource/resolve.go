@@ -83,16 +83,16 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 }
 
 // resolveOrgID resolves organization ID, first checking config cache then API.
-func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (int64, error) {
+func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (string, error) {
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load config", "error", err)
-		return 0, fmt.Errorf("failed to load config: %w", err)
+		return "", fmt.Errorf("failed to load config: %w", err)
 	}
 
 	orgName, err := resolveOrg(cmd, loadConfig)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	scope, err := cfg.GetScope()
@@ -102,19 +102,19 @@ func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*s
 
 	// Fall back to API lookup
 	if apiClient == nil {
-		return 0, fmt.Errorf("login required - please run 'loco login'")
+		return "", fmt.Errorf("login required - please run 'loco login'")
 	}
 
 	currentUser, err := apiClient.GetCurrentUser(ctx)
 	if err != nil {
 		slog.Debug("failed to get current user", "error", err)
-		return 0, fmt.Errorf("failed to get current user: %w", err)
+		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
 
 	orgs, err := apiClient.GetCurrentUserOrgs(ctx, currentUser.Id)
 	if err != nil {
 		slog.Debug("failed to get organizations", "error", err)
-		return 0, fmt.Errorf("failed to get organizations: %w", err)
+		return "", fmt.Errorf("failed to get organizations: %w", err)
 	}
 
 	for _, org := range orgs {
@@ -124,20 +124,20 @@ func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*s
 		}
 	}
 
-	return 0, fmt.Errorf("organization '%s' not found", orgName)
+	return "", fmt.Errorf("organization '%s' not found", orgName)
 }
 
 // resolveWorkspaceID resolves workspace ID, first checking config cache then API.
-func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (int64, error) {
+func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (string, error) {
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load config", "error", err)
-		return 0, fmt.Errorf("failed to load config: %w", err)
+		return "", fmt.Errorf("failed to load config: %w", err)
 	}
 
 	workspaceName, err := resolveWorkspace(cmd, loadConfig)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	scope, err := cfg.GetScope()
@@ -148,23 +148,23 @@ func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func
 	// Fall back to API lookup - need org ID first
 	orgID, err := resolveOrgID(ctx, cmd, loadConfig, apiClient)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	if apiClient == nil {
-		return 0, fmt.Errorf("login required - please run 'loco login'")
+		return "", fmt.Errorf("login required - please run 'loco login'")
 	}
 
 	currentUser, err := apiClient.GetCurrentUser(ctx)
 	if err != nil {
 		slog.Debug("failed to get current user", "error", err)
-		return 0, fmt.Errorf("failed to get current user: %w", err)
+		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
 
 	workspaces, err := apiClient.GetUserWorkspaces(ctx, currentUser.Id)
 	if err != nil {
 		slog.Debug("failed to get workspaces", "error", err)
-		return 0, fmt.Errorf("failed to get workspaces: %w", err)
+		return "", fmt.Errorf("failed to get workspaces: %w", err)
 	}
 
 	for _, ws := range workspaces {
@@ -174,7 +174,7 @@ func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func
 		}
 	}
 
-	return 0, fmt.Errorf("workspace '%s' not found in organization", workspaceName)
+	return "", fmt.Errorf("workspace '%s' not found in organization", workspaceName)
 }
 
 // resolveDomainInput creates the domain input for resource creation.

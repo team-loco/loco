@@ -734,8 +734,8 @@ func (*DeploymentSpec_Queue) isDeploymentSpec_Spec() {}
 // Deployment represents a resource deployment (immutable, single-region).
 type Deployment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	ResourceId    int64                  `protobuf:"varint,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	ClusterId     int64                  `protobuf:"varint,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Region        string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
 	Replicas      int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
@@ -782,18 +782,18 @@ func (*Deployment) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *Deployment) GetId() int64 {
+func (x *Deployment) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
-func (x *Deployment) GetResourceId() int64 {
+func (x *Deployment) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *Deployment) GetClusterId() int64 {
@@ -883,7 +883,7 @@ func (x *Deployment) GetSpec() *DeploymentSpec {
 // CreateDeploymentRequest is the request to create a new deployment.
 type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	ClusterId     int64                  `protobuf:"varint,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Region        string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
 	Spec          *DeploymentSpec        `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
@@ -921,11 +921,11 @@ func (*CreateDeploymentRequest) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *CreateDeploymentRequest) GetResourceId() int64 {
+func (x *CreateDeploymentRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *CreateDeploymentRequest) GetClusterId() int64 {
@@ -952,7 +952,7 @@ func (x *CreateDeploymentRequest) GetSpec() *DeploymentSpec {
 // CreateDeploymentResponse is the response containing the created deployment ID.
 type CreateDeploymentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -987,17 +987,17 @@ func (*CreateDeploymentResponse) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *CreateDeploymentResponse) GetDeploymentId() int64 {
+func (x *CreateDeploymentResponse) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
-	return 0
+	return ""
 }
 
 // GetDeploymentRequest is the request to retrieve a deployment.
 type GetDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1032,11 +1032,11 @@ func (*GetDeploymentRequest) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *GetDeploymentRequest) GetDeploymentId() int64 {
+func (x *GetDeploymentRequest) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
-	return 0
+	return ""
 }
 
 // GetDeploymentResponse is the response containing the deployment.
@@ -1087,7 +1087,7 @@ func (x *GetDeploymentResponse) GetDeployment() *Deployment {
 // ListDeploymentsRequest is the request to list deployments.
 type ListDeploymentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
@@ -1124,11 +1124,11 @@ func (*ListDeploymentsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *ListDeploymentsRequest) GetResourceId() int64 {
+func (x *ListDeploymentsRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListDeploymentsRequest) GetPageSize() int32 {
@@ -1201,7 +1201,7 @@ func (x *ListDeploymentsResponse) GetNextPageToken() string {
 // WatchDeploymentRequest is the request to stream deployment events.
 type WatchDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1236,17 +1236,17 @@ func (*WatchDeploymentRequest) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *WatchDeploymentRequest) GetDeploymentId() int64 {
+func (x *WatchDeploymentRequest) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
-	return 0
+	return ""
 }
 
 // WatchDeploymentResponse represents a deployment event stream response.
 type WatchDeploymentResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	Status        DeploymentPhase        `protobuf:"varint,2,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
@@ -1284,11 +1284,11 @@ func (*WatchDeploymentResponse) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *WatchDeploymentResponse) GetDeploymentId() int64 {
+func (x *WatchDeploymentResponse) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
-	return 0
+	return ""
 }
 
 func (x *WatchDeploymentResponse) GetStatus() DeploymentPhase {
@@ -1315,7 +1315,7 @@ func (x *WatchDeploymentResponse) GetTimestamp() *timestamppb.Timestamp {
 // DeleteDeploymentRequest is the request to delete/inactivate a deployment.
 type DeleteDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeploymentId  int64                  `protobuf:"varint,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1350,11 +1350,11 @@ func (*DeleteDeploymentRequest) Descriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *DeleteDeploymentRequest) GetDeploymentId() int64 {
+func (x *DeleteDeploymentRequest) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
-	return 0
+	return ""
 }
 
 // DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
@@ -1456,8 +1456,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x04spec\"\xf9\x04\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
-	"\vresource_id\x18\x02 \x01(\x03R\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vresource_id\x18\x02 \x01(\tR\n" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x03 \x01(\x03R\tclusterId\x12\x16\n" +
@@ -1479,22 +1479,22 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_at\"\xa9\x01\n" +
 	"\x17CreateDeploymentRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x12\x16\n" +
 	"\x06region\x18\x03 \x01(\tR\x06region\x126\n" +
 	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"?\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\";\n" +
+	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\";\n" +
 	"\x14GetDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"W\n" +
+	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"W\n" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
 	"deployment\"u\n" +
 	"\x16ListDeploymentsRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
@@ -1503,14 +1503,14 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"=\n" +
 	"\x16WatchDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\xcf\x01\n" +
+	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"\xcf\x01\n" +
 	"\x17WatchDeploymentResponse\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\x12;\n" +
+	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12;\n" +
 	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x128\n" +
 	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\">\n" +
 	"\x17DeleteDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\x03R\fdeploymentId\"\x1a\n" +
+	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"\x1a\n" +
 	"\x18DeleteDeploymentResponse*\xeb\x01\n" +
 	"\x0fDeploymentPhase\x12 \n" +
 	"\x1cDEPLOYMENT_PHASE_UNSPECIFIED\x10\x00\x12\x1c\n" +

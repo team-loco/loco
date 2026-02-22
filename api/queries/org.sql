@@ -16,8 +16,8 @@ JOIN organization_members om ON om.organization_id = o.id
 WHERE om.user_id = $1
   AND (sqlc.narg('page_token')::text IS NULL
        OR (o.created_at, o.id) < (
-         (SELECT created_at FROM organizations WHERE id = sqlc.narg('page_token')::bigint),
-         sqlc.narg('page_token')::bigint
+         (SELECT created_at FROM organizations WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_token')::uuid
        ))
 ORDER BY o.created_at DESC, o.id DESC
 LIMIT $2;
@@ -37,8 +37,8 @@ FROM workspaces w
 WHERE w.org_id = $1
   AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::bigint),
-         sqlc.narg('page_token')::bigint
+         (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_token')::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2;

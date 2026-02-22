@@ -49,10 +49,11 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			id, err := strconv.ParseInt(args[0], 10, 64)
+			idInt, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid workspace ID: %w", err)
 			}
+			id := fmt.Sprintf("%d", idInt)
 
 			host, err := cmdutil.GetHost(cmd)
 			if err != nil {
@@ -86,7 +87,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			}
 
 			if !yes {
-				confirm, confirmErr := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %d)? This cannot be undone.", getResp.Msg.Workspace.Name, id))
+				confirm, confirmErr := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.", getResp.Msg.Workspace.Name, id))
 				if confirmErr != nil {
 					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
 				}

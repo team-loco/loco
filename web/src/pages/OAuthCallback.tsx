@@ -1,10 +1,10 @@
+import Loader from "@/assets/loader.svg?react";
 import { exchangeOAuthCode, OAuthProvider } from "@/gen/loco/oauth/v1";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import Loader from "@/assets/loader.svg?react";
 
 export function OAuthCallback() {
 	const navigate = useNavigate();
@@ -22,10 +22,17 @@ export function OAuthCallback() {
 		error: queryError,
 	} = useQuery(
 		exchangeOAuthCode,
-		code && state ? { code: code || "", state: state || "", redirectUri: window.location.origin + "/oauth/callback", provider: OAuthProvider.GITHUB } : undefined,
+		code && state
+			? {
+					code: code || "",
+					state: state || "",
+					redirectUri: window.location.origin + "/oauth/callback",
+					provider: OAuthProvider.GITHUB,
+				}
+			: undefined,
 		{
 			enabled: !!code && !!state,
-		}
+		},
 	);
 
 	// After exchange, check if user has orgs
@@ -36,8 +43,8 @@ export function OAuthCallback() {
 		error: orgsError,
 	} = useQuery(
 		listUserOrgs,
-		exchangeRes?.userId ? { userId: BigInt(exchangeRes.userId) } : undefined,
-		{ enabled: !isLoading && !!exchangeRes }
+		exchangeRes?.userId ? { userId: exchangeRes.userId } : undefined,
+		{ enabled: !isLoading && !!exchangeRes },
 	);
 
 	useEffect(() => {
@@ -57,7 +64,7 @@ export function OAuthCallback() {
 		if (queryError) {
 			const errorMsg = getErrorMessage(
 				queryError,
-				"Failed to exchange authorization code"
+				"Failed to exchange authorization code",
 			);
 			console.error("OAuthCallback: Exchange error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
@@ -68,7 +75,7 @@ export function OAuthCallback() {
 		if (orgsError) {
 			const errorMsg = getErrorMessage(
 				orgsError,
-				"Failed to load user organizations"
+				"Failed to load user organizations",
 			);
 			console.error("OAuthCallback: Orgs error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
@@ -94,7 +101,7 @@ export function OAuthCallback() {
 				navigate("/dashboard");
 			} else {
 				console.log(
-					"OAuthCallback: User has no orgs, navigating to onboarding"
+					"OAuthCallback: User has no orgs, navigating to onboarding",
 				);
 				navigate("/onboarding");
 			}

@@ -2,15 +2,15 @@ import { useAuth } from "@/auth/AuthProvider";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { whoAmI } from "@/gen/loco/user/v1";
+import { ContextProvider } from "@/context/ContextProvider";
 import { listUserOrgs } from "@/gen/loco/org/v1";
+import { whoAmI } from "@/gen/loco/user/v1";
 import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import "@/styles/dot-grid.css";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ContextProvider } from "@/context/ContextProvider";
-import "@/styles/dot-grid.css";
 
 interface ProtectedLayoutProps {
 	children: ReactNode;
@@ -24,17 +24,17 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		{ userId: user?.id ?? 0n },
-		{ enabled: !!user }
+		{ userId: user?.id ?? "" },
+		{ enabled: !!user },
 	);
 	const orgs = orgsRes?.orgs ?? [];
 
-	const activeOrgId = orgParam ? BigInt(orgParam) : orgs[0]?.id ?? null;
+	const activeOrgId = orgParam ? orgParam : (orgs[0]?.id ?? null);
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
 		activeOrgId ? { orgId: activeOrgId } : undefined,
-		{ enabled: !!activeOrgId }
+		{ enabled: !!activeOrgId },
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 

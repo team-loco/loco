@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
-	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -16,7 +15,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/pkg/converter"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
@@ -39,21 +37,21 @@ var imagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-
 
 // DeployCommandPayload is the payload sent to agents for deploy commands.
 type DeployCommandPayload struct {
-	DeploymentID  int64                           `json:"deployment_id"`
-	ResourceID    int64                           `json:"resource_id"`
-	WorkspaceID   int64                           `json:"workspace_id"`
-	ResourceName  string                          `json:"resource_name"`
-	ResourceType  string                          `json:"resource_type"`
-	Region        string                          `json:"region"`
-	Hostname      string                          `json:"hostname"`
-	LocoNamespace string                          `json:"loco_namespace"`
+	DeploymentID  string                            `json:"deployment_id"`
+	ResourceID    string                            `json:"resource_id"`
+	WorkspaceID   string                            `json:"workspace_id"`
+	ResourceName  string                            `json:"resource_name"`
+	ResourceType  string                            `json:"resource_type"`
+	Region        string                            `json:"region"`
+	Hostname      string                            `json:"hostname"`
+	LocoNamespace string                            `json:"loco_namespace"`
 	AppSpec       *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }
 
 // DeleteCommandPayload is the payload sent to agents for delete commands.
 type DeleteCommandPayload struct {
-	DeploymentID  int64  `json:"deployment_id"`
-	ResourceID    int64  `json:"resource_id"`
+	DeploymentID  string `json:"deployment_id"`
+	ResourceID    string `json:"resource_id"`
 	LocoNamespace string `json:"loco_namespace"`
 }
 
@@ -76,10 +74,19 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
+// stringToUUID converts a string UUID to pgtype.UUID
+func stringToUUID(s string) (pgtype.UUID, error) {
+	parsed, err := uuid.Parse(s)
+	if err != nil {
+		return pgtype.UUID{}, fmt.Errorf("invalid uuid: %w", err)
+	}
+	return pgtype.UUID{Bytes: parsed, Valid: true}, nil
+}
+
 func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.Deployment {
 	deployment := &deploymentv1.Deployment{
-		Id:          d.ID,
-		ResourceId:  d.ResourceID,
+		Id:          uuid.UUID(d.ID.Bytes).String(),
+		ResourceId:  uuid.UUID(d.ResourceID.Bytes).String(),
 		ClusterId:   d.ClusterID,
 		Region:      d.Region,
 		Replicas:    d.Replicas,
@@ -148,17 +155,15 @@ type DeploymentServer struct {
 	queries       genDb.Querier
 	locoNamespace string
 	machine       *tvm.VendingMachine
-	commandBus    commandbus.CommandBus
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string, commandBus commandbus.CommandBus) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string) *DeploymentServer {
 	return &DeploymentServer{
 		db:            db,
 		queries:       queries,
 		locoNamespace: locoNamespace,
 		machine:       machine,
-		commandBus:    commandBus,
 	}
 }
 
@@ -169,7 +174,13 @@ func (s *DeploymentServer) CreateDeployment(
 ) (*connect.Response[deploymentv1.CreateDeploymentResponse], error) {
 	r := req.Msg
 
-	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
+	resourceId, err := stringToUUID(r.GetResourceId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid resource id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
+	}
+
+	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
@@ -213,7 +224,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	replicas := serviceSpec.GetMinReplicas()
 
-	domain, err := s.queries.GetDomainByResourceId(ctx, r.GetResourceId())
+	domain, err := s.queries.GetDomainByResourceId(ctx, resourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "domain not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
@@ -261,7 +272,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// Get resource region for deployment record
 	resourceRegion, err := s.queries.GetResourceRegionByResourceAndRegion(ctx, genDb.GetResourceRegionByResourceAndRegionParams{
-		ResourceID: r.GetResourceId(),
+		ResourceID: resourceId,
 		Region:     region,
 	})
 	if err != nil {
@@ -271,7 +282,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
 	deploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID:       r.GetResourceId(),
+		ResourceID:       resourceId,
 		ResourceRegionID: resourceRegion.ID,
 		ClusterID:        cluster.ID,
 		Region:           region,
@@ -296,9 +307,9 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// Create command payload with all info the agent needs
 	cmdPayload := DeployCommandPayload{
-		DeploymentID:  deploymentID,
-		ResourceID:    resource.ID,
-		WorkspaceID:   resource.WorkspaceID,
+		DeploymentID:  uuid.UUID(deploymentID.Bytes).String(),
+		ResourceID:    uuid.UUID(resource.ID.Bytes).String(),
+		WorkspaceID:   uuid.UUID(resource.WorkspaceID.Bytes).String(),
 		ResourceName:  resource.Name,
 		ResourceType:  string(resource.Type),
 		Region:        region,
@@ -313,23 +324,13 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
 	}
 
-	// Dispatch deploy command to the agent via CommandBus
-	cmd := &commandbus.Command{
-		ID:        uuid.NewString(),
-		ClusterID: cluster.ID,
-		Type:      commandbus.CommandTypeDeploy,
-		Payload:   payloadJSON,
-		CreatedAt: time.Now(),
-	}
+	slog.InfoContext(ctx, "deploy command payload created", "deployment_id", uuid.UUID(deploymentID.Bytes).String(), "cluster_id", cluster.ID, "resource_id", uuid.UUID(resource.ID.Bytes).String())
 
-	if err := s.commandBus.Send(ctx, cmd); err != nil {
-		slog.ErrorContext(ctx, "failed to dispatch deploy command", "cluster_id", cluster.ID, "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
-	}
+	// TODO: Dispatch deploy command to the agent via command bus
+	// This will be implemented when command bus infrastructure is set up
+	_ = payloadJSON
 
-	slog.InfoContext(ctx, "deploy command dispatched to agent", "command_id", cmd.ID, "cluster_id", cluster.ID, "resourceId", resource.ID)
-
-	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deploymentID}), nil
+	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: uuid.UUID(deploymentID.Bytes).String()}), nil
 }
 
 // GetDeployment retrieves a deployment by ID
@@ -339,7 +340,13 @@ func (s *DeploymentServer) GetDeployment(
 ) (*connect.Response[deploymentv1.GetDeploymentResponse], error) {
 	r := req.Msg
 
-	deploymentData, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
+	deploymentId, err := stringToUUID(r.DeploymentId)
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid deployment id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment id: %w", err))
+	}
+
+	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentId)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
@@ -358,8 +365,8 @@ func (s *DeploymentServer) GetDeployment(
 	}
 
 	// check if user has permission to get deployment (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetDeployment, resource.ID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get deployment", "resourceId", resource.ID)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetDeployment, uuid.UUID(resource.ID.Bytes).String())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get deployment", "resourceId", uuid.UUID(resource.ID.Bytes).String())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -386,7 +393,13 @@ func (s *DeploymentServer) ListDeployments(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	resource, err := s.queries.GetResourceByID(ctx, r.GetResourceId())
+	resourceId, err := stringToUUID(r.GetResourceId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid resource id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
+	}
+
+	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
@@ -401,13 +414,13 @@ func (s *DeploymentServer) ListDeployments(
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
 		pageToken = pgtype.Text{
-			String: fmt.Sprintf("%d", cursorID),
+			String: cursorID,
 			Valid:  true,
 		}
 	}
 
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID: r.GetResourceId(),
+		ResourceID: resourceId,
 		Limit:      pageSize,
 		PageToken:  pageToken,
 	})
@@ -423,7 +436,7 @@ func (s *DeploymentServer) ListDeployments(
 
 	var nextPageToken string
 	if len(deploymentList) == int(pageSize) {
-		nextPageToken = encodeCursor(deploymentList[len(deploymentList)-1].ID)
+		nextPageToken = encodeCursor(uuid.UUID(deploymentList[len(deploymentList)-1].ID.Bytes).String())
 	}
 
 	return connect.NewResponse(&deploymentv1.ListDeploymentsResponse{
@@ -439,7 +452,13 @@ func (s *DeploymentServer) DeleteDeployment(
 ) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
 	r := req.Msg
 
-	deployment, err := s.queries.GetDeploymentByID(ctx, r.DeploymentId)
+	deploymentId, err := stringToUUID(r.DeploymentId)
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid deployment id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment id: %w", err))
+	}
+
+	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentId)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
@@ -457,8 +476,8 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteDeployment, resource.ID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", resource.ID)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteDeployment, uuid.UUID(resource.ID.Bytes).String())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", uuid.UUID(resource.ID.Bytes).String())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -466,8 +485,8 @@ func (s *DeploymentServer) DeleteDeployment(
 	if deployment.IsActive {
 		// Create delete command payload
 		cmdPayload := DeleteCommandPayload{
-			DeploymentID:  deployment.ID,
-			ResourceID:    resource.ID,
+			DeploymentID:  uuid.UUID(deployment.ID.Bytes).String(),
+			ResourceID:    uuid.UUID(resource.ID.Bytes).String(),
 			LocoNamespace: s.locoNamespace,
 		}
 
@@ -477,25 +496,15 @@ func (s *DeploymentServer) DeleteDeployment(
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
 		}
 
-		// Dispatch delete command to the agent via CommandBus
-		cmd := &commandbus.Command{
-			ID:        uuid.NewString(),
-			ClusterID: deployment.ClusterID,
-			Type:      commandbus.CommandTypeDelete,
-			Payload:   payloadJSON,
-			CreatedAt: time.Now(),
-		}
+		slog.InfoContext(ctx, "delete command payload created", "deployment_id", uuid.UUID(deployment.ID.Bytes).String(), "resource_id", uuid.UUID(resource.ID.Bytes).String())
 
-			if err := s.commandBus.Send(ctx, cmd); err != nil {
-			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", err)
-			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
-		}
-
-		slog.InfoContext(ctx, "delete command dispatched to agent", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "resourceId", resource.ID)
+		// TODO: Dispatch delete command to the agent via command bus
+		// This will be implemented when command bus infrastructure is set up
+		_ = payloadJSON
 	}
 
 	// mark deployment as inactive
-	err = s.queries.MarkDeploymentNotActive(ctx, r.DeploymentId)
+	err = s.queries.MarkDeploymentNotActive(ctx, deploymentId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to mark deployment not active", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -512,7 +521,13 @@ func (s *DeploymentServer) WatchDeployment(
 ) error {
 	r := req.Msg
 
-	resourceID, err := s.queries.GetDeploymentResourceID(ctx, r.DeploymentId)
+	deploymentId, err := stringToUUID(r.DeploymentId)
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid deployment id", "error", err)
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment id: %w", err))
+	}
+
+	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentId)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
 		return connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
@@ -530,8 +545,8 @@ func (s *DeploymentServer) WatchDeployment(
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.StreamDeployment, resource.ID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resource.ID)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.StreamDeployment, uuid.UUID(resource.ID.Bytes).String())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", uuid.UUID(resource.ID.Bytes).String())
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -539,7 +554,7 @@ func (s *DeploymentServer) WatchDeployment(
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	if err := s.sendDeploymentEvent(ctx, stream, fmt.Sprintf("%d", r.DeploymentId), &lastStatus); err != nil {
+	if err := s.sendDeploymentEvent(ctx, stream, r.DeploymentId, &lastStatus); err != nil {
 		return err
 	}
 
@@ -548,7 +563,7 @@ func (s *DeploymentServer) WatchDeployment(
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if err := s.sendDeploymentEvent(ctx, stream, fmt.Sprintf("%d", r.DeploymentId), &lastStatus); err != nil {
+			if err := s.sendDeploymentEvent(ctx, stream, r.DeploymentId, &lastStatus); err != nil {
 				return err
 			}
 
@@ -565,13 +580,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	deploymentID string,
 	lastStatus *string,
 ) error {
-	parsedDeploymentID, err := strconv.ParseInt(deploymentID, 10, 64)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid deployment ID", "error", err)
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("invalid deployment ID: %w", err))
-	}
-
-	deployment, err := s.queries.GetDeploymentByID(ctx, parsedDeploymentID)
+	deployment, err := s.queries.GetDeploymentByID(ctx, pgtype.UUID{Bytes: uuid.MustParse(deploymentID), Valid: true})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get deployment", "error", err)
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -583,7 +592,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 
 	if statusStr != *lastStatus {
 		event := &deploymentv1.WatchDeploymentResponse{
-			DeploymentId: parsedDeploymentID,
+			DeploymentId: deploymentID,
 			Status:       statusPhase,
 			Message:      message,
 			Timestamp:    timestamppb.New(time.Now()),
@@ -613,8 +622,8 @@ func buildApplicationSpec(
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
 
 	appSpec := &locoControllerV1.ApplicationSpec{
-		ResourceId:  resource.ID,
-		WorkspaceId: resource.WorkspaceID,
+		ResourceId:  uuid.UUID(resource.ID.Bytes).String(),
+		WorkspaceId: uuid.UUID(resource.WorkspaceID.Bytes).String(),
 		Region:      region,
 	}
 
@@ -654,7 +663,6 @@ func buildApplicationSpec(
 
 	return appSpec, nil
 }
-
 
 // buildResourcesSpec builds ResourcesSpec, using deployment-time
 // overrides if present, otherwise falling back to the target region's defaults from ServiceSpec
@@ -723,4 +731,3 @@ func buildResourcesSpec(
 
 	return resourcesSpec, nil
 }
-

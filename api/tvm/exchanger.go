@@ -37,7 +37,7 @@ func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailRe
 	}
 
 	// issue the token
-	token, err := tvm.issueNoCheck(ctx, fmt.Sprintf("login token for user %d created at %s", user.ID, time.Now().Format(time.RFC1123)), queries.Entity{
+	token, err := tvm.issueNoCheck(ctx, fmt.Sprintf("login token for user %s created at %s", user.ID.String(), time.Now().Format(time.RFC1123)), queries.Entity{
 		Type: queries.EntityTypeUser,
 		ID:   user.ID,
 	}, userWithScopes.Scopes, tvm.Cfg.LoginTokenDuration)
