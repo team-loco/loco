@@ -88,16 +88,37 @@ func (q *Queries) DeleteResource(ctx context.Context, id pgtype.UUID) error {
 }
 
 const getActiveClusterByRegion = `-- name: GetActiveClusterByRegion :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE region = $1 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
 LIMIT 1
 `
 
-func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (Cluster, error) {
+type GetActiveClusterByRegionRow struct {
+	ID                    int64              `json:"id"`
+	Name                  string             `json:"name"`
+	Region                string             `json:"region"`
+	Provider              string             `json:"provider"`
+	IsActive              bool               `json:"isActive"`
+	IsDefault             bool               `json:"isDefault"`
+	Endpoint              pgtype.Text        `json:"endpoint"`
+	HealthStatus          pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text        `json:"agentVersion"`
+	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+}
+
+func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (GetActiveClusterByRegionRow, error) {
 	row := q.db.QueryRow(ctx, getActiveClusterByRegion, region)
-	var i Cluster
+	var i GetActiveClusterByRegionRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -108,6 +129,11 @@ func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (
 		&i.Endpoint,
 		&i.HealthStatus,
 		&i.LastHealthCheck,
+		&i.AgentTokenHash,
+		&i.LastHeartbeat,
+		&i.CapacityCpuMillicores,
+		&i.CapacityMemoryBytes,
+		&i.AgentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -115,36 +141,65 @@ func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (
 }
 
 const getClusterDetails = `-- name: GetClusterDetails :one
-SELECT id, is_active, health_status
+SELECT id, is_active, health_status, agent_version, last_heartbeat
 FROM clusters
 WHERE id = $1
 `
 
 type GetClusterDetailsRow struct {
-	ID           int64       `json:"id"`
-	IsActive     bool        `json:"isActive"`
-	HealthStatus pgtype.Text `json:"healthStatus"`
+	ID            int64              `json:"id"`
+	IsActive      bool               `json:"isActive"`
+	HealthStatus  pgtype.Text        `json:"healthStatus"`
+	AgentVersion  pgtype.Text        `json:"agentVersion"`
+	LastHeartbeat pgtype.Timestamptz `json:"lastHeartbeat"`
 }
 
 func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error) {
 	row := q.db.QueryRow(ctx, getClusterDetails, id)
 	var i GetClusterDetailsRow
-	err := row.Scan(&i.ID, &i.IsActive, &i.HealthStatus)
+	err := row.Scan(
+		&i.ID,
+		&i.IsActive,
+		&i.HealthStatus,
+		&i.AgentVersion,
+		&i.LastHeartbeat,
+	)
 	return i, err
 }
 
 const getFirstActiveCluster = `-- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY created_at ASC
 LIMIT 1
 `
 
+type GetFirstActiveClusterRow struct {
+	ID                    int64              `json:"id"`
+	Name                  string             `json:"name"`
+	Region                string             `json:"region"`
+	Provider              string             `json:"provider"`
+	IsActive              bool               `json:"isActive"`
+	IsDefault             bool               `json:"isDefault"`
+	Endpoint              pgtype.Text        `json:"endpoint"`
+	HealthStatus          pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text        `json:"agentVersion"`
+	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+}
+
 // todo: eventually remove
-func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
+func (q *Queries) GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error) {
 	row := q.db.QueryRow(ctx, getFirstActiveCluster)
-	var i Cluster
+	var i GetFirstActiveClusterRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -155,6 +210,11 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 		&i.Endpoint,
 		&i.HealthStatus,
 		&i.LastHealthCheck,
+		&i.AgentTokenHash,
+		&i.LastHeartbeat,
+		&i.CapacityCpuMillicores,
+		&i.CapacityMemoryBytes,
+		&i.AgentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -294,21 +354,42 @@ func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourc
 }
 
 const listClustersActive = `-- name: ListClustersActive :many
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY region ASC
 `
 
-func (q *Queries) ListClustersActive(ctx context.Context) ([]Cluster, error) {
+type ListClustersActiveRow struct {
+	ID                    int64              `json:"id"`
+	Name                  string             `json:"name"`
+	Region                string             `json:"region"`
+	Provider              string             `json:"provider"`
+	IsActive              bool               `json:"isActive"`
+	IsDefault             bool               `json:"isDefault"`
+	Endpoint              pgtype.Text        `json:"endpoint"`
+	HealthStatus          pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text        `json:"agentVersion"`
+	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+}
+
+func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error) {
 	rows, err := q.db.Query(ctx, listClustersActive)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Cluster
+	var items []ListClustersActiveRow
 	for rows.Next() {
-		var i Cluster
+		var i ListClustersActiveRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -319,6 +400,11 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]Cluster, error) {
 			&i.Endpoint,
 			&i.HealthStatus,
 			&i.LastHealthCheck,
+			&i.AgentTokenHash,
+			&i.LastHeartbeat,
+			&i.CapacityCpuMillicores,
+			&i.CapacityMemoryBytes,
+			&i.AgentVersion,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
