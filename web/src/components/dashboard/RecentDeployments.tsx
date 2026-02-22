@@ -1,8 +1,8 @@
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
+import { CheckCircle, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
-import { useOrgWorkspace } from "@/context/ContextProvider";
-import { CheckCircle, XCircle } from "lucide-react";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 
 interface RecentDeploymentsProps {
 	resources: Resource[];
@@ -110,11 +110,11 @@ export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsP
 	};
 
 	return (
-		<div className="border border-border rounded-xl shadow-sm bg-card overflow-hidden">
-			<div className="px-6 py-4 border-b border-border bg-muted/30">
-				<h2 className="text-lg font-semibold">Recent Deployments</h2>
+		<div>
+			<div className="flex items-center justify-between mb-4">
+				<h2 className="text-xl font-bold text-foreground">Recent Deployments</h2>
 			</div>
-			<div className="divide-y divide-border">
+			<div className="border border-border rounded-xl shadow-xs bg-card overflow-hidden divide-y divide-border">
 				{recentDeployments.length > 0 ? (
 					recentDeployments.map((deploy) => (
 						<div
@@ -148,8 +148,8 @@ export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsP
 						</div>
 					))
 				) : (
-					<div className="px-6 py-12 text-center text-muted-foreground">
-						No recent deployments
+					<div className="px-6 py-12 text-center">
+						<div className="text-muted-foreground">No recent deployments</div>
 					</div>
 				)}
 			</div>

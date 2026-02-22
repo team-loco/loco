@@ -10,9 +10,9 @@ const buttonVariants = cva(
 		variants: {
 			variant: {
 				default:
-					"bg-[#1e1e1e]/85 text-[#faf9f6] shadow-sm hover:shadow-md active:shadow-sm backdrop-blur-sm",
+					"bg-primary text-primary-foreground shadow-xs hover:shadow-sm active:shadow-xs",
 				destructive:
-					"bg-[#c62828]/85 text-[#faf9f6] shadow-sm hover:shadow-md active:shadow-sm backdrop-blur-sm",
+					"bg-destructive text-white shadow-xs hover:shadow-sm active:shadow-xs",
 				outline:
 					"border border-border bg-card text-foreground shadow-xs hover:bg-accent hover:border-border-strong hover:shadow-sm",
 				secondary:
@@ -55,6 +55,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = "Button";
 
+// eslint-disable-next-line react-refresh/only-export-components
+// eslint-disable-next-line react-refresh/only-export-components
 // eslint-disable-next-line react-refresh/only-export-components
 // eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants };

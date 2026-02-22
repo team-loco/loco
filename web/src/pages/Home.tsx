@@ -1,20 +1,19 @@
+import Loader from "@/assets/loader.svg?react";
 import { useAuth } from "@/auth/AuthProvider";
 import { EmptyState } from "@/components/EmptyState";
+import { BentoDashboard } from "@/components/dashboard/BentoDashboard";
 import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
-import { ApplicationsTable } from "@/components/dashboard/ApplicationsTable";
-import { RecentDeployments } from "@/components/dashboard/RecentDeployments";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useHeader } from "@/context/HeaderContext";
-import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
-import { subscribeToEvents } from "@/lib/events";
 import { getErrorMessage } from "@/lib/error-handler";
+import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import Loader from "@/assets/loader.svg?react";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 
 export function Home() {
 	const navigate = useNavigate();
@@ -165,17 +164,14 @@ export function Home() {
 			)}
 
 			{/* Applications and Deployments */}
-			{filteredResources.length > 0 ? (
-				<div className="space-y-6">
-					{/* Applications Table */}
-					<ApplicationsTable
-						resources={filteredResources}
-						workspaceId={currentWorkspaceId || undefined}
-					/>
-
-					{/* Recent Deployments */}
-					<RecentDeployments
-						resources={filteredResources}
+			{true ? (
+				<div className="mt-8">
+					<BentoDashboard
+						resources={
+							filteredResources.length > 0
+							? filteredResources
+							: []
+						}
 						workspaceId={currentWorkspaceId || undefined}
 					/>
 				</div>

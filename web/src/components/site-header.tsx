@@ -161,7 +161,7 @@ export function SiteHeader() {
 				<h1 className="text-lg font-semibold text-foreground">{pageTitle}</h1>
 				<div className="ml-auto inline-flex items-center justify-center rounded-md shadow-sm btn-gradient-border">
 					<Button
-						className="rounded-r-none border-r border-[#303030]/30 bg-[#1e1e1e]/85 px-3 text-xs font-medium text-[#faf9f6] shadow-none hover:shadow-none active:shadow-none backdrop-blur-sm"
+						className="rounded-r-none border-r border-[#404040] h-8 bg-[#1e1e1e]/85 px-3 text-xs font-medium text-[#faf9f6] shadow-none hover:shadow-none active:shadow-none backdrop-blur-sm"
 						onClick={() => {
 							if (activeOrgId && activeWorkspaceId) {
 								navigate(
@@ -176,7 +176,7 @@ export function SiteHeader() {
 						<DropdownMenuTrigger asChild>
 							<Button
 								size="icon"
-								className="h-7 w-9 rounded-l-none bg-[#303030]/85 text-[#faf9f6] shadow-none hover:shadow-none active:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 backdrop-blur-sm"
+								className="h-8 w-9 rounded-l-none bg-[#1e1e1e]/85 text-[#faf9f6] shadow-none hover:shadow-none active:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 backdrop-blur-sm"
 							>
 								<ChevronDown
 									className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
