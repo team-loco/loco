@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
@@ -64,15 +66,17 @@ type ResourceServer struct {
 	queries       genDb.Querier
 	machine       *tvm.VendingMachine
 	locoNamespace string
+	cmdBus        commandbus.CommandBus
 }
 
 // NewResourceServer creates a new ResourceServer instance
-func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string) *ResourceServer {
+func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string, cmdBus commandbus.CommandBus) *ResourceServer {
 	return &ResourceServer{
 		db:            db,
 		queries:       queries,
 		machine:       machine,
 		locoNamespace: locoNamespace,
+		cmdBus:        cmdBus,
 	}
 }
 
@@ -488,11 +492,21 @@ func (s *ResourceServer) DeleteResource(
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
 		}
 
-		slog.InfoContext(ctx, "delete command payload created", "deployment_id", deployment.ID, "resource_id", resource.ID)
+		// Dispatch delete command to the agent via CommandBus
+		cmd := &commandbus.Command{
+			ID:        uuid.NewString(),
+			ClusterID: deployment.ClusterID,
+			Type:      commandbus.CommandTypeDelete,
+			Payload:   payloadJSON,
+			CreatedAt: time.Now(),
+		}
 
-		// TODO: Dispatch delete command to the agent via command bus
-		// This will be implemented when command bus infrastructure is set up
-		_ = payloadJSON
+		if err := s.cmdBus.Send(ctx, cmd); err != nil {
+			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", err)
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+		}
+
+		slog.InfoContext(ctx, "delete command dispatched", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "resource_id", resource.ID)
 	}
 
 	err = s.queries.DeleteResource(ctx, resourceId)
@@ -832,9 +846,17 @@ func (s *ResourceServer) ScaleResource(
 
 	slog.InfoContext(ctx, "scale command payload created", "cluster_id", cluster.ID, "resource_id", resource.ID, "regions", regionsToScale)
 
-	// TODO: Dispatch deploy command to the agent via command bus
-	// This will be implemented when command bus infrastructure is set up
-	_ = payloadJSON
+	cmd := &commandbus.Command{
+		ID:        uuid.NewString(),
+		ClusterID: cluster.ID,
+		Type:      commandbus.CommandTypeScale,
+		Payload:   payloadJSON,
+		CreatedAt: time.Now(),
+	}
+	if err := s.cmdBus.Send(ctx, cmd); err != nil {
+		slog.ErrorContext(ctx, "failed to dispatch scale command", "cluster_id", cluster.ID, "error", err)
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+	}
 
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
 }
@@ -1010,9 +1032,17 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	slog.InfoContext(ctx, "env update command payload created", "cluster_id", cluster.ID, "resource_id", resource.ID, "regions", regionsToUpdate, "deployment_id", deploymentId)
 
-	// TODO: Dispatch deploy command to the agent via command bus
-	// This will be implemented when command bus infrastructure is set up
-	_ = payloadJSON
+	cmd := &commandbus.Command{
+		ID:        uuid.NewString(),
+		ClusterID: cluster.ID,
+		Type:      commandbus.CommandTypeUpdateEnv,
+		Payload:   payloadJSON,
+		CreatedAt: time.Now(),
+	}
+	if err := s.cmdBus.Send(ctx, cmd); err != nil {
+		slog.ErrorContext(ctx, "failed to dispatch env update command", "cluster_id", cluster.ID, "error", err)
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+	}
 
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
 }

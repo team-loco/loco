@@ -23,8 +23,10 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/middleware"
 	"github.com/team-loco/loco/api/pkg/cache"
+	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/proto/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
 	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
@@ -172,16 +174,29 @@ func main() {
 	defer appCache.Close()
 
 	transport := &http.Transport{}
-	http2.ConfigureTransport(transport)
+	err = http2.ConfigureTransport(&http.Transport{})
+	if err != nil {
+		panic("failed to configure HTTP/2 transport: " + err.Error())
+	}
 	httpClient := &http.Client{Transport: transport}
+
+	// Initialize command bus for agent communication
+	cmdBus, err := commandbus.New(&commandbus.Config{
+		Type:       "grpc",
+		MaxRetries: 3,
+	})
+	if err != nil {
+		log.Fatalf("failed to create command bus: %v", err)
+	}
+	defer cmdBus.Close()
 
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache)
 	userServiceHandler := service.NewUserServer(pool, queries, machine)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.LocoNamespace)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, ac.LocoNamespace)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
@@ -196,6 +211,8 @@ func main() {
 		machine,
 	)
 
+	agentServiceHandler := service.NewAgentServer(pool, queries, cmdBus)
+
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, interceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, interceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, interceptors)
@@ -205,6 +222,7 @@ func main() {
 	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, interceptors)
 	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, interceptors)
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
+	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler)
 
 	reflector := grpcreflect.NewStaticReflector(
 		// oauth service
@@ -275,6 +293,12 @@ func main() {
 
 		// registry service
 		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
+
+		// agent service
+		agentv1connect.AgentServiceRegisterProcedure,
+		agentv1connect.AgentServiceCommandStreamProcedure,
+		agentv1connect.AgentServiceHeartbeatProcedure,
+		agentv1connect.AgentServiceReportStatusProcedure,
 	)
 
 	// mount both old and new reflectors for backwards compatibility
@@ -290,6 +314,7 @@ func main() {
 	mux.Handle(domainPath, domainHandler)
 	mux.Handle(tokenPath, tokenHandler)
 	mux.Handle(registryPath, registryHandler)
+	mux.Handle(agentPath, agentHandler)
 
 	muxWCors := withCORS(ac.LocoDomainBase)(mux)
 	muxWTiming := middleware.Timing(muxWCors)

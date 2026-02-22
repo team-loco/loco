@@ -9,6 +9,7 @@ on:
       - "api/**"
       - "cmd/**"
       - "controller/**"
+      - "agent/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -17,6 +18,7 @@ on:
       - "api/**"
       - "cmd/**"
       - "controller/**"
+      - "agent/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -46,6 +48,11 @@ jobs:
             test-command: make test
             timeout: 10
 
+          - component: Agent
+            working-directory: agent
+            test-command: go test -v -coverprofile=coverage.out ./...
+            timeout: 10
+
     steps:
       - uses: actions/checkout@v6
 
@@ -62,5 +69,5 @@ jobs:
         timeout-minutes: ${{ matrix.timeout }}
 
       - name: Display coverage
-        if: always() && matrix.component != 'Controller'
+        if: always() && matrix.component != 'Controller' && matrix.component != 'Agent'
         run: cd ${{ matrix.working-directory }} && go tool cover -func=coverage.out

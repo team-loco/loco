@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -268,12 +270,19 @@ func (s *AgentServer) ReportStatus(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cluster ID mismatch"))
 	}
 
+	// Parse deployment ID
+	deploymentIDParsed, err := uuid.Parse(r.GetDeploymentId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment ID: %w", err))
+	}
+	deploymentID := pgtype.UUID{Bytes: deploymentIDParsed, Valid: true}
+
 	// Map proto phase to DB status
 	dbStatus := protoPhaseToDBStatus(r.GetPhase())
 
 	// Update deployment status
 	err = s.queries.UpdateDeploymentStatusWithMessage(ctx, genDb.UpdateDeploymentStatusWithMessageParams{
-		ID:      r.GetDeploymentId(),
+		ID:      deploymentID,
 		Status:  dbStatus,
 		Message: r.GetMessage(),
 	})

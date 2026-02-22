@@ -446,7 +446,7 @@
 	}
 
 	.btn-primary:hover {
-		@apply shadow-md transform -translate-y-[1px];
+		@apply shadow-md transform -translate-y-px;
 	}
 
 	.btn-primary:active {

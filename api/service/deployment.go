@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/pkg/converter"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
@@ -155,15 +156,17 @@ type DeploymentServer struct {
 	queries       genDb.Querier
 	locoNamespace string
 	machine       *tvm.VendingMachine
+	cmdBus        commandbus.CommandBus
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string, cmdBus commandbus.CommandBus) *DeploymentServer {
 	return &DeploymentServer{
 		db:            db,
 		queries:       queries,
 		locoNamespace: locoNamespace,
 		machine:       machine,
+		cmdBus:        cmdBus,
 	}
 }
 
@@ -324,11 +327,21 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
 	}
 
-	slog.InfoContext(ctx, "deploy command payload created", "deployment_id", uuid.UUID(deploymentID.Bytes).String(), "cluster_id", cluster.ID, "resource_id", uuid.UUID(resource.ID.Bytes).String())
+	// Dispatch deploy command to the agent via CommandBus
+	cmd := &commandbus.Command{
+		ID:        uuid.NewString(),
+		ClusterID: cluster.ID,
+		Type:      commandbus.CommandTypeDeploy,
+		Payload:   payloadJSON,
+		CreatedAt: time.Now(),
+	}
 
-	// TODO: Dispatch deploy command to the agent via command bus
-	// This will be implemented when command bus infrastructure is set up
-	_ = payloadJSON
+	if err := s.cmdBus.Send(ctx, cmd); err != nil {
+		slog.ErrorContext(ctx, "failed to dispatch deploy command", "cluster_id", cluster.ID, "error", err)
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+	}
+
+	slog.InfoContext(ctx, "deploy command dispatched", "command_id", cmd.ID, "cluster_id", cluster.ID, "deployment_id", uuid.UUID(deploymentID.Bytes).String())
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: uuid.UUID(deploymentID.Bytes).String()}), nil
 }
@@ -496,11 +509,21 @@ func (s *DeploymentServer) DeleteDeployment(
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
 		}
 
-		slog.InfoContext(ctx, "delete command payload created", "deployment_id", uuid.UUID(deployment.ID.Bytes).String(), "resource_id", uuid.UUID(resource.ID.Bytes).String())
+		// Dispatch delete command to the agent via CommandBus
+		cmd := &commandbus.Command{
+			ID:        uuid.NewString(),
+			ClusterID: deployment.ClusterID,
+			Type:      commandbus.CommandTypeDelete,
+			Payload:   payloadJSON,
+			CreatedAt: time.Now(),
+		}
 
-		// TODO: Dispatch delete command to the agent via command bus
-		// This will be implemented when command bus infrastructure is set up
-		_ = payloadJSON
+		if err := s.cmdBus.Send(ctx, cmd); err != nil {
+			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", err)
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+		}
+
+		slog.InfoContext(ctx, "delete command dispatched", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "deployment_id", uuid.UUID(deployment.ID.Bytes).String())
 	}
 
 	// mark deployment as inactive
