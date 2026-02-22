@@ -5,7 +5,7 @@ export default {
 	theme: {
 		extend: {
 			fontFamily: {
-				sans: ["Space Grotesk", "Inter", "system-ui", "sans-serif"],
+				sans: ["Satoshi", "Inter", "system-ui", "sans-serif"],
 				mono: ["JetBrains Mono", "Menlo", "Monaco", "monospace"],
 			},
 			colors: {
@@ -61,10 +61,10 @@ export default {
 			},
 			boxShadow: {
 				xs: "0 1px 2px rgba(28, 25, 23, 0.03)",
-				sm: "0 2px 4px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.02)",
-				md: "0 4px 12px rgba(28, 25, 23, 0.06), 0 2px 4px rgba(28, 25, 23, 0.03)",
-				lg: "0 8px 24px rgba(28, 25, 23, 0.08), 0 4px 8px rgba(28, 25, 23, 0.04)",
-				xl: "0 16px 48px rgba(28, 25, 23, 0.10), 0 8px 16px rgba(28, 25, 23, 0.05)",
+				sm: "0 2px 4px rgba(28, 25, 23, 0.04), 0 1px 1px rgba(28, 25, 23, 0.02)",
+				md: "0 4px 8px rgba(28, 25, 23, 0.05), 0 2px 4px rgba(28, 25, 23, 0.03)",
+				lg: "0 8px 16px rgba(28, 25, 23, 0.06), 0 4px 8px rgba(28, 25, 23, 0.04)",
+				xl: "0 12px 24px rgba(28, 25, 23, 0.08), 0 6px 12px rgba(28, 25, 23, 0.05)",
 			},
 			borderRadius: {
 				sm: "6px",

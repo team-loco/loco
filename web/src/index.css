@@ -1,24 +1,80 @@
 @font-face {
-	font-family: "Space Grotesk";
-	src: url("/fonts/space-grotesk/regular.woff2") format("woff2");
+	font-family: 'Satoshi';
+	font-style: normal;
+	font-weight: 300;
+	src: url('/fonts/satoshi/Satoshi-Light.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Satoshi';
+	font-style: italic;
+	font-weight: 300;
+	src: url('/fonts/satoshi/Satoshi-LightItalic.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Satoshi';
+	font-style: normal;
 	font-weight: 400;
-	font-style: normal;
+	src: url('/fonts/satoshi/Satoshi-Regular.woff') format('woff');
 	font-display: swap;
 }
 
 @font-face {
-	font-family: "Space Grotesk";
-	src: url("/fonts/space-grotesk/medium.woff2") format("woff2");
+	font-family: 'Satoshi';
+	font-style: italic;
+	font-weight: 400;
+	src: url('/fonts/satoshi/Satoshi-Italic.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Satoshi';
+	font-style: normal;
 	font-weight: 500;
-	font-style: normal;
+	src: url('/fonts/satoshi/Satoshi-Medium.woff') format('woff');
 	font-display: swap;
 }
 
 @font-face {
-	font-family: "Space Grotesk";
-	src: url("/fonts/space-grotesk/bold.woff2") format("woff2");
-	font-weight: 700;
+	font-family: 'Satoshi';
+	font-style: italic;
+	font-weight: 500;
+	src: url('/fonts/satoshi/Satoshi-MediumItalic.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Satoshi';
 	font-style: normal;
+	font-weight: 700;
+	src: url('/fonts/satoshi/Satoshi-Bold.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Satoshi';
+	font-style: italic;
+	font-weight: 700;
+	src: url('/fonts/satoshi/Satoshi-BoldItalic.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Satoshi';
+	font-style: normal;
+	font-weight: 900;
+	src: url('/fonts/satoshi/Satoshi-Black.woff') format('woff');
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Satoshi';
+	font-style: italic;
+	font-weight: 900;
+	src: url('/fonts/satoshi/Satoshi-BlackItalic.woff') format('woff');
 	font-display: swap;
 }
 
@@ -231,7 +287,7 @@
 
 	body {
 		@apply bg-background text-foreground antialiased;
-		font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
+		font-family: "Satoshi", -apple-system, BlinkMacSystemFont, "Segoe UI",
 			"Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
 			"Helvetica Neue", sans-serif;
 	}
@@ -244,11 +300,9 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background-image: radial-gradient(
-			circle,
-			rgba(28, 25, 23, 0.06) 1px,
-			transparent 1px
-		);
+		background-image: radial-gradient(circle,
+				rgba(28, 25, 23, 0.06) 1px,
+				transparent 1px);
 		background-size: 28px 28px;
 		pointer-events: none;
 		z-index: 0;
@@ -262,40 +316,30 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background: radial-gradient(
-				ellipse 80% 50% at 10% 20%,
+		background: radial-gradient(ellipse 80% 50% at 10% 20%,
 				rgba(199, 101, 79, 0.04) 0%,
-				transparent 50%
-			),
-			radial-gradient(
-				ellipse 60% 40% at 90% 80%,
+				transparent 50%),
+			radial-gradient(ellipse 60% 40% at 90% 80%,
 				rgba(107, 142, 127, 0.04) 0%,
-				transparent 50%
-			);
+				transparent 50%);
 		pointer-events: none;
 		z-index: 0;
 	}
 
 	/* Dark mode: dimmer patterns */
 	.dark body::before {
-		background-image: radial-gradient(
-			circle,
-			rgba(231, 229, 224, 0.04) 1px,
-			transparent 1px
-		);
+		background-image: radial-gradient(circle,
+				rgba(231, 229, 224, 0.04) 1px,
+				transparent 1px);
 	}
 
 	.dark body::after {
-		background: radial-gradient(
-				ellipse 80% 50% at 10% 20%,
+		background: radial-gradient(ellipse 80% 50% at 10% 20%,
 				rgba(212, 121, 95, 0.03) 0%,
-				transparent 50%
-			),
-			radial-gradient(
-				ellipse 60% 40% at 90% 80%,
+				transparent 50%),
+			radial-gradient(ellipse 60% 40% at 90% 80%,
 				rgba(123, 170, 158, 0.03) 0%,
-				transparent 50%
-			);
+				transparent 50%);
 	}
 
 	/* Typography - Loco editorial scale */
@@ -305,18 +349,21 @@
 		line-height: 1.2;
 		letter-spacing: -0.025em;
 	}
+
 	h2 {
 		font-size: 22px;
 		font-weight: 700;
 		line-height: 1.3;
 		letter-spacing: -0.015em;
 	}
+
 	h3 {
 		font-size: 20px;
 		font-weight: 600;
 		line-height: 1.35;
 		letter-spacing: -0.01em;
 	}
+
 	h4 {
 		font-size: 15px;
 		font-weight: 600;
@@ -347,6 +394,7 @@
 ---------------------------- */
 
 @layer components {
+
 	/* Surface - base card/panel style */
 	.surface {
 		@apply bg-card text-card-foreground border border-border rounded-xl;
@@ -360,43 +408,30 @@
 
 	/* Menu item */
 	.menu-item {
-		@apply px-3 py-2 text-sm rounded-md transition-all duration-fast
-			hover:bg-accent hover:text-foreground
-			focus-visible:bg-accent focus-visible:outline-none
-			data-[active=true]:bg-accent data-[active=true]:font-medium
-			aria-selected:bg-accent aria-selected:font-medium;
+		@apply px-3 py-2 text-sm rounded-md transition-all duration-fast hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:outline-none data-[active=true]:bg-accent data-[active=true]:font-medium aria-selected:bg-accent aria-selected:font-medium;
 	}
 
 	/* Table row */
 	.table-row {
-		@apply border-b border-border last:border-0
-			hover:bg-accent transition-all duration-fast;
+		@apply border-b border-border last:border-0 hover:bg-accent transition-all duration-fast;
 	}
 
 	/* Button base */
 	.btn-base {
-		@apply inline-flex items-center justify-center gap-2
-			rounded-md px-[22px] py-3 text-sm font-semibold
-			transition-all duration-fast
-			focus-visible:outline-none;
+		@apply inline-flex items-center justify-center gap-2 rounded-md px-[22px] py-3 text-sm font-semibold transition-all duration-fast focus-visible:outline-none;
 	}
 
 	/* Button primary */
 	.btn-primary {
-		@apply text-white;
-		background: linear-gradient(135deg, #C7654F 0%, #B55942 100%);
-		box-shadow:
-			0 2px 4px rgba(28, 25, 23, 0.04),
-			0 1px 2px rgba(28, 25, 23, 0.02),
-			inset 0 1px 0 rgba(255, 255, 255, 0.15);
+		@apply bg-primary text-primary-foreground border border-transparent shadow-sm;
 	}
 
 	.btn-primary:hover {
-		box-shadow:
-			0 4px 12px rgba(28, 25, 23, 0.06),
-			0 2px 4px rgba(28, 25, 23, 0.03),
-			inset 0 1px 0 rgba(255, 255, 255, 0.15);
-		transform: translateY(-1px);
+		@apply shadow-md transform -translate-y-[1px];
+	}
+
+	.btn-primary:active {
+		@apply shadow-sm transform translate-y-0;
 	}
 
 	.btn-primary:active {
@@ -405,8 +440,7 @@
 
 	/* Button secondary */
 	.btn-secondary {
-		@apply bg-secondary text-secondary-foreground border border-border
-			hover:bg-accent;
+		@apply bg-secondary text-secondary-foreground border border-border hover:bg-accent;
 		box-shadow: 0 1px 2px rgba(28, 25, 23, 0.03);
 	}
 
@@ -417,11 +451,11 @@
 
 	/* Button destructive */
 	.btn-destructive {
-		@apply text-white;
-		background: linear-gradient(135deg, #A85751 0%, #8e4842 100%);
-		box-shadow:
-			0 2px 4px rgba(28, 25, 23, 0.04),
-			0 1px 2px rgba(28, 25, 23, 0.02);
+		@apply bg-destructive text-white border border-transparent shadow-sm;
+	}
+
+	.btn-destructive:hover {
+		@apply shadow-md transform -translate-y-[1px] opacity-90;
 	}
 
 	/* Button disabled */
@@ -431,11 +465,7 @@
 
 	/* Input base */
 	.input-base {
-		@apply flex w-full rounded-md border border-input bg-background
-			px-3 py-2 text-sm
-			placeholder:text-muted-foreground
-			transition-all duration-fast
-			disabled:opacity-50 disabled:cursor-not-allowed;
+		@apply flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground transition-all duration-fast disabled:opacity-50 disabled:cursor-not-allowed;
 		box-shadow: 0 1px 2px rgba(28, 25, 23, 0.03);
 	}
 
@@ -445,9 +475,7 @@
 
 	/* Badge */
 	.badge {
-		@apply inline-flex items-center gap-1.5
-			rounded-lg px-3 py-1
-			text-xs font-bold;
+		@apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-bold;
 	}
 
 	.badge-default {
@@ -483,115 +511,4 @@
 	}
 
 
-}
-
-/* Button rotating glow animation */
-@keyframes glow-rotate {
-	0% {
-		box-shadow: 
-			4px 0 8px rgba(249, 115, 22, 0.4),
-			0 4px 8px rgba(20, 184, 166, 0.25);
-	}
-	12.5% {
-		box-shadow: 
-			3px 3px 8px rgba(249, 115, 22, 0.4),
-			-3px 3px 8px rgba(20, 184, 166, 0.25);
-	}
-	25% {
-		box-shadow: 
-			0 4px 8px rgba(249, 115, 22, 0.4),
-			-4px 0 8px rgba(20, 184, 166, 0.25);
-	}
-	37.5% {
-		box-shadow: 
-			-3px 3px 8px rgba(249, 115, 22, 0.4),
-			-3px -3px 8px rgba(20, 184, 166, 0.25);
-	}
-	50% {
-		box-shadow: 
-			-4px 0 8px rgba(249, 115, 22, 0.4),
-			0 -4px 8px rgba(20, 184, 166, 0.25);
-	}
-	62.5% {
-		box-shadow: 
-			-3px -3px 8px rgba(249, 115, 22, 0.4),
-			3px -3px 8px rgba(20, 184, 166, 0.25);
-	}
-	75% {
-		box-shadow: 
-			0 -4px 8px rgba(249, 115, 22, 0.4),
-			4px 0 8px rgba(20, 184, 166, 0.25);
-	}
-	87.5% {
-		box-shadow: 
-			3px -3px 8px rgba(249, 115, 22, 0.4),
-			3px 3px 8px rgba(20, 184, 166, 0.25);
-	}
-	100% {
-		box-shadow: 
-			4px 0 8px rgba(249, 115, 22, 0.4),
-			0 4px 8px rgba(20, 184, 166, 0.25);
-	}
-}
-
-@keyframes glow-rotate-destructive {
-	0% {
-		box-shadow: 
-			4px 0 8px rgba(239, 68, 68, 0.4),
-			0 4px 8px rgba(244, 63, 94, 0.25);
-	}
-	12.5% {
-		box-shadow: 
-			3px 3px 8px rgba(239, 68, 68, 0.4),
-			-3px 3px 8px rgba(244, 63, 94, 0.25);
-	}
-	25% {
-		box-shadow: 
-			0 4px 8px rgba(239, 68, 68, 0.4),
-			-4px 0 8px rgba(244, 63, 94, 0.25);
-	}
-	37.5% {
-		box-shadow: 
-			-3px 3px 8px rgba(239, 68, 68, 0.4),
-			-3px -3px 8px rgba(244, 63, 94, 0.25);
-	}
-	50% {
-		box-shadow: 
-			-4px 0 8px rgba(239, 68, 68, 0.4),
-			0 -4px 8px rgba(244, 63, 94, 0.25);
-	}
-	62.5% {
-		box-shadow: 
-			-3px -3px 8px rgba(239, 68, 68, 0.4),
-			3px -3px 8px rgba(244, 63, 94, 0.25);
-	}
-	75% {
-		box-shadow: 
-			0 -4px 8px rgba(239, 68, 68, 0.4),
-			4px 0 8px rgba(244, 63, 94, 0.25);
-	}
-	87.5% {
-		box-shadow: 
-			3px -3px 8px rgba(239, 68, 68, 0.4),
-			3px 3px 8px rgba(244, 63, 94, 0.25);
-	}
-	100% {
-		box-shadow: 
-			4px 0 8px rgba(239, 68, 68, 0.4),
-			0 4px 8px rgba(244, 63, 94, 0.25);
-	}
-}
-
-/* Button gradient glow effect */
-.btn-gradient-border {
-	position: relative;
-	transition: all 0.3s ease-out;
-}
-
-.btn-gradient-border:hover {
-	animation: glow-rotate 4s linear infinite;
-}
-
-.btn-gradient-border.destructive:hover {
-	animation: glow-rotate-destructive 4s linear infinite;
 }
