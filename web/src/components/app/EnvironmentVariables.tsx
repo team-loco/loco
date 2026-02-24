@@ -1,5 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Loader from "@/assets/loader.svg?react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
 	Table,
@@ -9,12 +10,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useMutation } from "@connectrpc/connect-query";
 import { updateResourceEnv } from "@/gen/loco/resource/v1";
 import { toastConnectError } from "@/lib/error-handler";
+import { useMutation } from "@connectrpc/connect-query";
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Trash2, Plus } from "lucide-react";
-import Loader from "@/assets/loader.svg?react";
 
 interface EnvVar {
 	key: string;
@@ -44,7 +44,11 @@ export function EnvironmentVariables({
 		setVars(vars.filter((_, i) => i !== index));
 	};
 
-	const handleChange = (index: number, field: "key" | "value", value: string) => {
+	const handleChange = (
+		index: number,
+		field: "key" | "value",
+		value: string,
+	) => {
 		const newVars = [...vars];
 		newVars[index] = { ...newVars[index], [field]: value };
 		setVars(newVars);
@@ -59,10 +63,10 @@ export function EnvironmentVariables({
 					acc[v.key] = v.value;
 					return acc;
 				},
-				{} as { [key: string]: string }
+				{} as { [key: string]: string },
 			);
 			await updateEnvMutation.mutateAsync({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 				env: envMap,
 			});
 			setIsEditing(false);
@@ -118,11 +122,7 @@ export function EnvironmentVariables({
 											<Input
 												value={envVar.key}
 												onChange={(e) =>
-													handleChange(
-														index,
-														"key",
-														e.target.value
-													)
+													handleChange(index, "key", e.target.value)
 												}
 												placeholder="KEY"
 												className="font-mono text-sm"
@@ -133,11 +133,7 @@ export function EnvironmentVariables({
 												type="password"
 												value={envVar.value}
 												onChange={(e) =>
-													handleChange(
-														index,
-														"value",
-														e.target.value
-													)
+													handleChange(index, "value", e.target.value)
 												}
 												placeholder="value"
 												className="font-mono text-sm"
@@ -211,12 +207,7 @@ export function EnvironmentVariables({
 									</TableCell>
 									<TableCell className="font-mono text-sm">
 										{envVar.value
-											? "•".repeat(
-													Math.min(
-														envVar.value.length,
-														8
-													)
-												)
+											? "•".repeat(Math.min(envVar.value.length, 8))
 											: "—"}
 									</TableCell>
 								</TableRow>

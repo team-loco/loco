@@ -33,7 +33,7 @@ export function Team() {
 
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		{ userId: user?.id ?? 0n },
+		user ? { userId: user.id } : undefined,
 		{ enabled: !!user }
 	);
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
@@ -50,7 +50,7 @@ export function Team() {
 	);
 
 	const firstWorkspaceId = useMemo(() => {
-		if (workspaceFromUrl) return BigInt(workspaceFromUrl);
+		if (workspaceFromUrl) return workspaceFromUrl;
 		if (workspaces.length > 0) {
 			return workspaces[0].id;
 		}
@@ -94,7 +94,7 @@ export function Team() {
 	);
 
 	const handleRemoveMember = useCallback(
-		async (userId: bigint) => {
+		async (userId: string) => {
 			if (!firstWorkspaceId) return;
 			try {
 				removeMemberMutation({

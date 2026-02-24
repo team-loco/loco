@@ -1,150 +1,18 @@
-import {
-	Activity,
-	BookOpen,
-	Building2,
-	Calendar,
-	CheckCircle,
-	Home,
-	Key,
-	Package,
-	TrendingUp,
-	Users,
-	Zap,
-} from "lucide-react";
+import { Zap } from "lucide-react";
 import * as React from "react";
 
-import { NavUser } from "@/components/nav-user";
-import { Badge } from "@/components/ui/badge";
 import {
 	Sidebar,
-	SidebarContent,
-	SidebarGroup,
-	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
-	SidebarMenuSub,
-	SidebarMenuSubButton,
-	SidebarMenuSubItem,
 	SidebarRail,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { whoAmI } from "@/gen/loco/user/v1";
-import { useQuery } from "@connectrpc/connect-query";
-import { useLocation, useNavigate } from "react-router";
-import { useOrgWorkspace } from "@/context/ContextProvider";
-
-type NavItemBase = {
-	title: string;
-	url: string;
-	icon: React.ComponentType<{ className?: string }>;
-};
-
-type SectionNavItem = {
-	section: string;
-	items: Array<NavItemBase & { badge?: string }>;
-};
-
-type RegularNavItem = NavItemBase & {
-	items: Array<{ title: string; url: string }>;
-};
-
-const getNavMainItems = (orgId?: bigint, workspaceId?: bigint) => [
-	{
-		title: "Dashboard",
-		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/dashboard` : "/dashboard",
-		icon: Home,
-		items: [],
-	},
-	{
-		title: "Resources",
-		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/resources` : "/resources",
-		icon: Package,
-		items: [],
-	},
-	{
-		title: "Observability",
-		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/observability` : "/observability",
-		icon: Activity,
-		items: [],
-	},
-	{
-		title: "Events",
-		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/events` : "/events",
-		icon: Calendar,
-		items: [],
-	},
-	{
-		title: "Usage",
-		url: orgId && workspaceId ? `/org/${orgId}/wks/${workspaceId}/usage` : "/usage",
-		icon: TrendingUp,
-		items: [],
-	},
-	{
-		title: "Tokens",
-		url: "/tokens",
-		icon: Key,
-		items: [],
-	},
-	{
-		title: "Team",
-		url: "/team",
-		icon: Users,
-		items: [],
-	},
-	{
-		title: "Organizations",
-		url: "/organizations",
-		icon: Building2,
-		items: [],
-	},
-	{
-		section: "Help & Resources",
-		items: [
-			{
-				title: "Docs",
-				url: "/docs",
-				icon: BookOpen,
-			},
-			{
-				title: "Packages",
-				url: "/packages",
-				icon: Package,
-				badge: "Coming Soon",
-			},
-			{
-				title: "Status Page",
-				url: "#",
-				icon: CheckCircle,
-				badge: "Coming Soon",
-			},
-		],
-	},
-];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-	const navigate = useNavigate();
-	const location = useLocation();
 	const { toggleSidebar } = useSidebar();
-
-	const { data: whoAmIResponse } = useQuery(whoAmI, {});
-	const user = whoAmIResponse?.user;
-
-	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-
-	const isActive = (url: string) => {
-		if (url === "#") return false;
-		// Exact match for most routes
-		if (location.pathname === url) return true;
-		// For nested subroutes, only match if URL is a parent directory
-		if (location.pathname.startsWith(url + "/")) {
-			// But not if the URL is a dashboard link and we're in a subroute
-			if (url.endsWith("/dashboard")) return false;
-			return true;
-		}
-		return false;
-	};
 
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -162,133 +30,37 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [toggleSidebar]);
 
-	return (
-		<Sidebar {...props}>
-			<SidebarHeader className="pt-14">
-				{/* Loco Branding */}
-				<SidebarMenu>
-					<SidebarMenuItem>
-						<SidebarMenuButton
-							size="lg"
-							asChild
-							className="hover:bg-transparent active:bg-transparent focus-visible:bg-transparent data-[state=open]:bg-transparent"
-						>
-							<a
-								href="/dashboard"
-								onClick={(e) => e.preventDefault()}
-								className="cursor-default"
-							>
-								<div className="flex aspect-square size-8 items-center justify-center rounded-md bg-white border">
-									<Zap className="size-4" fill="#000" />
-								</div>
-								<div className="flex flex-col gap-0.5 leading-none">
-									<span className="font-bold text-sm">LOCO</span>
-									<span className="text-[10px] font-medium opacity-70">
-										Deploy & Scale
-									</span>
-								</div>
-							</a>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-				</SidebarMenu>
-			</SidebarHeader>
+    return (
+        <Sidebar {...props}>
+            <SidebarHeader className="pt-14">
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            size="lg"
+                            asChild
+                            className="hover:bg-transparent active:bg-transparent focus-visible:bg-transparent data-[state=open]:bg-transparent"
+                        >
+                            <a
+                                href="/dashboard"
+                                onClick={(e) => e.preventDefault()}
+                                className="cursor-default"
+                            >
+                                <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-white border">
+                                    <Zap className="size-4" fill="#000" />
+                                </div>
+                                <div className="flex flex-col gap-0.5 leading-none">
+                                    <span className="font-bold text-sm">LOCO</span>
+                                    <span className="text-[10px] font-medium opacity-70">
+                                        Deploy & Scale
+                                    </span>
+                                </div>
+                            </a>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarHeader>
 
-			<SidebarContent>
-				{getNavMainItems(activeOrgId || undefined, activeWorkspaceId || undefined).map((item, idx) => {
-					if ("section" in item) {
-						const sectionItem = item as SectionNavItem;
-						return (
-							<SidebarGroup key={sectionItem.section}>
-								<SidebarGroupLabel>{sectionItem.section}</SidebarGroupLabel>
-								<SidebarMenu>
-									{sectionItem.items.map(
-										(subItem: (typeof sectionItem.items)[0]) => (
-											<SidebarMenuItem key={subItem.title}>
-												<SidebarMenuButton
-													onClick={() => {
-														if (!subItem.badge) {
-															navigate(subItem.url);
-														}
-													}}
-													isActive={isActive(subItem.url)}
-													className={`flex items-center justify-between ${
-														subItem.badge
-															? "cursor-not-allowed opacity-60 hover:bg-transparent"
-															: "cursor-pointer"
-													}`}
-												>
-													<div className="flex items-center gap-2">
-														<subItem.icon className="size-4" />
-														<span>{subItem.title}</span>
-													</div>
-													{subItem.badge && (
-														<Badge className="bg-yellow-500 border-0 text-xs font-mono">
-															{subItem.badge}
-														</Badge>
-													)}
-												</SidebarMenuButton>
-											</SidebarMenuItem>
-										)
-									)}
-								</SidebarMenu>
-							</SidebarGroup>
-						);
-					}
-
-					const navItem = item as RegularNavItem;
-					return (
-						<SidebarGroup key={navItem.title || idx} className="mb-2">
-							<SidebarMenu>
-								<SidebarMenuItem>
-									<SidebarMenuButton
-										onClick={() => navigate(navItem.url)}
-										isActive={isActive(navItem.url)}
-										className={`${
-											(navItem.items ?? []).length ? "" : "font-medium"
-										} cursor-pointer`}
-										tooltip={navItem.title}
-									>
-										<navItem.icon className="size-4" />
-										<span>{navItem.title}</span>
-									</SidebarMenuButton>
-
-									{(navItem.items ?? []).length > 0 ? (
-										<SidebarMenuSub>
-											{navItem.items?.map(
-												(navSubItem: (typeof navItem.items)[0]) => (
-													<SidebarMenuSubItem key={navSubItem.title}>
-														<SidebarMenuSubButton
-															onClick={() => navigate(navSubItem.url)}
-															isActive={isActive(navSubItem.url)}
-															className="cursor-pointer"
-														>
-															<span>{navSubItem.title}</span>
-														</SidebarMenuSubButton>
-													</SidebarMenuSubItem>
-												)
-											)}
-										</SidebarMenuSub>
-									) : null}
-								</SidebarMenuItem>
-							</SidebarMenu>
-						</SidebarGroup>
-					);
-				})}
-			</SidebarContent>
-
-			<SidebarGroup className="mt-auto">
-				<div className="px-2 pb-2">
-					<NavUser
-						user={{
-							name: user?.name || "User",
-							email: user?.email || "",
-							avatar: user?.avatarUrl || "",
-						}}
-					/>
-				</div>
-			</SidebarGroup>
-
-			<SidebarRail />
-		</Sidebar>
-	);
+            <SidebarRail />
+        </Sidebar>
+    );
 }

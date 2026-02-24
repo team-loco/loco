@@ -8,14 +8,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
 			<style>{`
         [data-sonner-toaster] {
           --toast-background: hsl(var(--card));
-          --toast-border: #000;
+          --toast-border: var(--border);
           --toast-text: hsl(var(--foreground));
         }
 
         [data-sonner-toast] {
-          border: 2px solid #000 !important;
-          border-radius: 16px !important;
-          box-shadow: 2px 2px 0px 0px #000 !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 8px 24px rgba(28, 25, 23, 0.08), 0 4px 8px rgba(28, 25, 23, 0.04) !important;
           padding: 20px 24px !important;
           gap: 16px !important;
           background-color: hsl(var(--card)) !important;
@@ -24,74 +24,79 @@ const Toaster = ({ ...props }: ToasterProps) => {
         }
 
         [data-sonner-toast][data-type="success"] {
-          background-color: #ecfdf5 !important;
+          background-color: #EEF3F1 !important;
+          border-color: #C5D5CF !important;
         }
 
         [data-sonner-toast][data-type="error"] {
-          background-color: #ffcccc !important;
+          background-color: #F8F1F0 !important;
+          border-color: #E2C9C6 !important;
         }
 
         [data-sonner-toast][data-type="warning"] {
-          background-color: #fffbeb !important;
+          background-color: #F9F6F0 !important;
+          border-color: #E5DCCF !important;
         }
 
         [data-sonner-toast][data-type="info"] {
-          background-color: #f0f9ff !important;
+          background-color: #F0F4F7 !important;
+          border-color: #C9D6E2 !important;
         }
 
         [data-sonner-toast] [data-sonner-toast-title] {
           font-weight: 700 !important;
-          font-size: 16px !important;
-          color: #000 !important;
+          font-size: 15px !important;
+          color: var(--foreground) !important;
           margin: 0 !important;
         }
 
         [data-sonner-toast] [data-sonner-toast-description] {
           font-weight: 400 !important;
-          font-size: 14px !important;
-          color: #000 !important;
+          font-size: 13px !important;
+          color: var(--muted-foreground) !important;
           margin: 0 !important;
         }
 
         [data-sonner-toast-action-button],
         [data-sonner-toast-cancel-button] {
-          border: 2px solid #000 !important;
-          border-radius: 12px !important;
-          background-color: hsl(var(--primary)) !important;
-          color: hsl(var(--primary-foreground)) !important;
-          font-weight: 500 !important;
+          border: 1px solid var(--border) !important;
+          border-radius: 10px !important;
+          background: linear-gradient(135deg, #C7654F 0%, #B55942 100%) !important;
+          color: white !important;
+          font-weight: 600 !important;
           padding: 8px 16px !important;
           cursor: pointer !important;
-          transition: all 75ms ease !important;
-          font-size: 14px !important;
-          box-shadow: none !important;
-        }
-
-        [data-sonner-toast-action-button]:active,
-        [data-sonner-toast-cancel-button]:active {
-          box-shadow: none !important;
-          transform: translate(2px, 2px) !important;
+          transition: all 180ms ease !important;
+          font-size: 13px !important;
+          box-shadow: 0 2px 4px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.02) !important;
         }
 
         [data-sonner-toast-action-button]:hover {
-          opacity: 0.9 !important;
+          box-shadow: 0 4px 12px rgba(28, 25, 23, 0.06), 0 2px 4px rgba(28, 25, 23, 0.03) !important;
+          transform: translateY(-1px) !important;
+        }
+
+        [data-sonner-toast-action-button]:active {
+          transform: translateY(0) !important;
         }
 
         [data-sonner-toast-close-button] {
           background: none !important;
           border: none !important;
-          color: #000 !important;
+          color: var(--muted-foreground) !important;
           cursor: pointer !important;
           padding: 4px !important;
-          font-weight: bold !important;
           font-size: 20px !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          border-radius: 6px !important;
+          transition: all 180ms !important;
         }
 
         [data-sonner-toast-close-button]:hover {
-          opacity: 0.7 !important;
+          background: var(--accent) !important;
+          color: var(--foreground) !important;
         }
       `}</style>
 			<Sonner theme="light" className="toaster group" {...props} />

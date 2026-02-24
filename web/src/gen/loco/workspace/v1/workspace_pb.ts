@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/workspace/v1/workspace.proto.
  */
 export const file_loco_workspace_v1_workspace: GenFile = /*@__PURE__*/
-  fileDesc("CiFsb2NvL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SEWxvY28ud29ya3NwYWNlLnYxIr4BCglXb3Jrc3BhY2USCgoCaWQYASABKAMSDgoGb3JnX2lkGAIgASgDEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoAxIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ2Cg9Xb3Jrc3BhY2VNZW1iZXISFAoMd29ya3NwYWNlX2lkGAEgASgDEg8KB3VzZXJfaWQYAiABKAMSDAoEcm9sZRgDIAEoCRIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoXV29ya3NwYWNlTWVtYmVyV2l0aFVzZXISFAoMd29ya3NwYWNlX2lkGAEgASgDEg8KB3VzZXJfaWQYAiABKAMSDAoEcm9sZRgDIAEoCRIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgl1c2VyX25hbWUYBSABKAkSEgoKdXNlcl9lbWFpbBgGIAEoCRIXCg91c2VyX2F2YXRhcl91cmwYByABKAkiYAoWQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBIOCgZvcmdfaWQYASABKAMSDAoEbmFtZRgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBQg4KDF9kZXNjcmlwdGlvbiIvChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAMiKwoTR2V0V29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMiRwoUR2V0V29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlIlMKGUxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QSDwoHdXNlcl9pZBgBIAEoAxIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCSJnChpMaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRIwCgp3b3Jrc3BhY2VzGAEgAygLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJRChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgDEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJImYKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkipQEKFlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIRCgRuYW1lGAMgASgJSACIAQESGAoLZGVzY3JpcHRpb24YBCABKAlIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb24iLwoXVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgDIksKFkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiGQoXRGVsZXRlV29ya3NwYWNlUmVzcG9uc2UiSgoTQ3JlYXRlTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAMSDwoHdXNlcl9pZBgCIAEoAxIMCgRyb2xlGAMgASgJIj0KFENyZWF0ZU1lbWJlclJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIPCgd1c2VyX2lkGAIgASgDIjwKE0RlbGV0ZU1lbWJlclJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgDEg8KB3VzZXJfaWQYAiABKAMiFgoURGVsZXRlTWVtYmVyUmVzcG9uc2UiWgobTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoAxIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCSJ0ChxMaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlEjsKB21lbWJlcnMYASADKAsyKi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkyzwcKEFdvcmtzcGFjZVNlcnZpY2USaAoPQ3JlYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEl8KDEdldFdvcmtzcGFjZRImLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXNwb25zZRJoCg9VcGRhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USaAoPRGVsZXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlEnEKEkxpc3RVc2VyV29ya3NwYWNlcxIsLmxvY28ud29ya3NwYWNlLnYxLkxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QaLS5sb2NvLndvcmtzcGFjZS52MS5MaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRJuChFMaXN0T3JnV29ya3NwYWNlcxIrLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBosLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USXwoMQ3JlYXRlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZU1lbWJlclJlc3BvbnNlEl8KDERlbGV0ZU1lbWJlchImLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZU1lbWJlclJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVNZW1iZXJSZXNwb25zZRJ3ChRMaXN0V29ya3NwYWNlTWVtYmVycxIuLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVxdWVzdBovLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVzcG9uc2VCP1o9Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL3dvcmtzcGFjZS92MTt3b3Jrc3BhY2V2MWIGcHJvdG8z", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("CiFsb2NvL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SEWxvY28ud29ya3NwYWNlLnYxIr4BCglXb3Jrc3BhY2USCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ2Cg9Xb3Jrc3BhY2VNZW1iZXISFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSDAoEcm9sZRgDIAEoCRIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCK+AQoXV29ya3NwYWNlTWVtYmVyV2l0aFVzZXISFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSDAoEcm9sZRgDIAEoCRIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCgl1c2VyX25hbWUYBSABKAkSEgoKdXNlcl9lbWFpbBgGIAEoCRIXCg91c2VyX2F2YXRhcl91cmwYByABKAkiYAoWQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBIOCgZvcmdfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBQg4KDF9kZXNjcmlwdGlvbiIvChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAkiKwoTR2V0V29ya3NwYWNlUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkiRwoUR2V0V29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlIlMKGUxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCSJnChpMaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRIwCgp3b3Jrc3BhY2VzGAEgAygLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJRChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSDgoGb3JnX2lkGAEgASgJEhEKCXBhZ2Vfc2l6ZRgCIAEoBRISCgpwYWdlX3Rva2VuGAMgASgJImYKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkipQEKFlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxIRCgRuYW1lGAMgASgJSACIAQESGAoLZGVzY3JpcHRpb24YBCABKAlIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb24iLwoXVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgJIksKFkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiGQoXRGVsZXRlV29ya3NwYWNlUmVzcG9uc2UiSgoTQ3JlYXRlTWVtYmVyUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDwoHdXNlcl9pZBgCIAEoCRIMCgRyb2xlGAMgASgJIj0KFENyZWF0ZU1lbWJlclJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJIjwKE0RlbGV0ZU1lbWJlclJlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkiFgoURGVsZXRlTWVtYmVyUmVzcG9uc2UiWgobTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCSJ0ChxMaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlEjsKB21lbWJlcnMYASADKAsyKi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkyzwcKEFdvcmtzcGFjZVNlcnZpY2USaAoPQ3JlYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEl8KDEdldFdvcmtzcGFjZRImLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXNwb25zZRJoCg9VcGRhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USaAoPRGVsZXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlEnEKEkxpc3RVc2VyV29ya3NwYWNlcxIsLmxvY28ud29ya3NwYWNlLnYxLkxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QaLS5sb2NvLndvcmtzcGFjZS52MS5MaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRJuChFMaXN0T3JnV29ya3NwYWNlcxIrLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBosLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USXwoMQ3JlYXRlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZU1lbWJlclJlc3BvbnNlEl8KDERlbGV0ZU1lbWJlchImLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZU1lbWJlclJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVNZW1iZXJSZXNwb25zZRJ3ChRMaXN0V29ya3NwYWNlTWVtYmVycxIuLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVxdWVzdBovLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVzcG9uc2VCP1o9Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL3dvcmtzcGFjZS92MTt3b3Jrc3BhY2V2MWIGcHJvdG8z", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * Workspace represents a project container within an organization where resources are deployed and managed.
@@ -21,14 +21,14 @@ export const file_loco_workspace_v1_workspace: GenFile = /*@__PURE__*/
  */
 export type Workspace = Message<"loco.workspace.v1.Workspace"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
-  id: bigint;
+  id: string;
 
   /**
-   * @generated from field: int64 org_id = 2;
+   * @generated from field: string org_id = 2;
    */
-  orgId: bigint;
+  orgId: string;
 
   /**
    * @generated from field: string name = 3;
@@ -41,9 +41,9 @@ export type Workspace = Message<"loco.workspace.v1.Workspace"> & {
   description: string;
 
   /**
-   * @generated from field: int64 created_by = 5;
+   * @generated from field: string created_by = 5;
    */
-  createdBy: bigint;
+  createdBy: string;
 
   /**
    * @generated from field: google.protobuf.Timestamp created_at = 6;
@@ -63,12 +63,12 @@ export type Workspace = Message<"loco.workspace.v1.Workspace"> & {
  */
 export type WorkspaceJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 
   /**
-   * @generated from field: int64 org_id = 2;
+   * @generated from field: string org_id = 2;
    */
   orgId?: string;
 
@@ -83,7 +83,7 @@ export type WorkspaceJson = {
   description?: string;
 
   /**
-   * @generated from field: int64 created_by = 5;
+   * @generated from field: string created_by = 5;
    */
   createdBy?: string;
 
@@ -112,14 +112,14 @@ export const WorkspaceSchema: GenMessage<Workspace, {jsonType: WorkspaceJson}> =
  */
 export type WorkspaceMember = Message<"loco.workspace.v1.WorkspaceMember"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
-  userId: bigint;
+  userId: string;
 
   /**
    * @generated from field: string role = 3;
@@ -139,12 +139,12 @@ export type WorkspaceMember = Message<"loco.workspace.v1.WorkspaceMember"> & {
  */
 export type WorkspaceMemberJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
   userId?: string;
 
@@ -173,14 +173,14 @@ export const WorkspaceMemberSchema: GenMessage<WorkspaceMember, {jsonType: Works
  */
 export type WorkspaceMemberWithUser = Message<"loco.workspace.v1.WorkspaceMemberWithUser"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
-  userId: bigint;
+  userId: string;
 
   /**
    * @generated from field: string role = 3;
@@ -215,12 +215,12 @@ export type WorkspaceMemberWithUser = Message<"loco.workspace.v1.WorkspaceMember
  */
 export type WorkspaceMemberWithUserJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
   userId?: string;
 
@@ -264,9 +264,9 @@ export const WorkspaceMemberWithUserSchema: GenMessage<WorkspaceMemberWithUser, 
  */
 export type CreateWorkspaceRequest = Message<"loco.workspace.v1.CreateWorkspaceRequest"> & {
   /**
-   * @generated from field: int64 org_id = 1;
+   * @generated from field: string org_id = 1;
    */
-  orgId: bigint;
+  orgId: string;
 
   /**
    * @generated from field: string name = 2;
@@ -286,7 +286,7 @@ export type CreateWorkspaceRequest = Message<"loco.workspace.v1.CreateWorkspaceR
  */
 export type CreateWorkspaceRequestJson = {
   /**
-   * @generated from field: int64 org_id = 1;
+   * @generated from field: string org_id = 1;
    */
   orgId?: string;
 
@@ -315,9 +315,9 @@ export const CreateWorkspaceRequestSchema: GenMessage<CreateWorkspaceRequest, {j
  */
 export type CreateWorkspaceResponse = Message<"loco.workspace.v1.CreateWorkspaceResponse"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 };
 
 /**
@@ -327,7 +327,7 @@ export type CreateWorkspaceResponse = Message<"loco.workspace.v1.CreateWorkspace
  */
 export type CreateWorkspaceResponseJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 };
@@ -346,9 +346,9 @@ export const CreateWorkspaceResponseSchema: GenMessage<CreateWorkspaceResponse, 
  */
 export type GetWorkspaceRequest = Message<"loco.workspace.v1.GetWorkspaceRequest"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 };
 
 /**
@@ -358,7 +358,7 @@ export type GetWorkspaceRequest = Message<"loco.workspace.v1.GetWorkspaceRequest
  */
 export type GetWorkspaceRequestJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 };
@@ -408,9 +408,9 @@ export const GetWorkspaceResponseSchema: GenMessage<GetWorkspaceResponse, {jsonT
  */
 export type ListUserWorkspacesRequest = Message<"loco.workspace.v1.ListUserWorkspacesRequest"> & {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
-  userId: bigint;
+  userId: string;
 
   /**
    * default: 50, max: 200
@@ -434,7 +434,7 @@ export type ListUserWorkspacesRequest = Message<"loco.workspace.v1.ListUserWorks
  */
 export type ListUserWorkspacesRequestJson = {
   /**
-   * @generated from field: int64 user_id = 1;
+   * @generated from field: string user_id = 1;
    */
   userId?: string;
 
@@ -512,9 +512,9 @@ export const ListUserWorkspacesResponseSchema: GenMessage<ListUserWorkspacesResp
  */
 export type ListOrgWorkspacesRequest = Message<"loco.workspace.v1.ListOrgWorkspacesRequest"> & {
   /**
-   * @generated from field: int64 org_id = 1;
+   * @generated from field: string org_id = 1;
    */
-  orgId: bigint;
+  orgId: string;
 
   /**
    * default: 50, max: 200
@@ -538,7 +538,7 @@ export type ListOrgWorkspacesRequest = Message<"loco.workspace.v1.ListOrgWorkspa
  */
 export type ListOrgWorkspacesRequestJson = {
   /**
-   * @generated from field: int64 org_id = 1;
+   * @generated from field: string org_id = 1;
    */
   orgId?: string;
 
@@ -616,9 +616,9 @@ export const ListOrgWorkspacesResponseSchema: GenMessage<ListOrgWorkspacesRespon
  */
 export type UpdateWorkspaceRequest = Message<"loco.workspace.v1.UpdateWorkspaceRequest"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
    * @generated from field: google.protobuf.FieldMask update_mask = 2;
@@ -643,7 +643,7 @@ export type UpdateWorkspaceRequest = Message<"loco.workspace.v1.UpdateWorkspaceR
  */
 export type UpdateWorkspaceRequestJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 
@@ -677,9 +677,9 @@ export const UpdateWorkspaceRequestSchema: GenMessage<UpdateWorkspaceRequest, {j
  */
 export type UpdateWorkspaceResponse = Message<"loco.workspace.v1.UpdateWorkspaceResponse"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 };
 
 /**
@@ -689,7 +689,7 @@ export type UpdateWorkspaceResponse = Message<"loco.workspace.v1.UpdateWorkspace
  */
 export type UpdateWorkspaceResponseJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 };
@@ -708,9 +708,9 @@ export const UpdateWorkspaceResponseSchema: GenMessage<UpdateWorkspaceResponse, 
  */
 export type DeleteWorkspaceRequest = Message<"loco.workspace.v1.DeleteWorkspaceRequest"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
    * @generated from field: bool confirm_delete_apps = 2;
@@ -725,7 +725,7 @@ export type DeleteWorkspaceRequest = Message<"loco.workspace.v1.DeleteWorkspaceR
  */
 export type DeleteWorkspaceRequestJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 
@@ -772,14 +772,14 @@ export const DeleteWorkspaceResponseSchema: GenMessage<DeleteWorkspaceResponse, 
  */
 export type CreateMemberRequest = Message<"loco.workspace.v1.CreateMemberRequest"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
-  userId: bigint;
+  userId: string;
 
   /**
    * @generated from field: string role = 3;
@@ -794,12 +794,12 @@ export type CreateMemberRequest = Message<"loco.workspace.v1.CreateMemberRequest
  */
 export type CreateMemberRequestJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
   userId?: string;
 
@@ -823,14 +823,14 @@ export const CreateMemberRequestSchema: GenMessage<CreateMemberRequest, {jsonTyp
  */
 export type CreateMemberResponse = Message<"loco.workspace.v1.CreateMemberResponse"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
-  userId: bigint;
+  userId: string;
 };
 
 /**
@@ -840,12 +840,12 @@ export type CreateMemberResponse = Message<"loco.workspace.v1.CreateMemberRespon
  */
 export type CreateMemberResponseJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
   userId?: string;
 };
@@ -864,14 +864,14 @@ export const CreateMemberResponseSchema: GenMessage<CreateMemberResponse, {jsonT
  */
 export type DeleteMemberRequest = Message<"loco.workspace.v1.DeleteMemberRequest"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
-  userId: bigint;
+  userId: string;
 };
 
 /**
@@ -881,12 +881,12 @@ export type DeleteMemberRequest = Message<"loco.workspace.v1.DeleteMemberRequest
  */
 export type DeleteMemberRequestJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 
   /**
-   * @generated from field: int64 user_id = 2;
+   * @generated from field: string user_id = 2;
    */
   userId?: string;
 };
@@ -928,9 +928,9 @@ export const DeleteMemberResponseSchema: GenMessage<DeleteMemberResponse, {jsonT
  */
 export type ListWorkspaceMembersRequest = Message<"loco.workspace.v1.ListWorkspaceMembersRequest"> & {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  workspaceId: bigint;
+  workspaceId: string;
 
   /**
    * default: 50, max: 200
@@ -954,7 +954,7 @@ export type ListWorkspaceMembersRequest = Message<"loco.workspace.v1.ListWorkspa
  */
 export type ListWorkspaceMembersRequestJson = {
   /**
-   * @generated from field: int64 workspace_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
   workspaceId?: string;
 

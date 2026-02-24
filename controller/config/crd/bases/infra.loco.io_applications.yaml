@@ -49,14 +49,19 @@ spec:
                 description: DatabaseSpec is a placeholder for future DATABASE type
                   resources
                 type: object
+              deploymentId:
+                type: string
+              environmentId:
+                type: string
+              environmentName:
+                type: string
               queueSpec:
                 description: QueueSpec is a placeholder for future QUEUE type resources
                 type: object
               region:
                 type: string
               resourceId:
-                format: int64
-                type: integer
+                type: string
               serviceSpec:
                 description: Type-specific specs (only one populated based on Type)
                 properties:
@@ -205,8 +210,7 @@ spec:
                   Only the corresponding TypeSpec field should be populated
                 type: string
               workspaceId:
-                format: int64
-                type: integer
+                type: string
             required:
             - type
             type: object

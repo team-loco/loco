@@ -4,29 +4,28 @@ import { useSearchParams } from "react-router";
 const ORG_STORAGE_KEY = "loco_active_org_id";
 
 interface UseOrgContextReturn {
-	activeOrgId: bigint | null;
-	setActiveOrgId: (orgId: bigint) => void;
+	activeOrgId: string | null;
+	setActiveOrgId: (orgId: string) => void;
 	clearActiveOrgId: () => void;
 }
 
 export function useOrgContext(
-	availableOrgIds: bigint[] = []
+	availableOrgIds: string[] = []
 ): UseOrgContextReturn {
 	const [searchParams, setSearchParams] = useSearchParams();
 
 	const activeOrgId = useMemo(() => {
 		const orgParam = searchParams.get("org");
 		if (orgParam) {
-			return BigInt(orgParam);
+			return orgParam;
 		}
 
 		// Fallback to localStorage
 		const storedOrgId = localStorage.getItem(ORG_STORAGE_KEY);
 		if (storedOrgId) {
-			const parsedOrgId = BigInt(storedOrgId);
 			// Verify the stored org still exists in available orgs
-			if (availableOrgIds.some((id) => id === parsedOrgId)) {
-				return parsedOrgId;
+			if (availableOrgIds.some((id) => id === storedOrgId)) {
+				return storedOrgId;
 			}
 			// If stored org doesn't exist anymore, clear it
 			localStorage.removeItem(ORG_STORAGE_KEY);
@@ -39,13 +38,13 @@ export function useOrgContext(
 	// Persist active org to localStorage whenever it changes
 	useEffect(() => {
 		if (activeOrgId) {
-			localStorage.setItem(ORG_STORAGE_KEY, activeOrgId.toString());
+			localStorage.setItem(ORG_STORAGE_KEY, activeOrgId);
 		}
 	}, [activeOrgId]);
 
-	const setActiveOrgId = (orgId: bigint) => {
+	const setActiveOrgId = (orgId: string) => {
 		const newParams = new URLSearchParams(searchParams);
-		newParams.set("org", orgId.toString());
+		newParams.set("org", orgId);
 		setSearchParams(newParams);
 	};
 

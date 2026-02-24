@@ -1,6 +1,9 @@
 package actions
 
-import "github.com/team-loco/loco/api/gen/db"
+import (
+	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/gen/db"
+)
 
 // Action represents a permission to perform an operation on an entity of a given type.
 type Action struct {
@@ -276,6 +279,34 @@ var (
 		scope:      db.ScopeAdmin,
 	}
 
+	// environments
+
+	// ListEnvironments requires organization:read.
+	ListEnvironments = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeRead,
+	}
+	// CreateEnvironment requires organization:write.
+	CreateEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeWrite,
+	}
+	// GetEnvironment requires organization:read (looked up via env's org_id).
+	GetEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeRead,
+	}
+	// UpdateEnvironment requires organization:write.
+	UpdateEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeWrite,
+	}
+	// DeleteEnvironment requires organization:admin.
+	DeleteEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeAdmin,
+	}
+
 	// orgs (additional)
 
 	// ListUserOrgs requires user:read (to list orgs for a specific user).
@@ -295,10 +326,11 @@ var (
 	// Token management actions are dynamically defined.
 )
 
-func New(a Action, entityID int64) db.EntityScope {
+func New(a Action, entityID string) db.EntityScope {
+	parsed, _ := uuid.Parse(entityID)
 	return db.EntityScope{
 		EntityType: a.entityType,
-		EntityID:   entityID,
+		EntityID:   parsed,
 		Scope:      a.scope,
 	}
 }

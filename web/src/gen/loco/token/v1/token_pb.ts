@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/token/v1/token.proto.
  */
 export const file_loco_token_v1_token: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL3Rva2VuL3YxL3Rva2VuLnByb3RvEg1sb2NvLnRva2VuLnYxInUKC0VudGl0eVNjb3BlEiMKBXNjb3BlGAEgASgOMhQubG9jby50b2tlbi52MS5TY29wZRIuCgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZRIRCgllbnRpdHlfaWQYAyABKAMi5AEKBVRva2VuEgwKBG5hbWUYASABKAkSLgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGUSEQoJZW50aXR5X2lkGAMgASgDEioKBnNjb3BlcxgEIAMoCzIaLmxvY28udG9rZW4udjEuRW50aXR5U2NvcGUSLgoKZXhwaXJlc19hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiqQEKEkNyZWF0ZVRva2VuUmVxdWVzdBIMCgRuYW1lGAEgASgJEi4KC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgDIAEoAxIqCgZzY29wZXMYBCADKAsyGi5sb2NvLnRva2VuLnYxLkVudGl0eVNjb3BlEhYKDmV4cGlyZXNfaW5fc2VjGAUgASgDIlIKE0NyZWF0ZVRva2VuUmVzcG9uc2USDQoFdG9rZW4YASABKAkSLAoOdG9rZW5fbWV0YWRhdGEYAiABKAsyFC5sb2NvLnRva2VuLnYxLlRva2VuIlYKEUxpc3RUb2tlbnNSZXF1ZXN0Ei4KC2VudGl0eV90eXBlGAEgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgCIAEoAyI6ChJMaXN0VG9rZW5zUmVzcG9uc2USJAoGdG9rZW5zGAEgAygLMhQubG9jby50b2tlbi52MS5Ub2tlbiJiCg9HZXRUb2tlblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIuCgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZRIRCgllbnRpdHlfaWQYAyABKAMiNwoQR2V0VG9rZW5SZXNwb25zZRIjCgV0b2tlbhgBIAEoCzIULmxvY28udG9rZW4udjEuVG9rZW4iZQoSUmV2b2tlVG9rZW5SZXF1ZXN0EgwKBG5hbWUYASABKAkSLgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGUSEQoJZW50aXR5X2lkGAMgASgDIhUKE1Jldm9rZVRva2VuUmVzcG9uc2UqqgEKCkVudGl0eVR5cGUSGwoXRU5USVRZX1RZUEVfVU5TUEVDSUZJRUQQABIWChJFTlRJVFlfVFlQRV9TWVNURU0QARIcChhFTlRJVFlfVFlQRV9PUkdBTklaQVRJT04QAhIZChVFTlRJVFlfVFlQRV9XT1JLU1BBQ0UQAxIYChRFTlRJVFlfVFlQRV9SRVNPVVJDRRAEEhQKEEVOVElUWV9UWVBFX1VTRVIQBSpQCgVTY29wZRIVChFTQ09QRV9VTlNQRUNJRklFRBAAEg4KClNDT1BFX1JFQUQQARIPCgtTQ09QRV9XUklURRACEg8KC1NDT1BFX0FETUlOEAMy2gIKDFRva2VuU2VydmljZRJUCgtDcmVhdGVUb2tlbhIhLmxvY28udG9rZW4udjEuQ3JlYXRlVG9rZW5SZXF1ZXN0GiIubG9jby50b2tlbi52MS5DcmVhdGVUb2tlblJlc3BvbnNlElEKCkxpc3RUb2tlbnMSIC5sb2NvLnRva2VuLnYxLkxpc3RUb2tlbnNSZXF1ZXN0GiEubG9jby50b2tlbi52MS5MaXN0VG9rZW5zUmVzcG9uc2USSwoIR2V0VG9rZW4SHi5sb2NvLnRva2VuLnYxLkdldFRva2VuUmVxdWVzdBofLmxvY28udG9rZW4udjEuR2V0VG9rZW5SZXNwb25zZRJUCgtSZXZva2VUb2tlbhIhLmxvY28udG9rZW4udjEuUmV2b2tlVG9rZW5SZXF1ZXN0GiIubG9jby50b2tlbi52MS5SZXZva2VUb2tlblJlc3BvbnNlQjdaNWdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vcHJvdG8vbG9jby90b2tlbi92MTt0b2tlbnYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL3Rva2VuL3YxL3Rva2VuLnByb3RvEg1sb2NvLnRva2VuLnYxInUKC0VudGl0eVNjb3BlEiMKBXNjb3BlGAEgASgOMhQubG9jby50b2tlbi52MS5TY29wZRIuCgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZRIRCgllbnRpdHlfaWQYAyABKAki5AEKBVRva2VuEgwKBG5hbWUYASABKAkSLgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGUSEQoJZW50aXR5X2lkGAMgASgJEioKBnNjb3BlcxgEIAMoCzIaLmxvY28udG9rZW4udjEuRW50aXR5U2NvcGUSLgoKZXhwaXJlc19hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiqQEKEkNyZWF0ZVRva2VuUmVxdWVzdBIMCgRuYW1lGAEgASgJEi4KC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgDIAEoCRIqCgZzY29wZXMYBCADKAsyGi5sb2NvLnRva2VuLnYxLkVudGl0eVNjb3BlEhYKDmV4cGlyZXNfaW5fc2VjGAUgASgDIlIKE0NyZWF0ZVRva2VuUmVzcG9uc2USDQoFdG9rZW4YASABKAkSLAoOdG9rZW5fbWV0YWRhdGEYAiABKAsyFC5sb2NvLnRva2VuLnYxLlRva2VuIlYKEUxpc3RUb2tlbnNSZXF1ZXN0Ei4KC2VudGl0eV90eXBlGAEgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgCIAEoCSI6ChJMaXN0VG9rZW5zUmVzcG9uc2USJAoGdG9rZW5zGAEgAygLMhQubG9jby50b2tlbi52MS5Ub2tlbiJiCg9HZXRUb2tlblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIuCgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZRIRCgllbnRpdHlfaWQYAyABKAkiNwoQR2V0VG9rZW5SZXNwb25zZRIjCgV0b2tlbhgBIAEoCzIULmxvY28udG9rZW4udjEuVG9rZW4iZQoSUmV2b2tlVG9rZW5SZXF1ZXN0EgwKBG5hbWUYASABKAkSLgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGUSEQoJZW50aXR5X2lkGAMgASgJIhUKE1Jldm9rZVRva2VuUmVzcG9uc2UqqgEKCkVudGl0eVR5cGUSGwoXRU5USVRZX1RZUEVfVU5TUEVDSUZJRUQQABIWChJFTlRJVFlfVFlQRV9TWVNURU0QARIcChhFTlRJVFlfVFlQRV9PUkdBTklaQVRJT04QAhIZChVFTlRJVFlfVFlQRV9XT1JLU1BBQ0UQAxIYChRFTlRJVFlfVFlQRV9SRVNPVVJDRRAEEhQKEEVOVElUWV9UWVBFX1VTRVIQBSpQCgVTY29wZRIVChFTQ09QRV9VTlNQRUNJRklFRBAAEg4KClNDT1BFX1JFQUQQARIPCgtTQ09QRV9XUklURRACEg8KC1NDT1BFX0FETUlOEAMy2gIKDFRva2VuU2VydmljZRJUCgtDcmVhdGVUb2tlbhIhLmxvY28udG9rZW4udjEuQ3JlYXRlVG9rZW5SZXF1ZXN0GiIubG9jby50b2tlbi52MS5DcmVhdGVUb2tlblJlc3BvbnNlElEKCkxpc3RUb2tlbnMSIC5sb2NvLnRva2VuLnYxLkxpc3RUb2tlbnNSZXF1ZXN0GiEubG9jby50b2tlbi52MS5MaXN0VG9rZW5zUmVzcG9uc2USSwoIR2V0VG9rZW4SHi5sb2NvLnRva2VuLnYxLkdldFRva2VuUmVxdWVzdBofLmxvY28udG9rZW4udjEuR2V0VG9rZW5SZXNwb25zZRJUCgtSZXZva2VUb2tlbhIhLmxvY28udG9rZW4udjEuUmV2b2tlVG9rZW5SZXF1ZXN0GiIubG9jby50b2tlbi52MS5SZXZva2VUb2tlblJlc3BvbnNlQjdaNWdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vcHJvdG8vbG9jby90b2tlbi92MTt0b2tlbnYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * EntityScope represents a permission on a specific entity.
@@ -31,9 +31,9 @@ export type EntityScope = Message<"loco.token.v1.EntityScope"> & {
   entityType: EntityType;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
-  entityId: bigint;
+  entityId: string;
 };
 
 /**
@@ -53,7 +53,7 @@ export type EntityScopeJson = {
   entityType?: EntityTypeJson;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
   entityId?: string;
 };
@@ -82,9 +82,9 @@ export type Token = Message<"loco.token.v1.Token"> & {
   entityType: EntityType;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
-  entityId: bigint;
+  entityId: string;
 
   /**
    * @generated from field: repeated loco.token.v1.EntityScope scopes = 4;
@@ -119,7 +119,7 @@ export type TokenJson = {
   entityType?: EntityTypeJson;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
   entityId?: string;
 
@@ -169,9 +169,9 @@ export type CreateTokenRequest = Message<"loco.token.v1.CreateTokenRequest"> & {
   /**
    * Entity ID the token is for
    *
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
-  entityId: bigint;
+  entityId: string;
 
   /**
    * Scopes to grant to the token
@@ -211,7 +211,7 @@ export type CreateTokenRequestJson = {
   /**
    * Entity ID the token is for
    *
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
   entityId?: string;
 
@@ -298,9 +298,9 @@ export type ListTokensRequest = Message<"loco.token.v1.ListTokensRequest"> & {
   entityType: EntityType;
 
   /**
-   * @generated from field: int64 entity_id = 2;
+   * @generated from field: string entity_id = 2;
    */
-  entityId: bigint;
+  entityId: string;
 };
 
 /**
@@ -315,7 +315,7 @@ export type ListTokensRequestJson = {
   entityType?: EntityTypeJson;
 
   /**
-   * @generated from field: int64 entity_id = 2;
+   * @generated from field: string entity_id = 2;
    */
   entityId?: string;
 };
@@ -375,9 +375,9 @@ export type GetTokenRequest = Message<"loco.token.v1.GetTokenRequest"> & {
   entityType: EntityType;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
-  entityId: bigint;
+  entityId: string;
 };
 
 /**
@@ -397,7 +397,7 @@ export type GetTokenRequestJson = {
   entityType?: EntityTypeJson;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
   entityId?: string;
 };
@@ -457,9 +457,9 @@ export type RevokeTokenRequest = Message<"loco.token.v1.RevokeTokenRequest"> & {
   entityType: EntityType;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
-  entityId: bigint;
+  entityId: string;
 };
 
 /**
@@ -479,7 +479,7 @@ export type RevokeTokenRequestJson = {
   entityType?: EntityTypeJson;
 
   /**
-   * @generated from field: int64 entity_id = 3;
+   * @generated from field: string entity_id = 3;
    */
   entityId?: string;
 };

@@ -14,7 +14,7 @@ import type { Organization } from "@/gen/loco/org/v1/org_pb";
 export function Organizations() {
 	const { user } = useAuth();
 	const [createOrgOpen, setCreateOrgOpen] = useState(false);
-	const [deleteOrgId, setDeleteOrgId] = useState<bigint | null>(null);
+	const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null);
 	const [deleteOrgName, setDeleteOrgName] = useState("");
 
 	const {
@@ -28,7 +28,7 @@ export function Organizations() {
 	const orgs = orgsRes?.orgs ?? [];
 	const { setActiveOrg } = useOrgWorkspace();
 
-	const handleSwitchOrg = (orgId: bigint) => {
+	const handleSwitchOrg = (orgId: string) => {
 		setActiveOrg(orgId);
 	};
 
@@ -37,7 +37,7 @@ export function Organizations() {
 		setDeleteOrgName(org.name);
 	};
 
-	const handleCreateOrgSuccess = (orgId: bigint) => {
+	const handleCreateOrgSuccess = (orgId: string) => {
 		refetchOrgs();
 		handleSwitchOrg(orgId);
 	};

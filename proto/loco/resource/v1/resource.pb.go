@@ -958,8 +958,8 @@ func (*ResourceSpec_Blob) isResourceSpec_Spec() {}
 // Resource represents a resource in a workspace.
 type Resource struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkspaceId   int64                  `protobuf:"varint,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Type          ResourceType           `protobuf:"varint,4,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
 	Domains       []*v11.ResourceDomain  `protobuf:"bytes,5,rep,name=domains,proto3" json:"domains,omitempty"`
@@ -968,9 +968,10 @@ type Resource struct {
 	Spec          *ResourceSpec          `protobuf:"bytes,8,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
 	SpecVersion   int32                  `protobuf:"varint,9,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	Description   *string                `protobuf:"bytes,10,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	CreatedBy     int64                  `protobuf:"varint,11,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedBy     string                 `protobuf:"bytes,11,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	EnvironmentId *string                `protobuf:"bytes,14,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1005,18 +1006,18 @@ func (*Resource) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *Resource) GetId() int64 {
+func (x *Resource) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
-func (x *Resource) GetWorkspaceId() int64 {
+func (x *Resource) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *Resource) GetName() string {
@@ -1075,11 +1076,11 @@ func (x *Resource) GetDescription() string {
 	return ""
 }
 
-func (x *Resource) GetCreatedBy() int64 {
+func (x *Resource) GetCreatedBy() string {
 	if x != nil {
 		return x.CreatedBy
 	}
-	return 0
+	return ""
 }
 
 func (x *Resource) GetCreatedAt() *timestamppb.Timestamp {
@@ -1094,6 +1095,13 @@ func (x *Resource) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Resource) GetEnvironmentId() string {
+	if x != nil && x.EnvironmentId != nil {
+		return *x.EnvironmentId
+	}
+	return ""
 }
 
 // RegionConfig represents a region deployment intent for a resource.
@@ -1167,13 +1175,15 @@ func (x *RegionConfig) GetLastError() string {
 
 // CreateResourceRequest is the request to create a new resource.
 type CreateResourceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Type          ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
-	Domain        *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
-	Spec          *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
-	Description   *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type        ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
+	Domain      *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	Spec        *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
+	Description *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// environment_id scopes this resource to an environment. Defaults to the org's production environment if omitted.
+	EnvironmentId *string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1208,11 +1218,11 @@ func (*CreateResourceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *CreateResourceRequest) GetWorkspaceId() int64 {
+func (x *CreateResourceRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *CreateResourceRequest) GetName() string {
@@ -1250,10 +1260,17 @@ func (x *CreateResourceRequest) GetDescription() string {
 	return ""
 }
 
+func (x *CreateResourceRequest) GetEnvironmentId() string {
+	if x != nil && x.EnvironmentId != nil {
+		return *x.EnvironmentId
+	}
+	return ""
+}
+
 // CreateResourceResponse is the response containing the created resource ID.
 type CreateResourceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1288,17 +1305,17 @@ func (*CreateResourceResponse) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *CreateResourceResponse) GetResourceId() int64 {
+func (x *CreateResourceResponse) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 // GetResourceNameKey is used to lookup a resource by name within a workspace.
 type GetResourceNameKey struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1334,11 +1351,11 @@ func (*GetResourceNameKey) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *GetResourceNameKey) GetWorkspaceId() int64 {
+func (x *GetResourceNameKey) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *GetResourceNameKey) GetName() string {
@@ -1397,13 +1414,13 @@ func (x *GetResourceRequest) GetKey() isGetResourceRequest_Key {
 	return nil
 }
 
-func (x *GetResourceRequest) GetResourceId() int64 {
+func (x *GetResourceRequest) GetResourceId() string {
 	if x != nil {
 		if x, ok := x.Key.(*GetResourceRequest_ResourceId); ok {
 			return x.ResourceId
 		}
 	}
-	return 0
+	return ""
 }
 
 func (x *GetResourceRequest) GetNameKey() *GetResourceNameKey {
@@ -1420,7 +1437,7 @@ type isGetResourceRequest_Key interface {
 }
 
 type GetResourceRequest_ResourceId struct {
-	ResourceId int64 `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3,oneof"`
+	ResourceId string `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3,oneof"`
 }
 
 type GetResourceRequest_NameKey struct {
@@ -1479,7 +1496,7 @@ func (x *GetResourceResponse) GetResource() *Resource {
 // ListWorkspaceResourcesRequest is the request to list resources.
 type ListWorkspaceResourcesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
@@ -1516,11 +1533,11 @@ func (*ListWorkspaceResourcesRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *ListWorkspaceResourcesRequest) GetWorkspaceId() int64 {
+func (x *ListWorkspaceResourcesRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListWorkspaceResourcesRequest) GetPageSize() int32 {
@@ -1593,7 +1610,7 @@ func (x *ListWorkspaceResourcesResponse) GetNextPageToken() string {
 // UpdateResourceRequest is the request to update a resource.
 type UpdateResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
@@ -1631,11 +1648,11 @@ func (*UpdateResourceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *UpdateResourceRequest) GetResourceId() int64 {
+func (x *UpdateResourceRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateResourceRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
@@ -1662,7 +1679,7 @@ func (x *UpdateResourceRequest) GetDescription() string {
 // UpdateResourceResponse is the response containing the updated resource ID.
 type UpdateResourceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1697,17 +1714,17 @@ func (*UpdateResourceResponse) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *UpdateResourceResponse) GetResourceId() int64 {
+func (x *UpdateResourceResponse) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 // DeleteResourceRequest is the request to delete a resource.
 type DeleteResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1742,11 +1759,11 @@ func (*DeleteResourceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *DeleteResourceRequest) GetResourceId() int64 {
+func (x *DeleteResourceRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 // DeleteResourceResponse is the response after deleting a resource.
@@ -1932,7 +1949,7 @@ func (x *ListRegionsResponse) GetRegions() []*RegionInfo {
 // GetResourceStatusRequest is the request to retrieve resource status.
 type GetResourceStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1967,17 +1984,17 @@ func (*GetResourceStatusRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{28}
 }
 
-func (x *GetResourceStatusRequest) GetResourceId() int64 {
+func (x *GetResourceStatusRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
 type DeploymentStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Status        v1.DeploymentPhase     `protobuf:"varint,2,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
 	Replicas      int32                  `protobuf:"varint,3,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Message       *string                `protobuf:"bytes,4,opt,name=message,proto3,oneof" json:"message,omitempty"`
@@ -2015,11 +2032,11 @@ func (*DeploymentStatus) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *DeploymentStatus) GetId() int64 {
+func (x *DeploymentStatus) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *DeploymentStatus) GetStatus() v1.DeploymentPhase {
@@ -2099,7 +2116,7 @@ func (x *GetResourceStatusResponse) GetCurrentDeployment() *DeploymentStatus {
 // WatchLogsRequest is the request to stream resource logs.
 type WatchLogsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
 	Follow        *bool                  `protobuf:"varint,3,opt,name=follow,proto3,oneof" json:"follow,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2136,11 +2153,11 @@ func (*WatchLogsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *WatchLogsRequest) GetResourceId() int64 {
+func (x *WatchLogsRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *WatchLogsRequest) GetLimit() int32 {
@@ -2322,7 +2339,7 @@ func (x *Event) GetPodName() string {
 // ListResourceEventsRequest is the request to retrieve resource events.
 type ListResourceEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Limit         *int32                 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"` // max number of events to return
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2358,11 +2375,11 @@ func (*ListResourceEventsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{34}
 }
 
-func (x *ListResourceEventsRequest) GetResourceId() int64 {
+func (x *ListResourceEventsRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListResourceEventsRequest) GetLimit() int32 {
@@ -2420,7 +2437,7 @@ func (x *ListResourceEventsResponse) GetEvents() []*Event {
 // ScaleResourceRequest is the request to scale a resource.
 type ScaleResourceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Replicas      *int32                 `protobuf:"varint,2,opt,name=replicas,proto3,oneof" json:"replicas,omitempty"`
 	Cpu           *string                `protobuf:"bytes,3,opt,name=cpu,proto3,oneof" json:"cpu,omitempty"`
 	Memory        *string                `protobuf:"bytes,4,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
@@ -2459,11 +2476,11 @@ func (*ScaleResourceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{36}
 }
 
-func (x *ScaleResourceRequest) GetResourceId() int64 {
+func (x *ScaleResourceRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *ScaleResourceRequest) GetReplicas() int32 {
@@ -2534,7 +2551,7 @@ func (*ScaleResourceResponse) Descriptor() ([]byte, []int) {
 // UpdateResourceEnvRequest is the request to update resource environment variables.
 type UpdateResourceEnvRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Env           map[string]string      `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Region        *string                `protobuf:"bytes,3,opt,name=region,proto3,oneof" json:"region,omitempty"` // if provided, update only this region; otherwise update all regions
 	unknownFields protoimpl.UnknownFields
@@ -2571,11 +2588,11 @@ func (*UpdateResourceEnvRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{38}
 }
 
-func (x *UpdateResourceEnvRequest) GetResourceId() int64 {
+func (x *UpdateResourceEnvRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateResourceEnvRequest) GetEnv() map[string]string {
@@ -2691,10 +2708,10 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x05cache\x18\x03 \x01(\v2\x1b.loco.resource.v1.CacheSpecH\x00R\x05cache\x123\n" +
 	"\x05queue\x18\x04 \x01(\v2\x1b.loco.resource.v1.QueueSpecH\x00R\x05queue\x120\n" +
 	"\x04blob\x18\x05 \x01(\v2\x1a.loco.resource.v1.BlobSpecH\x00R\x04blobB\x06\n" +
-	"\x04spec\"\xe4\x04\n" +
+	"\x04spec\"\xa3\x05\n" +
 	"\bResource\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
-	"\fworkspace_id\x18\x02 \x01(\x03R\vworkspaceId\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x122\n" +
 	"\x04type\x18\x04 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x128\n" +
 	"\adomains\x18\x05 \x03(\v2\x1e.loco.domain.v1.ResourceDomainR\adomains\x128\n" +
@@ -2705,13 +2722,15 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\vdescription\x18\n" +
 	" \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\v \x01(\x03R\tcreatedBy\x129\n" +
+	"created_by\x18\v \x01(\tR\tcreatedBy\x129\n" +
 	"\n" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\a\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12*\n" +
+	"\x0eenvironment_id\x18\x0e \x01(\tH\x02R\renvironmentId\x88\x01\x01B\a\n" +
 	"\x05_specB\x0e\n" +
-	"\f_description\"\xb6\x01\n" +
+	"\f_descriptionB\x11\n" +
+	"\x0f_environment_id\"\xb6\x01\n" +
 	"\fRegionConfig\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1d\n" +
 	"\n" +
@@ -2719,30 +2738,32 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2$.loco.resource.v1.RegionIntentStatusR\x06status\x12\"\n" +
 	"\n" +
 	"last_error\x18\x04 \x01(\tH\x00R\tlastError\x88\x01\x01B\r\n" +
-	"\v_last_error\"\xa2\x02\n" +
+	"\v_last_error\"\xe1\x02\n" +
 	"\x15CreateResourceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x123\n" +
 	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\x122\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecR\x04spec\x12%\n" +
-	"\vdescription\x18\x06 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
-	"\f_description\"9\n" +
+	"\vdescription\x18\x06 \x01(\tH\x00R\vdescription\x88\x01\x01\x12*\n" +
+	"\x0eenvironment_id\x18\a \x01(\tH\x01R\renvironmentId\x88\x01\x01B\x0e\n" +
+	"\f_descriptionB\x11\n" +
+	"\x0f_environment_id\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"K\n" +
 	"\x12GetResourceNameKey\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"\x81\x01\n" +
 	"\x12GetResourceRequest\x12!\n" +
-	"\vresource_id\x18\x01 \x01(\x03H\x00R\n" +
+	"\vresource_id\x18\x01 \x01(\tH\x00R\n" +
 	"resourceId\x12A\n" +
 	"\bname_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceNameKeyH\x00R\anameKeyB\x05\n" +
 	"\x03key\"M\n" +
 	"\x13GetResourceResponse\x126\n" +
 	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"~\n" +
 	"\x1dListWorkspaceResourcesRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x1b\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
@@ -2750,7 +2771,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xce\x01\n" +
 	"\x15UpdateResourceRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\x12\x17\n" +
@@ -2759,10 +2780,10 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x05_nameB\x0e\n" +
 	"\f_description\"9\n" +
 	"\x16UpdateResourceResponse\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"8\n" +
 	"\x15DeleteResourceRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"\x18\n" +
 	"\x16DeleteResourceResponse\"h\n" +
 	"\n" +
@@ -2775,10 +2796,10 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x13ListRegionsResponse\x126\n" +
 	"\aregions\x18\x01 \x03(\v2\x1c.loco.resource.v1.RegionInfoR\aregions\";\n" +
 	"\x18GetResourceStatusRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"\xa6\x01\n" +
 	"\x10DeploymentStatus\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12;\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12;\n" +
 	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1a\n" +
 	"\breplicas\x18\x03 \x01(\x05R\breplicas\x12\x1d\n" +
 	"\amessage\x18\x04 \x01(\tH\x00R\amessage\x88\x01\x01B\n" +
@@ -2788,7 +2809,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\x12Q\n" +
 	"\x12current_deployment\x18\x02 \x01(\v2\".loco.resource.v1.DeploymentStatusR\x11currentDeployment\"\x80\x01\n" +
 	"\x10WatchLogsRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x19\n" +
 	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01\x12\x1b\n" +
 	"\x06follow\x18\x03 \x01(\bH\x01R\x06follow\x88\x01\x01B\b\n" +
@@ -2808,14 +2829,14 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x04type\x18\x04 \x01(\tR\x04type\x12\x19\n" +
 	"\bpod_name\x18\x05 \x01(\tR\apodName\"a\n" +
 	"\x19ListResourceEventsRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x19\n" +
 	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01B\b\n" +
 	"\x06_limit\"M\n" +
 	"\x1aListResourceEventsResponse\x12/\n" +
 	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xd4\x01\n" +
 	"\x14ScaleResourceRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1f\n" +
 	"\breplicas\x18\x02 \x01(\x05H\x00R\breplicas\x88\x01\x01\x12\x15\n" +
 	"\x03cpu\x18\x03 \x01(\tH\x01R\x03cpu\x88\x01\x01\x12\x1b\n" +
@@ -2827,7 +2848,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\a_region\"\x17\n" +
 	"\x15ScaleResourceResponse\"\xe2\x01\n" +
 	"\x18UpdateResourceEnvRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12E\n" +
 	"\x03env\x18\x02 \x03(\v23.loco.resource.v1.UpdateResourceEnvRequest.EnvEntryR\x03env\x12\x1b\n" +
 	"\x06region\x18\x03 \x01(\tH\x00R\x06region\x88\x01\x01\x1a6\n" +

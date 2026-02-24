@@ -13,8 +13,8 @@ SELECT * FROM deployments d
 WHERE d.resource_id = $1
   AND (sqlc.narg('page_token')::text IS NULL
        OR (d.created_at, d.id) < (
-         (SELECT created_at FROM deployments WHERE id = sqlc.narg('page_token')::bigint),
-         sqlc.narg('page_token')::bigint
+         (SELECT created_at FROM deployments WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_token')::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT $2;

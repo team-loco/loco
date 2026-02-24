@@ -1,20 +1,19 @@
+import Loader from "@/assets/loader.svg?react";
 import { useAuth } from "@/auth/AuthProvider";
 import { EmptyState } from "@/components/EmptyState";
+import { BentoDashboard } from "@/components/dashboard/BentoDashboard";
 import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
-import { ApplicationsTable } from "@/components/dashboard/ApplicationsTable";
-import { RecentDeployments } from "@/components/dashboard/RecentDeployments";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useHeader } from "@/context/HeaderContext";
-import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
-import { subscribeToEvents } from "@/lib/events";
 import { getErrorMessage } from "@/lib/error-handler";
+import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import Loader from "@/assets/loader.svg?react";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 
 export function Home() {
 	const navigate = useNavigate();
@@ -22,9 +21,7 @@ export function Home() {
 	const { setHeader } = useHeader();
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
-	const selectedWorkspaceId = workspaceFromUrl
-		? BigInt(workspaceFromUrl)
-		: null;
+	const selectedWorkspaceId = workspaceFromUrl ?? null;
 	const [searchTerm] = useState("");
 
 	// Fetch all organizations
@@ -32,7 +29,7 @@ export function Home() {
 		data: orgsQueryRes,
 		isLoading: orgsLoading,
 		error: orgsError,
-	} = useQuery(listUserOrgs, user ? { userId: BigInt(user.id) } : undefined, {
+	} = useQuery(listUserOrgs, user ? { userId: user.id } : undefined, {
 		enabled: !!user,
 	});
 	const orgs = useMemo(() => orgsQueryRes?.orgs ?? [], [orgsQueryRes]);
@@ -45,11 +42,11 @@ export function Home() {
 	const { data: listWorkspacesRes } = useQuery(
 		listOrgWorkspaces,
 		currentOrgId ? { orgId: currentOrgId } : undefined,
-		{ enabled: !!currentOrgId }
+		{ enabled: !!currentOrgId },
 	);
 	const workspaces = useMemo(
 		() => listWorkspacesRes?.workspaces ?? [],
-		[listWorkspacesRes]
+		[listWorkspacesRes],
 	);
 	const currentWorkspaceId =
 		activeWorkspaceId ||
@@ -64,13 +61,13 @@ export function Home() {
 		refetch: refetchResources,
 	} = useQuery(
 		listWorkspaceResources,
-		{ workspaceId: currentWorkspaceId ?? 0n },
-		{ enabled: !!currentWorkspaceId }
+		currentWorkspaceId ? { workspaceId: currentWorkspaceId } : undefined,
+		{ enabled: !!currentWorkspaceId },
 	);
 
 	const allResources = useMemo(
 		() => listResourcesRes?.resources ?? [],
-		[listResourcesRes?.resources]
+		[listResourcesRes?.resources],
 	);
 
 	// Filter resources by search term
@@ -79,21 +76,21 @@ export function Home() {
 			return allResources;
 		}
 		return allResources.filter((resource) =>
-			resource.name.toLowerCase().includes(searchTerm.toLowerCase())
+			resource.name.toLowerCase().includes(searchTerm.toLowerCase()),
 		);
 	}, [allResources, searchTerm]);
 
 	// Set header content
 	useEffect(() => {
 		const currentWorkspace = workspaces.find(
-			(ws) => ws.id === currentWorkspaceId
+			(ws) => ws.id === currentWorkspaceId,
 		);
 		const workspaceName = currentWorkspace?.name || "Workspace";
 
 		setHeader(
 			<h2 className="text-2xl font-mono text-foreground">
 				workspaces::{workspaceName}
-			</h2>
+			</h2>,
 		);
 	}, [setHeader, workspaces, currentWorkspaceId]);
 
@@ -142,7 +139,7 @@ export function Home() {
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-4">
+						<p className="text-destructive font-heading mb-4 text-2xl">
 							Error Loading Data
 						</p>
 						<p className="text-sm text-foreground opacity-70 mb-4">
@@ -167,17 +164,10 @@ export function Home() {
 			)}
 
 			{/* Applications and Deployments */}
-			{filteredResources.length > 0 ? (
-				<div className="space-y-6">
-					{/* Applications Table */}
-					<ApplicationsTable
-						resources={filteredResources}
-						workspaceId={currentWorkspaceId || undefined}
-					/>
-
-					{/* Recent Deployments */}
-					<RecentDeployments
-						resources={filteredResources}
+			{true ? (
+				<div className="mt-8">
+					<BentoDashboard
+						resources={filteredResources.length > 0 ? filteredResources : []}
 						workspaceId={currentWorkspaceId || undefined}
 					/>
 				</div>
@@ -196,7 +186,7 @@ export function Home() {
 									label: "Create Your First Resource",
 									onClick: () =>
 										navigate(
-											`/org/${currentOrgId}/wks/${currentWorkspaceId}/create-resource`
+											`/org/${currentOrgId}/wks/${currentWorkspaceId}/create-resource`,
 										),
 								}
 							: undefined

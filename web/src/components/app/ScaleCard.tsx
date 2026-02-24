@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -6,16 +6,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import type { Deployment } from "@/gen/loco/deployment/v1/deployment_pb";
 import { scaleResource } from "@/gen/loco/resource/v1";
+import { getServiceSpec } from "@/lib/deployment-utils";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
-import { Loader2, Cpu, HardDrive, Layers } from "lucide-react";
-import type { Deployment } from "@/gen/loco/deployment/v1/deployment_pb";
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { Cpu, HardDrive, Layers, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
 
 interface ScaleCardProps {
 	resourceId: string;
@@ -70,10 +70,10 @@ export function ScaleCard({
 
 	const [replicas, setReplicas] = useState<number>(currentReplicas);
 	const [cpuIndex, setCpuIndex] = useState<number>(
-		initialCpuIndex >= 0 ? initialCpuIndex : 3
+		initialCpuIndex >= 0 ? initialCpuIndex : 3,
 	);
 	const [memoryIndex, setMemoryIndex] = useState<number>(
-		initialMemoryIndex >= 0 ? initialMemoryIndex : 1
+		initialMemoryIndex >= 0 ? initialMemoryIndex : 1,
 	);
 
 	const hasChanges = useMemo(() => {
@@ -96,7 +96,7 @@ export function ScaleCard({
 	const handleScale = async () => {
 		try {
 			await scale({
-				resourceId: BigInt(resourceId),
+				resourceId: resourceId,
 				replicas,
 				cpu: cpuOptions[cpuIndex],
 				memory: memoryOptions[memoryIndex],

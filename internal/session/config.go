@@ -29,13 +29,13 @@ type Scope struct {
 // SimpleOrg represents an organization with its ID and name.
 type SimpleOrg struct {
 	Name string `toml:"name"`
-	ID   int64  `toml:"id"`
+	ID   string `toml:"id"`
 }
 
 // SimpleWorkspace represents a workspace with its ID and name.
 type SimpleWorkspace struct {
 	Name string `toml:"name"`
-	ID   int64  `toml:"id"`
+	ID   string `toml:"id"`
 }
 
 func GetConfigPath() (string, error) {

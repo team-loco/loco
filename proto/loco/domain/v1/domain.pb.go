@@ -222,8 +222,8 @@ func (x *DomainInput) GetDomain() string {
 // ResourceDomain represents a domain assigned to a resource.
 type ResourceDomain struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	Id               int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	ResourceId       int64                  `protobuf:"varint,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ResourceId       string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Domain           string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
 	DomainSource     DomainType             `protobuf:"varint,4,opt,name=domain_source,json=domainSource,proto3,enum=loco.domain.v1.DomainType" json:"domain_source,omitempty"`
 	SubdomainLabel   *string                `protobuf:"bytes,5,opt,name=subdomain_label,json=subdomainLabel,proto3,oneof" json:"subdomain_label,omitempty"`
@@ -265,18 +265,18 @@ func (*ResourceDomain) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ResourceDomain) GetId() int64 {
+func (x *ResourceDomain) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
-func (x *ResourceDomain) GetResourceId() int64 {
+func (x *ResourceDomain) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *ResourceDomain) GetDomain() string {
@@ -843,10 +843,10 @@ func (*DeletePlatformDomainResponse) Descriptor() ([]byte, []int) {
 // LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
 type LocoOwnedDomain struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Domain         string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
 	ResourceName   string                 `protobuf:"bytes,3,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
-	ResourceId     int64                  `protobuf:"varint,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId     string                 `protobuf:"bytes,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	PlatformDomain string                 `protobuf:"bytes,5,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -882,11 +882,11 @@ func (*LocoOwnedDomain) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *LocoOwnedDomain) GetId() int64 {
+func (x *LocoOwnedDomain) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *LocoOwnedDomain) GetDomain() string {
@@ -903,11 +903,11 @@ func (x *LocoOwnedDomain) GetResourceName() string {
 	return ""
 }
 
-func (x *LocoOwnedDomain) GetResourceId() int64 {
+func (x *LocoOwnedDomain) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *LocoOwnedDomain) GetPlatformDomain() string {
@@ -1002,7 +1002,7 @@ func (x *ListLocoOwnedDomainsResponse) GetDomains() []*LocoOwnedDomain {
 // CreateResourceDomainRequest is the request to add a domain to a resource.
 type CreateResourceDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Domain        *DomainInput           `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1038,11 +1038,11 @@ func (*CreateResourceDomainRequest) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *CreateResourceDomainRequest) GetResourceId() int64 {
+func (x *CreateResourceDomainRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *CreateResourceDomainRequest) GetDomain() *DomainInput {
@@ -1055,7 +1055,7 @@ func (x *CreateResourceDomainRequest) GetDomain() *DomainInput {
 // CreateResourceDomainResponse is the response containing the created resource domain ID.
 type CreateResourceDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1090,17 +1090,17 @@ func (*CreateResourceDomainResponse) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *CreateResourceDomainResponse) GetDomainId() int64 {
+func (x *CreateResourceDomainResponse) GetDomainId() string {
 	if x != nil {
 		return x.DomainId
 	}
-	return 0
+	return ""
 }
 
 // UpdateResourceDomainRequest is the request to update a resource's domain.
 type UpdateResourceDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Domain        *string                `protobuf:"bytes,3,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1137,11 +1137,11 @@ func (*UpdateResourceDomainRequest) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *UpdateResourceDomainRequest) GetDomainId() int64 {
+func (x *UpdateResourceDomainRequest) GetDomainId() string {
 	if x != nil {
 		return x.DomainId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateResourceDomainRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
@@ -1161,7 +1161,7 @@ func (x *UpdateResourceDomainRequest) GetDomain() string {
 // UpdateResourceDomainResponse is the response containing the updated resource domain ID.
 type UpdateResourceDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1196,18 +1196,18 @@ func (*UpdateResourceDomainResponse) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *UpdateResourceDomainResponse) GetDomainId() int64 {
+func (x *UpdateResourceDomainResponse) GetDomainId() string {
 	if x != nil {
 		return x.DomainId
 	}
-	return 0
+	return ""
 }
 
 // SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
 type SetPrimaryResourceDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	DomainId      int64                  `protobuf:"varint,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1242,25 +1242,25 @@ func (*SetPrimaryResourceDomainRequest) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *SetPrimaryResourceDomainRequest) GetResourceId() int64 {
+func (x *SetPrimaryResourceDomainRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
-func (x *SetPrimaryResourceDomainRequest) GetDomainId() int64 {
+func (x *SetPrimaryResourceDomainRequest) GetDomainId() string {
 	if x != nil {
 		return x.DomainId
 	}
-	return 0
+	return ""
 }
 
 // SetPrimaryResourceDomainResponse is the response containing the resource and domain IDs.
 type SetPrimaryResourceDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	DomainId      int64                  `protobuf:"varint,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1295,24 +1295,24 @@ func (*SetPrimaryResourceDomainResponse) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *SetPrimaryResourceDomainResponse) GetResourceId() int64 {
+func (x *SetPrimaryResourceDomainResponse) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
-func (x *SetPrimaryResourceDomainResponse) GetDomainId() int64 {
+func (x *SetPrimaryResourceDomainResponse) GetDomainId() string {
 	if x != nil {
 		return x.DomainId
 	}
-	return 0
+	return ""
 }
 
 // DeleteResourceDomainRequest is the request to remove a domain from a resource.
 type DeleteResourceDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DomainId      int64                  `protobuf:"varint,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,1,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1347,11 +1347,11 @@ func (*DeleteResourceDomainRequest) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *DeleteResourceDomainRequest) GetDomainId() int64 {
+func (x *DeleteResourceDomainRequest) GetDomainId() string {
 	if x != nil {
 		return x.DomainId
 	}
-	return 0
+	return ""
 }
 
 // DeleteResourceDomainResponse is the response after removing a domain from a resource.
@@ -1504,8 +1504,8 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x13_platform_domain_idB\t\n" +
 	"\a_domain\"\xbb\x03\n" +
 	"\x0eResourceDomain\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1f\n" +
-	"\vresource_id\x18\x02 \x01(\x03R\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\vresource_id\x18\x02 \x01(\tR\n" +
 	"resourceId\x12\x16\n" +
 	"\x06domain\x18\x03 \x01(\tR\x06domain\x12?\n" +
 	"\rdomain_source\x18\x04 \x01(\x0e2\x1a.loco.domain.v1.DomainTypeR\fdomainSource\x12,\n" +
@@ -1551,39 +1551,39 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1e\n" +
 	"\x1cDeletePlatformDomainResponse\"\xa8\x01\n" +
 	"\x0fLocoOwnedDomain\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12#\n" +
 	"\rresource_name\x18\x03 \x01(\tR\fresourceName\x12\x1f\n" +
-	"\vresource_id\x18\x04 \x01(\x03R\n" +
+	"\vresource_id\x18\x04 \x01(\tR\n" +
 	"resourceId\x12'\n" +
 	"\x0fplatform_domain\x18\x05 \x01(\tR\x0eplatformDomain\"\x1d\n" +
 	"\x1bListLocoOwnedDomainsRequest\"Y\n" +
 	"\x1cListLocoOwnedDomainsResponse\x129\n" +
 	"\adomains\x18\x01 \x03(\v2\x1f.loco.domain.v1.LocoOwnedDomainR\adomains\"s\n" +
 	"\x1bCreateResourceDomainRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x123\n" +
 	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\";\n" +
 	"\x1cCreateResourceDomainResponse\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\"\x9f\x01\n" +
+	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\x9f\x01\n" +
 	"\x1bUpdateResourceDomainRequest\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\x12;\n" +
+	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\x12\x1b\n" +
 	"\x06domain\x18\x03 \x01(\tH\x00R\x06domain\x88\x01\x01B\t\n" +
 	"\a_domain\";\n" +
 	"\x1cUpdateResourceDomainResponse\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\"_\n" +
+	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"_\n" +
 	"\x1fSetPrimaryResourceDomainRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1b\n" +
-	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\"`\n" +
+	"\tdomain_id\x18\x02 \x01(\tR\bdomainId\"`\n" +
 	" SetPrimaryResourceDomainResponse\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1b\n" +
-	"\tdomain_id\x18\x02 \x01(\x03R\bdomainId\":\n" +
+	"\tdomain_id\x18\x02 \x01(\tR\bdomainId\":\n" +
 	"\x1bDeleteResourceDomainRequest\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\x03R\bdomainId\"\x1e\n" +
+	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\x1e\n" +
 	"\x1cDeleteResourceDomainResponse\"8\n" +
 	"\x1eCheckDomainAvailabilityRequest\x12\x16\n" +
 	"\x06domain\x18\x01 \x01(\tR\x06domain\"D\n" +

@@ -72,7 +72,7 @@ export function Tokens() {
 
 	// Handle token revocation
 	const handleRevokeToken = useCallback(
-		(tokenName: string, tokenEntityType: EntityType, tokenEntityId: bigint) => {
+		(tokenName: string, tokenEntityType: EntityType, tokenEntityId: string) => {
 			revokeTokenMutation({
 				name: tokenName,
 				entityType: tokenEntityType,

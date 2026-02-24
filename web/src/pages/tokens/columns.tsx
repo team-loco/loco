@@ -13,9 +13,16 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { Trash2 } from "lucide-react";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
+import { formatShortId } from "@/lib/utils";
 
 function formatRelativeTimeFuture(date: Date): string {
 	const now = new Date();
@@ -43,28 +50,28 @@ const entityTypeDisplay: Record<
 	number,
 	{
 		label: string;
-		variant: "neo-blue" | "neo-purple" | "neo-green" | "neo-orange" | "neo-red";
+		variant: "info" | "default" | "success" | "warning" | "error";
 	}
 > = {
 	[EntityType.USER]: {
 		label: "User",
-		variant: "neo-blue",
+		variant: "info",
 	},
 	[EntityType.ORGANIZATION]: {
 		label: "Organization",
-		variant: "neo-purple",
+		variant: "info",
 	},
 	[EntityType.WORKSPACE]: {
 		label: "Workspace",
-		variant: "neo-green",
+		variant: "info",
 	},
 	[EntityType.RESOURCE]: {
 		label: "Resource",
-		variant: "neo-orange",
+		variant: "info",
 	},
 	[EntityType.SYSTEM]: {
 		label: "System",
-		variant: "neo-red",
+		variant: "info",
 	},
 };
 
@@ -72,7 +79,7 @@ const entityTypeDisplay: Record<
 
 interface ActionsCellProps {
 	token: Token;
-	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: bigint) => void;
+	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: string) => void;
 	isRevoking: boolean;
 }
 
@@ -121,7 +128,7 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 }
 
 export function getTokenColumns(
-	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: bigint) => void,
+	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: string) => void,
 	isRevoking: boolean
 ): ColumnDef<Token>[] {
 	return [
@@ -155,7 +162,7 @@ export function getTokenColumns(
 			header: "Permissions",
 			cell: ({ row }) => {
 				const token = row.original;
-				const scopeGroups = new Map<number, Map<bigint, Set<number>>>();
+				const scopeGroups = new Map<number, Map<string, Set<number>>>();
 
 				// Group scopes by entity type and entity ID
 				token.scopes.forEach((scope) => {
@@ -188,13 +195,21 @@ export function getTokenColumns(
 									.join("");
 
 								return (
-									<Badge
-										key={`${entityType}-${entityId}`}
-										variant={entityInfo.variant}
-										className="h-5 text-[10px] px-1.5 py-0"
-									>
-										{entityInfo.label}: {entityId.toString()}: {scopeStr}
-									</Badge>
+									<TooltipProvider key={`${entityType}-${entityId}`}>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Badge
+													variant={entityInfo.variant}
+													className="h-5 text-[10px] px-1.5 py-0 cursor-help"
+												>
+													{entityInfo.label}: {formatShortId(entityId.toString())} {scopeStr}
+												</Badge>
+											</TooltipTrigger>
+											<TooltipContent>
+												{entityInfo.label}: {entityId.toString()}
+											</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
 								);
 							});
 						})}

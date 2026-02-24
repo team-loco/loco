@@ -19,11 +19,11 @@ func (spec *ApplicationSpec) Validate() error {
 		return fmt.Errorf("applicationSpec cannot be nil")
 	}
 
-	if spec.ResourceId == 0 {
+	if spec.ResourceId == "" {
 		return fmt.Errorf("resourceId must be set")
 	}
 
-	if spec.WorkspaceId == 0 {
+	if spec.WorkspaceId == "" {
 		return fmt.Errorf("workspaceId must be set")
 	}
 

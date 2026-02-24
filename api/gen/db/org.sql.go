@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -17,8 +18,8 @@ VALUES ($1, $2)
 `
 
 type AddOrgMemberParams struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) AddOrgMember(ctx context.Context, arg AddOrgMemberParams) error {
@@ -33,8 +34,8 @@ RETURNING id, name, created_by, created_at, updated_at
 `
 
 type CreateOrgParams struct {
-	Name      string `json:"name"`
-	CreatedBy int64  `json:"createdBy"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"createdBy"`
 }
 
 func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error) {
@@ -58,7 +59,7 @@ AND NOT EXISTS (
 )
 `
 
-func (q *Queries) DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID int64) error {
+func (q *Queries) DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteEmptyWorkspacesForOrg, orgID)
 	return err
 }
@@ -67,7 +68,7 @@ const deleteOrg = `-- name: DeleteOrg :exec
 DELETE FROM organizations WHERE id = $1
 `
 
-func (q *Queries) DeleteOrg(ctx context.Context, id int64) error {
+func (q *Queries) DeleteOrg(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteOrg, id)
 	return err
 }
@@ -76,7 +77,7 @@ const getOrgByID = `-- name: GetOrgByID :one
 SELECT id, name, created_by, created_at, updated_at FROM organizations WHERE id = $1
 `
 
-func (q *Queries) GetOrgByID(ctx context.Context, id int64) (Organization, error) {
+func (q *Queries) GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error) {
 	row := q.db.QueryRow(ctx, getOrgByID, id)
 	var i Organization
 	err := row.Scan(
@@ -114,8 +115,8 @@ SELECT EXISTS(
 `
 
 type IsOrgMemberParams struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error) {
@@ -145,15 +146,15 @@ JOIN organization_members om ON om.organization_id = o.id
 WHERE om.user_id = $1
   AND ($3::text IS NULL
        OR (o.created_at, o.id) < (
-         (SELECT created_at FROM organizations WHERE id = $3::bigint),
-         $3::bigint
+         (SELECT created_at FROM organizations WHERE id = $3::uuid),
+         $3::uuid
        ))
 ORDER BY o.created_at DESC, o.id DESC
 LIMIT $2
 `
 
 type ListOrgsForUserParams struct {
-	UserID    int64       `json:"userId"`
+	UserID    uuid.UUID   `json:"userId"`
 	Limit     int32       `json:"limit"`
 	PageToken pgtype.Text `json:"pageToken"`
 }
@@ -190,23 +191,23 @@ FROM workspaces w
 WHERE w.org_id = $1
   AND ($3::text IS NULL
        OR (w.created_at, w.id) < (
-         (SELECT created_at FROM workspaces WHERE id = $3::bigint),
-         $3::bigint
+         (SELECT created_at FROM workspaces WHERE id = $3::uuid),
+         $3::uuid
        ))
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2
 `
 
 type ListWorkspacesForOrgParams struct {
-	OrgID     int64       `json:"orgId"`
+	OrgID     uuid.UUID   `json:"orgId"`
 	Limit     int32       `json:"limit"`
 	PageToken pgtype.Text `json:"pageToken"`
 }
 
 type ListWorkspacesForOrgRow struct {
-	ID        int64              `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
-	CreatedBy int64              `json:"createdBy"`
+	CreatedBy uuid.UUID          `json:"createdBy"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
 }
 
@@ -245,7 +246,7 @@ SELECT EXISTS(
 ) as has_resources_in_workspaces
 `
 
-func (q *Queries) OrgHasWorkspacesWithResources(ctx context.Context, orgID int64) (bool, error) {
+func (q *Queries) OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, orgHasWorkspacesWithResources, orgID)
 	var has_resources_in_workspaces bool
 	err := row.Scan(&has_resources_in_workspaces)
@@ -260,8 +261,8 @@ RETURNING id, name, created_by, created_at, updated_at
 `
 
 type UpdateOrgNameParams struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
 }
 
 func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error) {

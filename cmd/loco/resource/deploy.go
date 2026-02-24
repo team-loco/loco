@@ -210,9 +210,9 @@ func getOrCreateResource(
 	domainClient domainv1connect.DomainServiceClient,
 	selectFromList func(title string, options []ui.SelectOption) (any, error),
 	authHeader string,
-	workspaceID int64,
+	workspaceID string,
 	cfg *config.LocoConfig,
-) (int64, error) {
+) (string, error) {
 	// Check if resource already exists
 	getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
@@ -231,7 +231,7 @@ func getOrCreateResource(
 	}
 
 	if connect.CodeOf(err) != connect.CodeNotFound {
-		return 0, fmt.Errorf("failed to get resource '%s': %w", cfg.Metadata.Name, err)
+		return "", fmt.Errorf("failed to get resource '%s': %w", cfg.Metadata.Name, err)
 	}
 
 	// Resource doesn't exist - create it
@@ -240,13 +240,13 @@ func getOrCreateResource(
 	// Resolve domain input
 	domainInput, err := resolveDomainInput(ctx, domainClient, selectFromList, authHeader, cfg)
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 
 	// Convert config to resource spec
 	resourceSpec, err := configToResourceSpec(cfg, "v1")
 	if err != nil {
-		return 0, fmt.Errorf("failed to convert config to resource spec: %w", err)
+		return "", fmt.Errorf("failed to convert config to resource spec: %w", err)
 	}
 
 	createReq := connect.NewRequest(&resourcev1.CreateResourceRequest{
@@ -260,7 +260,7 @@ func getOrCreateResource(
 
 	createResp, err := resourceClient.CreateResource(ctx, createReq)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create resource: %w", err)
+		return "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
 	slog.Debug("created resource", "resourceId", createResp.Msg.ResourceId)
@@ -272,7 +272,7 @@ func buildAndPushImage(
 	deps deployDeps,
 	registryClient registryv1connect.RegistryServiceClient,
 	authHeader string,
-	orgID, workspaceID, resourceID int64,
+	orgID, workspaceID, resourceID string,
 	loadedCfg *config.LoadedConfig,
 	imageID string,
 ) (string, error) {
@@ -348,7 +348,7 @@ func createDeployment(
 	ctx context.Context,
 	deploymentClient deploymentv1connect.DeploymentServiceClient,
 	authHeader string,
-	resourceID int64,
+	resourceID string,
 	imageName string,
 	cfg *config.LocoConfig,
 	wait bool,
@@ -369,7 +369,7 @@ func doCreateDeployment(
 	ctx context.Context,
 	deploymentClient deploymentv1connect.DeploymentServiceClient,
 	authHeader string,
-	resourceID int64,
+	resourceID string,
 	imageName string,
 	cfg *config.LocoConfig,
 	logf func(string),
@@ -448,7 +448,7 @@ func doCreateDeployment(
 	}
 
 	deploymentID := resp.Msg.DeploymentId
-	logf(fmt.Sprintf("Created deployment with version: %d", deploymentID))
+	logf(fmt.Sprintf("Created deployment with version: %s", deploymentID))
 
 	if wait {
 		logf("Waiting for deployment to complete...")

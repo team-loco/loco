@@ -38,10 +38,11 @@ func buildUpdateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			id, err := strconv.ParseInt(args[0], 10, 64)
+			idInt, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid workspace ID: %w", err)
 			}
+			id := fmt.Sprintf("%d", idInt)
 
 			name, err := cmd.Flags().GetString("name")
 			if err != nil {

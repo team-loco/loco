@@ -26,19 +26,19 @@ export function NavWorkspaces({
 	activeResourceId,
 }: {
 	workspaces: {
-		id: bigint;
+		id: string;
 		name: string;
 		isActive?: boolean;
 		hasResources?: boolean;
 		resources?: {
-			id: bigint;
+			id: string;
 			name: string;
 		}[];
 	}[];
-	onWorkspaceClick?: (workspaceId: bigint) => void;
-	onResourceClick?: (resourceId: bigint, workspaceId: bigint) => void;
-	onCreateResource?: (workspaceId: bigint) => void;
-	activeResourceId?: bigint;
+	onWorkspaceClick?: (workspaceId: string) => void;
+	onResourceClick?: (resourceId: string, workspaceId: string) => void;
+	onCreateResource?: (workspaceId: string) => void;
+	activeResourceId?: string;
 }) {
 	const activeWorkspaceWithResource = workspaces.find(
 		(ws) => ws.resources?.some((resource) => resource.id === activeResourceId)
@@ -47,7 +47,7 @@ export function NavWorkspaces({
 	const [openWorkspaces, setOpenWorkspaces] = useState<Set<string>>(() => {
 		const initial = new Set<string>();
 		if (activeWorkspaceWithResource) {
-			initial.add(activeWorkspaceWithResource.id.toString());
+			initial.add(activeWorkspaceWithResource.id);
 		}
 		return initial;
 	});
@@ -57,7 +57,7 @@ export function NavWorkspaces({
 			<SidebarGroupLabel>Workspaces</SidebarGroupLabel>
 			<SidebarMenu>
 				{workspaces.map((workspace) => {
-					const workspaceId = workspace.id.toString();
+					const workspaceId = workspace.id;
 					const isOpen = openWorkspaces.has(workspaceId) || workspace.isActive;
 
 					return (

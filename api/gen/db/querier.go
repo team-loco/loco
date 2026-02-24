@@ -7,6 +7,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,127 +19,143 @@ type Querier interface {
 	// Workspace members queries
 	AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) (AddWorkspaceMemberRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
-	CheckUserHasOrganizations(ctx context.Context, createdBy int64) (bool, error)
-	CheckUserHasWorkspaces(ctx context.Context, userID int64) (bool, error)
+	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
+	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
+	CountResourcesByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	// Deployment queries
-	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (int64, error)
+	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
+	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
 	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (int64, error)
 	// Resource queries
-	CreateResource(ctx context.Context, arg CreateResourceParams) (int64, error)
-	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (int64, error)
+	CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error)
+	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error)
 	CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error)
 	// User queries for sqlc
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
-	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (int64, error)
+	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error)
 	DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error)
-	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID int64) error
+	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID uuid.UUID) error
+	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 	DeleteExpiredTokens(ctx context.Context) error
-	DeleteOrg(ctx context.Context, id int64) error
-	DeleteOrganization(ctx context.Context, id int64) error
-	DeleteResource(ctx context.Context, id int64) error
-	DeleteResourceDomain(ctx context.Context, id int64) error
+	DeleteOrg(ctx context.Context, id uuid.UUID) error
+	DeleteOrganization(ctx context.Context, id uuid.UUID) error
+	DeleteResource(ctx context.Context, id uuid.UUID) error
+	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
 	DeleteToken(ctx context.Context, name string) error
 	DeleteTokenByNameAndEntity(ctx context.Context, arg DeleteTokenByNameAndEntityParams) error
 	DeleteTokensForEntity(ctx context.Context, arg DeleteTokensForEntityParams) error
-	DeleteUser(ctx context.Context, id int64) error
-	DeleteWorkspace(ctx context.Context, id int64) error
+	DeleteUser(ctx context.Context, id uuid.UUID) error
+	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error
-	GetActiveClusterByRegion(ctx context.Context, region string) (Cluster, error)
+	GetActiveClusterByRegionAndEnv(ctx context.Context, arg GetActiveClusterByRegionAndEnvParams) (GetActiveClusterByRegionAndEnvRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
+	// Cluster queries for agent operations
+	GetClusterByAgentToken(ctx context.Context, agentTokenHash pgtype.Text) (GetClusterByAgentTokenRow, error)
+	GetClusterByID(ctx context.Context, id int64) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error)
-	GetDeploymentByID(ctx context.Context, id int64) (Deployment, error)
-	GetDeploymentResourceID(ctx context.Context, id int64) (int64, error)
-	GetDomainByResourceId(ctx context.Context, resourceID int64) (GetDomainByResourceIdRow, error)
+	GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error)
+	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
+	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	GetDomainByResourceId(ctx context.Context, resourceID uuid.UUID) (GetDomainByResourceIdRow, error)
+	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
+	GetEnvironmentByName(ctx context.Context, arg GetEnvironmentByNameParams) (Environment, error)
 	// todo: eventually remove
-	GetFirstActiveCluster(ctx context.Context) (Cluster, error)
-	GetOrgByID(ctx context.Context, id int64) (Organization, error)
+	GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error)
+	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
-	GetOrganizationByID(ctx context.Context, id int64) (Organization, error)
+	GetOrgProductionEnvironment(ctx context.Context, orgID uuid.UUID) (Environment, error)
+	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
-	GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error)
+	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetOrganizationMember(ctx context.Context, arg GetOrganizationMemberParams) (GetOrganizationMemberRow, error)
 	GetPlatformDomain(ctx context.Context, id int64) (PlatformDomain, error)
 	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
-	GetResourceByID(ctx context.Context, id int64) (Resource, error)
-	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
-	GetResourceDomainByID(ctx context.Context, id int64) (ResourceDomain, error)
-	GetResourceDomainCount(ctx context.Context, resourceID int64) (int64, error)
+	GetResourceByID(ctx context.Context, id uuid.UUID) (GetResourceByIDRow, error)
+	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (GetResourceByNameAndWorkspaceRow, error)
+	GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error)
+	GetResourceDomainCount(ctx context.Context, resourceID uuid.UUID) (int64, error)
 	GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error)
-	GetResourceWorkspaceID(ctx context.Context, id int64) (int64, error)
+	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetToken(ctx context.Context, token string) (Token, error)
 	GetTokenByName(ctx context.Context, arg GetTokenByNameParams) (GetTokenByNameRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByExternalID(ctx context.Context, externalID string) (User, error)
-	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	// what scopes does user x have?
-	GetUserScopes(ctx context.Context, userID int64) ([]EntityScope, error)
+	GetUserScopes(ctx context.Context, userID uuid.UUID) ([]EntityScope, error)
 	// what scopes does user x have on entity y?
 	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]EntityScope, error)
 	GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]EntityScope, error)
 	GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]EntityScope, error)
 	GetUserWithScopesByEmail(ctx context.Context, email string) (UserWithScopesView, error)
 	// what users have scope z on entity y?
-	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]int64, error)
-	GetWorkspaceByIDQuery(ctx context.Context, id int64) (Workspace, error)
+	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]uuid.UUID, error)
+	GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (Workspace, error)
 	GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error)
 	GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error)
-	GetWorkspaceMembers(ctx context.Context, workspaceID int64) ([]WorkspaceMember, error)
-	GetWorkspaceOrgID(ctx context.Context, id int64) (int64, error)
-	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (GetWorkspaceOrganizationIDByResourceIDRow, error)
+	GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]WorkspaceMember, error)
+	GetWorkspaceOrgID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgNameUnique(ctx context.Context, name string) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	IsWorkspaceMember(ctx context.Context, arg IsWorkspaceMemberParams) (bool, error)
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
-	ListActiveDeployments(ctx context.Context) ([]int64, error)
-	ListActiveDeploymentsByResourceID(ctx context.Context, resourceID int64) ([]DeploymentStatus, error)
-	ListActiveDeploymentsForResource(ctx context.Context, resourceID int64) ([]Deployment, error)
+	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
+	ListActiveDeploymentsByResourceID(ctx context.Context, resourceID uuid.UUID) ([]DeploymentStatus, error)
+	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
-	ListClustersActive(ctx context.Context) ([]Cluster, error)
+	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
-	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
+	ListOrgEnvironments(ctx context.Context, orgID uuid.UUID) ([]Environment, error)
+	ListOrganizationMembers(ctx context.Context, organizationID uuid.UUID) ([]ListOrganizationMembersRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPlatformDomains(ctx context.Context, activeOnly pgtype.Bool) ([]PlatformDomain, error)
-	ListResourceDomains(ctx context.Context, resourceID int64) ([]ResourceDomain, error)
-	ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error)
-	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
+	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
+	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
+	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]ListResourcesForWorkspaceRow, error)
 	// which tokens exist on behalf of entity y?
 	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]ListTokensForEntityRow, error)
-	ListUserOrganizations(ctx context.Context, userID int64) ([]Organization, error)
-	ListUserWorkspaces(ctx context.Context, userID int64) ([]Workspace, error)
+	ListUserOrganizations(ctx context.Context, userID uuid.UUID) ([]Organization, error)
+	ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]Workspace, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
-	ListWorkspaceMembers(ctx context.Context, workspaceID int64) ([]ListWorkspaceMembersRow, error)
+	ListWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceMembersRow, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
-	MarkDeploymentNotActive(ctx context.Context, id int64) error
-	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID int64) error
-	OrgHasWorkspacesWithResources(ctx context.Context, orgID int64) (bool, error)
+	MarkDeploymentNotActive(ctx context.Context, id uuid.UUID) error
+	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
+	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
 	RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
-	RemoveWorkspace(ctx context.Context, id int64) error
+	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error
-	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (int64, error)
+	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
+	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
+	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	StoreToken(ctx context.Context, arg StoreTokenParams) error
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
+	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
+	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error
 	UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error
+	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)
-	UpdateResource(ctx context.Context, arg UpdateResourceParams) (int64, error)
-	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (int64, error)
-	UpdateResourceDomainPrimary(ctx context.Context, resourceID int64) error
+	UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error)
+	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error)
+	UpdateResourceDomainPrimary(ctx context.Context, resourceID uuid.UUID) error
 	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
-	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (int64, error)
-	UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (int64, error)
+	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
+	UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (uuid.UUID, error)
 }
 
 var _ Querier = (*Queries)(nil)

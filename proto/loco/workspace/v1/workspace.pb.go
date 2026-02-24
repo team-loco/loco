@@ -26,11 +26,11 @@ const (
 // Workspace represents a project container within an organization where resources are deployed and managed.
 type Workspace struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	OrgId         int64                  `protobuf:"varint,2,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	OrgId         string                 `protobuf:"bytes,2,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	CreatedBy     int64                  `protobuf:"varint,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedBy     string                 `protobuf:"bytes,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -67,18 +67,18 @@ func (*Workspace) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Workspace) GetId() int64 {
+func (x *Workspace) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
-func (x *Workspace) GetOrgId() int64 {
+func (x *Workspace) GetOrgId() string {
 	if x != nil {
 		return x.OrgId
 	}
-	return 0
+	return ""
 }
 
 func (x *Workspace) GetName() string {
@@ -95,11 +95,11 @@ func (x *Workspace) GetDescription() string {
 	return ""
 }
 
-func (x *Workspace) GetCreatedBy() int64 {
+func (x *Workspace) GetCreatedBy() string {
 	if x != nil {
 		return x.CreatedBy
 	}
-	return 0
+	return ""
 }
 
 func (x *Workspace) GetCreatedAt() *timestamppb.Timestamp {
@@ -119,8 +119,8 @@ func (x *Workspace) GetUpdatedAt() *timestamppb.Timestamp {
 // WorkspaceMember represents a user's membership and role assignment in a workspace.
 type WorkspaceMember struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -157,18 +157,18 @@ func (*WorkspaceMember) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *WorkspaceMember) GetWorkspaceId() int64 {
+func (x *WorkspaceMember) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
-func (x *WorkspaceMember) GetUserId() int64 {
+func (x *WorkspaceMember) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 func (x *WorkspaceMember) GetRole() string {
@@ -188,8 +188,8 @@ func (x *WorkspaceMember) GetCreatedAt() *timestamppb.Timestamp {
 // WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
 type WorkspaceMemberWithUser struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UserName      string                 `protobuf:"bytes,5,opt,name=user_name,json=userName,proto3" json:"user_name,omitempty"`
@@ -229,18 +229,18 @@ func (*WorkspaceMemberWithUser) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *WorkspaceMemberWithUser) GetWorkspaceId() int64 {
+func (x *WorkspaceMemberWithUser) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
-func (x *WorkspaceMemberWithUser) GetUserId() int64 {
+func (x *WorkspaceMemberWithUser) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 func (x *WorkspaceMemberWithUser) GetRole() string {
@@ -281,7 +281,7 @@ func (x *WorkspaceMemberWithUser) GetUserAvatarUrl() string {
 // CreateWorkspaceRequest is the request to create a new workspace.
 type CreateWorkspaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -318,11 +318,11 @@ func (*CreateWorkspaceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *CreateWorkspaceRequest) GetOrgId() int64 {
+func (x *CreateWorkspaceRequest) GetOrgId() string {
 	if x != nil {
 		return x.OrgId
 	}
-	return 0
+	return ""
 }
 
 func (x *CreateWorkspaceRequest) GetName() string {
@@ -342,7 +342,7 @@ func (x *CreateWorkspaceRequest) GetDescription() string {
 // CreateWorkspaceResponse is the response containing the created workspace ID.
 type CreateWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -377,17 +377,17 @@ func (*CreateWorkspaceResponse) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CreateWorkspaceResponse) GetWorkspaceId() int64 {
+func (x *CreateWorkspaceResponse) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 // GetWorkspaceRequest is the request to retrieve a workspace.
 type GetWorkspaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -422,11 +422,11 @@ func (*GetWorkspaceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *GetWorkspaceRequest) GetWorkspaceId() int64 {
+func (x *GetWorkspaceRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 // GetWorkspaceResponse is the response containing the workspace.
@@ -477,7 +477,7 @@ func (x *GetWorkspaceResponse) GetWorkspace() *Workspace {
 // ListUserWorkspacesRequest is the request to list workspaces for a user.
 type ListUserWorkspacesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
@@ -514,11 +514,11 @@ func (*ListUserWorkspacesRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *ListUserWorkspacesRequest) GetUserId() int64 {
+func (x *ListUserWorkspacesRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListUserWorkspacesRequest) GetPageSize() int32 {
@@ -591,7 +591,7 @@ func (x *ListUserWorkspacesResponse) GetNextPageToken() string {
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 type ListOrgWorkspacesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         int64                  `protobuf:"varint,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
@@ -628,11 +628,11 @@ func (*ListOrgWorkspacesRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *ListOrgWorkspacesRequest) GetOrgId() int64 {
+func (x *ListOrgWorkspacesRequest) GetOrgId() string {
 	if x != nil {
 		return x.OrgId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListOrgWorkspacesRequest) GetPageSize() int32 {
@@ -705,7 +705,7 @@ func (x *ListOrgWorkspacesResponse) GetNextPageToken() string {
 // UpdateWorkspaceRequest is the request to update a workspace.
 type UpdateWorkspaceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
@@ -743,11 +743,11 @@ func (*UpdateWorkspaceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *UpdateWorkspaceRequest) GetWorkspaceId() int64 {
+func (x *UpdateWorkspaceRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateWorkspaceRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
@@ -774,7 +774,7 @@ func (x *UpdateWorkspaceRequest) GetDescription() string {
 // UpdateWorkspaceResponse is the response containing the updated workspace ID.
 type UpdateWorkspaceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -809,17 +809,17 @@ func (*UpdateWorkspaceResponse) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *UpdateWorkspaceResponse) GetWorkspaceId() int64 {
+func (x *UpdateWorkspaceResponse) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 // DeleteWorkspaceRequest is the request to delete a workspace.
 type DeleteWorkspaceRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId       int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId       string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	ConfirmDeleteApps bool                   `protobuf:"varint,2,opt,name=confirm_delete_apps,json=confirmDeleteApps,proto3" json:"confirm_delete_apps,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -855,11 +855,11 @@ func (*DeleteWorkspaceRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *DeleteWorkspaceRequest) GetWorkspaceId() int64 {
+func (x *DeleteWorkspaceRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *DeleteWorkspaceRequest) GetConfirmDeleteApps() bool {
@@ -909,8 +909,8 @@ func (*DeleteWorkspaceResponse) Descriptor() ([]byte, []int) {
 // CreateMemberRequest is the request to add a member to a workspace.
 type CreateMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -946,18 +946,18 @@ func (*CreateMemberRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *CreateMemberRequest) GetWorkspaceId() int64 {
+func (x *CreateMemberRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
-func (x *CreateMemberRequest) GetUserId() int64 {
+func (x *CreateMemberRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 func (x *CreateMemberRequest) GetRole() string {
@@ -970,8 +970,8 @@ func (x *CreateMemberRequest) GetRole() string {
 // CreateMemberResponse is the response containing the workspace and user IDs.
 type CreateMemberResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1006,25 +1006,25 @@ func (*CreateMemberResponse) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{16}
 }
 
-func (x *CreateMemberResponse) GetWorkspaceId() int64 {
+func (x *CreateMemberResponse) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
-func (x *CreateMemberResponse) GetUserId() int64 {
+func (x *CreateMemberResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 // DeleteMemberRequest is the request to remove a member from a workspace.
 type DeleteMemberRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1059,18 +1059,18 @@ func (*DeleteMemberRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *DeleteMemberRequest) GetWorkspaceId() int64 {
+func (x *DeleteMemberRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
-func (x *DeleteMemberRequest) GetUserId() int64 {
+func (x *DeleteMemberRequest) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
-	return 0
+	return ""
 }
 
 // DeleteMemberResponse is the response after removing a member from a workspace.
@@ -1113,7 +1113,7 @@ func (*DeleteMemberResponse) Descriptor() ([]byte, []int) {
 // ListWorkspaceMembersRequest is the request to list members of a workspace.
 type ListWorkspaceMembersRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
 	unknownFields protoimpl.UnknownFields
@@ -1150,11 +1150,11 @@ func (*ListWorkspaceMembersRequest) Descriptor() ([]byte, []int) {
 	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *ListWorkspaceMembersRequest) GetWorkspaceId() int64 {
+func (x *ListWorkspaceMembersRequest) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListWorkspaceMembersRequest) GetPageSize() int32 {
@@ -1230,25 +1230,25 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
 	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfd\x01\n" +
 	"\tWorkspace\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x15\n" +
-	"\x06org_id\x18\x02 \x01(\x03R\x05orgId\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
+	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
-	"created_by\x18\x05 \x01(\x03R\tcreatedBy\x129\n" +
+	"created_by\x18\x05 \x01(\tR\tcreatedBy\x129\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x9c\x01\n" +
 	"\x0fWorkspaceMember\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04role\x18\x03 \x01(\tR\x04role\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x88\x02\n" +
 	"\x17WorkspaceMemberWithUser\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04role\x18\x03 \x01(\tR\x04role\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1b\n" +
@@ -1257,18 +1257,18 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"user_email\x18\x06 \x01(\tR\tuserEmail\x12&\n" +
 	"\x0fuser_avatar_url\x18\a \x01(\tR\ruserAvatarUrl\"z\n" +
 	"\x16CreateWorkspaceRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x12\n" +
+	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
 	"\f_description\"<\n" +
 	"\x17CreateWorkspaceResponse\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"8\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"8\n" +
 	"\x13GetWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"R\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"R\n" +
 	"\x14GetWorkspaceResponse\x12:\n" +
 	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"p\n" +
 	"\x19ListUserWorkspacesRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
@@ -1278,7 +1278,7 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"workspaces\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"m\n" +
 	"\x18ListOrgWorkspacesRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\x03R\x05orgId\x12\x1b\n" +
+	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x81\x01\n" +
@@ -1288,7 +1288,7 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"workspaces\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd1\x01\n" +
 	"\x16UpdateWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12;\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\x12\x17\n" +
 	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
@@ -1296,24 +1296,24 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x05_nameB\x0e\n" +
 	"\f_description\"<\n" +
 	"\x17UpdateWorkspaceResponse\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\"k\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"k\n" +
 	"\x16DeleteWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12.\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12.\n" +
 	"\x13confirm_delete_apps\x18\x02 \x01(\bR\x11confirmDeleteApps\"\x19\n" +
 	"\x17DeleteWorkspaceResponse\"e\n" +
 	"\x13CreateMemberRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04role\x18\x03 \x01(\tR\x04role\"R\n" +
 	"\x14CreateMemberResponse\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\"Q\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"Q\n" +
 	"\x13DeleteMemberRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\x03R\x06userId\"\x16\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x16\n" +
 	"\x14DeleteMemberResponse\"|\n" +
 	"\x1bListWorkspaceMembersRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x1b\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
 	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x8c\x01\n" +

@@ -46,7 +46,7 @@ import (
 
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
-	finalizerSecretRefresher = "loco.dev/secret-refresher"
+	finalizerSecretRefresher = "loco.io/secret-refresher"
 )
 
 // LocoResourceReconciler reconciles a Application object
@@ -287,12 +287,12 @@ func (r *LocoResourceReconciler) handleDeletion(ctx context.Context, locoRes *lo
 
 // getName derives the app name from the Application
 func getName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("resource-%d", locoRes.Spec.ResourceId)
+	return fmt.Sprintf("resource-%v", locoRes.Spec.ResourceId)
 }
 
 // getNamespace derives the namespace from the Application
 func getNamespace(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("wks-%d-res-%d", locoRes.Spec.WorkspaceId, locoRes.Spec.ResourceId)
+	return fmt.Sprintf("wks-%v-res-%v", locoRes.Spec.WorkspaceId, locoRes.Spec.ResourceId)
 }
 
 func getImageSecretName(locoRes *locov1alpha1.Application) string {
@@ -324,7 +324,10 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 			Labels: map[string]string{
-				"loco.dev/app": "true",
+				"loco.io/app":            "true",
+				"loco.io/workspace-id":   locoRes.Spec.WorkspaceId,
+				"loco.io/resource-id":    locoRes.Spec.ResourceId,
+				"loco.io/environment-id": locoRes.Spec.EnvironmentId,
 			},
 		},
 	}
@@ -623,6 +626,16 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 		})
 	}
 
+	// Inject LOCO_* system env vars so apps are aware of their deployment context.
+	envVars = append(envVars,
+		corev1.EnvVar{Name: "LOCO_APP_NAME", Value: locoRes.Name},
+		corev1.EnvVar{Name: "LOCO_RESOURCE_ID", Value: locoRes.Spec.ResourceId},
+		corev1.EnvVar{Name: "LOCO_WORKSPACE_ID", Value: locoRes.Spec.WorkspaceId},
+		corev1.EnvVar{Name: "LOCO_DEPLOYMENT_ID", Value: locoRes.Spec.DeploymentId},
+		corev1.EnvVar{Name: "LOCO_REGION", Value: locoRes.Spec.Region},
+		corev1.EnvVar{Name: "LOCO_ENVIRONMENT", Value: locoRes.Spec.EnvironmentName},
+	)
+
 	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
 		containerPort = locoRes.Spec.ServiceSpec.Deployment.Port
 	}
@@ -663,7 +676,10 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
 		dep.Labels = map[string]string{
-			"app": name,
+			"app":                    name,
+			"loco.io/workspace-id":   locoRes.Spec.WorkspaceId,
+			"loco.io/resource-id":    locoRes.Spec.ResourceId,
+			"loco.io/environment-id": locoRes.Spec.EnvironmentId,
 		}
 
 		container := corev1.Container{
@@ -710,7 +726,10 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 		dep.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					"app": name,
+					"app":                    name,
+					"loco.io/workspace-id":   locoRes.Spec.WorkspaceId,
+					"loco.io/resource-id":    locoRes.Spec.ResourceId,
+					"loco.io/environment-id": locoRes.Spec.EnvironmentId,
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -1030,10 +1049,10 @@ func (r *LocoResourceReconciler) validateLocoResource(locoRes *locov1alpha1.Appl
 	if locoRes.Spec.ServiceSpec.Deployment.Image == "" {
 		return fmt.Errorf("Image is required")
 	}
-	if locoRes.Spec.ResourceId == 0 {
+	if locoRes.Spec.ResourceId == "" {
 		return fmt.Errorf("ResourceId is required")
 	}
-	if locoRes.Spec.WorkspaceId == 0 {
+	if locoRes.Spec.WorkspaceId == "" {
 		return fmt.Errorf("WorkspaceID is required")
 	}
 	return nil

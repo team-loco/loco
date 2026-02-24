@@ -1,3 +1,4 @@
+import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -6,9 +7,16 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 import {
 	Select,
 	SelectContent,
@@ -18,50 +26,42 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { createDeployment } from "@/gen/loco/deployment/v1";
 import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import {
-	ResourceType,
-	createResource,
-	RoutingConfigSchema,
-	LoggingConfigSchema,
-	MetricsConfigSchema,
-	TracingConfigSchema,
-	RegionTargetSchema,
-	ServiceSpecSchema,
-	ResourceSpecSchema,
-} from "@/gen/loco/resource/v1";
-import { create } from "@bufbuild/protobuf";
-import {
+	checkDomainAvailability,
 	DomainType,
 	listPlatformDomains,
-	checkDomainAvailability,
 } from "@/gen/loco/domain/v1";
 import { listUserOrgs } from "@/gen/loco/org/v1";
+import {
+	createResource,
+	LoggingConfigSchema,
+	MetricsConfigSchema,
+	RegionTargetSchema,
+	ResourceSpecSchema,
+	ResourceType,
+	RoutingConfigSchema,
+	ServiceSpecSchema,
+	TracingConfigSchema,
+} from "@/gen/loco/resource/v1";
 import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
-import { createDeployment } from "@/gen/loco/deployment/v1";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { create } from "@bufbuild/protobuf";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { useAuth } from "@/auth/AuthProvider";
 import {
 	Check,
-	Loader,
-	X,
-	Server,
 	Database,
-	Zap,
-	Layers,
-	Mail,
-	HardDrive,
-	Plus,
-	Trash2,
 	FileText,
+	HardDrive,
+	Layers,
+	Loader,
+	Mail,
+	Plus,
+	Server,
+	Trash2,
+	X,
+	Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -221,7 +221,7 @@ export function CreateResource() {
 
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		{ userId: user?.id ?? 0n },
+		{ userId: user?.id },
 		{ enabled: !!user },
 	);
 	const orgs = orgsRes?.orgs ?? [];
@@ -442,8 +442,7 @@ export function CreateResource() {
 			// Create the resource
 			const resource = await createResourceMutation.mutateAsync({
 				name: resourceName,
-				workspaceId:
-					typeof workspaceId === "string" ? BigInt(workspaceId) : workspaceId,
+				workspaceId: workspaceId,
 				type: ResourceType[resourceType as keyof typeof ResourceType],
 				domain: {
 					domainSource: DomainType.PLATFORM_PROVIDED,
@@ -862,7 +861,7 @@ export function CreateResource() {
 						onClick={() => {
 							if (activeOrgId && activeWorkspaceId) {
 								navigate(
-									`/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`
+									`/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`,
 								);
 							}
 						}}

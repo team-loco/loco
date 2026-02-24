@@ -5,37 +5,38 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-	"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer",
+	"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all duration-fast focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer relative",
 	{
 		variants: {
 			variant: {
 				default:
-					"border-2 border-black bg-primary text-primary-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
+					"bg-primary text-primary-foreground shadow-xs hover:shadow-sm active:shadow-xs",
 				destructive:
-					"border-2 border-black bg-destructive text-destructive-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
+					"bg-destructive text-white shadow-xs hover:shadow-sm active:shadow-xs",
 				outline:
-					"border-2 border-black bg-background text-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
+					"border border-border bg-card text-foreground shadow-xs hover:bg-accent hover:border-border-strong hover:shadow-sm",
 				secondary:
-					"border-2 border-black bg-secondary text-secondary-foreground shadow-[2px_2px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none dark:border-neutral-700",
+					"bg-secondary text-secondary-foreground border border-border shadow-xs hover:bg-accent hover:border-border-strong",
 				ghost: "hover:bg-accent hover:text-accent-foreground",
 				link: "text-primary underline-offset-4 hover:underline",
 			},
 			size: {
-				default: "h-9 px-4 py-2 rounded-sm",
-				sm: "h-8 px-3 text-xs rounded-sm",
-				lg: "h-10 px-8 rounded-sm",
-				icon: "h-9 w-9 rounded-sm",
+				default: "h-7 px-[22px] py-3 rounded-md",
+				sm: "h-7 px-4 text-xs rounded-md",
+				lg: "h-7 px-6 rounded-md",
+				icon: "h-7 w-9 rounded-md",
 			},
 		},
 		defaultVariants: {
 			variant: "default",
 			size: "default",
 		},
-	}
+	},
 );
 
 export interface ButtonProps
-	extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+	extends
+		React.ButtonHTMLAttributes<HTMLButtonElement>,
 		VariantProps<typeof buttonVariants> {
 	asChild?: boolean;
 }
@@ -50,9 +51,12 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 				{...props}
 			/>
 		);
-	}
+	},
 );
 Button.displayName = "Button";
 
+// eslint-disable-next-line react-refresh/only-export-components
+// eslint-disable-next-line react-refresh/only-export-components
+// eslint-disable-next-line react-refresh/only-export-components
 // eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants };

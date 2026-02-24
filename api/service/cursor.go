@@ -3,28 +3,23 @@ package service
 import (
 	"encoding/base64"
 	"fmt"
-	"strconv"
 )
 
 // encodeCursor encodes an ID as a base64 cursor token
-func encodeCursor(id int64) string {
-	return base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%d", id)))
+func encodeCursor(id string) string {
+	return base64.URLEncoding.EncodeToString([]byte(id))
 }
 
 // decodeCursor decodes a base64 cursor token to an ID
-func decodeCursor(token string) (int64, error) {
+func decodeCursor(token string) (string, error) {
 	if token == "" {
-		return 0, nil
+		return "", nil
 	}
 	decoded, err := base64.URLEncoding.DecodeString(token)
 	if err != nil {
-		return 0, fmt.Errorf("invalid cursor token: %w", err)
+		return "", fmt.Errorf("invalid cursor token: %w", err)
 	}
-	id, err := strconv.ParseInt(string(decoded), 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid cursor value: %w", err)
-	}
-	return id, nil
+	return string(decoded), nil
 }
 
 // normalizePageSize ensures page_size is within bounds (default: 50, max: 200)

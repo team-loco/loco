@@ -28,18 +28,18 @@ service OrgService {
 
 // Organization represents a top-level organization container for users, workspaces, and resources.
 message Organization {
-  int64 id = 1;
+  string id = 1;
   string name = 2;
-  int64 created_by = 3;
+  string created_by = 3;
   google.protobuf.Timestamp created_at = 4;
   google.protobuf.Timestamp updated_at = 5;
 }
 
 // WorkspaceSummary provides a lightweight summary of a workspace for listing operations.
 message WorkspaceSummary {
-  int64 id = 1;
+  string id = 1;
   string name = 2;
-  int64 created_by = 3;
+  string created_by = 3;
   google.protobuf.Timestamp created_at = 4;
 }
 
@@ -50,13 +50,13 @@ message CreateOrgRequest {
 
 // CreateOrgResponse is the response containing the created organization ID.
 message CreateOrgResponse {
-  int64 org_id = 1;
+  string org_id = 1;
 }
 
 // GetOrgRequest is the request to retrieve an organization.
 message GetOrgRequest {
   oneof key {
-    int64 org_id = 1;
+    string org_id = 1;
     string org_name = 2;
   }
 }
@@ -68,7 +68,7 @@ message GetOrgResponse {
 
 // ListUserOrgsRequest is the request to list organizations for a user.
 message ListUserOrgsRequest {
-  int64 user_id = 1;
+  string user_id = 1;
   int32 page_size = 2; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
@@ -81,7 +81,7 @@ message ListUserOrgsResponse {
 
 // ListOrgUsersRequest is the request to list users in an organization.
 message ListOrgUsersRequest {
-  int64 org_id = 1;
+  string org_id = 1;
   int32 page_size = 2; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
@@ -94,7 +94,7 @@ message ListOrgUsersResponse {
 
 // User is a lightweight representation of a user for listing.
 message User {
-  int64 id = 1;
+  string id = 1;
   string email = 2;
   string name = 3;
   string avatar_url = 4;
@@ -102,7 +102,7 @@ message User {
 
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 message ListOrgWorkspacesRequest {
-  int64 org_id = 1;
+  string org_id = 1;
   int32 page_size = 2; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
@@ -115,19 +115,19 @@ message ListOrgWorkspacesResponse {
 
 // UpdateOrgRequest is the request to update an organization.
 message UpdateOrgRequest {
-  int64 org_id = 1;
+  string org_id = 1;
   google.protobuf.FieldMask update_mask = 2;
   optional string name = 3;
 }
 
 // UpdateOrgResponse is the response containing the updated organization ID.
 message UpdateOrgResponse {
-  int64 org_id = 1;
+  string org_id = 1;
 }
 
 // DeleteOrgRequest is the request to delete an organization.
 message DeleteOrgRequest {
-  int64 org_id = 1;
+  string org_id = 1;
 }
 
 // DeleteOrgResponse is the response after deleting an organization.

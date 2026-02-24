@@ -11,17 +11,17 @@ export function useAutoCreateOrgWorkspace() {
 		"idle" | "creating-org" | "creating-workspace" | "done" | "error"
 	>("idle");
 	const [error, setError] = useState<string | null>(null);
-	const [orgId, setOrgId] = useState<bigint | null>(null);
-	const [workspaceId, setWorkspaceId] = useState<bigint | null>(null);
+	const [orgId, setOrgId] = useState<string | null>(null);
+	const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
 	const createOrgMutation = useMutation(createOrg);
 	const createWorkspaceMutation = useMutation(createWorkspace);
 	const { data: userOrgsData, refetch: refetchOrgs } = useQuery(
 		listUserOrgs,
-		user ? { userId: BigInt(user.id) } : undefined,
+		user ? { userId: user.id } : undefined,
 		{ enabled: !!user }
 	);
-	const [wsQueryOrgId, setWsQueryOrgId] = useState<bigint>(0n);
+	const [wsQueryOrgId, setWsQueryOrgId] = useState<string>("");
 	const { refetch: refetchWorkspaces } = useQuery(
 		listOrgWorkspaces,
 		{ orgId: wsQueryOrgId },
@@ -34,7 +34,7 @@ export function useAutoCreateOrgWorkspace() {
 				setStep("creating-org");
 				setError(null);
 
-				let createdOrgId: bigint;
+				let createdOrgId: string;
 
 				// Try to create organization with user's email as name
 				try {
@@ -70,7 +70,7 @@ export function useAutoCreateOrgWorkspace() {
 
 				// Create workspace with user's name
 				setStep("creating-workspace");
-				let createdWorkspaceId: bigint;
+				let createdWorkspaceId: string;
 
 				try {
 					const workspace = await createWorkspaceMutation.mutateAsync({

@@ -14,7 +14,7 @@ interface OrgCardProps {
 	org: Organization;
 	workspaceCount?: number;
 	onDelete?: (org: Organization) => void;
-	onSwitch?: (orgId: bigint) => void;
+	onSwitch?: (orgId: string) => void;
 }
 
 export function OrgCard({

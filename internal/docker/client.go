@@ -192,7 +192,7 @@ func (c *DockerClient) ImageTag(ctx context.Context, imageID string) error {
 	return c.dockerClient.ImageTag(ctx, imageID, c.ImageName)
 }
 
-func (c *DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appID int64) string {
+func (c *DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appID string) string {
 	imageNameBase := imageBase
 	var randSuffix string
 	randBytes := make([]byte, 4)
@@ -203,7 +203,7 @@ func (c *DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, ap
 		randSuffix = hex.EncodeToString(randBytes)
 	}
 
-	tag := fmt.Sprintf("org-%d-wks-%d-app-%d-%s", orgID, workspaceID, appID, randSuffix)
+	tag := fmt.Sprintf("org-%s-wks-%s-app-%s-%s", orgID, workspaceID, appID, randSuffix)
 
 	if !strings.Contains(imageNameBase, ":") {
 		imageNameBase += ":" + tag

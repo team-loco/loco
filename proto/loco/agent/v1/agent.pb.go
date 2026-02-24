@@ -343,9 +343,9 @@ func (*CommandStreamResponse_UpdateEnv) isCommandStreamResponse_Payload() {}
 // DeployCommand instructs the agent to deploy an application.
 type DeployCommand struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId      int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	DeploymentId    int64                  `protobuf:"varint,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	WorkspaceId     int64                  `protobuf:"varint,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	ResourceId      string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	DeploymentId    string                 `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	WorkspaceId     string                 `protobuf:"bytes,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Namespace       string                 `protobuf:"bytes,4,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	ApplicationSpec []byte                 `protobuf:"bytes,5,opt,name=application_spec,json=applicationSpec,proto3" json:"application_spec,omitempty"` // JSON-serialized Application CRD spec
 	unknownFields   protoimpl.UnknownFields
@@ -382,25 +382,25 @@ func (*DeployCommand) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *DeployCommand) GetResourceId() int64 {
+func (x *DeployCommand) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
-func (x *DeployCommand) GetDeploymentId() int64 {
+func (x *DeployCommand) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
-	return 0
+	return ""
 }
 
-func (x *DeployCommand) GetWorkspaceId() int64 {
+func (x *DeployCommand) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
-	return 0
+	return ""
 }
 
 func (x *DeployCommand) GetNamespace() string {
@@ -420,7 +420,7 @@ func (x *DeployCommand) GetApplicationSpec() []byte {
 // DeleteCommand instructs the agent to delete an application.
 type DeleteCommand struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -456,11 +456,11 @@ func (*DeleteCommand) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *DeleteCommand) GetResourceId() int64 {
+func (x *DeleteCommand) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *DeleteCommand) GetNamespace() string {
@@ -473,7 +473,7 @@ func (x *DeleteCommand) GetNamespace() string {
 // ScaleCommand instructs the agent to scale an application.
 type ScaleCommand struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Replicas      int32                  `protobuf:"varint,2,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Namespace     string                 `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -510,11 +510,11 @@ func (*ScaleCommand) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ScaleCommand) GetResourceId() int64 {
+func (x *ScaleCommand) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *ScaleCommand) GetReplicas() int32 {
@@ -534,7 +534,7 @@ func (x *ScaleCommand) GetNamespace() string {
 // UpdateEnvCommand instructs the agent to update environment variables.
 type UpdateEnvCommand struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    int64                  `protobuf:"varint,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	Env           map[string]string      `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Namespace     string                 `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -571,11 +571,11 @@ func (*UpdateEnvCommand) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *UpdateEnvCommand) GetResourceId() int64 {
+func (x *UpdateEnvCommand) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdateEnvCommand) GetEnv() map[string]string {
@@ -914,7 +914,7 @@ func (x *ReloadConfigDirective) GetConfig() map[string]string {
 // ResyncDirective requests the agent to re-report status for resources.
 type ResyncDirective struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceIds   []int64                `protobuf:"varint,1,rep,packed,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"` // empty means resync all
+	ResourceIds   []string               `protobuf:"bytes,1,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"` // empty means resync all
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -949,7 +949,7 @@ func (*ResyncDirective) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *ResyncDirective) GetResourceIds() []int64 {
+func (x *ResyncDirective) GetResourceIds() []string {
 	if x != nil {
 		return x.ResourceIds
 	}
@@ -1106,8 +1106,8 @@ func (x *AgentHealth) GetMessage() string {
 type ReportStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ClusterId     int64                  `protobuf:"varint,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	ResourceId    int64                  `protobuf:"varint,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	DeploymentId  int64                  `protobuf:"varint,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	DeploymentId  string                 `protobuf:"bytes,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	Phase         v1.DeploymentPhase     `protobuf:"varint,4,opt,name=phase,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"phase,omitempty"`
 	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
 	Conditions    []*Condition           `protobuf:"bytes,6,rep,name=conditions,proto3" json:"conditions,omitempty"`
@@ -1152,18 +1152,18 @@ func (x *ReportStatusRequest) GetClusterId() int64 {
 	return 0
 }
 
-func (x *ReportStatusRequest) GetResourceId() int64 {
+func (x *ReportStatusRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
-	return 0
+	return ""
 }
 
-func (x *ReportStatusRequest) GetDeploymentId() int64 {
+func (x *ReportStatusRequest) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
-	return 0
+	return ""
 }
 
 func (x *ReportStatusRequest) GetPhase() v1.DeploymentPhase {
@@ -1330,23 +1330,23 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"update_env\x18\r \x01(\v2\x1f.loco.agent.v1.UpdateEnvCommandH\x00R\tupdateEnvB\t\n" +
 	"\apayload\"\xc1\x01\n" +
 	"\rDeployCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12#\n" +
-	"\rdeployment_id\x18\x02 \x01(\x03R\fdeploymentId\x12!\n" +
-	"\fworkspace_id\x18\x03 \x01(\x03R\vworkspaceId\x12\x1c\n" +
+	"\rdeployment_id\x18\x02 \x01(\tR\fdeploymentId\x12!\n" +
+	"\fworkspace_id\x18\x03 \x01(\tR\vworkspaceId\x12\x1c\n" +
 	"\tnamespace\x18\x04 \x01(\tR\tnamespace\x12)\n" +
 	"\x10application_spec\x18\x05 \x01(\fR\x0fapplicationSpec\"N\n" +
 	"\rDeleteCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1c\n" +
 	"\tnamespace\x18\x02 \x01(\tR\tnamespace\"i\n" +
 	"\fScaleCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1a\n" +
 	"\breplicas\x18\x02 \x01(\x05R\breplicas\x12\x1c\n" +
 	"\tnamespace\x18\x03 \x01(\tR\tnamespace\"\xc5\x01\n" +
 	"\x10UpdateEnvCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\x03R\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12:\n" +
 	"\x03env\x18\x02 \x03(\v2(.loco.agent.v1.UpdateEnvCommand.EnvEntryR\x03env\x12\x1c\n" +
 	"\tnamespace\x18\x03 \x01(\tR\tnamespace\x1a6\n" +
@@ -1377,7 +1377,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"4\n" +
 	"\x0fResyncDirective\x12!\n" +
-	"\fresource_ids\x18\x01 \x03(\x03R\vresourceIds\"\x8d\x02\n" +
+	"\fresource_ids\x18\x01 \x03(\tR\vresourceIds\"\x8d\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
 	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +
@@ -1393,9 +1393,9 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x13ReportStatusRequest\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\x03R\tclusterId\x12\x1f\n" +
-	"\vresource_id\x18\x02 \x01(\x03R\n" +
+	"\vresource_id\x18\x02 \x01(\tR\n" +
 	"resourceId\x12#\n" +
-	"\rdeployment_id\x18\x03 \x01(\x03R\fdeploymentId\x129\n" +
+	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\x129\n" +
 	"\x05phase\x18\x04 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x05phase\x12\x18\n" +
 	"\amessage\x18\x05 \x01(\tR\amessage\x128\n" +
 	"\n" +

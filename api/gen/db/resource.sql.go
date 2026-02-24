@@ -8,28 +8,30 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createResource = `-- name: CreateResource :one
 
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, environment_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id
 `
 
 type CreateResourceParams struct {
-	WorkspaceID int64          `json:"workspaceId"`
-	Name        string         `json:"name"`
-	Type        ResourceType   `json:"type"`
-	Description string         `json:"description"`
-	Status      ResourceStatus `json:"status"`
-	Spec        []byte         `json:"spec"`
-	SpecVersion int32          `json:"specVersion"`
+	WorkspaceID   uuid.UUID      `json:"workspaceId"`
+	Name          string         `json:"name"`
+	Type          ResourceType   `json:"type"`
+	Description   string         `json:"description"`
+	Status        ResourceStatus `json:"status"`
+	Spec          []byte         `json:"spec"`
+	SpecVersion   int32          `json:"specVersion"`
+	EnvironmentID uuid.UUID      `json:"environmentId"`
 }
 
 // Resource queries
-func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (int64, error) {
+func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createResource,
 		arg.WorkspaceID,
 		arg.Name,
@@ -38,8 +40,9 @@ func (q *Queries) CreateResource(ctx context.Context, arg CreateResourceParams) 
 		arg.Status,
 		arg.Spec,
 		arg.SpecVersion,
+		arg.EnvironmentID,
 	)
-	var id int64
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -51,7 +54,7 @@ RETURNING id, resource_id, region, is_primary, status, last_error, created_at, u
 `
 
 type CreateResourceRegionParams struct {
-	ResourceID int64              `json:"resourceId"`
+	ResourceID uuid.UUID          `json:"resourceId"`
 	Region     string             `json:"region"`
 	IsPrimary  bool               `json:"isPrimary"`
 	Status     RegionIntentStatus `json:"status"`
@@ -82,22 +85,48 @@ const deleteResource = `-- name: DeleteResource :exec
 DELETE FROM resources WHERE id = $1
 `
 
-func (q *Queries) DeleteResource(ctx context.Context, id int64) error {
+func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteResource, id)
 	return err
 }
 
-const getActiveClusterByRegion = `-- name: GetActiveClusterByRegion :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+const getActiveClusterByRegionAndEnv = `-- name: GetActiveClusterByRegionAndEnv :one
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE region = $1 AND is_active = true AND health_status = 'healthy'
+WHERE region = $1 AND environment_id = $2 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
 LIMIT 1
 `
 
-func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (Cluster, error) {
-	row := q.db.QueryRow(ctx, getActiveClusterByRegion, region)
-	var i Cluster
+type GetActiveClusterByRegionAndEnvParams struct {
+	Region        string    `json:"region"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+type GetActiveClusterByRegionAndEnvRow struct {
+	ID                    int64              `json:"id"`
+	Name                  string             `json:"name"`
+	Region                string             `json:"region"`
+	Provider              string             `json:"provider"`
+	IsActive              bool               `json:"isActive"`
+	IsDefault             bool               `json:"isDefault"`
+	Endpoint              pgtype.Text        `json:"endpoint"`
+	HealthStatus          pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text        `json:"agentVersion"`
+	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+}
+
+func (q *Queries) GetActiveClusterByRegionAndEnv(ctx context.Context, arg GetActiveClusterByRegionAndEnvParams) (GetActiveClusterByRegionAndEnvRow, error) {
+	row := q.db.QueryRow(ctx, getActiveClusterByRegionAndEnv, arg.Region, arg.EnvironmentID)
+	var i GetActiveClusterByRegionAndEnvRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -108,6 +137,11 @@ func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (
 		&i.Endpoint,
 		&i.HealthStatus,
 		&i.LastHealthCheck,
+		&i.AgentTokenHash,
+		&i.LastHeartbeat,
+		&i.CapacityCpuMillicores,
+		&i.CapacityMemoryBytes,
+		&i.AgentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -115,36 +149,65 @@ func (q *Queries) GetActiveClusterByRegion(ctx context.Context, region string) (
 }
 
 const getClusterDetails = `-- name: GetClusterDetails :one
-SELECT id, is_active, health_status
+SELECT id, is_active, health_status, agent_version, last_heartbeat
 FROM clusters
 WHERE id = $1
 `
 
 type GetClusterDetailsRow struct {
-	ID           int64       `json:"id"`
-	IsActive     bool        `json:"isActive"`
-	HealthStatus pgtype.Text `json:"healthStatus"`
+	ID            int64              `json:"id"`
+	IsActive      bool               `json:"isActive"`
+	HealthStatus  pgtype.Text        `json:"healthStatus"`
+	AgentVersion  pgtype.Text        `json:"agentVersion"`
+	LastHeartbeat pgtype.Timestamptz `json:"lastHeartbeat"`
 }
 
 func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error) {
 	row := q.db.QueryRow(ctx, getClusterDetails, id)
 	var i GetClusterDetailsRow
-	err := row.Scan(&i.ID, &i.IsActive, &i.HealthStatus)
+	err := row.Scan(
+		&i.ID,
+		&i.IsActive,
+		&i.HealthStatus,
+		&i.AgentVersion,
+		&i.LastHeartbeat,
+	)
 	return i, err
 }
 
 const getFirstActiveCluster = `-- name: GetFirstActiveCluster :one
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY created_at ASC
 LIMIT 1
 `
 
+type GetFirstActiveClusterRow struct {
+	ID                    int64              `json:"id"`
+	Name                  string             `json:"name"`
+	Region                string             `json:"region"`
+	Provider              string             `json:"provider"`
+	IsActive              bool               `json:"isActive"`
+	IsDefault             bool               `json:"isDefault"`
+	Endpoint              pgtype.Text        `json:"endpoint"`
+	HealthStatus          pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text        `json:"agentVersion"`
+	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+}
+
 // todo: eventually remove
-func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
+func (q *Queries) GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error) {
 	row := q.db.QueryRow(ctx, getFirstActiveCluster)
-	var i Cluster
+	var i GetFirstActiveClusterRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -155,6 +218,11 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 		&i.Endpoint,
 		&i.HealthStatus,
 		&i.LastHealthCheck,
+		&i.AgentTokenHash,
+		&i.LastHeartbeat,
+		&i.CapacityCpuMillicores,
+		&i.CapacityMemoryBytes,
+		&i.AgentVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -162,17 +230,32 @@ func (q *Queries) GetFirstActiveCluster(ctx context.Context) (Cluster, error) {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.environment_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
 
-func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, error) {
+type GetResourceByIDRow struct {
+	ID            uuid.UUID          `json:"id"`
+	WorkspaceID   uuid.UUID          `json:"workspaceId"`
+	EnvironmentID uuid.UUID          `json:"environmentId"`
+	Name          string             `json:"name"`
+	Type          ResourceType       `json:"type"`
+	Description   string             `json:"description"`
+	Status        ResourceStatus     `json:"status"`
+	Spec          []byte             `json:"spec"`
+	SpecVersion   int32              `json:"specVersion"`
+	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+}
+
+func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (GetResourceByIDRow, error) {
 	row := q.db.QueryRow(ctx, getResourceByID, id)
-	var i Resource
+	var i GetResourceByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
+		&i.EnvironmentID,
 		&i.Name,
 		&i.Type,
 		&i.Description,
@@ -186,22 +269,37 @@ func (q *Queries) GetResourceByID(ctx context.Context, id int64) (Resource, erro
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.environment_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
 
 type GetResourceByNameAndWorkspaceParams struct {
-	WorkspaceID int64  `json:"workspaceId"`
-	Name        string `json:"name"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	Name        string    `json:"name"`
 }
 
-func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error) {
+type GetResourceByNameAndWorkspaceRow struct {
+	ID            uuid.UUID          `json:"id"`
+	WorkspaceID   uuid.UUID          `json:"workspaceId"`
+	EnvironmentID uuid.UUID          `json:"environmentId"`
+	Name          string             `json:"name"`
+	Type          ResourceType       `json:"type"`
+	Description   string             `json:"description"`
+	Status        ResourceStatus     `json:"status"`
+	Spec          []byte             `json:"spec"`
+	SpecVersion   int32              `json:"specVersion"`
+	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+}
+
+func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (GetResourceByNameAndWorkspaceRow, error) {
 	row := q.db.QueryRow(ctx, getResourceByNameAndWorkspace, arg.WorkspaceID, arg.Name)
-	var i Resource
+	var i GetResourceByNameAndWorkspaceRow
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
+		&i.EnvironmentID,
 		&i.Name,
 		&i.Type,
 		&i.Description,
@@ -221,8 +319,8 @@ WHERE resource_id = $1 AND region = $2
 `
 
 type GetResourceRegionByResourceAndRegionParams struct {
-	ResourceID int64  `json:"resourceId"`
-	Region     string `json:"region"`
+	ResourceID uuid.UUID `json:"resourceId"`
+	Region     string    `json:"region"`
 }
 
 func (q *Queries) GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error) {
@@ -245,26 +343,27 @@ const getResourceWorkspaceID = `-- name: GetResourceWorkspaceID :one
 SELECT workspace_id FROM resources WHERE id = $1
 `
 
-func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id int64) (int64, error) {
+func (q *Queries) GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getResourceWorkspaceID, id)
-	var workspace_id int64
+	var workspace_id uuid.UUID
 	err := row.Scan(&workspace_id)
 	return workspace_id, err
 }
 
 const getWorkspaceOrganizationIDByResourceID = `-- name: GetWorkspaceOrganizationIDByResourceID :one
-SELECT workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1
+SELECT r.workspace_id, w.org_id, r.environment_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1
 `
 
 type GetWorkspaceOrganizationIDByResourceIDRow struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	OrgID       int64 `json:"orgId"`
+	WorkspaceID   uuid.UUID `json:"workspaceId"`
+	OrgID         uuid.UUID `json:"orgId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
 }
 
-func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (GetWorkspaceOrganizationIDByResourceIDRow, error) {
+func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceOrganizationIDByResourceID, id)
 	var i GetWorkspaceOrganizationIDByResourceIDRow
-	err := row.Scan(&i.WorkspaceID, &i.OrgID)
+	err := row.Scan(&i.WorkspaceID, &i.OrgID, &i.EnvironmentID)
 	return i, err
 }
 
@@ -273,7 +372,7 @@ SELECT status FROM deployments
 WHERE resource_id = $1 AND is_active = true
 `
 
-func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourceID int64) ([]DeploymentStatus, error) {
+func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourceID uuid.UUID) ([]DeploymentStatus, error) {
 	rows, err := q.db.Query(ctx, listActiveDeploymentsByResourceID, resourceID)
 	if err != nil {
 		return nil, err
@@ -294,21 +393,42 @@ func (q *Queries) ListActiveDeploymentsByResourceID(ctx context.Context, resourc
 }
 
 const listClustersActive = `-- name: ListClustersActive :many
-SELECT id, name, region, provider, is_active, is_default, endpoint, health_status, last_health_check, created_at, updated_at
+SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
+       last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
+       capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE is_active = true
 ORDER BY region ASC
 `
 
-func (q *Queries) ListClustersActive(ctx context.Context) ([]Cluster, error) {
+type ListClustersActiveRow struct {
+	ID                    int64              `json:"id"`
+	Name                  string             `json:"name"`
+	Region                string             `json:"region"`
+	Provider              string             `json:"provider"`
+	IsActive              bool               `json:"isActive"`
+	IsDefault             bool               `json:"isDefault"`
+	Endpoint              pgtype.Text        `json:"endpoint"`
+	HealthStatus          pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text        `json:"agentVersion"`
+	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+}
+
+func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error) {
 	rows, err := q.db.Query(ctx, listClustersActive)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Cluster
+	var items []ListClustersActiveRow
 	for rows.Next() {
-		var i Cluster
+		var i ListClustersActiveRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -319,6 +439,11 @@ func (q *Queries) ListClustersActive(ctx context.Context) ([]Cluster, error) {
 			&i.Endpoint,
 			&i.HealthStatus,
 			&i.LastHealthCheck,
+			&i.AgentTokenHash,
+			&i.LastHeartbeat,
+			&i.CapacityCpuMillicores,
+			&i.CapacityMemoryBytes,
+			&i.AgentVersion,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -339,7 +464,7 @@ WHERE resource_id = $1
 ORDER BY is_primary DESC, region ASC
 `
 
-func (q *Queries) ListResourceRegions(ctx context.Context, resourceID int64) ([]ResourceRegion, error) {
+func (q *Queries) ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error) {
 	rows, err := q.db.Query(ctx, listResourceRegions, resourceID)
 	if err != nil {
 		return nil, err
@@ -369,36 +494,51 @@ func (q *Queries) ListResourceRegions(ctx context.Context, resourceID int64) ([]
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.environment_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
         OR (r.created_at, r.id) < (
-          (SELECT created_at FROM resources WHERE id = $3::bigint),
-          $3::bigint
+          (SELECT created_at FROM resources WHERE id = $3::uuid),
+          $3::uuid
         ))
 ORDER BY r.created_at DESC, r.id DESC
 LIMIT $2
 `
 
 type ListResourcesForWorkspaceParams struct {
-	WorkspaceID int64       `json:"workspaceId"`
+	WorkspaceID uuid.UUID   `json:"workspaceId"`
 	Limit       int32       `json:"limit"`
 	PageToken   pgtype.Text `json:"pageToken"`
 }
 
-func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error) {
+type ListResourcesForWorkspaceRow struct {
+	ID            uuid.UUID          `json:"id"`
+	WorkspaceID   uuid.UUID          `json:"workspaceId"`
+	EnvironmentID uuid.UUID          `json:"environmentId"`
+	Name          string             `json:"name"`
+	Type          ResourceType       `json:"type"`
+	Description   string             `json:"description"`
+	Status        ResourceStatus     `json:"status"`
+	Spec          []byte             `json:"spec"`
+	SpecVersion   int32              `json:"specVersion"`
+	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+}
+
+func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]ListResourcesForWorkspaceRow, error) {
 	rows, err := q.db.Query(ctx, listResourcesForWorkspace, arg.WorkspaceID, arg.Limit, arg.PageToken)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Resource
+	var items []ListResourcesForWorkspaceRow
 	for rows.Next() {
-		var i Resource
+		var i ListResourcesForWorkspaceRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.WorkspaceID,
+			&i.EnvironmentID,
 			&i.Name,
 			&i.Type,
 			&i.Description,
@@ -427,13 +567,13 @@ RETURNING id
 `
 
 type UpdateResourceParams struct {
-	ID   int64       `json:"id"`
+	ID   uuid.UUID   `json:"id"`
 	Name pgtype.Text `json:"name"`
 }
 
-func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (int64, error) {
+func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, updateResource, arg.ID, arg.Name)
-	var id int64
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -445,7 +585,7 @@ WHERE id = $1
 `
 
 type UpdateResourceStatusParams struct {
-	ID     int64          `json:"id"`
+	ID     uuid.UUID      `json:"id"`
 	Status ResourceStatus `json:"status"`
 }
 

@@ -113,8 +113,8 @@ message DeploymentSpec {
 
 // Deployment represents a resource deployment (immutable, single-region).
 message Deployment {
-  int64 id = 1;
-  int64 resource_id = 2;
+  string id = 1;
+  string resource_id = 2;
   int64 cluster_id = 3;
   string region = 4;
   int32 replicas = 5;
@@ -131,7 +131,7 @@ message Deployment {
 
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
   int64 cluster_id = 2;
   string region = 3;
   DeploymentSpec spec = 4;
@@ -139,12 +139,12 @@ message CreateDeploymentRequest {
 
 // CreateDeploymentResponse is the response containing the created deployment ID.
 message CreateDeploymentResponse {
-  int64 deployment_id = 1;
+  string deployment_id = 1;
 }
 
 // GetDeploymentRequest is the request to retrieve a deployment.
 message GetDeploymentRequest {
-  int64 deployment_id = 1;
+  string deployment_id = 1;
 }
 
 // GetDeploymentResponse is the response containing the deployment.
@@ -154,7 +154,7 @@ message GetDeploymentResponse {
 
 // ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
   int32 page_size = 2; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
@@ -167,12 +167,12 @@ message ListDeploymentsResponse {
 
 // WatchDeploymentRequest is the request to stream deployment events.
 message WatchDeploymentRequest {
-  int64 deployment_id = 1;
+  string deployment_id = 1;
 }
 
 // WatchDeploymentResponse represents a deployment event stream response.
 message WatchDeploymentResponse {
-  int64 deployment_id = 1;
+  string deployment_id = 1;
   DeploymentPhase status = 2;
   string message = 3;
   google.protobuf.Timestamp timestamp = 4;
@@ -180,7 +180,7 @@ message WatchDeploymentResponse {
 
 // DeleteDeploymentRequest is the request to delete/inactivate a deployment.
 message DeleteDeploymentRequest {
-  int64 deployment_id = 1;
+  string deployment_id = 1;
 }
 
 // DeleteDeploymentResponse is the response after deleting/inactivating a deployment.

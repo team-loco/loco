@@ -6,11 +6,11 @@ import type { Organization } from "@/gen/loco/org/v1/org_pb";
 
 interface OrgsSidebarProps {
 	orgs: Organization[];
-	expandedOrgs: Set<bigint>;
-	onExpandOrg: (orgId: bigint) => void;
-	onWorkspaceClick: (workspaceId: bigint) => void;
+	expandedOrgs: Set<string>;
+	onExpandOrg: (orgId: string) => void;
+	onWorkspaceClick: (workspaceId: string) => void;
 	onWorkspaceNameChange: (name: string | null) => void;
-	activeWorkspaceId: bigint | null;
+	activeWorkspaceId: string | null;
 }
 
 export function OrgsSidebar({
@@ -49,9 +49,9 @@ interface OrgItemProps {
 	org: Organization;
 	isExpanded: boolean;
 	onExpand: () => void;
-	onWorkspaceClick: (workspaceId: bigint) => void;
+	onWorkspaceClick: (workspaceId: string) => void;
 	onWorkspaceNameChange: (name: string | null) => void;
-	activeWorkspaceId: bigint | null;
+	activeWorkspaceId: string | null;
 }
 
 function OrgItem({

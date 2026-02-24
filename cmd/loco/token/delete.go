@@ -72,7 +72,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get entity-type flag: %w", err)
 			}
-			entityID, err := cmd.Flags().GetInt64("entity-id")
+			entityIDInt, err := cmd.Flags().GetInt64("entity-id")
 			if err != nil {
 				return fmt.Errorf("failed to get entity-id flag: %w", err)
 			}
@@ -82,13 +82,16 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return err
 			}
 
-			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityID == 0 {
+			var entityID string
+			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInt == 0 {
 				entityID, err = getCurrentUserID(ctx, userClient, authHeader)
 				if err != nil {
 					return err
 				}
-			} else if entityID == 0 {
+			} else if entityIDInt == 0 {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
+			} else {
+				entityID = fmt.Sprintf("%d", entityIDInt)
 			}
 
 			yes, err := cmd.Flags().GetBool("yes")

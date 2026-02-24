@@ -46,9 +46,9 @@ export function DataTable<TData, TValue>({
 	}
 
 	return (
-		<div className="overflow-hidden rounded-lg border-2 border-black dark:border-neutral-700 bg-card shadow-[4px_4px_0px_0px_#000] dark:shadow-none">
+		<div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
 			<Table>
-				<TableHeader className="bg-muted/50 border-b-2 border-black dark:border-neutral-700">
+				<TableHeader className="bg-muted/50 border-b border-border">
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow key={headerGroup.id}>
 							{headerGroup.headers.map((header) => {

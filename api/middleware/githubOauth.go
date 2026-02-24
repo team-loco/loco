@@ -79,7 +79,7 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 		c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
 		c = context.WithValue(c, contextkeys.TokenKey, token)
 
-		slog.InfoContext(c, "claims validated; populating ctx", slog.Int64("userId", entity.ID))
+		slog.InfoContext(c, "claims validated; populating ctx", "userId", entity.ID.String())
 
 		return next(c, req)
 	})
@@ -120,7 +120,7 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		slog.InfoContext(ctx, "claims validated; populating ctx", slog.Int64("entityId", entity.ID), slog.Any("entityType", entity.Type))
+		slog.InfoContext(ctx, "claims validated; populating ctx", "entityId", entity.ID.String(), "entityType", entity.Type)
 
 		c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
 			Type: entity.Type,

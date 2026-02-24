@@ -73,8 +73,9 @@ func (s *RegistryServer) GetGitlabToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("unauthorized"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetGitlabToken, entity.ID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get gitlab token", "entityId", entity.ID)
+	entityIDStr := entity.ID.String()
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetGitlabToken, entityIDStr)); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get gitlab token", "entityId", entityIDStr)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -97,6 +98,6 @@ func (s *RegistryServer) GetGitlabToken(
 		Token:    tokenResp.Token,
 	})
 
-	slog.DebugContext(ctx, "generated gitlab deploy token successfully", slog.String("username", tokenResp.Username), slog.Int64("userId", entity.ID))
+	slog.DebugContext(ctx, "generated gitlab deploy token successfully", slog.String("username", tokenResp.Username), slog.String("entityId", entityIDStr))
 	return res, nil
 }

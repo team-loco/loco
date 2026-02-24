@@ -1,17 +1,17 @@
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
+import { CheckCircle, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router";
-import { useOrgWorkspace } from "@/context/ContextProvider";
-import { CheckCircle, XCircle } from "lucide-react";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 
 interface RecentDeploymentsProps {
 	resources: Resource[];
-	workspaceId?: bigint;
+	workspaceId?: string;
 }
 
 interface MockDeployment {
 	id: string;
-	resourceId: bigint;
+	resourceId: string;
 	resourceName: string;
 	status: "success" | "failed";
 	commit: string;
@@ -24,7 +24,8 @@ function generateMockDeployments(resources: Resource[]): MockDeployment[] {
 	const deployments: MockDeployment[] = [];
 
 	resources.forEach((resource) => {
-		const seed = Number(resource.id);
+		let seed = 0;
+		for (let i = 0; i < resource.id.length; i++) seed += resource.id.charCodeAt(i);
 		const isSuccess = Math.sin(seed) > 0;
 		const hoursAgo = Math.floor((Math.cos(seed * 2) * 0.5 + 0.5) * 48) + 1;
 
@@ -80,14 +81,14 @@ function formatTimeAgo(hours: number): string {
 function DeploymentStatusIcon({ status }: { status: "success" | "failed" }) {
 	if (status === "success") {
 		return (
-			<div className="p-2 bg-emerald-100 dark:bg-emerald-950 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[2px_2px_0px_0px_#000]">
-				<CheckCircle className="w-4 h-4 text-emerald-900 dark:text-emerald-400" />
+			<div className="p-2 bg-success-light border border-success-border rounded-full shadow-xs">
+				<CheckCircle className="w-4 h-4 text-success" />
 			</div>
 		);
 	}
 	return (
-		<div className="p-2 bg-red-100 dark:bg-red-950 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[2px_2px_0px_0px_#000]">
-			<XCircle className="w-4 h-4 text-red-900 dark:text-red-400" />
+		<div className="p-2 bg-error-light border border-error-border rounded-full shadow-xs">
+			<XCircle className="w-4 h-4 text-error" />
 		</div>
 	);
 }
@@ -102,18 +103,18 @@ export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsP
 		return generateMockDeployments(resources);
 	}, [resources]);
 
-	const handleViewApp = (resourceId: bigint) => {
+	const handleViewApp = (resourceId: string) => {
 		if (orgId && wsId) {
 			navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
 		}
 	};
 
 	return (
-		<div className="border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_#000] bg-card overflow-hidden">
-			<div className="px-6 py-4 border-b-2 border-black dark:border-neutral-700 bg-muted/30">
-				<h2 className="text-lg font-semibold">Recent Deployments</h2>
+		<div>
+			<div className="flex items-center justify-between mb-4">
+				<h2 className="text-xl font-bold text-foreground">Recent Deployments</h2>
 			</div>
-			<div className="divide-y divide-border">
+			<div className="border border-border rounded-xl shadow-xs bg-card overflow-hidden divide-y divide-border">
 				{recentDeployments.length > 0 ? (
 					recentDeployments.map((deploy) => (
 						<div
@@ -147,8 +148,8 @@ export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsP
 						</div>
 					))
 				) : (
-					<div className="px-6 py-12 text-center text-muted-foreground">
-						No recent deployments
+					<div className="px-6 py-12 text-center">
+						<div className="text-muted-foreground">No recent deployments</div>
 					</div>
 				)}
 			</div>

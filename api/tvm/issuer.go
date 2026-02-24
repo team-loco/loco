@@ -13,14 +13,19 @@ import (
 // The user must have sufficient permissions to issue a token with the requested scopes, or an error [ErrInsufficentPermissions] is returned.
 // It is important to note that this function does NOT verify that whatever is requesting the token is the user with the given userID. It is expected that the caller
 // has already verified this.
-func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID int64, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
+func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
 	// gotta make sure the requested duration does not exceed the max allowed duration
 	if duration > tvm.Cfg.MaxTokenDuration {
 		return "", ErrDurationExceedsMaxAllowed
 	}
 
 	// fetch the scopes associated with the user
-	userScopes, err := tvm.queries.GetUserScopes(ctx, userID)
+	userScopesUUID, err := uuid.Parse(userID)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return "", err
+	}
+	userScopes, err := tvm.queries.GetUserScopes(ctx, userScopesUUID)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return "", err
@@ -53,7 +58,7 @@ func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, name string,
 	if tokenData.EntityType != queries.EntityTypeUser {
 		return "", ErrImproperUsage
 	}
-	userID := tokenData.EntityID
+	userID := tokenData.EntityID.String()
 
 	return tvm.Issue(ctx, name, userID, entity, entityScopes, duration)
 }

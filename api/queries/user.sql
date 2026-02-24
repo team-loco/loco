@@ -31,8 +31,8 @@ SELECT id, external_id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE (sqlc.narg('page_token')::text IS NULL
        OR (created_at, id) < (
-         (SELECT created_at FROM users WHERE id = sqlc.narg('page_token')::bigint),
-         sqlc.narg('page_token')::bigint
+         (SELECT created_at FROM users WHERE id = sqlc.narg('page_token')::uuid),
+         sqlc.narg('page_token')::uuid
        ))
 ORDER BY created_at DESC, id DESC
 LIMIT $1;

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -47,7 +48,7 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreatePlatformDomain, 0)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreatePlatformDomain, "")); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -158,7 +159,7 @@ func (s *DomainServer) UpdatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdatePlatformDomain, 0)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdatePlatformDomain, "")); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -196,7 +197,7 @@ func (s *DomainServer) DeletePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeletePlatformDomain, 0)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeletePlatformDomain, "")); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -227,7 +228,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListLocoOwnedDomains, 0)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListLocoOwnedDomains, "")); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list loco owned domains")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -241,10 +242,10 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	domains := make([]*domainv1.LocoOwnedDomain, len(results))
 	for i, result := range results {
 		domains[i] = &domainv1.LocoOwnedDomain{
-			Id:             result.ID,
+			Id:             result.ID.String(),
 			Domain:         result.Domain,
 			ResourceName:   result.ResourceName,
-			ResourceId:     result.ResourceID,
+			ResourceId:     result.ResourceID.String(),
 			PlatformDomain: result.PlatformDomain,
 		}
 	}
@@ -314,13 +315,19 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 
 	// check if this is the first domain for the resource
-	count, err := s.queries.GetResourceDomainCount(ctx, r.ResourceId)
+	resourceId, err := uuid.Parse(r.ResourceId)
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid resource id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
+	}
+
+	count, err := s.queries.GetResourceDomainCount(ctx, resourceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	resourceDomain, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-		ResourceID:       r.GetResourceId(),
+		ResourceID:       resourceId,
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
@@ -332,7 +339,7 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 
 	return connect.NewResponse(&domainv1.CreateResourceDomainResponse{
-		DomainId: resourceDomain,
+		DomainId: resourceDomain.String(),
 	}), nil
 }
 
@@ -344,7 +351,13 @@ func (s *DomainServer) UpdateResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource
-	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.DomainId)
+	domainId, err := uuid.Parse(r.DomainId)
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid domain id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
+	}
+
+	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
@@ -356,7 +369,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	// verify user has access to this resource
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateDomain, domainRow.ResourceID)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateDomain, domainRow.ResourceID.String())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -372,7 +385,7 @@ func (s *DomainServer) UpdateResourceDomain(
 
 		// update the domain
 		_, err = s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
-			ID:     r.GetDomainId(),
+			ID:     domainId,
 			Domain: r.GetDomain(),
 		})
 		if err != nil {
@@ -404,15 +417,27 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	}
 
 	// unset primary on all other domains
-	err := s.queries.UpdateResourceDomainPrimary(ctx, r.GetResourceId())
+	resourceId, err := uuid.Parse(r.GetResourceId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid resource id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
+	}
+
+	err = s.queries.UpdateResourceDomainPrimary(ctx, resourceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	// set this domain as primary
+	domainId, err := uuid.Parse(r.GetDomainId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid domain id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
+	}
+
 	_, err = s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
-		ID:         r.GetDomainId(),
-		ResourceID: r.GetResourceId(),
+		ID:         domainId,
+		ResourceID: resourceId,
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found or does not belong to resource"))
@@ -432,7 +457,13 @@ func (s *DomainServer) DeleteResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource and whether it's primary
-	domainRow, err := s.queries.GetResourceDomainByID(ctx, r.GetDomainId())
+	domainId, err := uuid.Parse(r.GetDomainId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid domain id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
+	}
+
+	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
@@ -443,7 +474,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.RemoveDomain, domainRow.ResourceID)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.RemoveDomain, domainRow.ResourceID.String())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -462,7 +493,7 @@ func (s *DomainServer) DeleteResourceDomain(
 	}
 
 	// delete the domain
-	err = s.queries.DeleteResourceDomain(ctx, r.GetDomainId())
+	err = s.queries.DeleteResourceDomain(ctx, domainId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}

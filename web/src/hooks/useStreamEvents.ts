@@ -16,7 +16,7 @@ export function useStreamEvents(resourceId: string) {
 		error,
 	} = useQuery(
 		listResourceEvents,
-		resourceId ? { resourceId: BigInt(resourceId), limit: 50 } : undefined,
+		resourceId ? { resourceId, limit: 50 } : undefined,
 		{ enabled: !!resourceId }
 	);
 

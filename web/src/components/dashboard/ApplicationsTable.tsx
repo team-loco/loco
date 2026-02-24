@@ -14,12 +14,13 @@ import {
 
 interface ApplicationsTableProps {
 	resources: Resource[];
-	workspaceId?: bigint;
+	workspaceId?: string;
 }
 
 // Mock data generator for resources we don't have metrics for
-function getMockMetrics(resourceId: bigint) {
-	const seed = Number(resourceId);
+function getMockMetrics(resourceId: string) {
+	let seed = 0;
+	for (let i = 0; i < resourceId.length; i++) seed += resourceId.charCodeAt(i);
 	return {
 		cpu: Math.floor((Math.sin(seed) * 0.5 + 0.5) * 100),
 		memory: Math.floor((Math.cos(seed) * 0.5 + 0.5) * 1000) + 256,
@@ -66,22 +67,22 @@ export function ApplicationsTable({
 	const orgId = activeOrgId;
 	const wsId = activeWorkspaceId || workspaceId;
 
-	const handleRowClick = (resourceId: bigint) => {
+	const handleRowClick = (resourceId: string) => {
 		if (orgId && wsId) {
 			navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
 		}
 	};
 
 	return (
-		<div className="border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_#000] bg-card overflow-hidden">
-			<div className="px-6 py-4 border-b-2 border-black dark:border-neutral-700 bg-muted/30">
+		<div className="border border-border rounded-xl shadow-sm bg-card overflow-hidden">
+			<div className="px-6 py-4 border-b border-border bg-muted/30">
 				<h2 className="text-lg font-semibold">Applications</h2>
 			</div>
 
 			<div className="overflow-x-auto">
 				<Table>
 					<TableHeader>
-						<TableRow className="border-b-2 border-black dark:border-neutral-700 hover:bg-transparent">
+						<TableRow className="border-b border-border hover:bg-transparent">
 							<TableHead className="px-6 py-3 font-semibold text-foreground">
 								Application
 							</TableHead>

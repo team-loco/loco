@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -19,13 +20,13 @@ RETURNING organization_id, user_id
 `
 
 type AddOrganizationMemberParams struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
 type AddOrganizationMemberRow struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
 // Organization members queries
@@ -44,13 +45,13 @@ RETURNING workspace_id, user_id
 `
 
 type AddWorkspaceMemberParams struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 type AddWorkspaceMemberRow struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 // Workspace members queries
@@ -65,7 +66,7 @@ const checkUserHasOrganizations = `-- name: CheckUserHasOrganizations :one
 SELECT EXISTS(SELECT 1 FROM organizations WHERE created_by = $1) AS has_orgs
 `
 
-func (q *Queries) CheckUserHasOrganizations(ctx context.Context, createdBy int64) (bool, error) {
+func (q *Queries) CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, checkUserHasOrganizations, createdBy)
 	var has_orgs bool
 	err := row.Scan(&has_orgs)
@@ -79,7 +80,7 @@ SELECT EXISTS(
 ) AS has_workspaces
 `
 
-func (q *Queries) CheckUserHasWorkspaces(ctx context.Context, userID int64) (bool, error) {
+func (q *Queries) CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error) {
 	row := q.db.QueryRow(ctx, checkUserHasWorkspaces, userID)
 	var has_workspaces bool
 	err := row.Scan(&has_workspaces)
@@ -94,8 +95,8 @@ RETURNING id, name, created_by, created_at, updated_at
 `
 
 type CreateOrganizationParams struct {
-	Name      string `json:"name"`
-	CreatedBy int64  `json:"createdBy"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"createdBy"`
 }
 
 // Organization queries
@@ -151,7 +152,7 @@ const deleteOrganization = `-- name: DeleteOrganization :exec
 DELETE FROM organizations WHERE id = $1
 `
 
-func (q *Queries) DeleteOrganization(ctx context.Context, id int64) error {
+func (q *Queries) DeleteOrganization(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteOrganization, id)
 	return err
 }
@@ -160,7 +161,7 @@ const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1
 `
 
-func (q *Queries) DeleteUser(ctx context.Context, id int64) error {
+func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
 }
@@ -169,7 +170,7 @@ const deleteWorkspace = `-- name: DeleteWorkspace :exec
 DELETE FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) DeleteWorkspace(ctx context.Context, id int64) error {
+func (q *Queries) DeleteWorkspace(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteWorkspace, id)
 	return err
 }
@@ -180,7 +181,7 @@ FROM organizations
 WHERE id = $1
 `
 
-func (q *Queries) GetOrganizationByID(ctx context.Context, id int64) (Organization, error) {
+func (q *Queries) GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error) {
 	row := q.db.QueryRow(ctx, getOrganizationByID, id)
 	var i Organization
 	err := row.Scan(
@@ -219,13 +220,13 @@ WHERE organization_id = $1 AND user_id = $2
 `
 
 type GetOrganizationMemberParams struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
 type GetOrganizationMemberRow struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) GetOrganizationMember(ctx context.Context, arg GetOrganizationMemberParams) (GetOrganizationMemberRow, error) {
@@ -283,7 +284,7 @@ FROM users
 WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
 	var i User
 	err := row.Scan(
@@ -305,13 +306,13 @@ WHERE workspace_id = $1 AND user_id = $2
 `
 
 type GetWorkspaceMemberParams struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 type GetWorkspaceMemberRow struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error) {
@@ -342,11 +343,11 @@ ORDER BY created_at DESC
 `
 
 type ListOrganizationMembersRow struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
-func (q *Queries) ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error) {
+func (q *Queries) ListOrganizationMembers(ctx context.Context, organizationID uuid.UUID) ([]ListOrganizationMembersRow, error) {
 	rows, err := q.db.Query(ctx, listOrganizationMembers, organizationID)
 	if err != nil {
 		return nil, err
@@ -374,7 +375,7 @@ WHERE om.user_id = $1
 ORDER BY o.created_at DESC
 `
 
-func (q *Queries) ListUserOrganizations(ctx context.Context, userID int64) ([]Organization, error) {
+func (q *Queries) ListUserOrganizations(ctx context.Context, userID uuid.UUID) ([]Organization, error) {
 	rows, err := q.db.Query(ctx, listUserOrganizations, userID)
 	if err != nil {
 		return nil, err
@@ -408,7 +409,7 @@ WHERE wm.user_id = $1
 ORDER BY w.created_at DESC
 `
 
-func (q *Queries) ListUserWorkspaces(ctx context.Context, userID int64) ([]Workspace, error) {
+func (q *Queries) ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]Workspace, error) {
 	rows, err := q.db.Query(ctx, listUserWorkspaces, userID)
 	if err != nil {
 		return nil, err
@@ -441,8 +442,8 @@ SELECT id, external_id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE ($2::text IS NULL
        OR (created_at, id) < (
-         (SELECT created_at FROM users WHERE id = $2::bigint),
-         $2::bigint
+         (SELECT created_at FROM users WHERE id = $2::uuid),
+         $2::uuid
        ))
 ORDER BY created_at DESC, id DESC
 LIMIT $1
@@ -489,11 +490,11 @@ ORDER BY created_at DESC
 `
 
 type ListWorkspaceMembersRow struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
-func (q *Queries) ListWorkspaceMembers(ctx context.Context, workspaceID int64) ([]ListWorkspaceMembersRow, error) {
+func (q *Queries) ListWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceMembersRow, error) {
 	rows, err := q.db.Query(ctx, listWorkspaceMembers, workspaceID)
 	if err != nil {
 		return nil, err
@@ -519,8 +520,8 @@ WHERE organization_id = $1 AND user_id = $2
 `
 
 type RemoveOrganizationMemberParams struct {
-	OrganizationID int64 `json:"organizationId"`
-	UserID         int64 `json:"userId"`
+	OrganizationID uuid.UUID `json:"organizationId"`
+	UserID         uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error {
@@ -534,8 +535,8 @@ WHERE workspace_id = $1 AND user_id = $2
 `
 
 type RemoveWorkspaceMemberParams struct {
-	WorkspaceID int64 `json:"workspaceId"`
-	UserID      int64 `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error {
@@ -551,7 +552,7 @@ RETURNING id, external_id, email, name, avatar_url, created_at, updated_at
 `
 
 type UpdateUserAvatarURLParams struct {
-	ID        int64       `json:"id"`
+	ID        uuid.UUID   `json:"id"`
 	AvatarUrl pgtype.Text `json:"avatarUrl"`
 }
 

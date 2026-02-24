@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/providers"
@@ -23,63 +25,79 @@ type TestingQueries struct {
 	tokens map[string]queries.Token
 }
 
+var (
+	user1UUID = uuid.MustParse("01890000-0000-0000-0000-000000000001")
+	user2UUID = uuid.MustParse("01890000-0000-0000-0000-000000000002")
+	user3UUID = uuid.MustParse("01890000-0000-0000-0000-000000000003")
+	user4UUID = uuid.MustParse("01890000-0000-0000-0000-000000000004")
+	user5UUID = uuid.MustParse("01890000-0000-0000-0000-000000000005")
+	org1UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000011")
+	org2UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000012")
+	ws1UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000021")
+	ws2UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000022")
+	ws3UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000023")
+	res1UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000031")
+	res2UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000032")
+	res3UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000033")
+)
+
 func (*TestingQueries) GetUserByEmail(ctx context.Context, email string) (queries.User, error) {
 	switch email {
 	case "user1@loco-testing.com":
-		return queries.User{ID: 1, Email: email}, nil
+		return queries.User{ID: user1UUID, Email: email}, nil
 	case "user2@loco-testing.com":
-		return queries.User{ID: 2, Email: email}, nil
+		return queries.User{ID: user2UUID, Email: email}, nil
 	case "user3@loco-testing.com":
-		return queries.User{ID: 3, Email: email}, nil
+		return queries.User{ID: user3UUID, Email: email}, nil
 	case "user4@loco-testing.com":
-		return queries.User{ID: 4, Email: email}, nil
+		return queries.User{ID: user4UUID, Email: email}, nil
 	case "user5@loco-testing.com":
-		return queries.User{ID: 5, Email: email}, nil
+		return queries.User{ID: user5UUID, Email: email}, nil
 	default:
 		return queries.User{}, tvm.ErrUserNotFound
 	}
 }
 
-func (*TestingQueries) GetUserScopes(ctx context.Context, userID int64) ([]queries.EntityScope, error) {
+func (*TestingQueries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
 	switch userID {
-	case 1:
+	case user1UUID:
 		return []queries.EntityScope{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
+			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
 		}, nil
-	case 2:
+	case user2UUID:
 		return []queries.EntityScope{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: 1},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: 1},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeOrganization, EntityID: 1},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
+			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
+			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
 		}, nil
-	case 3:
+	case user3UUID:
 		return []queries.EntityScope{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: 1},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: 1},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
+			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
 		}, nil
-	case 4:
+	case user4UUID:
 		return []queries.EntityScope{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: 1},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
+			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID},
 		}, nil
-	case 5:
+	case user5UUID:
 		return []queries.EntityScope{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: userID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: 3},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
+			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
+			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
+			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
+			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
 		}, nil
 	default:
 		return nil, tvm.ErrUserNotFound
@@ -89,15 +107,15 @@ func (*TestingQueries) GetUserScopes(ctx context.Context, userID int64) ([]queri
 func (tq *TestingQueries) GetUserScopesByEmail(ctx context.Context, email string) ([]queries.EntityScope, error) {
 	switch email {
 	case "user1@loco-testing.com":
-		return tq.GetUserScopes(ctx, 1)
+		return tq.GetUserScopes(ctx, user1UUID)
 	case "user2@loco-testing.com":
-		return tq.GetUserScopes(ctx, 2)
+		return tq.GetUserScopes(ctx, user2UUID)
 	case "user3@loco-testing.com":
-		return tq.GetUserScopes(ctx, 3)
+		return tq.GetUserScopes(ctx, user3UUID)
 	case "user4@loco-testing.com":
-		return tq.GetUserScopes(ctx, 4)
+		return tq.GetUserScopes(ctx, user4UUID)
 	case "user5@loco-testing.com":
-		return tq.GetUserScopes(ctx, 5)
+		return tq.GetUserScopes(ctx, user5UUID)
 	default:
 		return nil, tvm.ErrUserNotFound
 	}
@@ -123,37 +141,36 @@ func (tq *TestingQueries) GetUserWithScopesByEmail(ctx context.Context, email st
 	}, nil
 }
 
-func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id int64) (int64, error) {
-	switch id {
-	case 1, 2:
-		return 1, nil
-	case 3:
-		return 2, nil
-	default:
-		return 0, tvm.ErrEntityNotFound
+func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	if id == ws1UUID || id == ws2UUID {
+		return org1UUID, nil
 	}
+	if id == ws3UUID {
+		return org2UUID, nil
+	}
+	return uuid.UUID{}, tvm.ErrEntityNotFound
 }
 
-func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id int64) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error) {
-	switch id {
-	case 1:
+func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error) {
+	if id == res1UUID {
 		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
-			WorkspaceID: 1,
-			OrgID:       1,
+			WorkspaceID: ws1UUID,
+			OrgID:       org1UUID,
 		}, nil
-	case 2:
-		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
-			WorkspaceID: 2,
-			OrgID:       1,
-		}, nil
-	case 3:
-		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
-			WorkspaceID: 3,
-			OrgID:       2,
-		}, nil
-	default:
-		return queries.GetWorkspaceOrganizationIDByResourceIDRow{}, tvm.ErrEntityNotFound
 	}
+	if id == res2UUID {
+		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
+			WorkspaceID: ws2UUID,
+			OrgID:       org1UUID,
+		}, nil
+	}
+	if id == res3UUID {
+		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
+			WorkspaceID: ws3UUID,
+			OrgID:       org2UUID,
+		}, nil
+	}
+	return queries.GetWorkspaceOrganizationIDByResourceIDRow{}, tvm.ErrEntityNotFound
 }
 
 func (tq *TestingQueries) StoreToken(ctx context.Context, params queries.StoreTokenParams) error {
@@ -219,7 +236,7 @@ func TestUser1Permissions(t *testing.T) {
 	t.Run("denied org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -230,7 +247,7 @@ func TestUser1Permissions(t *testing.T) {
 	t.Run("denied workspace 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   ws1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -241,7 +258,7 @@ func TestUser1Permissions(t *testing.T) {
 	t.Run("granted self read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   1,
+			EntityID:   user1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -252,7 +269,7 @@ func TestUser1Permissions(t *testing.T) {
 	t.Run("denied other user read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   2,
+			EntityID:   user2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -275,7 +292,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted org 1 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID: org1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != nil {
@@ -286,7 +303,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID: org1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -297,7 +314,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted workspace 2 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   2,
+			EntityID: ws2UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -308,7 +325,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("denied workspace 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID: ws3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -319,7 +336,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("denied org 2 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID: org2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -330,7 +347,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted resource 2 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   2,
+			EntityID: res2UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -341,7 +358,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("denied resource 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID: res3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -364,7 +381,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("granted org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -375,7 +392,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("granted org 1 write", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -386,7 +403,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("denied org 1 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -397,7 +414,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("granted workspace 1 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   ws1UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -408,7 +425,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("granted workspace 2 read via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   2,
+			EntityID:   ws2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -419,7 +436,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("denied workspace 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   ws3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -430,7 +447,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("granted resource 1 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   res1UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -441,7 +458,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("denied resource 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   res3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -452,7 +469,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("denied org 2 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   org2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -475,7 +492,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("granted workspace 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   ws1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -486,7 +503,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied workspace 1 write", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   ws1UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -497,7 +514,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied workspace 1 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   ws1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -508,7 +525,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied workspace 2 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   2,
+			EntityID:   ws2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -519,7 +536,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -530,7 +547,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("granted resource 1 read via workspace 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   res1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -541,7 +558,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied resource 1 write", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   res1UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -552,7 +569,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied resource 2 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   2,
+			EntityID:   res2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -575,7 +592,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted workspace 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   ws3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -586,7 +603,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted workspace 3 write", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   ws3UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -597,7 +614,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted workspace 3 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   ws3UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != nil {
@@ -608,7 +625,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied workspace 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   ws1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -619,7 +636,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -630,7 +647,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied org 2 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   org2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -641,7 +658,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied org 2 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   org2UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -652,7 +669,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied org 1 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -663,7 +680,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted resource 3 read via workspace 3", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   res3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -674,7 +691,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted resource 3 write via workspace 3", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   res3UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -685,7 +702,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted resource 3 admin via workspace 3", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   res3UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != nil {
@@ -696,7 +713,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied resource 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   res1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {

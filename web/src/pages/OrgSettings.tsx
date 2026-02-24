@@ -29,7 +29,7 @@ export function OrgSettings() {
 	const [orgName, setOrgName] = useState("");
 	const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false);
 	const [deleteOrgOpen, setDeleteOrgOpen] = useState(false);
-	const [deleteWorkspaceId, setDeleteWorkspaceId] = useState<bigint | null>(
+	const [deleteWorkspaceId, setDeleteWorkspaceId] = useState<string | null>(
 		null
 	);
 	const [deleteWorkspaceName, setDeleteWorkspaceName] = useState("");
@@ -40,7 +40,7 @@ export function OrgSettings() {
 		refetch,
 	} = useQuery(
 		getOrg,
-		orgId ? { key: { case: "orgId", value: BigInt(orgId) } } : undefined,
+		orgId ? { key: { case: "orgId", value: orgId } } : undefined,
 		{ enabled: !!orgId }
 	);
 
@@ -48,7 +48,7 @@ export function OrgSettings() {
 
 	const { data: workspacesRes, refetch: refetchWorkspaces } = useQuery(
 		listOrgWorkspaces,
-		orgId ? { orgId: BigInt(orgId) } : undefined,
+		orgId ? { orgId } : undefined,
 		{ enabled: !!orgId }
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
@@ -65,7 +65,7 @@ export function OrgSettings() {
 		if (!orgId) return;
 		mutateUpdateOrg(
 			{
-				orgId: BigInt(orgId),
+				orgId,
 				name: orgName,
 			},
 			{
@@ -251,7 +251,7 @@ export function OrgSettings() {
 					<CreateWorkspaceDialog
 						open={createWorkspaceOpen}
 						onOpenChange={setCreateWorkspaceOpen}
-						orgId={BigInt(orgId)}
+						orgId={orgId}
 						onSuccess={() => {
 							refetchWorkspaces();
 						}}
@@ -275,7 +275,7 @@ export function OrgSettings() {
 					<DeleteOrgDialog
 						open={deleteOrgOpen}
 						onOpenChange={setDeleteOrgOpen}
-						orgId={BigInt(orgId)}
+						orgId={orgId}
 						orgName={org.name}
 					/>
 				</>

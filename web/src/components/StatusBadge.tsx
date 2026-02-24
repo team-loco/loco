@@ -13,24 +13,24 @@ interface StatusBadgeProps {
 
 const statusConfig: Record<string, { variant: string; dot: string }> = {
 	running: {
-		variant: "neo-green",
-		dot: "bg-green-900 dark:bg-green-100",
+		variant: "success",
+		dot: "bg-success dark:bg-success",
 	},
 	deploying: {
-		variant: "neo-blue",
-		dot: "bg-blue-900 dark:bg-blue-100",
+		variant: "info",
+		dot: "bg-info dark:bg-info",
 	},
 	stopped: {
-		variant: "neo-gray",
-		dot: "bg-gray-900 dark:bg-gray-100",
+		variant: "secondary",
+		dot: "bg-text-quaternary dark:bg-text-quaternary",
 	},
 	failed: {
-		variant: "neo-red",
-		dot: "bg-red-900 dark:bg-red-100",
+		variant: "error",
+		dot: "bg-error dark:bg-error",
 	},
 	pending: {
-		variant: "neo-orange",
-		dot: "bg-orange-900 dark:bg-orange-100",
+		variant: "warning",
+		dot: "bg-warning dark:bg-warning",
 	},
 };
 

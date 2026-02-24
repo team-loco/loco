@@ -1,15 +1,19 @@
 package db
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Entity struct {
 	Type EntityType // e.g. "user", "resource", "workspace", "organization"
-	ID   int64      // unique identifier for the entity
+	ID   uuid.UUID  // unique identifier for the entity
 }
 
 type EntityScope struct {
 	EntityType EntityType `json:"entity_type"`
-	EntityID   int64      `json:"entity_id"`
+	EntityID   uuid.UUID  `json:"entity_id"`
 	Scope      Scope      `json:"scope"`
 }
 
@@ -25,7 +29,7 @@ const (
 type TokenHead struct {
 	Name       string        `json:"name"`
 	EntityType EntityType    `json:"entity_type"`
-	EntityID   int64         `json:"entity_id"`
+	EntityID   uuid.UUID     `json:"entity_id"`
 	Scopes     []EntityScope `json:"scopes"`
 	ExpiresAt  time.Time     `json:"expires_at"`
 }

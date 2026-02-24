@@ -162,8 +162,8 @@ message ResourceSpec {
 
 // Resource represents a resource in a workspace.
 message Resource {
-  int64 id = 1;
-  int64 workspace_id = 2;
+  string id = 1;
+  string workspace_id = 2;
   string name = 3;
   ResourceType type = 4;
   repeated domain.v1.ResourceDomain domains = 5;
@@ -172,9 +172,10 @@ message Resource {
   optional ResourceSpec spec = 8;
   int32 spec_version = 9;
   optional string description = 10;
-  int64 created_by = 11;
+  string created_by = 11;
   google.protobuf.Timestamp created_at = 12;
   google.protobuf.Timestamp updated_at = 13;
+  string environment_id = 14;
 }
 
 // RegionConfig represents a region deployment intent for a resource.
@@ -189,29 +190,30 @@ message RegionConfig {
 
 // CreateResourceRequest is the request to create a new resource.
 message CreateResourceRequest {
-  int64 workspace_id = 1;
+  string workspace_id = 1;
   string name = 2;
   ResourceType type = 3;
   domain.v1.DomainInput domain = 4;
   ResourceSpec spec = 5;
   optional string description = 6;
+  string environment_id = 7;
 }
 
 // CreateResourceResponse is the response containing the created resource ID.
 message CreateResourceResponse {
-  int64 resource_id = 1;
+  string resource_id = 1;
 }
 
 // GetResourceNameKey is used to lookup a resource by name within a workspace.
 message GetResourceNameKey {
-  int64 workspace_id = 1;
+  string workspace_id = 1;
   string name = 2;
 }
 
 // GetResourceRequest is the request to retrieve a resource.
 message GetResourceRequest {
   oneof key {
-    int64 resource_id = 1;
+    string resource_id = 1;
     GetResourceNameKey name_key = 2;
   }
 }
@@ -223,7 +225,7 @@ message GetResourceResponse {
 
 // ListWorkspaceResourcesRequest is the request to list resources.
 message ListWorkspaceResourcesRequest {
-  int64 workspace_id = 1;
+  string workspace_id = 1;
   int32 page_size = 2; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
@@ -236,7 +238,7 @@ message ListWorkspaceResourcesResponse {
 
 // UpdateResourceRequest is the request to update a resource.
 message UpdateResourceRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
   google.protobuf.FieldMask update_mask = 2;
   optional string name = 3;
   optional string description = 4;
@@ -244,12 +246,12 @@ message UpdateResourceRequest {
 
 // UpdateResourceResponse is the response containing the updated resource ID.
 message UpdateResourceResponse {
-  int64 resource_id = 1;
+  string resource_id = 1;
 }
 
 // DeleteResourceRequest is the request to delete a resource.
 message DeleteResourceRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
 }
 
 // DeleteResourceResponse is the response after deleting a resource.
@@ -272,12 +274,12 @@ message ListRegionsResponse {
 
 // GetResourceStatusRequest is the request to retrieve resource status.
 message GetResourceStatusRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
 }
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
 message DeploymentStatus {
-  int64 id = 1;
+  string id = 1;
   deployment.v1.DeploymentPhase status = 2;
   int32 replicas = 3;
   optional string message = 4;
@@ -293,7 +295,7 @@ message GetResourceStatusResponse {
 
 // WatchLogsRequest is the request to stream resource logs.
 message WatchLogsRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
   optional int32 limit = 2;
   optional bool follow = 3;
 }
@@ -321,7 +323,7 @@ message Event {
 
 // ListResourceEventsRequest is the request to retrieve resource events.
 message ListResourceEventsRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
   optional int32 limit = 2; // max number of events to return
 }
 
@@ -334,7 +336,7 @@ message ListResourceEventsResponse {
 
 // ScaleResourceRequest is the request to scale a resource.
 message ScaleResourceRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
   optional int32 replicas = 2;
   optional string cpu = 3;
   optional string memory = 4;
@@ -346,7 +348,7 @@ message ScaleResourceResponse {}
 
 // UpdateResourceEnvRequest is the request to update resource environment variables.
 message UpdateResourceEnvRequest {
-  int64 resource_id = 1;
+  string resource_id = 1;
   map<string, string> env = 2;
   optional string region = 3; // if provided, update only this region; otherwise update all regions
 }

@@ -1,6 +1,6 @@
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     external_id TEXT UNIQUE NOT NULL,          -- provider:id format (e.g., github:nikumar1206)
     email TEXT UNIQUE NOT NULL,
     name TEXT,
@@ -15,9 +15,9 @@ CREATE INDEX IF NOT EXISTS idx_users_created_at_id_desc ON users (created_at DES
 
 -- Organizations table
 CREATE TABLE IF NOT EXISTS organizations (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     name TEXT UNIQUE NOT NULL,                 -- Globally unique org name
-    created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -28,8 +28,8 @@ CREATE INDEX IF NOT EXISTS idx_organizations_created_at_id_desc ON organizations
 
 -- Organization members table
 CREATE TABLE IF NOT EXISTS organization_members (
-    organization_id BIGINT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (organization_id, user_id)
 );
@@ -38,11 +38,11 @@ CREATE INDEX IF NOT EXISTS idx_organization_members_user_id ON organization_memb
 
 -- Workspaces table
 CREATE TABLE IF NOT EXISTS workspaces (
-    id BIGSERIAL PRIMARY KEY,
-    org_id BIGINT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     description TEXT,
-    created_by BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (org_id, name)
@@ -58,8 +58,8 @@ CREATE TYPE workspace_role AS ENUM ('admin', 'deploy', 'read');
 
 -- Workspace members table
 CREATE TABLE IF NOT EXISTS workspace_members (
-    workspace_id BIGINT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role workspace_role NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (workspace_id, user_id)

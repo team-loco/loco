@@ -95,10 +95,13 @@ type ApplicationSpec struct {
 
 	// Type indicates the resource type (SERVICE, DATABASE, CACHE, QUEUE, BLOB)
 	// Only the corresponding TypeSpec field should be populated
-	Type        string `json:"type"`                 // SERVICE, DATABASE, CACHE, QUEUE, BLOB
-	ResourceId  int64  `json:"resourceId,omitempty"` // optional
-	WorkspaceId int64  `json:"workspaceId,omitempty"`
-	Region      string `json:"region,omitempty"`
+	Type            string `json:"type"`                         // SERVICE, DATABASE, CACHE, QUEUE, BLOB
+	ResourceId      string `json:"resourceId,omitempty"`         // UUIDv7 as string
+	WorkspaceId     string `json:"workspaceId,omitempty"`        // UUIDv7 as string
+	Region          string `json:"region,omitempty"`
+	EnvironmentId   string `json:"environmentId,omitempty"`      // UUIDv7 as string
+	EnvironmentName string `json:"environmentName,omitempty"`    // e.g. "production", "staging"
+	DeploymentId    string `json:"deploymentId,omitempty"`       // UUIDv7 as string
 
 	// Type-specific specs (only one populated based on Type)
 	ServiceSpec  *ServiceSpec  `json:"serviceSpec,omitempty"`

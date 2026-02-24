@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package loco.observability.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/proto/loco/observability/v1;observabilityv1";
+
+// ObservabilityAccessService runs on the control plane.
+// It mints short-lived tokens and returns regional proxy endpoints.
+service ObservabilityAccessService {
+  // GetObservabilityAccess mints a short-lived token scoped to a workspace and optional
+  // resource set, and returns the regional proxy endpoints the client should connect to.
+  rpc GetObservabilityAccess(GetObservabilityAccessRequest) returns (GetObservabilityAccessResponse);
+
+  // ValidateObservabilityToken is called by the observability proxy to validate a token
+  // received from a client. This endpoint is authenticated with a proxy auth token
+  // (similar to agent token) and is NOT intended for end users.
+  rpc ValidateObservabilityToken(ValidateObservabilityTokenRequest) returns (ValidateObservabilityTokenResponse);
+}
+
+message GetObservabilityAccessRequest {
+  string workspace_id = 1;
+  // Optional: restrict to specific resources. Empty means all resources in workspace.
+  repeated string resource_ids = 2;
+}
+
+message GetObservabilityAccessResponse {
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  repeated ClusterAccess clusters = 3;
+}
+
+message ClusterAccess {
+  int64 cluster_id = 1;
+  string proxy_url = 2;
+  string region = 3;
+}
+
+message ValidateObservabilityTokenRequest {
+  string token = 1;
+}
+
+message ValidateObservabilityTokenResponse {
+  string workspace_id = 1;
+  repeated string resource_ids = 2;
+  repeated string scopes = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}

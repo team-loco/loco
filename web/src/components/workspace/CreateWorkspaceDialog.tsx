@@ -21,8 +21,8 @@ import Loader from "@/assets/loader.svg?react";
 interface CreateWorkspaceDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	orgId: bigint;
-	onSuccess?: (workspaceId: bigint) => void;
+	orgId: string;
+	onSuccess?: (workspaceId: string) => void;
 }
 
 export function CreateWorkspaceDialog({

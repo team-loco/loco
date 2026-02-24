@@ -58,3 +58,5 @@ func (tvm *VendingMachine) Close() {
 		tvm.cancelFunc()
 	}
 }
+
+

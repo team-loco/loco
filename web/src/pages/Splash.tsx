@@ -1,17 +1,10 @@
-import { Button } from "@/components/ui/button";
 import { LoginModal } from "@/components/LoginModal";
-import {
-	NavigationMenu,
-	NavigationMenuContent,
-	NavigationMenuItem,
-	NavigationMenuLink,
-	NavigationMenuList,
-	NavigationMenuTrigger,
-} from "@/components/ui/navigation-menu";
-import { Cloud, Gauge, Network, Rocket, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
 import { useAuth } from "@/auth/AuthProvider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useState, useMemo } from "react";
+import { Cloud, Gauge, Network, Rocket, TrendingUp } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
 export function Splash() {
@@ -41,69 +34,34 @@ export function Splash() {
 						</div>
 
 						{/* Navigation */}
-						<NavigationMenu className="hidden lg:flex">
-							<NavigationMenuList>
-								<NavigationMenuItem>
-									<NavigationMenuTrigger className="bg-transparent hover:bg-transparent data-[state=open]:bg-transparent text-sm">
-										Product
-									</NavigationMenuTrigger>
-									<NavigationMenuContent>
-										<ul className="grid w-[320px] gap-2 p-4 border-2 border-black rounded-lg bg-card shadow-[4px_4px_0px_0px_#000] dark:border-neutral-700">
-											<li>
-												<NavigationMenuLink asChild>
-													<a
-														href="#features"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
-													>
-														<div className="text-sm font-medium">Features</div>
-													</a>
-												</NavigationMenuLink>
-											</li>
-											<li>
-												<NavigationMenuLink asChild>
-													<a
-														href="#"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
-													>
-														<div className="text-sm font-medium">Pricing</div>
-													</a>
-												</NavigationMenuLink>
-											</li>
-										</ul>
-									</NavigationMenuContent>
-								</NavigationMenuItem>
-								<NavigationMenuItem>
-									<NavigationMenuTrigger className="bg-transparent hover:bg-transparent data-[state=open]:bg-transparent text-sm">
-										Resources
-									</NavigationMenuTrigger>
-									<NavigationMenuContent>
-										<ul className="grid w-[320px] gap-2 p-4 border-2 border-black rounded-lg bg-card shadow-[4px_4px_0px_0px_#000] dark:border-neutral-700">
-											<li>
-												<NavigationMenuLink asChild>
-													<a
-														href="https://github.com/team-loco/loco"
-														target="_blank"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
-													>
-														<div className="text-sm font-medium">GitHub</div>
-													</a>
-												</NavigationMenuLink>
-											</li>
-											<li>
-												<NavigationMenuLink asChild>
-													<a
-														href="#"
-														className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-all hover:bg-primary/10 hover:border-2 hover:border-black focus-visible:bg-accent focus-visible:text-accent-foreground"
-													>
-														<div className="text-sm font-medium">Docs</div>
-													</a>
-												</NavigationMenuLink>
-											</li>
-										</ul>
-									</NavigationMenuContent>
-								</NavigationMenuItem>
-							</NavigationMenuList>
-						</NavigationMenu>
+						<nav className="hidden lg:flex items-center gap-6">
+							<a
+								href="#features"
+								className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+							>
+								Features
+							</a>
+							<a
+								href="#"
+								className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+							>
+								Pricing
+							</a>
+							<a
+								href="#"
+								className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+							>
+								Docs
+							</a>
+							<a
+								href="https://github.com/team-loco/loco"
+								target="_blank"
+								rel="noreferrer"
+								className="text-sm font-medium text-foreground/80 hover:text-foreground transition-colors"
+							>
+								GitHub
+							</a>
+						</nav>
 
 						{/* Right Actions */}
 						<div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -177,7 +135,7 @@ export function Splash() {
 							</Button>
 							<Button
 								size="lg"
-								className="bg-white text-black border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:opacity-90 active:translate-x-1 active:translate-y-1 active:shadow-none"
+								variant="outline"
 								asChild
 							>
 								<a href="#features">Learn More</a>

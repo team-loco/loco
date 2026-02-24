@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -60,8 +61,8 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateOrg, entity.ID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create org", "entityId", entity.ID, "entityType", entity.Type, "entityScopes", ctx.Value(contextkeys.EntityScopesKey))
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateOrg, entity.ID.String())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create org", "entityId", entity.ID.String(), "entityType", entity.Type, "entityScopes", ctx.Value(contextkeys.EntityScopesKey))
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
@@ -104,18 +105,28 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	err = s.machine.UpdateRoles(ctx, entity.ID, []genDb.EntityScope{
+	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", org.ID, "userId", entity.ID)
+		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", org.ID.String(), "userId", entity.ID.String())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
+		OrgID:        org.ID,
+		Name:         "production",
+		IsProduction: true,
+		CreatedBy:    entity.ID,
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to create production environment for new org", "error", err, "orgId", org.ID.String())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&orgv1.CreateOrgResponse{
-		OrgId: org.ID,
+		OrgId: org.ID.String(),
 	}), nil
 }
 
@@ -131,7 +142,12 @@ func (s *OrgServer) GetOrg(
 
 	switch key := r.GetKey().(type) {
 	case *orgv1.GetOrgRequest_OrgId:
-		org, err = s.queries.GetOrgByID(ctx, key.OrgId)
+		orgId, err := uuid.Parse(key.OrgId)
+		if err != nil {
+			slog.ErrorContext(ctx, "invalid org id", "error", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
+		}
+		org, err = s.queries.GetOrgByID(ctx, orgId)
 	case *orgv1.GetOrgRequest_OrgName:
 		org, err = s.queries.GetOrgByName(ctx, key.OrgName)
 	default:
@@ -149,16 +165,16 @@ func (s *OrgServer) GetOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetOrg, org.ID)); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID)
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetOrg, org.ID.String())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID.String())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	return connect.NewResponse(&orgv1.GetOrgResponse{
 		Organization: &orgv1.Organization{
-			Id:        org.ID,
+			Id:        org.ID.String(),
 			Name:      org.Name,
-			CreatedBy: org.CreatedBy,
+			CreatedBy: org.CreatedBy.String(),
 			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
 			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
 		},
@@ -192,13 +208,19 @@ func (s *OrgServer) ListUserOrgs(
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
 		pageToken = pgtype.Text{
-			String: fmt.Sprintf("%d", cursorID),
+			String: cursorID,
 			Valid:  true,
 		}
 	}
 
+	userId, err := uuid.Parse(r.GetUserId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid user id", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
+	}
+
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
-		UserID:    r.GetUserId(),
+		UserID:    userId,
 		Limit:     pageSize,
 		PageToken: pageToken,
 	})
@@ -210,9 +232,9 @@ func (s *OrgServer) ListUserOrgs(
 	var orgResponses []*orgv1.Organization
 	for _, org := range orgs {
 		orgResponses = append(orgResponses, &orgv1.Organization{
-			Id:        org.ID,
+			Id:        org.ID.String(),
 			Name:      org.Name,
-			CreatedBy: org.CreatedBy,
+			CreatedBy: org.CreatedBy.String(),
 			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
 			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
 		})
@@ -220,7 +242,7 @@ func (s *OrgServer) ListUserOrgs(
 
 	var nextPageToken string
 	if len(orgs) == int(pageSize) {
-		nextPageToken = encodeCursor(orgs[len(orgs)-1].ID)
+		nextPageToken = encodeCursor(orgs[len(orgs)-1].ID.String())
 	}
 
 	return connect.NewResponse(&orgv1.ListUserOrgsResponse{
@@ -256,14 +278,20 @@ func (s *OrgServer) UpdateOrg(
 
 		if !isUnique {
 			existingOrg, err := s.queries.GetOrgByName(ctx, r.GetName())
-			if err != nil || existingOrg.ID != r.GetOrgId() {
+			if err != nil || existingOrg.ID.String() != r.GetOrgId() {
 				slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
 				return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 			}
 		}
 
+		parsed, err := uuid.Parse(r.GetOrgId())
+		if err != nil {
+			slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
+		}
+
 		_, err = s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-			ID:   r.GetOrgId(),
+			ID:   parsed,
 			Name: r.GetName(),
 		})
 		if err != nil {
@@ -295,7 +323,13 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, r.GetOrgId())
+	orgId, err := uuid.Parse(r.GetOrgId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
+	}
+
+	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for resources in workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -306,7 +340,7 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
 	}
 
-	err = s.queries.DeleteOrg(ctx, r.GetOrgId())
+	err = s.queries.DeleteOrg(ctx, orgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete org", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -356,14 +390,20 @@ func (s *OrgServer) ListOrgWorkspaces(
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
 		pageToken = pgtype.Text{
-			String: fmt.Sprintf("%d", cursorID),
+			String: cursorID,
 			Valid:  true,
 		}
 	}
 
 	// Get workspaces for org
+	orgId, err := uuid.Parse(r.GetOrgId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
+	}
+
 	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
-		OrgID:     r.GetOrgId(),
+		OrgID:     orgId,
 		Limit:     pageSize,
 		PageToken: pageToken,
 	})
@@ -375,16 +415,16 @@ func (s *OrgServer) ListOrgWorkspaces(
 	workspaceSummaries := make([]*orgv1.WorkspaceSummary, len(workspaces))
 	for i, ws := range workspaces {
 		workspaceSummaries[i] = &orgv1.WorkspaceSummary{
-			Id:        ws.ID,
+			Id:        ws.ID.String(),
 			Name:      ws.Name,
-			CreatedBy: ws.CreatedBy,
+			CreatedBy: ws.CreatedBy.String(),
 			CreatedAt: timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
 		}
 	}
 
 	var nextPageToken string
 	if len(workspaces) == int(pageSize) {
-		nextPageToken = encodeCursor(workspaces[len(workspaces)-1].ID)
+		nextPageToken = encodeCursor(workspaces[len(workspaces)-1].ID.String())
 	}
 
 	return connect.NewResponse(&orgv1.ListOrgWorkspacesResponse{

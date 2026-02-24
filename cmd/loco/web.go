@@ -34,7 +34,7 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 
 	// Load config to get current org/workspace for workspace-scoped routes
 	cfg, cfgErr := session.Load()
-	var orgID, workspaceID int64
+	var orgID, workspaceID string
 	if cfgErr == nil {
 		if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
 			orgID = scope.Organization.ID
@@ -114,9 +114,9 @@ func init() {
 	webCmd.Flags().String("host", "", "Set the host URL")
 }
 
-func buildWorkspacePath(orgID, workspaceID int64, subpath string) string {
-	if orgID == 0 || workspaceID == 0 {
+func buildWorkspacePath(orgID, workspaceID string, subpath string) string {
+	if orgID == "" || workspaceID == "" {
 		return "/dashboard"
 	}
-	return fmt.Sprintf("/org/%d/wks/%d%s", orgID, workspaceID, subpath)
+	return fmt.Sprintf("/org/%s/wks/%s%s", orgID, workspaceID, subpath)
 }

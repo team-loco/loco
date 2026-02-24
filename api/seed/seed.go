@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/gen/db"
@@ -35,6 +36,13 @@ import (
 
 var specExample, _ = os.ReadFile("spec_example.json")
 
+var globalTestData struct {
+	UserIDs      []uuid.UUID
+	OrgIDs       []uuid.UUID
+	WorkspaceIDs []uuid.UUID
+	ResourceIDs  []uuid.UUID
+}
+
 func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) error {
 	// run migrations
 	if err := runMigrations(ctx, pool, migrationFiles); err != nil {
@@ -50,17 +58,17 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	q := queries.New(tx)
 
 	// perform seeding operations here
-	var userIDs []int64     // len 5
-	var orgIDs []int64      // len 2
-	var wksIDs []int64      // len 4
-	var resourceIds []int64 // len 6
+	var userIDs []uuid.UUID     // len 6
+	var orgIDs []uuid.UUID      // len 2
+	var wksIDs []uuid.UUID      // len 4
+	var resourceIds []uuid.UUID // len 6
 	if userIDs, err = seedUsers(ctx, q); err != nil {
 		return err
 	}
 	if orgIDs, err = seedOrganizations(ctx, q, userIDs); err != nil {
 		return err
 	}
-	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs); err != nil {
+	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
 		return err
 	}
 	if resourceIds, err = seedResources(ctx, q, wksIDs); err != nil {
@@ -69,6 +77,13 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, resourceIds, userIDs); err != nil {
 		return err
 	}
+
+	// store for test functions
+	globalTestData.UserIDs = userIDs
+	globalTestData.OrgIDs = orgIDs
+	globalTestData.WorkspaceIDs = wksIDs
+	globalTestData.ResourceIDs = resourceIds
+
 	return tx.Commit(ctx)
 }
 
@@ -97,8 +112,8 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool, filepaths []string) 
 	return tx.Commit(ctx)
 }
 
-func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
-	var userIDs []int64
+func seedUsers(ctx context.Context, queries *db.Queries) ([]uuid.UUID, error) {
+	var userIDs []uuid.UUID
 	if user1, err := queries.CreateUser(ctx, db.CreateUserParams{
 		Name:       opttext("The First"),
 		Email:      "user1@example.com",
@@ -162,8 +177,8 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]int64, error) {
 	return userIDs, nil
 }
 
-func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []int64) ([]int64, error) {
-	var orgIDs []int64
+func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	var orgIDs []uuid.UUID
 
 	if org1, err := queries.CreateOrganization(ctx, db.CreateOrganizationParams{
 		Name:      "Alpha Org",
@@ -186,13 +201,14 @@ func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []int64
 	return orgIDs, nil
 }
 
-func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64) ([]int64, error) {
-	var wksIDs []int64
+func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	var wksIDs []uuid.UUID
 
 	if wks1, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
 		OrgID:       orgIDs[0], // org 1
 		Name:        "Workspace One",
 		Description: opttext("alpha org's first workspace"),
+		CreatedBy:   userIDs[0], // user 1 created wks 1
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 1: %w", err)
 	} else {
@@ -203,6 +219,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64) ([
 		OrgID:       orgIDs[0], // org 1
 		Name:        "Workspace Two",
 		Description: opttext("alpha org's second workspace"),
+		CreatedBy:   userIDs[0], // user 1 created wks 2
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 2: %w", err)
 	} else {
@@ -213,6 +230,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64) ([
 		OrgID:       orgIDs[1], // org 2
 		Name:        "Workspace Three",
 		Description: opttext("beta org's first workspace"),
+		CreatedBy:   userIDs[1], // user 2 created wks 3
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 3: %w", err)
 	} else {
@@ -223,6 +241,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64) ([
 		OrgID:       orgIDs[1], // org 2
 		Name:        "Workspace Four",
 		Description: opttext("beta org's second workspace"),
+		CreatedBy:   userIDs[1], // user 2 created wks 4
 	}); err != nil {
 		return nil, fmt.Errorf("creating wks 4: %w", err)
 	} else {
@@ -232,8 +251,8 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []int64) ([
 	return wksIDs, nil
 }
 
-func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64) ([]int64, error) {
-	var resourceIds []int64
+func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID) ([]uuid.UUID, error) {
+	var resourceIds []uuid.UUID
 
 	if resource1Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],              // wks 1
@@ -322,7 +341,7 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []int64) ([]
 	return resourceIds, nil
 }
 
-func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, resourceIds, userIDs []int64) error {
+func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, resourceIds, userIDs []uuid.UUID) error {
 	// user 1: org 1 r/w/a
 	user1Scopes := []db.AddUserScopeParams{
 		{
@@ -577,7 +596,7 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, re
 	for _, scope := range allScopes {
 		if err := queries.AddUserScope(ctx, scope); err != nil {
 			// addiing organization_1:read for user with id 1: bla bla bla
-			return fmt.Errorf("adding %s_%d:%s for user with id %d: %w", scope.EntityType, scope.EntityID, scope.Scope, scope.UserID, err)
+			return fmt.Errorf("adding %s_%v:%s for user with id %v: %w", scope.EntityType, scope.EntityID, scope.Scope, scope.UserID, err)
 		}
 	}
 	return nil
@@ -658,11 +677,11 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
 
-	fmt.Printf("\n=== Testing User 1 (ID: %d) - org 1 r/w/a ===\n", user.ID)
+	fmt.Printf("\n=== Testing User 1 (ID: %s) - org 1 r/w/a ===\n", user.ID.String())
 
 	subtest(ctx, "exchange successful", func(ctx context.Context) error {
-		if user.ID != 1 {
-			return fmt.Errorf("expected user ID 1, got %d", user.ID)
+		if user.ID != globalTestData.UserIDs[0] {
+			return fmt.Errorf("expected user ID %s, got %s", globalTestData.UserIDs[0].String(), user.ID.String())
 		}
 		if token == "" {
 			return fmt.Errorf("token is empty")
@@ -674,7 +693,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 1 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -682,7 +701,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 1 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -690,7 +709,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 1 admin", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeAdmin,
 		})
 	})
@@ -699,7 +718,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 2 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -712,7 +731,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 1 read via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -720,7 +739,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 1 write via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -728,7 +747,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 2 admin via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   2,
+			EntityID:   globalTestData.WorkspaceIDs[1],
 			Scope:      queries.ScopeAdmin,
 		})
 	})
@@ -737,7 +756,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -750,7 +769,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 1 read via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   globalTestData.ResourceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -758,7 +777,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 2 write via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   2,
+			EntityID:   globalTestData.ResourceIDs[1],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -767,7 +786,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted self read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   1,
+			EntityID:   globalTestData.UserIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -775,7 +794,7 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied other user read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   2,
+			EntityID:   globalTestData.UserIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -800,11 +819,11 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
 
-	fmt.Printf("\n=== Testing User 2 (ID: %d) - org 2 r/w/a ===\n", user.ID)
+	fmt.Printf("\n=== Testing User 2 (ID: %s) - org 2 r/w/a ===\n", user.ID.String())
 
 	subtest(ctx, "exchange successful", func(ctx context.Context) error {
-		if user.ID != 2 {
-			return fmt.Errorf("expected user ID 2, got %d", user.ID)
+		if user.ID != globalTestData.UserIDs[1] {
+			return fmt.Errorf("expected user ID %s, got %s", globalTestData.UserIDs[1].String(), user.ID.String())
 		}
 		if token == "" {
 			return fmt.Errorf("token is empty")
@@ -816,7 +835,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 2 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -824,7 +843,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 2 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -832,7 +851,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 2 admin", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeAdmin,
 		})
 	})
@@ -841,7 +860,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -854,7 +873,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 3 read via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -862,7 +881,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 3 write via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -870,7 +889,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 3 admin via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeAdmin,
 		})
 	})
@@ -879,7 +898,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -892,7 +911,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 5 admin via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeAdmin,
 		})
 	})
@@ -900,7 +919,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 6 write via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   6,
+			EntityID:   globalTestData.ResourceIDs[5],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -909,7 +928,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   globalTestData.ResourceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -921,7 +940,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   globalTestData.ResourceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -934,7 +953,7 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted self read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   2,
+			EntityID:   globalTestData.UserIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -955,11 +974,11 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
 
-	fmt.Printf("\n=== Testing User 3 (ID: %d) - org 1&2 r/w, resource 1&3 r/w/a ===\n", user.ID)
+	fmt.Printf("\n=== Testing User 3 (ID: %s) - org 1&2 r/w, resource 1&3 r/w/a ===\n", user.ID.String())
 
 	subtest(ctx, "exchange successful", func(ctx context.Context) error {
-		if user.ID != 3 {
-			return fmt.Errorf("expected user ID 3, got %d", user.ID)
+		if user.ID != globalTestData.UserIDs[2] {
+			return fmt.Errorf("expected user ID %s, got %s", globalTestData.UserIDs[2].String(), user.ID.String())
 		}
 		if token == "" {
 			return fmt.Errorf("token is empty")
@@ -971,7 +990,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 1 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -979,7 +998,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 1 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -987,7 +1006,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 1 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1000,7 +1019,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 2 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1008,7 +1027,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted org 2 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1016,7 +1035,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 2 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1029,7 +1048,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 1 read via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1037,7 +1056,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 1 write via org 1", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1045,7 +1064,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 1 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1057,7 +1076,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 3 read via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1065,7 +1084,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 3 write via org 2", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1074,7 +1093,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 1 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   globalTestData.ResourceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1082,7 +1101,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 1 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   globalTestData.ResourceIDs[0],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1090,7 +1109,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 1 admin", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   globalTestData.ResourceIDs[0],
 			Scope:      queries.ScopeAdmin,
 		})
 	})
@@ -1098,7 +1117,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 2 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   2,
+			EntityID:   globalTestData.ResourceIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1106,7 +1125,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 2 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   2,
+			EntityID:   globalTestData.ResourceIDs[1],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1114,7 +1133,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 2 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   2,
+			EntityID:   globalTestData.ResourceIDs[1],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1126,7 +1145,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 3 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   globalTestData.ResourceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1134,7 +1153,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 3 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   globalTestData.ResourceIDs[2],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1142,7 +1161,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 3 admin", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   globalTestData.ResourceIDs[2],
 			Scope:      queries.ScopeAdmin,
 		})
 	})
@@ -1150,7 +1169,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 4 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   4,
+			EntityID:   globalTestData.ResourceIDs[3],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1158,7 +1177,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 4 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   4,
+			EntityID:   globalTestData.ResourceIDs[3],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1166,7 +1185,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 4 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   4,
+			EntityID:   globalTestData.ResourceIDs[3],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1178,7 +1197,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 5 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1186,7 +1205,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 5 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1194,7 +1213,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 5 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1206,7 +1225,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 6 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   6,
+			EntityID:   globalTestData.ResourceIDs[5],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1214,7 +1233,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 6 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   6,
+			EntityID:   globalTestData.ResourceIDs[5],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1222,7 +1241,7 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 6 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   6,
+			EntityID:   globalTestData.ResourceIDs[5],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1247,11 +1266,11 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
 
-	fmt.Printf("\n=== Testing User 4 (ID: %d) - wks 3 r/w ===\n", user.ID)
+	fmt.Printf("\n=== Testing User 4 (ID: %s) - wks 3 r/w ===\n", user.ID.String())
 
 	subtest(ctx, "exchange successful", func(ctx context.Context) error {
-		if user.ID != 4 {
-			return fmt.Errorf("expected user ID 4, got %d", user.ID)
+		if user.ID != globalTestData.UserIDs[3] {
+			return fmt.Errorf("expected user ID %s, got %s", globalTestData.UserIDs[3].String(), user.ID.String())
 		}
 		if token == "" {
 			return fmt.Errorf("token is empty")
@@ -1263,7 +1282,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 3 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1271,7 +1290,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted workspace 3 write", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeWrite,
 		})
 	})
@@ -1279,7 +1298,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 3 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1292,7 +1311,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1304,7 +1323,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 2 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   2,
+			EntityID:   globalTestData.WorkspaceIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1317,7 +1336,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1329,7 +1348,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 2 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1342,21 +1361,21 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 5 read via workspace 3", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeRead,
 		})
 	})
 	subtest(ctx, "granted resource 5 write via workspace 3", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeWrite,
 		})
 	})
 	subtest(ctx, "denied resource 5 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1368,7 +1387,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   globalTestData.ResourceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1379,7 +1398,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 3 write via workspace 3", func(ctx context.Context) error {
 		if err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   globalTestData.ResourceIDs[2],
 			Scope:      queries.ScopeWrite,
 		}); err != tvm.ErrInsufficentPermissions {
 			return fmt.Errorf("expected insufficient permissions, got: %v", err)
@@ -1390,7 +1409,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   globalTestData.ResourceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1403,7 +1422,7 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted self read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   4,
+			EntityID:   globalTestData.UserIDs[3],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1424,11 +1443,11 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
 
-	fmt.Printf("\n=== Testing User 5 (ID: %d) - resource 5&6 r ===\n", user.ID)
+	fmt.Printf("\n=== Testing User 5 (ID: %s) - resource 5&6 r ===\n", user.ID.String())
 
 	subtest(ctx, "exchange successful", func(ctx context.Context) error {
-		if user.ID != 5 {
-			return fmt.Errorf("expected user ID 5, got %d", user.ID)
+		if user.ID != globalTestData.UserIDs[4] {
+			return fmt.Errorf("expected user ID %s, got %s", globalTestData.UserIDs[4].String(), user.ID.String())
 		}
 		if token == "" {
 			return fmt.Errorf("token is empty")
@@ -1440,7 +1459,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 5 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1448,7 +1467,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 5 write", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeWrite,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1460,7 +1479,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 5 admin", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   5,
+			EntityID:   globalTestData.ResourceIDs[4],
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1473,7 +1492,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted resource 6 read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   6,
+			EntityID:   globalTestData.ResourceIDs[5],
 			Scope:      queries.ScopeRead,
 		})
 	})
@@ -1481,7 +1500,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 6 write", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   6,
+			EntityID:   globalTestData.ResourceIDs[5],
 			Scope:      queries.ScopeWrite,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1494,7 +1513,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   1,
+			EntityID:   globalTestData.ResourceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1506,7 +1525,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 2 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   2,
+			EntityID:   globalTestData.ResourceIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1518,7 +1537,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied resource 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID:   3,
+			EntityID:   globalTestData.ResourceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1531,7 +1550,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   1,
+			EntityID:   globalTestData.OrgIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1543,7 +1562,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied org 2 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   2,
+			EntityID:   globalTestData.OrgIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1556,7 +1575,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 1 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   1,
+			EntityID:   globalTestData.WorkspaceIDs[0],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1568,7 +1587,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 2 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   2,
+			EntityID:   globalTestData.WorkspaceIDs[1],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1580,7 +1599,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "denied workspace 3 read", func(ctx context.Context) error {
 		err := machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   3,
+			EntityID:   globalTestData.WorkspaceIDs[2],
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -1593,7 +1612,7 @@ func tvmtestuser5(pool *pgxpool.Pool) error {
 	subtest(ctx, "granted self read", func(ctx context.Context) error {
 		return machine.Verify(ctx, token, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   5,
+			EntityID:   globalTestData.UserIDs[4],
 			Scope:      queries.ScopeRead,
 		})
 	})
