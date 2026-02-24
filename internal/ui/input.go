@@ -3,8 +3,8 @@ package ui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 )
 
 type inputModel struct {
@@ -29,9 +29,9 @@ func (m inputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEnter, tea.KeyCtrlC, tea.KeyEsc:
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case "enter", "ctrl+c", "esc":
 			return m, tea.Quit
 		}
 	}
@@ -40,12 +40,12 @@ func (m inputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m inputModel) View() string {
-	return fmt.Sprintf(
+func (m inputModel) View() tea.View {
+	return tea.NewView(fmt.Sprintf(
 		"%s\n\n%s",
 		m.textInput.View(),
 		"(esc to quit)",
-	)
+	))
 }
 
 func AskForString(prompt string) (string, error) {

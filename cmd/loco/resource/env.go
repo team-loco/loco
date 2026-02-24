@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"

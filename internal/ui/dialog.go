@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 type YesNoModel struct {
@@ -21,7 +21,7 @@ func (m YesNoModel) Init() tea.Cmd {
 
 func (m YesNoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "y", "Y":
 			m.Choice = "yes"
@@ -36,11 +36,11 @@ func (m YesNoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m YesNoModel) View() string {
+func (m YesNoModel) View() tea.View {
 	if m.Choice == "" {
-		return fmt.Sprintf("%s (y/n): ", m.Question)
+		return tea.NewView(fmt.Sprintf("%s (y/n): ", m.Question))
 	}
-	return ""
+	return tea.NewView("")
 }
 
 func AskYesNo(question string) (bool, error) {
