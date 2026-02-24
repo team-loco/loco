@@ -30,10 +30,10 @@ message ExchangeOAuthTokenRequest {
 
 // ExchangeOAuthTokenResponse contains the Loco token and user info from OAuth token exchange.
 message ExchangeOAuthTokenResponse {
-   string loco_token = 1;
-   int64 expires_in = 2; // seconds
-   string user_id = 3;
-   string name = 4;
+  string loco_token = 1;
+  int64 expires_in = 2; // seconds
+  string user_id = 3;
+  string name = 4;
 }
 
 // GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
@@ -59,9 +59,9 @@ message ExchangeOAuthCodeRequest {
 
 // ExchangeOAuthCodeResponse contains the Loco token and user info from OAuth code exchange.
 message ExchangeOAuthCodeResponse {
-   int64 expires_in = 1;
-   string user_id = 2;
-   string name = 3;
+  int64 expires_in = 1;
+  string user_id = 2;
+  string name = 3;
 }
 
 // OAuthService handles OAuth authentication flows.
