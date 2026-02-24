@@ -29,7 +29,9 @@ import (
 	"github.com/team-loco/loco/proto/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
+	environmentv1connect "github.com/team-loco/loco/proto/loco/environment/v1/environmentv1connect"
 	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
+	"github.com/team-loco/loco/proto/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/proto/loco/org/v1/orgv1connect"
 	"github.com/team-loco/loco/proto/loco/registry/v1/registryv1connect"
 	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
@@ -116,6 +118,7 @@ func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cach
 }
 
 func withCORS(baseDomain string) func(http.Handler) http.Handler {
+	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id")
 	return func(h http.Handler) http.Handler {
 		middleware := cors.New(cors.Options{
 			AllowOriginFunc: func(origin string) bool {
@@ -127,7 +130,7 @@ func withCORS(baseDomain string) func(http.Handler) http.Handler {
 			},
 			AllowedMethods:   connectcors.AllowedMethods(),
 			AllowedHeaders:   connectcors.AllowedHeaders(),
-			ExposedHeaders:   connectcors.ExposedHeaders(),
+			ExposedHeaders:   exposedHeaders,
 			AllowCredentials: true,
 		})
 		return middleware.Handler(h)
@@ -212,6 +215,8 @@ func main() {
 	)
 
 	agentServiceHandler := service.NewAgentServer(pool, queries, cmdBus)
+	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
+	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, interceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, interceptors)
@@ -223,6 +228,8 @@ func main() {
 	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, interceptors)
 	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
 	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler)
+	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(observabilityAccessHandler, interceptors)
+	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(environmentServiceHandler, interceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
 		// oauth service
@@ -299,6 +306,17 @@ func main() {
 		agentv1connect.AgentServiceCommandStreamProcedure,
 		agentv1connect.AgentServiceHeartbeatProcedure,
 		agentv1connect.AgentServiceReportStatusProcedure,
+
+		// observability access service
+		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,
+		observabilityv1connect.ObservabilityAccessServiceValidateObservabilityTokenProcedure,
+
+		// environment service
+		environmentv1connect.EnvironmentServiceCreateEnvironmentProcedure,
+		environmentv1connect.EnvironmentServiceGetEnvironmentProcedure,
+		environmentv1connect.EnvironmentServiceListEnvironmentsProcedure,
+		environmentv1connect.EnvironmentServiceUpdateEnvironmentProcedure,
+		environmentv1connect.EnvironmentServiceDeleteEnvironmentProcedure,
 	)
 
 	// mount both old and new reflectors for backwards compatibility
@@ -315,6 +333,8 @@ func main() {
 	mux.Handle(tokenPath, tokenHandler)
 	mux.Handle(registryPath, registryHandler)
 	mux.Handle(agentPath, agentHandler)
+	mux.Handle(observabilityAccessPath, observabilityAccessH)
+	mux.Handle(environmentPath, environmentHandler)
 
 	muxWCors := withCORS(ac.LocoDomainBase)(mux)
 	muxWTiming := middleware.Timing(muxWCors)

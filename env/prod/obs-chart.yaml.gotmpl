@@ -13,3 +13,17 @@ clickhouse:
   enabled: true
   defaultUser:
     password: {{ requiredEnv "CLICKHOUSE_PASSWORD" }}
+
+# Observability proxy (enabled by default)
+obsProxy:
+  enabled: true
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  controlPlane:
+    url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"

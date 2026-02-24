@@ -213,12 +213,11 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	userIDParsed, err := uuid.Parse(r.GetUserId())
+	userId, err := uuid.Parse(r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid user id format", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
 	}
-	userId := pgtype.UUID{Bytes: userIDParsed, Valid: true}
 
 	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
 
@@ -309,12 +308,11 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	userIDParsed, err := uuid.Parse(r.GetUserId())
+	userId, err := uuid.Parse(r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid user id format", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
 	}
-	userId := pgtype.UUID{Bytes: userIDParsed, Valid: true}
 
 	_, err = s.queries.GetUserByID(ctx, userId)
 	if err != nil {
@@ -375,12 +373,11 @@ func (s *UserServer) Logout(
 // Helper methods
 
 func (s *UserServer) getUserByID(ctx context.Context, id string) (*userv1.User, error) {
-	userIDParsed, err := uuid.Parse(id)
+	userId, err := uuid.Parse(id)
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid user id format", "userId", id)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
 	}
-	userId := pgtype.UUID{Bytes: userIDParsed, Valid: true}
 
 	user, err := s.queries.GetUserByID(ctx, userId)
 	if err != nil {

@@ -2,12 +2,9 @@ package tvm
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
@@ -62,11 +59,4 @@ func (tvm *VendingMachine) Close() {
 	}
 }
 
-// stringToUUID converts a string UUID to pgtype.UUID
-func (tvm *VendingMachine) stringToUUID(s string) (pgtype.UUID, error) {
-	parsed, err := uuid.Parse(s)
-	if err != nil {
-		return pgtype.UUID{}, fmt.Errorf("invalid uuid: %w", err)
-	}
-	return pgtype.UUID{Bytes: parsed, Valid: true}, nil
-}
+

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -169,7 +168,7 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
-	if err := s.machine.UpdateRoles(ctx, uuid.UUID(user.ID.Bytes).String(), []genDb.EntityScope{
+	if err := s.machine.UpdateRoles(ctx, user.ID.String(), []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
@@ -222,11 +221,11 @@ func (s *OAuthServer) ExchangeOAuthToken(
 	res := connect.NewResponse(&oAuth.ExchangeOAuthTokenResponse{
 		LocoToken: locoToken,
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
-		UserId:    uuid.UUID(user.ID.Bytes).String(),
+		UserId:    user.ID.String(),
 		Name:      user.Name.String,
 	})
 
-	slog.InfoContext(ctx, "exchanged oauth token for loco token", "userId", uuid.UUID(user.ID.Bytes).String())
+	slog.InfoContext(ctx, "exchanged oauth token for loco token", "userId", user.ID.String())
 	return res, nil
 }
 
@@ -346,7 +345,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 
 	res := connect.NewResponse(&oAuth.ExchangeOAuthCodeResponse{
 		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
-		UserId:    uuid.UUID(user.ID.Bytes).String(),
+		UserId:    user.ID.String(),
 		Name:      user.Name.String,
 	})
 

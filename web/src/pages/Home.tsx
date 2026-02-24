@@ -42,11 +42,11 @@ export function Home() {
 	const { data: listWorkspacesRes } = useQuery(
 		listOrgWorkspaces,
 		currentOrgId ? { orgId: currentOrgId } : undefined,
-		{ enabled: !!currentOrgId }
+		{ enabled: !!currentOrgId },
 	);
 	const workspaces = useMemo(
 		() => listWorkspacesRes?.workspaces ?? [],
-		[listWorkspacesRes]
+		[listWorkspacesRes],
 	);
 	const currentWorkspaceId =
 		activeWorkspaceId ||
@@ -62,12 +62,12 @@ export function Home() {
 	} = useQuery(
 		listWorkspaceResources,
 		currentWorkspaceId ? { workspaceId: currentWorkspaceId } : undefined,
-		{ enabled: !!currentWorkspaceId }
+		{ enabled: !!currentWorkspaceId },
 	);
 
 	const allResources = useMemo(
 		() => listResourcesRes?.resources ?? [],
-		[listResourcesRes?.resources]
+		[listResourcesRes?.resources],
 	);
 
 	// Filter resources by search term
@@ -76,21 +76,21 @@ export function Home() {
 			return allResources;
 		}
 		return allResources.filter((resource) =>
-			resource.name.toLowerCase().includes(searchTerm.toLowerCase())
+			resource.name.toLowerCase().includes(searchTerm.toLowerCase()),
 		);
 	}, [allResources, searchTerm]);
 
 	// Set header content
 	useEffect(() => {
 		const currentWorkspace = workspaces.find(
-			(ws) => ws.id === currentWorkspaceId
+			(ws) => ws.id === currentWorkspaceId,
 		);
 		const workspaceName = currentWorkspace?.name || "Workspace";
 
 		setHeader(
 			<h2 className="text-2xl font-mono text-foreground">
 				workspaces::{workspaceName}
-			</h2>
+			</h2>,
 		);
 	}, [setHeader, workspaces, currentWorkspaceId]);
 
@@ -139,7 +139,7 @@ export function Home() {
 			<div className="flex items-center justify-center min-h-96">
 				<Card className="max-w-md">
 					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-4">
+						<p className="text-destructive font-heading mb-4 text-2xl">
 							Error Loading Data
 						</p>
 						<p className="text-sm text-foreground opacity-70 mb-4">
@@ -167,11 +167,7 @@ export function Home() {
 			{true ? (
 				<div className="mt-8">
 					<BentoDashboard
-						resources={
-							filteredResources.length > 0
-							? filteredResources
-							: []
-						}
+						resources={filteredResources.length > 0 ? filteredResources : []}
 						workspaceId={currentWorkspaceId || undefined}
 					/>
 				</div>
@@ -190,7 +186,7 @@ export function Home() {
 									label: "Create Your First Resource",
 									onClick: () =>
 										navigate(
-											`/org/${currentOrgId}/wks/${currentWorkspaceId}/create-resource`
+											`/org/${currentOrgId}/wks/${currentWorkspaceId}/create-resource`,
 										),
 								}
 							: undefined

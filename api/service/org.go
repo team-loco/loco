@@ -61,8 +61,8 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateOrg, uuid.UUID(entity.ID.Bytes).String())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create org", "entityId", uuid.UUID(entity.ID.Bytes).String(), "entityType", entity.Type, "entityScopes", ctx.Value(contextkeys.EntityScopesKey))
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateOrg, entity.ID.String())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create org", "entityId", entity.ID.String(), "entityType", entity.Type, "entityScopes", ctx.Value(contextkeys.EntityScopesKey))
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
@@ -105,18 +105,28 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	err = s.machine.UpdateRoles(ctx, uuid.UUID(entity.ID.Bytes).String(), []genDb.EntityScope{
+	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", uuid.UUID(org.ID.Bytes).String(), "userId", uuid.UUID(entity.ID.Bytes).String())
+		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", org.ID.String(), "userId", entity.ID.String())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
+		OrgID:        org.ID,
+		Name:         "production",
+		IsProduction: true,
+		CreatedBy:    entity.ID,
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to create production environment for new org", "error", err, "orgId", org.ID.String())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	return connect.NewResponse(&orgv1.CreateOrgResponse{
-		OrgId: uuid.UUID(org.ID.Bytes).String(),
+		OrgId: org.ID.String(),
 	}), nil
 }
 
@@ -132,7 +142,7 @@ func (s *OrgServer) GetOrg(
 
 	switch key := r.GetKey().(type) {
 	case *orgv1.GetOrgRequest_OrgId:
-		orgId, err := stringToUUID(key.OrgId)
+		orgId, err := uuid.Parse(key.OrgId)
 		if err != nil {
 			slog.ErrorContext(ctx, "invalid org id", "error", err)
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
@@ -155,16 +165,16 @@ func (s *OrgServer) GetOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetOrg, uuid.UUID(org.ID.Bytes).String())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to get org", "orgId", uuid.UUID(org.ID.Bytes).String())
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetOrg, org.ID.String())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID.String())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	return connect.NewResponse(&orgv1.GetOrgResponse{
 		Organization: &orgv1.Organization{
-			Id:        uuid.UUID(org.ID.Bytes).String(),
+			Id:        org.ID.String(),
 			Name:      org.Name,
-			CreatedBy: uuid.UUID(org.CreatedBy.Bytes).String(),
+			CreatedBy: org.CreatedBy.String(),
 			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
 			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
 		},
@@ -203,7 +213,7 @@ func (s *OrgServer) ListUserOrgs(
 		}
 	}
 
-	userId, err := stringToUUID(r.GetUserId())
+	userId, err := uuid.Parse(r.GetUserId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid user id", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
@@ -222,9 +232,9 @@ func (s *OrgServer) ListUserOrgs(
 	var orgResponses []*orgv1.Organization
 	for _, org := range orgs {
 		orgResponses = append(orgResponses, &orgv1.Organization{
-			Id:        uuid.UUID(org.ID.Bytes).String(),
+			Id:        org.ID.String(),
 			Name:      org.Name,
-			CreatedBy: uuid.UUID(org.CreatedBy.Bytes).String(),
+			CreatedBy: org.CreatedBy.String(),
 			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
 			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
 		})
@@ -232,7 +242,7 @@ func (s *OrgServer) ListUserOrgs(
 
 	var nextPageToken string
 	if len(orgs) == int(pageSize) {
-		nextPageToken = encodeCursor(uuid.UUID(orgs[len(orgs)-1].ID.Bytes).String())
+		nextPageToken = encodeCursor(orgs[len(orgs)-1].ID.String())
 	}
 
 	return connect.NewResponse(&orgv1.ListUserOrgsResponse{
@@ -281,7 +291,7 @@ func (s *OrgServer) UpdateOrg(
 		}
 
 		_, err = s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-			ID:   pgtype.UUID{Bytes: parsed, Valid: true},
+			ID:   parsed,
 			Name: r.GetName(),
 		})
 		if err != nil {
@@ -313,12 +323,11 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	parsed, err := uuid.Parse(r.GetOrgId())
+	orgId, err := uuid.Parse(r.GetOrgId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
 	}
-	orgId := pgtype.UUID{Bytes: parsed, Valid: true}
 
 	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgId)
 	if err != nil {
@@ -387,12 +396,11 @@ func (s *OrgServer) ListOrgWorkspaces(
 	}
 
 	// Get workspaces for org
-	parsed, err := uuid.Parse(r.GetOrgId())
+	orgId, err := uuid.Parse(r.GetOrgId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
 	}
-	orgId := pgtype.UUID{Bytes: parsed, Valid: true}
 
 	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
 		OrgID:     orgId,

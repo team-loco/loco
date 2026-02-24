@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -64,7 +65,11 @@ func (s *WorkspaceServer) CreateWorkspace(
 		slog.WarnContext(ctx, "invalid workspace name", "name", r.GetName())
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
 	}
-	orgId, err := stringToUUID(r.GetOrgId())
+	orgId, err := uuid.Parse(r.GetOrgId())
+	if err != nil {
+		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
+	}
 	isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
 		OrgID: orgId,
 		Name:  r.GetName(),
@@ -133,7 +138,7 @@ func (s *WorkspaceServer) GetWorkspace(
 		slog.WarnContext(ctx, "unauthorized to get workspace", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	workspaceId, err := stringToUUID(r.GetWorkspaceId())
+	workspaceId, err := uuid.Parse(r.GetWorkspaceId())
 	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, workspaceId)
 	if err != nil {
 		slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
@@ -267,7 +272,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		}
 	}
 
-	orgId, err := stringToUUID(r.GetOrgId())
+	orgId, err := uuid.Parse(r.GetOrgId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org_id: %w", err))
 	}
@@ -330,7 +335,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
 		}
 
-		wsUUID, err := stringToUUID(r.GetWorkspaceId())
+		wsUUID, err := uuid.Parse(r.GetWorkspaceId())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 		}
@@ -358,7 +363,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
-	updateWSUUID, err := stringToUUID(r.GetWorkspaceId())
+	updateWSUUID, err := uuid.Parse(r.GetWorkspaceId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}
@@ -395,7 +400,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	delWSUUID, err := stringToUUID(r.GetWorkspaceId())
+	delWSUUID, err := uuid.Parse(r.GetWorkspaceId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}
@@ -461,7 +466,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		}
 	}
 
-	memberWSUUID, err := stringToUUID(r.GetWorkspaceId())
+	memberWSUUID, err := uuid.Parse(r.GetWorkspaceId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}

@@ -20,7 +20,12 @@ func SetContext(next http.Handler) http.Handler {
 
 		// only generate a new request header if one already doesn't exist
 		if requestHeader == "" {
-			requestHeader = uuid.NewString()
+			id, err := uuid.NewV7()
+			if err != nil {
+				slog.Warn("failed to generate request ID, using empty string", "error", err)
+				requestHeader = ""
+			}
+			requestHeader = id.String()
 		}
 
 		ctx := r.Context()

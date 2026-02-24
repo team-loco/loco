@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 )
 
 const addUserScope = `-- name: AddUserScope :exec
@@ -17,10 +17,10 @@ INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES ($1, $2,
 `
 
 type AddUserScopeParams struct {
-	UserID     pgtype.UUID `json:"userId"`
-	Scope      Scope       `json:"scope"`
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	UserID     uuid.UUID  `json:"userId"`
+	Scope      Scope      `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 func (q *Queries) AddUserScope(ctx context.Context, arg AddUserScopeParams) error {
@@ -56,9 +56,9 @@ DELETE FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3
 `
 
 type DeleteTokenByNameAndEntityParams struct {
-	Name       string      `json:"name"`
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	Name       string     `json:"name"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 func (q *Queries) DeleteTokenByNameAndEntity(ctx context.Context, arg DeleteTokenByNameAndEntityParams) error {
@@ -71,8 +71,8 @@ DELETE FROM tokens WHERE entity_type = $1 AND entity_id = $2
 `
 
 type DeleteTokensForEntityParams struct {
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 func (q *Queries) DeleteTokensForEntity(ctx context.Context, arg DeleteTokensForEntityParams) error {
@@ -103,15 +103,15 @@ SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE name =
 `
 
 type GetTokenByNameParams struct {
-	Name       string      `json:"name"`
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	Name       string     `json:"name"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 type GetTokenByNameRow struct {
 	Name       string        `json:"name"`
 	EntityType EntityType    `json:"entityType"`
-	EntityID   pgtype.UUID   `json:"entityId"`
+	EntityID   uuid.UUID     `json:"entityId"`
 	Scopes     []EntityScope `json:"scopes"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 }
@@ -130,17 +130,13 @@ func (q *Queries) GetTokenByName(ctx context.Context, arg GetTokenByNameParams) 
 }
 
 const getUserScopes = `-- name: GetUserScopes :many
-SELECT jsonb_build_object(
-    'scope', scope,
-    'entity_type', entity_type,
-    'entity_id', entity_id
-)::entity_scope
+SELECT ROW(scope, entity_type, entity_id)::entity_scope
 FROM user_scopes
 WHERE user_id = $1
 `
 
 // what scopes does user x have?
-func (q *Queries) GetUserScopes(ctx context.Context, userID pgtype.UUID) ([]EntityScope, error) {
+func (q *Queries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]EntityScope, error) {
 	rows, err := q.db.Query(ctx, getUserScopes, userID)
 	if err != nil {
 		return nil, err
@@ -161,18 +157,14 @@ func (q *Queries) GetUserScopes(ctx context.Context, userID pgtype.UUID) ([]Enti
 }
 
 const getUserScopesOnEntity = `-- name: GetUserScopesOnEntity :many
-SELECT jsonb_build_object(
-    'scope', scope,
-    'entity_type', entity_type,
-    'entity_id', entity_id
-)::entity_scope
+SELECT ROW(scope, entity_type, entity_id)::entity_scope
 FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3
 `
 
 type GetUserScopesOnEntityParams struct {
-	UserID     pgtype.UUID `json:"userId"`
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	UserID     uuid.UUID  `json:"userId"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 // what scopes does user x have on entity y?
@@ -199,39 +191,35 @@ func (q *Queries) GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOn
 const getUserScopesOnOrganization = `-- name: GetUserScopesOnOrganization :many
 WITH RECURSIVE entity_hierarchy AS (
     -- Base case: the organization itself
-    SELECT 
+    SELECT
         'organization'::entity_type as entity_type,
         o.id as entity_id,
         o.name as entity_name
     FROM organizations o
     WHERE o.id = $1
-    
+
     UNION ALL
-    
+
     -- Workspaces in the organization
-    SELECT 
+    SELECT
         'workspace'::entity_type,
         w.id,
         w.name
     FROM workspaces w
     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'organization' AND eh.entity_id = w.org_id
-    
+
     UNION ALL
-    
+
     -- Resources in the workspaces
-    SELECT 
+    SELECT
         'resource'::entity_type,
         r.id,
         r.name
     FROM resources r
     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
-SELECT DISTINCT
-    jsonb_build_object(
-        'scope', us.scope,
-        'entity_type', us.entity_type,
-        'entity_id', us.entity_id
-    )::entity_scope
+SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
+    ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
 FROM user_scopes us
 INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
 WHERE us.user_id = $2
@@ -239,8 +227,8 @@ ORDER BY us.entity_type, us.entity_id, us.scope
 `
 
 type GetUserScopesOnOrganizationParams struct {
-	ID     pgtype.UUID `json:"id"`
-	UserID pgtype.UUID `json:"userId"`
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]EntityScope, error) {
@@ -266,29 +254,25 @@ func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserSc
 const getUserScopesOnWorkspace = `-- name: GetUserScopesOnWorkspace :many
 WITH RECURSIVE entity_hierarchy AS (
     -- Base case: the workspace itself
-    SELECT 
+    SELECT
         'workspace'::entity_type as entity_type,
         w.id as entity_id,
         w.name as entity_name
     FROM workspaces w
     WHERE w.id = $1
-    
+
     UNION ALL
-    
+
     -- Resources in the workspace
-    SELECT 
+    SELECT
         'resource'::entity_type,
         r.id,
         r.name
     FROM resources r
     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
 )
-SELECT DISTINCT
-    jsonb_build_object(
-        'scope', us.scope,
-        'entity_type', us.entity_type,
-        'entity_id', us.entity_id
-    )::entity_scope
+SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
+    ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
 FROM user_scopes us
 INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
 WHERE us.user_id = $2
@@ -296,8 +280,8 @@ ORDER BY us.entity_type, us.entity_id, us.scope
 `
 
 type GetUserScopesOnWorkspaceParams struct {
-	ID     pgtype.UUID `json:"id"`
-	UserID pgtype.UUID `json:"userId"`
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]EntityScope, error) {
@@ -345,21 +329,21 @@ SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND sc
 `
 
 type GetUsersWithScopeOnEntityParams struct {
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
-	Scope      Scope       `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
+	Scope      Scope      `json:"scope"`
 }
 
 // what users have scope z on entity y?
-func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]pgtype.UUID, error) {
+func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, getUsersWithScopeOnEntity, arg.EntityType, arg.EntityID, arg.Scope)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []pgtype.UUID
+	var items []uuid.UUID
 	for rows.Next() {
-		var user_id pgtype.UUID
+		var user_id uuid.UUID
 		if err := rows.Scan(&user_id); err != nil {
 			return nil, err
 		}
@@ -376,14 +360,14 @@ SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE entity
 `
 
 type ListTokensForEntityParams struct {
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 type ListTokensForEntityRow struct {
 	Name       string        `json:"name"`
 	EntityType EntityType    `json:"entityType"`
-	EntityID   pgtype.UUID   `json:"entityId"`
+	EntityID   uuid.UUID     `json:"entityId"`
 	Scopes     []EntityScope `json:"scopes"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 }
@@ -420,8 +404,8 @@ DELETE FROM user_scopes WHERE entity_type = $1 AND entity_id = $2
 `
 
 type RemoveAllScopesForEntityParams struct {
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 func (q *Queries) RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error {
@@ -434,9 +418,9 @@ DELETE FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = 
 `
 
 type RemoveAllScopesForUserOnEntityParams struct {
-	UserID     pgtype.UUID `json:"userId"`
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	UserID     uuid.UUID  `json:"userId"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 func (q *Queries) RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error {
@@ -449,10 +433,10 @@ DELETE FROM user_scopes WHERE user_id = $1 AND scope = $2 AND entity_type = $3 A
 `
 
 type RemoveUserScopeParams struct {
-	UserID     pgtype.UUID `json:"userId"`
-	Scope      Scope       `json:"scope"`
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	UserID     uuid.UUID  `json:"userId"`
+	Scope      Scope      `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 func (q *Queries) RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error {
@@ -473,7 +457,7 @@ type StoreTokenParams struct {
 	Name       string        `json:"name"`
 	Token      string        `json:"token"`
 	EntityType EntityType    `json:"entityType"`
-	EntityID   pgtype.UUID   `json:"entityId"`
+	EntityID   uuid.UUID     `json:"entityId"`
 	Scopes     []EntityScope `json:"scopes"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 }

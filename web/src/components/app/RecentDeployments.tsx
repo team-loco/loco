@@ -38,6 +38,7 @@ import {
 import React, { useState } from "react";
 import { PHASE_COLOR_MAP } from "@/lib/deployment-constants";
 import { getServiceSpec, getPhaseTooltip } from "@/lib/deployment-utils";
+import { formatShortId } from "@/lib/utils";
 import {
 	Select,
 	SelectContent,
@@ -157,9 +158,18 @@ export function RecentDeployments({
 				</button>
 			),
 			cell: ({ row }) => (
-				<span className="font-mono text-xs max-w-xs truncate">
-					{row.original.id.toString()}
-				</span>
+				<TooltipProvider>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="font-mono text-xs max-w-xs truncate cursor-help">
+								{formatShortId(row.original.id.toString())}
+							</span>
+						</TooltipTrigger>
+						<TooltipContent>
+							{row.original.id.toString()}
+						</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
 			),
 			size: 150,
 		},

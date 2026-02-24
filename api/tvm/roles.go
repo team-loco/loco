@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -62,7 +63,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 	switch entity.Type {
 	case queries.EntityTypeOrganization:
 		// organization: get all org, workspace, resource roles
-		userId, err := tvm.stringToUUID(userID)
+		userId, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
@@ -76,7 +77,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		return rows, nil
 	case queries.EntityTypeWorkspace:
 		// workspace: get all workspace, resource roles
-		userId, err := tvm.stringToUUID(userID)
+		userId, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
@@ -90,7 +91,7 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		return rows, nil
 	case queries.EntityTypeResource, queries.EntityTypeUser, queries.EntityTypeSystem:
 		// resource or user: only get roles on that entity
-		userId, err := tvm.stringToUUID(userID)
+		userId, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
@@ -154,7 +155,7 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, userID string, addSc
 
 	qtx := tvm.queries.(*queries.Queries).WithTx(tx)
 
-	userId, err := tvm.stringToUUID(userID)
+	userId, err := uuid.Parse(userID)
 	if err != nil {
 		return fmt.Errorf("invalid user id: %w", err)
 	}

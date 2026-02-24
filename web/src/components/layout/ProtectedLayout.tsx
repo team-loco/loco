@@ -1,7 +1,5 @@
 import { useAuth } from "@/auth/AuthProvider";
-import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SiteHeader } from "@/components/site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { ContextProvider } from "@/context/ContextProvider";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { whoAmI } from "@/gen/loco/user/v1";
@@ -60,17 +58,12 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	return (
 		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces}>
-			<SidebarProvider className="flex flex-col w-full min-h-screen">
+			<div className="flex flex-col w-full min-h-screen">
 				<SiteHeader />
-				<div className="flex flex-1 pt-[50px]">
-					<AppSidebar />
-					<SidebarInset className="flex flex-col flex-1 overflow-hidden bg-background">
-						<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center dot-grid bg-background">
-							<div className="w-full">{children}</div>
-						</main>
-					</SidebarInset>
-				</div>
-			</SidebarProvider>
+				<main className="flex-1 w-full overflow-y-auto px-4 py-4 flex justify-center dot-grid bg-background" style={{ marginTop: "44px" }}>
+					<div className="w-full">{children}</div>
+				</main>
+			</div>
 		</ContextProvider>
 	);
 }

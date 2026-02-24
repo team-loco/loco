@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -115,6 +116,48 @@ func (q *Queries) GetClusterByID(ctx context.Context, id int64) (GetClusterByIDR
 	return i, err
 }
 
+const getClustersByWorkspaceDeployments = `-- name: GetClustersByWorkspaceDeployments :many
+SELECT DISTINCT c.id, c.name, c.region, c.observability_proxy_endpoint
+FROM clusters c
+INNER JOIN deployments d ON d.cluster_id = c.id
+INNER JOIN resources r ON r.id = d.resource_id
+WHERE r.workspace_id = $1
+  AND c.is_active = true
+  AND d.is_active = true
+`
+
+type GetClustersByWorkspaceDeploymentsRow struct {
+	ID                         int64       `json:"id"`
+	Name                       string      `json:"name"`
+	Region                     string      `json:"region"`
+	ObservabilityProxyEndpoint pgtype.Text `json:"observabilityProxyEndpoint"`
+}
+
+func (q *Queries) GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error) {
+	rows, err := q.db.Query(ctx, getClustersByWorkspaceDeployments, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetClustersByWorkspaceDeploymentsRow
+	for rows.Next() {
+		var i GetClustersByWorkspaceDeploymentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Region,
+			&i.ObservabilityProxyEndpoint,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setClusterAgentToken = `-- name: SetClusterAgentToken :exec
 UPDATE clusters
 SET agent_token_hash = $2, updated_at = NOW()
@@ -128,6 +171,22 @@ type SetClusterAgentTokenParams struct {
 
 func (q *Queries) SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error {
 	_, err := q.db.Exec(ctx, setClusterAgentToken, arg.ID, arg.AgentTokenHash)
+	return err
+}
+
+const setClusterObservabilityEndpoint = `-- name: SetClusterObservabilityEndpoint :exec
+UPDATE clusters
+SET observability_proxy_endpoint = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type SetClusterObservabilityEndpointParams struct {
+	ID                         int64       `json:"id"`
+	ObservabilityProxyEndpoint pgtype.Text `json:"observabilityProxyEndpoint"`
+}
+
+func (q *Queries) SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error {
+	_, err := q.db.Exec(ctx, setClusterObservabilityEndpoint, arg.ID, arg.ObservabilityProxyEndpoint)
 	return err
 }
 

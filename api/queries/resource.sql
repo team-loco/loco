@@ -1,22 +1,22 @@
 -- Resource queries
 
 -- name: CreateResource :one
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, environment_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.environment_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.environment_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.environment_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
@@ -61,12 +61,12 @@ WHERE id = $1;
 -- name: GetResourceWorkspaceID :one
 SELECT workspace_id FROM resources WHERE id = $1;
 
--- name: GetActiveClusterByRegion :one
+-- name: GetActiveClusterByRegionAndEnv :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE region = $1 AND is_active = true AND health_status = 'healthy'
+WHERE region = $1 AND environment_id = $2 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
 LIMIT 1;
 
@@ -98,4 +98,4 @@ SET status = $2, updated_at = NOW()
 WHERE id = $1;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
-SELECT workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
+SELECT r.workspace_id, w.org_id, r.environment_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;

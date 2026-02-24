@@ -20,7 +20,7 @@ func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID string
 	}
 
 	// fetch the scopes associated with the user
-	userScopesUUID, err := tvm.stringToUUID(userID)
+	userScopesUUID, err := uuid.Parse(userID)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return "", err
@@ -58,7 +58,7 @@ func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, name string,
 	if tokenData.EntityType != queries.EntityTypeUser {
 		return "", ErrImproperUsage
 	}
-	userID := uuid.UUID(tokenData.EntityID.Bytes).String()
+	userID := tokenData.EntityID.String()
 
 	return tvm.Issue(ctx, name, userID, entity, entityScopes, duration)
 }

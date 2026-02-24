@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -57,7 +58,7 @@ RETURNING id
 `
 
 type CreateResourceDomainParams struct {
-	ResourceID       pgtype.UUID  `json:"resourceId"`
+	ResourceID       uuid.UUID    `json:"resourceId"`
 	Domain           string       `json:"domain"`
 	DomainSource     DomainSource `json:"domainSource"`
 	SubdomainLabel   pgtype.Text  `json:"subdomainLabel"`
@@ -65,7 +66,7 @@ type CreateResourceDomainParams struct {
 	IsPrimary        bool         `json:"isPrimary"`
 }
 
-func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (pgtype.UUID, error) {
+func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createResourceDomain,
 		arg.ResourceID,
 		arg.Domain,
@@ -74,7 +75,7 @@ func (q *Queries) CreateResourceDomain(ctx context.Context, arg CreateResourceDo
 		arg.PlatformDomainID,
 		arg.IsPrimary,
 	)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -96,7 +97,7 @@ const deleteResourceDomain = `-- name: DeleteResourceDomain :exec
 DELETE FROM resource_domains WHERE id = $1
 `
 
-func (q *Queries) DeleteResourceDomain(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) DeleteResourceDomain(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteResourceDomain, id)
 	return err
 }
@@ -111,8 +112,8 @@ WHERE rd.resource_id = $1
 `
 
 type GetDomainByResourceIdRow struct {
-	ID                 pgtype.UUID        `json:"id"`
-	ResourceID         pgtype.UUID        `json:"resourceId"`
+	ID                 uuid.UUID          `json:"id"`
+	ResourceID         uuid.UUID          `json:"resourceId"`
 	Domain             string             `json:"domain"`
 	DomainSource       DomainSource       `json:"domainSource"`
 	SubdomainLabel     pgtype.Text        `json:"subdomainLabel"`
@@ -123,7 +124,7 @@ type GetDomainByResourceIdRow struct {
 	PlatformBaseDomain pgtype.Text        `json:"platformBaseDomain"`
 }
 
-func (q *Queries) GetDomainByResourceId(ctx context.Context, resourceID pgtype.UUID) (GetDomainByResourceIdRow, error) {
+func (q *Queries) GetDomainByResourceId(ctx context.Context, resourceID uuid.UUID) (GetDomainByResourceIdRow, error) {
 	row := q.db.QueryRow(ctx, getDomainByResourceId, resourceID)
 	var i GetDomainByResourceIdRow
 	err := row.Scan(
@@ -190,7 +191,7 @@ FROM resource_domains rd
 WHERE rd.id = $1
 `
 
-func (q *Queries) GetResourceDomainByID(ctx context.Context, id pgtype.UUID) (ResourceDomain, error) {
+func (q *Queries) GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error) {
 	row := q.db.QueryRow(ctx, getResourceDomainByID, id)
 	var i ResourceDomain
 	err := row.Scan(
@@ -211,7 +212,7 @@ const getResourceDomainCount = `-- name: GetResourceDomainCount :one
 SELECT COUNT(*) as count FROM resource_domains WHERE resource_id = $1
 `
 
-func (q *Queries) GetResourceDomainCount(ctx context.Context, resourceID pgtype.UUID) (int64, error) {
+func (q *Queries) GetResourceDomainCount(ctx context.Context, resourceID uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, getResourceDomainCount, resourceID)
 	var count int64
 	err := row.Scan(&count)
@@ -264,11 +265,11 @@ ORDER BY rd.created_at DESC
 `
 
 type ListAllLocoOwnedDomainsRow struct {
-	ID             pgtype.UUID `json:"id"`
-	Domain         string      `json:"domain"`
-	ResourceName   string      `json:"resourceName"`
-	ResourceID     pgtype.UUID `json:"resourceId"`
-	PlatformDomain string      `json:"platformDomain"`
+	ID             uuid.UUID `json:"id"`
+	Domain         string    `json:"domain"`
+	ResourceName   string    `json:"resourceName"`
+	ResourceID     uuid.UUID `json:"resourceId"`
+	PlatformDomain string    `json:"platformDomain"`
 }
 
 func (q *Queries) ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error) {
@@ -344,7 +345,7 @@ WHERE rd.resource_id = $1
 ORDER BY rd.is_primary DESC, rd.created_at ASC
 `
 
-func (q *Queries) ListResourceDomains(ctx context.Context, resourceID pgtype.UUID) ([]ResourceDomain, error) {
+func (q *Queries) ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error) {
 	rows, err := q.db.Query(ctx, listResourceDomains, resourceID)
 	if err != nil {
 		return nil, err
@@ -382,13 +383,13 @@ RETURNING id
 `
 
 type SetResourceDomainPrimaryParams struct {
-	ID         pgtype.UUID `json:"id"`
-	ResourceID pgtype.UUID `json:"resourceId"`
+	ID         uuid.UUID `json:"id"`
+	ResourceID uuid.UUID `json:"resourceId"`
 }
 
-func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (pgtype.UUID, error) {
+func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, setResourceDomainPrimary, arg.ID, arg.ResourceID)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -402,13 +403,13 @@ RETURNING id
 `
 
 type UpdateResourceDomainParams struct {
-	ID     pgtype.UUID `json:"id"`
-	Domain string      `json:"domain"`
+	ID     uuid.UUID `json:"id"`
+	Domain string    `json:"domain"`
 }
 
-func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (pgtype.UUID, error) {
+func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, updateResourceDomain, arg.ID, arg.Domain)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -419,7 +420,7 @@ SET is_primary = false
 WHERE resource_id = $1
 `
 
-func (q *Queries) UpdateResourceDomainPrimary(ctx context.Context, resourceID pgtype.UUID) error {
+func (q *Queries) UpdateResourceDomainPrimary(ctx context.Context, resourceID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, updateResourceDomainPrimary, resourceID)
 	return err
 }

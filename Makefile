@@ -55,6 +55,20 @@ reload-cli:
 		--build.bin "./bin/loco" \
 		--build.exclude_dir "bin,api,archive,assets,dashboards,docs,kube,terraform,web")
 
+reload-agent:
+	@echo "Starting Agent with live reload..."
+	@(air \
+		--build.cmd "cd agent && go build -o ./bin/loco-agent ." \
+		--build.bin "./agent/bin/loco-agent" \
+		--build.exclude_dir "bin,web")
+
+reload-obs-proxy:
+	@echo "Starting Observability Proxy with live reload..."
+	@(air \
+		--build.cmd "cd observability-proxy && go build -o ./bin/loco-obs-proxy ." \
+		--build.bin "./observability-proxy/bin/loco-obs-proxy" \
+		--build.exclude_dir "bin,web")
+
 gen:
 	buf generate
 	cd api && sqlc generate
@@ -63,11 +77,13 @@ ui:
 	@echo "Starting UI..."
 	@cd web && npm run dev
 
-dev: ## Start all local components (UI, API, Controller)
+dev: ## Start all local components (UI, API, Agent, Controller, Obs Proxy)
 	@echo "Starting all local components..."
 	@(trap 'kill $(jobs -p) 2>/dev/null' EXIT; \
 		$(MAKE) reload-api & \
 		$(MAKE) reload-cli & \
+		$(MAKE) reload-agent & \
+		$(MAKE) reload-obs-proxy & \
 		$(MAKE) ui & \
 		cd controller && $(MAKE) run & \
 		wait)

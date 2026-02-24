@@ -35,3 +35,17 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
 WHERE id = $1;
+
+-- name: GetClustersByWorkspaceDeployments :many
+SELECT DISTINCT c.id, c.name, c.region, c.observability_proxy_endpoint
+FROM clusters c
+INNER JOIN deployments d ON d.cluster_id = c.id
+INNER JOIN resources r ON r.id = d.resource_id
+WHERE r.workspace_id = $1
+  AND c.is_active = true
+  AND d.is_active = true;
+
+-- name: SetClusterObservabilityEndpoint :exec
+UPDATE clusters
+SET observability_proxy_endpoint = $2, updated_at = NOW()
+WHERE id = $1;

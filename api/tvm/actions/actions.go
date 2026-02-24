@@ -2,7 +2,6 @@ package actions
 
 import (
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/team-loco/loco/api/gen/db"
 )
 
@@ -280,6 +279,34 @@ var (
 		scope:      db.ScopeAdmin,
 	}
 
+	// environments
+
+	// ListEnvironments requires organization:read.
+	ListEnvironments = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeRead,
+	}
+	// CreateEnvironment requires organization:write.
+	CreateEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeWrite,
+	}
+	// GetEnvironment requires organization:read (looked up via env's org_id).
+	GetEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeRead,
+	}
+	// UpdateEnvironment requires organization:write.
+	UpdateEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeWrite,
+	}
+	// DeleteEnvironment requires organization:admin.
+	DeleteEnvironment = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeAdmin,
+	}
+
 	// orgs (additional)
 
 	// ListUserOrgs requires user:read (to list orgs for a specific user).
@@ -303,7 +330,7 @@ func New(a Action, entityID string) db.EntityScope {
 	parsed, _ := uuid.Parse(entityID)
 	return db.EntityScope{
 		EntityType: a.entityType,
-		EntityID:   pgtype.UUID{Bytes: parsed, Valid: true},
+		EntityID:   parsed,
 		Scope:      a.scope,
 	}
 }

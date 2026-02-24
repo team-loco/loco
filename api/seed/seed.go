@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/gen/db"
@@ -36,10 +37,10 @@ import (
 var specExample, _ = os.ReadFile("spec_example.json")
 
 var globalTestData struct {
-	UserIDs      []pgtype.UUID
-	OrgIDs       []pgtype.UUID
-	WorkspaceIDs []pgtype.UUID
-	ResourceIDs  []pgtype.UUID
+	UserIDs      []uuid.UUID
+	OrgIDs       []uuid.UUID
+	WorkspaceIDs []uuid.UUID
+	ResourceIDs  []uuid.UUID
 }
 
 func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) error {
@@ -57,10 +58,10 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	q := queries.New(tx)
 
 	// perform seeding operations here
-	var userIDs []pgtype.UUID     // len 6
-	var orgIDs []pgtype.UUID      // len 2
-	var wksIDs []pgtype.UUID      // len 4
-	var resourceIds []pgtype.UUID // len 6
+	var userIDs []uuid.UUID     // len 6
+	var orgIDs []uuid.UUID      // len 2
+	var wksIDs []uuid.UUID      // len 4
+	var resourceIds []uuid.UUID // len 6
 	if userIDs, err = seedUsers(ctx, q); err != nil {
 		return err
 	}
@@ -111,8 +112,8 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool, filepaths []string) 
 	return tx.Commit(ctx)
 }
 
-func seedUsers(ctx context.Context, queries *db.Queries) ([]pgtype.UUID, error) {
-	var userIDs []pgtype.UUID
+func seedUsers(ctx context.Context, queries *db.Queries) ([]uuid.UUID, error) {
+	var userIDs []uuid.UUID
 	if user1, err := queries.CreateUser(ctx, db.CreateUserParams{
 		Name:       opttext("The First"),
 		Email:      "user1@example.com",
@@ -176,8 +177,8 @@ func seedUsers(ctx context.Context, queries *db.Queries) ([]pgtype.UUID, error) 
 	return userIDs, nil
 }
 
-func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []pgtype.UUID) ([]pgtype.UUID, error) {
-	var orgIDs []pgtype.UUID
+func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	var orgIDs []uuid.UUID
 
 	if org1, err := queries.CreateOrganization(ctx, db.CreateOrganizationParams{
 		Name:      "Alpha Org",
@@ -200,8 +201,8 @@ func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []pgtyp
 	return orgIDs, nil
 }
 
-func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []pgtype.UUID, userIDs []pgtype.UUID) ([]pgtype.UUID, error) {
-	var wksIDs []pgtype.UUID
+func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+	var wksIDs []uuid.UUID
 
 	if wks1, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
 		OrgID:       orgIDs[0], // org 1
@@ -250,8 +251,8 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []pgtype.UU
 	return wksIDs, nil
 }
 
-func seedResources(ctx context.Context, queries *db.Queries, wksIDs []pgtype.UUID) ([]pgtype.UUID, error) {
-	var resourceIds []pgtype.UUID
+func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID) ([]uuid.UUID, error) {
+	var resourceIds []uuid.UUID
 
 	if resource1Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
 		WorkspaceID: wksIDs[0],              // wks 1
@@ -340,7 +341,7 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []pgtype.UUI
 	return resourceIds, nil
 }
 
-func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, resourceIds, userIDs []pgtype.UUID) error {
+func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, resourceIds, userIDs []uuid.UUID) error {
 	// user 1: org 1 r/w/a
 	user1Scopes := []db.AddUserScopeParams{
 		{

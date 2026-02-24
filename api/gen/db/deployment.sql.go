@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -19,8 +20,8 @@ RETURNING id
 `
 
 type CreateDeploymentParams struct {
-	ResourceID       pgtype.UUID      `json:"resourceId"`
-	ResourceRegionID pgtype.UUID      `json:"resourceRegionId"`
+	ResourceID       uuid.UUID        `json:"resourceId"`
+	ResourceRegionID uuid.UUID        `json:"resourceRegionId"`
 	ClusterID        int64            `json:"clusterId"`
 	Region           string           `json:"region"`
 	Replicas         int32            `json:"replicas"`
@@ -32,7 +33,7 @@ type CreateDeploymentParams struct {
 }
 
 // Deployment queries
-func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (pgtype.UUID, error) {
+func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createDeployment,
 		arg.ResourceID,
 		arg.ResourceRegionID,
@@ -45,7 +46,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Spec,
 		arg.SpecVersion,
 	)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -58,8 +59,8 @@ LIMIT 1
 `
 
 type GetActiveDeploymentForResourceAndRegionParams struct {
-	ResourceID pgtype.UUID `json:"resourceId"`
-	Region     string      `json:"region"`
+	ResourceID uuid.UUID `json:"resourceId"`
+	Region     string    `json:"region"`
 }
 
 func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error) {
@@ -89,7 +90,7 @@ const getDeploymentByID = `-- name: GetDeploymentByID :one
 SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
-func (q *Queries) GetDeploymentByID(ctx context.Context, id pgtype.UUID) (Deployment, error) {
+func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
 	row := q.db.QueryRow(ctx, getDeploymentByID, id)
 	var i Deployment
 	err := row.Scan(
@@ -116,9 +117,9 @@ const getDeploymentResourceID = `-- name: GetDeploymentResourceID :one
 SELECT resource_id FROM deployments WHERE id = $1
 `
 
-func (q *Queries) GetDeploymentResourceID(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getDeploymentResourceID, id)
-	var resource_id pgtype.UUID
+	var resource_id uuid.UUID
 	err := row.Scan(&resource_id)
 	return resource_id, err
 }
@@ -127,15 +128,15 @@ const listActiveDeployments = `-- name: ListActiveDeployments :many
 SELECT resource_id FROM deployments WHERE is_active = true
 `
 
-func (q *Queries) ListActiveDeployments(ctx context.Context) ([]pgtype.UUID, error) {
+func (q *Queries) ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, listActiveDeployments)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []pgtype.UUID
+	var items []uuid.UUID
 	for rows.Next() {
-		var resource_id pgtype.UUID
+		var resource_id uuid.UUID
 		if err := rows.Scan(&resource_id); err != nil {
 			return nil, err
 		}
@@ -153,7 +154,7 @@ WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resourceID pgtype.UUID) ([]Deployment, error) {
+func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error) {
 	rows, err := q.db.Query(ctx, listActiveDeploymentsForResource, resourceID)
 	if err != nil {
 		return nil, err
@@ -202,7 +203,7 @@ LIMIT $2
 `
 
 type ListDeploymentsForResourceParams struct {
-	ResourceID pgtype.UUID `json:"resourceId"`
+	ResourceID uuid.UUID   `json:"resourceId"`
 	Limit      int32       `json:"limit"`
 	PageToken  pgtype.Text `json:"pageToken"`
 }
@@ -249,7 +250,7 @@ SET is_active = false, updated_at = NOW()
 WHERE id = $1
 `
 
-func (q *Queries) MarkDeploymentNotActive(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) MarkDeploymentNotActive(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markDeploymentNotActive, id)
 	return err
 }
@@ -260,7 +261,7 @@ SET is_active = false, updated_at = NOW()
 WHERE resource_id = $1 AND is_active = true
 `
 
-func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID pgtype.UUID) error {
+func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markPreviousDeploymentsNotActive, resourceID)
 	return err
 }
@@ -272,7 +273,7 @@ WHERE resource_id = $1 AND is_active = true
 `
 
 type UpdateActiveDeploymentStatusParams struct {
-	ResourceID pgtype.UUID      `json:"resourceId"`
+	ResourceID uuid.UUID        `json:"resourceId"`
 	Status     DeploymentStatus `json:"status"`
 	Message    string           `json:"message"`
 }
@@ -289,7 +290,7 @@ WHERE id = $1
 `
 
 type UpdateDeploymentStatusParams struct {
-	ID     pgtype.UUID      `json:"id"`
+	ID     uuid.UUID        `json:"id"`
 	Status DeploymentStatus `json:"status"`
 }
 
@@ -305,7 +306,7 @@ WHERE id = $1
 `
 
 type UpdateDeploymentStatusAndActiveParams struct {
-	ID       pgtype.UUID      `json:"id"`
+	ID       uuid.UUID        `json:"id"`
 	Status   DeploymentStatus `json:"status"`
 	IsActive bool             `json:"isActive"`
 }
@@ -322,7 +323,7 @@ WHERE id = $1
 `
 
 type UpdateDeploymentStatusWithMessageParams struct {
-	ID      pgtype.UUID      `json:"id"`
+	ID      uuid.UUID        `json:"id"`
 	Status  DeploymentStatus `json:"status"`
 	Message string           `json:"message"`
 }

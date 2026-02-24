@@ -242,10 +242,10 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	domains := make([]*domainv1.LocoOwnedDomain, len(results))
 	for i, result := range results {
 		domains[i] = &domainv1.LocoOwnedDomain{
-			Id:             uuid.UUID(result.ID.Bytes).String(),
+			Id:             result.ID.String(),
 			Domain:         result.Domain,
 			ResourceName:   result.ResourceName,
-			ResourceId:     uuid.UUID(result.ResourceID.Bytes).String(),
+			ResourceId:     result.ResourceID.String(),
 			PlatformDomain: result.PlatformDomain,
 		}
 	}
@@ -315,7 +315,7 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 
 	// check if this is the first domain for the resource
-	resourceId, err := stringToUUID(r.ResourceId)
+	resourceId, err := uuid.Parse(r.ResourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid resource id", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
@@ -339,7 +339,7 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 
 	return connect.NewResponse(&domainv1.CreateResourceDomainResponse{
-		DomainId: uuid.UUID(resourceDomain.Bytes).String(),
+		DomainId: resourceDomain.String(),
 	}), nil
 }
 
@@ -351,7 +351,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource
-	domainId, err := stringToUUID(r.DomainId)
+	domainId, err := uuid.Parse(r.DomainId)
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid domain id", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
@@ -369,7 +369,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	// verify user has access to this resource
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateDomain, uuid.UUID(domainRow.ResourceID.Bytes).String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateDomain, domainRow.ResourceID.String())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -417,7 +417,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	}
 
 	// unset primary on all other domains
-	resourceId, err := stringToUUID(r.GetResourceId())
+	resourceId, err := uuid.Parse(r.GetResourceId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid resource id", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
@@ -429,7 +429,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	}
 
 	// set this domain as primary
-	domainId, err := stringToUUID(r.GetDomainId())
+	domainId, err := uuid.Parse(r.GetDomainId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid domain id", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
@@ -457,7 +457,7 @@ func (s *DomainServer) DeleteResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource and whether it's primary
-	domainId, err := stringToUUID(r.GetDomainId())
+	domainId, err := uuid.Parse(r.GetDomainId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid domain id", "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
@@ -474,7 +474,7 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.RemoveDomain, uuid.UUID(domainRow.ResourceID.Bytes).String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.RemoveDomain, domainRow.ResourceID.String())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 

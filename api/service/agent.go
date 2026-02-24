@@ -275,14 +275,13 @@ func (s *AgentServer) ReportStatus(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment ID: %w", err))
 	}
-	deploymentID := pgtype.UUID{Bytes: deploymentIDParsed, Valid: true}
 
 	// Map proto phase to DB status
 	dbStatus := protoPhaseToDBStatus(r.GetPhase())
 
 	// Update deployment status
 	err = s.queries.UpdateDeploymentStatusWithMessage(ctx, genDb.UpdateDeploymentStatusWithMessageParams{
-		ID:      deploymentID,
+		ID:      deploymentIDParsed,
 		Status:  dbStatus,
 		Message: r.GetMessage(),
 	})

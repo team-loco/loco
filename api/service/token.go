@@ -9,7 +9,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -77,7 +76,7 @@ func (s *TokenServer) CreateToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityId, err := stringToUUID(r.GetEntityId())
+	entityId, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId(), "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
@@ -154,12 +153,11 @@ func (s *TokenServer) ListTokens(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityIDParsed, err := uuid.Parse(r.GetEntityId())
+	entityId, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
 	}
-	entityId := pgtype.UUID{Bytes: entityIDParsed, Valid: true}
 
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
@@ -214,12 +212,11 @@ func (s *TokenServer) GetToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityIDParsed, err := uuid.Parse(r.GetEntityId())
+	entityId, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
 	}
-	entityId := pgtype.UUID{Bytes: entityIDParsed, Valid: true}
 
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
@@ -279,12 +276,11 @@ func (s *TokenServer) RevokeToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityIDParsed, err := uuid.Parse(r.GetEntityId())
+	entityId, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
 	}
-	entityId := pgtype.UUID{Bytes: entityIDParsed, Valid: true}
 
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
@@ -329,7 +325,7 @@ func dbTokenGetRowToProto(token genDb.GetTokenByNameRow) *tokenv1.Token {
 	return convertTokenToProto(token.Name, token.EntityType, token.EntityID, token.Scopes, token.ExpiresAt)
 }
 
-func convertTokenToProto(name string, entityType genDb.EntityType, entityID pgtype.UUID, dbScopes []genDb.EntityScope, expiresAt time.Time) *tokenv1.Token {
+func convertTokenToProto(name string, entityType genDb.EntityType, entityID uuid.UUID, dbScopes []genDb.EntityScope, expiresAt time.Time) *tokenv1.Token {
 	scopes := make([]*tokenv1.EntityScope, len(dbScopes))
 	for i, scope := range dbScopes {
 		scopes[i] = &tokenv1.EntityScope{

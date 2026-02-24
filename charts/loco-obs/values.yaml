@@ -1,6 +1,7 @@
 global:
   domain:
     dashboards: dashboards.deploy-app.com
+    observability: observability.deploy-app.com
 
 # Gateway namespace where the Envoy Gateway is deployed
 gatewayNamespace: envoy-gateway-system
@@ -224,3 +225,32 @@ grafana:
           - DAC_OVERRIDE
         drop:
           - ALL
+
+obsProxy:
+  enabled: true
+  image:
+    repository: ghcr.io/team-loco/loco-obs-proxy
+    tag: latest
+  imagePullPolicy: Always
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  port: 8080
+  controlPlane:
+    url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"
+  clickhouse:
+    database: default
+  guardrails:
+    defaultLimit: 1000
+    maxLimit: 10000
+    queryTimeoutSeconds: 10
+    maxTimeRangeHours: 24
+    maxConcurrentQueries: 5
+    maxTailDurationMinutes: 30
+    maxConcurrentTails: 3
+    tokenCacheTTLSeconds: 30

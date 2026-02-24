@@ -18,6 +18,7 @@ import { scaleResource } from "@/gen/loco/resource/v1";
 import { BADGE_COLOR_MAP, PHASE_COLOR_MAP } from "@/lib/deployment-constants";
 import { getPhaseTooltip, getServiceSpec } from "@/lib/deployment-utils";
 import { toastConnectError } from "@/lib/error-handler";
+import { formatShortId } from "@/lib/utils";
 import { useMutation } from "@connectrpc/connect-query";
 import { Cpu, HardDrive } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -214,9 +215,16 @@ export function DeploymentStatusCard({
 							<span className="text-sm font-medium text-foreground">
 								Deployment ID
 							</span>
-							<span className="text-sm font-mono text-foreground opacity-70">
-								{deployment.id.toString().slice(0, 12)}
-							</span>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="text-sm font-mono text-foreground opacity-70 cursor-help">
+										{formatShortId(deployment.id.toString())}
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>
+									{deployment.id.toString()}
+								</TooltipContent>
+							</Tooltip>
 						</div>
 
 						<div className="flex items-center justify-between">

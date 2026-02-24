@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -18,20 +19,20 @@ RETURNING id
 `
 
 type CreateWorkspaceParams struct {
-	OrgID       pgtype.UUID `json:"orgId"`
+	OrgID       uuid.UUID   `json:"orgId"`
 	Name        string      `json:"name"`
 	Description pgtype.Text `json:"description"`
-	CreatedBy   pgtype.UUID `json:"createdBy"`
+	CreatedBy   uuid.UUID   `json:"createdBy"`
 }
 
-func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (pgtype.UUID, error) {
+func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createWorkspace,
 		arg.OrgID,
 		arg.Name,
 		arg.Description,
 		arg.CreatedBy,
 	)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -42,8 +43,8 @@ WHERE workspace_id = $1 AND user_id = $2
 `
 
 type DeleteWorkspaceMemberParams struct {
-	WorkspaceID pgtype.UUID `json:"workspaceId"`
-	UserID      pgtype.UUID `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error {
@@ -55,9 +56,9 @@ const getOrganizationIDByWorkspaceID = `-- name: GetOrganizationIDByWorkspaceID 
 SELECT org_id FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) GetOrganizationIDByWorkspaceID(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+func (q *Queries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getOrganizationIDByWorkspaceID, id)
-	var org_id pgtype.UUID
+	var org_id uuid.UUID
 	err := row.Scan(&org_id)
 	return org_id, err
 }
@@ -66,7 +67,7 @@ const getWorkspaceByIDQuery = `-- name: GetWorkspaceByIDQuery :one
 SELECT id, org_id, name, description, created_by, created_at, updated_at FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id pgtype.UUID) (Workspace, error) {
+func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (Workspace, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceByIDQuery, id)
 	var i Workspace
 	err := row.Scan(
@@ -87,8 +88,8 @@ WHERE workspace_id = $1 AND user_id = $2
 `
 
 type GetWorkspaceMemberRoleParams struct {
-	WorkspaceID pgtype.UUID `json:"workspaceId"`
-	UserID      pgtype.UUID `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error) {
@@ -104,7 +105,7 @@ FROM workspace_members
 WHERE workspace_id = $1
 `
 
-func (q *Queries) GetWorkspaceMembers(ctx context.Context, workspaceID pgtype.UUID) ([]WorkspaceMember, error) {
+func (q *Queries) GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]WorkspaceMember, error) {
 	rows, err := q.db.Query(ctx, getWorkspaceMembers, workspaceID)
 	if err != nil {
 		return nil, err
@@ -133,9 +134,9 @@ const getWorkspaceOrgID = `-- name: GetWorkspaceOrgID :one
 SELECT org_id FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+func (q *Queries) GetWorkspaceOrgID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, getWorkspaceOrgID, id)
-	var org_id pgtype.UUID
+	var org_id uuid.UUID
 	err := row.Scan(&org_id)
 	return org_id, err
 }
@@ -148,8 +149,8 @@ SELECT EXISTS(
 `
 
 type IsWorkspaceMemberParams struct {
-	WorkspaceID pgtype.UUID `json:"workspaceId"`
-	UserID      pgtype.UUID `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
 }
 
 func (q *Queries) IsWorkspaceMember(ctx context.Context, arg IsWorkspaceMemberParams) (bool, error) {
@@ -167,8 +168,8 @@ AND name = $2
 `
 
 type IsWorkspaceNameUniqueInOrgParams struct {
-	OrgID pgtype.UUID `json:"orgId"`
-	Name  string      `json:"name"`
+	OrgID uuid.UUID `json:"orgId"`
+	Name  string    `json:"name"`
 }
 
 func (q *Queries) IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error) {
@@ -194,14 +195,14 @@ LIMIT $2
 `
 
 type ListWorkspaceMembersWithUserDetailsParams struct {
-	WorkspaceID pgtype.UUID `json:"workspaceId"`
+	WorkspaceID uuid.UUID   `json:"workspaceId"`
 	Limit       int32       `json:"limit"`
 	PageToken   pgtype.Text `json:"pageToken"`
 }
 
 type ListWorkspaceMembersWithUserDetailsRow struct {
-	WorkspaceID pgtype.UUID        `json:"workspaceId"`
-	UserID      pgtype.UUID        `json:"userId"`
+	WorkspaceID uuid.UUID          `json:"workspaceId"`
+	UserID      uuid.UUID          `json:"userId"`
 	Role        WorkspaceRole      `json:"role"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 	Name        pgtype.Text        `json:"name"`
@@ -252,7 +253,7 @@ LIMIT $2
 `
 
 type ListWorkspacesForUserParams struct {
-	UserID    pgtype.UUID `json:"userId"`
+	UserID    uuid.UUID   `json:"userId"`
 	Limit     int32       `json:"limit"`
 	PageToken pgtype.Text `json:"pageToken"`
 }
@@ -298,7 +299,7 @@ LIMIT $2
 `
 
 type ListWorkspacesInOrgParams struct {
-	OrgID     pgtype.UUID `json:"orgId"`
+	OrgID     uuid.UUID   `json:"orgId"`
 	Limit     int32       `json:"limit"`
 	PageToken pgtype.Text `json:"pageToken"`
 }
@@ -335,7 +336,7 @@ const removeWorkspace = `-- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1
 `
 
-func (q *Queries) RemoveWorkspace(ctx context.Context, id pgtype.UUID) error {
+func (q *Queries) RemoveWorkspace(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, removeWorkspace, id)
 	return err
 }
@@ -350,14 +351,14 @@ RETURNING id
 `
 
 type UpdateWorkspaceParams struct {
-	ID          pgtype.UUID `json:"id"`
+	ID          uuid.UUID   `json:"id"`
 	Name        pgtype.Text `json:"name"`
 	Description pgtype.Text `json:"description"`
 }
 
-func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (pgtype.UUID, error) {
+func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, updateWorkspace, arg.ID, arg.Name, arg.Description)
-	var id pgtype.UUID
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -371,14 +372,14 @@ RETURNING user_id
 `
 
 type UpsertWorkspaceMemberParams struct {
-	WorkspaceID pgtype.UUID   `json:"workspaceId"`
-	UserID      pgtype.UUID   `json:"userId"`
+	WorkspaceID uuid.UUID     `json:"workspaceId"`
+	UserID      uuid.UUID     `json:"userId"`
 	Role        WorkspaceRole `json:"role"`
 }
 
-func (q *Queries) UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (pgtype.UUID, error) {
+func (q *Queries) UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, upsertWorkspaceMember, arg.WorkspaceID, arg.UserID, arg.Role)
-	var user_id pgtype.UUID
+	var user_id uuid.UUID
 	err := row.Scan(&user_id)
 	return user_id, err
 }

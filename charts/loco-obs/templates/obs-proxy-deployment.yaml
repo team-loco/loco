@@ -1,0 +1,76 @@
+{{- if .Values.obsProxy.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-obs-proxy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}-obs-proxy
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-obs-proxy
+  replicas: {{ .Values.obsProxy.replicaCount }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-obs-proxy
+    spec:
+      containers:
+        - name: obs-proxy
+          image: "{{ .Values.obsProxy.image.repository }}:{{ .Values.obsProxy.image.tag }}"
+          imagePullPolicy: {{ .Values.obsProxy.imagePullPolicy }}
+          env:
+            - name: PORT
+              value: {{ .Values.obsProxy.port | quote }}
+            - name: CONTROL_PLANE_URL
+              value: {{ .Values.obsProxy.controlPlane.url | quote }}
+            - name: PROXY_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-obs-proxy-auth
+                  key: token
+                  optional: true
+            - name: CLICKHOUSE_URL
+              value: "clickhouse://clickhouse-{{ .Release.Name }}-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:9000"
+            - name: CLICKHOUSE_DB
+              value: {{ .Values.obsProxy.clickhouse.database | quote }}
+            - name: DEFAULT_LIMIT
+              value: {{ .Values.obsProxy.guardrails.defaultLimit | quote }}
+            - name: MAX_LIMIT
+              value: {{ .Values.obsProxy.guardrails.maxLimit | quote }}
+            - name: QUERY_TIMEOUT_SECONDS
+              value: {{ .Values.obsProxy.guardrails.queryTimeoutSeconds | quote }}
+            - name: MAX_TIME_RANGE_HOURS
+              value: {{ .Values.obsProxy.guardrails.maxTimeRangeHours | quote }}
+            - name: MAX_CONCURRENT_QUERIES
+              value: {{ .Values.obsProxy.guardrails.maxConcurrentQueries | quote }}
+            - name: MAX_TAIL_DURATION_MINUTES
+              value: {{ .Values.obsProxy.guardrails.maxTailDurationMinutes | quote }}
+            - name: MAX_CONCURRENT_TAILS
+              value: {{ .Values.obsProxy.guardrails.maxConcurrentTails | quote }}
+            - name: TOKEN_CACHE_TTL_SECONDS
+              value: {{ .Values.obsProxy.guardrails.tokenCacheTTLSeconds | quote }}
+          ports:
+            - containerPort: {{ .Values.obsProxy.port }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.obsProxy.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.obsProxy.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.obsProxy.resources | nindent 12 }}
+      restartPolicy: Always
+{{- end }}

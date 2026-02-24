@@ -18,6 +18,7 @@ PG_USER="loco_e2e"
 PG_PASS="loco_e2e_pass"
 PG_DB="loco_e2e"
 API_PORT=8877  # avoid conflict with dev API on 8000
+OBS_PROXY_PORT=8878
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 
@@ -26,6 +27,7 @@ export E2E_API_URL="http://localhost:${API_PORT}"
 export E2E_AGENT_TOKEN="$AGENT_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
+export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
 
 source "$SCRIPT_DIR/lib.sh"
 
@@ -50,6 +52,7 @@ teardown() {
     log_step "Tearing down e2e infrastructure..."
 
     # Kill processes
+    kill_pid_file "$PID_DIR/obs-proxy.pid"
     kill_pid_file "$PID_DIR/api.pid"
     kill_pid_file "$PID_DIR/agent.pid"
     kill_pid_file "$PID_DIR/controller.pid"
@@ -187,6 +190,9 @@ build_binaries() {
     log_info "Building Controller..."
     (cd "$ROOT_DIR/controller" && go build -o "$BIN_DIR/loco-controller" ./cmd)
 
+    log_info "Building Observability Proxy..."
+    (cd "$ROOT_DIR" && go build -o "$BIN_DIR/loco-obs-proxy" ./observability-proxy)
+
     log_ok "All binaries built"
 }
 
@@ -245,6 +251,31 @@ start_controller() {
 
     sleep 2
     log_ok "Controller started"
+}
+
+start_obs_proxy() {
+    log_step "Starting Observability Proxy..."
+
+    PORT="$OBS_PROXY_PORT" \
+    CONTROL_PLANE_URL="$E2E_API_URL" \
+    PROXY_AUTH_TOKEN="$AGENT_TOKEN" \
+    CLICKHOUSE_URL="clickhouse://localhost:9000" \
+    CLICKHOUSE_DB="default" \
+    DEFAULT_LIMIT="100" \
+    MAX_LIMIT="1000" \
+    QUERY_TIMEOUT_SECONDS="5" \
+    MAX_TIME_RANGE_HOURS="24" \
+    MAX_CONCURRENT_QUERIES="5" \
+    MAX_TAIL_DURATION_MINUTES="10" \
+    MAX_CONCURRENT_TAILS="3" \
+    TOKEN_CACHE_TTL_SECONDS="5" \
+        "$BIN_DIR/loco-obs-proxy" \
+        >"$LOG_DIR/obs-proxy.log" 2>&1 &
+
+    echo $! > "$PID_DIR/obs-proxy.pid"
+
+    wait_for "Obs proxy health" 10 curl -sf "http://localhost:${OBS_PROXY_PORT}/healthz"
+    log_ok "Observability proxy running on port ${OBS_PROXY_PORT}"
 }
 
 # ─── Test Runner ────────────────────────────────────────────────────────────
@@ -321,6 +352,7 @@ main() {
     start_api
     start_agent
     start_controller
+    start_obs_proxy
 
     echo ""
     echo "════════════════════════════════════════"

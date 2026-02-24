@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -326,28 +327,30 @@ func (ns NullWorkspaceRole) Value() (driver.Value, error) {
 }
 
 type Cluster struct {
-	ID                    int64              `json:"id"`
-	Name                  string             `json:"name"`
-	Region                string             `json:"region"`
-	Provider              string             `json:"provider"`
-	IsActive              bool               `json:"isActive"`
-	IsDefault             bool               `json:"isDefault"`
-	Endpoint              pgtype.Text        `json:"endpoint"`
-	HealthStatus          pgtype.Text        `json:"healthStatus"`
-	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
-	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
-	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
-	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
-	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
-	AgentVersion          pgtype.Text        `json:"agentVersion"`
+	ID                         int64              `json:"id"`
+	Name                       string             `json:"name"`
+	Region                     string             `json:"region"`
+	Provider                   string             `json:"provider"`
+	IsActive                   bool               `json:"isActive"`
+	IsDefault                  bool               `json:"isDefault"`
+	Endpoint                   pgtype.Text        `json:"endpoint"`
+	HealthStatus               pgtype.Text        `json:"healthStatus"`
+	LastHealthCheck            pgtype.Timestamptz `json:"lastHealthCheck"`
+	AgentTokenHash             pgtype.Text        `json:"agentTokenHash"`
+	LastHeartbeat              pgtype.Timestamptz `json:"lastHeartbeat"`
+	CapacityCpuMillicores      pgtype.Int8        `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes        pgtype.Int8        `json:"capacityMemoryBytes"`
+	AgentVersion               pgtype.Text        `json:"agentVersion"`
+	ObservabilityProxyEndpoint pgtype.Text        `json:"observabilityProxyEndpoint"`
+	EnvironmentID              uuid.UUID          `json:"environmentId"`
+	CreatedAt                  pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt                  pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type Deployment struct {
-	ID               pgtype.UUID        `json:"id"`
-	ResourceID       pgtype.UUID        `json:"resourceId"`
-	ResourceRegionID pgtype.UUID        `json:"resourceRegionId"`
+	ID               uuid.UUID          `json:"id"`
+	ResourceID       uuid.UUID          `json:"resourceId"`
+	ResourceRegionID uuid.UUID          `json:"resourceRegionId"`
 	ClusterID        int64              `json:"clusterId"`
 	Region           string             `json:"region"`
 	Replicas         int32              `json:"replicas"`
@@ -362,17 +365,28 @@ type Deployment struct {
 	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
 }
 
+type Environment struct {
+	ID           uuid.UUID          `json:"id"`
+	OrgID        uuid.UUID          `json:"orgId"`
+	Name         string             `json:"name"`
+	Description  pgtype.Text        `json:"description"`
+	IsProduction bool               `json:"isProduction"`
+	CreatedBy    uuid.UUID          `json:"createdBy"`
+	CreatedAt    pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt    pgtype.Timestamptz `json:"updatedAt"`
+}
+
 type Organization struct {
-	ID        pgtype.UUID        `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	Name      string             `json:"name"`
-	CreatedBy pgtype.UUID        `json:"createdBy"`
+	CreatedBy uuid.UUID          `json:"createdBy"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type OrganizationMember struct {
-	OrganizationID pgtype.UUID        `json:"organizationId"`
-	UserID         pgtype.UUID        `json:"userId"`
+	OrganizationID uuid.UUID          `json:"organizationId"`
+	UserID         uuid.UUID          `json:"userId"`
 	CreatedAt      pgtype.Timestamptz `json:"createdAt"`
 }
 
@@ -384,21 +398,22 @@ type PlatformDomain struct {
 }
 
 type Resource struct {
-	ID          pgtype.UUID        `json:"id"`
-	WorkspaceID pgtype.UUID        `json:"workspaceId"`
-	Name        string             `json:"name"`
-	Type        ResourceType       `json:"type"`
-	Description string             `json:"description"`
-	Status      ResourceStatus     `json:"status"`
-	Spec        []byte             `json:"spec"`
-	SpecVersion int32              `json:"specVersion"`
-	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
+	ID            uuid.UUID          `json:"id"`
+	WorkspaceID   uuid.UUID          `json:"workspaceId"`
+	Name          string             `json:"name"`
+	Type          ResourceType       `json:"type"`
+	Description   string             `json:"description"`
+	Status        ResourceStatus     `json:"status"`
+	Spec          []byte             `json:"spec"`
+	SpecVersion   int32              `json:"specVersion"`
+	EnvironmentID uuid.UUID          `json:"environmentId"`
+	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type ResourceDomain struct {
-	ID               pgtype.UUID        `json:"id"`
-	ResourceID       pgtype.UUID        `json:"resourceId"`
+	ID               uuid.UUID          `json:"id"`
+	ResourceID       uuid.UUID          `json:"resourceId"`
 	Domain           string             `json:"domain"`
 	DomainSource     DomainSource       `json:"domainSource"`
 	SubdomainLabel   pgtype.Text        `json:"subdomainLabel"`
@@ -409,8 +424,8 @@ type ResourceDomain struct {
 }
 
 type ResourceRegion struct {
-	ID         pgtype.UUID        `json:"id"`
-	ResourceID pgtype.UUID        `json:"resourceId"`
+	ID         uuid.UUID          `json:"id"`
+	ResourceID uuid.UUID          `json:"resourceId"`
 	Region     string             `json:"region"`
 	IsPrimary  bool               `json:"isPrimary"`
 	Status     RegionIntentStatus `json:"status"`
@@ -424,12 +439,12 @@ type Token struct {
 	Token      string        `json:"token"`
 	Scopes     []EntityScope `json:"scopes"`
 	EntityType EntityType    `json:"entityType"`
-	EntityID   pgtype.UUID   `json:"entityId"`
+	EntityID   uuid.UUID     `json:"entityId"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 }
 
 type User struct {
-	ID         pgtype.UUID        `json:"id"`
+	ID         uuid.UUID          `json:"id"`
 	ExternalID string             `json:"externalId"`
 	Email      string             `json:"email"`
 	Name       pgtype.Text        `json:"name"`
@@ -439,14 +454,14 @@ type User struct {
 }
 
 type UserScope struct {
-	UserID     pgtype.UUID `json:"userId"`
-	Scope      Scope       `json:"scope"`
-	EntityType EntityType  `json:"entityType"`
-	EntityID   pgtype.UUID `json:"entityId"`
+	UserID     uuid.UUID  `json:"userId"`
+	Scope      Scope      `json:"scope"`
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
 }
 
 type UserWithScopesView struct {
-	ID         pgtype.UUID        `json:"id"`
+	ID         uuid.UUID          `json:"id"`
 	ExternalID string             `json:"externalId"`
 	Email      string             `json:"email"`
 	Name       pgtype.Text        `json:"name"`
@@ -457,18 +472,18 @@ type UserWithScopesView struct {
 }
 
 type Workspace struct {
-	ID          pgtype.UUID        `json:"id"`
-	OrgID       pgtype.UUID        `json:"orgId"`
+	ID          uuid.UUID          `json:"id"`
+	OrgID       uuid.UUID          `json:"orgId"`
 	Name        string             `json:"name"`
 	Description pgtype.Text        `json:"description"`
-	CreatedBy   pgtype.UUID        `json:"createdBy"`
+	CreatedBy   uuid.UUID          `json:"createdBy"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type WorkspaceMember struct {
-	WorkspaceID pgtype.UUID        `json:"workspaceId"`
-	UserID      pgtype.UUID        `json:"userId"`
+	WorkspaceID uuid.UUID          `json:"workspaceId"`
+	UserID      uuid.UUID          `json:"userId"`
 	Role        WorkspaceRole      `json:"role"`
 	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
 }

@@ -49,6 +49,12 @@ spec:
                 description: DatabaseSpec is a placeholder for future DATABASE type
                   resources
                 type: object
+              deploymentId:
+                type: string
+              environmentId:
+                type: string
+              environmentName:
+                type: string
               queueSpec:
                 description: QueueSpec is a placeholder for future QUEUE type resources
                 type: object

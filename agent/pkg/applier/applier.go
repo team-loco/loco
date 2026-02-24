@@ -78,7 +78,7 @@ func (a *Applier) ApplyFromJSON(ctx context.Context, specJSON []byte) error {
 	// Build the Application CR
 	app := &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("resource-%d", payload.ResourceID),
+			Name:      fmt.Sprintf("resource-%s", payload.ResourceID),
 			Namespace: payload.LocoNamespace,
 			Labels:    map[string]string{},
 		},
@@ -113,12 +113,12 @@ func (a *Applier) ApplyFromJSON(ctx context.Context, specJSON []byte) error {
 }
 
 // DeleteFromJSON deletes an Application by resource ID.
-func (a *Applier) DeleteFromJSON(ctx context.Context, resourceID int64, namespace string) error {
+func (a *Applier) DeleteFromJSON(ctx context.Context, resourceID string, namespace string) error {
 	slog.Info("deleting application", "resource_id", resourceID, "namespace", namespace)
 
 	app := &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("resource-%d", resourceID),
+			Name:      fmt.Sprintf("resource-%v", resourceID),
 			Namespace: namespace,
 		},
 	}
@@ -136,9 +136,9 @@ func (a *Applier) DeleteFromJSON(ctx context.Context, resourceID int64, namespac
 
 // DeployPayload matches the structure sent by the API's DeployCommandPayload.
 type DeployPayload struct {
-	DeploymentID  int64                             `json:"deployment_id"`
-	ResourceID    int64                             `json:"resource_id"`
-	WorkspaceID   int64                             `json:"workspace_id"`
+	DeploymentID  string                            `json:"deployment_id"`
+	ResourceID    string                            `json:"resource_id"`
+	WorkspaceID   string                            `json:"workspace_id"`
 	ResourceName  string                            `json:"resource_name"`
 	ResourceType  string                            `json:"resource_type"`
 	Region        string                            `json:"region"`
@@ -149,7 +149,7 @@ type DeployPayload struct {
 
 // DeletePayload matches the structure sent by the API's DeleteCommandPayload.
 type DeletePayload struct {
-	DeploymentID  int64  `json:"deployment_id"`
-	ResourceID    int64  `json:"resource_id"`
+	DeploymentID  string `json:"deployment_id"`
+	ResourceID    string `json:"resource_id"`
 	LocoNamespace string `json:"loco_namespace"`
 }

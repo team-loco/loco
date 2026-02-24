@@ -1,0 +1,174 @@
+syntax = "proto3";
+
+package loco.observability.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/proto/loco/observability/v1;observabilityv1";
+
+// ObservabilityProxyService provides secure, workspace-scoped access to logs and metrics
+// stored in cluster-local ClickHouse. Runs in the data plane (per-cluster).
+service ObservabilityProxyService {
+  // QueryLogs returns historical log entries matching the given filters.
+  rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
+
+  // TailLogs streams live log entries as they arrive (server-push, polling-based).
+  rpc TailLogs(TailLogsRequest) returns (stream TailLogsResponse);
+
+  // QueryMetrics returns aggregated metric data points for the given time range.
+  rpc QueryMetrics(QueryMetricsRequest) returns (QueryMetricsResponse);
+}
+
+// ---------- Logs: Historical Query ----------
+
+// QueryLogsRequest specifies filters and pagination for querying historical logs.
+message QueryLogsRequest {
+  // Workspace ID to query logs from (required).
+  string workspace_id = 1;
+  // Resource IDs to filter by (e.g., deployment IDs). Empty means all resources.
+  repeated string resource_ids = 2;
+
+  // Start of time range (inclusive).
+  google.protobuf.Timestamp start_time = 3;
+  // End of time range (inclusive).
+  google.protobuf.Timestamp end_time = 4;
+
+  // Full-text search against log body.
+  string search = 5;
+
+  // Filter by severity levels (e.g., ["ERROR", "WARN"]).
+  repeated string levels = 6;
+
+  // Filter by resource attribute key-value pairs.
+  map<string, string> labels = 7;
+
+  // Max rows to return (clamped by guardrails).
+  int32 limit = 8;
+  // Opaque cursor for pagination (from previous response). Empty for first request.
+  string cursor = 9;
+
+  // Ordering of results (newest/oldest first).
+  LogOrder order = 10;
+}
+
+// LogOrder defines the sort order for historical log queries.
+enum LogOrder {
+  // Default value (invalid).
+  LOG_ORDER_UNSPECIFIED = 0;
+  // Return newest logs first.
+  LOG_ORDER_NEWEST_FIRST = 1;
+  // Return oldest logs first.
+  LOG_ORDER_OLDEST_FIRST = 2;
+}
+
+// QueryLogsResponse contains the results of a log query.
+message QueryLogsResponse {
+  // Log entries matching the query.
+  repeated LogEntry entries = 1;
+  // Opaque cursor for fetching the next page. Empty if no more results.
+  string next_cursor = 2;
+  // Approximate count of total matched rows (best-effort, may not be exact).
+  int64 total_matched = 3;
+}
+
+// LogEntry represents a single log record.
+message LogEntry {
+  // Timestamp when the log was emitted.
+  google.protobuf.Timestamp timestamp = 1;
+  // Severity level (e.g., "INFO", "ERROR", "WARN", "DEBUG").
+  string severity = 2;
+  // Log message body.
+  string body = 3;
+  // ID of the resource (e.g., deployment) that emitted this log.
+  string resource_id = 4;
+  // OpenTelemetry trace ID (if available).
+  string trace_id = 5;
+  // OpenTelemetry span ID (if available).
+  string span_id = 6;
+  // Resource-level attributes (e.g., pod name, namespace, image).
+  map<string, string> resource_attributes = 7;
+  // Log-level attributes (e.g., user-defined fields, request ID).
+  map<string, string> log_attributes = 8;
+}
+
+// ---------- Logs: Live Tail ----------
+
+// TailLogsRequest specifies filters for tailing live logs.
+message TailLogsRequest {
+  // Workspace ID to tail logs from (required).
+  string workspace_id = 1;
+  // Resource IDs to filter by. Empty means all resources.
+  repeated string resource_ids = 2;
+
+  // Full-text search against log body.
+  string search = 3;
+  // Filter by severity levels (e.g., ["ERROR", "WARN"]).
+  repeated string levels = 4;
+  // Filter by resource attribute key-value pairs.
+  map<string, string> labels = 5;
+}
+
+// TailLogsResponse is a server-streamed event (log entry or heartbeat).
+message TailLogsResponse {
+  // Event is either a new log entry or a heartbeat.
+  oneof event {
+    // New log entry.
+    LogEntry entry = 1;
+    // Heartbeat to indicate stream is still active.
+    Heartbeat heartbeat = 2;
+  }
+}
+
+// Heartbeat indicates the stream is still active (no new logs yet).
+message Heartbeat {
+  // Timestamp of the heartbeat.
+  google.protobuf.Timestamp timestamp = 1;
+}
+
+// ---------- Metrics Query ----------
+
+// QueryMetricsRequest specifies a metrics query with aggregation parameters.
+message QueryMetricsRequest {
+  // Workspace ID to query metrics from (required).
+  string workspace_id = 1;
+  // Resource IDs to filter by (required, non-empty).
+  repeated string resource_ids = 2;
+
+  // Start of time range (inclusive).
+  google.protobuf.Timestamp start_time = 3;
+  // End of time range (inclusive).
+  google.protobuf.Timestamp end_time = 4;
+
+  // Metric name to query (e.g., "k8s.pod.cpu_limit_utilization", "k8s.pod.memory_usage").
+  string metric_name = 5;
+
+  // Aggregation window in seconds (e.g., 60 for 1-minute buckets).
+  int32 interval_seconds = 6;
+
+  // Aggregation function ("avg", "sum", "min", "max", "p50", "p95", "p99").
+  string aggregation = 7;
+}
+
+// QueryMetricsResponse contains the aggregated metric data.
+message QueryMetricsResponse {
+  // Metric series (one per resource).
+  repeated MetricSeries series = 1;
+}
+
+// MetricSeries represents time-series data for a single resource.
+message MetricSeries {
+  // ID of the resource this series is for.
+  string resource_id = 1;
+  // Labels/tags associated with this series.
+  map<string, string> labels = 2;
+  // Data points (sorted by timestamp).
+  repeated MetricPoint points = 3;
+}
+
+// MetricPoint is a single aggregated metric value at a point in time.
+message MetricPoint {
+  // Timestamp of the data point.
+  google.protobuf.Timestamp timestamp = 1;
+  // Metric value (result of aggregation function).
+  double value = 2;
+}
