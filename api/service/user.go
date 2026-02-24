@@ -62,8 +62,8 @@ func (s *UserServer) CreateUser(
 	existingUserByEmail, err := s.queries.GetUserByEmail(ctx, r.GetEmail())
 	if err == nil {
 		if existingUserByEmail.ExternalID == r.GetExternalId() {
-			if err := tx.Commit(ctx); err != nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			if commitErr := tx.Commit(ctx); commitErr != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
 			}
 			return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByEmail.ID.String()}), nil
 		}
@@ -74,8 +74,8 @@ func (s *UserServer) CreateUser(
 
 	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.GetExternalId())
 	if err == nil {
-		if err := tx.Commit(ctx); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		if commitErr := tx.Commit(ctx); commitErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
 		}
 		return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByExtID.ID.String()}), nil
 	}
@@ -95,19 +95,19 @@ func (s *UserServer) CreateUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit transaction", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	if commitErr := tx.Commit(ctx); commitErr != nil {
+		slog.ErrorContext(ctx, "failed to commit transaction", "error", commitErr)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
 	}
 
-	err = s.tvm.UpdateRoles(ctx, user.ID.String(), []genDb.EntityScope{
+	updateErr := s.tvm.UpdateRoles(ctx, user.ID.String(), []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update user roles", "error", err, "userId", user.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	if updateErr != nil {
+		slog.ErrorContext(ctx, "failed to update user roles", "error", updateErr, "userId", user.ID.String())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", updateErr))
 	}
 
 	return connect.NewResponse(&userv1.CreateUserResponse{UserId: user.ID.String()}), nil
@@ -127,10 +127,10 @@ func (s *UserServer) GetUser(
 	case *userv1.GetUserRequest_UserId:
 		targetUserID = key.UserId
 	case *userv1.GetUserRequest_Email:
-		dbUser, err := s.queries.GetUserByEmail(ctx, key.Email)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to query user by email", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		dbUser, getErr := s.queries.GetUserByEmail(ctx, key.Email)
+		if getErr != nil {
+			slog.ErrorContext(ctx, "failed to query user by email", "error", getErr)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", getErr))
 		}
 		targetUserID = dbUser.ID.String()
 	default:
@@ -144,9 +144,9 @@ func (s *UserServer) GetUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetUser, targetUserID)); err != nil {
+	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetUser, targetUserID)); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to get user", "userId", targetUserID)
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	user, err := s.getUserByID(ctx, targetUserID)
@@ -364,7 +364,11 @@ func (s *UserServer) Logout(
 		slog.WarnContext(ctx, "token not found in context")
 		return res, nil
 	}
-	s.tvm.Revoke(ctx, token)
+	err := s.tvm.Revoke(ctx, token)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to revoke token", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", err))
+	}
 
 	slog.InfoContext(ctx, "user logged out")
 	return res, nil

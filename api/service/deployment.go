@@ -188,9 +188,9 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateDeployment, r.GetResourceId())); err != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateDeployment, r.GetResourceId())); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	// todo: move below validations to a dedicated validation package.
@@ -433,9 +433,9 @@ func (s *DeploymentServer) ListDeployments(
 
 	var pageToken pgtype.Text
 	if r.GetPageToken() != "" {
-		cursorID, err := decodeCursor(r.GetPageToken())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		cursorID, decodeErr := decodeCursor(r.GetPageToken())
+		if decodeErr != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", decodeErr))
 		}
 		pageToken = pgtype.Text{
 			String: cursorID,
@@ -500,9 +500,9 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteDeployment, resource.ID.String())); err != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteDeployment, resource.ID.String())); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", resource.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	// if this is the active deployment, delete the Application

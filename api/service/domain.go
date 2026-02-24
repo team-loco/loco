@@ -474,8 +474,8 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.RemoveDomain, domainRow.ResourceID.String())); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.RemoveDomain, domainRow.ResourceID.String())); verifyErr != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	// cannot remove primary domain

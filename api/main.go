@@ -177,9 +177,9 @@ func main() {
 	defer appCache.Close()
 
 	transport := &http.Transport{}
-	err = http2.ConfigureTransport(&http.Transport{})
-	if err != nil {
-		panic("failed to configure HTTP/2 transport: " + err.Error())
+	http2Err := http2.ConfigureTransport(&http.Transport{})
+	if http2Err != nil {
+		panic("failed to configure HTTP/2 transport: " + http2Err.Error())
 	}
 	httpClient := &http.Client{Transport: transport}
 

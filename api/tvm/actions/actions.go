@@ -9,7 +9,6 @@ import (
 type Action struct {
 	entityType db.EntityType
 	scope      db.Scope
-	entityID   int64
 }
 
 // The following actions do not have an Action listed below because they are publicly accessible:

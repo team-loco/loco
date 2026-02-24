@@ -277,8 +277,8 @@ func (s *OrgServer) UpdateOrg(
 		}
 
 		if !isUnique {
-			existingOrg, err := s.queries.GetOrgByName(ctx, r.GetName())
-			if err != nil || existingOrg.ID.String() != r.GetOrgId() {
+			existingOrg, getErr := s.queries.GetOrgByName(ctx, r.GetName())
+			if getErr != nil || existingOrg.ID.String() != r.GetOrgId() {
 				slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
 				return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 			}
