@@ -20,7 +20,7 @@ import (
 
 var (
 	ErrEnvironmentNotFound      = errors.New("environment not found")
-	ErrEnvironmentNameNotUnique = errors.New("environment name already exists in this organization")
+	ErrEnvironmentNameNotUnique = errors.New("environment name already exists in this workspace")
 	ErrEnvironmentInUse         = errors.New("environment has resources - cannot delete")
 )
 
@@ -36,7 +36,7 @@ func NewEnvironmentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.
 	return &EnvironmentServer{db: db, queries: queries, machine: machine}
 }
 
-// CreateEnvironment creates a new environment in an organization.
+// CreateEnvironment creates a new environment in a workspace.
 func (s *EnvironmentServer) CreateEnvironment(
 	ctx context.Context,
 	req *connect.Request[environmentv1.CreateEnvironmentRequest],
@@ -49,8 +49,8 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateEnvironment, r.GetOrgId())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create environment", "orgId", r.GetOrgId())
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateEnvironment, r.GetWorkspaceId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to create environment", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -59,15 +59,15 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	orgID, err := uuid.Parse(r.GetOrgId())
+	workspaceID, err := uuid.Parse(r.GetWorkspaceId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org_id: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}
 
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
 	env, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
-		OrgID:        orgID,
+		WorkspaceID:  workspaceID,
 		Name:         r.GetName(),
 		Description:  description,
 		IsProduction: r.GetIsProduction(),
@@ -110,7 +110,7 @@ func (s *EnvironmentServer) GetEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetEnvironment, env.OrgID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetEnvironment, env.WorkspaceID.String())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -120,7 +120,7 @@ func (s *EnvironmentServer) GetEnvironment(
 	}), nil
 }
 
-// ListEnvironments lists all environments in an organization.
+// ListEnvironments lists all environments in a workspace.
 func (s *EnvironmentServer) ListEnvironments(
 	ctx context.Context,
 	req *connect.Request[environmentv1.ListEnvironmentsRequest],
@@ -133,17 +133,17 @@ func (s *EnvironmentServer) ListEnvironments(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListEnvironments, r.GetOrgId())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to list environments", "orgId", r.GetOrgId())
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListEnvironments, r.GetWorkspaceId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list environments", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	orgID, err := uuid.Parse(r.GetOrgId())
+	workspaceID, err := uuid.Parse(r.GetWorkspaceId())
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org_id: %w", err))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}
 
-	envs, err := s.queries.ListOrgEnvironments(ctx, orgID)
+	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list environments", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -183,7 +183,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateEnvironment, existing.OrgID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -245,7 +245,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteEnvironment, existing.OrgID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String())); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -273,7 +273,7 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 	desc := env.Description.String
 	return &environmentv1.Environment{
 		Id:           env.ID.String(),
-		OrgId:        env.OrgID.String(),
+		WorkspaceId:  env.WorkspaceID.String(),
 		Name:         env.Name,
 		Description:  &desc,
 		IsProduction: env.IsProduction,

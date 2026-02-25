@@ -155,18 +155,13 @@ func (s *ObservabilityAccessServer) ValidateObservabilityToken(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("token is required"))
 	}
 
-	// Look up the token in TVM
-	tokenData, err := s.queries.GetToken(ctx, token)
+	// Look up the token via TVM (expiry check is handled by the SQL query)
+	tokenData, err := s.queries.GetAPIToken(ctx, hashToken(token))
 	if err != nil {
 		slog.WarnContext(ctx, "observability token not found", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid token"))
 	}
 
-	if time.Now().After(tokenData.ExpiresAt) {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("token expired"))
-	}
-
-	// Extract workspace_id and resource_ids from the token's scopes
 	var workspaceID string
 	var resourceIDs []string
 	var scopes []string
@@ -185,6 +180,6 @@ func (s *ObservabilityAccessServer) ValidateObservabilityToken(
 		WorkspaceId: workspaceID,
 		ResourceIds: resourceIDs,
 		Scopes:      scopes,
-		ExpiresAt:   timestamppb.New(tokenData.ExpiresAt),
+		ExpiresAt:   timestamppb.New(tokenData.ExpiresAt.Time),
 	}), nil
 }

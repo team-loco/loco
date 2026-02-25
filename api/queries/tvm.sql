@@ -1,4 +1,3 @@
--- what scopes does user x have?
 -- name: GetUserScopes :many
 SELECT ROW(scope, entity_type, entity_id)::entity_scope
 FROM user_scopes
@@ -80,13 +79,6 @@ ORDER BY us.entity_type, us.entity_id, us.scope;
 -- name: GetUsersWithScopeOnEntity :many
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3;
 
--- name: GetToken :one
-SELECT name, token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1 AND expires_at > NOW();
-
--- which tokens exist on behalf of entity y?
--- name: ListTokensForEntity :many
-SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE entity_type = $1 AND entity_id = $2;
-
 -- name: AddUserScope :exec
 INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;
 
@@ -99,23 +91,89 @@ DELETE FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = 
 -- name: RemoveAllScopesForEntity :exec
 DELETE FROM user_scopes WHERE entity_type = $1 AND entity_id = $2;
 
--- RemoveAllScopesForUser :exec
+-- name: RemoveAllScopesForUser :exec
 DELETE FROM user_scopes WHERE user_id = $1;
 
--- name: StoreToken :exec
-INSERT INTO tokens (name, token, entity_type, entity_id, scopes, expires_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING;
+-- -----------------------------------------------------------------------------
+-- Session token queries
+-- -----------------------------------------------------------------------------
 
--- name: GetTokenByName :one
-SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
+-- name: CreateSessionToken :exec
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
--- name: DeleteToken :exec
-DELETE FROM tokens WHERE name = $1;
+-- name: GetSessionByAccessToken :one
+SELECT id, user_id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+FROM session_tokens
+WHERE access_token_hash = $1 AND access_expires_at > NOW();
 
--- name: DeleteTokenByNameAndEntity :exec
-DELETE FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
+-- name: GetSessionByRefreshToken :one
+SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+FROM session_tokens
+WHERE refresh_token_hash = $1 AND refresh_expires_at > NOW();
 
--- name: DeleteTokensForEntity :exec
-DELETE FROM tokens WHERE entity_type = $1 AND entity_id = $2;
+-- name: RotateSessionToken :exec
+UPDATE session_tokens
+SET access_token_hash = $2, refresh_token_hash = $3, access_expires_at = $4, refresh_expires_at = $5, last_used_at = NOW()
+WHERE id = $1;
 
--- name: DeleteExpiredTokens :exec
-DELETE FROM tokens WHERE expires_at < NOW();
+-- name: TouchSessionLastUsed :exec
+UPDATE session_tokens SET last_used_at = NOW() WHERE id = $1;
+
+-- name: DeleteSessionToken :exec
+DELETE FROM session_tokens WHERE id = $1;
+
+-- name: DeleteSessionTokenByAccessHash :exec
+DELETE FROM session_tokens WHERE access_token_hash = $1;
+
+-- session is fully dead once the refresh token expires (access expiry alone is not enough)
+-- name: DeleteExpiredSessionTokens :exec
+DELETE FROM session_tokens WHERE refresh_expires_at < NOW();
+
+-- name: ListSessionsForUser :many
+SELECT id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+FROM session_tokens
+WHERE user_id = $1
+ORDER BY last_used_at DESC;
+
+-- -----------------------------------------------------------------------------
+-- API token queries
+-- -----------------------------------------------------------------------------
+
+-- name: CreateAPIToken :exec
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+
+-- name: GetAPIToken :one
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+FROM api_tokens
+WHERE token_hash = $1 AND expires_at > NOW();
+
+-- name: TouchAPITokenLastUsed :exec
+UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1;
+
+-- name: DeleteAPIToken :exec
+DELETE FROM api_tokens WHERE id = $1;
+
+-- name: DeleteAPITokenByHash :exec
+DELETE FROM api_tokens WHERE token_hash = $1;
+
+-- name: DeleteExpiredAPITokens :exec
+DELETE FROM api_tokens WHERE expires_at < NOW();
+
+-- name: ListAPITokensForEntity :many
+SELECT id, name, entity_type, entity_id, scopes, created_at, expires_at, last_used_at
+FROM api_tokens
+WHERE entity_type = $1 AND entity_id = $2
+ORDER BY created_at DESC;
+
+-- name: DeleteAPITokensForEntity :exec
+DELETE FROM api_tokens WHERE entity_type = $1 AND entity_id = $2;
+
+-- name: GetAPITokenByNameAndEntity :one
+SELECT id, name, entity_type, entity_id, scopes, created_at, expires_at, last_used_at
+FROM api_tokens
+WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
+
+-- name: DeleteAPITokenByNameAndEntity :exec
+DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;

@@ -115,16 +115,6 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
-		OrgID:        org.ID,
-		Name:         "production",
-		IsProduction: true,
-		CreatedBy:    entity.ID,
-	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create production environment for new org", "error", err, "orgId", org.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
 	return connect.NewResponse(&orgv1.CreateOrgResponse{
 		OrgId: org.ID.String(),
 	}), nil

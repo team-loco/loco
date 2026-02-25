@@ -211,18 +211,24 @@ func (s *OAuthServer) ExchangeOAuthToken(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("token is required"))
 	}
 
-	// initiate login
-	user, locoToken, err := s.machine.Exchange(ctx, providers.Github(token))
+	ip := req.Header().Get("X-Real-IP")
+	if ip == "" {
+		ip = req.Header().Get("X-Forwarded-For")
+	}
+	ua := req.Header().Get("User-Agent")
+
+	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, providers.Github(token), ip, ua)
 	if err != nil {
 		slog.ErrorContext(ctx, "exchange oauth token", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("exchange token: %w", err))
 	}
 
 	res := connect.NewResponse(&oAuth.ExchangeOAuthTokenResponse{
-		LocoToken: locoToken,
-		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
-		UserId:    user.ID.String(),
-		Name:      user.Name.String,
+		LocoToken:    accessToken,
+		ExpiresIn:    int64(OAuthTokenTTL.Seconds()),
+		UserId:       user.ID.String(),
+		Name:         user.Name.String,
+		RefreshToken: refreshToken,
 	})
 
 	slog.InfoContext(ctx, "exchanged oauth token for loco token", "userId", user.ID.String())
@@ -315,8 +321,14 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get email: %w", err))
 	}
 
+	ip := req.Header().Get("X-Real-IP")
+	if ip == "" {
+		ip = req.Header().Get("X-Forwarded-For")
+	}
+	ua := req.Header().Get("User-Agent")
+
 	// try to exchange token for existing user
-	user, locoToken, err := s.machine.Exchange(ctx, emailResp)
+	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, emailResp, ip, ua)
 	if err == tvm.ErrUserNotFound {
 		// user doesn't exist, fetch github profile and create user
 		githubUser, fetchErr := s.fetchGithubUserData(token.AccessToken)
@@ -332,7 +344,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		}
 
 		// exchange again with newly created user
-		user, locoToken, err = s.machine.Exchange(ctx, emailResp)
+		user, accessToken, refreshToken, err = s.machine.Exchange(ctx, emailResp, ip, ua)
 		if err != nil {
 			slog.ErrorContext(ctx, "exchange github token for new user", "error", err)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("exchange token: %w", err))
@@ -349,11 +361,15 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		Name:      user.Name.String,
 	})
 
-	// set loco token as http-only cookie
-	res.Header().Set("Set-Cookie", fmt.Sprintf(
+	res.Header().Add("Set-Cookie", fmt.Sprintf(
 		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax",
-		locoToken,
+		accessToken,
 		int(OAuthTokenTTL.Seconds()),
+	))
+	res.Header().Add("Set-Cookie", fmt.Sprintf(
+		"loco_refresh_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax",
+		refreshToken,
+		int(s.machine.Cfg.SessionRefreshTokenDuration.Seconds()),
 	))
 
 	slog.InfoContext(ctx, "exchanged oauth code for loco token", "userId", user.ID, "method", "cookie", "provider", req.Msg.GetProvider())

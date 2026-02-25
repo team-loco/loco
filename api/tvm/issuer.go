@@ -6,81 +6,72 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
-// Issue issues a token associated with the given entity and scopes for the given duration. The userID is the ID of the user requesting the token.
-// The user must have sufficient permissions to issue a token with the requested scopes, or an error [ErrInsufficentPermissions] is returned.
-// It is important to note that this function does NOT verify that whatever is requesting the token is the user with the given userID. It is expected that the caller
-// has already verified this.
+// Issue issues an API token for the given entity and scopes. The userID is the ID of the
+// user requesting the token; that user must already hold all the requested scopes (explicitly
+// or implicitly), otherwise ErrInsufficentPermissions is returned.
+// It is the caller's responsibility to verify that the request is coming from the user with
+// this userID before calling Issue.
 func (tvm *VendingMachine) Issue(ctx context.Context, name string, userID string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
-	// gotta make sure the requested duration does not exceed the max allowed duration
-	if duration > tvm.Cfg.MaxTokenDuration {
+	if duration > tvm.Cfg.MaxAPITokenDuration {
 		return "", ErrDurationExceedsMaxAllowed
 	}
 
-	// fetch the scopes associated with the user
-	userScopesUUID, err := uuid.Parse(userID)
-	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return "", err
-	}
-	userScopes, err := tvm.queries.GetUserScopes(ctx, userScopesUUID)
+	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return "", err
 	}
 
-	// verify that the user has all the requested scopes, either explicitly or implicitly
-	for _, entityScope := range entityScopes {
-		if err := tvm.VerifyWithGivenEntityScopes(ctx, userScopes, entityScope); err != nil {
+	userScopes, err := tvm.queries.GetUserScopes(ctx, userUUID)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return "", err
+	}
+
+	for _, es := range entityScopes {
+		if err := tvm.VerifyWithGivenEntityScopes(ctx, userScopes, es); err != nil {
 			slog.ErrorContext(ctx, err.Error())
 			return "", err
 		}
 	}
 
-	return tvm.issueNoCheck(ctx, name, entity, entityScopes, duration)
+	return tvm.issueAPITokenNoCheck(ctx, name, userUUID, entity, entityScopes, duration)
 }
 
-// IssueWithLoginToken issues a token associated with the given entity and scopes for the given duration, using a login token for authentication. The login token must be
-// associated with a user, and that user must have sufficient permissions to issue a token with the requested scopes, or an error [ErrInsufficentPermissions] is returned.
-// Unlike [Issue], this function uses a token to authenticate the user, rather than taking a userID directly.
-func (tvm *VendingMachine) IssueWithLoginToken(ctx context.Context, name string, token string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
-	// this is meant to issue a token from a user's login token, although a user token could also be used
-	tokenData, err := tvm.queries.GetToken(ctx, token)
+// IssueWithSessionToken issues an API token using a session token for authentication.
+// The session token must belong to a user, and that user must hold all requested scopes.
+func (tvm *VendingMachine) IssueWithSessionToken(ctx context.Context, name string, sessionToken string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
+	entity2, _, err := tvm.GetToken(ctx, sessionToken)
 	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return "", ErrTokenNotFound
+		return "", ErrInvalidExpiredToken
 	}
-	if time.Now().After(tokenData.ExpiresAt) {
-		return "", ErrTokenExpired
-	}
-	if tokenData.EntityType != queries.EntityTypeUser {
+	if entity2.Type != queries.EntityTypeUser {
 		return "", ErrImproperUsage
 	}
-	userID := tokenData.EntityID.String()
-
-	return tvm.Issue(ctx, name, userID, entity, entityScopes, duration)
+	return tvm.Issue(ctx, name, entity2.ID.String(), entity, entityScopes, duration)
 }
 
-// issueNoCheck issues a token without checking permissions.
-func (tvm *VendingMachine) issueNoCheck(ctx context.Context, name string, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
-	tk := uuid.Must(uuid.NewV7())
-	tks := tk.String()
+// issueAPITokenNoCheck issues an API token without checking permissions.
+func (tvm *VendingMachine) issueAPITokenNoCheck(ctx context.Context, name string, createdBy uuid.UUID, entity queries.Entity, entityScopes []queries.EntityScope, duration time.Duration) (string, error) {
+	token, hash := generateToken(prefixAPIKey)
 
-	// issue the token
-	err := tvm.queries.StoreToken(ctx, queries.StoreTokenParams{
+	if err := tvm.queries.CreateAPIToken(ctx, queries.CreateAPITokenParams{
+		ID:         uuid.Must(uuid.NewV7()),
+		TokenHash:  hash,
 		Name:       name,
-		Token:      tks,
-		EntityType: queries.EntityType(entity.Type),
+		EntityType: entity.Type,
 		EntityID:   entity.ID,
 		Scopes:     entityScopes,
-		ExpiresAt:  time.Now().Add(duration),
-	})
-	if err != nil {
+		CreatedBy:  createdBy,
+		ExpiresAt:  pgtype.Timestamptz{Time: time.Now().Add(duration), Valid: true},
+	}); err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return "", ErrStoreToken
 	}
 
-	return tks, nil
+	return token, nil
 }

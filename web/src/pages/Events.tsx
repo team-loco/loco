@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownSelector } from "@/components/ui/dropdown-selector";
+import { Input } from "@/components/ui/input";
+import { useWorkspace } from "@/hooks/useWorkspace";
+import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { AlertCircle, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
-import { useWorkspace } from "@/hooks/useWorkspace";
 
 const severityColors: Record<string, string> = {
 	error: "border-l-4 border-l-red-500 bg-red-50 dark:bg-red-950",
@@ -25,7 +25,7 @@ const severityBadgeColors: Record<string, string> = {
 export function Events() {
 	const { workspace } = useWorkspace();
 	const { events: backendEvents } = useWorkspaceEvents(
-		workspace?.id.toString() ?? ""
+		workspace?.id.toString() ?? "",
 	);
 	const [events, setEvents] = useState(backendEvents);
 	const [filteredEvents, setFilteredEvents] = useState(backendEvents);
@@ -44,15 +44,15 @@ export function Events() {
 			const term = searchTerm.toLowerCase();
 			result = result.filter(
 				(e) =>
-					e.resourceName?.toLowerCase().includes(term) ||
-					e.message?.toLowerCase().includes(term) ||
-					e.reason?.toLowerCase().includes(term)
+					e.resourceName.toLowerCase().includes(term) ||
+					e.message.toLowerCase().includes(term) ||
+					e.reason.toLowerCase().includes(term),
 			);
 		}
 
 		if (severityFilter !== "all") {
 			result = result.filter((e) => {
-				const severity = e.type?.toLowerCase() || "info";
+				const severity = e.type.toLowerCase() || "info";
 				return severity.includes(severityFilter);
 			});
 		}
@@ -96,7 +96,9 @@ export function Events() {
 								<Input
 									placeholder="Search events by app or message..."
 									value={searchTerm}
-									onChange={(e) => { setSearchTerm(e.target.value); }}
+									onChange={(e) => {
+										setSearchTerm(e.target.value);
+									}}
 								/>
 							</div>
 							<DropdownSelector
@@ -113,9 +115,9 @@ export function Events() {
 									{ value: "success", label: "Success" },
 									{ value: "info", label: "Info" },
 								]}
-								onSelect={(value) =>
-									{ setSeverityFilter(value as string); }
-								}
+								onSelect={(value) => {
+									setSeverityFilter(value as string);
+								}}
 								contentWidth="w-44"
 							/>
 						</div>
@@ -131,79 +133,85 @@ export function Events() {
 						</div>
 
 						{/* Events List */}
-				{filteredEvents.length === 0 ? (
-					<div className="py-12 text-center">
-						<AlertCircle className="h-12 w-12 mx-auto text-foreground opacity-30 mb-3" />
-						<p className="text-foreground opacity-60">
-							{events.length === 0
-								? "No events yet"
-								: "No events match your filters"}
-						</p>
-					</div>
-				) : (
-					<div className="space-y-3">
-						{filteredEvents.map((event) => {
-							const severity = (event.type?.toLowerCase() ||
-								"info");
-							const timestamp = event.timestamp
-								? new Date(
-										typeof event.timestamp === "object" &&
-										"seconds" in event.timestamp
-											? Number(
-													(event.timestamp as Record<string, unknown>).seconds
-											  ) * 1000
-											: event.timestamp
-								  )
-								: new Date();
+						{filteredEvents.length === 0 ? (
+							<div className="py-12 text-center">
+								<AlertCircle className="h-12 w-12 mx-auto text-foreground opacity-30 mb-3" />
+								<p className="text-foreground opacity-60">
+									{events.length === 0
+										? "No events yet"
+										: "No events match your filters"}
+								</p>
+							</div>
+						) : (
+							<div className="space-y-3">
+								{filteredEvents.map((event) => {
+									const severity = event.type?.toLowerCase() || "info";
+									const timestamp = event.timestamp
+										? new Date(
+												typeof event.timestamp === "object" &&
+													"seconds" in event.timestamp
+													? Number(
+															(event.timestamp as Record<string, unknown>)
+																.seconds,
+														) * 1000
+													: event.timestamp,
+											)
+										: new Date();
 
-							return (
-								<div
-									key={event.id}
-									className={`border border-border rounded-md p-4 ${
-										severityColors[severity] || ""
-									}`}
-								>
-									<div className="flex items-start justify-between gap-4">
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-3 mb-2">
-												<h3 className="font-semibold text-foreground">
-													{(
-														event as typeof event & {
-															resourceName: string;
-														}
-													).resourceName || "Unknown Resource"}
-												</h3>
-												<span
-													className={`text-xs px-2 py-1 rounded-full font-medium ${
-														severityBadgeColors[severity] || ""
-													}`}
-												>
-													{(event.reason || severity).charAt(0).toUpperCase() +
-														(event.reason || severity).slice(1).toLowerCase()}
-												</span>
-											</div>
-											<p className="text-sm text-foreground opacity-80 wrap-break-word mb-2">
-												{event.message}
-											</p>
-											<p className="text-xs text-foreground opacity-60">
-												{formatDateTime(timestamp)}
-											</p>
-										</div>
-										<Button
-											variant="secondary"
-											size="sm"
-											onClick={() => { handleDismiss(event.id); }}
-											className="h-8 w-8 p-0 shrink-0"
-											title="Dismiss event"
+									return (
+										<div
+											key={event.id}
+											className={`border border-border rounded-md p-4 ${
+												severityColors[severity] || ""
+											}`}
 										>
-											<X className="h-4 w-4" />
-										</Button>
-									</div>
-								</div>
-							);
-						})}
-					</div>
-				)}
+											<div className="flex items-start justify-between gap-4">
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center gap-3 mb-2">
+														<h3 className="font-semibold text-foreground">
+															{(
+																event as typeof event & {
+																	resourceName: string;
+																}
+															).resourceName || "Unknown Resource"}
+														</h3>
+														<span
+															className={`text-xs px-2 py-1 rounded-full font-medium ${
+																severityBadgeColors[severity] || ""
+															}`}
+														>
+															{(event.reason || severity)
+																.charAt(0)
+																.toUpperCase() +
+																(event.reason || severity)
+																	.slice(1)
+																	.toLowerCase()}
+														</span>
+													</div>
+													<p className="text-sm text-foreground opacity-80 wrap-break-word mb-2">
+														{event.message}
+													</p>
+													<p className="text-xs text-foreground opacity-60">
+														{formatDateTime(timestamp)}
+													</p>
+												</div>
+												<Button
+													variant="secondary"
+													size="sm"
+													onClick={() => {
+														handleDismiss(event.id);
+													}}
+													className="h-8 w-8 p-0 shrink-0"
+													title="Dismiss event"
+												>
+													<X className="h-4 w-4" />
+												</Button>
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						)}
 					</CardContent>
 				</Card>
 			</div>

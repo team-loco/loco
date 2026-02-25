@@ -150,8 +150,10 @@ func main() {
 	queries := genDb.New(pool)
 
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
-		MaxTokenDuration:   time.Hour * 24 * 30,
-		LoginTokenDuration: time.Hour * 1,
+		MaxAPITokenDuration:         time.Hour * 24 * 365,
+		SessionAccessTokenDuration:  time.Hour * 24,
+		SessionRefreshTokenDuration: time.Hour * 24 * 30,
+		LastUsedUpdateInterval:      time.Minute * 5,
 	})
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})

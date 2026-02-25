@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -37,7 +38,7 @@ func NewTokenServer(db *pgxpool.Pool, queries genDb.Querier, tvm *tvm.VendingMac
 	return &TokenServer{db: db, queries: queries, tvm: tvm}
 }
 
-// CreateToken issues a new token for a specific entity with defined scopes
+// CreateToken issues a new API token for a specific entity with defined scopes
 func (s *TokenServer) CreateToken(
 	ctx context.Context,
 	req *connect.Request[tokenv1.CreateTokenRequest],
@@ -54,7 +55,7 @@ func (s *TokenServer) CreateToken(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("entity_type is required"))
 	}
 
-	if r.GetExpiresInSec() <= 0 || r.GetExpiresInSec() > int64(s.tvm.Cfg.MaxTokenDuration.Seconds()) {
+	if r.GetExpiresInSec() <= 0 || r.GetExpiresInSec() > int64(s.tvm.Cfg.MaxAPITokenDuration.Seconds()) {
 		slog.ErrorContext(ctx, "invalid token duration", "expires_in_sec", r.GetExpiresInSec())
 		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidTokenDuration)
 	}
@@ -115,27 +116,23 @@ func (s *TokenServer) CreateToken(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to issue token: %w", err))
 	}
 
-	tokenData, err := s.queries.GetTokenByName(ctx, genDb.GetTokenByNameParams{
-		Name:       r.GetName(),
-		EntityType: targetEntity.Type,
-		EntityID:   targetEntity.ID,
-	})
+	// fetch metadata using the token we just issued
+	tokenHash := hashToken(token)
+	tokenData, err := s.queries.GetAPIToken(ctx, tokenHash)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to fetch created token metadata", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch token metadata: %w", err))
 	}
 
-	tokenMetadata := dbTokenGetRowToProto(tokenData)
-
 	slog.InfoContext(ctx, "created token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID)
 
 	return connect.NewResponse(&tokenv1.CreateTokenResponse{
 		Token:         token,
-		TokenMetadata: tokenMetadata,
+		TokenMetadata: apiTokenRowToProto(tokenData.Name, tokenData.EntityType, tokenData.EntityID, tokenData.Scopes, tokenData.ExpiresAt),
 	}), nil
 }
 
-// ListTokens lists all tokens associated with an entity
+// ListTokens lists all API tokens associated with an entity
 func (s *TokenServer) ListTokens(
 	ctx context.Context,
 	req *connect.Request[tokenv1.ListTokensRequest],
@@ -173,15 +170,15 @@ func (s *TokenServer) ListTokens(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	tokens, err := s.tvm.ListTokensForEntity(ctx, targetEntity)
+	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list tokens", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to list tokens: %w", err))
 	}
 
 	protoTokens := make([]*tokenv1.Token, len(tokens))
-	for i, token := range tokens {
-		protoTokens[i] = dbTokenListRowToProto(token)
+	for i, t := range tokens {
+		protoTokens[i] = apiTokenRowToProto(t.Name, t.EntityType, t.EntityID, t.Scopes, t.ExpiresAt)
 	}
 
 	return connect.NewResponse(&tokenv1.ListTokensResponse{
@@ -189,7 +186,7 @@ func (s *TokenServer) ListTokens(
 	}), nil
 }
 
-// GetToken retrieves metadata for a specific token
+// GetToken retrieves metadata for a specific token by name and entity
 func (s *TokenServer) GetToken(
 	ctx context.Context,
 	req *connect.Request[tokenv1.GetTokenRequest],
@@ -232,7 +229,7 @@ func (s *TokenServer) GetToken(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	token, err := s.queries.GetTokenByName(ctx, genDb.GetTokenByNameParams{
+	token, err := s.queries.GetAPITokenByNameAndEntity(ctx, genDb.GetAPITokenByNameAndEntityParams{
 		Name:       r.GetName(),
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
@@ -243,11 +240,11 @@ func (s *TokenServer) GetToken(
 	}
 
 	return connect.NewResponse(&tokenv1.GetTokenResponse{
-		Token: dbTokenGetRowToProto(token),
+		Token: apiTokenRowToProto(token.Name, token.EntityType, token.EntityID, token.Scopes, token.ExpiresAt),
 	}), nil
 }
 
-// RevokeToken revokes/deletes a token
+// RevokeToken revokes/deletes an API token
 func (s *TokenServer) RevokeToken(
 	ctx context.Context,
 	req *connect.Request[tokenv1.RevokeTokenRequest],
@@ -300,14 +297,13 @@ func (s *TokenServer) RevokeToken(
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("insufficient permissions to revoke token"))
 	}
 
-	deleteErr := s.queries.DeleteTokenByNameAndEntity(ctx, genDb.DeleteTokenByNameAndEntityParams{
+	if err := s.queries.DeleteAPITokenByNameAndEntity(ctx, genDb.DeleteAPITokenByNameAndEntityParams{
 		Name:       r.GetName(),
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
-	})
-	if deleteErr != nil {
-		slog.ErrorContext(ctx, "failed to delete token", "error", deleteErr)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", deleteErr))
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to delete token", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", err))
 	}
 
 	slog.InfoContext(ctx, "revoked token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID.String())
@@ -317,15 +313,7 @@ func (s *TokenServer) RevokeToken(
 
 // Helper functions
 
-func dbTokenListRowToProto(token genDb.ListTokensForEntityRow) *tokenv1.Token {
-	return convertTokenToProto(token.Name, token.EntityType, token.EntityID, token.Scopes, token.ExpiresAt)
-}
-
-func dbTokenGetRowToProto(token genDb.GetTokenByNameRow) *tokenv1.Token {
-	return convertTokenToProto(token.Name, token.EntityType, token.EntityID, token.Scopes, token.ExpiresAt)
-}
-
-func convertTokenToProto(name string, entityType genDb.EntityType, entityID uuid.UUID, dbScopes []genDb.EntityScope, expiresAt time.Time) *tokenv1.Token {
+func apiTokenRowToProto(name string, entityType genDb.EntityType, entityID uuid.UUID, dbScopes []genDb.EntityScope, expiresAt pgtype.Timestamptz) *tokenv1.Token {
 	scopes := make([]*tokenv1.EntityScope, len(dbScopes))
 	for i, scope := range dbScopes {
 		scopes[i] = &tokenv1.EntityScope{
@@ -340,7 +328,7 @@ func convertTokenToProto(name string, entityType genDb.EntityType, entityID uuid
 		EntityType: dbEntityTypeToProto(entityType),
 		EntityId:   entityID.String(),
 		Scopes:     scopes,
-		ExpiresAt:  timeutil.ParsePostgresTimestamp(expiresAt),
+		ExpiresAt:  timeutil.ParsePostgresTimestamp(expiresAt.Time),
 	}
 }
 
@@ -357,7 +345,7 @@ func protoEntityTypeToDb(et tokenv1.EntityType) genDb.EntityType {
 	case tokenv1.EntityType_ENTITY_TYPE_USER:
 		return genDb.EntityTypeUser
 	default:
-		return genDb.EntityTypeUser // default fallback
+		return genDb.EntityTypeUser
 	}
 }
 
@@ -387,7 +375,7 @@ func protoScopeToDb(s tokenv1.Scope) genDb.Scope {
 	case tokenv1.Scope_SCOPE_ADMIN:
 		return genDb.ScopeAdmin
 	default:
-		return genDb.ScopeRead // default fallback
+		return genDb.ScopeRead
 	}
 }
 

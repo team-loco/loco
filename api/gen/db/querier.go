@@ -22,6 +22,10 @@ type Querier interface {
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
 	CountResourcesByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
+	// -----------------------------------------------------------------------------
+	// API token queries
+	// -----------------------------------------------------------------------------
+	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
@@ -33,23 +37,34 @@ type Querier interface {
 	CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error)
 	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error)
 	CreateResourceRegion(ctx context.Context, arg CreateResourceRegionParams) (ResourceRegion, error)
+	// -----------------------------------------------------------------------------
+	// Session token queries
+	// -----------------------------------------------------------------------------
+	CreateSessionToken(ctx context.Context, arg CreateSessionTokenParams) error
 	// User queries for sqlc
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error)
 	DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error)
+	DeleteAPIToken(ctx context.Context, id uuid.UUID) error
+	DeleteAPITokenByHash(ctx context.Context, tokenHash string) error
+	DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error
+	DeleteAPITokensForEntity(ctx context.Context, arg DeleteAPITokensForEntityParams) error
 	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
-	DeleteExpiredTokens(ctx context.Context) error
+	DeleteExpiredAPITokens(ctx context.Context) error
+	// session is fully dead once the refresh token expires (access expiry alone is not enough)
+	DeleteExpiredSessionTokens(ctx context.Context) error
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
 	DeleteOrganization(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
-	DeleteToken(ctx context.Context, name string) error
-	DeleteTokenByNameAndEntity(ctx context.Context, arg DeleteTokenByNameAndEntityParams) error
-	DeleteTokensForEntity(ctx context.Context, arg DeleteTokensForEntityParams) error
+	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
+	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error
+	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
+	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveClusterByRegionAndEnv(ctx context.Context, arg GetActiveClusterByRegionAndEnvParams) (GetActiveClusterByRegionAndEnvRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	// Cluster queries for agent operations
@@ -77,12 +92,11 @@ type Querier interface {
 	GetResourceDomainCount(ctx context.Context, resourceID uuid.UUID) (int64, error)
 	GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error)
 	GetResourceWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	GetToken(ctx context.Context, token string) (Token, error)
-	GetTokenByName(ctx context.Context, arg GetTokenByNameParams) (GetTokenByNameRow, error)
+	GetSessionByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionByAccessTokenRow, error)
+	GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByExternalID(ctx context.Context, externalID string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
-	// what scopes does user x have?
 	GetUserScopes(ctx context.Context, userID uuid.UUID) ([]EntityScope, error)
 	// what scopes does user x have on entity y?
 	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]EntityScope, error)
@@ -103,6 +117,7 @@ type Querier interface {
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	IsWorkspaceMember(ctx context.Context, arg IsWorkspaceMemberParams) (bool, error)
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
+	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
 	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
 	ListActiveDeploymentsByResourceID(ctx context.Context, resourceID uuid.UUID) ([]DeploymentStatus, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
@@ -116,8 +131,7 @@ type Querier interface {
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]ListResourcesForWorkspaceRow, error)
-	// which tokens exist on behalf of entity y?
-	ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]ListTokensForEntityRow, error)
+	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUserOrganizations(ctx context.Context, userID uuid.UUID) ([]Organization, error)
 	ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]Workspace, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
@@ -131,15 +145,18 @@ type Querier interface {
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
+	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
 	RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error
+	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) error
 	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
-	StoreToken(ctx context.Context, arg StoreTokenParams) error
+	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
+	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
 	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error

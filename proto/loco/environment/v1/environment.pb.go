@@ -23,13 +23,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Environment represents an isolation boundary within an organization.
-// Each org has at least one environment ("production") created automatically.
+// Environment represents an isolation boundary within a workspace.
+// Each workspace has at least one environment ("production") created automatically.
 // Clusters are assigned to environments; resources are deployed to a fixed environment.
 type Environment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	OrgId         string                 `protobuf:"bytes,2,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	IsProduction  bool                   `protobuf:"varint,5,opt,name=is_production,json=isProduction,proto3" json:"is_production,omitempty"`
@@ -77,9 +77,9 @@ func (x *Environment) GetId() string {
 	return ""
 }
 
-func (x *Environment) GetOrgId() string {
+func (x *Environment) GetWorkspaceId() string {
 	if x != nil {
-		return x.OrgId
+		return x.WorkspaceId
 	}
 	return ""
 }
@@ -129,7 +129,7 @@ func (x *Environment) GetUpdatedAt() *timestamppb.Timestamp {
 // CreateEnvironmentRequest is the request to create a new environment.
 type CreateEnvironmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	IsProduction  bool                   `protobuf:"varint,4,opt,name=is_production,json=isProduction,proto3" json:"is_production,omitempty"`
@@ -167,9 +167,9 @@ func (*CreateEnvironmentRequest) Descriptor() ([]byte, []int) {
 	return file_loco_environment_v1_environment_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CreateEnvironmentRequest) GetOrgId() string {
+func (x *CreateEnvironmentRequest) GetWorkspaceId() string {
 	if x != nil {
-		return x.OrgId
+		return x.WorkspaceId
 	}
 	return ""
 }
@@ -330,10 +330,10 @@ func (x *GetEnvironmentResponse) GetEnvironment() *Environment {
 	return nil
 }
 
-// ListEnvironmentsRequest is the request to list environments in an org.
+// ListEnvironmentsRequest is the request to list environments in a workspace.
 type ListEnvironmentsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -368,9 +368,9 @@ func (*ListEnvironmentsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_environment_v1_environment_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ListEnvironmentsRequest) GetOrgId() string {
+func (x *ListEnvironmentsRequest) GetWorkspaceId() string {
 	if x != nil {
-		return x.OrgId
+		return x.WorkspaceId
 	}
 	return ""
 }
@@ -628,10 +628,10 @@ var File_loco_environment_v1_environment_proto protoreflect.FileDescriptor
 
 const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\n" +
-	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb9\x02\n" +
+	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x02\n" +
 	"\vEnvironment\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
-	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x12\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12#\n" +
 	"\ris_production\x18\x05 \x01(\bR\fisProduction\x12\x1d\n" +
@@ -641,9 +641,9 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
-	"\f_description\"\xa1\x01\n" +
-	"\x18CreateEnvironmentRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x12\n" +
+	"\f_description\"\xad\x01\n" +
+	"\x18CreateEnvironmentRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12#\n" +
 	"\ris_production\x18\x04 \x01(\bR\fisProductionB\x0e\n" +
@@ -653,9 +653,9 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\x15GetEnvironmentRequest\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\\\n" +
 	"\x16GetEnvironmentResponse\x12B\n" +
-	"\venvironment\x18\x01 \x01(\v2 .loco.environment.v1.EnvironmentR\venvironment\"0\n" +
-	"\x17ListEnvironmentsRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\tR\x05orgId\"`\n" +
+	"\venvironment\x18\x01 \x01(\v2 .loco.environment.v1.EnvironmentR\venvironment\"<\n" +
+	"\x17ListEnvironmentsRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"`\n" +
 	"\x18ListEnvironmentsResponse\x12D\n" +
 	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\x93\x02\n" +
 	"\x18UpdateEnvironmentRequest\x12%\n" +

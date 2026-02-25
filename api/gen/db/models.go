@@ -7,7 +7,7 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
-	"time"
+	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -326,6 +326,19 @@ func (ns NullWorkspaceRole) Value() (driver.Value, error) {
 	return string(ns.WorkspaceRole), nil
 }
 
+type ApiToken struct {
+	ID         uuid.UUID          `json:"id"`
+	TokenHash  string             `json:"tokenHash"`
+	Name       string             `json:"name"`
+	EntityType EntityType         `json:"entityType"`
+	EntityID   uuid.UUID          `json:"entityId"`
+	Scopes     []EntityScope      `json:"scopes"`
+	CreatedBy  uuid.UUID          `json:"createdBy"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
+}
+
 type Cluster struct {
 	ID                         int64              `json:"id"`
 	Name                       string             `json:"name"`
@@ -367,7 +380,7 @@ type Deployment struct {
 
 type Environment struct {
 	ID           uuid.UUID          `json:"id"`
-	OrgID        uuid.UUID          `json:"orgId"`
+	WorkspaceID  uuid.UUID          `json:"workspaceId"`
 	Name         string             `json:"name"`
 	Description  pgtype.Text        `json:"description"`
 	IsProduction bool               `json:"isProduction"`
@@ -434,13 +447,17 @@ type ResourceRegion struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
 }
 
-type Token struct {
-	Name       string        `json:"name"`
-	Token      string        `json:"token"`
-	Scopes     []EntityScope `json:"scopes"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
+type SessionToken struct {
+	ID               uuid.UUID          `json:"id"`
+	AccessTokenHash  string             `json:"accessTokenHash"`
+	RefreshTokenHash string             `json:"refreshTokenHash"`
+	UserID           uuid.UUID          `json:"userId"`
+	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
+	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
+	IpAddress        *netip.Addr        `json:"ipAddress"`
+	UserAgent        pgtype.Text        `json:"userAgent"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
 }
 
 type User struct {

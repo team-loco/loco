@@ -34,6 +34,7 @@ message ExchangeOAuthTokenResponse {
   int64 expires_in = 2; // seconds
   string user_id = 3;
   string name = 4;
+  string refresh_token = 5;
 }
 
 // GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.

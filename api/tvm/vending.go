@@ -17,17 +17,23 @@ type VendingMachine struct {
 }
 
 type Config struct {
-	MaxTokenDuration   time.Duration
-	LoginTokenDuration time.Duration
+	// API tokens
+	MaxAPITokenDuration time.Duration // maximum allowed duration when issuing an API token
+
+	// Session tokens
+	SessionAccessTokenDuration  time.Duration // duration of the access token issued at login
+	SessionRefreshTokenDuration time.Duration // duration of the refresh token issued at login
+
+	// How often last_used_at is written to the DB (throttles writes on the hot path)
+	LastUsedUpdateInterval time.Duration
 }
 
 // NewVendingMachine creates a new VendingMachine with the given database pool, queries, and configuration.
-// starts a background goroutine to periodically clean up expired tokens (in-process cron)
-// Close() to stop the background cleanup goroutine and release resources.
+// Starts a background goroutine to periodically clean up expired tokens.
+// Call Close() to stop the background cleanup goroutine.
 func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *VendingMachine {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// low cost pg cron
 	go func() {
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
@@ -37,8 +43,11 @@ func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *Vendi
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := q.DeleteExpiredTokens(ctx); err != nil {
-					slog.ErrorContext(ctx, err.Error())
+				if err := q.DeleteExpiredSessionTokens(ctx); err != nil {
+					slog.ErrorContext(ctx, "failed to delete expired session tokens", "err", err)
+				}
+				if err := q.DeleteExpiredAPITokens(ctx); err != nil {
+					slog.ErrorContext(ctx, "failed to delete expired api tokens", "err", err)
 				}
 			}
 		}
@@ -58,5 +67,3 @@ func (tvm *VendingMachine) Close() {
 		tvm.cancelFunc()
 	}
 }
-
-

@@ -7,9 +7,10 @@ package db
 
 import (
 	"context"
-	"time"
+	"net/netip"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addUserScope = `-- name: AddUserScope :exec
@@ -33,98 +34,296 @@ func (q *Queries) AddUserScope(ctx context.Context, arg AddUserScopeParams) erro
 	return err
 }
 
-const deleteExpiredTokens = `-- name: DeleteExpiredTokens :exec
-DELETE FROM tokens WHERE expires_at < NOW()
+const createAPIToken = `-- name: CreateAPIToken :exec
+
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
-func (q *Queries) DeleteExpiredTokens(ctx context.Context) error {
-	_, err := q.db.Exec(ctx, deleteExpiredTokens)
+type CreateAPITokenParams struct {
+	ID         uuid.UUID          `json:"id"`
+	TokenHash  string             `json:"tokenHash"`
+	Name       string             `json:"name"`
+	EntityType EntityType         `json:"entityType"`
+	EntityID   uuid.UUID          `json:"entityId"`
+	Scopes     []EntityScope      `json:"scopes"`
+	CreatedBy  uuid.UUID          `json:"createdBy"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+}
+
+// -----------------------------------------------------------------------------
+// API token queries
+// -----------------------------------------------------------------------------
+func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error {
+	_, err := q.db.Exec(ctx, createAPIToken,
+		arg.ID,
+		arg.TokenHash,
+		arg.Name,
+		arg.EntityType,
+		arg.EntityID,
+		arg.Scopes,
+		arg.CreatedBy,
+		arg.ExpiresAt,
+	)
 	return err
 }
 
-const deleteToken = `-- name: DeleteToken :exec
-DELETE FROM tokens WHERE name = $1
+const createSessionToken = `-- name: CreateSessionToken :exec
+
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
-func (q *Queries) DeleteToken(ctx context.Context, name string) error {
-	_, err := q.db.Exec(ctx, deleteToken, name)
+type CreateSessionTokenParams struct {
+	ID               uuid.UUID          `json:"id"`
+	AccessTokenHash  string             `json:"accessTokenHash"`
+	RefreshTokenHash string             `json:"refreshTokenHash"`
+	UserID           uuid.UUID          `json:"userId"`
+	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
+	IpAddress        *netip.Addr        `json:"ipAddress"`
+	UserAgent        pgtype.Text        `json:"userAgent"`
+}
+
+// -----------------------------------------------------------------------------
+// Session token queries
+// -----------------------------------------------------------------------------
+func (q *Queries) CreateSessionToken(ctx context.Context, arg CreateSessionTokenParams) error {
+	_, err := q.db.Exec(ctx, createSessionToken,
+		arg.ID,
+		arg.AccessTokenHash,
+		arg.RefreshTokenHash,
+		arg.UserID,
+		arg.AccessExpiresAt,
+		arg.RefreshExpiresAt,
+		arg.IpAddress,
+		arg.UserAgent,
+	)
 	return err
 }
 
-const deleteTokenByNameAndEntity = `-- name: DeleteTokenByNameAndEntity :exec
-DELETE FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3
+const deleteAPIToken = `-- name: DeleteAPIToken :exec
+DELETE FROM api_tokens WHERE id = $1
 `
 
-type DeleteTokenByNameAndEntityParams struct {
+func (q *Queries) DeleteAPIToken(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAPIToken, id)
+	return err
+}
+
+const deleteAPITokenByHash = `-- name: DeleteAPITokenByHash :exec
+DELETE FROM api_tokens WHERE token_hash = $1
+`
+
+func (q *Queries) DeleteAPITokenByHash(ctx context.Context, tokenHash string) error {
+	_, err := q.db.Exec(ctx, deleteAPITokenByHash, tokenHash)
+	return err
+}
+
+const deleteAPITokenByNameAndEntity = `-- name: DeleteAPITokenByNameAndEntity :exec
+DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3
+`
+
+type DeleteAPITokenByNameAndEntityParams struct {
 	Name       string     `json:"name"`
 	EntityType EntityType `json:"entityType"`
 	EntityID   uuid.UUID  `json:"entityId"`
 }
 
-func (q *Queries) DeleteTokenByNameAndEntity(ctx context.Context, arg DeleteTokenByNameAndEntityParams) error {
-	_, err := q.db.Exec(ctx, deleteTokenByNameAndEntity, arg.Name, arg.EntityType, arg.EntityID)
+func (q *Queries) DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error {
+	_, err := q.db.Exec(ctx, deleteAPITokenByNameAndEntity, arg.Name, arg.EntityType, arg.EntityID)
 	return err
 }
 
-const deleteTokensForEntity = `-- name: DeleteTokensForEntity :exec
-DELETE FROM tokens WHERE entity_type = $1 AND entity_id = $2
+const deleteAPITokensForEntity = `-- name: DeleteAPITokensForEntity :exec
+DELETE FROM api_tokens WHERE entity_type = $1 AND entity_id = $2
 `
 
-type DeleteTokensForEntityParams struct {
+type DeleteAPITokensForEntityParams struct {
 	EntityType EntityType `json:"entityType"`
 	EntityID   uuid.UUID  `json:"entityId"`
 }
 
-func (q *Queries) DeleteTokensForEntity(ctx context.Context, arg DeleteTokensForEntityParams) error {
-	_, err := q.db.Exec(ctx, deleteTokensForEntity, arg.EntityType, arg.EntityID)
+func (q *Queries) DeleteAPITokensForEntity(ctx context.Context, arg DeleteAPITokensForEntityParams) error {
+	_, err := q.db.Exec(ctx, deleteAPITokensForEntity, arg.EntityType, arg.EntityID)
 	return err
 }
 
-const getToken = `-- name: GetToken :one
-SELECT name, token, scopes, entity_type, entity_id, expires_at FROM tokens WHERE token = $1 AND expires_at > NOW()
+const deleteExpiredAPITokens = `-- name: DeleteExpiredAPITokens :exec
+DELETE FROM api_tokens WHERE expires_at < NOW()
 `
 
-func (q *Queries) GetToken(ctx context.Context, token string) (Token, error) {
-	row := q.db.QueryRow(ctx, getToken, token)
-	var i Token
+func (q *Queries) DeleteExpiredAPITokens(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredAPITokens)
+	return err
+}
+
+const deleteExpiredSessionTokens = `-- name: DeleteExpiredSessionTokens :exec
+DELETE FROM session_tokens WHERE refresh_expires_at < NOW()
+`
+
+// session is fully dead once the refresh token expires (access expiry alone is not enough)
+func (q *Queries) DeleteExpiredSessionTokens(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredSessionTokens)
+	return err
+}
+
+const deleteSessionToken = `-- name: DeleteSessionToken :exec
+DELETE FROM session_tokens WHERE id = $1
+`
+
+func (q *Queries) DeleteSessionToken(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSessionToken, id)
+	return err
+}
+
+const deleteSessionTokenByAccessHash = `-- name: DeleteSessionTokenByAccessHash :exec
+DELETE FROM session_tokens WHERE access_token_hash = $1
+`
+
+func (q *Queries) DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error {
+	_, err := q.db.Exec(ctx, deleteSessionTokenByAccessHash, accessTokenHash)
+	return err
+}
+
+const getAPIToken = `-- name: GetAPIToken :one
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+FROM api_tokens
+WHERE token_hash = $1 AND expires_at > NOW()
+`
+
+type GetAPITokenRow struct {
+	ID         uuid.UUID          `json:"id"`
+	Name       string             `json:"name"`
+	EntityType EntityType         `json:"entityType"`
+	EntityID   uuid.UUID          `json:"entityId"`
+	Scopes     []EntityScope      `json:"scopes"`
+	CreatedBy  uuid.UUID          `json:"createdBy"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
+}
+
+func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error) {
+	row := q.db.QueryRow(ctx, getAPIToken, tokenHash)
+	var i GetAPITokenRow
 	err := row.Scan(
+		&i.ID,
 		&i.Name,
-		&i.Token,
-		&i.Scopes,
 		&i.EntityType,
 		&i.EntityID,
+		&i.Scopes,
+		&i.CreatedBy,
+		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.LastUsedAt,
 	)
 	return i, err
 }
 
-const getTokenByName = `-- name: GetTokenByName :one
-SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3
+const getAPITokenByNameAndEntity = `-- name: GetAPITokenByNameAndEntity :one
+SELECT id, name, entity_type, entity_id, scopes, created_at, expires_at, last_used_at
+FROM api_tokens
+WHERE name = $1 AND entity_type = $2 AND entity_id = $3
 `
 
-type GetTokenByNameParams struct {
+type GetAPITokenByNameAndEntityParams struct {
 	Name       string     `json:"name"`
 	EntityType EntityType `json:"entityType"`
 	EntityID   uuid.UUID  `json:"entityId"`
 }
 
-type GetTokenByNameRow struct {
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
+type GetAPITokenByNameAndEntityRow struct {
+	ID         uuid.UUID          `json:"id"`
+	Name       string             `json:"name"`
+	EntityType EntityType         `json:"entityType"`
+	EntityID   uuid.UUID          `json:"entityId"`
+	Scopes     []EntityScope      `json:"scopes"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
 }
 
-func (q *Queries) GetTokenByName(ctx context.Context, arg GetTokenByNameParams) (GetTokenByNameRow, error) {
-	row := q.db.QueryRow(ctx, getTokenByName, arg.Name, arg.EntityType, arg.EntityID)
-	var i GetTokenByNameRow
+func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error) {
+	row := q.db.QueryRow(ctx, getAPITokenByNameAndEntity, arg.Name, arg.EntityType, arg.EntityID)
+	var i GetAPITokenByNameAndEntityRow
 	err := row.Scan(
+		&i.ID,
 		&i.Name,
 		&i.EntityType,
 		&i.EntityID,
 		&i.Scopes,
+		&i.CreatedAt,
 		&i.ExpiresAt,
+		&i.LastUsedAt,
+	)
+	return i, err
+}
+
+const getSessionByAccessToken = `-- name: GetSessionByAccessToken :one
+SELECT id, user_id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+FROM session_tokens
+WHERE access_token_hash = $1 AND access_expires_at > NOW()
+`
+
+type GetSessionByAccessTokenRow struct {
+	ID               uuid.UUID          `json:"id"`
+	UserID           uuid.UUID          `json:"userId"`
+	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
+	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
+	IpAddress        *netip.Addr        `json:"ipAddress"`
+	UserAgent        pgtype.Text        `json:"userAgent"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+}
+
+func (q *Queries) GetSessionByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionByAccessTokenRow, error) {
+	row := q.db.QueryRow(ctx, getSessionByAccessToken, accessTokenHash)
+	var i GetSessionByAccessTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.AccessExpiresAt,
+		&i.RefreshExpiresAt,
+		&i.LastUsedAt,
+		&i.IpAddress,
+		&i.UserAgent,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSessionByRefreshToken = `-- name: GetSessionByRefreshToken :one
+SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+FROM session_tokens
+WHERE refresh_token_hash = $1 AND refresh_expires_at > NOW()
+`
+
+type GetSessionByRefreshTokenRow struct {
+	ID               uuid.UUID          `json:"id"`
+	UserID           uuid.UUID          `json:"userId"`
+	RefreshTokenHash string             `json:"refreshTokenHash"`
+	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
+	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
+	IpAddress        *netip.Addr        `json:"ipAddress"`
+	UserAgent        pgtype.Text        `json:"userAgent"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+}
+
+func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error) {
+	row := q.db.QueryRow(ctx, getSessionByRefreshToken, refreshTokenHash)
+	var i GetSessionByRefreshTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.RefreshTokenHash,
+		&i.AccessExpiresAt,
+		&i.RefreshExpiresAt,
+		&i.LastUsedAt,
+		&i.IpAddress,
+		&i.UserAgent,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -135,7 +334,6 @@ FROM user_scopes
 WHERE user_id = $1
 `
 
-// what scopes does user x have?
 func (q *Queries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]EntityScope, error) {
 	rows, err := q.db.Query(ctx, getUserScopes, userID)
 	if err != nil {
@@ -355,39 +553,92 @@ func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWit
 	return items, nil
 }
 
-const listTokensForEntity = `-- name: ListTokensForEntity :many
-SELECT name, entity_type, entity_id, scopes, expires_at FROM tokens WHERE entity_type = $1 AND entity_id = $2
+const listAPITokensForEntity = `-- name: ListAPITokensForEntity :many
+SELECT id, name, entity_type, entity_id, scopes, created_at, expires_at, last_used_at
+FROM api_tokens
+WHERE entity_type = $1 AND entity_id = $2
+ORDER BY created_at DESC
 `
 
-type ListTokensForEntityParams struct {
+type ListAPITokensForEntityParams struct {
 	EntityType EntityType `json:"entityType"`
 	EntityID   uuid.UUID  `json:"entityId"`
 }
 
-type ListTokensForEntityRow struct {
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
+type ListAPITokensForEntityRow struct {
+	ID         uuid.UUID          `json:"id"`
+	Name       string             `json:"name"`
+	EntityType EntityType         `json:"entityType"`
+	EntityID   uuid.UUID          `json:"entityId"`
+	Scopes     []EntityScope      `json:"scopes"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
 }
 
-// which tokens exist on behalf of entity y?
-func (q *Queries) ListTokensForEntity(ctx context.Context, arg ListTokensForEntityParams) ([]ListTokensForEntityRow, error) {
-	rows, err := q.db.Query(ctx, listTokensForEntity, arg.EntityType, arg.EntityID)
+func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error) {
+	rows, err := q.db.Query(ctx, listAPITokensForEntity, arg.EntityType, arg.EntityID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListTokensForEntityRow
+	var items []ListAPITokensForEntityRow
 	for rows.Next() {
-		var i ListTokensForEntityRow
+		var i ListAPITokensForEntityRow
 		if err := rows.Scan(
+			&i.ID,
 			&i.Name,
 			&i.EntityType,
 			&i.EntityID,
 			&i.Scopes,
+			&i.CreatedAt,
 			&i.ExpiresAt,
+			&i.LastUsedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSessionsForUser = `-- name: ListSessionsForUser :many
+SELECT id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+FROM session_tokens
+WHERE user_id = $1
+ORDER BY last_used_at DESC
+`
+
+type ListSessionsForUserRow struct {
+	ID               uuid.UUID          `json:"id"`
+	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
+	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
+	IpAddress        *netip.Addr        `json:"ipAddress"`
+	UserAgent        pgtype.Text        `json:"userAgent"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+}
+
+func (q *Queries) ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error) {
+	rows, err := q.db.Query(ctx, listSessionsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSessionsForUserRow
+	for rows.Next() {
+		var i ListSessionsForUserRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccessExpiresAt,
+			&i.RefreshExpiresAt,
+			&i.LastUsedAt,
+			&i.IpAddress,
+			&i.UserAgent,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -410,6 +661,15 @@ type RemoveAllScopesForEntityParams struct {
 
 func (q *Queries) RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error {
 	_, err := q.db.Exec(ctx, removeAllScopesForEntity, arg.EntityType, arg.EntityID)
+	return err
+}
+
+const removeAllScopesForUser = `-- name: RemoveAllScopesForUser :exec
+DELETE FROM user_scopes WHERE user_id = $1
+`
+
+func (q *Queries) RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, removeAllScopesForUser, userID)
 	return err
 }
 
@@ -449,27 +709,45 @@ func (q *Queries) RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams
 	return err
 }
 
-const storeToken = `-- name: StoreToken :exec
-INSERT INTO tokens (name, token, entity_type, entity_id, scopes, expires_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING
+const rotateSessionToken = `-- name: RotateSessionToken :exec
+UPDATE session_tokens
+SET access_token_hash = $2, refresh_token_hash = $3, access_expires_at = $4, refresh_expires_at = $5, last_used_at = NOW()
+WHERE id = $1
 `
 
-type StoreTokenParams struct {
-	Name       string        `json:"name"`
-	Token      string        `json:"token"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
+type RotateSessionTokenParams struct {
+	ID               uuid.UUID          `json:"id"`
+	AccessTokenHash  string             `json:"accessTokenHash"`
+	RefreshTokenHash string             `json:"refreshTokenHash"`
+	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
 }
 
-func (q *Queries) StoreToken(ctx context.Context, arg StoreTokenParams) error {
-	_, err := q.db.Exec(ctx, storeToken,
-		arg.Name,
-		arg.Token,
-		arg.EntityType,
-		arg.EntityID,
-		arg.Scopes,
-		arg.ExpiresAt,
+func (q *Queries) RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) error {
+	_, err := q.db.Exec(ctx, rotateSessionToken,
+		arg.ID,
+		arg.AccessTokenHash,
+		arg.RefreshTokenHash,
+		arg.AccessExpiresAt,
+		arg.RefreshExpiresAt,
 	)
+	return err
+}
+
+const touchAPITokenLastUsed = `-- name: TouchAPITokenLastUsed :exec
+UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, touchAPITokenLastUsed, id)
+	return err
+}
+
+const touchSessionLastUsed = `-- name: TouchSessionLastUsed :exec
+UPDATE session_tokens SET last_used_at = NOW() WHERE id = $1
+`
+
+func (q *Queries) TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, touchSessionLastUsed, id)
 	return err
 }

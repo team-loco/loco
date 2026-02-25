@@ -40,21 +40,21 @@ CREATE TYPE region_intent_status AS ENUM (
     'failed'
 );
 
--- Environments: org-level isolation concept
+-- Environments: workspace-level isolation concept
 CREATE TABLE
     environments (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        org_id UUID NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
+        workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
         is_production BOOLEAN NOT NULL DEFAULT false,
         created_by UUID NOT NULL REFERENCES users (id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (org_id, name)
+        UNIQUE (workspace_id, name)
     );
 
-CREATE INDEX idx_environments_org_id ON environments (org_id);
+CREATE INDEX idx_environments_workspace_id ON environments (workspace_id);
 
 -- Clusters table
 CREATE TABLE

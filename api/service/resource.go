@@ -10,8 +10,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/commandbus"
@@ -220,21 +220,15 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid environment_id: %w", err))
 	}
 
-	// Validate that the environment belongs to the same org as the workspace.
-	orgID, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceId)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get org for workspace", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
+	// Validate that the environment belongs to this workspace.
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if err != nil {
 		slog.WarnContext(ctx, "environment not found", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("environment not found"))
 	}
-	if env.OrgID != orgID {
-		slog.WarnContext(ctx, "environment does not belong to workspace org", "environmentId", r.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("environment does not belong to this organization"))
+	if env.WorkspaceID != workspaceId {
+		slog.WarnContext(ctx, "environment does not belong to workspace", "environmentId", r.GetEnvironmentId())
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("environment does not belong to this workspace"))
 	}
 
 	params := genDb.CreateResourceParams{
@@ -1248,7 +1242,7 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 	result := &resourcev1.Resource{
 		Id:            resource.ID.String(),
 		WorkspaceId:   resource.WorkspaceID.String(),
-		EnvironmentId: &environmentID,
+		EnvironmentId: environmentID,
 		Name:          resource.Name,
 		Type:          resourceType,
 		Spec:          spec,
@@ -1257,7 +1251,7 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		CreatedAt:     timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
 		UpdatedAt:     timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
 		Status:        resourceStatus,
-		Description: &resource.Description,
+		Description:   &resource.Description,
 	}
 
 	return result

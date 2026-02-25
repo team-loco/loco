@@ -280,29 +280,29 @@ var (
 
 	// environments
 
-	// ListEnvironments requires organization:read.
+	// ListEnvironments requires workspace:read.
 	ListEnvironments = Action{
-		entityType: db.EntityTypeOrganization,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
-	// CreateEnvironment requires organization:write.
+	// CreateEnvironment requires workspace:write.
 	CreateEnvironment = Action{
-		entityType: db.EntityTypeOrganization,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeWrite,
 	}
-	// GetEnvironment requires organization:read (looked up via env's org_id).
+	// GetEnvironment requires workspace:read (looked up via env's workspace_id).
 	GetEnvironment = Action{
-		entityType: db.EntityTypeOrganization,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
-	// UpdateEnvironment requires organization:write.
+	// UpdateEnvironment requires workspace:write.
 	UpdateEnvironment = Action{
-		entityType: db.EntityTypeOrganization,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeWrite,
 	}
-	// DeleteEnvironment requires organization:admin.
+	// DeleteEnvironment requires workspace:admin.
 	DeleteEnvironment = Action{
-		entityType: db.EntityTypeOrganization,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeAdmin,
 	}
 

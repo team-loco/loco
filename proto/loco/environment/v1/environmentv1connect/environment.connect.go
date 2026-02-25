@@ -52,11 +52,11 @@ const (
 
 // EnvironmentServiceClient is a client for the loco.environment.v1.EnvironmentService service.
 type EnvironmentServiceClient interface {
-	// CreateEnvironment creates a new environment in an organization.
+	// CreateEnvironment creates a new environment in a workspace.
 	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
 	// GetEnvironment retrieves an environment by ID.
 	GetEnvironment(context.Context, *connect.Request[v1.GetEnvironmentRequest]) (*connect.Response[v1.GetEnvironmentResponse], error)
-	// ListEnvironments lists all environments in an organization.
+	// ListEnvironments lists all environments in a workspace.
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
 	// UpdateEnvironment updates an environment.
 	UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error)
@@ -145,11 +145,11 @@ func (c *environmentServiceClient) DeleteEnvironment(ctx context.Context, req *c
 // EnvironmentServiceHandler is an implementation of the loco.environment.v1.EnvironmentService
 // service.
 type EnvironmentServiceHandler interface {
-	// CreateEnvironment creates a new environment in an organization.
+	// CreateEnvironment creates a new environment in a workspace.
 	CreateEnvironment(context.Context, *connect.Request[v1.CreateEnvironmentRequest]) (*connect.Response[v1.CreateEnvironmentResponse], error)
 	// GetEnvironment retrieves an environment by ID.
 	GetEnvironment(context.Context, *connect.Request[v1.GetEnvironmentRequest]) (*connect.Response[v1.GetEnvironmentResponse], error)
-	// ListEnvironments lists all environments in an organization.
+	// ListEnvironments lists all environments in a workspace.
 	ListEnvironments(context.Context, *connect.Request[v1.ListEnvironmentsRequest]) (*connect.Response[v1.ListEnvironmentsResponse], error)
 	// UpdateEnvironment updates an environment.
 	UpdateEnvironment(context.Context, *connect.Request[v1.UpdateEnvironmentRequest]) (*connect.Response[v1.UpdateEnvironmentResponse], error)

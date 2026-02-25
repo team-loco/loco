@@ -5,31 +5,25 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
-	"time"
 
 	"github.com/google/uuid"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
-// GetRoles returns all roles for the given user associated with the given token. The token must have user:read for the user the token is associated with.
+// GetRoles returns all roles for the user associated with the given token.
+// The token must have user:read for the user the token is associated with.
 func (tvm *VendingMachine) GetRoles(ctx context.Context, token string) ([]queries.EntityScope, error) {
-	// get the token data
-	tokenData, err := tvm.queries.GetToken(ctx, token)
+	entity, scopes, err := tvm.GetToken(ctx, token)
 	if err != nil {
 		return nil, fmt.Errorf("get user scopes: %w", err)
 	}
-	if time.Now().After(tokenData.ExpiresAt) {
-		return nil, ErrTokenExpired
-	}
-	if tokenData.EntityType != queries.EntityTypeUser {
+	if entity.Type != queries.EntityTypeUser {
 		return nil, ErrImproperUsage
 	}
 
-	// must have user:read on the token
 	canRead := false
-	for _, scope := range tokenData.Scopes {
-		if scope.EntityType == queries.EntityTypeUser && scope.EntityID == tokenData.EntityID && scope.Scope == queries.ScopeRead {
-			// token has user:read, proceed
+	for _, scope := range scopes {
+		if scope.EntityType == queries.EntityTypeUser && scope.EntityID == entity.ID && scope.Scope == queries.ScopeRead {
 			canRead = true
 			break
 		}
@@ -38,12 +32,10 @@ func (tvm *VendingMachine) GetRoles(ctx context.Context, token string) ([]querie
 		return nil, ErrInsufficentPermissions
 	}
 
-	// get the user's scopes to return to them
-	userScopes, err := tvm.queries.GetUserScopes(ctx, tokenData.EntityID)
+	userScopes, err := tvm.queries.GetUserScopes(ctx, entity.ID)
 	if err != nil {
 		return nil, fmt.Errorf("get user scopes: %w", err)
 	}
-
 	return userScopes, nil
 }
 

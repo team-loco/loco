@@ -68,10 +68,11 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	if orgIDs, err = seedOrganizations(ctx, q, userIDs); err != nil {
 		return err
 	}
-	if wksIDs, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
+	var envIDs []uuid.UUID // len 4, one production env per workspace
+	if wksIDs, envIDs, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
 		return err
 	}
-	if resourceIds, err = seedResources(ctx, q, wksIDs); err != nil {
+	if resourceIds, err = seedResources(ctx, q, wksIDs, envIDs); err != nil {
 		return err
 	}
 	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, resourceIds, userIDs); err != nil {
@@ -201,141 +202,82 @@ func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []uuid.
 	return orgIDs, nil
 }
 
-func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID, userIDs []uuid.UUID) ([]uuid.UUID, error) {
+func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID, userIDs []uuid.UUID) ([]uuid.UUID, []uuid.UUID, error) {
 	var wksIDs []uuid.UUID
+	var envIDs []uuid.UUID
 
-	if wks1, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
-		OrgID:       orgIDs[0], // org 1
-		Name:        "Workspace One",
-		Description: opttext("alpha org's first workspace"),
-		CreatedBy:   userIDs[0], // user 1 created wks 1
-	}); err != nil {
-		return nil, fmt.Errorf("creating wks 1: %w", err)
-	} else {
-		wksIDs = append(wksIDs, wks1)
+	type wksSpec struct {
+		orgIdx  int
+		name    string
+		desc    string
+		userIdx int
+	}
+	specs := []wksSpec{
+		{0, "Workspace One", "alpha org's first workspace", 0},
+		{0, "Workspace Two", "alpha org's second workspace", 0},
+		{1, "Workspace Three", "beta org's first workspace", 1},
+		{1, "Workspace Four", "beta org's second workspace", 1},
 	}
 
-	if wks2, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
-		OrgID:       orgIDs[0], // org 1
-		Name:        "Workspace Two",
-		Description: opttext("alpha org's second workspace"),
-		CreatedBy:   userIDs[0], // user 1 created wks 2
-	}); err != nil {
-		return nil, fmt.Errorf("creating wks 2: %w", err)
-	} else {
-		wksIDs = append(wksIDs, wks2)
+	for i, s := range specs {
+		wsID, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
+			OrgID:       orgIDs[s.orgIdx],
+			Name:        s.name,
+			Description: opttext(s.desc),
+			CreatedBy:   userIDs[s.userIdx],
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("creating wks %d: %w", i+1, err)
+		}
+		wksIDs = append(wksIDs, wsID)
+
+		env, err := queries.CreateEnvironment(ctx, db.CreateEnvironmentParams{
+			WorkspaceID:  wsID,
+			Name:         "production",
+			IsProduction: true,
+			CreatedBy:    userIDs[s.userIdx],
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("creating production env for wks %d: %w", i+1, err)
+		}
+		envIDs = append(envIDs, env.ID)
 	}
 
-	if wks3, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
-		OrgID:       orgIDs[1], // org 2
-		Name:        "Workspace Three",
-		Description: opttext("beta org's first workspace"),
-		CreatedBy:   userIDs[1], // user 2 created wks 3
-	}); err != nil {
-		return nil, fmt.Errorf("creating wks 3: %w", err)
-	} else {
-		wksIDs = append(wksIDs, wks3)
-	}
-
-	if wks4, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
-		OrgID:       orgIDs[1], // org 2
-		Name:        "Workspace Four",
-		Description: opttext("beta org's second workspace"),
-		CreatedBy:   userIDs[1], // user 2 created wks 4
-	}); err != nil {
-		return nil, fmt.Errorf("creating wks 4: %w", err)
-	} else {
-		wksIDs = append(wksIDs, wks4)
-	}
-
-	return wksIDs, nil
+	return wksIDs, envIDs, nil
 }
 
-func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID) ([]uuid.UUID, error) {
+func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID, envIDs []uuid.UUID) ([]uuid.UUID, error) {
 	var resourceIds []uuid.UUID
 
-	if resource1Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
-		WorkspaceID: wksIDs[0],              // wks 1
-		Name:        "My First Application", // Resource 1
-		Type:        db.ResourceTypeService,
-		Description: "This is my first application",
-		Status:      db.ResourceStatusHealthy,
-		Spec:        specExample,
-		SpecVersion: 1,
-	}); err != nil {
-		return nil, fmt.Errorf("creating resource 1: %w", err)
-	} else {
-		resourceIds = append(resourceIds, resource1Id)
+	type resSpec struct {
+		wksIdx int
+		name   string
+		desc   string
+	}
+	specs := []resSpec{
+		{0, "My First Application", "This is my first application"},
+		{0, "My Second Application", "This is my second application"},
+		{1, "My Third Application", "This is my third application"},
+		{1, "My Fourth Application", "This is my fourth application"},
+		{2, "My Fifth Application", "This is my fifth application"},
+		{3, "My Sixth Application", "This is my sixth application"},
 	}
 
-	if resource2Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
-		WorkspaceID: wksIDs[0],               // wks 1
-		Name:        "My Second Application", // Resource 2
-		Type:        db.ResourceTypeService,
-		Description: "This is my second application",
-		Status:      db.ResourceStatusHealthy,
-		Spec:        specExample,
-		SpecVersion: 1,
-	}); err != nil {
-		return nil, fmt.Errorf("creating resource 2: %w", err)
-	} else {
-		resourceIds = append(resourceIds, resource2Id)
-	}
-
-	if resource3Id, err := queries.CreateResource(ctx, db.CreateResourceParams{
-		WorkspaceID: wksIDs[1],              // wks 2
-		Name:        "My Third Application", // Resource 3
-		Type:        db.ResourceTypeService,
-		Description: "This is my third application",
-		Status:      db.ResourceStatusHealthy,
-		Spec:        specExample,
-		SpecVersion: 1,
-	}); err != nil {
-		return nil, fmt.Errorf("creating resource 3: %w", err)
-	} else {
-		resourceIds = append(resourceIds, resource3Id)
-	}
-
-	if resource4ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
-		WorkspaceID: wksIDs[1],               // wks 2
-		Name:        "My Fourth Application", // Resource 4
-		Type:        db.ResourceTypeService,
-		Description: "This is my fourth application",
-		Status:      db.ResourceStatusHealthy,
-		Spec:        specExample,
-		SpecVersion: 1,
-	}); err != nil {
-		return nil, fmt.Errorf("creating resource 4: %w", err)
-	} else {
-		resourceIds = append(resourceIds, resource4ID)
-	}
-
-	if resource5ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
-		WorkspaceID: wksIDs[2],              // wks 3
-		Name:        "My Fifth Application", // Resource 5
-		Type:        db.ResourceTypeService,
-		Description: "This is my fifth application",
-		Status:      db.ResourceStatusHealthy,
-		Spec:        specExample,
-		SpecVersion: 1,
-	}); err != nil {
-		return nil, fmt.Errorf("creating resource 5: %w", err)
-	} else {
-		resourceIds = append(resourceIds, resource5ID)
-	}
-
-	if resource6ID, err := queries.CreateResource(ctx, db.CreateResourceParams{
-		WorkspaceID: wksIDs[3],              // wks 4
-		Name:        "My Sixth Application", // Resource 6
-		Type:        db.ResourceTypeService,
-		Description: "This is my sixth application",
-		Status:      db.ResourceStatusHealthy,
-		Spec:        specExample,
-		SpecVersion: 1,
-	}); err != nil {
-		return nil, fmt.Errorf("creating resource 6: %w", err)
-	} else {
-		resourceIds = append(resourceIds, resource6ID)
+	for i, s := range specs {
+		id, err := queries.CreateResource(ctx, db.CreateResourceParams{
+			WorkspaceID:   wksIDs[s.wksIdx],
+			EnvironmentID: envIDs[s.wksIdx], // production env for this workspace
+			Name:          s.name,
+			Type:          db.ResourceTypeService,
+			Description:   s.desc,
+			Status:        db.ResourceStatusHealthy,
+			Spec:          specExample,
+			SpecVersion:   1,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("creating resource %d: %w", i+1, err)
+		}
+		resourceIds = append(resourceIds, id)
 	}
 
 	return resourceIds, nil
@@ -667,12 +609,14 @@ func subtest(ctx context.Context, name string, f func(context.Context) error) {
 // user 1 has org 1 r/w/a
 func tvmtestuser1(pool *pgxpool.Pool) error {
 	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
-		MaxTokenDuration:   24 * time.Hour * 365,
-		LoginTokenDuration: 24 * time.Hour,
+		MaxAPITokenDuration:         24 * time.Hour * 365,
+		SessionAccessTokenDuration:  24 * time.Hour,
+		SessionRefreshTokenDuration: 24 * time.Hour * 30,
+		LastUsedUpdateInterval:      5 * time.Minute,
 	})
 
 	ctx := context.Background()
-	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user1@example.com", nil))
+	user, token, _, err := machine.Exchange(ctx, providers.NewEmailResponse("user1@example.com", nil), "", "")
 	if err != nil {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
@@ -809,12 +753,14 @@ func tvmtestuser1(pool *pgxpool.Pool) error {
 // user 2 has org 2 r/w/a
 func tvmtestuser2(pool *pgxpool.Pool) error {
 	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
-		MaxTokenDuration:   24 * time.Hour * 365,
-		LoginTokenDuration: 24 * time.Hour,
+		MaxAPITokenDuration:         24 * time.Hour * 365,
+		SessionAccessTokenDuration:  24 * time.Hour,
+		SessionRefreshTokenDuration: 24 * time.Hour * 30,
+		LastUsedUpdateInterval:      5 * time.Minute,
 	})
 
 	ctx := context.Background()
-	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user2@example.com", nil))
+	user, token, _, err := machine.Exchange(ctx, providers.NewEmailResponse("user2@example.com", nil), "", "")
 	if err != nil {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
@@ -964,12 +910,14 @@ func tvmtestuser2(pool *pgxpool.Pool) error {
 // user 3 has org:r/w for org 1 and org 2 and resource:rwa for resource 1 and resource 3
 func tvmtestuser3(pool *pgxpool.Pool) error {
 	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
-		MaxTokenDuration:   24 * time.Hour * 365,
-		LoginTokenDuration: 24 * time.Hour,
+		MaxAPITokenDuration:         24 * time.Hour * 365,
+		SessionAccessTokenDuration:  24 * time.Hour,
+		SessionRefreshTokenDuration: 24 * time.Hour * 30,
+		LastUsedUpdateInterval:      5 * time.Minute,
 	})
 
 	ctx := context.Background()
-	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user3@example.com", nil))
+	user, token, _, err := machine.Exchange(ctx, providers.NewEmailResponse("user3@example.com", nil), "", "")
 	if err != nil {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
@@ -1256,12 +1204,14 @@ func tvmtestuser3(pool *pgxpool.Pool) error {
 // user 4 has wks:read/write for wks 3
 func tvmtestuser4(pool *pgxpool.Pool) error {
 	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
-		MaxTokenDuration:   24 * time.Hour * 365,
-		LoginTokenDuration: 24 * time.Hour,
+		MaxAPITokenDuration:         24 * time.Hour * 365,
+		SessionAccessTokenDuration:  24 * time.Hour,
+		SessionRefreshTokenDuration: 24 * time.Hour * 30,
+		LastUsedUpdateInterval:      5 * time.Minute,
 	})
 
 	ctx := context.Background()
-	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user4@example.com", nil))
+	user, token, _, err := machine.Exchange(ctx, providers.NewEmailResponse("user4@example.com", nil), "", "")
 	if err != nil {
 		return fmt.Errorf("exchange failed: %v", err)
 	}
@@ -1433,12 +1383,14 @@ func tvmtestuser4(pool *pgxpool.Pool) error {
 // user 5 has resource:read for resource 5 and resource 6
 func tvmtestuser5(pool *pgxpool.Pool) error {
 	machine := tvm.NewVendingMachine(pool, db.New(pool), tvm.Config{
-		MaxTokenDuration:   24 * time.Hour * 365,
-		LoginTokenDuration: 24 * time.Hour,
+		MaxAPITokenDuration:         24 * time.Hour * 365,
+		SessionAccessTokenDuration:  24 * time.Hour,
+		SessionRefreshTokenDuration: 24 * time.Hour * 30,
+		LastUsedUpdateInterval:      5 * time.Minute,
 	})
 
 	ctx := context.Background()
-	user, token, err := machine.Exchange(ctx, providers.NewEmailResponse("user5@example.com", nil))
+	user, token, _, err := machine.Exchange(ctx, providers.NewEmailResponse("user5@example.com", nil), "", "")
 	if err != nil {
 		return fmt.Errorf("exchange failed: %v", err)
 	}

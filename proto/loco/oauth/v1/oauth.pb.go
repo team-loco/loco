@@ -234,6 +234,7 @@ type ExchangeOAuthTokenResponse struct {
 	ExpiresIn     int64                  `protobuf:"varint,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"` // seconds
 	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,5,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -292,6 +293,13 @@ func (x *ExchangeOAuthTokenResponse) GetUserId() string {
 func (x *ExchangeOAuthTokenResponse) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *ExchangeOAuthTokenResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
 	}
 	return ""
 }
@@ -553,14 +561,15 @@ const file_loco_oauth_v1_oauth_proto_rawDesc = "" +
 	"\x19ExchangeOAuthTokenRequest\x128\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\x128\n" +
-	"\x19create_user_if_not_exists\x18\x03 \x01(\bR\x15createUserIfNotExists\"\x87\x01\n" +
+	"\x19create_user_if_not_exists\x18\x03 \x01(\bR\x15createUserIfNotExists\"\xac\x01\n" +
 	"\x1aExchangeOAuthTokenResponse\x12\x1d\n" +
 	"\n" +
 	"loco_token\x18\x01 \x01(\tR\tlocoToken\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04name\x18\x04 \x01(\tR\x04name\"\x94\x01\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12#\n" +
+	"\rrefresh_token\x18\x05 \x01(\tR\frefreshToken\"\x94\x01\n" +
 	"\x1fGetOAuthAuthorizationURLRequest\x128\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12!\n" +

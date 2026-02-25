@@ -25,32 +25,29 @@ sql:
               import: "github.com/google/uuid"
               type: "UUID"
               pointer: true
-          - column: "tokens.scopes"
-            go_type:
-              import: ""
-              type: "[]EntityScope"
-          - column: "user_scopes.scope"
-            go_type:
-              import: ""
-              type: "Scope"
-          - column: "tokens.expires_at"
-            go_type:
-              import: "time"
-              type: "Time"
-          - db_type: "token_head"
-            go_type:
-              import: ""
-              type: "TokenHead"
+
           - db_type: "entity_scope"
             go_type:
               import: ""
               type: "EntityScope"
+
           - db_type: "entity_scope[]"
             go_type:
               import: ""
               type: "EntityScope"
               slice: true
+
+          - column: "user_scopes.scope"
+            go_type:
+              import: ""
+              type: "Scope"
+
           - column: "user_with_scopes_view.scopes"
+            go_type:
+              import: ""
+              type: "[]EntityScope"
+
+          - column: "api_tokens.scopes"
             go_type:
               import: ""
               type: "[]EntityScope"

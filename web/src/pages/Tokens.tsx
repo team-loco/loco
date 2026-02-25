@@ -189,7 +189,9 @@ function TokenCard({
 											.join("");
 
 										return (
-															<TooltipProvider key={`${entityType.toString()}-${entityId.toString()}`}>
+											<TooltipProvider
+												key={`${entityType.toString()}-${entityId}`}
+											>
 												<Tooltip>
 													<TooltipTrigger asChild>
 														<Badge
@@ -392,7 +394,7 @@ export function Tokens() {
 				<div className="space-y-4">
 					{tokens.map((token) => (
 						<TokenCard
-							key={token.id}
+							key={token.name}
 							token={token}
 							onRevokeToken={handleRevokeToken}
 							isRevoking={isRevoking}

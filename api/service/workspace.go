@@ -116,6 +116,16 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
+		WorkspaceID:  wsID,
+		Name:         "production",
+		IsProduction: true,
+		CreatedBy:    entity.ID,
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to create production environment for new workspace", "error", err, "workspaceId", wsID.String())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&workspacev1.CreateWorkspaceResponse{
 		WorkspaceId: wsID.String(),
 	}), nil
