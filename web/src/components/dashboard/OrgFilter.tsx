@@ -1,13 +1,8 @@
 import { useAuth } from "@/auth/AuthProvider";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+import { DropdownSelector } from "@/components/ui/dropdown-selector";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { useQuery } from "@connectrpc/connect-query";
+import { Building2 } from "lucide-react";
 
 interface OrgFilterProps {
 	selectedOrgId: string | null;
@@ -27,21 +22,18 @@ export function OrgFilter({ selectedOrgId, onOrgChange }: OrgFilterProps) {
 		return null;
 	}
 
+	const selectedOrg = orgs.find((org) => org.id.toString() === selectedOrgId?.toString());
+
 	return (
-		<Select
-			value={selectedOrgId?.toString() ?? ""}
-			onValueChange={(value) => onOrgChange(value)}
-		>
-			<SelectTrigger className="w-full sm:w-48">
-				<SelectValue placeholder="Select organization" />
-			</SelectTrigger>
-			<SelectContent>
-				{orgs.map((org) => (
-					<SelectItem key={org.id} value={org.id.toString()}>
-						{org.name}
-					</SelectItem>
-				))}
-			</SelectContent>
-		</Select>
+		<DropdownSelector
+			label={selectedOrg?.name ?? "Select organization"}
+			icon={Building2}
+			items={orgs.map((org) => ({
+				value: org.id.toString(),
+				label: org.name,
+			}))}
+			onSelect={(value) => onOrgChange(value as string)}
+			contentWidth="w-56"
+		/>
 	);
 }

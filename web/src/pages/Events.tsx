@@ -1,13 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { DropdownSelector } from "@/components/ui/dropdown-selector";
 import { AlertCircle, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
@@ -105,18 +99,25 @@ export function Events() {
 									onChange={(e) => setSearchTerm(e.target.value)}
 								/>
 							</div>
-							<Select value={severityFilter} onValueChange={setSeverityFilter}>
-								<SelectTrigger className="w-full sm:w-40">
-									<SelectValue placeholder="All severities" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All severities</SelectItem>
-									<SelectItem value="error">Error</SelectItem>
-									<SelectItem value="warning">Warning</SelectItem>
-									<SelectItem value="success">Success</SelectItem>
-									<SelectItem value="info">Info</SelectItem>
-								</SelectContent>
-							</Select>
+							<DropdownSelector
+								label={
+									severityFilter === "all"
+										? "All severities"
+										: severityFilter.charAt(0).toUpperCase() +
+											severityFilter.slice(1)
+								}
+								items={[
+									{ value: "all", label: "All severities" },
+									{ value: "error", label: "Error" },
+									{ value: "warning", label: "Warning" },
+									{ value: "success", label: "Success" },
+									{ value: "info", label: "Info" },
+								]}
+								onSelect={(value) =>
+									setSeverityFilter(value as string)
+								}
+								contentWidth="w-44"
+							/>
 						</div>
 
 						{/* Event count and info */}

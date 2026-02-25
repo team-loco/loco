@@ -4,18 +4,12 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { ChevronDown, Layers } from "lucide-react";
+import { Clock, ChevronDown, Layers } from "lucide-react";
 import { useObs, type TimeRange } from "./ObsProvider";
 
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
@@ -63,6 +57,10 @@ export function ObsToolbar() {
 					"1 resource")
 				: `${selectedResourceIds.length.toString()} resources`;
 
+	const timeRangeLabel =
+		TIME_RANGE_OPTIONS.find((opt) => opt.value === timeRange)?.label ??
+		timeRange;
+
 	return (
 		<div className="flex items-center gap-2 flex-wrap">
 			{/* Resource picker */}
@@ -82,6 +80,7 @@ export function ObsToolbar() {
 						onCheckedChange={() => {
 							setSelectedResourceIds([]);
 						}}
+						className="cursor-pointer"
 					>
 						All resources
 					</DropdownMenuCheckboxItem>
@@ -91,6 +90,7 @@ export function ObsToolbar() {
 							key={r.id}
 							checked={selectedResourceIds.includes(r.id)}
 							onCheckedChange={() => toggleResource(r.id)}
+							className="cursor-pointer"
 						>
 							{r.name}
 						</DropdownMenuCheckboxItem>
@@ -99,21 +99,26 @@ export function ObsToolbar() {
 			</DropdownMenu>
 
 			{/* Time range */}
-			<Select
-				value={timeRange}
-				onValueChange={(v) => setTimeRange(v as TimeRange)}
-			>
-				<SelectTrigger className="w-36 h-7 px-4 py-0">
-					<SelectValue />
-				</SelectTrigger>
-				<SelectContent>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="outline" size="sm" className="gap-1.5">
+						<Clock className="h-3.5 w-3.5" />
+						{timeRangeLabel}
+						<ChevronDown className="h-3.5 w-3.5 opacity-60" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="start" className="w-40">
 					{TIME_RANGE_OPTIONS.map((opt) => (
-						<SelectItem key={opt.value} value={opt.value}>
+						<DropdownMenuItem
+							key={opt.value}
+							onClick={() => setTimeRange(opt.value)}
+							className="cursor-pointer"
+						>
 							{opt.label}
-						</SelectItem>
+						</DropdownMenuItem>
 					))}
-				</SelectContent>
-			</Select>
+				</DropdownMenuContent>
+			</DropdownMenu>
 
 			{/* Region pills — only shown when there are multiple clusters */}
 			{clusters.length > 1 && (

@@ -231,13 +231,6 @@ export function SiteHeader() {
 						: "/dashboard",
 			},
 			{
-				title: "Resources",
-				url:
-					activeOrgId && activeWorkspaceId
-						? `/org/${activeOrgId}/wks/${activeWorkspaceId}/resources`
-						: "/resources",
-			},
-			{
 				title: "Observability",
 				url:
 					activeOrgId && activeWorkspaceId
@@ -362,47 +355,6 @@ export function SiteHeader() {
 					</div>
 
 					<div className="ml-auto inline-flex items-center justify-end gap-3">
-						{/* New Service Button */}
-						<div className="inline-flex items-center justify-center rounded-none bg-primary/5">
-							<Button
-								className="rounded-r-none border-r border-primary/20 h-7.5 px-3"
-								onClick={() => setDropdownOpen(true)}
-							>
-								New Resource
-							</Button>
-							<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-								<DropdownMenuTrigger asChild>
-									<Button
-										size="icon"
-										className="h-7.5 w-9 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
-									>
-										<ChevronDown
-											className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
-										/>
-										<span className="sr-only">Toggle menu</span>
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="w-36">
-									{RESOURCE_TYPES.map((type) => (
-										<DropdownMenuItem
-											key={type.value}
-											onClick={() => {
-												if (activeOrgId && activeWorkspaceId) {
-													navigate(
-														`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
-													);
-												}
-											}}
-											disabled={!type.available}
-											className="cursor-pointer"
-										>
-											{type.label}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
-						</div>
-
 						{/* User Avatar Dropdown */}
 						<DropdownMenu
 							open={userDropdownOpen}

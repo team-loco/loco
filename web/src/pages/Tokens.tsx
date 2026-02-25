@@ -1,35 +1,280 @@
 import { useAuth } from "@/auth/AuthProvider";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { listTokens, revokeToken } from "@/gen/loco/token/v1";
+import type { Token } from "@/gen/loco/token/v1/token_pb";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
 import { toastConnectError } from "@/lib/error-handler";
+import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import {
+	AlertCircle,
+	Loader2,
+	Plus,
+	Trash2,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { getTokenColumns } from "./tokens/columns";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
-import { DataTable } from "./tokens/data-table";
 import { TokenDisplayDialog } from "./tokens/TokenDisplayDialog";
+
+function formatRelativeTimeFuture(date: Date): string {
+	const now = new Date();
+	const diffMs = date.getTime() - now.getTime();
+	const diffSec = Math.floor(diffMs / 1000);
+	const diffMin = Math.floor(diffSec / 60);
+	const diffHour = Math.floor(diffMin / 60);
+	const diffDay = Math.floor(diffHour / 24);
+	const diffMonth = Math.floor(diffDay / 30);
+
+	if (diffSec < 0) return "expired";
+	if (diffMin < 60) return `in ${diffMin} minute${diffMin !== 1 ? "s" : ""}`;
+	if (diffHour < 24) return `in ${diffHour} hour${diffHour !== 1 ? "s" : ""}`;
+	if (diffDay < 30) return `in ${diffDay} day${diffDay !== 1 ? "s" : ""}`;
+	return `in ${diffMonth} month${diffMonth !== 1 ? "s" : ""}`;
+}
+
+function TokenCard({
+	token,
+	onRevokeToken,
+	isRevoking,
+}: {
+	token: Token;
+	onRevokeToken: (
+		tokenName: string,
+		tokenEntityType: EntityType,
+		tokenEntityId: string,
+	) => void;
+	isRevoking: boolean;
+}) {
+	const [revokeOpen, setRevokeOpen] = useState(false);
+	const createdDate = token.createdAt
+		? new Date(Number(token.createdAt.seconds) * 1000)
+		: null;
+	const expiresDate = token.expiresAt
+		? new Date(Number(token.expiresAt.seconds) * 1000)
+		: null;
+
+	const scopeGroups = new Map<number, Map<string, Set<number>>>();
+	token.scopes.forEach((scope) => {
+		if (!scopeGroups.has(scope.entityType)) {
+			scopeGroups.set(scope.entityType, new Map());
+		}
+		const entityMap = scopeGroups.get(scope.entityType)!;
+		if (!entityMap.has(scope.entityId)) {
+			entityMap.set(scope.entityId, new Set());
+		}
+		entityMap.get(scope.entityId)!.add(scope.scope);
+	});
+
+	const entityTypeDisplay: Record<
+		number,
+		{
+			label: string;
+			variant: "default" | "secondary" | "destructive" | "outline";
+		}
+	> = {
+		[EntityType.USER]: { label: "User", variant: "default" },
+		[EntityType.ORGANIZATION]: { label: "Organization", variant: "default" },
+		[EntityType.WORKSPACE]: { label: "Workspace", variant: "default" },
+		[EntityType.RESOURCE]: { label: "Resource", variant: "default" },
+		[EntityType.SYSTEM]: { label: "System", variant: "default" },
+	};
+
+	return (
+		<div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
+			{/* Header */}
+			<div className="flex justify-between items-start mb-5">
+				<h3 className="text-lg font-semibold text-gray-900">
+					{token.name}
+				</h3>
+
+				{/* Actions */}
+				<div className="flex gap-2">
+					<AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
+						<AlertDialogTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 cursor-pointer hover:bg-destructive/10"
+							>
+								<Trash2 className="w-4 h-4 text-destructive" />
+							</Button>
+						</AlertDialogTrigger>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>Revoke Token</AlertDialogTitle>
+							</AlertDialogHeader>
+							<div className="space-y-4">
+								<div className="p-3 bg-gray-50 rounded border border-gray-200">
+									<div className="text-xs font-semibold text-gray-500 mb-1">
+										Token
+									</div>
+									<div className="text-sm font-medium text-gray-900">
+										{token.name}
+									</div>
+								</div>
+								<p className="text-sm text-gray-600">
+									This action cannot be undone and any applications using this
+									token will lose access immediately.
+								</p>
+							</div>
+							<div className="flex gap-2 justify-end">
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<Button
+									onClick={() => {
+										onRevokeToken(token.name, token.entityType, token.entityId);
+										setRevokeOpen(false);
+									}}
+									disabled={isRevoking}
+									variant="outline"
+									className="text-destructive hover:text-destructive hover:bg-destructive/5 border-destructive/30"
+								>
+									{isRevoking ? (
+										<>
+											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+											Revoking...
+										</>
+									) : (
+										"Revoke Token"
+									)}
+								</Button>
+							</div>
+						</AlertDialogContent>
+					</AlertDialog>
+				</div>
+			</div>
+
+			{/* Metadata */}
+			<div className="flex flex-wrap gap-6 pt-3">
+				{/* Scopes */}
+				<div>
+					<div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+						Scopes
+					</div>
+					<div className="flex flex-wrap gap-1">
+						{Array.from(scopeGroups.entries()).map(
+							([entityType, entityMap]) => {
+								return Array.from(entityMap.entries()).map(
+									([entityId, scopes]) => {
+										const entityInfo = entityTypeDisplay[entityType];
+										const scopeList = Array.from(scopes);
+										const scopeShortMap: Record<number, string> = {
+											0: "?",
+											1: "R",
+											2: "W",
+											3: "A",
+										};
+										const scopeStr = Array.from(scopeList)
+											.sort()
+											.map((s) => scopeShortMap[s] || "?")
+											.join("");
+
+										return (
+											<TooltipProvider key={`${entityType}-${entityId}`}>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<Badge
+															variant="secondary"
+															className="text-xs cursor-help px-2 py-0.5"
+														>
+															{entityInfo.label}:{" "}
+															{formatShortId(entityId.toString())} {scopeStr}
+														</Badge>
+													</TooltipTrigger>
+													<TooltipContent>
+														{entityInfo.label}: {entityId.toString()}
+													</TooltipContent>
+												</Tooltip>
+											</TooltipProvider>
+										);
+									},
+								);
+							},
+						)}
+					</div>
+				</div>
+
+				{/* Created */}
+				<div>
+					<div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+						Created
+					</div>
+					<div className="text-sm text-gray-900">
+						{createdDate
+							? createdDate.toLocaleDateString("en-US", {
+									year: "numeric",
+									month: "short",
+									day: "numeric",
+								})
+							: "—"}
+					</div>
+				</div>
+
+				{/* Last Used */}
+				<div>
+					<div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+						Last Used
+					</div>
+					<div className="text-sm text-gray-900">—</div>
+				</div>
+
+				{/* Expires */}
+				<div>
+					<div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+						Expires
+					</div>
+					<div className="text-sm text-gray-900">
+						{!expiresDate ? (
+							"Never"
+						) : (
+							<span
+								className={
+									expiresDate < new Date() ? "text-red-600" : "text-gray-900"
+								}
+							>
+								{expiresDate < new Date()
+									? "Expired"
+									: formatRelativeTimeFuture(expiresDate)}
+							</span>
+						)}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
 
 export function Tokens() {
 	const queryClient = useQueryClient();
 	const { user } = useAuth();
 
-	// Dialog states
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 	const [newlyCreatedToken, setNewlyCreatedToken] = useState<string | null>(
 		null,
 	);
 
-	// Get active org from context
 	const { activeOrgId } = useOrgWorkspace();
 
-	// Fetch orgs to display org name in description
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
 		user?.id ? { userId: user.id } : undefined,
@@ -37,8 +282,6 @@ export function Tokens() {
 	);
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
 
-	// Fetch tokens for the current user
-	// TVM will filter based on what the user has access to within their org context
 	const { data: tokensRes, isLoading } = useQuery(
 		listTokens,
 		user?.id ? { entityType: EntityType.USER, entityId: user.id } : undefined,
@@ -46,7 +289,6 @@ export function Tokens() {
 	);
 	const tokens = useMemo(() => tokensRes?.tokens ?? [], [tokensRes]);
 
-	// Revoke token mutation
 	const { mutate: revokeTokenMutation, isPending: isRevoking } = useMutation(
 		revokeToken,
 		{
@@ -67,7 +309,6 @@ export function Tokens() {
 		},
 	);
 
-	// Handle token revocation
 	const handleRevokeToken = useCallback(
 		(tokenName: string, tokenEntityType: EntityType, tokenEntityId: string) => {
 			revokeTokenMutation({
@@ -79,7 +320,6 @@ export function Tokens() {
 		[revokeTokenMutation],
 	);
 
-	// Handle token creation success
 	const handleTokenCreated = (tokenString: string) => {
 		setNewlyCreatedToken(tokenString);
 		setIsCreateDialogOpen(false);
@@ -93,36 +333,45 @@ export function Tokens() {
 		});
 	};
 
-	// Get columns for the table
-	const columns = useMemo(
-		() => getTokenColumns(handleRevokeToken, isRevoking),
-		[handleRevokeToken, isRevoking],
-	);
-
 	const activeOrg = orgs.find((o) => o.id === activeOrgId);
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-6">
+			{/* Page Header */}
 			<div className="flex items-center justify-between">
-				<p className="text-xs text-muted-foreground mt-2 uppercase tracking-wide">
-					{activeOrg
-						? `Organization: ${activeOrg.name}`
-						: "Manage API tokens for programmatic access"}
-				</p>
+				<div>
+					<h1 className="text-3xl font-bold text-gray-900">API Tokens</h1>
+					<p className="text-sm text-gray-600 mt-1">
+						Manage authentication tokens for accessing the Loco API
+					</p>
+				</div>
 				<Button onClick={() => setIsCreateDialogOpen(true)}>
 					<Plus className="h-4 w-4 mr-2" />
 					Create Token
 				</Button>
 			</div>
 
+			{/* Warning Banner */}
+			<div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-4">
+				<AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+				<div>
+					<h3 className="font-semibold text-blue-900 text-sm mb-1">
+						Keep your tokens secure
+					</h3>
+					<p className="text-sm text-blue-800">
+						API tokens provide full access to your account. Never share them
+						publicly or commit them to version control.
+					</p>
+				</div>
+			</div>
+
+			{/* Tokens List or Loading/Empty State */}
 			{isLoading ? (
 				<Card>
 					<CardContent className="flex items-center justify-center py-12">
 						<div className="text-center">
-							<div className="flex flex-col gap-2 items-center">
-								<div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-								<p className="text-foreground text-sm">Loading tokens...</p>
-							</div>
+							<Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
+							<p className="text-gray-600">Loading tokens...</p>
 						</div>
 					</CardContent>
 				</Card>
@@ -130,7 +379,7 @@ export function Tokens() {
 				<Card>
 					<CardContent className="flex items-center justify-center py-12">
 						<div className="text-center">
-							<p className="text-muted-foreground mb-4">
+							<p className="text-gray-600 mb-4">
 								No tokens yet. Create one to get started.
 							</p>
 							<Button
@@ -144,7 +393,16 @@ export function Tokens() {
 					</CardContent>
 				</Card>
 			) : (
-				<DataTable columns={columns} data={tokens} isLoading={isLoading} />
+				<div className="space-y-4">
+					{tokens.map((token) => (
+						<TokenCard
+							key={token.id}
+							token={token}
+							onRevokeToken={handleRevokeToken}
+							isRevoking={isRevoking}
+						/>
+					))}
+				</div>
 			)}
 
 			{/* Create Token Dialog */}
@@ -155,7 +413,7 @@ export function Tokens() {
 				onSuccess={handleTokenCreated}
 			/>
 
-			{/* Token Display Dialog (shows newly created token) */}
+			{/* Token Display Dialog */}
 			<TokenDisplayDialog
 				open={!!newlyCreatedToken}
 				onOpenChange={(open) => !open && setNewlyCreatedToken(null)}

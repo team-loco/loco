@@ -1,6 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
 	Card,
@@ -9,9 +10,72 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listWorkspaceMembers } from "@/gen/loco/workspace/v1";
-import { TrendingUpIcon } from "lucide-react";
+import {
+	ChevronDown,
+	Database,
+	HardDrive,
+	Layers,
+	Mail,
+	Plus,
+	Server,
+	TrendingUpIcon,
+	Zap,
+} from "lucide-react";
+import { useNavigate } from "react-router";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+
+const RESOURCE_TYPES = [
+	{
+		value: "SERVICE",
+		label: "Service",
+		icon: Server,
+		available: true,
+		color: "text-blue-600",
+	},
+	{
+		value: "DATABASE",
+		label: "Database",
+		icon: Database,
+		available: false,
+		color: "text-orange-600",
+	},
+	{
+		value: "FUNCTION",
+		label: "Function",
+		icon: Zap,
+		available: false,
+		color: "text-yellow-600",
+	},
+	{
+		value: "CACHE",
+		label: "Cache",
+		icon: Layers,
+		available: false,
+		color: "text-purple-600",
+	},
+	{
+		value: "QUEUE",
+		label: "Queue",
+		icon: Mail,
+		available: false,
+		color: "text-pink-600",
+	},
+	{
+		value: "BLOB",
+		label: "Blob Storage",
+		icon: HardDrive,
+		available: false,
+		color: "text-green-600",
+	},
+];
 
 interface WorkspaceDashboardMetricsProps {
 	workspaceId: string;
@@ -21,6 +85,10 @@ interface WorkspaceDashboardMetricsProps {
 export function WorkspaceDashboardMetrics({
 	workspaceId,
 }: WorkspaceDashboardMetricsProps) {
+	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+
 	// Fetch resources
 	const { data: resourcesRes } = useQuery(
 		listWorkspaceResources,
@@ -61,7 +129,50 @@ export function WorkspaceDashboardMetrics({
 	const recentDeploymentsCount = 0;
 
 	return (
-		<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+		<div className="relative">
+			{/* Floating New Resource Button */}
+			<div className="fixed bottom-8 right-8 inline-flex items-center justify-center rounded-lg bg-primary/5 shadow-lg hover:shadow-xl transition-shadow">
+				<Button
+					className="rounded-r-none border-r border-primary/20 h-11 px-4"
+					onClick={() => setDropdownOpen(true)}
+				>
+					<Plus className="h-4 w-4 mr-2" />
+					New Resource
+				</Button>
+				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+					<DropdownMenuTrigger asChild>
+						<Button
+							size="icon"
+							className="h-11 w-12 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
+						>
+							<ChevronDown
+								className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+							/>
+							<span className="sr-only">Toggle menu</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end" className="w-36">
+						{RESOURCE_TYPES.map((type) => (
+							<DropdownMenuItem
+								key={type.value}
+								onClick={() => {
+									if (activeOrgId && activeWorkspaceId) {
+										navigate(
+											`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
+										);
+									}
+								}}
+								disabled={!type.available}
+								className="cursor-pointer"
+							>
+								{type.label}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
+
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 			{/* Total Apps (Active) */}
 			<Card className="hover:border-border-strong group">
 				<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-primary to-amber-500 opacity-80 transition-opacity duration-200 group-hover:opacity-100" />
@@ -124,6 +235,7 @@ export function WorkspaceDashboardMetrics({
 					)}
 				</CardContent>
 			</Card>
+		</div>
 		</div>
 	);
 }
