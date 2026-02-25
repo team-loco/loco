@@ -76,7 +76,7 @@ export function CreateOrgDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
-			<DialogContent className="sm:max-w-[650px]">
+			<DialogContent className="sm:max-w-[400px]">
 				<form onSubmit={handleSubmit}>
 					<DialogHeader>
 						<DialogTitle>Create Organization</DialogTitle>

@@ -530,8 +530,21 @@ export function SiteHeader() {
 			</header>
 
 			{/* Context Switch Dialog */}
-			<Dialog open={switchContextOpen} onOpenChange={setSwitchContextOpen}>
-				<DialogContent className="max-w-2xl">
+			<Dialog
+				open={switchContextOpen}
+				onOpenChange={(newOpen) => {
+					if (!newOpen) {
+						// Reset form state on close
+						setShowCreateOrgForm(false);
+						setShowCreateWorkspaceForm(false);
+						setNewOrgName("");
+						setNewWorkspaceName("");
+						setNewWorkspaceDescription("");
+					}
+					setSwitchContextOpen(newOpen);
+				}}
+			>
+				<DialogContent className="max-w-xl">
 					<DialogHeader>
 						<DialogTitle>
 							{showCreateOrgForm
@@ -554,7 +567,7 @@ export function SiteHeader() {
 									onChange={(e) => setNewOrgName(e.target.value)}
 									disabled={isCreatingOrg}
 									autoFocus
-									className="w-full px-3 py-2 border rounded-sm bg-background"
+									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
 								/>
 							</div>
 							<div className="flex gap-2 justify-end">
@@ -595,7 +608,7 @@ export function SiteHeader() {
 									onChange={(e) => setNewWorkspaceName(e.target.value)}
 									disabled={isCreatingWorkspace}
 									autoFocus
-									className="w-full px-3 py-2 border rounded-sm bg-background"
+									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
 								/>
 							</div>
 							<div className="space-y-2">
@@ -609,7 +622,7 @@ export function SiteHeader() {
 									onChange={(e) => setNewWorkspaceDescription(e.target.value)}
 									disabled={isCreatingWorkspace}
 									rows={3}
-									className="w-full px-3 py-2 border rounded-sm bg-background"
+									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
 								/>
 							</div>
 							<div className="flex gap-2 justify-end">
@@ -665,7 +678,7 @@ export function SiteHeader() {
 										))}
 										<button
 											onClick={() => setShowCreateOrgForm(true)}
-											className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
+											className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 										>
 											<Plus className="size-4" />
 											<span>Create Organization</span>
@@ -697,7 +710,7 @@ export function SiteHeader() {
 												))}
 												<button
 													onClick={() => setShowCreateWorkspaceForm(true)}
-													className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
+													className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 												>
 													<Plus className="size-4" />
 													<span>Create Workspace</span>

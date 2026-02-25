@@ -13,9 +13,9 @@ import { useMemo } from "react";
 
 function ObsContent() {
 	return (
-		<div className="space-y-4">
-			<ObsToolbar />
-			<Tabs defaultValue="logs">
+		<Tabs defaultValue="logs" className="flex flex-col h-full">
+			<div className="flex items-center justify-between gap-4 flex-wrap pb-4">
+				<ObsToolbar />
 				<TabsList>
 					<TabsTrigger value="logs" className="flex items-center gap-2">
 						<LogsIcon className="h-3.5 w-3.5" />
@@ -30,17 +30,17 @@ function ObsContent() {
 						Traces
 					</TabsTrigger>
 				</TabsList>
-				<TabsContent value="logs" className="mt-4">
-					<ObsLogs />
-				</TabsContent>
-				<TabsContent value="metrics" className="mt-4">
-					<ObsMetrics />
-				</TabsContent>
-				<TabsContent value="overview" className="mt-4">
-					<ObsOverview />
-				</TabsContent>
-			</Tabs>
-		</div>
+			</div>
+			<TabsContent value="logs" className="mt-0">
+				<ObsLogs />
+			</TabsContent>
+			<TabsContent value="metrics" className="mt-0">
+				<ObsMetrics />
+			</TabsContent>
+			<TabsContent value="overview" className="mt-0">
+				<ObsOverview />
+			</TabsContent>
+		</Tabs>
 	);
 }
 

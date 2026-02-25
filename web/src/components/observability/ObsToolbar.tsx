@@ -61,7 +61,7 @@ export function ObsToolbar() {
 			: selectedResourceIds.length === 1
 				? (resources.find((r) => r.id === selectedResourceIds[0])?.name ??
 					"1 resource")
-				: `${selectedResourceIds.length} resources`;
+				: `${selectedResourceIds.length.toString()} resources`;
 
 	return (
 		<div className="flex items-center gap-2 flex-wrap">
@@ -79,7 +79,9 @@ export function ObsToolbar() {
 					<DropdownMenuSeparator />
 					<DropdownMenuCheckboxItem
 						checked={selectedResourceIds.length === 0}
-						onCheckedChange={() => setSelectedResourceIds([])}
+						onCheckedChange={() => {
+							setSelectedResourceIds([]);
+						}}
 					>
 						All resources
 					</DropdownMenuCheckboxItem>
@@ -101,7 +103,7 @@ export function ObsToolbar() {
 				value={timeRange}
 				onValueChange={(v) => setTimeRange(v as TimeRange)}
 			>
-				<SelectTrigger className="w-36 h-7.5 text-sm">
+				<SelectTrigger className="w-36 h-7 px-4 py-0">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
@@ -119,7 +121,9 @@ export function ObsToolbar() {
 					<Badge
 						variant={activeClusterIds.length === 0 ? "default" : "outline"}
 						className="cursor-pointer text-xs"
-						onClick={() => setActiveClusterIds([])}
+						onClick={() => {
+							setActiveClusterIds([]);
+						}}
 					>
 						All regions
 					</Badge>
@@ -131,7 +135,9 @@ export function ObsToolbar() {
 								key={id}
 								variant={active ? "default" : "outline"}
 								className="cursor-pointer text-xs"
-								onClick={() => toggleCluster(id)}
+								onClick={() => {
+									toggleCluster(id);
+								}}
 							>
 								{c.region}
 							</Badge>

@@ -50,9 +50,9 @@ export function Tokens() {
 	const { mutate: revokeTokenMutation, isPending: isRevoking } = useMutation(
 		revokeToken,
 		{
-			onSuccess: () => {
+			onSuccess: async () => {
 				toast.success("Token revoked successfully");
-				queryClient.invalidateQueries({
+				await queryClient.invalidateQueries({
 					queryKey: [
 						{
 							service: "token.v1.TokenService",
