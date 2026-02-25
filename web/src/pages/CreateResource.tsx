@@ -126,7 +126,7 @@ export function CreateResource() {
 	const navigate = useNavigate();
 	const { workspaceId: paramWorkspaceId } = useParams();
 	const [searchParams] = useSearchParams();
-	const typeFromUrl = searchParams.get("type") || "SERVICE";
+	const typeFromUrl = searchParams.get("type") ?? "SERVICE";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	const [resourceName, setResourceName] = useState("");
@@ -211,7 +211,7 @@ export function CreateResource() {
 		setIsEnvModalOpen(false);
 		setEnvFileContent("");
 		toast.success(
-			`Imported ${parsed.length} environment variable${
+			`Imported ${parsed.length.toString()} environment variable${
 				parsed.length !== 1 ? "s" : ""
 			}`,
 		);
@@ -234,7 +234,7 @@ export function CreateResource() {
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 	const workspaceId =
-		paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
+		paramWorkspaceId ?? (workspaces.length > 0 ? workspaces[0].id : null);
 
 	const { data: platformDomainsRes } = useQuery(listPlatformDomains, {
 		activeOnly: true,
@@ -251,7 +251,10 @@ export function CreateResource() {
 	// Set default platform domain on load
 	useEffect(() => {
 		if (platformDomains.length > 0 && !selectedPlatformDomain) {
-			setSelectedPlatformDomain(platformDomains[0].domain);
+			const timer = setTimeout(() => {
+				setSelectedPlatformDomain(platformDomains[0].domain);
+			}, 0);
+			return () => { clearTimeout(timer); };
 		}
 	}, [platformDomains, selectedPlatformDomain]);
 
@@ -263,7 +266,10 @@ export function CreateResource() {
 			.toLowerCase()
 			.replace(/[^a-z0-9-]/g, "")
 			.replace(/^-+|-+$/g, "");
-		setSubdomain(sanitized);
+		const timer = setTimeout(() => {
+			setSubdomain(sanitized);
+		}, 0);
+		return () => { clearTimeout(timer); };
 	}, [resourceName]);
 
 	// Check subdomain availability as user types (debounced)
@@ -274,8 +280,10 @@ export function CreateResource() {
 		}
 
 		if (!subdomain.trim()) {
-			setSubdomainAvailability(null);
-			return;
+			const timer = setTimeout(() => {
+				setSubdomainAvailability(null);
+			}, 0);
+			return () => { clearTimeout(timer); };
 		}
 
 		setSubdomainAvailability("checking");
@@ -447,7 +455,7 @@ export function CreateResource() {
 				domain: {
 					domainSource: DomainType.PLATFORM_PROVIDED,
 					subdomain: subdomain,
-					platformDomainId: platformDomain?.id || BigInt(0),
+					platformDomainId: platformDomain?.id ?? BigInt(0),
 				},
 				spec,
 			});
@@ -461,7 +469,7 @@ export function CreateResource() {
 			if (dockerImageUrl.trim() && appPort.trim()) {
 				try {
 					// Convert env vars array to object
-					const envObject: { [key: string]: string } = {};
+					const envObject: Record<string, string> = {};
 					envVars.forEach((env) => {
 						if (env.key.trim() && env.value.trim()) {
 							envObject[env.key.trim()] = env.value.trim();
@@ -506,7 +514,7 @@ export function CreateResource() {
 
 			// Navigate to resource details
 			if (activeOrgId && activeWorkspaceId) {
-				navigate(
+				void navigate(
 					`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.resourceId}`,
 				);
 			}
@@ -529,7 +537,12 @@ export function CreateResource() {
 				</h1>
 			</div> */}
 
-			<form onSubmit={handleSubmit} className="space-y-6">
+			<form
+			onSubmit={(e) => {
+				void handleSubmit(e);
+			}}
+			className="space-y-6"
+		>
 				{/* Resource Configuration */}
 				<Card>
 					<CardHeader>
@@ -546,7 +559,7 @@ export function CreateResource() {
 								id="resource-name"
 								placeholder="my-awesome-app"
 								value={resourceName}
-								onChange={(e) => setResourceName(e.target.value)}
+								onChange={(e) => { setResourceName(e.target.value); }}
 							/>
 							<p className="text-xs text-muted-foreground">
 								Choose a descriptive name for your resource
@@ -635,7 +648,7 @@ export function CreateResource() {
 				</Card>
 
 				{/* Deployment Configuration - Only show for SERVICE type */}
-				{selectedResourceType?.available && resourceType === "SERVICE" && (
+				{selectedResourceType && selectedResourceType.available && resourceType === "SERVICE" && (
 					<Card className="border-dashed shadow-none">
 						<CardHeader>
 							<CardTitle className="text-lg flex items-center gap-2">
@@ -690,7 +703,7 @@ export function CreateResource() {
 											type="number"
 											placeholder="8080"
 											value={appPort}
-											onChange={(e) => setAppPort(e.target.value)}
+											onChange={(e) => { setAppPort(e.target.value); }}
 											className=" bg-background w-32"
 											min="1"
 											max="65535"
@@ -740,7 +753,7 @@ export function CreateResource() {
 												</div>
 												<Slider
 													value={[cpuIndex]}
-													onValueChange={(value) => setCpuIndex(value[0])}
+													onValueChange={(value) => { setCpuIndex(value[0]); }}
 													min={0}
 													max={CPU_OPTIONS.length - 1}
 													step={1}
@@ -764,7 +777,7 @@ export function CreateResource() {
 												</div>
 												<Slider
 													value={[memoryIndex]}
-													onValueChange={(value) => setMemoryIndex(value[0])}
+													onValueChange={(value) => { setMemoryIndex(value[0]); }}
 													min={0}
 													max={MEMORY_OPTIONS.length - 1}
 													step={1}
@@ -791,7 +804,7 @@ export function CreateResource() {
 													type="button"
 													variant="outline"
 													size="sm"
-													onClick={() => setIsEnvModalOpen(true)}
+													onClick={() => { setIsEnvModalOpen(true); }}
 													className="h-8"
 												>
 													<FileText className="h-4 w-4 mr-1" />
@@ -821,7 +834,7 @@ export function CreateResource() {
 															placeholder="KEY"
 															value={env.key}
 															onChange={(e) =>
-																updateEnvVar(index, "key", e.target.value)
+																{ updateEnvVar(index, "key", e.target.value); }
 															}
 															className=" bg-background flex-1 font-mono text-sm"
 														/>
@@ -829,7 +842,7 @@ export function CreateResource() {
 															placeholder="value"
 															value={env.value}
 															onChange={(e) =>
-																updateEnvVar(index, "value", e.target.value)
+																{ updateEnvVar(index, "value", e.target.value); }
 															}
 															className=" bg-background flex-1"
 														/>
@@ -837,7 +850,7 @@ export function CreateResource() {
 															type="button"
 															variant="ghost"
 															size="sm"
-															onClick={() => removeEnvVar(index)}
+															onClick={() => { removeEnvVar(index); }}
 															className="h-10 px-3 text-muted-foreground hover:text-error-text"
 														>
 															<Trash2 className="h-4 w-4" />
@@ -860,8 +873,8 @@ export function CreateResource() {
 						variant="secondary"
 						onClick={() => {
 							if (activeOrgId && activeWorkspaceId) {
-								navigate(
-									`/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`,
+								void navigate(
+									`/org/${activeOrgId}/wks/${activeWorkspaceId}`,
 								);
 							}
 						}}
@@ -909,7 +922,7 @@ export function CreateResource() {
 					<div className="space-y-4">
 						<Textarea
 							value={envFileContent}
-							onChange={(e) => setEnvFileContent(e.target.value)}
+							onChange={(e) => { setEnvFileContent(e.target.value); }}
 							placeholder="DATABASE_URL=postgresql://user:pass@localhost:5432/db&#10;API_KEY=your-api-key-here&#10;NODE_ENV=production&#10;# Comments are supported"
 							className="font-mono text-sm min-h-[400px] resize-none "
 							spellCheck={false}

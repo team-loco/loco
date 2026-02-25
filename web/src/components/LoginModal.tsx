@@ -120,7 +120,9 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 				{/* OAuth Buttons */}
 				<div className="mt-4 space-y-3">
 					<Button
-						onClick={handleGithubLogin}
+						onClick={() => {
+							void handleGithubLogin();
+						}}
 						disabled={isGithubLoading}
 						className="w-full h-10 bg-black text-white shadow-none! hover:opacity-90! active:translate-x-1 active:translate-y-1 border-0"
 					>

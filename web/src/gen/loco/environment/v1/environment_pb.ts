@@ -12,11 +12,11 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/environment/v1/environment.proto.
  */
 export const file_loco_environment_v1_environment: GenFile = /*@__PURE__*/
-  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIuwBCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIOCgZvcmdfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEhUKDWlzX3Byb2R1Y3Rpb24YBSABKAgSEgoKY3JlYXRlZF9ieRgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIOCgxfZGVzY3JpcHRpb24ieQoYQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhgKC2Rlc2NyaXB0aW9uGAMgASgJSACIAQESFQoNaXNfcHJvZHVjdGlvbhgEIAEoCEIOCgxfZGVzY3JpcHRpb24iMwoZQ3JlYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSIvChVHZXRFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiTwoWR2V0RW52aXJvbm1lbnRSZXNwb25zZRI1CgtlbnZpcm9ubWVudBgBIAEoCzIgLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnQiKQoXTGlzdEVudmlyb25tZW50c1JlcXVlc3QSDgoGb3JnX2lkGAEgASgJIlIKGExpc3RFbnZpcm9ubWVudHNSZXNwb25zZRI2CgxlbnZpcm9ubWVudHMYASADKAsyIC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50ItcBChhVcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhEKBG5hbWUYAyABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgEIAEoCUgBiAEBEhoKDWlzX3Byb2R1Y3Rpb24YBSABKAhIAogBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25CEAoOX2lzX3Byb2R1Y3Rpb24iMwoZVXBkYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSIyChhEZWxldGVFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiGwoZRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZTLMBAoSRW52aXJvbm1lbnRTZXJ2aWNlEnIKEUNyZWF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5DcmVhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLkNyZWF0ZUVudmlyb25tZW50UmVzcG9uc2USaQoOR2V0RW52aXJvbm1lbnQSKi5sb2NvLmVudmlyb25tZW50LnYxLkdldEVudmlyb25tZW50UmVxdWVzdBorLmxvY28uZW52aXJvbm1lbnQudjEuR2V0RW52aXJvbm1lbnRSZXNwb25zZRJvChBMaXN0RW52aXJvbm1lbnRzEiwubG9jby5lbnZpcm9ubWVudC52MS5MaXN0RW52aXJvbm1lbnRzUmVxdWVzdBotLmxvY28uZW52aXJvbm1lbnQudjEuTGlzdEVudmlyb25tZW50c1Jlc3BvbnNlEnIKEVVwZGF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5VcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLlVwZGF0ZUVudmlyb25tZW50UmVzcG9uc2UScgoRRGVsZXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLkRlbGV0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZUJDWkFnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vZW52aXJvbm1lbnQvdjE7ZW52aXJvbm1lbnR2MWIGcHJvdG8z", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIvIBCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEhUKDWlzX3Byb2R1Y3Rpb24YBSABKAgSEgoKY3JlYXRlZF9ieRgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIOCgxfZGVzY3JpcHRpb24ifwoYQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhgKC2Rlc2NyaXB0aW9uGAMgASgJSACIAQESFQoNaXNfcHJvZHVjdGlvbhgEIAEoCEIOCgxfZGVzY3JpcHRpb24iMwoZQ3JlYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSIvChVHZXRFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiTwoWR2V0RW52aXJvbm1lbnRSZXNwb25zZRI1CgtlbnZpcm9ubWVudBgBIAEoCzIgLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnQiLwoXTGlzdEVudmlyb25tZW50c1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJIlIKGExpc3RFbnZpcm9ubWVudHNSZXNwb25zZRI2CgxlbnZpcm9ubWVudHMYASADKAsyIC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50ItcBChhVcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhEKBG5hbWUYAyABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgEIAEoCUgBiAEBEhoKDWlzX3Byb2R1Y3Rpb24YBSABKAhIAogBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25CEAoOX2lzX3Byb2R1Y3Rpb24iMwoZVXBkYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSIyChhEZWxldGVFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiGwoZRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZTLMBAoSRW52aXJvbm1lbnRTZXJ2aWNlEnIKEUNyZWF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5DcmVhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLkNyZWF0ZUVudmlyb25tZW50UmVzcG9uc2USaQoOR2V0RW52aXJvbm1lbnQSKi5sb2NvLmVudmlyb25tZW50LnYxLkdldEVudmlyb25tZW50UmVxdWVzdBorLmxvY28uZW52aXJvbm1lbnQudjEuR2V0RW52aXJvbm1lbnRSZXNwb25zZRJvChBMaXN0RW52aXJvbm1lbnRzEiwubG9jby5lbnZpcm9ubWVudC52MS5MaXN0RW52aXJvbm1lbnRzUmVxdWVzdBotLmxvY28uZW52aXJvbm1lbnQudjEuTGlzdEVudmlyb25tZW50c1Jlc3BvbnNlEnIKEVVwZGF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5VcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLlVwZGF0ZUVudmlyb25tZW50UmVzcG9uc2UScgoRRGVsZXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLkRlbGV0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZUJDWkFnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vZW52aXJvbm1lbnQvdjE7ZW52aXJvbm1lbnR2MWIGcHJvdG8z", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
- * Environment represents an isolation boundary within an organization.
- * Each org has at least one environment ("production") created automatically.
+ * Environment represents an isolation boundary within a workspace.
+ * Each workspace has at least one environment ("production") created automatically.
  * Clusters are assigned to environments; resources are deployed to a fixed environment.
  *
  * @generated from message loco.environment.v1.Environment
@@ -28,9 +28,9 @@ export type Environment = Message<"loco.environment.v1.Environment"> & {
   id: string;
 
   /**
-   * @generated from field: string org_id = 2;
+   * @generated from field: string workspace_id = 2;
    */
-  orgId: string;
+  workspaceId: string;
 
   /**
    * @generated from field: string name = 3;
@@ -64,8 +64,8 @@ export type Environment = Message<"loco.environment.v1.Environment"> & {
 };
 
 /**
- * Environment represents an isolation boundary within an organization.
- * Each org has at least one environment ("production") created automatically.
+ * Environment represents an isolation boundary within a workspace.
+ * Each workspace has at least one environment ("production") created automatically.
  * Clusters are assigned to environments; resources are deployed to a fixed environment.
  *
  * @generated from message loco.environment.v1.Environment
@@ -77,9 +77,9 @@ export type EnvironmentJson = {
   id?: string;
 
   /**
-   * @generated from field: string org_id = 2;
+   * @generated from field: string workspace_id = 2;
    */
-  orgId?: string;
+  workspaceId?: string;
 
   /**
    * @generated from field: string name = 3;
@@ -126,9 +126,9 @@ export const EnvironmentSchema: GenMessage<Environment, {jsonType: EnvironmentJs
  */
 export type CreateEnvironmentRequest = Message<"loco.environment.v1.CreateEnvironmentRequest"> & {
   /**
-   * @generated from field: string org_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  orgId: string;
+  workspaceId: string;
 
   /**
    * @generated from field: string name = 2;
@@ -153,9 +153,9 @@ export type CreateEnvironmentRequest = Message<"loco.environment.v1.CreateEnviro
  */
 export type CreateEnvironmentRequestJson = {
   /**
-   * @generated from field: string org_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  orgId?: string;
+  workspaceId?: string;
 
   /**
    * @generated from field: string name = 2;
@@ -274,27 +274,27 @@ export const GetEnvironmentResponseSchema: GenMessage<GetEnvironmentResponse, {j
   messageDesc(file_loco_environment_v1_environment, 4);
 
 /**
- * ListEnvironmentsRequest is the request to list environments in an org.
+ * ListEnvironmentsRequest is the request to list environments in a workspace.
  *
  * @generated from message loco.environment.v1.ListEnvironmentsRequest
  */
 export type ListEnvironmentsRequest = Message<"loco.environment.v1.ListEnvironmentsRequest"> & {
   /**
-   * @generated from field: string org_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  orgId: string;
+  workspaceId: string;
 };
 
 /**
- * ListEnvironmentsRequest is the request to list environments in an org.
+ * ListEnvironmentsRequest is the request to list environments in a workspace.
  *
  * @generated from message loco.environment.v1.ListEnvironmentsRequest
  */
 export type ListEnvironmentsRequestJson = {
   /**
-   * @generated from field: string org_id = 1;
+   * @generated from field: string workspace_id = 1;
    */
-  orgId?: string;
+  workspaceId?: string;
 };
 
 /**
@@ -492,13 +492,13 @@ export const DeleteEnvironmentResponseSchema: GenMessage<DeleteEnvironmentRespon
   messageDesc(file_loco_environment_v1_environment, 10);
 
 /**
- * EnvironmentService manages environments within an organization.
+ * EnvironmentService manages environments within a workspace.
  *
  * @generated from service loco.environment.v1.EnvironmentService
  */
 export const EnvironmentService: GenService<{
   /**
-   * CreateEnvironment creates a new environment in an organization.
+   * CreateEnvironment creates a new environment in a workspace.
    *
    * @generated from rpc loco.environment.v1.EnvironmentService.CreateEnvironment
    */
@@ -518,7 +518,7 @@ export const EnvironmentService: GenService<{
     output: typeof GetEnvironmentResponseSchema;
   },
   /**
-   * ListEnvironments lists all environments in an organization.
+   * ListEnvironments lists all environments in a workspace.
    *
    * @generated from rpc loco.environment.v1.EnvironmentService.ListEnvironments
    */

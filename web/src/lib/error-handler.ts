@@ -41,7 +41,7 @@ export function getErrorMessage(
 
 export function getRequestIdFromError(error: unknown): string | null {
 	if (error instanceof ConnectError && error.code === Code.Internal) {
-		return error.metadata.get("x-loco-request-id") || null;
+		return error.metadata.get("x-loco-request-id") ?? null;
 	}
 	return null;
 }
@@ -59,7 +59,7 @@ export function toastConnectError(
 			action: {
 				label: "Copy ID",
 				onClick: () => {
-					navigator.clipboard.writeText(requestId);
+					void navigator.clipboard.writeText(requestId);
 					toast.success("Request ID copied", { duration: 2000 });
 				},
 			},

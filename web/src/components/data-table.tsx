@@ -145,7 +145,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 						table.getIsAllPageRowsSelected() ||
 						(table.getIsSomePageRowsSelected() && "indeterminate")
 					}
-					onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+					onCheckedChange={(value) => { table.toggleAllPageRowsSelected(!!value); }}
 					aria-label="Select all"
 				/>
 			</div>
@@ -154,7 +154,7 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 			<div className="flex items-center justify-center">
 				<Checkbox
 					checked={row.getIsSelected()}
-					onCheckedChange={(value) => row.toggleSelected(!!value)}
+					onCheckedChange={(value) => { row.toggleSelected(!!value); }}
 					aria-label="Select row"
 				/>
 			</div>
@@ -212,13 +212,13 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 					});
 				}}
 			>
-				<Label htmlFor={`${row.original.id}-target`} className="sr-only">
+				<Label htmlFor={`${row.original.id.toString()}-target`} className="sr-only">
 					Target
 				</Label>
 				<Input
 					className="h-8 w-16 border-transparent bg-transparent text-right shadow-none hover:bg-input/30 focus-visible:border focus-visible:bg-background"
 					defaultValue={row.original.target}
-					id={`${row.original.id}-target`}
+					id={`${row.original.id.toString()}-target`}
 				/>
 			</form>
 		),
@@ -237,13 +237,13 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 					});
 				}}
 			>
-				<Label htmlFor={`${row.original.id}-limit`} className="sr-only">
+				<Label htmlFor={`${row.original.id.toString()}-limit`} className="sr-only">
 					Limit
 				</Label>
 				<Input
 					className="h-8 w-16 border-transparent bg-transparent text-right shadow-none hover:bg-input/30 focus-visible:border focus-visible:bg-background"
 					defaultValue={row.original.limit}
-					id={`${row.original.id}-limit`}
+					id={`${row.original.id.toString()}-limit`}
 				/>
 			</form>
 		),
@@ -260,13 +260,13 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 
 			return (
 				<>
-					<Label htmlFor={`${row.original.id}-reviewer`} className="sr-only">
+					<Label htmlFor={`${row.original.id.toString()}-reviewer`} className="sr-only">
 						Reviewer
 					</Label>
 					<Select>
 						<SelectTrigger
 							className="h-8 w-40"
-							id={`${row.original.id}-reviewer`}
+							id={`${row.original.id.toString()}-reviewer`}
 						>
 							<SelectValue placeholder="Assign reviewer" />
 						</SelectTrigger>
@@ -467,7 +467,7 @@ export function DataTable({
 											className="capitalize"
 											checked={column.getIsVisible()}
 											onCheckedChange={(value) =>
-												column.toggleVisibility(!!value)
+												{ column.toggleVisibility(value); }
 											}
 										>
 											{column.id}
@@ -548,7 +548,7 @@ export function DataTable({
 								Rows per page
 							</Label>
 							<Select
-								value={`${table.getState().pagination.pageSize}`}
+								value={table.getState().pagination.pageSize.toString()}
 								onValueChange={(value) => {
 									table.setPageSize(Number(value));
 								}}
@@ -560,7 +560,7 @@ export function DataTable({
 								</SelectTrigger>
 								<SelectContent side="top">
 									{[10, 20, 30, 40, 50].map((pageSize) => (
-										<SelectItem key={pageSize} value={`${pageSize}`}>
+										<SelectItem key={pageSize} value={pageSize.toString()}>
 											{pageSize}
 										</SelectItem>
 									))}
@@ -575,7 +575,7 @@ export function DataTable({
 							<Button
 								variant="outline"
 								className="hidden h-8 w-8 p-0 lg:flex"
-								onClick={() => table.setPageIndex(0)}
+								onClick={() => { table.setPageIndex(0); }}
 								disabled={!table.getCanPreviousPage()}
 							>
 								<span className="sr-only">Go to first page</span>
@@ -585,7 +585,7 @@ export function DataTable({
 								variant="outline"
 								className="size-8"
 								size="icon"
-								onClick={() => table.previousPage()}
+								onClick={() => { table.previousPage(); }}
 								disabled={!table.getCanPreviousPage()}
 							>
 								<span className="sr-only">Go to previous page</span>
@@ -595,7 +595,7 @@ export function DataTable({
 								variant="outline"
 								className="size-8"
 								size="icon"
-								onClick={() => table.nextPage()}
+								onClick={() => { table.nextPage(); }}
 								disabled={!table.getCanNextPage()}
 							>
 								<span className="sr-only">Go to next page</span>
@@ -605,7 +605,7 @@ export function DataTable({
 								variant="outline"
 								className="hidden size-8 lg:flex"
 								size="icon"
-								onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+								onClick={() => { table.setPageIndex(table.getPageCount() - 1); }}
 								disabled={!table.getCanNextPage()}
 							>
 								<span className="sr-only">Go to last page</span>

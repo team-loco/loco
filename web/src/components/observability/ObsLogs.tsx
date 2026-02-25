@@ -11,8 +11,6 @@ import { useTailLogs } from "@/hooks/useTailLogs";
 import { parseObsQuery } from "@/lib/obs-query-parser";
 import { LogOrder } from "@/gen/loco/observability/v1/observability_pb";
 
-const LEVELS = ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"];
-
 function levelBadgeVariant(level: string): "default" | "outline" | "destructive" | "secondary" {
 	switch (level) {
 		case "ERROR":
@@ -79,7 +77,7 @@ export function ObsLogs() {
 					<Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
 					<Input
 						value={queryText}
-						onChange={(e) => setQueryText(e.target.value)}
+						onChange={(e) => { setQueryText(e.target.value); }}
 						placeholder='e.g. level:error pod:api-xxx "search text"'
 						className="pl-8 h-8 text-sm font-mono"
 					/>
@@ -87,7 +85,7 @@ export function ObsLogs() {
 				<Toggle
 					pressed={order === LogOrder.OLDEST_FIRST}
 					onPressedChange={(v) =>
-						setOrder(v ? LogOrder.OLDEST_FIRST : LogOrder.NEWEST_FIRST)
+						{ setOrder(v ? LogOrder.OLDEST_FIRST : LogOrder.NEWEST_FIRST); }
 					}
 					size="sm"
 					aria-label="Toggle order"
@@ -154,7 +152,7 @@ export function ObsLogs() {
 					<div>
 						{displayEntries.map((entry, i) => (
 							<ObsLogRow
-								key={`${entry.timestamp?.seconds}-${entry.traceId}-${i}`}
+								key={`${entry.timestamp?.seconds.toString() ?? ""}-${entry.traceId}-${i.toString()}`}
 								entry={entry}
 							/>
 						))}

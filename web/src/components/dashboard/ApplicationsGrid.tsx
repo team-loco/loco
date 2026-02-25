@@ -23,7 +23,7 @@ function getMockMetrics(resourceId: string) {
 	return {
 		cpu: Math.floor((Math.sin(seed) * 0.5 + 0.5) * 100),
 		memory: Math.floor((Math.cos(seed) * 0.5 + 0.5) * 1000) + 256,
-		requests: `${Math.floor((Math.sin(seed * 2) * 0.5 + 0.5) * 900)}K`,
+		requests: `${Math.floor((Math.sin(seed * 2) * 0.5 + 0.5) * 900).toString()}K`,
 		uptime: "99.9%",
 		commit: Math.random().toString(36).substring(2, 9),
 		branch: "main",
@@ -50,9 +50,9 @@ function getLastDeployedText(createdAt: any): string {
 
 		if (hours === 0) return "Deployed just now";
 		if (hours === 1) return "Deployed 1h ago";
-		if (hours < 24) return `Deployed ${hours}h ago`;
+		if (hours < 24) return `Deployed ${hours.toString()}h ago`;
 		if (days === 1) return "Deployed 1d ago";
-		return `Deployed ${days}d ago`;
+		return `Deployed ${days.toString()}d ago`;
 	} catch {
 		return "Unknown status";
 	}
@@ -65,11 +65,11 @@ export function ApplicationsGrid({
 	const navigate = useNavigate();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const orgId = activeOrgId;
-	const wsId = activeWorkspaceId || workspaceId;
+	const wsId = activeWorkspaceId ?? workspaceId;
 
 	const handleRowClick = (resourceId: string) => {
 		if (orgId && wsId) {
-			navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
+			void navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
 		}
 	};
 
@@ -78,12 +78,13 @@ export function ApplicationsGrid({
 			{resources.length > 0 ? (
 				resources.map((resource) => {
 					const metrics = getMockMetrics(resource.id);
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 					const isActive = resource.status !== 3; // Example check
 
 					return (
 						<div
-							key={resource.id.toString()}
-							onClick={() => handleRowClick(resource.id)}
+							key={resource.id}
+							onClick={() => { handleRowClick(resource.id); }}
 							className="group relative flex flex-col bg-card border border-border rounded-xl shadow-xs hover:shadow-sm hover:border-border-strong cursor-pointer transition-all duration-medium overflow-hidden"
 						>
 							{/* Card Header */}
@@ -99,7 +100,7 @@ export function ApplicationsGrid({
 											</h3>
 											<a
 												href="#repo"
-												onClick={(e) => e.stopPropagation()}
+												onClick={(e) => { e.stopPropagation(); }}
 												className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
 											>
 												<Github className="w-3 h-3" />
@@ -111,7 +112,7 @@ export function ApplicationsGrid({
 										variant="ghost" 
 										size="icon" 
 										className="h-8 w-8 -mr-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-										onClick={(e) => e.stopPropagation()}
+										onClick={(e) => { e.stopPropagation(); }}
 									>
 										<Settings className="w-4 h-4" />
 									</Button>
@@ -123,7 +124,7 @@ export function ApplicationsGrid({
 										href={`https://${resource.name}.loco.app`}
 										target="_blank"
 										rel="noreferrer"
-										onClick={(e) => e.stopPropagation()}
+										onClick={(e) => { e.stopPropagation(); }}
 										className="text-foreground hover:text-primary transition-colors flex items-center gap-1.5 font-medium"
 									>
 										{resource.name}.loco.app
@@ -150,7 +151,7 @@ export function ApplicationsGrid({
 															? "bg-amber-500"
 															: "bg-emerald-500"
 													}`}
-													style={{ width: `${metrics.cpu}%` }}
+													style={{ width: `${metrics.cpu.toString()}%` }}
 												/>
 											</div>
 											<span className="text-xs font-mono font-medium">

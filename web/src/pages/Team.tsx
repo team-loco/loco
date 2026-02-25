@@ -25,7 +25,7 @@ export function Team() {
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 	const queryClient = useQueryClient();
-	const [cursors, setCursors] = useState<Array<string | null>>([null]);
+	const [cursors, setCursors] = useState<(string | null)[]>([null]);
 	const [currentPage, setCurrentPage] = useState(0);
 	const ITEMS_PER_PAGE = 10;
 
@@ -80,7 +80,7 @@ export function Team() {
 		{
 			onSuccess: () => {
 				if (firstWorkspaceId) {
-					queryClient.invalidateQueries({
+					void queryClient.invalidateQueries({
 						queryKey: [
 							{
 								service: "workspace.v1.WorkspaceService",
@@ -94,7 +94,7 @@ export function Team() {
 	);
 
 	const handleRemoveMember = useCallback(
-		async (userId: string) => {
+		(userId: string) => {
 			if (!firstWorkspaceId) return;
 			try {
 				removeMemberMutation({
@@ -131,12 +131,10 @@ export function Team() {
 							<Button
 								variant="outline"
 								size="sm"
-								className={`${
-									currentPage === 0 || isLoading
+								className={currentPage === 0 || isLoading
 										? "opacity-30 text-muted-foreground"
-										: ""
-								}`}
-								onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+										: ""}
+								onClick={() => { setCurrentPage((p) => Math.max(0, p - 1)); }}
 								disabled={currentPage === 0 || isLoading}
 							>
 								Previous
@@ -144,11 +142,9 @@ export function Team() {
 							<Button
 								variant="outline"
 								size="sm"
-								className={`${
-									!hasNextPage || isLoading
+								className={!hasNextPage || isLoading
 										? "opacity-30 text-muted-foreground"
-										: ""
-								}`}
+										: ""}
 								onClick={() => {
 									if (hasNextPage && nextCursor) {
 										setCursors((prev) => [...prev, nextCursor]);

@@ -25,7 +25,7 @@ export function BreadcrumbNav() {
 		}
 
 		// Resource details: /resource/:resourceId
-		const resourceMatch = pathname.match(/^\/resource\/([^/]+)(?:\/settings)?$/);
+		const resourceMatch = /^\/resource\/([^/]+)(?:\/settings)?$/.exec(pathname);
 		if (resourceMatch) {
 			const resourceId = resourceMatch[1];
 			const isSettings = pathname.endsWith("/settings");
@@ -40,7 +40,7 @@ export function BreadcrumbNav() {
 		}
 
 		// Org settings: /org/:orgId/settings
-		const orgMatch = pathname.match(/^\/org\/([^/]+)\/settings$/);
+		const orgMatch = /^\/org\/([^/]+)\/settings$/.exec(pathname);
 		if (orgMatch) {
 			return [
 				{ label: "Dashboard", href: "/" },
@@ -49,7 +49,7 @@ export function BreadcrumbNav() {
 		}
 
 		// Workspace settings: /workspace/:workspaceId/settings
-		const wsMatch = pathname.match(/^\/workspace\/([^/]+)\/settings$/);
+		const wsMatch = /^\/workspace\/([^/]+)\/settings$/.exec(pathname);
 		if (wsMatch) {
 			return [
 				{ label: "Dashboard", href: "/" },
@@ -80,12 +80,14 @@ export function BreadcrumbNav() {
 	return (
 		<Breadcrumb>
 			<BreadcrumbList>
-				{breadcrumbs.map((segment, idx) => (
-					<div key={idx} className="flex items-center gap-2">
+				{breadcrumbs.map((segment) => (
+					<div key={segment.label} className="flex items-center gap-2">
 						<BreadcrumbItem>
 							{segment.href ? (
 								<BreadcrumbLink
-									onClick={() => navigate(segment.href!)}
+									onClick={() => {
+										void navigate(segment.href);
+									}}
 									className="cursor-pointer"
 								>
 									{segment.label}
@@ -94,7 +96,7 @@ export function BreadcrumbNav() {
 								<span className="text-foreground">{segment.label}</span>
 							)}
 						</BreadcrumbItem>
-						{idx < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+						{segment.href && <BreadcrumbSeparator />}
 					</div>
 				))}
 			</BreadcrumbList>

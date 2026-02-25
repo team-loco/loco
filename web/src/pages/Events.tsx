@@ -25,7 +25,7 @@ const severityBadgeColors: Record<string, string> = {
 export function Events() {
 	const { workspace } = useWorkspace();
 	const { events: backendEvents } = useWorkspaceEvents(
-		workspace?.id.toString() || ""
+		workspace?.id.toString() ?? ""
 	);
 	const [events, setEvents] = useState(backendEvents);
 	const [filteredEvents, setFilteredEvents] = useState(backendEvents);
@@ -96,7 +96,7 @@ export function Events() {
 								<Input
 									placeholder="Search events by app or message..."
 									value={searchTerm}
-									onChange={(e) => setSearchTerm(e.target.value)}
+									onChange={(e) => { setSearchTerm(e.target.value); }}
 								/>
 							</div>
 							<DropdownSelector
@@ -114,7 +114,7 @@ export function Events() {
 									{ value: "info", label: "Info" },
 								]}
 								onSelect={(value) =>
-									setSeverityFilter(value as string)
+									{ setSeverityFilter(value as string); }
 								}
 								contentWidth="w-44"
 							/>
@@ -144,7 +144,7 @@ export function Events() {
 					<div className="space-y-3">
 						{filteredEvents.map((event) => {
 							const severity = (event.type?.toLowerCase() ||
-								"info") as keyof typeof severityColors;
+								"info");
 							const timestamp = event.timestamp
 								? new Date(
 										typeof event.timestamp === "object" &&
@@ -192,7 +192,7 @@ export function Events() {
 										<Button
 											variant="secondary"
 											size="sm"
-											onClick={() => handleDismiss(event.id)}
+											onClick={() => { handleDismiss(event.id); }}
 											className="h-8 w-8 p-0 shrink-0"
 											title="Dismiss event"
 										>
@@ -222,11 +222,11 @@ function formatDateTime(date: Date | null | undefined): string {
 
 	if (seconds < 60) return "just now";
 	if (minutes === 1) return "1 minute ago";
-	if (minutes < 60) return `${minutes} minutes ago`;
+	if (minutes < 60) return `${minutes.toString()} minutes ago`;
 	if (hours === 1) return "1 hour ago";
-	if (hours < 24) return `${hours} hours ago`;
+	if (hours < 24) return `${hours.toString()} hours ago`;
 	if (days === 1) return "Yesterday";
-	if (days < 7) return `${days} days ago`;
+	if (days < 7) return `${days.toString()} days ago`;
 
 	return date.toLocaleDateString("en-US", {
 		weekday: "short",

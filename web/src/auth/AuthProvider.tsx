@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode, useState } from "react";
+import { createContext, use, type ReactNode, useState } from "react";
 import { useQuery } from "@connectrpc/connect-query";
 import { whoAmI, logout as logoutMethod } from "@/gen/loco/user/v1";
 import type { User } from "@/gen/loco/user/v1/user_pb";
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	};
 
 	return (
-		<AuthContext.Provider
+		<AuthContext
 			value={{
 				user: user?.user ?? null,
 				isAuthenticated: !isLoggedOut && !!user?.user,
@@ -54,13 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			}}
 		>
 			{children}
-		</AuthContext.Provider>
+		</AuthContext>
 	);
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
-	const ctx = useContext(AuthContext);
+	const ctx = use(AuthContext);
 	if (!ctx) {
 		throw new Error("useAuth must be used inside AuthProvider");
 	}

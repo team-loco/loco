@@ -11,10 +11,10 @@ import { ReactNode, ComponentType } from "react";
 interface DropdownSelectorProps {
 	label: ReactNode;
 	icon?: ComponentType<{ className?: string }>;
-	items: Array<{
+	items: {
 		value: string | number;
 		label: ReactNode;
-	}>;
+	}[];
 	onSelect: (value: string | number) => void;
 	contentWidth?: string;
 }
@@ -39,7 +39,7 @@ export function DropdownSelector({
 				{items.map((item) => (
 					<DropdownMenuItem
 						key={item.value}
-						onClick={() => onSelect(item.value)}
+						onClick={() => { onSelect(item.value); }}
 						className="cursor-pointer"
 					>
 						{item.label}

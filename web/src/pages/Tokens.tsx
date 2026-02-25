@@ -1,7 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
 import {
 	AlertDialog,
-	AlertDialogAction,
 	AlertDialogCancel,
 	AlertDialogContent,
 	AlertDialogHeader,
@@ -18,7 +17,6 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { listUserOrgs } from "@/gen/loco/org/v1";
 import { listTokens, revokeToken } from "@/gen/loco/token/v1";
 import type { Token } from "@/gen/loco/token/v1/token_pb";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
@@ -26,12 +24,7 @@ import { toastConnectError } from "@/lib/error-handler";
 import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-	AlertCircle,
-	Loader2,
-	Plus,
-	Trash2,
-} from "lucide-react";
+import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
@@ -47,10 +40,13 @@ function formatRelativeTimeFuture(date: Date): string {
 	const diffMonth = Math.floor(diffDay / 30);
 
 	if (diffSec < 0) return "expired";
-	if (diffMin < 60) return `in ${diffMin} minute${diffMin !== 1 ? "s" : ""}`;
-	if (diffHour < 24) return `in ${diffHour} hour${diffHour !== 1 ? "s" : ""}`;
-	if (diffDay < 30) return `in ${diffDay} day${diffDay !== 1 ? "s" : ""}`;
-	return `in ${diffMonth} month${diffMonth !== 1 ? "s" : ""}`;
+	if (diffMin < 60)
+		return `in ${diffMin.toString()} minute${diffMin !== 1 ? "s" : ""}`;
+	if (diffHour < 24)
+		return `in ${diffHour.toString()} hour${diffHour !== 1 ? "s" : ""}`;
+	if (diffDay < 30)
+		return `in ${diffDay.toString()} day${diffDay !== 1 ? "s" : ""}`;
+	return `in ${diffMonth.toString()} month${diffMonth !== 1 ? "s" : ""}`;
 }
 
 function TokenCard({
@@ -79,11 +75,16 @@ function TokenCard({
 		if (!scopeGroups.has(scope.entityType)) {
 			scopeGroups.set(scope.entityType, new Map());
 		}
-		const entityMap = scopeGroups.get(scope.entityType)!;
-		if (!entityMap.has(scope.entityId)) {
-			entityMap.set(scope.entityId, new Set());
+		const entityMap = scopeGroups.get(scope.entityType);
+		if (entityMap) {
+			if (!entityMap.has(scope.entityId)) {
+				entityMap.set(scope.entityId, new Set());
+			}
+			const scopeSet = entityMap.get(scope.entityId);
+			if (scopeSet) {
+				scopeSet.add(scope.scope);
+			}
 		}
-		entityMap.get(scope.entityId)!.add(scope.scope);
 	});
 
 	const entityTypeDisplay: Record<
@@ -104,9 +105,7 @@ function TokenCard({
 		<div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
 			{/* Header */}
 			<div className="flex justify-between items-start mb-5">
-				<h3 className="text-lg font-semibold text-gray-900">
-					{token.name}
-				</h3>
+				<h3 className="text-lg font-semibold text-gray-900">{token.name}</h3>
 
 				{/* Actions */}
 				<div className="flex gap-2">
@@ -190,19 +189,19 @@ function TokenCard({
 											.join("");
 
 										return (
-											<TooltipProvider key={`${entityType}-${entityId}`}>
+															<TooltipProvider key={`${entityType.toString()}-${entityId.toString()}`}>
 												<Tooltip>
 													<TooltipTrigger asChild>
 														<Badge
 															variant="secondary"
 															className="text-xs cursor-help px-2 py-0.5"
 														>
-															{entityInfo.label}:{" "}
-															{formatShortId(entityId.toString())} {scopeStr}
+															{entityInfo.label}: {formatShortId(entityId)}{" "}
+															{scopeStr}
 														</Badge>
 													</TooltipTrigger>
 													<TooltipContent>
-														{entityInfo.label}: {entityId.toString()}
+														{entityInfo.label}: {entityId}
 													</TooltipContent>
 												</Tooltip>
 											</TooltipProvider>
@@ -275,13 +274,6 @@ export function Tokens() {
 
 	const { activeOrgId } = useOrgWorkspace();
 
-	const { data: orgsRes } = useQuery(
-		listUserOrgs,
-		user?.id ? { userId: user.id } : undefined,
-		{ enabled: !!user?.id },
-	);
-	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
-
 	const { data: tokensRes, isLoading } = useQuery(
 		listTokens,
 		user?.id ? { entityType: EntityType.USER, entityId: user.id } : undefined,
@@ -320,10 +312,10 @@ export function Tokens() {
 		[revokeTokenMutation],
 	);
 
-	const handleTokenCreated = (tokenString: string) => {
+	const handleTokenCreated = async (tokenString: string) => {
 		setNewlyCreatedToken(tokenString);
 		setIsCreateDialogOpen(false);
-		queryClient.invalidateQueries({
+		await queryClient.invalidateQueries({
 			queryKey: [
 				{
 					service: "token.v1.TokenService",
@@ -332,8 +324,6 @@ export function Tokens() {
 			],
 		});
 	};
-
-	const activeOrg = orgs.find((o) => o.id === activeOrgId);
 
 	return (
 		<div className="space-y-6">
@@ -345,7 +335,11 @@ export function Tokens() {
 						Manage authentication tokens for accessing the Loco API
 					</p>
 				</div>
-				<Button onClick={() => setIsCreateDialogOpen(true)}>
+				<Button
+					onClick={() => {
+						setIsCreateDialogOpen(true);
+					}}
+				>
 					<Plus className="h-4 w-4 mr-2" />
 					Create Token
 				</Button>
@@ -353,7 +347,7 @@ export function Tokens() {
 
 			{/* Warning Banner */}
 			<div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-4">
-				<AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+				<AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
 				<div>
 					<h3 className="font-semibold text-blue-900 text-sm mb-1">
 						Keep your tokens secure
@@ -383,7 +377,9 @@ export function Tokens() {
 								No tokens yet. Create one to get started.
 							</p>
 							<Button
-								onClick={() => setIsCreateDialogOpen(true)}
+								onClick={() => {
+									setIsCreateDialogOpen(true);
+								}}
 								variant="outline"
 							>
 								<Plus className="h-4 w-4 mr-2" />
@@ -416,8 +412,10 @@ export function Tokens() {
 			{/* Token Display Dialog */}
 			<TokenDisplayDialog
 				open={!!newlyCreatedToken}
-				onOpenChange={(open) => !open && setNewlyCreatedToken(null)}
-				token={newlyCreatedToken || ""}
+				onOpenChange={(open) => {
+					if (!open) setNewlyCreatedToken(null);
+				}}
+				token={newlyCreatedToken ?? ""}
 			/>
 		</div>
 	);

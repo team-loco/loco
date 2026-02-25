@@ -29,69 +29,17 @@ import {
 	Bell,
 	Building2,
 	Check,
-	ChevronDown,
-	Database,
 	Edit,
-	HardDrive,
 	HelpCircle,
-	Layers,
 	Loader2,
 	LogOut,
-	Mail,
 	Plus,
-	Server,
 	Settings,
-	Zap,
 } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import "./layout/ThemeToggle.css";
-
-const RESOURCE_TYPES = [
-	{
-		value: "SERVICE",
-		label: "Service",
-		icon: Server,
-		available: true,
-		color: "text-blue-600",
-	},
-	{
-		value: "DATABASE",
-		label: "Database",
-		icon: Database,
-		available: false,
-		color: "text-orange-600",
-	},
-	{
-		value: "FUNCTION",
-		label: "Function",
-		icon: Zap,
-		available: false,
-		color: "text-yellow-600",
-	},
-	{
-		value: "CACHE",
-		label: "Cache",
-		icon: Layers,
-		available: false,
-		color: "text-purple-600",
-	},
-	{
-		value: "QUEUE",
-		label: "Queue",
-		icon: Mail,
-		available: false,
-		color: "text-pink-600",
-	},
-	{
-		value: "BLOB",
-		label: "Blob Storage",
-		icon: HardDrive,
-		available: false,
-		color: "text-green-600",
-	},
-];
 
 export function SiteHeader() {
 	const navigate = useNavigate();
@@ -110,7 +58,6 @@ export function SiteHeader() {
 	const { data: whoAmIResponse } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
 	const { theme, toggleTheme } = useTheme();
-	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 	const [switchContextOpen, setSwitchContextOpen] = useState(false);
 	const [showCreateOrgForm, setShowCreateOrgForm] = useState(false);
@@ -132,7 +79,7 @@ export function SiteHeader() {
 
 	const playSound = async (isDark: boolean) => {
 		new window.AudioContext();
-		const audio = new Audio(`${isDark ? "/lightMode.wav" : "/darkMode.wav"}`);
+		const audio = new Audio(isDark ? "/lightMode.wav" : "/darkMode.wav");
 		audio.volume = 0.9;
 		await audio.play();
 	};
@@ -204,7 +151,7 @@ export function SiteHeader() {
 						toast.success(`Workspace "${newWorkspaceName}" created`);
 						addWorkspace({
 							id: newWorkspaceId,
-							orgId: activeOrgId!,
+							orgId: activeOrgId,
 							name: newWorkspaceName,
 							description: newWorkspaceDescription,
 						} as Workspace);
@@ -276,7 +223,7 @@ export function SiteHeader() {
 	);
 
 	const navContainerRef = useRef<HTMLDivElement>(null);
-	const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+	const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 	const [sliderStyle, setSliderStyle] = useState<{
 		width: number;
 		left: number;
@@ -313,7 +260,7 @@ export function SiteHeader() {
 		};
 
 		window.addEventListener("resize", handleResize);
-		return () => window.removeEventListener("resize", handleResize);
+		return () => { window.removeEventListener("resize", handleResize); };
 	}, [calculateSliderStyle]);
 
 	return (
@@ -330,8 +277,8 @@ export function SiteHeader() {
 							<div
 								className="absolute h-8 bg-primary rounded-sm transition-all duration-300 ease-out"
 								style={{
-									width: `${sliderStyle.width}px`,
-									left: `${sliderStyle.left}px`,
+									width: `${sliderStyle.width.toString()}px`,
+									left: `${sliderStyle.left.toString()}px`,
 								}}
 							/>
 						)}
@@ -344,7 +291,9 @@ export function SiteHeader() {
 								}}
 								variant="ghost"
 								size="sm"
-								onClick={() => navigate(item.url)}
+								onClick={() => {
+									void navigate(item.url);
+								}}
 								className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent ${
 									isActive(item.url) ? "text-primary-foreground" : ""
 								}`}
@@ -402,7 +351,7 @@ export function SiteHeader() {
 												Organization
 											</div>
 											<button
-												onClick={() => setSwitchContextOpen(true)}
+												onClick={() => { setSwitchContextOpen(true); }}
 												className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-accent/20 hover:bg-accent/30 active:bg-accent/40 transition-all duration-150 text-sm font-medium cursor-pointer border border-accent/30"
 											>
 												<span className="truncate font-semibold">
@@ -417,12 +366,12 @@ export function SiteHeader() {
 													Workspace
 												</div>
 												<button
-													onClick={() => setSwitchContextOpen(true)}
+													onClick={() => { setSwitchContextOpen(true); }}
 													className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-accent/20 hover:bg-accent/30 active:bg-accent/40 transition-all duration-150 text-sm font-medium cursor-pointer border border-accent/30"
 												>
 													<span className="truncate font-semibold">
 														{workspaces.find((w) => w.id === activeWorkspaceId)
-															?.name || "Select workspace"}
+															?.name ?? "Select workspace"}
 													</span>
 													<Edit className="size-3 shrink-0" />
 												</button>
@@ -446,7 +395,7 @@ export function SiteHeader() {
 											e.preventDefault();
 											void handleThemeToggle();
 										}}
-										onSelect={(e) => e.preventDefault()}
+										onSelect={(e) => { e.preventDefault(); }}
 										className="cursor-pointer flex justify-between"
 									>
 										<span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
@@ -461,14 +410,16 @@ export function SiteHeader() {
 								</DropdownMenuGroup>
 								<DropdownMenuSeparator />
 								<DropdownMenuItem
-									onClick={async () => {
-										try {
-											await logout();
-											navigate("/");
-											toast.success("Logged out successfully");
-										} catch (error) {
-											toastConnectError(error, "Failed to logout");
-										}
+									onClick={() => {
+										void (async () => {
+											try {
+												await logout();
+												void navigate("/");
+												toast.success("Logged out successfully");
+											} catch (error) {
+												toastConnectError(error, "Failed to logout");
+											}
+										})();
 									}}
 									className="cursor-pointer flex justify-between"
 								>
@@ -516,7 +467,7 @@ export function SiteHeader() {
 									type="text"
 									placeholder="My Organization"
 									value={newOrgName}
-									onChange={(e) => setNewOrgName(e.target.value)}
+									onChange={(e) => { setNewOrgName(e.target.value); }}
 									disabled={isCreatingOrg}
 									autoFocus
 									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
@@ -526,7 +477,7 @@ export function SiteHeader() {
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => setShowCreateOrgForm(false)}
+									onClick={() => { setShowCreateOrgForm(false); }}
 									disabled={isCreatingOrg}
 								>
 									Back
@@ -557,7 +508,7 @@ export function SiteHeader() {
 									type="text"
 									placeholder="Production"
 									value={newWorkspaceName}
-									onChange={(e) => setNewWorkspaceName(e.target.value)}
+									onChange={(e) => { setNewWorkspaceName(e.target.value); }}
 									disabled={isCreatingWorkspace}
 									autoFocus
 									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
@@ -571,7 +522,7 @@ export function SiteHeader() {
 								<textarea
 									placeholder="Production environment for customer-facing applications"
 									value={newWorkspaceDescription}
-									onChange={(e) => setNewWorkspaceDescription(e.target.value)}
+									onChange={(e) => { setNewWorkspaceDescription(e.target.value); }}
 									disabled={isCreatingWorkspace}
 									rows={3}
 									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
@@ -581,7 +532,7 @@ export function SiteHeader() {
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => setShowCreateWorkspaceForm(false)}
+									onClick={() => { setShowCreateWorkspaceForm(false); }}
 									disabled={isCreatingWorkspace}
 								>
 									Back
@@ -613,8 +564,8 @@ export function SiteHeader() {
 									<div className="space-y-1 overflow-y-auto max-h-64">
 										{orgs.map((org) => (
 											<button
-												key={org.id.toString()}
-												onClick={() => handleOrgSwitch(org.id)}
+												key={org.id}
+												onClick={() => { handleOrgSwitch(org.id); }}
 												className={`w-full text-left px-3 py-2 rounded-sm transition-colors flex items-center gap-2 ${
 													activeOrgId === org.id
 														? "bg-primary text-primary-foreground"
@@ -629,7 +580,7 @@ export function SiteHeader() {
 											</button>
 										))}
 										<button
-											onClick={() => setShowCreateOrgForm(true)}
+											onClick={() => { setShowCreateOrgForm(true); }}
 											className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 										>
 											<Plus className="size-4" />
@@ -646,8 +597,8 @@ export function SiteHeader() {
 											<>
 												{workspaces.map((workspace) => (
 													<button
-														key={workspace.id.toString()}
-														onClick={() => handleWorkspaceSwitch(workspace.id)}
+														key={workspace.id}
+														onClick={() => { handleWorkspaceSwitch(workspace.id); }}
 														className={`w-full text-left px-3 py-2 rounded-sm transition-colors flex items-center justify-between ${
 															activeWorkspaceId === workspace.id
 																? "bg-primary text-primary-foreground"
@@ -661,7 +612,7 @@ export function SiteHeader() {
 													</button>
 												))}
 												<button
-													onClick={() => setShowCreateWorkspaceForm(true)}
+													onClick={() => { setShowCreateWorkspaceForm(true); }}
 													className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 												>
 													<Plus className="size-4" />

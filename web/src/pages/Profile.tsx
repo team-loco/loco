@@ -58,8 +58,8 @@ export function Profile() {
 		try {
 			await deleteUserMutation.mutateAsync({ userId: user.id });
 			toast.success("Account deleted successfully");
-			logout();
-			navigate("/login", { replace: true });
+			void logout();
+			void navigate("/login", { replace: true });
 		} catch (error) {
 			toastConnectError(error);
 			console.error(error);
@@ -124,7 +124,7 @@ export function Profile() {
 							<div className="space-y-2">
 								{tokens.slice(0, 3).map((token) => (
 									<div
-										key={`${token.name}-${token.entityType}-${token.entityId}`}
+										key={`${token.name}-${token.entityType.toString()}-${token.entityId}`}
 										className="flex items-center justify-between p-3 border border-border rounded-sm bg-muted/20"
 									>
 										<div className="flex-1 min-w-0">
@@ -161,7 +161,13 @@ export function Profile() {
 					{/* Account Management Section */}
 					<div className="space-y-3">
 						<div className="flex gap-2 justify-end">
-							<Button variant="secondary" size="sm" onClick={logout}>
+							<Button
+								variant="secondary"
+								size="sm"
+								onClick={() => {
+									void logout();
+								}}
+							>
 								Logout
 							</Button>
 
@@ -169,7 +175,7 @@ export function Profile() {
 								<Button
 									variant="destructive"
 									size="sm"
-									onClick={() => setShowDeleteConfirm(true)}
+									onClick={() => { setShowDeleteConfirm(true); }}
 									disabled={deleteUserMutation.isPending}
 								>
 									Delete Account
@@ -184,7 +190,7 @@ export function Profile() {
 											variant="secondary"
 											size="sm"
 											className="flex-1"
-											onClick={() => setShowDeleteConfirm(false)}
+											onClick={() => { setShowDeleteConfirm(false); }}
 											disabled={deleteUserMutation.isPending}
 										>
 											Cancel
@@ -193,9 +199,11 @@ export function Profile() {
 											variant="destructive"
 											size="sm"
 											className="flex-1"
-											onClick={handleDeleteAccount}
+											onClick={() => {
+												void handleDeleteAccount();
+											}}
 											disabled={deleteUserMutation.isPending}
-										>
+											>
 											{deleteUserMutation.isPending ? "Deleting..." : "Delete"}
 										</Button>
 									</div>

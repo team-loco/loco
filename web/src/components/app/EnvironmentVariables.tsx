@@ -58,12 +58,12 @@ export function EnvironmentVariables({
 		try {
 			// Filter out empty entries
 			const cleanedVars = vars.filter((v) => v.key.trim());
-			const envMap = cleanedVars.reduce(
+			const envMap = cleanedVars.reduce<Record<string, string>>(
 				(acc, v) => {
 					acc[v.key] = v.value;
 					return acc;
 				},
-				{} as { [key: string]: string },
+				{},
 			);
 			await updateEnvMutation.mutateAsync({
 				resourceId: resourceId,
@@ -96,7 +96,7 @@ export function EnvironmentVariables({
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={() => setIsEditing(true)}
+							onClick={() => { setIsEditing(true); }}
 							className="border-2"
 						>
 							Edit
@@ -122,7 +122,7 @@ export function EnvironmentVariables({
 											<Input
 												value={envVar.key}
 												onChange={(e) =>
-													handleChange(index, "key", e.target.value)
+													{ handleChange(index, "key", e.target.value); }
 												}
 												placeholder="KEY"
 												className="font-mono text-sm"
@@ -133,7 +133,7 @@ export function EnvironmentVariables({
 												type="password"
 												value={envVar.value}
 												onChange={(e) =>
-													handleChange(index, "value", e.target.value)
+													{ handleChange(index, "value", e.target.value); }
 												}
 												placeholder="value"
 												className="font-mono text-sm"
@@ -143,7 +143,7 @@ export function EnvironmentVariables({
 											<Button
 												variant="secondary"
 												size="sm"
-												onClick={() => handleRemove(index)}
+												onClick={() => { handleRemove(index); }}
 												className="h-8 w-8 p-0"
 											>
 												<Trash2 className="w-4 h-4" />
@@ -174,12 +174,14 @@ export function EnvironmentVariables({
 								className="flex-1"
 							>
 								Cancel
-							</Button>
-							<Button
-								onClick={handleSave}
+								</Button>
+								<Button
+								onClick={() => {
+									void handleSave();
+								}}
 								disabled={!hasChanges || updateEnvMutation.isPending}
 								className="flex-1"
-							>
+								>
 								{updateEnvMutation.isPending ? (
 									<>
 										<Loader className="w-4 h-4 mr-2" />

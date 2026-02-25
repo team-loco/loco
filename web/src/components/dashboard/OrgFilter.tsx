@@ -22,17 +22,17 @@ export function OrgFilter({ selectedOrgId, onOrgChange }: OrgFilterProps) {
 		return null;
 	}
 
-	const selectedOrg = orgs.find((org) => org.id.toString() === selectedOrgId?.toString());
+	const selectedOrg = orgs.find((org) => org.id === selectedOrgId);
 
 	return (
 		<DropdownSelector
 			label={selectedOrg?.name ?? "Select organization"}
 			icon={Building2}
 			items={orgs.map((org) => ({
-				value: org.id.toString(),
+				value: org.id,
 				label: org.name,
 			}))}
-			onSelect={(value) => onOrgChange(value as string)}
+			onSelect={(value) => { onOrgChange(value as string); }}
 			contentWidth="w-56"
 		/>
 	);

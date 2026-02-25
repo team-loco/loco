@@ -15,7 +15,7 @@ export function Splash() {
 
 	const dashboardHref = useMemo(() => {
 		if (isAuthenticated && activeOrgId && activeWorkspaceId) {
-			return `/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`;
+			return `/org/${activeOrgId}/wks/${activeWorkspaceId}`;
 		}
 		return "/dashboard";
 	}, [isAuthenticated, activeOrgId, activeWorkspaceId]);
@@ -69,7 +69,9 @@ export function Splash() {
 								<Button
 									size="sm"
 									className="bg-primary hover:bg-orange-600 text-primary-foreground h-9"
-									onClick={() => navigate(dashboardHref)}
+									onClick={() => {
+										void navigate(dashboardHref);
+									}}
 								>
 									Dashboard
 								</Button>
@@ -77,7 +79,7 @@ export function Splash() {
 								<Button
 									size="sm"
 									className="bg-primary hover:bg-orange-600 text-primary-foreground h-9"
-									onClick={() => setLoginModalOpen(true)}
+									onClick={() => { setLoginModalOpen(true); }}
 								>
 									Get Started
 								</Button>
@@ -129,15 +131,11 @@ export function Splash() {
 							<Button
 								size="lg"
 								className="bg-white text-orange-600 hover:bg-gray-100"
-								onClick={() => setLoginModalOpen(true)}
+								onClick={() => { setLoginModalOpen(true); }}
 							>
 								Deploy Your First App
 							</Button>
-							<Button
-								size="lg"
-								variant="outline"
-								asChild
-							>
+							<Button size="lg" variant="outline" asChild>
 								<a href="#features">Learn More</a>
 							</Button>
 						</div>

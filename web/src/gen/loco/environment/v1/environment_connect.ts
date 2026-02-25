@@ -7,7 +7,7 @@ import { CreateEnvironmentRequest, CreateEnvironmentResponse, DeleteEnvironmentR
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * EnvironmentService manages environments within an organization.
+ * EnvironmentService manages environments within a workspace.
  *
  * @generated from service loco.environment.v1.EnvironmentService
  */
@@ -15,7 +15,7 @@ export const EnvironmentService = {
   typeName: "loco.environment.v1.EnvironmentService",
   methods: {
     /**
-     * CreateEnvironment creates a new environment in an organization.
+     * CreateEnvironment creates a new environment in a workspace.
      *
      * @generated from rpc loco.environment.v1.EnvironmentService.CreateEnvironment
      */
@@ -37,7 +37,7 @@ export const EnvironmentService = {
       kind: MethodKind.Unary,
     },
     /**
-     * ListEnvironments lists all environments in an organization.
+     * ListEnvironments lists all environments in a workspace.
      *
      * @generated from rpc loco.environment.v1.EnvironmentService.ListEnvironments
      */

@@ -89,7 +89,7 @@ export function ObsToolbar() {
 						<DropdownMenuCheckboxItem
 							key={r.id}
 							checked={selectedResourceIds.includes(r.id)}
-							onCheckedChange={() => toggleResource(r.id)}
+							onCheckedChange={() => { toggleResource(r.id); }}
 							className="cursor-pointer"
 						>
 							{r.name}
@@ -111,7 +111,7 @@ export function ObsToolbar() {
 					{TIME_RANGE_OPTIONS.map((opt) => (
 						<DropdownMenuItem
 							key={opt.value}
-							onClick={() => setTimeRange(opt.value)}
+							onClick={() => { setTimeRange(opt.value); }}
 							className="cursor-pointer"
 						>
 							{opt.label}

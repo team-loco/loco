@@ -44,7 +44,7 @@ export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 						variant="ghost"
 						size="sm"
 						className="h-8 w-8 p-0"
-						onClick={(e) => e.stopPropagation()}
+						onClick={(e) => { e.stopPropagation(); }}
 					>
 						<MoreVertical className="h-4 w-4" />
 					</Button>
@@ -54,7 +54,7 @@ export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 						onClick={(e) => {
 							e.stopPropagation();
 							if (activeOrgId && activeWorkspaceId) {
-								navigate(
+								void navigate(
 									`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.id}/settings`
 								);
 							}
@@ -87,14 +87,16 @@ export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 						<div className="flex gap-2 justify-end">
 							<Button
 								variant="outline"
-								onClick={() => setShowDeleteConfirm(false)}
+								onClick={() => { setShowDeleteConfirm(false); }}
 								className="border-2"
 							>
 								Cancel
 							</Button>
 							<Button
 								variant="destructive"
-								onClick={handleDelete}
+								onClick={() => {
+									void handleDelete();
+								}}
 								disabled={deleteResourceMutation.isPending}
 							>
 								{deleteResourceMutation.isPending ? "Deleting..." : "Delete"}

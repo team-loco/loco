@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, use, useState } from "react";
 import type { ReactNode } from "react";
 
 interface HeaderContextType {
@@ -12,15 +12,15 @@ export function HeaderProvider({ children }: { children: ReactNode }) {
 	const [header, setHeader] = useState<ReactNode | null>(null);
 
 	return (
-		<HeaderContext.Provider value={{ header, setHeader }}>
+		<HeaderContext value={{ header, setHeader }}>
 			{children}
-		</HeaderContext.Provider>
+		</HeaderContext>
 	);
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useHeader() {
-	const context = useContext(HeaderContext);
+	const context = use(HeaderContext);
 	if (!context) {
 		throw new Error("useHeader must be used within HeaderProvider");
 	}

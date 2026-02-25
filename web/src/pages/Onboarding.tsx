@@ -102,7 +102,7 @@ export function Onboarding() {
 							<div className="bg-red-50 border border-red-200 rounded p-3">
 								<p className="text-sm text-red-700">Error: {error}</p>
 								<button
-									onClick={() => window.location.reload()}
+									onClick={() => { window.location.reload(); }}
 									className="text-sm text-red-600 underline mt-2 hover:text-red-700"
 								>
 									Try again

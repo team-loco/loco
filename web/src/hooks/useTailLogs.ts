@@ -77,7 +77,7 @@ export function useTailLogs({
 		};
 
 		for (const ct of clusterTransports) {
-			streamCluster(ct);
+			void streamCluster(ct);
 		}
 
 		return () => {

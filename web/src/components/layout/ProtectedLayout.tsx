@@ -27,7 +27,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	);
 	const orgs = orgsRes?.orgs ?? [];
 
-	const activeOrgId = orgParam ? orgParam : (orgs[0]?.id ?? null);
+	const activeOrgId = orgParam ?? (orgs[0]?.id ?? null);
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
@@ -39,8 +39,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	// Handle auth failures by redirecting to login
 	useEffect(() => {
 		if (error) {
-			logout();
-			navigate("/login", { replace: true });
+			void logout();
+			void navigate("/login", { replace: true });
 		}
 	}, [error, logout, navigate]);
 

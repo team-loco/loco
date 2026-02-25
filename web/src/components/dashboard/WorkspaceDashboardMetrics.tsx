@@ -122,6 +122,7 @@ export function WorkspaceDashboardMetrics({
 
 	// Calculate active apps (not IDLE, status 3)
 	const activeAppsCount = useMemo(() => {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 		return apps.filter((app) => app.status !== 3).length;
 	}, [apps]);
 
@@ -134,7 +135,7 @@ export function WorkspaceDashboardMetrics({
 			<div className="fixed bottom-8 right-8 inline-flex items-center justify-center rounded-lg bg-primary/5 shadow-lg hover:shadow-xl transition-shadow">
 				<Button
 					className="rounded-r-none border-r border-primary/20 h-11 px-4"
-					onClick={() => setDropdownOpen(true)}
+					onClick={() => { setDropdownOpen(true); }}
 				>
 					<Plus className="h-4 w-4 mr-2" />
 					New Resource
@@ -157,7 +158,7 @@ export function WorkspaceDashboardMetrics({
 								key={type.value}
 								onClick={() => {
 									if (activeOrgId && activeWorkspaceId) {
-										navigate(
+										void navigate(
 											`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
 										);
 									}

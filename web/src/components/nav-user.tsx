@@ -76,7 +76,7 @@ export function NavUser({
 
 	const playSound = async (isDark: boolean) => {
 		new window.AudioContext(); // necessary fix audio delay on Safari
-		const audio = new Audio(`${isDark ? "/lightMode.wav" : "/darkMode.wav"}`);
+		const audio = new Audio(isDark ? "/lightMode.wav" : "/darkMode.wav");
 		audio.volume = 0.9;
 		await audio.play();
 	};
@@ -166,7 +166,7 @@ export function NavUser({
 						// Add to context
 						addWorkspace({
 							id: newWorkspaceId,
-							orgId: activeOrgId!,
+							orgId: activeOrgId,
 							name: newWorkspaceName,
 							description: newWorkspaceDescription,
 						} as Workspace);
@@ -225,7 +225,7 @@ export function NavUser({
 										Organization
 									</div>
 									<button
-										onClick={() => setSwitchContextOpen(true)}
+										onClick={() => { setSwitchContextOpen(true); }}
 										className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-secondary hover:bg-secondary/80 transition-colors text-sm font-medium"
 									>
 										<div className="flex items-center gap-2 min-w-0">
@@ -241,12 +241,12 @@ export function NavUser({
 											Workspace
 										</div>
 										<button
-											onClick={() => setSwitchContextOpen(true)}
+											onClick={() => { setSwitchContextOpen(true); }}
 											className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-secondary hover:bg-secondary/80 transition-colors text-sm font-medium"
 										>
 											<span className="truncate">
 												{workspaces.find((w) => w.id === activeWorkspaceId)
-													?.name || "Select workspace"}
+													?.name ?? "Select workspace"}
 											</span>
 											<ChevronsUpDown className="size-3 shrink-0 opacity-50" />
 										</button>
@@ -258,7 +258,9 @@ export function NavUser({
 
 						<DropdownMenuGroup>
 							<DropdownMenuItem
-								onClick={() => navigate("/profile")}
+								onClick={() => {
+									void navigate("/profile");
+								}}
 								className="cursor-pointer"
 							>
 								<BadgeCheck />
@@ -281,7 +283,7 @@ export function NavUser({
 									e.preventDefault();
 									void handleThemeToggle();
 								}}
-								onSelect={(e) => e.preventDefault()}
+								onSelect={(e) => { e.preventDefault(); }}
 								className="cursor-pointer"
 							>
 								{theme === "dark" ? (
@@ -294,14 +296,16 @@ export function NavUser({
 						</DropdownMenuGroup>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onClick={async () => {
-								try {
-									await logout();
-									navigate("/");
-									toast.success("Logged out successfully");
-								} catch (error) {
-									toastConnectError(error, "Failed to logout");
-								}
+							onClick={() => {
+								void (async () => {
+									try {
+										await logout();
+										void navigate("/");
+										toast.success("Logged out successfully");
+									} catch (error) {
+										toastConnectError(error, "Failed to logout");
+									}
+								})();
 							}}
 							className="cursor-pointer"
 						>
@@ -334,7 +338,7 @@ export function NavUser({
 									type="text"
 									placeholder="My Organization"
 									value={newOrgName}
-									onChange={(e) => setNewOrgName(e.target.value)}
+									onChange={(e) => { setNewOrgName(e.target.value); }}
 									disabled={isCreatingOrg}
 									autoFocus
 									className="w-full px-3 py-2 border rounded-md bg-background"
@@ -344,7 +348,7 @@ export function NavUser({
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => setShowCreateOrgForm(false)}
+									onClick={() => { setShowCreateOrgForm(false); }}
 									disabled={isCreatingOrg}
 								>
 									Back
@@ -375,7 +379,7 @@ export function NavUser({
 									type="text"
 									placeholder="Production"
 									value={newWorkspaceName}
-									onChange={(e) => setNewWorkspaceName(e.target.value)}
+									onChange={(e) => { setNewWorkspaceName(e.target.value); }}
 									disabled={isCreatingWorkspace}
 									autoFocus
 									className="w-full px-3 py-2 border rounded-md bg-background"
@@ -389,7 +393,7 @@ export function NavUser({
 								<textarea
 									placeholder="Production environment for customer-facing applications"
 									value={newWorkspaceDescription}
-									onChange={(e) => setNewWorkspaceDescription(e.target.value)}
+									onChange={(e) => { setNewWorkspaceDescription(e.target.value); }}
 									disabled={isCreatingWorkspace}
 									rows={3}
 									className="w-full px-3 py-2 border rounded-md bg-background"
@@ -399,7 +403,7 @@ export function NavUser({
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => setShowCreateWorkspaceForm(false)}
+									onClick={() => { setShowCreateWorkspaceForm(false); }}
 									disabled={isCreatingWorkspace}
 								>
 									Back
@@ -431,8 +435,8 @@ export function NavUser({
 									<div className="space-y-1 overflow-y-auto max-h-64">
 										{orgs.map((org) => (
 											<button
-												key={org.id.toString()}
-												onClick={() => handleOrgSwitch(org.id)}
+												key={org.id}
+												onClick={() => { handleOrgSwitch(org.id); }}
 												className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
 													activeOrgId === org.id
 														? "bg-primary text-primary-foreground"
@@ -447,7 +451,7 @@ export function NavUser({
 											</button>
 										))}
 										<button
-											onClick={() => setShowCreateOrgForm(true)}
+											onClick={() => { setShowCreateOrgForm(true); }}
 											className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
 										>
 											<Plus className="size-4" />
@@ -464,8 +468,8 @@ export function NavUser({
 											<>
 												{workspaces.map((workspace) => (
 													<button
-														key={workspace.id.toString()}
-														onClick={() => handleWorkspaceSwitch(workspace.id)}
+														key={workspace.id}
+														onClick={() => { handleWorkspaceSwitch(workspace.id); }}
 														className={`w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between ${
 															activeWorkspaceId === workspace.id
 																? "bg-primary text-primary-foreground"
@@ -479,7 +483,7 @@ export function NavUser({
 													</button>
 												))}
 												<button
-													onClick={() => setShowCreateWorkspaceForm(true)}
+													onClick={() => { setShowCreateWorkspaceForm(true); }}
 													className="w-full text-left px-3 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
 												>
 													<Plus className="size-4" />

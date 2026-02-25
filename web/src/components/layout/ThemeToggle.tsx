@@ -9,7 +9,7 @@ const ThemeToggle = () => {
 	const playSound = async () => {
 		new window.AudioContext(); // necessary fix audio delay on Safari
 
-		const audio = new Audio(`${isDark ? "/lightMode.wav" : "/darkMode.wav"}`);
+		const audio = new Audio(isDark ? "/lightMode.wav" : "/darkMode.wav");
 		audio.volume = 0.9;
 		await audio.play();
 	};

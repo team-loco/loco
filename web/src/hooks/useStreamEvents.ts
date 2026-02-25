@@ -26,9 +26,7 @@ export function useStreamEvents(resourceId: string) {
 					Number((event.timestamp as Record<string, unknown>).seconds) * 1000
 			  ).toISOString()
 			: new Date().toISOString(),
-		severity: (event.type === "Warning" ? "Warning" : "Normal") as
-			| "Normal"
-			| "Warning",
+		severity: (event.type === "Warning" ? "Warning" : "Normal"),
 		eventType: event.reason || event.type || "Event",
 		pod: event.podName,
 		message: event.message || "",

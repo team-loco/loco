@@ -17,18 +17,18 @@ interface AppCardProps {
 
 function getPrimaryDomain(domains?: ResourceDomain[]): ResourceDomain | null {
 	if (!domains || domains.length === 0) return null;
-	return domains.find((d) => d.isPrimary) || domains[0];
+	return domains.find((d) => d.isPrimary) ?? domains[0];
 }
 
 export function AppCard({ resource, onResourceDeleted, workspaceId }: AppCardProps) {
 	const navigate = useNavigate();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const orgId = activeOrgId;
-	const wsId = activeWorkspaceId || workspaceId;
+	const wsId = activeWorkspaceId ?? workspaceId;
 
 	const handleCardClick = () => {
 		if (orgId && wsId) {
-			navigate(`/org/${orgId}/wks/${wsId}/resource/${resource.id}`);
+			void navigate(`/org/${orgId}/wks/${wsId}/resource/${resource.id}`);
 		}
 	};
 
@@ -58,9 +58,9 @@ export function AppCard({ resource, onResourceDeleted, workspaceId }: AppCardPro
 
 			if (hours === 0) return "just now";
 			if (hours === 1) return "1h ago";
-			if (hours < 24) return `${hours}h ago`;
+			if (hours < 24) return `${hours.toString()}h ago`;
 			if (days === 1) return "1d ago";
-			return `${days}d ago`;
+			return `${days.toString()}d ago`;
 		} catch {
 			return "unknown";
 		}
@@ -79,7 +79,7 @@ export function AppCard({ resource, onResourceDeleted, workspaceId }: AppCardPro
 							{resource.name}
 						</h3>
 					</div>
-					<div onClick={(e) => e.stopPropagation()} className="shrink-0">
+					<div onClick={(e) => { e.stopPropagation(); }} className="shrink-0">
 						<AppMenu resource={resource} onResourceDeleted={onResourceDeleted} />
 					</div>
 				</div>

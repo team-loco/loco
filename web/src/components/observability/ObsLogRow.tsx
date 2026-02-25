@@ -27,15 +27,16 @@ function formatTimestamp(ts: { seconds: bigint; nanos: number } | undefined): st
 
 export function ObsLogRow({ entry }: { entry: LogEntry }) {
 	const [expanded, setExpanded] = useState(false);
+	const severity = entry.severity ?? "INFO";
 	const severityClass =
-		SEVERITY_STYLES[entry.severity?.toUpperCase() ?? "INFO"] ??
+		SEVERITY_STYLES[severity.toUpperCase()] ??
 		"text-muted-foreground";
 
 	const hasExtra =
 		Object.keys(entry.resourceAttributes).length > 0 ||
 		Object.keys(entry.logAttributes).length > 0 ||
-		entry.traceId ||
-		entry.spanId;
+		(entry.traceId && entry.traceId.length > 0) ||
+		(entry.spanId && entry.spanId.length > 0);
 
 	return (
 		<div
@@ -47,7 +48,9 @@ export function ObsLogRow({ entry }: { entry: LogEntry }) {
 			{/* Main row */}
 			<div
 				className="flex items-start gap-2 px-3 py-1.5 hover:bg-muted/20 cursor-pointer select-text"
-				onClick={() => hasExtra && setExpanded((v) => !v)}
+				onClick={() => {
+					if (hasExtra) setExpanded((v) => !v);
+				}}
 			>
 				<span className="shrink-0 text-muted-foreground/60 w-36 tabular-nums">
 					{formatTimestamp(entry.timestamp)}

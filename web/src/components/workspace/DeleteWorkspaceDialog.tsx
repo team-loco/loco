@@ -115,7 +115,7 @@ export function DeleteWorkspaceDialog({
 							id="confirm-name"
 							placeholder={workspaceName}
 							value={confirmName}
-							onChange={(e) => setConfirmName(e.target.value)}
+							onChange={(e) => { setConfirmName(e.target.value); }}
 							disabled={isPending}
 							autoFocus
 						/>

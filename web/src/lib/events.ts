@@ -22,7 +22,7 @@ export interface WorkspaceEvent {
 export type EventListener = (event: WorkspaceEvent) => void;
 
 // In-memory event store and listener registry
-const eventListeners: Map<string, Set<EventListener>> = new Map();
+const eventListeners = new Map<string, Set<EventListener>>();
 const recentEvents: WorkspaceEvent[] = [];
 const MAX_STORED_EVENTS = 50;
 
@@ -36,7 +36,10 @@ export function subscribeToEvents(
 	if (!eventListeners.has(key)) {
 		eventListeners.set(key, new Set());
 	}
-	eventListeners.get(key)!.add(listener);
+	const listeners = eventListeners.get(key);
+	if (listeners) {
+		listeners.add(listener);
+	}
 
 	// Return unsubscribe function
 	return () => {
@@ -60,19 +63,19 @@ export function emitEvent(event: WorkspaceEvent): void {
 	// Notify workspace listeners
 	const workspaceListeners = eventListeners.get("workspace");
 	if (workspaceListeners) {
-		workspaceListeners.forEach((listener) => listener(event));
+		workspaceListeners.forEach((listener) => { listener(event); });
 	}
 
 	// Notify resource-specific listeners
 	const resourceListeners = eventListeners.get(`resource:${event.resourceId}`);
 	if (resourceListeners) {
-		resourceListeners.forEach((listener) => listener(event));
+		resourceListeners.forEach((listener) => { listener(event); });
 	}
 }
 
 /**
  * Get recent events
  */
-export function getRecentEvents(limit: number = 10): WorkspaceEvent[] {
+export function getRecentEvents(limit = 10): WorkspaceEvent[] {
 	return recentEvents.slice(0, limit);
 }

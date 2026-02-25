@@ -32,8 +32,8 @@ export function TokenDisplayDialog({
 			await navigator.clipboard.writeText(token);
 			setCopied(true);
 			toast.success("Token copied to clipboard");
-			setTimeout(() => setCopied(false), 2000);
-		} catch (error) {
+			setTimeout(() => { setCopied(false); }, 2000);
+		} catch {
 			toast.error("Failed to copy token");
 		}
 	};
@@ -74,13 +74,15 @@ export function TokenDisplayDialog({
 								value={token}
 								readOnly
 								className="font-mono text-sm border-border bg-muted"
-								onClick={(e) => e.currentTarget.select()}
+								onClick={(e) => { e.currentTarget.select(); }}
 							/>
 							<Button
 								type="button"
 								variant={copied ? "default" : "outline"}
 								size="icon"
-								onClick={handleCopy}
+								onClick={() => {
+									void handleCopy();
+								}}
 								className="shrink-0"
 							>
 								{copied ? (
@@ -111,7 +113,7 @@ export function TokenDisplayDialog({
 				<DialogFooter>
 					<Button
 						type="button"
-						onClick={() => onOpenChange(false)}
+						onClick={() => { onOpenChange(false); }}
 						className="w-full sm:w-auto"
 					>
 						I've Saved My Token

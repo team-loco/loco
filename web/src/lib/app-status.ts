@@ -3,6 +3,7 @@ import { DeploymentPhase } from "@/gen/loco/deployment/v1/deployment_pb";
 
 export function getStatusLabel(status?: number): string {
 	if (status === undefined || status === null) return "pending";
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 	switch (status) {
 		case ResourceStatus.HEALTHY:
 			return "running";
@@ -21,6 +22,7 @@ export function getStatusLabel(status?: number): string {
 
 export function getDeploymentPhaseLabel(phase?: number): string {
 	if (phase === undefined || phase === null) return "pending";
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 	switch (phase) {
 		case DeploymentPhase.PENDING:
 			return "pending";

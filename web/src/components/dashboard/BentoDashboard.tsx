@@ -10,12 +10,13 @@ interface BentoDashboardProps {
 
 // Generate mock data for the hero chart
 const chartData = Array.from({ length: 24 }).map((_, i) => ({
-	time: `${i}:00`,
+	time: `${i.toString()}:00`,
 	cpu: Math.floor(Math.random() * 40) + 10,
 	memory: Math.floor(Math.random() * 30) + 50,
 }));
 
 export function BentoDashboard({ resources }: BentoDashboardProps) {
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 	const activeResources = resources.filter((r) => r.status !== 3).length;
 
 	return (
@@ -136,7 +137,7 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 				<div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/50 p-px">
 					{resources.slice(0, 8).map((resource) => (
 						<div
-							key={resource.id.toString()}
+							key={resource.id}
 							className="bg-card hover:bg-muted/30 p-4 transition-colors cursor-pointer flex flex-col justify-between min-h-[100px]"
 						>
 							<div className="flex items-start justify-between">

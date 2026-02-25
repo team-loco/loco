@@ -38,12 +38,12 @@ export function Organizations() {
 	};
 
 	const handleCreateOrgSuccess = (orgId: string) => {
-		refetchOrgs();
+		void refetchOrgs();
 		handleSwitchOrg(orgId);
 	};
 
 	const handleDeleteSuccess = () => {
-		refetchOrgs();
+		void refetchOrgs();
 	};
 
 	if (orgsLoading) {
@@ -60,7 +60,7 @@ export function Organizations() {
 	return (
 		<div className="w-full">
 			<div className="flex items-center justify-end mb-8">
-				<Button onClick={() => setCreateOrgOpen(true)}>
+				<Button onClick={() => { setCreateOrgOpen(true); }}>
 					<Plus className="size-4 mr-2" />
 					Create Organization
 				</Button>
@@ -76,7 +76,7 @@ export function Organizations() {
 							Get started by creating your first organization to manage
 							workspaces and deploy resources.
 						</p>
-						<Button onClick={() => setCreateOrgOpen(true)}>
+						<Button onClick={() => { setCreateOrgOpen(true); }}>
 							<Plus className="size-4 mr-2" />
 							Create Your First Organization
 						</Button>
@@ -86,7 +86,7 @@ export function Organizations() {
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 					{orgs.map((org) => (
 						<OrgCard
-							key={org.id.toString()}
+							key={org.id}
 							org={org}
 							onSwitch={handleSwitchOrg}
 							onDelete={handleDeleteOrg}

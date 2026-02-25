@@ -38,12 +38,12 @@ function generateMockDeployments(resources: Resource[]): MockDeployment[] {
 			const seconds = Math.floor((Math.cos(seed * (i + 1)) * 0.5 + 0.5) * 60);
 
 			deployments.push({
-				id: `${resource.id}-${i}`,
+				id: `${resource.id}-${i.toString()}`,
 				resourceId: resource.id,
 				resourceName: resource.name,
 				status: i === 0 ? (isSuccess ? "success" : "failed") : "success",
-				commit: `${Math.random().toString(36).substring(2, 9)}`,
-				duration: `${minutes}m ${seconds}s`,
+				commit: Math.random().toString(36).substring(2, 9),
+				duration: `${minutes.toString()}m ${seconds.toString()}s`,
 				time: formatTimeAgo(adjustedHoursAgo),
 			});
 		}
@@ -72,10 +72,10 @@ function parseTimeAgo(timeStr: string): number {
 function formatTimeAgo(hours: number): string {
 	if (hours === 0) return "just now";
 	if (hours === 1) return "1h ago";
-	if (hours < 24) return `${hours}h ago`;
+	if (hours < 24) return `${hours.toString()}h ago`;
 	const days = Math.floor(hours / 24);
 	if (days === 1) return "1d ago";
-	return `${days}d ago`;
+	return `${days.toString()}d ago`;
 }
 
 function DeploymentStatusIcon({ status }: { status: "success" | "failed" }) {
@@ -97,7 +97,7 @@ export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsP
 	const navigate = useNavigate();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const orgId = activeOrgId;
-	const wsId = activeWorkspaceId || workspaceId;
+	const wsId = activeWorkspaceId ?? workspaceId;
 
 	const recentDeployments = useMemo(() => {
 		return generateMockDeployments(resources);
@@ -105,7 +105,7 @@ export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsP
 
 	const handleViewApp = (resourceId: string) => {
 		if (orgId && wsId) {
-			navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
+			void navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
 		}
 	};
 
@@ -120,7 +120,7 @@ export function RecentDeployments({ resources, workspaceId }: RecentDeploymentsP
 						<div
 							key={deploy.id}
 							className="px-6 py-4 hover:bg-muted/50 transition-colors cursor-pointer"
-							onClick={() => handleViewApp(deploy.resourceId)}
+							onClick={() => { handleViewApp(deploy.resourceId); }}
 						>
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-4">

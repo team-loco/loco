@@ -92,7 +92,7 @@ export function CreateOrgDialog({
 							<Input
 								id="org-name"
 								value={orgName}
-								onChange={(e) => setOrgName(e.target.value)}
+								onChange={(e) => { setOrgName(e.target.value); }}
 								disabled={isPending}
 								autoFocus
 							/>

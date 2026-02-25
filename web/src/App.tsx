@@ -49,9 +49,14 @@ const queryClient = new QueryClient({
 // Async wrapper around localStorage for the persister
 const asyncLocalStorage: AsyncStorage = {
 	getItem: (key: string) => Promise.resolve(localStorage.getItem(key)),
-	setItem: (key: string, value: string) =>
-		Promise.resolve(localStorage.setItem(key, value)),
-	removeItem: (key: string) => Promise.resolve(localStorage.removeItem(key)),
+	setItem: (key: string, value: string) => {
+		localStorage.setItem(key, value);
+		return Promise.resolve();
+	},
+	removeItem: (key: string) => {
+		localStorage.removeItem(key);
+		return Promise.resolve();
+	},
 };
 
 const persister = createAsyncStoragePersister({
