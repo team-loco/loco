@@ -11,7 +11,7 @@ export function DashboardRedirect() {
 	useEffect(() => {
 		if (!isLoading && activeOrgId && activeWorkspaceId) {
 			navigate(
-				`/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`
+				`/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}/dashboard`
 			);
 		}
 	}, [isLoading, activeOrgId, activeWorkspaceId, navigate]);

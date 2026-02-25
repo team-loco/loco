@@ -288,6 +288,7 @@
 	body {
 		@apply bg-background text-foreground antialiased;
 		font-family:
+			"Space Grotesk",
 			"Satoshi",
 			-apple-system,
 			BlinkMacSystemFont,
@@ -301,6 +302,15 @@
 			"Helvetica Neue",
 			sans-serif;
 		/* text-rendering: auto; */
+	}
+
+	code,
+	pre,
+	.font-mono {
+		font-family:
+			"JetBrains Mono",
+			"Courier New",
+			monospace;
 	}
 
 	/* Dotted grid background pattern */

@@ -1,22 +1,19 @@
-import { useState, useMemo, useCallback } from "react";
-import { useQuery, useMutation } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { listUserOrgs } from "@/gen/loco/org/v1";
 import { listTokens, revokeToken } from "@/gen/loco/token/v1";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
-import { listUserOrgs } from "@/gen/loco/org/v1";
-import { useAuth } from "@/auth/AuthProvider";
-import { useOrgWorkspace } from "@/context/ContextProvider";
-import {
-	Card,
-	CardContent,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
 import { toastConnectError } from "@/lib/error-handler";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { getTokenColumns } from "./tokens/columns";
-import { DataTable } from "./tokens/data-table";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
+import { DataTable } from "./tokens/data-table";
 import { TokenDisplayDialog } from "./tokens/TokenDisplayDialog";
 
 export function Tokens() {
@@ -26,7 +23,7 @@ export function Tokens() {
 	// Dialog states
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 	const [newlyCreatedToken, setNewlyCreatedToken] = useState<string | null>(
-		null
+		null,
 	);
 
 	// Get active org from context
@@ -36,7 +33,7 @@ export function Tokens() {
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
 		user?.id ? { userId: user.id } : undefined,
-		{ enabled: !!user?.id }
+		{ enabled: !!user?.id },
 	);
 	const orgs = useMemo(() => orgsRes?.orgs ?? [], [orgsRes]);
 
@@ -45,7 +42,7 @@ export function Tokens() {
 	const { data: tokensRes, isLoading } = useQuery(
 		listTokens,
 		user?.id ? { entityType: EntityType.USER, entityId: user.id } : undefined,
-		{ enabled: !!user?.id }
+		{ enabled: !!user?.id },
 	);
 	const tokens = useMemo(() => tokensRes?.tokens ?? [], [tokensRes]);
 
@@ -67,7 +64,7 @@ export function Tokens() {
 			onError: (error) => {
 				toastConnectError(error, "Failed to revoke token");
 			},
-		}
+		},
 	);
 
 	// Handle token revocation
@@ -79,7 +76,7 @@ export function Tokens() {
 				entityId: tokenEntityId,
 			});
 		},
-		[revokeTokenMutation]
+		[revokeTokenMutation],
 	);
 
 	// Handle token creation success
@@ -99,7 +96,7 @@ export function Tokens() {
 	// Get columns for the table
 	const columns = useMemo(
 		() => getTokenColumns(handleRevokeToken, isRevoking),
-		[handleRevokeToken, isRevoking]
+		[handleRevokeToken, isRevoking],
 	);
 
 	const activeOrg = orgs.find((o) => o.id === activeOrgId);
@@ -107,17 +104,12 @@ export function Tokens() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-3xl font-bold text-foreground">API Tokens</h1>
-					<p className="text-xs text-muted-foreground mt-2 uppercase tracking-wide">
-						{activeOrg
-							? `Organization: ${activeOrg.name}`
-							: "Manage API tokens for programmatic access"}
-					</p>
-				</div>
-				<Button 
-					onClick={() => setIsCreateDialogOpen(true)}
-				>
+				<p className="text-xs text-muted-foreground mt-2 uppercase tracking-wide">
+					{activeOrg
+						? `Organization: ${activeOrg.name}`
+						: "Manage API tokens for programmatic access"}
+				</p>
+				<Button onClick={() => setIsCreateDialogOpen(true)}>
 					<Plus className="h-4 w-4 mr-2" />
 					Create Token
 				</Button>

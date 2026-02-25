@@ -1,34 +1,43 @@
-import { useMemo } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ObsLogs } from "@/components/observability/ObsLogs";
+import { ObsMetrics } from "@/components/observability/ObsMetrics";
+import { ObsOverview } from "@/components/observability/ObsOverview";
+import { ObsProvider } from "@/components/observability/ObsProvider";
+import { ObsToolbar } from "@/components/observability/ObsToolbar";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { useQuery } from "@connectrpc/connect-query";
-import { ObsProvider } from "@/components/observability/ObsProvider";
-import { ObsToolbar } from "@/components/observability/ObsToolbar";
-import { ObsOverview } from "@/components/observability/ObsOverview";
-import { ObsLogs } from "@/components/observability/ObsLogs";
-import { ObsMetrics } from "@/components/observability/ObsMetrics";
+import { AudioWaveform, Loader2, LogsIcon, Waypoints } from "lucide-react";
+import { useMemo } from "react";
 
 function ObsContent() {
 	return (
 		<div className="space-y-4">
 			<ObsToolbar />
-			<Tabs defaultValue="overview">
+			<Tabs defaultValue="logs">
 				<TabsList>
-					<TabsTrigger value="overview">Overview</TabsTrigger>
-					<TabsTrigger value="logs">Logs</TabsTrigger>
-					<TabsTrigger value="metrics">Metrics</TabsTrigger>
+					<TabsTrigger value="logs" className="flex items-center gap-2">
+						<LogsIcon className="h-3.5 w-3.5" />
+						Logs
+					</TabsTrigger>
+					<TabsTrigger value="metrics" className="flex items-center gap-2">
+						<AudioWaveform className="h-3.5 w-3.5" />
+						Metrics
+					</TabsTrigger>
+					<TabsTrigger value="overview" className="flex items-center gap-2">
+						<Waypoints className="h-3.5 w-3.5" />
+						Traces
+					</TabsTrigger>
 				</TabsList>
-				<TabsContent value="overview" className="mt-4">
-					<ObsOverview />
-				</TabsContent>
 				<TabsContent value="logs" className="mt-4">
 					<ObsLogs />
 				</TabsContent>
 				<TabsContent value="metrics" className="mt-4">
 					<ObsMetrics />
+				</TabsContent>
+				<TabsContent value="overview" className="mt-4">
+					<ObsOverview />
 				</TabsContent>
 			</Tabs>
 		</div>

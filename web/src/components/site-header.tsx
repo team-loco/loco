@@ -368,7 +368,7 @@ export function SiteHeader() {
 								className="rounded-r-none border-r border-primary/20 h-7.5 px-3"
 								onClick={() => setDropdownOpen(true)}
 							>
-								New Service
+								New Resource
 							</Button>
 							<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 								<DropdownMenuTrigger asChild>
@@ -382,7 +382,7 @@ export function SiteHeader() {
 										<span className="sr-only">Toggle menu</span>
 									</Button>
 								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="w-48">
+								<DropdownMenuContent align="end" className="w-36">
 									{RESOURCE_TYPES.map((type) => (
 										<DropdownMenuItem
 											key={type.value}

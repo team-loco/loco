@@ -29,7 +29,7 @@ export function getErrorMessage(
 		if (error.code === Code.Internal) {
 			const requestId = error.metadata.get("x-loco-request-id");
 			if (requestId) {
-				return `Please reach out to a Loco support engineer and provide this requestId: ${requestId}`;
+				return `Please reach out to a Loco support engineer and provide this requestId ${requestId}`;
 			}
 		}
 		return formatErrorMessage(error.rawMessage || fallback);
