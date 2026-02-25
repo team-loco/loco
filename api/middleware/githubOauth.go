@@ -126,8 +126,8 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 			Type: entity.Type,
 			ID:   entity.ID,
 		})
-		c = context.WithValue(ctx, contextkeys.EntityScopesKey, scopes)
-		c = context.WithValue(ctx, contextkeys.TokenKey, token)
+		c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
+		c = context.WithValue(c, contextkeys.TokenKey, token)
 
 		return next(c, conn)
 	})

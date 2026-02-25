@@ -299,6 +299,10 @@ func getImageSecretName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-image-pull", getName(locoRes))
 }
 
+func getInternalDomain(locoRes *locov1alpha1.Application) string {
+	return fmt.Sprintf("%s.%s.svc.cluster.local", getName(locoRes), getNamespace(locoRes))
+}
+
 // getContainerPort extracts the container port from routing or deployment config
 // Prefers routing port, falls back to deployment port, defaults to 8000
 func getContainerPort(locoRes *locov1alpha1.Application) int32 {
@@ -634,6 +638,8 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 		corev1.EnvVar{Name: "LOCO_DEPLOYMENT_ID", Value: locoRes.Spec.DeploymentId},
 		corev1.EnvVar{Name: "LOCO_REGION", Value: locoRes.Spec.Region},
 		corev1.EnvVar{Name: "LOCO_ENVIRONMENT", Value: locoRes.Spec.EnvironmentName},
+		corev1.EnvVar{Name: "LOCO_INTERNAL_DOMAIN", Value: getInternalDomain(locoRes)},
+		corev1.EnvVar{Name: "LOCO_PUBLIC_DOMAIN", Value: locoRes.Spec.ServiceSpec.Routing.HostName},
 	)
 
 	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {

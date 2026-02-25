@@ -259,15 +259,15 @@ func (s *ResourceServer) CreateResource(
 	// Create resource regions (first region is primary)
 	for region, regionConfig := range serviceSpec.GetRegions() {
 		isPrimary := regionConfig.GetPrimary()
-		_, err := s.queries.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
+		_, regionErr := s.queries.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
 			ResourceID: resourceID,
 			Region:     region,
 			IsPrimary:  isPrimary,
 			Status:     genDb.RegionIntentStatusDesired,
 		})
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to create resource region", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		if regionErr != nil {
+			slog.ErrorContext(ctx, "failed to create resource region", "error", regionErr)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", regionErr))
 		}
 	}
 

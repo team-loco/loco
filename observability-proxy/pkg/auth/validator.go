@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
 	"github.com/team-loco/loco/proto/loco/observability/v1/observabilityv1connect"
+	"golang.org/x/net/http2"
 )
 
 // Validator validates observability tokens by calling the control plane.
@@ -20,12 +21,12 @@ type Validator struct {
 }
 
 func NewValidator(controlPlaneURL string, authToken string, cacheTTL time.Duration) *Validator {
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2: true,
-		},
-		Timeout: 5 * time.Second,
+	transport := &http.Transport{}
+	err := http2.ConfigureTransport(transport)
+	if err != nil {
+		panic("failed to configure HTTP/2 transport: " + err.Error())
 	}
+	httpClient := &http.Client{Transport: transport}
 
 	client := observabilityv1connect.NewObservabilityAccessServiceClient(
 		httpClient,

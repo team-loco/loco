@@ -103,12 +103,26 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Revoke Token</AlertDialogTitle>
-						<AlertDialogDescription>
-							Are you sure you want to revoke the token "{token.name}"? This
-							action cannot be undone and any applications using this token will
-							lose access immediately.
-						</AlertDialogDescription>
 					</AlertDialogHeader>
+					<div className="space-y-4">
+						<div className="p-3 bg-muted/50 rounded border border-border">
+							<div className="text-xs font-semibold text-muted-foreground mb-1">Token</div>
+							<div className="text-sm font-medium">{token.name}</div>
+						</div>
+						{token.createdAt && (
+							<div className="p-3 bg-muted/50 rounded border border-border">
+								<div className="text-xs font-semibold text-muted-foreground mb-1">Created At</div>
+								<div className="text-sm">
+									{new Date(Number(token.createdAt.seconds) * 1000).toLocaleString()}
+								</div>
+							</div>
+						)}
+						<div className="pt-2 border-t">
+							<p className="text-sm text-muted-foreground">
+								This action cannot be undone and any applications using this token will lose access immediately.
+							</p>
+						</div>
+					</div>
 					<div className="flex gap-2 justify-end">
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
@@ -116,7 +130,7 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 								onRevokeToken(token.name, token.entityType, token.entityId);
 								setOpen(false);
 							}}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							className="bg-destructive text-white hover:bg-destructive/90"
 						>
 							Revoke Token
 						</AlertDialogAction>

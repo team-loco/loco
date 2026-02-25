@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/api"
 	"github.com/team-loco/loco/internal/session"
@@ -506,7 +506,7 @@ func tick() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -531,15 +531,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) View() string {
+func (m model) View() tea.View {
 	if m.done {
 		if m.err != nil {
 			errorStyle := lipgloss.NewStyle().Foreground(ui.LocoRed).Bold(true)
-			return fmt.Sprintf("%s\n%s\n",
+			return tea.NewView(fmt.Sprintf("%s\n%s\n",
 				errorStyle.Render("Authentication failed:"),
-				lipgloss.NewStyle().Foreground(ui.LocoDarkGray).Render(m.err.Error()))
+				lipgloss.NewStyle().Foreground(ui.LocoDarkGray).Render(m.err.Error())))
 		}
-		return lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("Setting up organization and workspace...") + "\n"
+		return tea.NewView(lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("Setting up organization and workspace...") + "\n")
 	}
 
 	codeStyle := lipgloss.NewStyle().Foreground(ui.LocoOrange).Bold(true).Padding(0, 0)
@@ -552,7 +552,7 @@ func (m model) View() string {
 		spinner = spinnerStyle.Render(m.loadingFrames[m.frameIndex])
 	}
 
-	return fmt.Sprintf(
+	return tea.NewView(fmt.Sprintf(
 		"%s %s\n\n%s %s\n\n%s %s\n\n%s",
 		instructionStyle.Render("Please open the following URL in your browser:"),
 		urlStyle.Render(m.verificationURI),
@@ -561,5 +561,5 @@ func (m model) View() string {
 		spinner,
 		instructionStyle.Render("Waiting for authentication..."),
 		lipgloss.NewStyle().Foreground(ui.LocoLightGray).Faint(true).Render("Press 'q' or Ctrl+C to quit"),
-	)
+	))
 }

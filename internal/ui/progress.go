@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/progress"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type StepStatus int
@@ -52,11 +52,11 @@ type logMsg struct {
 
 // Styling
 var (
-	stylePending = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#FFA500", Dark: "#FFA500"}) // orange
-	styleRunning = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#0074D9", Dark: "#00BFFF"}) // blue
-	styleSuccess = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#2ECC40", Dark: "#32CD32"}) // green
-	styleError   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#FF4136", Dark: "#FF4500"}) // red
-	styleLog     = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#666666", Dark: "#999999"}).Italic(true)
+	stylePending = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA500")) // orange
+	styleRunning = lipgloss.NewStyle().Foreground(lipgloss.Color("#00BFFF")) // blue
+	styleSuccess = lipgloss.NewStyle().Foreground(lipgloss.Color("#32CD32")) // green
+	styleError   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4500")) // red
+	styleLog     = lipgloss.NewStyle().Foreground(lipgloss.Color("#999999")).Italic(true)
 )
 
 var LocoSpinner = spinner.Spinner{
@@ -72,7 +72,7 @@ var LocoSpinner = spinner.Spinner{
 func NewModel(steps []Step) *model {
 	for i := range steps {
 		steps[i].Spinner = spinner.New(spinner.WithSpinner(LocoSpinner))
-		steps[i].Bar = progress.New(progress.WithGradient("#00BFFF", "#32CD32"))
+		steps[i].Bar = progress.New(progress.WithColors(lipgloss.Color("#00BFFF"), lipgloss.Color("#32CD32")))
 	}
 	return &model{
 		steps: steps,
@@ -93,7 +93,7 @@ func (m *model) Init() tea.Cmd {
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			m.quitting = true
 			return m, tea.Quit
@@ -137,7 +137,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *model) View() string {
+func (m *model) View() tea.View {
 	s := "\n"
 	indent := "  "
 
@@ -181,7 +181,7 @@ func (m *model) View() string {
 		s += "\n" + styleError.Render("Aborted.") + "\n"
 	}
 
-	return s
+	return tea.NewView(s)
 }
 
 // Move runStep to be a method of model so it can access the program

@@ -9,7 +9,7 @@ import (
 	"os/user"
 
 	"connectrpc.com/connect"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"

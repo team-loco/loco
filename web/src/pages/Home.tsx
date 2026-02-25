@@ -1,15 +1,14 @@
 import Loader from "@/assets/loader.svg?react";
 import { useAuth } from "@/auth/AuthProvider";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorCard } from "@/components/ErrorCard";
 import { BentoDashboard } from "@/components/dashboard/BentoDashboard";
 import { WorkspaceDashboardMetrics } from "@/components/dashboard/WorkspaceDashboardMetrics";
-import { Card, CardContent } from "@/components/ui/card";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useHeader } from "@/context/HeaderContext";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
-import { getErrorMessage } from "@/lib/error-handler";
 import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useMemo, useState } from "react";
@@ -135,20 +134,7 @@ export function Home() {
 	}
 
 	if (error) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<Card className="max-w-md">
-					<CardContent className="p-6 text-center">
-						<p className="text-destructive font-heading mb-4 text-2xl">
-							Error Loading Data
-						</p>
-						<p className="text-sm text-foreground opacity-70 mb-4">
-							{getErrorMessage(error, "Failed to load resources")}
-						</p>
-					</CardContent>
-				</Card>
-			</div>
-		);
+		return <ErrorCard error={error} fallbackMessage="Failed to load resources" />;
 	}
 
 	return (

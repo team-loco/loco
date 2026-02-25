@@ -161,23 +161,23 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, userID string, addSc
 	}
 
 	for _, es := range addScopes {
-		if err := qtx.AddUserScope(ctx, queries.AddUserScopeParams{
+		if addErr := qtx.AddUserScope(ctx, queries.AddUserScopeParams{
 			UserID:     userId,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
 			Scope:      es.Scope,
-		}); err != nil {
-			return fmt.Errorf("add user scope: %w", err)
+		}); addErr != nil {
+			return fmt.Errorf("add user scope: %w", addErr)
 		}
 	}
 	for _, es := range removeScopes {
-		if err := qtx.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
+		if removeErr := qtx.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
 			UserID:     userId,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
 			Scope:      es.Scope,
-		}); err != nil {
-			return fmt.Errorf("remove user scope: %w", err)
+		}); removeErr != nil {
+			return fmt.Errorf("remove user scope: %w", removeErr)
 		}
 	}
 	err = tx.Commit(ctx)

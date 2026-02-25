@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/charmbracelet/bubbles/table"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/client"
@@ -300,7 +300,7 @@ func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error
 		ctx:       ctx,
 	}
 
-	if finalModel, err := tea.NewProgram(m, tea.WithAltScreen()).Run(); err != nil {
+	if finalModel, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Fprintf(deps.Stdout, "Error running log viewer: %v\n", err)
 		return err
 	} else if fm, ok := finalModel.(logModel); ok && fm.err != nil {
@@ -366,7 +366,7 @@ func (m logModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.error
 		return m, tea.Quit
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "esc":
 			if m.table.Focused() {
@@ -383,12 +383,17 @@ func (m logModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.waitForLog())
 }
 
-func (m logModel) View() string {
+func (m logModel) View() tea.View {
+	var content string
 	if m.err != nil {
-		return lipgloss.NewStyle().Foreground(ui.LocoRed).Render(
+		content = lipgloss.NewStyle().Foreground(ui.LocoRed).Render(
 			fmt.Sprintf("Error: %v", m.err),
 		)
+	} else {
+		content = m.baseStyle.Render(m.table.View()) +
+			"\n[↑↓] Navigate • [esc] Toggle focus • [q] Quit"
 	}
-	return m.baseStyle.Render(m.table.View()) +
-		"\n[↑↓] Navigate • [esc] Toggle focus • [q] Quit"
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }

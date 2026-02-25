@@ -319,10 +319,10 @@ func (s *OAuthServer) ExchangeOAuthCode(
 	user, locoToken, err := s.machine.Exchange(ctx, emailResp)
 	if err == tvm.ErrUserNotFound {
 		// user doesn't exist, fetch github profile and create user
-		githubUser, err := s.fetchGithubUserData(token.AccessToken)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to fetch github user data", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch github user: %w", err))
+		githubUser, fetchErr := s.fetchGithubUserData(token.AccessToken)
+		if fetchErr != nil {
+			slog.ErrorContext(ctx, "failed to fetch github user data", "error", fetchErr)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch github user: %w", fetchErr))
 		}
 
 		createdUser, err := s.tempCreateUser(ctx, fmt.Sprintf("%d", githubUser.ID), address, githubUser.Name, githubUser.Avatar)

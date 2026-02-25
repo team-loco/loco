@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { ErrorCard } from "@/components/ErrorCard";
 import { Loader2 } from "lucide-react";
 import {
 	AreaChart,
@@ -143,11 +144,7 @@ export function ObsOverview() {
 	}
 
 	if (error) {
-		return (
-			<div className="text-sm text-destructive py-8 text-center">
-				Failed to get observability access: {error.message}
-			</div>
-		);
+		return <ErrorCard error={error} fallbackMessage="Failed to get observability access" />;
 	}
 
 	if (clusterTransports.length === 0) {

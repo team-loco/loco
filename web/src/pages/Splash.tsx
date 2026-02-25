@@ -17,7 +17,7 @@ export function Splash() {
 		if (isAuthenticated && activeOrgId && activeWorkspaceId) {
 			return `/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`;
 		}
-		return "/organizations";
+		return "/dashboard";
 	}, [isAuthenticated, activeOrgId, activeWorkspaceId]);
 
 	return (

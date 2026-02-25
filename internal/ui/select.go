@@ -3,9 +3,9 @@ package ui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 var (
@@ -64,15 +64,15 @@ func (m selectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		h, v := titleStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v)
 
-	case tea.KeyMsg:
-		switch msg.Type {
-		case tea.KeyEnter:
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case "enter":
 			i, ok := m.list.SelectedItem().(selectItem)
 			if ok {
 				m.selected = i.value
 			}
 			return m, tea.Quit
-		case tea.KeyCtrlC, tea.KeyEsc:
+		case "ctrl+c", "esc":
 			return m, tea.Quit
 		}
 	}
@@ -82,8 +82,10 @@ func (m selectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m selectModel) View() string {
-	return m.list.View()
+func (m selectModel) View() tea.View {
+	v := tea.NewView(m.list.View())
+	v.AltScreen = true
+	return v
 }
 
 type SelectOption struct {
@@ -103,7 +105,7 @@ func SelectFromList(title string, options []SelectOption) (any, error) {
 	}
 
 	m := newSelectModel(title, items)
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m)
 	model, err := p.Run()
 	if err != nil {
 		return nil, err

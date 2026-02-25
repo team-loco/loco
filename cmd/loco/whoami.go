@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/session"

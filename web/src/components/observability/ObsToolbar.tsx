@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -14,7 +15,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { ChevronDown, Layers } from "lucide-react";
 import { useObs, type TimeRange } from "./ObsProvider";
 
@@ -97,8 +97,11 @@ export function ObsToolbar() {
 			</DropdownMenu>
 
 			{/* Time range */}
-			<Select value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-				<SelectTrigger className="w-36 h-8 text-sm">
+			<Select
+				value={timeRange}
+				onValueChange={(v) => setTimeRange(v as TimeRange)}
+			>
+				<SelectTrigger className="w-36 h-7.5 text-sm">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
