@@ -30,8 +30,8 @@ import {
 	Building2,
 	Check,
 	ChevronDown,
-	ChevronsUpDown,
 	Database,
+	Edit,
 	HardDrive,
 	HelpCircle,
 	Layers,
@@ -40,6 +40,7 @@ import {
 	Mail,
 	Plus,
 	Server,
+	Settings,
 	Zap,
 } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
@@ -360,7 +361,7 @@ export function SiteHeader() {
 						))}
 					</div>
 
-					<div className="ml-auto inline-flex items-center justify-center gap-3">
+					<div className="ml-auto inline-flex items-center justify-end gap-3">
 						{/* New Service Button */}
 						<div className="inline-flex items-center justify-center rounded-none bg-primary/5">
 							<Button
@@ -424,9 +425,20 @@ export function SiteHeader() {
 								sideOffset={4}
 							>
 								<DropdownMenuLabel className="p-0 font-normal">
-									<div className="px-1 py-1.5 text-left text-sm">
-										<span className="truncate font-bold">{user?.name}</span>
-									</div>
+									<a
+										href="/profile"
+										className="flex items-center justify-between gap-3 px-2 py-2 text-left rounded hover:bg-accent transition-colors"
+									>
+										<div className="flex-1 min-w-0">
+											<div className="text-sm font-semibold text-black truncate">
+												{user?.name}
+											</div>
+											<div className="text-xs text-black truncate">
+												{user?.email}
+											</div>
+										</div>
+										<Settings className="size-4 shrink-0 text-foreground/60" />
+									</a>
 								</DropdownMenuLabel>
 								<DropdownMenuSeparator />
 
@@ -441,13 +453,10 @@ export function SiteHeader() {
 												onClick={() => setSwitchContextOpen(true)}
 												className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-accent/20 hover:bg-accent/30 active:bg-accent/40 transition-all duration-150 text-sm font-medium cursor-pointer border border-accent/30"
 											>
-												<div className="flex items-center gap-2 min-w-0">
-													<Building2 className="size-4 shrink-0" />
-													<span className="truncate font-semibold">
-														{activeOrg.name}
-													</span>
-												</div>
-												<ChevronsUpDown className="size-4 shrink-0" />
+												<span className="truncate font-semibold">
+													{activeOrg.name}
+												</span>
+												<Edit className="size-3 shrink-0" />
 											</button>
 										</div>
 										{workspaces.length > 0 && (
@@ -463,7 +472,7 @@ export function SiteHeader() {
 														{workspaces.find((w) => w.id === activeWorkspaceId)
 															?.name || "Select workspace"}
 													</span>
-													<ChevronsUpDown className="size-4 shrink-0" />
+													<Edit className="size-3 shrink-0" />
 												</button>
 											</div>
 										)}
@@ -472,13 +481,13 @@ export function SiteHeader() {
 
 								<DropdownMenuSeparator />
 								<DropdownMenuGroup>
-									<DropdownMenuItem className="cursor-pointer">
-										<Bell />
-										Notifications
+									<DropdownMenuItem className="cursor-pointer flex justify-between">
+										<span>Notifications</span>
+										<Bell className="size-4" />
 									</DropdownMenuItem>
-									<DropdownMenuItem className="cursor-pointer">
-										<HelpCircle />
-										Support
+									<DropdownMenuItem className="cursor-pointer flex justify-between">
+										<span>Support</span>
+										<HelpCircle className="size-4" />
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										onClick={(e) => {
@@ -486,14 +495,16 @@ export function SiteHeader() {
 											void handleThemeToggle();
 										}}
 										onSelect={(e) => e.preventDefault()}
-										className="cursor-pointer"
+										className="cursor-pointer flex justify-between"
 									>
-										{theme === "dark" ? (
-											<div className="div-toggle-btn-dark border-0 shadow-none h-4 w-4"></div>
-										) : (
-											<div className="div-toggle-btn-light border-0 shadow-none h-4 w-4"></div>
-										)}
-										{theme === "dark" ? "Light Mode" : "Dark Mode"}
+										<span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+										<div className="text-foreground/60">
+											{theme === "dark" ? (
+												<div className="div-toggle-btn-dark border-0 shadow-none size-4"></div>
+											) : (
+												<div className="div-toggle-btn-light border-0 shadow-none size-4"></div>
+											)}
+										</div>
 									</DropdownMenuItem>
 								</DropdownMenuGroup>
 								<DropdownMenuSeparator />
@@ -507,10 +518,10 @@ export function SiteHeader() {
 											toastConnectError(error, "Failed to logout");
 										}
 									}}
-									className="cursor-pointer"
+									className="cursor-pointer flex justify-between"
 								>
-									<LogOut />
-									Log out
+									<span>Log out</span>
+									<LogOut className="size-4" />
 								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
