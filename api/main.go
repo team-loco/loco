@@ -311,7 +311,7 @@ func main() {
 
 		// observability access service
 		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,
-		observabilityv1connect.ObservabilityAccessServiceValidateObservabilityTokenProcedure,
+		observabilityv1connect.ObservabilityAccessServiceCheckPermissionProcedure,
 
 		// environment service
 		environmentv1connect.EnvironmentServiceCreateEnvironmentProcedure,

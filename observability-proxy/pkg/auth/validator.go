@@ -5,22 +5,22 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"connectrpc.com/connect"
+	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
 	"github.com/team-loco/loco/proto/loco/observability/v1/observabilityv1connect"
 	"golang.org/x/net/http2"
 )
 
-// Validator validates observability tokens by calling the control plane.
+// Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
 	client    observabilityv1connect.ObservabilityAccessServiceClient
-	authToken string // proxy auth token for calling ValidateObservabilityToken
-	cache     *TokenCache
+	authToken string // proxy auth token for calling CheckPermission
+	cache     cache.Cache
 }
 
-func NewValidator(controlPlaneURL string, authToken string, cacheTTL time.Duration) *Validator {
+func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Validator {
 	transport := &http.Transport{}
 	err := http2.ConfigureTransport(transport)
 	if err != nil {
@@ -36,42 +36,40 @@ func NewValidator(controlPlaneURL string, authToken string, cacheTTL time.Durati
 	return &Validator{
 		client:    client,
 		authToken: authToken,
-		cache:     NewTokenCache(cacheTTL),
+		cache:     c,
 	}
 }
 
-// Validate checks a token against the control plane (with caching).
-func (v *Validator) Validate(ctx context.Context, token string) (*ValidatedClaims, error) {
-	// Check cache first
-	if claims, ok := v.cache.Get(token); ok {
-		return claims, nil
+// CheckPermission validates whether the given token has the requested permission.
+// Results are cached for the cache's configured TTL.
+func (v *Validator) CheckPermission(ctx context.Context, token string, entityType string, entityID string, scope string) error {
+	cacheKey := token + ":" + entityType + ":" + entityID + ":" + scope
+
+	if allowed, ok := getPermission(ctx, v.cache, cacheKey); ok {
+		if !allowed {
+			return fmt.Errorf("permission denied")
+		}
+		return nil
 	}
 
-	// Call control plane
-	req := connect.NewRequest(&observabilityv1.ValidateObservabilityTokenRequest{
-		Token: token,
+	req := connect.NewRequest(&observabilityv1.CheckPermissionRequest{
+		Token:      token,
+		EntityType: entityType,
+		EntityId:   entityID,
+		Scope:      scope,
 	})
 	req.Header().Set("Authorization", "Bearer "+v.authToken)
 
-	resp, err := v.client.ValidateObservabilityToken(ctx, req)
+	resp, err := v.client.CheckPermission(ctx, req)
 	if err != nil {
-		slog.ErrorContext(ctx, "token validation failed", "error", err)
-		return nil, fmt.Errorf("token validation failed: %w", err)
+		slog.ErrorContext(ctx, "CheckPermission call failed", "error", err)
+		return fmt.Errorf("permission check failed: %w", err)
 	}
 
-	claims := &ValidatedClaims{
-		WorkspaceID: resp.Msg.GetWorkspaceId(),
-		ResourceIDs: resp.Msg.GetResourceIds(),
-		Scopes:      resp.Msg.GetScopes(),
-		ExpiresAt:   resp.Msg.GetExpiresAt().AsTime(),
-	}
+	setPermission(ctx, v.cache, cacheKey, resp.Msg.GetAllowed())
 
-	// Check if token is already expired
-	if time.Now().After(claims.ExpiresAt) {
-		return nil, fmt.Errorf("token expired")
+	if !resp.Msg.GetAllowed() {
+		return fmt.Errorf("permission denied")
 	}
-
-	// Cache the result
-	v.cache.Set(token, claims)
-	return claims, nil
+	return nil
 }

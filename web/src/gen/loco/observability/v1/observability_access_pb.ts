@@ -4,15 +4,13 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/observability/v1/observability_access.proto.
  */
 export const file_loco_observability_v1_observability_access: GenFile = /*@__PURE__*/
-  fileDesc("CjBsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eV9hY2Nlc3MucHJvdG8SFWxvY28ub2JzZXJ2YWJpbGl0eS52MSJLCh1HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMcmVzb3VyY2VfaWRzGAIgAygJIpcBCh5HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVzcG9uc2USDQoFdG9rZW4YASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNgoIY2x1c3RlcnMYAyADKAsyJC5sb2NvLm9ic2VydmFiaWxpdHkudjEuQ2x1c3RlckFjY2VzcyJGCg1DbHVzdGVyQWNjZXNzEhIKCmNsdXN0ZXJfaWQYASABKAMSEQoJcHJveHlfdXJsGAIgASgJEg4KBnJlZ2lvbhgDIAEoCSIyCiFWYWxpZGF0ZU9ic2VydmFiaWxpdHlUb2tlblJlcXVlc3QSDQoFdG9rZW4YASABKAkikAEKIlZhbGlkYXRlT2JzZXJ2YWJpbGl0eVRva2VuUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgJEhQKDHJlc291cmNlX2lkcxgCIAMoCRIOCgZzY29wZXMYAyADKAkSLgoKZXhwaXJlc19hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAyuAIKGk9ic2VydmFiaWxpdHlBY2Nlc3NTZXJ2aWNlEoUBChZHZXRPYnNlcnZhYmlsaXR5QWNjZXNzEjQubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXF1ZXN0GjUubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRKRAQoaVmFsaWRhdGVPYnNlcnZhYmlsaXR5VG9rZW4SOC5sb2NvLm9ic2VydmFiaWxpdHkudjEuVmFsaWRhdGVPYnNlcnZhYmlsaXR5VG9rZW5SZXF1ZXN0GjkubG9jby5vYnNlcnZhYmlsaXR5LnYxLlZhbGlkYXRlT2JzZXJ2YWJpbGl0eVRva2VuUmVzcG9uc2VCR1pFZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL29ic2VydmFiaWxpdHkvdjE7b2JzZXJ2YWJpbGl0eXYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CjBsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eV9hY2Nlc3MucHJvdG8SFWxvY28ub2JzZXJ2YWJpbGl0eS52MSJLCh1HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMcmVzb3VyY2VfaWRzGAIgAygJIlgKHkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRI2CghjbHVzdGVycxgBIAMoCzIkLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DbHVzdGVyQWNjZXNzIkYKDUNsdXN0ZXJBY2Nlc3MSEgoKY2x1c3Rlcl9pZBgBIAEoAxIRCglwcm94eV91cmwYAiABKAkSDgoGcmVnaW9uGAMgASgJIl4KFkNoZWNrUGVybWlzc2lvblJlcXVlc3QSDQoFdG9rZW4YASABKAkSEwoLZW50aXR5X3R5cGUYAiABKAkSEQoJZW50aXR5X2lkGAMgASgJEg0KBXNjb3BlGAQgASgJIioKF0NoZWNrUGVybWlzc2lvblJlc3BvbnNlEg8KB2FsbG93ZWQYASABKAgylgIKGk9ic2VydmFiaWxpdHlBY2Nlc3NTZXJ2aWNlEoUBChZHZXRPYnNlcnZhYmlsaXR5QWNjZXNzEjQubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXF1ZXN0GjUubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRJwCg9DaGVja1Blcm1pc3Npb24SLS5sb2NvLm9ic2VydmFiaWxpdHkudjEuQ2hlY2tQZXJtaXNzaW9uUmVxdWVzdBouLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DaGVja1Blcm1pc3Npb25SZXNwb25zZUJHWkVnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vb2JzZXJ2YWJpbGl0eS92MTtvYnNlcnZhYmlsaXR5djFiBnByb3RvMw");
 
 /**
  * @generated from message loco.observability.v1.GetObservabilityAccessRequest
@@ -60,17 +58,7 @@ export const GetObservabilityAccessRequestSchema: GenMessage<GetObservabilityAcc
  */
 export type GetObservabilityAccessResponse = Message<"loco.observability.v1.GetObservabilityAccessResponse"> & {
   /**
-   * @generated from field: string token = 1;
-   */
-  token: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp expires_at = 2;
-   */
-  expiresAt?: Timestamp;
-
-  /**
-   * @generated from field: repeated loco.observability.v1.ClusterAccess clusters = 3;
+   * @generated from field: repeated loco.observability.v1.ClusterAccess clusters = 1;
    */
   clusters: ClusterAccess[];
 };
@@ -80,17 +68,7 @@ export type GetObservabilityAccessResponse = Message<"loco.observability.v1.GetO
  */
 export type GetObservabilityAccessResponseJson = {
   /**
-   * @generated from field: string token = 1;
-   */
-  token?: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp expires_at = 2;
-   */
-  expiresAt?: TimestampJson;
-
-  /**
-   * @generated from field: repeated loco.observability.v1.ClusterAccess clusters = 3;
+   * @generated from field: repeated loco.observability.v1.ClusterAccess clusters = 1;
    */
   clusters?: ClusterAccessJson[];
 };
@@ -150,99 +128,107 @@ export const ClusterAccessSchema: GenMessage<ClusterAccess, {jsonType: ClusterAc
   messageDesc(file_loco_observability_v1_observability_access, 2);
 
 /**
- * @generated from message loco.observability.v1.ValidateObservabilityTokenRequest
+ * @generated from message loco.observability.v1.CheckPermissionRequest
  */
-export type ValidateObservabilityTokenRequest = Message<"loco.observability.v1.ValidateObservabilityTokenRequest"> & {
+export type CheckPermissionRequest = Message<"loco.observability.v1.CheckPermissionRequest"> & {
   /**
    * @generated from field: string token = 1;
    */
   token: string;
+
+  /**
+   * e.g. "workspace"
+   *
+   * @generated from field: string entity_type = 2;
+   */
+  entityType: string;
+
+  /**
+   * @generated from field: string entity_id = 3;
+   */
+  entityId: string;
+
+  /**
+   * e.g. "read"
+   *
+   * @generated from field: string scope = 4;
+   */
+  scope: string;
 };
 
 /**
- * @generated from message loco.observability.v1.ValidateObservabilityTokenRequest
+ * @generated from message loco.observability.v1.CheckPermissionRequest
  */
-export type ValidateObservabilityTokenRequestJson = {
+export type CheckPermissionRequestJson = {
   /**
    * @generated from field: string token = 1;
    */
   token?: string;
+
+  /**
+   * e.g. "workspace"
+   *
+   * @generated from field: string entity_type = 2;
+   */
+  entityType?: string;
+
+  /**
+   * @generated from field: string entity_id = 3;
+   */
+  entityId?: string;
+
+  /**
+   * e.g. "read"
+   *
+   * @generated from field: string scope = 4;
+   */
+  scope?: string;
 };
 
 /**
- * Describes the message loco.observability.v1.ValidateObservabilityTokenRequest.
- * Use `create(ValidateObservabilityTokenRequestSchema)` to create a new message.
+ * Describes the message loco.observability.v1.CheckPermissionRequest.
+ * Use `create(CheckPermissionRequestSchema)` to create a new message.
  */
-export const ValidateObservabilityTokenRequestSchema: GenMessage<ValidateObservabilityTokenRequest, {jsonType: ValidateObservabilityTokenRequestJson}> = /*@__PURE__*/
+export const CheckPermissionRequestSchema: GenMessage<CheckPermissionRequest, {jsonType: CheckPermissionRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_observability_v1_observability_access, 3);
 
 /**
- * @generated from message loco.observability.v1.ValidateObservabilityTokenResponse
+ * @generated from message loco.observability.v1.CheckPermissionResponse
  */
-export type ValidateObservabilityTokenResponse = Message<"loco.observability.v1.ValidateObservabilityTokenResponse"> & {
+export type CheckPermissionResponse = Message<"loco.observability.v1.CheckPermissionResponse"> & {
   /**
-   * @generated from field: string workspace_id = 1;
+   * @generated from field: bool allowed = 1;
    */
-  workspaceId: string;
-
-  /**
-   * @generated from field: repeated string resource_ids = 2;
-   */
-  resourceIds: string[];
-
-  /**
-   * @generated from field: repeated string scopes = 3;
-   */
-  scopes: string[];
-
-  /**
-   * @generated from field: google.protobuf.Timestamp expires_at = 4;
-   */
-  expiresAt?: Timestamp;
+  allowed: boolean;
 };
 
 /**
- * @generated from message loco.observability.v1.ValidateObservabilityTokenResponse
+ * @generated from message loco.observability.v1.CheckPermissionResponse
  */
-export type ValidateObservabilityTokenResponseJson = {
+export type CheckPermissionResponseJson = {
   /**
-   * @generated from field: string workspace_id = 1;
+   * @generated from field: bool allowed = 1;
    */
-  workspaceId?: string;
-
-  /**
-   * @generated from field: repeated string resource_ids = 2;
-   */
-  resourceIds?: string[];
-
-  /**
-   * @generated from field: repeated string scopes = 3;
-   */
-  scopes?: string[];
-
-  /**
-   * @generated from field: google.protobuf.Timestamp expires_at = 4;
-   */
-  expiresAt?: TimestampJson;
+  allowed?: boolean;
 };
 
 /**
- * Describes the message loco.observability.v1.ValidateObservabilityTokenResponse.
- * Use `create(ValidateObservabilityTokenResponseSchema)` to create a new message.
+ * Describes the message loco.observability.v1.CheckPermissionResponse.
+ * Use `create(CheckPermissionResponseSchema)` to create a new message.
  */
-export const ValidateObservabilityTokenResponseSchema: GenMessage<ValidateObservabilityTokenResponse, {jsonType: ValidateObservabilityTokenResponseJson}> = /*@__PURE__*/
+export const CheckPermissionResponseSchema: GenMessage<CheckPermissionResponse, {jsonType: CheckPermissionResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_observability_v1_observability_access, 4);
 
 /**
  * ObservabilityAccessService runs on the control plane.
- * It mints short-lived tokens and returns regional proxy endpoints.
+ * It returns regional proxy endpoints and validates token permissions for the proxy.
  *
  * @generated from service loco.observability.v1.ObservabilityAccessService
  */
 export const ObservabilityAccessService: GenService<{
   /**
-   * GetObservabilityAccess mints a short-lived token scoped to a workspace and optional
-   * resource set, and returns the regional proxy endpoints the client should connect to.
+   * GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
+   * The client's existing TVM token is used directly when talking to the proxy.
    *
    * @generated from rpc loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess
    */
@@ -252,16 +238,15 @@ export const ObservabilityAccessService: GenService<{
     output: typeof GetObservabilityAccessResponseSchema;
   },
   /**
-   * ValidateObservabilityToken is called by the observability proxy to validate a token
-   * received from a client. This endpoint is authenticated with a proxy auth token
-   * (similar to agent token) and is NOT intended for end users.
+   * CheckPermission is called by the observability proxy to validate whether a token
+   * has the requested permission on an entity. Authenticated with a proxy auth token.
    *
-   * @generated from rpc loco.observability.v1.ObservabilityAccessService.ValidateObservabilityToken
+   * @generated from rpc loco.observability.v1.ObservabilityAccessService.CheckPermission
    */
-  validateObservabilityToken: {
+  checkPermission: {
     methodKind: "unary";
-    input: typeof ValidateObservabilityTokenRequestSchema;
-    output: typeof ValidateObservabilityTokenResponseSchema;
+    input: typeof CheckPermissionRequestSchema;
+    output: typeof CheckPermissionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_observability_v1_observability_access, 0);

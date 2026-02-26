@@ -30,9 +30,9 @@ function refreshTokens(): Promise<void> {
 	return refreshing;
 }
 
-export const createTransport = () => {
+export const createTransport = (baseUrl: string = BASE_URL) => {
 	return createConnectTransport({
-		baseUrl: BASE_URL,
+		baseUrl,
 		fetch: withCreds,
 		useBinaryFormat: false,
 		interceptors: [

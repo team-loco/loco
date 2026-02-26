@@ -9,7 +9,6 @@ package observabilityv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -77,9 +76,7 @@ func (x *GetObservabilityAccessRequest) GetResourceIds() []string {
 
 type GetObservabilityAccessResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	Clusters      []*ClusterAccess       `protobuf:"bytes,3,rep,name=clusters,proto3" json:"clusters,omitempty"`
+	Clusters      []*ClusterAccess       `protobuf:"bytes,1,rep,name=clusters,proto3" json:"clusters,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -112,20 +109,6 @@ func (x *GetObservabilityAccessResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetObservabilityAccessResponse.ProtoReflect.Descriptor instead.
 func (*GetObservabilityAccessResponse) Descriptor() ([]byte, []int) {
 	return file_loco_observability_v1_observability_access_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *GetObservabilityAccessResponse) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-func (x *GetObservabilityAccessResponse) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
 }
 
 func (x *GetObservabilityAccessResponse) GetClusters() []*ClusterAccess {
@@ -195,27 +178,30 @@ func (x *ClusterAccess) GetRegion() string {
 	return ""
 }
 
-type ValidateObservabilityTokenRequest struct {
+type CheckPermissionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	EntityType    string                 `protobuf:"bytes,2,opt,name=entity_type,json=entityType,proto3" json:"entity_type,omitempty"` // e.g. "workspace"
+	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"` // e.g. "read"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ValidateObservabilityTokenRequest) Reset() {
-	*x = ValidateObservabilityTokenRequest{}
+func (x *CheckPermissionRequest) Reset() {
+	*x = CheckPermissionRequest{}
 	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ValidateObservabilityTokenRequest) String() string {
+func (x *CheckPermissionRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ValidateObservabilityTokenRequest) ProtoMessage() {}
+func (*CheckPermissionRequest) ProtoMessage() {}
 
-func (x *ValidateObservabilityTokenRequest) ProtoReflect() protoreflect.Message {
+func (x *CheckPermissionRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -227,42 +213,60 @@ func (x *ValidateObservabilityTokenRequest) ProtoReflect() protoreflect.Message 
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ValidateObservabilityTokenRequest.ProtoReflect.Descriptor instead.
-func (*ValidateObservabilityTokenRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CheckPermissionRequest.ProtoReflect.Descriptor instead.
+func (*CheckPermissionRequest) Descriptor() ([]byte, []int) {
 	return file_loco_observability_v1_observability_access_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ValidateObservabilityTokenRequest) GetToken() string {
+func (x *CheckPermissionRequest) GetToken() string {
 	if x != nil {
 		return x.Token
 	}
 	return ""
 }
 
-type ValidateObservabilityTokenResponse struct {
+func (x *CheckPermissionRequest) GetEntityType() string {
+	if x != nil {
+		return x.EntityType
+	}
+	return ""
+}
+
+func (x *CheckPermissionRequest) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *CheckPermissionRequest) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+type CheckPermissionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	ResourceIds   []string               `protobuf:"bytes,2,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"`
-	Scopes        []string               `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Allowed       bool                   `protobuf:"varint,1,opt,name=allowed,proto3" json:"allowed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ValidateObservabilityTokenResponse) Reset() {
-	*x = ValidateObservabilityTokenResponse{}
+func (x *CheckPermissionResponse) Reset() {
+	*x = CheckPermissionResponse{}
 	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ValidateObservabilityTokenResponse) String() string {
+func (x *CheckPermissionResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ValidateObservabilityTokenResponse) ProtoMessage() {}
+func (*CheckPermissionResponse) ProtoMessage() {}
 
-func (x *ValidateObservabilityTokenResponse) ProtoReflect() protoreflect.Message {
+func (x *CheckPermissionResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -274,68 +278,44 @@ func (x *ValidateObservabilityTokenResponse) ProtoReflect() protoreflect.Message
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ValidateObservabilityTokenResponse.ProtoReflect.Descriptor instead.
-func (*ValidateObservabilityTokenResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CheckPermissionResponse.ProtoReflect.Descriptor instead.
+func (*CheckPermissionResponse) Descriptor() ([]byte, []int) {
 	return file_loco_observability_v1_observability_access_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ValidateObservabilityTokenResponse) GetWorkspaceId() string {
+func (x *CheckPermissionResponse) GetAllowed() bool {
 	if x != nil {
-		return x.WorkspaceId
+		return x.Allowed
 	}
-	return ""
-}
-
-func (x *ValidateObservabilityTokenResponse) GetResourceIds() []string {
-	if x != nil {
-		return x.ResourceIds
-	}
-	return nil
-}
-
-func (x *ValidateObservabilityTokenResponse) GetScopes() []string {
-	if x != nil {
-		return x.Scopes
-	}
-	return nil
-}
-
-func (x *ValidateObservabilityTokenResponse) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
+	return false
 }
 
 var File_loco_observability_v1_observability_access_proto protoreflect.FileDescriptor
 
 const file_loco_observability_v1_observability_access_proto_rawDesc = "" +
 	"\n" +
-	"0loco/observability/v1/observability_access.proto\x12\x15loco.observability.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"e\n" +
+	"0loco/observability/v1/observability_access.proto\x12\x15loco.observability.v1\"e\n" +
 	"\x1dGetObservabilityAccessRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12!\n" +
-	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\"\xb3\x01\n" +
-	"\x1eGetObservabilityAccessResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x129\n" +
-	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12@\n" +
-	"\bclusters\x18\x03 \x03(\v2$.loco.observability.v1.ClusterAccessR\bclusters\"c\n" +
+	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\"b\n" +
+	"\x1eGetObservabilityAccessResponse\x12@\n" +
+	"\bclusters\x18\x01 \x03(\v2$.loco.observability.v1.ClusterAccessR\bclusters\"c\n" +
 	"\rClusterAccess\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\x03R\tclusterId\x12\x1b\n" +
 	"\tproxy_url\x18\x02 \x01(\tR\bproxyUrl\x12\x16\n" +
-	"\x06region\x18\x03 \x01(\tR\x06region\"9\n" +
-	"!ValidateObservabilityTokenRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"\xbd\x01\n" +
-	"\"ValidateObservabilityTokenResponse\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12!\n" +
-	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\x12\x16\n" +
-	"\x06scopes\x18\x03 \x03(\tR\x06scopes\x129\n" +
-	"\n" +
-	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt2\xb8\x02\n" +
+	"\x06region\x18\x03 \x01(\tR\x06region\"\x82\x01\n" +
+	"\x16CheckPermissionRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1f\n" +
+	"\ventity_type\x18\x02 \x01(\tR\n" +
+	"entityType\x12\x1b\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\x12\x14\n" +
+	"\x05scope\x18\x04 \x01(\tR\x05scope\"3\n" +
+	"\x17CheckPermissionResponse\x12\x18\n" +
+	"\aallowed\x18\x01 \x01(\bR\aallowed2\x96\x02\n" +
 	"\x1aObservabilityAccessService\x12\x85\x01\n" +
-	"\x16GetObservabilityAccess\x124.loco.observability.v1.GetObservabilityAccessRequest\x1a5.loco.observability.v1.GetObservabilityAccessResponse\x12\x91\x01\n" +
-	"\x1aValidateObservabilityToken\x128.loco.observability.v1.ValidateObservabilityTokenRequest\x1a9.loco.observability.v1.ValidateObservabilityTokenResponseBGZEgithub.com/team-loco/loco/proto/loco/observability/v1;observabilityv1b\x06proto3"
+	"\x16GetObservabilityAccess\x124.loco.observability.v1.GetObservabilityAccessRequest\x1a5.loco.observability.v1.GetObservabilityAccessResponse\x12p\n" +
+	"\x0fCheckPermission\x12-.loco.observability.v1.CheckPermissionRequest\x1a..loco.observability.v1.CheckPermissionResponseBGZEgithub.com/team-loco/loco/proto/loco/observability/v1;observabilityv1b\x06proto3"
 
 var (
 	file_loco_observability_v1_observability_access_proto_rawDescOnce sync.Once
@@ -351,26 +331,23 @@ func file_loco_observability_v1_observability_access_proto_rawDescGZIP() []byte 
 
 var file_loco_observability_v1_observability_access_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_loco_observability_v1_observability_access_proto_goTypes = []any{
-	(*GetObservabilityAccessRequest)(nil),      // 0: loco.observability.v1.GetObservabilityAccessRequest
-	(*GetObservabilityAccessResponse)(nil),     // 1: loco.observability.v1.GetObservabilityAccessResponse
-	(*ClusterAccess)(nil),                      // 2: loco.observability.v1.ClusterAccess
-	(*ValidateObservabilityTokenRequest)(nil),  // 3: loco.observability.v1.ValidateObservabilityTokenRequest
-	(*ValidateObservabilityTokenResponse)(nil), // 4: loco.observability.v1.ValidateObservabilityTokenResponse
-	(*timestamppb.Timestamp)(nil),              // 5: google.protobuf.Timestamp
+	(*GetObservabilityAccessRequest)(nil),  // 0: loco.observability.v1.GetObservabilityAccessRequest
+	(*GetObservabilityAccessResponse)(nil), // 1: loco.observability.v1.GetObservabilityAccessResponse
+	(*ClusterAccess)(nil),                  // 2: loco.observability.v1.ClusterAccess
+	(*CheckPermissionRequest)(nil),         // 3: loco.observability.v1.CheckPermissionRequest
+	(*CheckPermissionResponse)(nil),        // 4: loco.observability.v1.CheckPermissionResponse
 }
 var file_loco_observability_v1_observability_access_proto_depIdxs = []int32{
-	5, // 0: loco.observability.v1.GetObservabilityAccessResponse.expires_at:type_name -> google.protobuf.Timestamp
-	2, // 1: loco.observability.v1.GetObservabilityAccessResponse.clusters:type_name -> loco.observability.v1.ClusterAccess
-	5, // 2: loco.observability.v1.ValidateObservabilityTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
-	0, // 3: loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess:input_type -> loco.observability.v1.GetObservabilityAccessRequest
-	3, // 4: loco.observability.v1.ObservabilityAccessService.ValidateObservabilityToken:input_type -> loco.observability.v1.ValidateObservabilityTokenRequest
-	1, // 5: loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess:output_type -> loco.observability.v1.GetObservabilityAccessResponse
-	4, // 6: loco.observability.v1.ObservabilityAccessService.ValidateObservabilityToken:output_type -> loco.observability.v1.ValidateObservabilityTokenResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: loco.observability.v1.GetObservabilityAccessResponse.clusters:type_name -> loco.observability.v1.ClusterAccess
+	0, // 1: loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess:input_type -> loco.observability.v1.GetObservabilityAccessRequest
+	3, // 2: loco.observability.v1.ObservabilityAccessService.CheckPermission:input_type -> loco.observability.v1.CheckPermissionRequest
+	1, // 3: loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess:output_type -> loco.observability.v1.GetObservabilityAccessResponse
+	4, // 4: loco.observability.v1.ObservabilityAccessService.CheckPermission:output_type -> loco.observability.v1.CheckPermissionResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_loco_observability_v1_observability_access_proto_init() }

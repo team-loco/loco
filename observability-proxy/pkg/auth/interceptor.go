@@ -2,62 +2,74 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"connectrpc.com/connect"
 )
 
-type contextKey string
+type tokenContextKey struct{}
 
-const ClaimsContextKey contextKey = "observability_claims"
-
-// ClaimsFromContext extracts ValidatedClaims from the request context.
-func ClaimsFromContext(ctx context.Context) (*ValidatedClaims, bool) {
-	claims, ok := ctx.Value(ClaimsContextKey).(*ValidatedClaims)
-	return claims, ok
+// TokenFromContext extracts the raw token string from the request context.
+func TokenFromContext(ctx context.Context) (string, bool) {
+	t, ok := ctx.Value(tokenContextKey{}).(string)
+	return t, ok && t != ""
 }
 
-// AuthInterceptor validates Bearer tokens and injects claims into context.
-// Implements connect.Interceptor to handle both unary and streaming RPCs.
-type AuthInterceptor struct {
-	validator *Validator
+// extractToken reads the bearer token from Authorization header or loco_token cookie,
+// mirroring the pattern used in api/middleware/githubOauth.go.
+func extractToken(header http.Header) (string, error) {
+	authHeader := header.Get("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer "), nil
+	}
+
+	cookieHeader := header.Get("Cookie")
+	cookies, err := http.ParseCookie(cookieHeader)
+	if err != nil {
+		return "", err
+	}
+	for _, c := range cookies {
+		if c.Name == "loco_token" {
+			return c.Value, nil
+		}
+	}
+
+	return "", errors.New("no token provided")
 }
 
-func NewAuthInterceptor(validator *Validator) *AuthInterceptor {
-	return &AuthInterceptor{validator: validator}
+// AuthInterceptor extracts the token from the request and injects it into context.
+// Actual permission checks are performed per-handler via the Validator.
+type AuthInterceptor struct{}
+
+func NewAuthInterceptor() *AuthInterceptor {
+	return &AuthInterceptor{}
 }
 
 func (i *AuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		claims, err := extractAndValidate(ctx, req.Header().Get("Authorization"), i.validator)
+		token, err := extractToken(req.Header())
 		if err != nil {
-			return nil, err
+			return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token: %w", err))
 		}
-		ctx = context.WithValue(ctx, ClaimsContextKey, claims)
+		ctx = context.WithValue(ctx, tokenContextKey{}, token)
 		return next(ctx, req)
 	}
 }
 
 func (i *AuthInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return next // proxy is server-side only
+	return next
 }
 
 func (i *AuthInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
 	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
-		claims, err := extractAndValidate(ctx, conn.RequestHeader().Get("Authorization"), i.validator)
+		token, err := extractToken(conn.RequestHeader())
 		if err != nil {
-			return err
+			return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token: %w", err))
 		}
-		ctx = context.WithValue(ctx, ClaimsContextKey, claims)
+		ctx = context.WithValue(ctx, tokenContextKey{}, token)
 		return next(ctx, conn)
 	}
-}
-
-func extractAndValidate(ctx context.Context, authHeader string, validator *Validator) (*ValidatedClaims, error) {
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	if token == "" || token == authHeader {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing or invalid authorization header"))
-	}
-	return validator.Validate(ctx, token)
 }

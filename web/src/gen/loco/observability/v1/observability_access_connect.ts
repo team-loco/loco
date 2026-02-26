@@ -3,12 +3,12 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetObservabilityAccessRequest, GetObservabilityAccessResponse, ValidateObservabilityTokenRequest, ValidateObservabilityTokenResponse } from "./observability_access_pb";
+import { CheckPermissionRequest, CheckPermissionResponse, GetObservabilityAccessRequest, GetObservabilityAccessResponse } from "./observability_access_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * ObservabilityAccessService runs on the control plane.
- * It mints short-lived tokens and returns regional proxy endpoints.
+ * It returns regional proxy endpoints and validates token permissions for the proxy.
  *
  * @generated from service loco.observability.v1.ObservabilityAccessService
  */
@@ -16,8 +16,8 @@ export const ObservabilityAccessService = {
   typeName: "loco.observability.v1.ObservabilityAccessService",
   methods: {
     /**
-     * GetObservabilityAccess mints a short-lived token scoped to a workspace and optional
-     * resource set, and returns the regional proxy endpoints the client should connect to.
+     * GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
+     * The client's existing TVM token is used directly when talking to the proxy.
      *
      * @generated from rpc loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess
      */
@@ -28,16 +28,15 @@ export const ObservabilityAccessService = {
       kind: MethodKind.Unary,
     },
     /**
-     * ValidateObservabilityToken is called by the observability proxy to validate a token
-     * received from a client. This endpoint is authenticated with a proxy auth token
-     * (similar to agent token) and is NOT intended for end users.
+     * CheckPermission is called by the observability proxy to validate whether a token
+     * has the requested permission on an entity. Authenticated with a proxy auth token.
      *
-     * @generated from rpc loco.observability.v1.ObservabilityAccessService.ValidateObservabilityToken
+     * @generated from rpc loco.observability.v1.ObservabilityAccessService.CheckPermission
      */
-    validateObservabilityToken: {
-      name: "ValidateObservabilityToken",
-      I: ValidateObservabilityTokenRequest,
-      O: ValidateObservabilityTokenResponse,
+    checkPermission: {
+      name: "CheckPermission",
+      I: CheckPermissionRequest,
+      O: CheckPermissionResponse,
       kind: MethodKind.Unary,
     },
   }
