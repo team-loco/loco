@@ -267,7 +267,6 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID,
 	for i, s := range specs {
 		id, err := queries.CreateResource(ctx, db.CreateResourceParams{
 			WorkspaceID:   wksIDs[s.wksIdx],
-			EnvironmentID: envIDs[s.wksIdx], // production env for this workspace
 			Name:          s.name,
 			Type:          db.ResourceTypeService,
 			Description:   s.desc,

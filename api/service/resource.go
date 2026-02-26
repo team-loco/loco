@@ -315,7 +315,7 @@ func (s *ResourceServer) GetResource(
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(resourceByIDToResource(resource), resourceDomains, resourceRegions),
+		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
 	}), nil
 }
 
@@ -381,7 +381,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 			slog.ErrorContext(ctx, "failed to list resource regions", "resourceId", dbResource.ID, "error", err)
 			continue
 		}
-		resources = append(resources, dbResourceToProto(resourceListRowToResource(dbResource), resourceDomains, resourceRegions))
+		resources = append(resources, dbResourceToProto(dbResource, resourceDomains, resourceRegions))
 	}
 
 	var nextPageToken string
@@ -577,7 +577,7 @@ func (s *ResourceServer) GetResourceStatus(
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
-		Resource:          dbResourceToProto(resourceByIDToResource(resource), resourceDomains, resourceRegions),
+		Resource:          dbResourceToProto(resource, resourceDomains, resourceRegions),
 		CurrentDeployment: deploymentStatus,
 	}), nil
 }
@@ -824,7 +824,7 @@ func (s *ResourceServer) ScaleResource(
 
 	// Build the Application spec for the agent
 	appSpec, err := buildApplicationSpec(
-		resourceByIDToResource(resource),
+		resource,
 		resourceSpec,
 		domain.Domain,
 		updatedDeploymentSpec,
@@ -1028,7 +1028,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	// Build the Application spec for the agent
 	appSpec, err := buildApplicationSpec(
-		resourceByIDToResource(resource),
+		resource,
 		resourceSpec,
 		domain.Domain,
 		updatedDeploymentSpec,
@@ -1147,37 +1147,6 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 	return protoDomains
 }
 
-// resourceByIDToResource converts a GetResourceByIDRow to a Resource value.
-func resourceByIDToResource(r genDb.GetResourceByIDRow) genDb.Resource {
-	return genDb.Resource{
-		ID:          r.ID,
-		WorkspaceID: r.WorkspaceID,
-		Name:        r.Name,
-		Type:        r.Type,
-		Description: r.Description,
-		Status:      r.Status,
-		Spec:        r.Spec,
-		SpecVersion: r.SpecVersion,
-		CreatedAt:   r.CreatedAt,
-		UpdatedAt:   r.UpdatedAt,
-	}
-}
-
-// resourceListRowToResource converts a ListResourcesForWorkspaceRow to a Resource value.
-func resourceListRowToResource(r genDb.ListResourcesForWorkspaceRow) genDb.Resource {
-	return genDb.Resource{
-		ID:          r.ID,
-		WorkspaceID: r.WorkspaceID,
-		Name:        r.Name,
-		Type:        r.Type,
-		Description: r.Description,
-		Status:      r.Status,
-		Spec:        r.Spec,
-		SpecVersion: r.SpecVersion,
-		CreatedAt:   r.CreatedAt,
-		UpdatedAt:   r.UpdatedAt,
-	}
-}
 
 // dbResourceToProto converts a database Resource to the proto Resource
 // to be returned to client. Note: caller is responsible for fetching domains and regions separately.

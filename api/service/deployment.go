@@ -312,7 +312,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// Build the Application spec for the agent
 	appSpec, err := buildApplicationSpec(
-		resourceByIDToResource(resource),
+		resource,
 		resourceSpec,
 		domain.Domain,
 		mergedSpec,

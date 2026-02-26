@@ -320,7 +320,7 @@ export function SiteHeader() {
 									<Avatar className="h-6 w-6">
 										<AvatarImage src={user?.avatarUrl} alt={user?.name} />
 										<AvatarFallback className="text-xs">
-											{user?.name?.charAt(0)?.toUpperCase()}
+											{user?.name.charAt(0).toUpperCase()}
 										</AvatarFallback>
 									</Avatar>
 								</Button>
