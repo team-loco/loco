@@ -131,48 +131,6 @@ export function WorkspaceDashboardMetrics({
 
 	return (
 		<div className="relative">
-			{/* Floating New Resource Button */}
-			<div className="fixed bottom-8 right-8 inline-flex items-center justify-center rounded-lg bg-primary/5 shadow-lg hover:shadow-xl transition-shadow">
-				<Button
-					className="rounded-r-none border-r border-primary/20 h-11 px-4"
-					onClick={() => { setDropdownOpen(true); }}
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					New Resource
-				</Button>
-				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-					<DropdownMenuTrigger asChild>
-						<Button
-							size="icon"
-							className="h-11 w-12 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
-						>
-							<ChevronDown
-								className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
-							/>
-							<span className="sr-only">Toggle menu</span>
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-36">
-						{RESOURCE_TYPES.map((type) => (
-							<DropdownMenuItem
-								key={type.value}
-								onClick={() => {
-									if (activeOrgId && activeWorkspaceId) {
-										void navigate(
-											`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
-										);
-									}
-								}}
-								disabled={!type.available}
-								className="cursor-pointer"
-							>
-								{type.label}
-							</DropdownMenuItem>
-						))}
-					</DropdownMenuContent>
-				</DropdownMenu>
-			</div>
-
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 			{/* Total Apps (Active) */}
 			<Card className="hover:border-border-strong group">

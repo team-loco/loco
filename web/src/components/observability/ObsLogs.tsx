@@ -73,7 +73,7 @@ export function ObsLogs() {
 		<div className="flex flex-col gap-3">
 			{/* Query bar */}
 			<div className="flex items-center gap-2">
-				<div className="relative flex-1">
+				<div className="relative w-96">
 					<Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
 					<Input
 						value={queryText}

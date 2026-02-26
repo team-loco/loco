@@ -1,9 +1,9 @@
-import { ResourceStatus } from "@/gen/loco/resource/v1/resource_pb";
 import { DeploymentPhase } from "@/gen/loco/deployment/v1/deployment_pb";
+import { ResourceStatus } from "@/gen/loco/resource/v1/resource_pb";
 
-export function getStatusLabel(status?: number): string {
-	if (status === undefined || status === null) return "pending";
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+export function getStatusLabel(status?: ResourceStatus): string {
+	if (status === undefined) return "pending";
+
 	switch (status) {
 		case ResourceStatus.HEALTHY:
 			return "running";
@@ -20,9 +20,9 @@ export function getStatusLabel(status?: number): string {
 	}
 }
 
-export function getDeploymentPhaseLabel(phase?: number): string {
-	if (phase === undefined || phase === null) return "pending";
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+export function getDeploymentPhaseLabel(phase?: DeploymentPhase): string {
+	if (phase === undefined) return "pending";
+
 	switch (phase) {
 		case DeploymentPhase.PENDING:
 			return "pending";

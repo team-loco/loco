@@ -357,7 +357,8 @@ func (s *UserServer) Logout(
 	req *connect.Request[userv1.LogoutRequest],
 ) (*connect.Response[userv1.LogoutResponse], error) {
 	res := connect.NewResponse(&userv1.LogoutResponse{})
-	res.Header().Set("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+	res.Header().Add("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag())
+	res.Header().Add("Set-Cookie", "loco_refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag())
 
 	token, ok := ctx.Value(contextkeys.TokenKey).(string)
 	if !ok {

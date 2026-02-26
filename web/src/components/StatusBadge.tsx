@@ -1,4 +1,5 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/ui/badge";
+import { type VariantProps } from "class-variance-authority";
 import {
 	Tooltip,
 	TooltipContent,
@@ -6,12 +7,19 @@ import {
 } from "@/components/ui/tooltip";
 import { getResourceStatusTooltip } from "@/lib/deployment-utils";
 
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
 interface StatusBadgeProps {
 	status: string;
 	showTooltip?: boolean;
 }
 
-const statusConfig: Record<string, { variant: string; dot: string }> = {
+interface StatusConfig {
+	variant: BadgeVariant;
+	dot: string;
+}
+
+const statusConfig: Record<string, StatusConfig | undefined> & { pending: StatusConfig } = {
 	running: {
 		variant: "success",
 		dot: "bg-success dark:bg-success",
@@ -36,13 +44,13 @@ const statusConfig: Record<string, { variant: string; dot: string }> = {
 
 export function StatusBadge({ status, showTooltip = true }: StatusBadgeProps) {
 	const normalizedStatus = status.toLowerCase();
-	const config = statusConfig[normalizedStatus] || statusConfig.pending;
+	const config = statusConfig[normalizedStatus] ?? statusConfig.pending;
 	const isPulsing =
 		normalizedStatus === "running" || normalizedStatus === "deploying";
 
 	const badge = (
 		<Badge
-			variant={config.variant as any}
+			variant={config.variant}
 			className="flex items-center gap-2"
 		>
 			<span

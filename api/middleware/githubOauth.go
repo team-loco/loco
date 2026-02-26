@@ -56,7 +56,8 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 		if req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthDetails" ||
 			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
 			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthCode" ||
-			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthToken" {
+			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthToken" ||
+			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/RefreshToken" {
 			return next(ctx, req)
 		}
 
@@ -104,7 +105,8 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 		if conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthDetails" ||
 			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
 			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthCode" ||
-			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthToken" {
+			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthToken" ||
+			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/RefreshToken" {
 			return next(ctx, conn)
 		}
 

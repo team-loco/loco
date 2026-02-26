@@ -65,6 +65,19 @@ message ExchangeOAuthCodeResponse {
   string name = 3;
 }
 
+// RefreshTokenRequest requests a new session token pair using a refresh token.
+// If refresh_token is empty, the server reads the loco_refresh_token cookie.
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// RefreshTokenResponse contains the new session token pair.
+message RefreshTokenResponse {
+  string loco_token = 1;
+  int64 expires_in = 2; // seconds
+  string refresh_token = 3;
+}
+
 // OAuthService handles OAuth authentication flows.
 service OAuthService {
   // GetOAuthDetails retrieves OAuth configuration for a provider.
@@ -75,4 +88,6 @@ service OAuthService {
   rpc GetOAuthAuthorizationURL(GetOAuthAuthorizationURLRequest) returns (GetOAuthAuthorizationURLResponse) {}
   // ExchangeOAuthCode exchanges an OAuth authorization code for a Loco token.
   rpc ExchangeOAuthCode(ExchangeOAuthCodeRequest) returns (ExchangeOAuthCodeResponse) {}
+  // RefreshToken rotates a session token pair using a refresh token.
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {}
 }

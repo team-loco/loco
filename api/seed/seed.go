@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/gen/db"
@@ -564,14 +565,55 @@ func main() {
 		return
 	}
 
-	pool, err := pgxpool.New(context.Background(), databaseURL)
+	ctx := context.Background()
+
+	// Run migrations with a plain connection — the custom PG types (entity_type,
+	// entity_scope) don't exist yet, so we cannot use the AfterConnect hook here.
+	plainConn, err := pgx.Connect(ctx, databaseURL)
+	if err != nil {
+		slog.Error("unable to connect for migrations", "error", err)
+		return
+	}
+	for _, path := range strings.Split(migrationFiles, ",") {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			slog.Error("read migration file", "path", path, "error", err)
+			plainConn.Close(ctx)
+			return
+		}
+		if _, err := plainConn.Exec(ctx, string(data)); err != nil {
+			slog.Error("execute migration", "path", path, "error", err)
+			plainConn.Close(ctx)
+			return
+		}
+	}
+	plainConn.Close(ctx)
+
+	// Now that the schema (and custom types) exist, create the typed pool.
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		slog.Error("unable to parse db config", "error", err)
+		return
+	}
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		for _, typeName := range []string{"entity_type", "entity_scope"} {
+			t, err := conn.LoadType(ctx, typeName)
+			if err != nil {
+				return fmt.Errorf("load pg type %q: %w", typeName, err)
+			}
+			conn.TypeMap().RegisterType(t)
+		}
+		return nil
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		slog.Error("unable to create db pool", "error", err)
 		return
 	}
 	defer pool.Close()
 
-	if err := Seed(context.Background(), pool, strings.Split(migrationFiles, ",")); err != nil {
+	// Seed data (inserts only — no composite type queries needed).
+	if err := Seed(ctx, pool, nil); err != nil {
 		slog.Error("seeding failed", "error", err)
 	}
 

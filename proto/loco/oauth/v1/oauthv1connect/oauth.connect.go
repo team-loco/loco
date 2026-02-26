@@ -45,6 +45,9 @@ const (
 	// OAuthServiceExchangeOAuthCodeProcedure is the fully-qualified name of the OAuthService's
 	// ExchangeOAuthCode RPC.
 	OAuthServiceExchangeOAuthCodeProcedure = "/loco.oauth.v1.OAuthService/ExchangeOAuthCode"
+	// OAuthServiceRefreshTokenProcedure is the fully-qualified name of the OAuthService's RefreshToken
+	// RPC.
+	OAuthServiceRefreshTokenProcedure = "/loco.oauth.v1.OAuthService/RefreshToken"
 )
 
 // OAuthServiceClient is a client for the loco.oauth.v1.OAuthService service.
@@ -57,6 +60,8 @@ type OAuthServiceClient interface {
 	GetOAuthAuthorizationURL(context.Context, *connect.Request[v1.GetOAuthAuthorizationURLRequest]) (*connect.Response[v1.GetOAuthAuthorizationURLResponse], error)
 	// ExchangeOAuthCode exchanges an OAuth authorization code for a Loco token.
 	ExchangeOAuthCode(context.Context, *connect.Request[v1.ExchangeOAuthCodeRequest]) (*connect.Response[v1.ExchangeOAuthCodeResponse], error)
+	// RefreshToken rotates a session token pair using a refresh token.
+	RefreshToken(context.Context, *connect.Request[v1.RefreshTokenRequest]) (*connect.Response[v1.RefreshTokenResponse], error)
 }
 
 // NewOAuthServiceClient constructs a client for the loco.oauth.v1.OAuthService service. By default,
@@ -94,6 +99,12 @@ func NewOAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(oAuthServiceMethods.ByName("ExchangeOAuthCode")),
 			connect.WithClientOptions(opts...),
 		),
+		refreshToken: connect.NewClient[v1.RefreshTokenRequest, v1.RefreshTokenResponse](
+			httpClient,
+			baseURL+OAuthServiceRefreshTokenProcedure,
+			connect.WithSchema(oAuthServiceMethods.ByName("RefreshToken")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -103,6 +114,7 @@ type oAuthServiceClient struct {
 	exchangeOAuthToken       *connect.Client[v1.ExchangeOAuthTokenRequest, v1.ExchangeOAuthTokenResponse]
 	getOAuthAuthorizationURL *connect.Client[v1.GetOAuthAuthorizationURLRequest, v1.GetOAuthAuthorizationURLResponse]
 	exchangeOAuthCode        *connect.Client[v1.ExchangeOAuthCodeRequest, v1.ExchangeOAuthCodeResponse]
+	refreshToken             *connect.Client[v1.RefreshTokenRequest, v1.RefreshTokenResponse]
 }
 
 // GetOAuthDetails calls loco.oauth.v1.OAuthService.GetOAuthDetails.
@@ -125,6 +137,11 @@ func (c *oAuthServiceClient) ExchangeOAuthCode(ctx context.Context, req *connect
 	return c.exchangeOAuthCode.CallUnary(ctx, req)
 }
 
+// RefreshToken calls loco.oauth.v1.OAuthService.RefreshToken.
+func (c *oAuthServiceClient) RefreshToken(ctx context.Context, req *connect.Request[v1.RefreshTokenRequest]) (*connect.Response[v1.RefreshTokenResponse], error) {
+	return c.refreshToken.CallUnary(ctx, req)
+}
+
 // OAuthServiceHandler is an implementation of the loco.oauth.v1.OAuthService service.
 type OAuthServiceHandler interface {
 	// GetOAuthDetails retrieves OAuth configuration for a provider.
@@ -135,6 +152,8 @@ type OAuthServiceHandler interface {
 	GetOAuthAuthorizationURL(context.Context, *connect.Request[v1.GetOAuthAuthorizationURLRequest]) (*connect.Response[v1.GetOAuthAuthorizationURLResponse], error)
 	// ExchangeOAuthCode exchanges an OAuth authorization code for a Loco token.
 	ExchangeOAuthCode(context.Context, *connect.Request[v1.ExchangeOAuthCodeRequest]) (*connect.Response[v1.ExchangeOAuthCodeResponse], error)
+	// RefreshToken rotates a session token pair using a refresh token.
+	RefreshToken(context.Context, *connect.Request[v1.RefreshTokenRequest]) (*connect.Response[v1.RefreshTokenResponse], error)
 }
 
 // NewOAuthServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -168,6 +187,12 @@ func NewOAuthServiceHandler(svc OAuthServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(oAuthServiceMethods.ByName("ExchangeOAuthCode")),
 		connect.WithHandlerOptions(opts...),
 	)
+	oAuthServiceRefreshTokenHandler := connect.NewUnaryHandler(
+		OAuthServiceRefreshTokenProcedure,
+		svc.RefreshToken,
+		connect.WithSchema(oAuthServiceMethods.ByName("RefreshToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.oauth.v1.OAuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OAuthServiceGetOAuthDetailsProcedure:
@@ -178,6 +203,8 @@ func NewOAuthServiceHandler(svc OAuthServiceHandler, opts ...connect.HandlerOpti
 			oAuthServiceGetOAuthAuthorizationURLHandler.ServeHTTP(w, r)
 		case OAuthServiceExchangeOAuthCodeProcedure:
 			oAuthServiceExchangeOAuthCodeHandler.ServeHTTP(w, r)
+		case OAuthServiceRefreshTokenProcedure:
+			oAuthServiceRefreshTokenHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -201,4 +228,8 @@ func (UnimplementedOAuthServiceHandler) GetOAuthAuthorizationURL(context.Context
 
 func (UnimplementedOAuthServiceHandler) ExchangeOAuthCode(context.Context, *connect.Request[v1.ExchangeOAuthCodeRequest]) (*connect.Response[v1.ExchangeOAuthCodeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.ExchangeOAuthCode is not implemented"))
+}
+
+func (UnimplementedOAuthServiceHandler) RefreshToken(context.Context, *connect.Request[v1.RefreshTokenRequest]) (*connect.Response[v1.RefreshTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.oauth.v1.OAuthService.RefreshToken is not implemented"))
 }

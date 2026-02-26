@@ -265,7 +265,7 @@ export function SiteHeader() {
 
 	return (
 		<>
-			<header className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-border/50 bg-background/95 backdrop-blur-sm">
+			<header className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-border/50 bg-background/95 backdrop-blur-sm" style={{ backgroundColor: "#f8f2e8" }}>
 				<div className="flex h-11 w-full items-center px-6">
 					{/* Inline Navigation - Evenly Spaced */}
 					<div
@@ -275,10 +275,11 @@ export function SiteHeader() {
 						{/* Sliding background */}
 						{sliderStyle && (
 							<div
-								className="absolute h-8 bg-primary rounded-sm transition-all duration-300 ease-out"
+								className="absolute h-8 bg-primary rounded-sm transition-all duration-300 ease-out border border-black/15"
 								style={{
 									width: `${sliderStyle.width.toString()}px`,
 									left: `${sliderStyle.left.toString()}px`,
+									boxShadow: "4px 4px 0px #000000",
 								}}
 							/>
 						)}

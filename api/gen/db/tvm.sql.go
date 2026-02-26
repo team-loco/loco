@@ -388,40 +388,40 @@ func (q *Queries) GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOn
 
 const getUserScopesOnOrganization = `-- name: GetUserScopesOnOrganization :many
 WITH RECURSIVE entity_hierarchy AS (
-    -- Base case: the organization itself
-    SELECT
-        'organization'::entity_type as entity_type,
-        o.id as entity_id,
-        o.name as entity_name
-    FROM organizations o
-    WHERE o.id = $1
+     -- Base case: the organization itself
+     SELECT
+         'organization'::entity_type as entity_type,
+         o.id as entity_id,
+         o.name as entity_name
+     FROM organizations o
+     WHERE o.id = $1
 
-    UNION ALL
+     UNION ALL
 
-    -- Workspaces in the organization
-    SELECT
-        'workspace'::entity_type,
-        w.id,
-        w.name
-    FROM workspaces w
-    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'organization' AND eh.entity_id = w.org_id
+     -- Workspaces in the organization
+     SELECT
+         'workspace'::entity_type,
+         w.id,
+         w.name
+     FROM workspaces w
+     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'organization' AND eh.entity_id = w.org_id
 
-    UNION ALL
+     UNION ALL
 
-    -- Resources in the workspaces
-    SELECT
-        'resource'::entity_type,
-        r.id,
-        r.name
-    FROM resources r
-    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
-)
-SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-    ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
-FROM user_scopes us
-INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
-WHERE us.user_id = $2
-ORDER BY us.entity_type, us.entity_id, us.scope
+     -- Resources in the workspaces
+     SELECT
+         'resource'::entity_type,
+         r.id,
+         r.name
+     FROM resources r
+     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
+ )
+ SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
+     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+ FROM user_scopes us
+ INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
+ WHERE us.user_id = $2
+ ORDER BY us.entity_type, us.entity_id, us.scope
 `
 
 type GetUserScopesOnOrganizationParams struct {
@@ -431,59 +431,6 @@ type GetUserScopesOnOrganizationParams struct {
 
 func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]EntityScope, error) {
 	rows, err := q.db.Query(ctx, getUserScopesOnOrganization, arg.ID, arg.UserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []EntityScope
-	for rows.Next() {
-		var column_1 EntityScope
-		if err := rows.Scan(&column_1); err != nil {
-			return nil, err
-		}
-		items = append(items, column_1)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getUserScopesOnWorkspace = `-- name: GetUserScopesOnWorkspace :many
-WITH RECURSIVE entity_hierarchy AS (
-    -- Base case: the workspace itself
-    SELECT
-        'workspace'::entity_type as entity_type,
-        w.id as entity_id,
-        w.name as entity_name
-    FROM workspaces w
-    WHERE w.id = $1
-
-    UNION ALL
-
-    -- Resources in the workspace
-    SELECT
-        'resource'::entity_type,
-        r.id,
-        r.name
-    FROM resources r
-    INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
-)
-SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-    ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
-FROM user_scopes us
-INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
-WHERE us.user_id = $2
-ORDER BY us.entity_type, us.entity_id, us.scope
-`
-
-type GetUserScopesOnWorkspaceParams struct {
-	ID     uuid.UUID `json:"id"`
-	UserID uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]EntityScope, error) {
-	rows, err := q.db.Query(ctx, getUserScopesOnWorkspace, arg.ID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}

@@ -75,7 +75,7 @@ const TabsList = ({ ref, className, ...props }: React.ComponentPropsWithoutRef<t
 				ref={ref}
 				data-slot="tabs-list"
 				className={cn(
-					"bg-muted text-muted-foreground relative inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
+					"bg-accent text-muted-foreground relative inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
 					className
 				)}
 				{...props}

@@ -207,7 +207,7 @@ export function ScaleCard({
 				{/* Action Button */}
 				<Button
 					onClick={() => {
-						void handleScale();
+						handleScale();
 					}}
 					disabled={isPending || isLoading || !hasChanges}
 					className="w-full"

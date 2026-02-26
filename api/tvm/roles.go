@@ -73,9 +73,10 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
-		rows, err := tvm.queries.GetUserScopesOnWorkspace(ctx, queries.GetUserScopesOnWorkspaceParams{
-			UserID: userId,
-			ID:     entity.ID,
+		rows, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
+			UserID:     userId,
+			EntityType: entity.Type,
+			EntityID:   entity.ID,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)

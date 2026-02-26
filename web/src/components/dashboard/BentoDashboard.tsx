@@ -1,7 +1,33 @@
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
-import { Activity, Box, Cpu, GitBranch, Terminal } from "lucide-react";
+import {
+	Activity,
+	Box,
+	ChevronDown,
+	Cpu,
+	GitBranch,
+	Terminal,
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 import { Line, LineChart, ResponsiveContainer, Tooltip } from "recharts";
+
+const RESOURCE_TYPES = [
+	{ value: "SERVICE", label: "Service", available: true },
+	{ value: "DATABASE", label: "Database", available: false },
+	{ value: "FUNCTION", label: "Function", available: false },
+	{ value: "CACHE", label: "Cache", available: false },
+	{ value: "QUEUE", label: "Queue", available: false },
+	{ value: "BLOB", label: "Blob Storage", available: false },
+];
 
 interface BentoDashboardProps {
 	resources: Resource[];
@@ -16,13 +42,139 @@ const chartData = Array.from({ length: 24 }).map((_, i) => ({
 }));
 
 export function BentoDashboard({ resources }: BentoDashboardProps) {
+	const navigate = useNavigate();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 	const activeResources = resources.filter((r) => r.status !== 3).length;
 
 	return (
 		<div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 lg:gap-6 auto-rows-[minmax(120px,auto)]">
+			{/* WIDGET 3: Resources Roster (col-span-8, row-span-2) - MOVED UP */}
+			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-2 border-border rounded-2xl shadow-sm flex flex-col overflow-visible py-0">
+				<div className="p-5 py-3 border-b border-border/50 flex justify-between items-center">
+					<h3 className="font-bold text-foreground">Resources</h3>
+					<div className="flex items-center gap-3">
+						<span className="text-xs font-mono bg-muted px-2 py-1 rounded-md text-muted-foreground border border-border">
+							{activeResources} Active
+						</span>
+						<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+							<DropdownMenuTrigger asChild>
+								<div
+									className="inline-flex items-center justify-center rounded-lg bg-primary/5"
+									style={{
+										boxShadow: "4px 4px 0px #000000",
+									}}
+								>
+									<Button
+										className="rounded-r-none border-r border-primary/20 h-8 px-3 text-sm"
+										size="sm"
+									>
+										New Resource
+									</Button>
+									<Button
+										size="sm"
+										className="h-8 w-8 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
+									>
+										<ChevronDown
+											className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+										/>
+										<span className="sr-only">Toggle menu</span>
+									</Button>
+								</div>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-36">
+								{RESOURCE_TYPES.map((type) => (
+									<DropdownMenuItem
+										key={type.value}
+										onClick={() => {
+											if (activeOrgId && activeWorkspaceId) {
+												void navigate(
+													`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
+												);
+											}
+										}}
+										disabled={!type.available}
+										className="cursor-pointer"
+									>
+										{type.label}
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				</div>
+				<div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/50 p-px">
+					{resources.slice(0, 8).map((resource) => (
+						<div
+							key={resource.id}
+							className="bg-card hover:bg-muted/30 p-4 transition-colors cursor-pointer flex flex-col justify-between min-h-[100px]"
+						>
+							<div className="flex items-start justify-between">
+								<h4 className="font-semibold text-sm truncate pr-2">
+									{resource.name}
+								</h4>
+								<div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] shrink-0 mt-1.5" />
+							</div>
+							<div className="flex items-center justify-between mt-4">
+								<div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+									<Cpu className="w-3 h-3" />
+									{Math.floor(Math.random() * 40)}%
+								</div>
+								<span className="text-xs text-muted-foreground">Prod</span>
+							</div>
+						</div>
+					))}
+					{resources.length === 0 && (
+						<div className="col-span-full p-6 text-center text-muted-foreground bg-card">
+							No resources provisioned
+						</div>
+					)}
+				</div>
+			</Card>
+
+			{/* WIDGET 2: Active Deployments Feed (col-span-4, row-span-4) */}
+			<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-4 border-border rounded-2xl shadow-sm flex flex-col overflow-hidden py-0">
+				<div className="p-5 py-3 border-b border-border/50">
+					<h3 className="font-bold text-foreground flex items-center gap-2">
+						<Terminal className="w-4 h-4" /> Deployment Activity
+					</h3>
+				</div>
+				<div className="flex-1 overflow-y-auto p-5 space-y-4">
+					{/* Mock feed items */}
+					{[...Array(5)].map((_, i) => (
+						<div
+							key={i}
+							className="flex gap-3 relative before:absolute before:left-2.5 before:top-6 before:-bottom-4 before:w-px before:bg-border last:before:hidden"
+						>
+							<div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 z-10">
+								<div className="w-1.5 h-1.5 rounded-full bg-primary" />
+							</div>
+							<div className="pb-2">
+								<p className="text-sm font-medium text-foreground">
+									<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono text-primary mr-1 border border-border">
+										api-gateway
+									</code>
+									deployed successfully
+								</p>
+								<div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+									<span className="flex items-center gap-1">
+										<GitBranch className="w-3 h-3" /> main
+									</span>
+									<span>•</span>
+									<span>2m ago</span>
+									<span>•</span>
+									<span className="font-mono">#b719f10</span>
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
+			</Card>
+
 			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-3 border-border rounded-2xl shadow-sm overflow-hidden flex flex-col relative group py-0">
-				<div className="p-6 border-b border-border/50 flex justify-between items-center z-10">
+				<div className="p-6 py-4 border-b border-border/50 flex justify-between items-center z-10">
 					<div>
 						<h2 className="text-xl font-bold font-mono tracking-tight text-foreground flex items-center gap-2">
 							<Box className="w-5 h-5 text-primary" />
@@ -84,82 +236,6 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 							/>
 						</LineChart>
 					</ResponsiveContainer>
-				</div>
-			</Card>
-
-			{/* WIDGET 2: Active Deployments Feed (col-span-4, row-span-4) */}
-			<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-4 border-border rounded-2xl shadow-sm flex flex-col overflow-hidden py-0">
-				<div className="p-5 border-b border-border/50">
-					<h3 className="font-bold text-foreground flex items-center gap-2">
-						<Terminal className="w-4 h-4" /> Activity Stream
-					</h3>
-				</div>
-				<div className="flex-1 overflow-y-auto p-5 space-y-4">
-					{/* Mock feed items */}
-					{[...Array(5)].map((_, i) => (
-						<div
-							key={i}
-							className="flex gap-3 relative before:absolute before:left-2.5 before:top-6 before:-bottom-4 before:w-px before:bg-border last:before:hidden"
-						>
-							<div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 z-10">
-								<div className="w-1.5 h-1.5 rounded-full bg-primary" />
-							</div>
-							<div className="pb-2">
-								<p className="text-sm font-medium text-foreground">
-									<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono text-primary mr-1 border border-border">
-										api-gateway
-									</code>
-									deployed successfully
-								</p>
-								<div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-									<span className="flex items-center gap-1">
-										<GitBranch className="w-3 h-3" /> main
-									</span>
-									<span>•</span>
-									<span>2m ago</span>
-									<span>•</span>
-									<span className="font-mono">#b719f10</span>
-								</div>
-							</div>
-						</div>
-					))}
-				</div>
-			</Card>
-
-			{/* WIDGET 3: Resources Roster (col-span-8, row-span-2) */}
-			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-2 border-border rounded-2xl shadow-sm flex flex-col overflow-hidden py-0">
-				<div className="p-5 border-b border-border/50 flex justify-between items-center">
-					<h3 className="font-bold text-foreground">Resources</h3>
-					<span className="text-xs font-mono bg-muted px-2 py-1 rounded-md text-muted-foreground border border-border">
-						{activeResources} Active
-					</span>
-				</div>
-				<div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/50 p-px">
-					{resources.slice(0, 8).map((resource) => (
-						<div
-							key={resource.id}
-							className="bg-card hover:bg-muted/30 p-4 transition-colors cursor-pointer flex flex-col justify-between min-h-[100px]"
-						>
-							<div className="flex items-start justify-between">
-								<h4 className="font-semibold text-sm truncate pr-2">
-									{resource.name}
-								</h4>
-								<div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] shrink-0 mt-1.5" />
-							</div>
-							<div className="flex items-center justify-between mt-4">
-								<div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
-									<Cpu className="w-3 h-3" />
-									{Math.floor(Math.random() * 40)}%
-								</div>
-								<span className="text-xs text-muted-foreground">Prod</span>
-							</div>
-						</div>
-					))}
-					{resources.length === 0 && (
-						<div className="col-span-full p-8 text-center text-muted-foreground bg-card">
-							No resources provisioned
-						</div>
-					)}
 				</div>
 			</Card>
 
