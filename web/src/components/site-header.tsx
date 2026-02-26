@@ -260,12 +260,17 @@ export function SiteHeader() {
 		};
 
 		window.addEventListener("resize", handleResize);
-		return () => { window.removeEventListener("resize", handleResize); };
+		return () => {
+			window.removeEventListener("resize", handleResize);
+		};
 	}, [calculateSliderStyle]);
 
 	return (
 		<>
-			<header className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-border/50 bg-background/95 backdrop-blur-sm" style={{ backgroundColor: "#f8f2e8" }}>
+			<header
+				className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-border/50 bg-background/95 backdrop-blur-sm"
+				style={{ backgroundColor: "var(--background)" }}
+			>
 				<div className="flex h-11 w-full items-center px-6">
 					{/* Inline Navigation - Evenly Spaced */}
 					<div
@@ -352,8 +357,10 @@ export function SiteHeader() {
 												Organization
 											</div>
 											<button
-												onClick={() => { setSwitchContextOpen(true); }}
-												className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-accent/20 hover:bg-accent/30 active:bg-accent/40 transition-all duration-150 text-sm font-medium cursor-pointer border border-accent/30"
+												onClick={() => {
+													setSwitchContextOpen(true);
+												}}
+												className="w-full flex items-center justify-between gap-2 px-3 py-1 rounded-sm bg-accent text-muted-foreground hover:bg-accent/80 active:bg-accent/70 transition-all duration-150 text-sm font-medium cursor-pointer border border-transparent"
 											>
 												<span className="truncate font-semibold">
 													{activeOrg.name}
@@ -367,8 +374,10 @@ export function SiteHeader() {
 													Workspace
 												</div>
 												<button
-													onClick={() => { setSwitchContextOpen(true); }}
-													className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-accent/20 hover:bg-accent/30 active:bg-accent/40 transition-all duration-150 text-sm font-medium cursor-pointer border border-accent/30"
+													onClick={() => {
+														setSwitchContextOpen(true);
+													}}
+													className="w-full flex items-center justify-between gap-2 px-3 py-1 rounded-sm bg-accent text-muted-foreground hover:bg-accent/80 active:bg-accent/70 transition-all duration-150 text-sm font-medium cursor-pointer border border-transparent"
 												>
 													<span className="truncate font-semibold">
 														{workspaces.find((w) => w.id === activeWorkspaceId)
@@ -396,7 +405,9 @@ export function SiteHeader() {
 											e.preventDefault();
 											void handleThemeToggle();
 										}}
-										onSelect={(e) => { e.preventDefault(); }}
+										onSelect={(e) => {
+											e.preventDefault();
+										}}
 										className="cursor-pointer flex justify-between"
 									>
 										<span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
@@ -468,7 +479,9 @@ export function SiteHeader() {
 									type="text"
 									placeholder="My Organization"
 									value={newOrgName}
-									onChange={(e) => { setNewOrgName(e.target.value); }}
+									onChange={(e) => {
+										setNewOrgName(e.target.value);
+									}}
 									disabled={isCreatingOrg}
 									autoFocus
 									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
@@ -478,7 +491,9 @@ export function SiteHeader() {
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => { setShowCreateOrgForm(false); }}
+									onClick={() => {
+										setShowCreateOrgForm(false);
+									}}
 									disabled={isCreatingOrg}
 								>
 									Back
@@ -509,7 +524,9 @@ export function SiteHeader() {
 									type="text"
 									placeholder="Production"
 									value={newWorkspaceName}
-									onChange={(e) => { setNewWorkspaceName(e.target.value); }}
+									onChange={(e) => {
+										setNewWorkspaceName(e.target.value);
+									}}
 									disabled={isCreatingWorkspace}
 									autoFocus
 									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
@@ -523,7 +540,9 @@ export function SiteHeader() {
 								<textarea
 									placeholder="Production environment for customer-facing applications"
 									value={newWorkspaceDescription}
-									onChange={(e) => { setNewWorkspaceDescription(e.target.value); }}
+									onChange={(e) => {
+										setNewWorkspaceDescription(e.target.value);
+									}}
 									disabled={isCreatingWorkspace}
 									rows={3}
 									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
@@ -533,7 +552,9 @@ export function SiteHeader() {
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => { setShowCreateWorkspaceForm(false); }}
+									onClick={() => {
+										setShowCreateWorkspaceForm(false);
+									}}
 									disabled={isCreatingWorkspace}
 								>
 									Back
@@ -566,7 +587,9 @@ export function SiteHeader() {
 										{orgs.map((org) => (
 											<button
 												key={org.id}
-												onClick={() => { handleOrgSwitch(org.id); }}
+												onClick={() => {
+													handleOrgSwitch(org.id);
+												}}
 												className={`w-full text-left px-3 py-2 rounded-sm transition-colors flex items-center gap-2 ${
 													activeOrgId === org.id
 														? "bg-primary text-primary-foreground"
@@ -581,7 +604,9 @@ export function SiteHeader() {
 											</button>
 										))}
 										<button
-											onClick={() => { setShowCreateOrgForm(true); }}
+											onClick={() => {
+												setShowCreateOrgForm(true);
+											}}
 											className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 										>
 											<Plus className="size-4" />
@@ -599,7 +624,9 @@ export function SiteHeader() {
 												{workspaces.map((workspace) => (
 													<button
 														key={workspace.id}
-														onClick={() => { handleWorkspaceSwitch(workspace.id); }}
+														onClick={() => {
+															handleWorkspaceSwitch(workspace.id);
+														}}
 														className={`w-full text-left px-3 py-2 rounded-sm transition-colors flex items-center justify-between ${
 															activeWorkspaceId === workspace.id
 																? "bg-primary text-primary-foreground"
@@ -613,7 +640,9 @@ export function SiteHeader() {
 													</button>
 												))}
 												<button
-													onClick={() => { setShowCreateWorkspaceForm(true); }}
+													onClick={() => {
+														setShowCreateWorkspaceForm(true);
+													}}
 													className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 												>
 													<Plus className="size-4" />

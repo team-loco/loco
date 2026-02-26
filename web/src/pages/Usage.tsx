@@ -3,8 +3,8 @@ import { AlertCircle } from "lucide-react";
 
 export function Usage() {
 	return (
-		<div className="space-y-6">
-			<Card>
+		<div className="w-full flex justify-center">
+			<Card className="w-[95%]">
 				<CardHeader>
 					<CardTitle>Usage</CardTitle>
 				</CardHeader>

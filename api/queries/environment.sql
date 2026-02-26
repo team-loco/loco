@@ -21,5 +21,5 @@ RETURNING *;
 -- name: DeleteEnvironment :exec
 DELETE FROM environments WHERE id = $1;
 
--- name: CountResourcesByEnvironment :one
-SELECT COUNT(*) FROM resources WHERE environment_id = $1;
+-- name: CountDeploymentsByEnvironment :one
+SELECT COUNT(*) FROM deployments WHERE environment_id = $1;

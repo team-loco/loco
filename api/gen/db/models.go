@@ -370,6 +370,7 @@ type Deployment struct {
 	Status           DeploymentStatus   `json:"status"`
 	IsActive         bool               `json:"isActive"`
 	Message          string             `json:"message"`
+	EnvironmentID    uuid.UUID          `json:"environmentId"`
 	Spec             []byte             `json:"spec"`
 	SpecVersion      int32              `json:"specVersion"`
 	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
@@ -411,17 +412,16 @@ type PlatformDomain struct {
 }
 
 type Resource struct {
-	ID            uuid.UUID          `json:"id"`
-	WorkspaceID   uuid.UUID          `json:"workspaceId"`
-	Name          string             `json:"name"`
-	Type          ResourceType       `json:"type"`
-	Description   string             `json:"description"`
-	Status        ResourceStatus     `json:"status"`
-	Spec          []byte             `json:"spec"`
-	SpecVersion   int32              `json:"specVersion"`
-	EnvironmentID uuid.UUID          `json:"environmentId"`
-	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+	ID          uuid.UUID          `json:"id"`
+	WorkspaceID uuid.UUID          `json:"workspaceId"`
+	Name        string             `json:"name"`
+	Type        ResourceType       `json:"type"`
+	Description string             `json:"description"`
+	Status      ResourceStatus     `json:"status"`
+	Spec        []byte             `json:"spec"`
+	SpecVersion int32              `json:"specVersion"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type ResourceDomain struct {

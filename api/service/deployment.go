@@ -79,17 +79,18 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 
 func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.Deployment {
 	deployment := &deploymentv1.Deployment{
-		Id:          d.ID.String(),
-		ResourceId:  d.ResourceID.String(),
-		ClusterId:   d.ClusterID,
-		Region:      d.Region,
-		Replicas:    d.Replicas,
-		Status:      parseDeploymentPhase(d.Status),
-		IsActive:    d.IsActive,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
-		SpecVersion: d.SpecVersion,
-		Message:     d.Message,
+		Id:            d.ID.String(),
+		ResourceId:    d.ResourceID.String(),
+		EnvironmentId: d.EnvironmentID.String(),
+		ClusterId:     d.ClusterID,
+		Region:        d.Region,
+		Replicas:      d.Replicas,
+		Status:        parseDeploymentPhase(d.Status),
+		IsActive:      d.IsActive,
+		CreatedAt:     timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
+		UpdatedAt:     timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+		SpecVersion:   d.SpecVersion,
+		Message:       d.Message,
 	}
 
 	if len(d.Spec) > 0 {
@@ -232,10 +233,15 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("region is required"))
 	}
 
+	environmentID, err := uuid.Parse(r.GetEnvironmentId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid environment_id: %w", err))
+	}
+
 	// Get active cluster for the specified region and environment
 	cluster, err := s.queries.GetActiveClusterByRegionAndEnv(ctx, genDb.GetActiveClusterByRegionAndEnvParams{
 		Region:        region,
-		EnvironmentID: resource.EnvironmentID,
+		EnvironmentID: environmentID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", region, "error", err)
@@ -291,15 +297,16 @@ func (s *DeploymentServer) CreateDeployment(
 		Message:          "Scheduling deployment",
 		Spec:             specJSON,
 		SpecVersion:      int32(1),
+		EnvironmentID:    environmentID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	env, err := s.queries.GetEnvironmentByID(ctx, resource.EnvironmentID)
+	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", resource.EnvironmentID)
+		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
@@ -310,7 +317,7 @@ func (s *DeploymentServer) CreateDeployment(
 		domain.Domain,
 		mergedSpec,
 		region,
-		resource.EnvironmentID,
+		environmentID,
 		env.Name,
 		deploymentID,
 	)

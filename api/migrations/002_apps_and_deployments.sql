@@ -109,7 +109,6 @@ CREATE TABLE
         status resource_status NOT NULL,
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
-        environment_id UUID NOT NULL REFERENCES environments (id),
         created_at TIMESTAMPTZ DEFAULT NOW (),
         updated_at TIMESTAMPTZ DEFAULT NOW (),
         UNIQUE (workspace_id, name)
@@ -193,6 +192,7 @@ CREATE TABLE
         status deployment_status NOT NULL,
         is_active BOOLEAN NOT NULL,
         message TEXT NOT NULL,
+        environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW (),
@@ -220,3 +220,5 @@ WHERE
 CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deployments (resource_id, created_at DESC, id DESC);
+
+CREATE INDEX idx_deployments_environment_id ON deployments (environment_id);

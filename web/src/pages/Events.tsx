@@ -74,9 +74,8 @@ export function Events() {
 	};
 
 	return (
-		<div className="min-h-screen bg-background">
-			<div className="container px-4 py-6">
-				<Card>
+		<div className="w-full min-h-screen bg-background flex justify-center">
+			<Card className="w-[95%]">
 					<CardContent>
 						{events.length > 0 && (
 							<div className="flex justify-end mb-4">
@@ -214,7 +213,6 @@ export function Events() {
 						)}
 					</CardContent>
 				</Card>
-			</div>
 		</div>
 	);
 }

@@ -21,7 +21,7 @@ import (
 var (
 	ErrEnvironmentNotFound      = errors.New("environment not found")
 	ErrEnvironmentNameNotUnique = errors.New("environment name already exists in this workspace")
-	ErrEnvironmentInUse         = errors.New("environment has resources - cannot delete")
+	ErrEnvironmentInUse         = errors.New("environment has deployments - cannot delete")
 )
 
 // EnvironmentServer implements the EnvironmentService gRPC server.
@@ -250,13 +250,13 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	count, err := s.queries.CountResourcesByEnvironment(ctx, envID)
+	count, err := s.queries.CountDeploymentsByEnvironment(ctx, envID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to count resources for environment", "error", err)
+		slog.ErrorContext(ctx, "failed to count deployments for environment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 	if count > 0 {
-		slog.WarnContext(ctx, "cannot delete environment with resources", "environmentId", r.GetEnvironmentId(), "count", count)
+		slog.WarnContext(ctx, "cannot delete environment with deployments", "environmentId", r.GetEnvironmentId(), "count", count)
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
 	}
 

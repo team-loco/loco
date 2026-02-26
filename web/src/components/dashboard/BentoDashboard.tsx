@@ -50,7 +50,8 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 	const activeResources = resources.filter((r) => r.status !== 3).length;
 
 	return (
-		<div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 lg:gap-6 auto-rows-[minmax(120px,auto)]">
+		<div className="w-[95%] mx-auto">
+			<div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 lg:gap-6 auto-rows-[minmax(120px,auto)]">
 			{/* WIDGET 3: Resources Roster (col-span-8, row-span-2) - MOVED UP */}
 			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-2 border-border rounded-2xl shadow-sm flex flex-col overflow-visible py-0">
 				<div className="p-5 py-3 border-b border-border/50 flex justify-between items-center">
@@ -249,6 +250,7 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 					<span className="text-sm text-muted-foreground">reqs/mo</span>
 				</div>
 			</Card>
+		</div>
 		</div>
 	);
 }

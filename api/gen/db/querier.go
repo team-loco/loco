@@ -21,7 +21,7 @@ type Querier interface {
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
-	CountResourcesByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
+	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
 	// -----------------------------------------------------------------------------
 	// API token queries
 	// -----------------------------------------------------------------------------
@@ -86,8 +86,8 @@ type Querier interface {
 	GetOrganizationMember(ctx context.Context, arg GetOrganizationMemberParams) (GetOrganizationMemberRow, error)
 	GetPlatformDomain(ctx context.Context, id int64) (PlatformDomain, error)
 	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
-	GetResourceByID(ctx context.Context, id uuid.UUID) (GetResourceByIDRow, error)
-	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (GetResourceByNameAndWorkspaceRow, error)
+	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
+	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)
 	GetResourceDomainByID(ctx context.Context, id uuid.UUID) (ResourceDomain, error)
 	GetResourceDomainCount(ctx context.Context, resourceID uuid.UUID) (int64, error)
 	GetResourceRegionByResourceAndRegion(ctx context.Context, arg GetResourceRegionByResourceAndRegionParams) (ResourceRegion, error)
@@ -129,7 +129,7 @@ type Querier interface {
 	ListPlatformDomains(ctx context.Context, activeOnly pgtype.Bool) ([]PlatformDomain, error)
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
-	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]ListResourcesForWorkspaceRow, error)
+	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUserOrganizations(ctx context.Context, userID uuid.UUID) ([]Organization, error)
 	ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]Workspace, error)

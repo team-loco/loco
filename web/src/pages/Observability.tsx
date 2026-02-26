@@ -13,34 +13,38 @@ import { useMemo } from "react";
 
 function ObsContent() {
 	return (
-		<Tabs defaultValue="logs" className="flex flex-col h-full">
-			<div className="flex items-center justify-between gap-4 flex-wrap pb-4">
-				<ObsToolbar />
-				<TabsList>
-					<TabsTrigger value="logs" className="flex items-center gap-2">
-						<LogsIcon className="h-3.5 w-3.5" />
-						Logs
-					</TabsTrigger>
-					<TabsTrigger value="metrics" className="flex items-center gap-2">
-						<AudioWaveform className="h-3.5 w-3.5" />
-						Metrics
-					</TabsTrigger>
-					<TabsTrigger value="overview" className="flex items-center gap-2">
-						<Waypoints className="h-3.5 w-3.5" />
-						Traces
-					</TabsTrigger>
-				</TabsList>
-			</div>
-			<TabsContent value="logs" className="mt-0">
-				<ObsLogs />
-			</TabsContent>
-			<TabsContent value="metrics" className="mt-0">
-				<ObsMetrics />
-			</TabsContent>
-			<TabsContent value="overview" className="mt-0">
-				<ObsOverview />
-			</TabsContent>
-		</Tabs>
+		<Card className="flex flex-col w-[95%] mx-auto">
+			<CardContent className="mx-auto flex flex-col h-full w-full">
+				<Tabs defaultValue="logs" className="flex flex-col h-full">
+					<div className="flex items-center justify-between gap-4 flex-wrap pb-4">
+						<ObsToolbar />
+						<TabsList>
+							<TabsTrigger value="logs" className="flex items-center gap-2">
+								<LogsIcon className="h-3.5 w-3.5" />
+								Logs
+							</TabsTrigger>
+							<TabsTrigger value="metrics" className="flex items-center gap-2">
+								<AudioWaveform className="h-3.5 w-3.5" />
+								Metrics
+							</TabsTrigger>
+							<TabsTrigger value="overview" className="flex items-center gap-2">
+								<Waypoints className="h-3.5 w-3.5" />
+								Traces
+							</TabsTrigger>
+						</TabsList>
+					</div>
+					<TabsContent value="logs" className="mt-0">
+						<ObsLogs />
+					</TabsContent>
+					<TabsContent value="metrics" className="mt-0">
+						<ObsMetrics />
+					</TabsContent>
+					<TabsContent value="overview" className="mt-0">
+						<ObsOverview />
+					</TabsContent>
+				</Tabs>
+			</CardContent>
+		</Card>
 	);
 }
 

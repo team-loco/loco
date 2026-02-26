@@ -127,6 +127,7 @@ message Deployment {
   google.protobuf.Timestamp updated_at = 12;
   int32 spec_version = 13;
   DeploymentSpec spec = 14;
+  string environment_id = 15;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
@@ -135,6 +136,7 @@ message CreateDeploymentRequest {
   int64 cluster_id = 2;
   string region = 3;
   DeploymentSpec spec = 4;
+  string environment_id = 5;
 }
 
 // CreateDeploymentResponse is the response containing the created deployment ID.

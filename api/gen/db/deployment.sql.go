@@ -14,8 +14,8 @@ import (
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 RETURNING id
 `
 
@@ -30,6 +30,7 @@ type CreateDeploymentParams struct {
 	Message          string           `json:"message"`
 	Spec             []byte           `json:"spec"`
 	SpecVersion      int32            `json:"specVersion"`
+	EnvironmentID    uuid.UUID        `json:"environmentId"`
 }
 
 // Deployment queries
@@ -45,6 +46,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Message,
 		arg.Spec,
 		arg.SpecVersion,
+		arg.EnvironmentID,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -52,7 +54,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND region = $2 AND is_active = true
 ORDER BY created_at DESC
 LIMIT 1
@@ -76,6 +78,7 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 		&i.Status,
 		&i.IsActive,
 		&i.Message,
+		&i.EnvironmentID,
 		&i.Spec,
 		&i.SpecVersion,
 		&i.CreatedAt,
@@ -87,7 +90,7 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
@@ -103,6 +106,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 		&i.Status,
 		&i.IsActive,
 		&i.Message,
+		&i.EnvironmentID,
 		&i.Spec,
 		&i.SpecVersion,
 		&i.CreatedAt,
@@ -149,7 +153,7 @@ func (q *Queries) ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error
 }
 
 const listActiveDeploymentsForResource = `-- name: ListActiveDeploymentsForResource :many
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC
 `
@@ -173,6 +177,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 			&i.Status,
 			&i.IsActive,
 			&i.Message,
+			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
 			&i.CreatedAt,
@@ -191,7 +196,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 }
 
 const listDeploymentsForResource = `-- name: ListDeploymentsForResource :many
-SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments d
+SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments d
 WHERE d.resource_id = $1
   AND ($3::text IS NULL
        OR (d.created_at, d.id) < (
@@ -227,6 +232,7 @@ func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploy
 			&i.Status,
 			&i.IsActive,
 			&i.Message,
+			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
 			&i.CreatedAt,

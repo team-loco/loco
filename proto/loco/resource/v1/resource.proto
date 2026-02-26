@@ -175,7 +175,8 @@ message Resource {
   string created_by = 11;
   google.protobuf.Timestamp created_at = 12;
   google.protobuf.Timestamp updated_at = 13;
-  string environment_id = 14;
+  reserved 14;
+  reserved "environment_id";
 }
 
 // RegionConfig represents a region deployment intent for a resource.
@@ -196,7 +197,8 @@ message CreateResourceRequest {
   domain.v1.DomainInput domain = 4;
   ResourceSpec spec = 5;
   optional string description = 6;
-  string environment_id = 7;
+  reserved 7;
+  reserved "environment_id";
 }
 
 // CreateResourceResponse is the response containing the created resource ID.

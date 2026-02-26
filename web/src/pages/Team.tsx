@@ -114,8 +114,8 @@ export function Team() {
 	);
 
 	return (
-		<div className="space-y-6">
-			<Card>
+		<div className="w-full flex justify-center">
+			<Card className="w-[95%]">
 				<CardHeader>
 					<CardTitle>Workspace Members</CardTitle>
 					<CardDescription>Manage members in this workspace</CardDescription>

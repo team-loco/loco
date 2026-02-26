@@ -329,79 +329,79 @@ export function Tokens() {
 
 	return (
 		<div className="space-y-6">
-			{/* Page Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-3xl font-bold text-gray-900">API Tokens</h1>
-					<p className="text-sm text-gray-600 mt-1">
-						Manage authentication tokens for accessing the Loco API
-					</p>
-				</div>
-				<Button
-					onClick={() => {
-						setIsCreateDialogOpen(true);
-					}}
-				>
-					<Plus className="h-4 w-4 mr-2" />
-					Create Token
-				</Button>
-			</div>
-
-			{/* Warning Banner */}
-			<div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-4">
-				<AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-				<div>
-					<h3 className="font-semibold text-blue-900 text-sm mb-1">
-						Keep your tokens secure
-					</h3>
-					<p className="text-sm text-blue-800">
-						API tokens provide full access to your account. Never share them
-						publicly or commit them to version control.
-					</p>
-				</div>
-			</div>
-
-			{/* Tokens List or Loading/Empty State */}
-			{isLoading ? (
-				<Card>
-					<CardContent className="flex items-center justify-center py-12">
-						<div className="text-center">
-							<Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
-							<p className="text-gray-600">Loading tokens...</p>
-						</div>
-					</CardContent>
-				</Card>
-			) : tokens.length === 0 ? (
-				<Card>
-					<CardContent className="flex items-center justify-center py-12">
-						<div className="text-center">
-							<p className="text-gray-600 mb-4">
-								No tokens yet. Create one to get started.
+			<Card className="w-[95%] mx-auto">
+				<CardContent className="w-[95%]">
+					{/* Page Header */}
+					<div className="flex items-center justify-between mb-6">
+						<div>
+							<h1 className="text-3xl font-bold text-gray-900">API Tokens</h1>
+							<p className="text-sm text-gray-600 mt-1">
+								Manage authentication tokens for accessing the Loco API
 							</p>
-							<Button
-								onClick={() => {
-									setIsCreateDialogOpen(true);
-								}}
-								variant="outline"
-							>
-								<Plus className="h-4 w-4 mr-2" />
-								Create Your First Token
-							</Button>
 						</div>
-					</CardContent>
-				</Card>
-			) : (
-				<div className="space-y-4">
-					{tokens.map((token) => (
-						<TokenCard
-							key={token.name}
-							token={token}
-							onRevokeToken={handleRevokeToken}
-							isRevoking={isRevoking}
-						/>
-					))}
-				</div>
-			)}
+						<Button
+							onClick={() => {
+								setIsCreateDialogOpen(true);
+							}}
+						>
+							<Plus className="h-4 w-4 mr-2" />
+							Create Token
+						</Button>
+					</div>
+
+					{/* Warning Banner */}
+					<div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-4 mb-6">
+						<AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+						<div>
+							<h3 className="font-semibold text-blue-900 text-sm mb-1">
+								Keep your tokens secure
+							</h3>
+							<p className="text-sm text-blue-800">
+								API tokens provide full access to your account. Never share them
+								publicly or commit them to version control.
+							</p>
+						</div>
+					</div>
+
+					{/* Tokens List or Loading/Empty State */}
+					{isLoading ? (
+						<div className="flex items-center justify-center py-12">
+							<div className="text-center">
+								<Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-gray-400" />
+								<p className="text-gray-600">Loading tokens...</p>
+							</div>
+						</div>
+					) : tokens.length === 0 ? (
+						<div className="flex items-center justify-center py-12">
+							<div className="text-center">
+								<p className="text-gray-600 mb-4">
+									No tokens yet. Create one to get started.
+								</p>
+								<Button
+									onClick={() => {
+										setIsCreateDialogOpen(true);
+									}}
+									variant="outline"
+								>
+									<Plus className="h-4 w-4 mr-2" />
+									Create Your First Token
+								</Button>
+							</div>
+						</div>
+					) : (
+						<div className="space-y-4">
+							{tokens.map((token) => (
+								<TokenCard
+									key={token.name}
+									token={token}
+									onRevokeToken={handleRevokeToken}
+									isRevoking={isRevoking}
+								/>
+							))}
+						</div>
+					)}
+				</CardContent>
+			</Card>
 
 			{/* Create Token Dialog */}
 			<CreateTokenDialog

@@ -12,12 +12,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countResourcesByEnvironment = `-- name: CountResourcesByEnvironment :one
-SELECT COUNT(*) FROM resources WHERE environment_id = $1
+const countDeploymentsByEnvironment = `-- name: CountDeploymentsByEnvironment :one
+SELECT COUNT(*) FROM deployments WHERE environment_id = $1
 `
 
-func (q *Queries) CountResourcesByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countResourcesByEnvironment, environmentID)
+func (q *Queries) CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countDeploymentsByEnvironment, environmentID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

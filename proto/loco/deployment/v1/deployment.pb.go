@@ -748,6 +748,7 @@ type Deployment struct {
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	SpecVersion   int32                  `protobuf:"varint,13,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	Spec          *DeploymentSpec        `protobuf:"bytes,14,opt,name=spec,proto3" json:"spec,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,15,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -880,6 +881,13 @@ func (x *Deployment) GetSpec() *DeploymentSpec {
 	return nil
 }
 
+func (x *Deployment) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
 // CreateDeploymentRequest is the request to create a new deployment.
 type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -887,6 +895,7 @@ type CreateDeploymentRequest struct {
 	ClusterId     int64                  `protobuf:"varint,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Region        string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
 	Spec          *DeploymentSpec        `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -947,6 +956,13 @@ func (x *CreateDeploymentRequest) GetSpec() *DeploymentSpec {
 		return x.Spec
 	}
 	return nil
+}
+
+func (x *CreateDeploymentRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
 }
 
 // CreateDeploymentResponse is the response containing the created deployment ID.
@@ -1453,7 +1469,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
 	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
 	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\xf9\x04\n" +
+	"\x04spec\"\xa0\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
@@ -1475,16 +1491,18 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
 	"\fspec_version\x18\r \x01(\x05R\vspecVersion\x126\n" +
-	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04specB\r\n" +
+	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\x12%\n" +
+	"\x0eenvironment_id\x18\x0f \x01(\tR\renvironmentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\xa9\x01\n" +
+	"\r_completed_at\"\xd0\x01\n" +
 	"\x17CreateDeploymentRequest\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x12\x16\n" +
 	"\x06region\x18\x03 \x01(\tR\x06region\x126\n" +
-	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"?\n" +
+	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\x12%\n" +
+	"\x0eenvironment_id\x18\x05 \x01(\tR\renvironmentId\"?\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\";\n" +
 	"\x14GetDeploymentRequest\x12#\n" +
