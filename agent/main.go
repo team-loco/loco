@@ -82,7 +82,7 @@ func main() {
 		cfg:       cfg,
 		client:    client,
 		applier:   kubeApplier,
-		clusterID: 0, // Will be set after registration
+		clusterID: "", // Will be set after registration
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -109,7 +109,7 @@ type Agent struct {
 	cfg       *Config
 	client    agentv1connect.AgentServiceClient
 	applier   *applier.Applier
-	clusterID int64
+	clusterID string
 }
 
 // Run starts the agent's main loop.
