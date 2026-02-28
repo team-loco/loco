@@ -1166,7 +1166,6 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 	return protoDomains
 }
 
-
 // dbResourceToProto converts a database Resource to the proto Resource
 // to be returned to client. Note: caller is responsible for fetching domains and regions separately.
 func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, regions []genDb.ResourceRegion) *resourcev1.Resource {
@@ -1209,14 +1208,14 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		Id:          resource.ID.String(),
 		WorkspaceId: resource.WorkspaceID.String(),
 		Name:        resource.Name,
-		Type:          resourceType,
-		Spec:          spec,
-		Domains:       resourceDomainToListProto(domains),
-		Regions:       protoRegions,
-		CreatedAt:     timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
-		UpdatedAt:     timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
-		Status:        resourceStatus,
-		Description:   &resource.Description,
+		Type:        resourceType,
+		Spec:        spec,
+		Domains:     resourceDomainToListProto(domains),
+		Regions:     protoRegions,
+		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
+		Status:      resourceStatus,
+		Description: &resource.Description,
 	}
 
 	return result

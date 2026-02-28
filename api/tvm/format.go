@@ -45,4 +45,3 @@ func tokenPrefix(token string) string {
 		return ""
 	}
 }
-

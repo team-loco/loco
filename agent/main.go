@@ -359,12 +359,12 @@ func (a *Agent) handleDirective(resp *agentv1.HeartbeatResponse) {
 func (a *Agent) getCapacity() *agentv1.AgentCapacity {
 	// TODO: query actual cluster capacity from Kubernetes
 	return &agentv1.AgentCapacity{
-		CpuMillicoresTotal: 8000,                       // 8 cores
-		CpuMillicoresUsed:  4000,                       // 4 cores used
-		MemoryBytesTotal:   16 * 1024 * 1024 * 1024,    // 16GB
-		MemoryBytesUsed:    8 * 1024 * 1024 * 1024,     // 8GB used
-		PodsTotal:          110,                        // typical node limit
-		PodsRunning:        50,                         // 50 pods running
+		CpuMillicoresTotal: 8000,                    // 8 cores
+		CpuMillicoresUsed:  4000,                    // 4 cores used
+		MemoryBytesTotal:   16 * 1024 * 1024 * 1024, // 16GB
+		MemoryBytesUsed:    8 * 1024 * 1024 * 1024,  // 8GB used
+		PodsTotal:          110,                     // typical node limit
+		PodsRunning:        50,                      // 50 pods running
 	}
 }
 

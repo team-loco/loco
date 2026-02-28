@@ -343,9 +343,8 @@ func main() {
 	muxWTiming := middleware.Timing(muxWCors)
 	muxWContext := middleware.SetContext(muxWTiming)
 
-	serverAddr := ":" + ac.Port
 	server := &http.Server{
-		Addr:    serverAddr,
+		Addr:    ac.Port,
 		Handler: h2c.NewHandler(muxWContext, &http2.Server{}),
 	}
 

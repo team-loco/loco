@@ -11,8 +11,8 @@ import (
 // Commands flow through the bidirectional CommandStream RPC.
 type GRPCCommandBus struct {
 	mu         sync.RWMutex
-	agents     map[string]*agentConn   // clusterID -> connection
-	pending    map[string]*Command     // commandID -> command (for retry)
+	agents     map[string]*agentConn // clusterID -> connection
+	pending    map[string]*Command   // commandID -> command (for retry)
 	maxRetries int
 }
 

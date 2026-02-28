@@ -75,8 +75,6 @@ func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.Deployment
 	}
 }
 
-
-
 func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.Deployment {
 	deployment := &deploymentv1.Deployment{
 		Id:            d.ID.String(),
