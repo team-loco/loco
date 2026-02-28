@@ -2,8 +2,8 @@
 // @generated from file loco/environment/v1/environment.proto (package loco.environment.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,12 +12,10 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/environment/v1/environment.proto.
  */
 export const file_loco_environment_v1_environment: GenFile = /*@__PURE__*/
-  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIvIBCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEhUKDWlzX3Byb2R1Y3Rpb24YBSABKAgSEgoKY3JlYXRlZF9ieRgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEIOCgxfZGVzY3JpcHRpb24ifwoYQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhgKC2Rlc2NyaXB0aW9uGAMgASgJSACIAQESFQoNaXNfcHJvZHVjdGlvbhgEIAEoCEIOCgxfZGVzY3JpcHRpb24iMwoZQ3JlYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSIvChVHZXRFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiTwoWR2V0RW52aXJvbm1lbnRSZXNwb25zZRI1CgtlbnZpcm9ubWVudBgBIAEoCzIgLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnQiLwoXTGlzdEVudmlyb25tZW50c1JlcXVlc3QSFAoMd29ya3NwYWNlX2lkGAEgASgJIlIKGExpc3RFbnZpcm9ubWVudHNSZXNwb25zZRI2CgxlbnZpcm9ubWVudHMYASADKAsyIC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50ItcBChhVcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkSLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhEKBG5hbWUYAyABKAlIAIgBARIYCgtkZXNjcmlwdGlvbhgEIAEoCUgBiAEBEhoKDWlzX3Byb2R1Y3Rpb24YBSABKAhIAogBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25CEAoOX2lzX3Byb2R1Y3Rpb24iMwoZVXBkYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSIyChhEZWxldGVFbnZpcm9ubWVudFJlcXVlc3QSFgoOZW52aXJvbm1lbnRfaWQYASABKAkiGwoZRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZTLMBAoSRW52aXJvbm1lbnRTZXJ2aWNlEnIKEUNyZWF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5DcmVhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLkNyZWF0ZUVudmlyb25tZW50UmVzcG9uc2USaQoOR2V0RW52aXJvbm1lbnQSKi5sb2NvLmVudmlyb25tZW50LnYxLkdldEVudmlyb25tZW50UmVxdWVzdBorLmxvY28uZW52aXJvbm1lbnQudjEuR2V0RW52aXJvbm1lbnRSZXNwb25zZRJvChBMaXN0RW52aXJvbm1lbnRzEiwubG9jby5lbnZpcm9ubWVudC52MS5MaXN0RW52aXJvbm1lbnRzUmVxdWVzdBotLmxvY28uZW52aXJvbm1lbnQudjEuTGlzdEVudmlyb25tZW50c1Jlc3BvbnNlEnIKEVVwZGF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5VcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLlVwZGF0ZUVudmlyb25tZW50UmVzcG9uc2UScgoRRGVsZXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLkRlbGV0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZUJDWkFnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vZW52aXJvbm1lbnQvdjE7ZW52aXJvbm1lbnR2MWIGcHJvdG8z", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIo8CCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEjIKBHR5cGUYBSABKA4yJC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50VHlwZRISCgpjcmVhdGVkX2J5GAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQg4KDF9kZXNjcmlwdGlvbiKcAQoYQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhgKC2Rlc2NyaXB0aW9uGAMgASgJSACIAQESMgoEdHlwZRgEIAEoDjIkLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnRUeXBlQg4KDF9kZXNjcmlwdGlvbiIzChlDcmVhdGVFbnZpcm9ubWVudFJlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJIi8KFUdldEVudmlyb25tZW50UmVxdWVzdBIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSJPChZHZXRFbnZpcm9ubWVudFJlc3BvbnNlEjUKC2Vudmlyb25tZW50GAEgASgLMiAubG9jby5lbnZpcm9ubWVudC52MS5FbnZpcm9ubWVudCIvChdMaXN0RW52aXJvbm1lbnRzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkiUgoYTGlzdEVudmlyb25tZW50c1Jlc3BvbnNlEjYKDGVudmlyb25tZW50cxgBIAMoCzIgLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnQi6wEKGFVwZGF0ZUVudmlyb25tZW50UmVxdWVzdBIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCRIvCgt1cGRhdGVfbWFzaxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSEQoEbmFtZRgDIAEoCUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAQgASgJSAGIAQESNwoEdHlwZRgFIAEoDjIkLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnRUeXBlSAKIAQFCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uQgcKBV90eXBlIjMKGVVwZGF0ZUVudmlyb25tZW50UmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkiMgoYRGVsZXRlRW52aXJvbm1lbnRSZXF1ZXN0EhYKDmVudmlyb25tZW50X2lkGAEgASgJIhsKGURlbGV0ZUVudmlyb25tZW50UmVzcG9uc2UqjAEKD0Vudmlyb25tZW50VHlwZRIgChxFTlZJUk9OTUVOVF9UWVBFX1VOU1BFQ0lGSUVEEAASGAoURU5WSVJPTk1FTlRfVFlQRV9ERVYQARIcChhFTlZJUk9OTUVOVF9UWVBFX1NUQUdJTkcQAhIfChtFTlZJUk9OTUVOVF9UWVBFX1BST0RVQ1RJT04QAzLMBAoSRW52aXJvbm1lbnRTZXJ2aWNlEnIKEUNyZWF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5DcmVhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLkNyZWF0ZUVudmlyb25tZW50UmVzcG9uc2USaQoOR2V0RW52aXJvbm1lbnQSKi5sb2NvLmVudmlyb25tZW50LnYxLkdldEVudmlyb25tZW50UmVxdWVzdBorLmxvY28uZW52aXJvbm1lbnQudjEuR2V0RW52aXJvbm1lbnRSZXNwb25zZRJvChBMaXN0RW52aXJvbm1lbnRzEiwubG9jby5lbnZpcm9ubWVudC52MS5MaXN0RW52aXJvbm1lbnRzUmVxdWVzdBotLmxvY28uZW52aXJvbm1lbnQudjEuTGlzdEVudmlyb25tZW50c1Jlc3BvbnNlEnIKEVVwZGF0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5VcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLlVwZGF0ZUVudmlyb25tZW50UmVzcG9uc2UScgoRRGVsZXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLkRlbGV0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZUJDWkFnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vZW52aXJvbm1lbnQvdjE7ZW52aXJvbm1lbnR2MWIGcHJvdG8z", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * Environment represents an isolation boundary within a workspace.
- * Each workspace has at least one environment ("production") created automatically.
- * Clusters are assigned to environments; resources are deployed to a fixed environment.
  *
  * @generated from message loco.environment.v1.Environment
  */
@@ -43,9 +41,9 @@ export type Environment = Message<"loco.environment.v1.Environment"> & {
   description?: string;
 
   /**
-   * @generated from field: bool is_production = 5;
+   * @generated from field: loco.environment.v1.EnvironmentType type = 5;
    */
-  isProduction: boolean;
+  type: EnvironmentType;
 
   /**
    * @generated from field: string created_by = 6;
@@ -65,8 +63,6 @@ export type Environment = Message<"loco.environment.v1.Environment"> & {
 
 /**
  * Environment represents an isolation boundary within a workspace.
- * Each workspace has at least one environment ("production") created automatically.
- * Clusters are assigned to environments; resources are deployed to a fixed environment.
  *
  * @generated from message loco.environment.v1.Environment
  */
@@ -92,9 +88,9 @@ export type EnvironmentJson = {
   description?: string;
 
   /**
-   * @generated from field: bool is_production = 5;
+   * @generated from field: loco.environment.v1.EnvironmentType type = 5;
    */
-  isProduction?: boolean;
+  type?: EnvironmentTypeJson;
 
   /**
    * @generated from field: string created_by = 6;
@@ -141,9 +137,9 @@ export type CreateEnvironmentRequest = Message<"loco.environment.v1.CreateEnviro
   description?: string;
 
   /**
-   * @generated from field: bool is_production = 4;
+   * @generated from field: loco.environment.v1.EnvironmentType type = 4;
    */
-  isProduction: boolean;
+  type: EnvironmentType;
 };
 
 /**
@@ -168,9 +164,9 @@ export type CreateEnvironmentRequestJson = {
   description?: string;
 
   /**
-   * @generated from field: bool is_production = 4;
+   * @generated from field: loco.environment.v1.EnvironmentType type = 4;
    */
-  isProduction?: boolean;
+  type?: EnvironmentTypeJson;
 };
 
 /**
@@ -362,9 +358,9 @@ export type UpdateEnvironmentRequest = Message<"loco.environment.v1.UpdateEnviro
   description?: string;
 
   /**
-   * @generated from field: optional bool is_production = 5;
+   * @generated from field: optional loco.environment.v1.EnvironmentType type = 5;
    */
-  isProduction?: boolean;
+  type?: EnvironmentType;
 };
 
 /**
@@ -394,9 +390,9 @@ export type UpdateEnvironmentRequestJson = {
   description?: string;
 
   /**
-   * @generated from field: optional bool is_production = 5;
+   * @generated from field: optional loco.environment.v1.EnvironmentType type = 5;
    */
-  isProduction?: boolean;
+  type?: EnvironmentTypeJson;
 };
 
 /**
@@ -490,6 +486,46 @@ export type DeleteEnvironmentResponseJson = {
  */
 export const DeleteEnvironmentResponseSchema: GenMessage<DeleteEnvironmentResponse, {jsonType: DeleteEnvironmentResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_environment_v1_environment, 10);
+
+/**
+ * EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
+ *
+ * @generated from enum loco.environment.v1.EnvironmentType
+ */
+export enum EnvironmentType {
+  /**
+   * @generated from enum value: ENVIRONMENT_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: ENVIRONMENT_TYPE_DEV = 1;
+   */
+  DEV = 1,
+
+  /**
+   * @generated from enum value: ENVIRONMENT_TYPE_STAGING = 2;
+   */
+  STAGING = 2,
+
+  /**
+   * @generated from enum value: ENVIRONMENT_TYPE_PRODUCTION = 3;
+   */
+  PRODUCTION = 3,
+}
+
+/**
+ * EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
+ *
+ * @generated from enum loco.environment.v1.EnvironmentType
+ */
+export type EnvironmentTypeJson = "ENVIRONMENT_TYPE_UNSPECIFIED" | "ENVIRONMENT_TYPE_DEV" | "ENVIRONMENT_TYPE_STAGING" | "ENVIRONMENT_TYPE_PRODUCTION";
+
+/**
+ * Describes the enum loco.environment.v1.EnvironmentType.
+ */
+export const EnvironmentTypeSchema: GenEnum<EnvironmentType, EnvironmentTypeJson> = /*@__PURE__*/
+  enumDesc(file_loco_environment_v1_environment, 0);
 
 /**
  * EnvironmentService manages environments within a workspace.

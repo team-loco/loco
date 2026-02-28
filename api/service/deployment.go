@@ -238,14 +238,20 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid environment_id: %w", err))
 	}
 
-	// Get active cluster for the specified region and environment
-	cluster, err := s.queries.GetActiveClusterByRegionAndEnv(ctx, genDb.GetActiveClusterByRegionAndEnvParams{
-		Region:        region,
-		EnvironmentID: environmentID,
+	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	// Get active cluster for the specified region and environment tier
+	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
+		Region: region,
+		Tier:   env.EnvironmentType,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", region, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s: %w", region, err))
+		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", region, "tier", env.EnvironmentType, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s tier %s: %w", region, env.EnvironmentType, err))
 	}
 
 	// deserialize resource spec and merge with request spec
@@ -301,12 +307,6 @@ func (s *DeploymentServer) CreateDeployment(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 

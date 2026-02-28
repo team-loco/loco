@@ -64,14 +64,19 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}
 
+	envType := protoEnvTypeToString(r.GetType())
+	if envType == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("type is required and must be dev, staging, or production"))
+	}
+
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
 	env, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
-		WorkspaceID:  workspaceID,
-		Name:         r.GetName(),
-		Description:  description,
-		IsProduction: r.GetIsProduction(),
-		CreatedBy:    entity.ID,
+		WorkspaceID:     workspaceID,
+		Name:            r.GetName(),
+		Description:     description,
+		EnvironmentType: envType,
+		CreatedBy:       entity.ID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create environment", "error", err)
@@ -197,16 +202,16 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	if r.GetDescription() != "" {
 		description = pgtype.Text{String: r.GetDescription(), Valid: true}
 	}
-	isProduction := existing.IsProduction
-	if r.IsProduction != nil {
-		isProduction = r.GetIsProduction()
+	envType := existing.EnvironmentType
+	if r.Type != nil {
+		envType = protoEnvTypeToString(r.GetType())
 	}
 
 	_, err = s.queries.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
-		ID:           envID,
-		Name:         name,
-		Description:  description,
-		IsProduction: isProduction,
+		ID:              envID,
+		Name:            name,
+		Description:     description,
+		EnvironmentType: envType,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update environment", "error", err)
@@ -272,13 +277,39 @@ func (s *EnvironmentServer) DeleteEnvironment(
 func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 	desc := env.Description.String
 	return &environmentv1.Environment{
-		Id:           env.ID.String(),
-		WorkspaceId:  env.WorkspaceID.String(),
-		Name:         env.Name,
-		Description:  &desc,
-		IsProduction: env.IsProduction,
-		CreatedBy:    env.CreatedBy.String(),
-		CreatedAt:    timeutil.ParsePostgresTimestamp(env.CreatedAt.Time),
-		UpdatedAt:    timeutil.ParsePostgresTimestamp(env.UpdatedAt.Time),
+		Id:          env.ID.String(),
+		WorkspaceId: env.WorkspaceID.String(),
+		Name:        env.Name,
+		Description: &desc,
+		Type:        stringToProtoEnvType(env.EnvironmentType),
+		CreatedBy:   env.CreatedBy.String(),
+		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt.Time),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(env.UpdatedAt.Time),
+	}
+}
+
+func protoEnvTypeToString(t environmentv1.EnvironmentType) string {
+	switch t {
+	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_DEV:
+		return "dev"
+	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING:
+		return "staging"
+	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION:
+		return "production"
+	default:
+		return ""
+	}
+}
+
+func stringToProtoEnvType(s string) environmentv1.EnvironmentType {
+	switch s {
+	case "dev":
+		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_DEV
+	case "staging":
+		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING
+	case "production":
+		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION
+	default:
+		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED
 	}
 }

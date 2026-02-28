@@ -233,10 +233,10 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID
 		wksIDs = append(wksIDs, wsID)
 
 		env, err := queries.CreateEnvironment(ctx, db.CreateEnvironmentParams{
-			WorkspaceID:  wsID,
-			Name:         "production",
-			IsProduction: true,
-			CreatedBy:    userIDs[s.userIdx],
+			WorkspaceID:     wsID,
+			Name:            "production",
+			EnvironmentType: "production",
+			CreatedBy:       userIDs[s.userIdx],
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("creating production env for wks %d: %w", i+1, err)

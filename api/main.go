@@ -274,6 +274,7 @@ func main() {
 		resourcev1connect.ResourceServiceListWorkspaceResourcesProcedure,
 		resourcev1connect.ResourceServiceUpdateResourceProcedure,
 		resourcev1connect.ResourceServiceDeleteResourceProcedure,
+		resourcev1connect.ResourceServiceListResourceEventsProcedure,
 
 		// deployment service
 		deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,

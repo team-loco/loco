@@ -23,16 +23,67 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
+type EnvironmentType int32
+
+const (
+	EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED EnvironmentType = 0
+	EnvironmentType_ENVIRONMENT_TYPE_DEV         EnvironmentType = 1
+	EnvironmentType_ENVIRONMENT_TYPE_STAGING     EnvironmentType = 2
+	EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION  EnvironmentType = 3
+)
+
+// Enum value maps for EnvironmentType.
+var (
+	EnvironmentType_name = map[int32]string{
+		0: "ENVIRONMENT_TYPE_UNSPECIFIED",
+		1: "ENVIRONMENT_TYPE_DEV",
+		2: "ENVIRONMENT_TYPE_STAGING",
+		3: "ENVIRONMENT_TYPE_PRODUCTION",
+	}
+	EnvironmentType_value = map[string]int32{
+		"ENVIRONMENT_TYPE_UNSPECIFIED": 0,
+		"ENVIRONMENT_TYPE_DEV":         1,
+		"ENVIRONMENT_TYPE_STAGING":     2,
+		"ENVIRONMENT_TYPE_PRODUCTION":  3,
+	}
+)
+
+func (x EnvironmentType) Enum() *EnvironmentType {
+	p := new(EnvironmentType)
+	*p = x
+	return p
+}
+
+func (x EnvironmentType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EnvironmentType) Descriptor() protoreflect.EnumDescriptor {
+	return file_loco_environment_v1_environment_proto_enumTypes[0].Descriptor()
+}
+
+func (EnvironmentType) Type() protoreflect.EnumType {
+	return &file_loco_environment_v1_environment_proto_enumTypes[0]
+}
+
+func (x EnvironmentType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EnvironmentType.Descriptor instead.
+func (EnvironmentType) EnumDescriptor() ([]byte, []int) {
+	return file_loco_environment_v1_environment_proto_rawDescGZIP(), []int{0}
+}
+
 // Environment represents an isolation boundary within a workspace.
-// Each workspace has at least one environment ("production") created automatically.
-// Clusters are assigned to environments; resources are deployed to a fixed environment.
 type Environment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	IsProduction  bool                   `protobuf:"varint,5,opt,name=is_production,json=isProduction,proto3" json:"is_production,omitempty"`
+	Type          EnvironmentType        `protobuf:"varint,5,opt,name=type,proto3,enum=loco.environment.v1.EnvironmentType" json:"type,omitempty"`
 	CreatedBy     string                 `protobuf:"bytes,6,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
@@ -98,11 +149,11 @@ func (x *Environment) GetDescription() string {
 	return ""
 }
 
-func (x *Environment) GetIsProduction() bool {
+func (x *Environment) GetType() EnvironmentType {
 	if x != nil {
-		return x.IsProduction
+		return x.Type
 	}
-	return false
+	return EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED
 }
 
 func (x *Environment) GetCreatedBy() string {
@@ -132,7 +183,7 @@ type CreateEnvironmentRequest struct {
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	IsProduction  bool                   `protobuf:"varint,4,opt,name=is_production,json=isProduction,proto3" json:"is_production,omitempty"`
+	Type          EnvironmentType        `protobuf:"varint,4,opt,name=type,proto3,enum=loco.environment.v1.EnvironmentType" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -188,11 +239,11 @@ func (x *CreateEnvironmentRequest) GetDescription() string {
 	return ""
 }
 
-func (x *CreateEnvironmentRequest) GetIsProduction() bool {
+func (x *CreateEnvironmentRequest) GetType() EnvironmentType {
 	if x != nil {
-		return x.IsProduction
+		return x.Type
 	}
-	return false
+	return EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED
 }
 
 // CreateEnvironmentResponse contains the created environment ID.
@@ -427,7 +478,7 @@ type UpdateEnvironmentRequest struct {
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Name          *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	IsProduction  *bool                  `protobuf:"varint,5,opt,name=is_production,json=isProduction,proto3,oneof" json:"is_production,omitempty"`
+	Type          *EnvironmentType       `protobuf:"varint,5,opt,name=type,proto3,enum=loco.environment.v1.EnvironmentType,oneof" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -490,11 +541,11 @@ func (x *UpdateEnvironmentRequest) GetDescription() string {
 	return ""
 }
 
-func (x *UpdateEnvironmentRequest) GetIsProduction() bool {
-	if x != nil && x.IsProduction != nil {
-		return *x.IsProduction
+func (x *UpdateEnvironmentRequest) GetType() EnvironmentType {
+	if x != nil && x.Type != nil {
+		return *x.Type
 	}
-	return false
+	return EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED
 }
 
 // UpdateEnvironmentResponse contains the updated environment ID.
@@ -628,25 +679,25 @@ var File_loco_environment_v1_environment_proto protoreflect.FileDescriptor
 
 const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\n" +
-	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x02\n" +
+	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x02\n" +
 	"\vEnvironment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x12#\n" +
-	"\ris_production\x18\x05 \x01(\bR\fisProduction\x12\x1d\n" +
+	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x128\n" +
+	"\x04type\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeR\x04type\x12\x1d\n" +
 	"\n" +
 	"created_by\x18\x06 \x01(\tR\tcreatedBy\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
-	"\f_description\"\xad\x01\n" +
+	"\f_description\"\xc2\x01\n" +
 	"\x18CreateEnvironmentRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12#\n" +
-	"\ris_production\x18\x04 \x01(\bR\fisProductionB\x0e\n" +
+	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x128\n" +
+	"\x04type\x18\x04 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeR\x04typeB\x0e\n" +
 	"\f_description\"B\n" +
 	"\x19CreateEnvironmentResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\">\n" +
@@ -657,22 +708,27 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\x17ListEnvironmentsRequest\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"`\n" +
 	"\x18ListEnvironmentsResponse\x12D\n" +
-	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\x93\x02\n" +
+	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\x9f\x02\n" +
 	"\x18UpdateEnvironmentRequest\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\x12\x17\n" +
 	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12(\n" +
-	"\ris_production\x18\x05 \x01(\bH\x02R\fisProduction\x88\x01\x01B\a\n" +
+	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12=\n" +
+	"\x04type\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeH\x02R\x04type\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_descriptionB\x10\n" +
-	"\x0e_is_production\"B\n" +
+	"\f_descriptionB\a\n" +
+	"\x05_type\"B\n" +
 	"\x19UpdateEnvironmentResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"A\n" +
 	"\x18DeleteEnvironmentRequest\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\x1b\n" +
-	"\x19DeleteEnvironmentResponse2\xcc\x04\n" +
+	"\x19DeleteEnvironmentResponse*\x8c\x01\n" +
+	"\x0fEnvironmentType\x12 \n" +
+	"\x1cENVIRONMENT_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14ENVIRONMENT_TYPE_DEV\x10\x01\x12\x1c\n" +
+	"\x18ENVIRONMENT_TYPE_STAGING\x10\x02\x12\x1f\n" +
+	"\x1bENVIRONMENT_TYPE_PRODUCTION\x10\x032\xcc\x04\n" +
 	"\x12EnvironmentService\x12r\n" +
 	"\x11CreateEnvironment\x12-.loco.environment.v1.CreateEnvironmentRequest\x1a..loco.environment.v1.CreateEnvironmentResponse\x12i\n" +
 	"\x0eGetEnvironment\x12*.loco.environment.v1.GetEnvironmentRequest\x1a+.loco.environment.v1.GetEnvironmentResponse\x12o\n" +
@@ -692,43 +748,48 @@ func file_loco_environment_v1_environment_proto_rawDescGZIP() []byte {
 	return file_loco_environment_v1_environment_proto_rawDescData
 }
 
+var file_loco_environment_v1_environment_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_loco_environment_v1_environment_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_loco_environment_v1_environment_proto_goTypes = []any{
-	(*Environment)(nil),               // 0: loco.environment.v1.Environment
-	(*CreateEnvironmentRequest)(nil),  // 1: loco.environment.v1.CreateEnvironmentRequest
-	(*CreateEnvironmentResponse)(nil), // 2: loco.environment.v1.CreateEnvironmentResponse
-	(*GetEnvironmentRequest)(nil),     // 3: loco.environment.v1.GetEnvironmentRequest
-	(*GetEnvironmentResponse)(nil),    // 4: loco.environment.v1.GetEnvironmentResponse
-	(*ListEnvironmentsRequest)(nil),   // 5: loco.environment.v1.ListEnvironmentsRequest
-	(*ListEnvironmentsResponse)(nil),  // 6: loco.environment.v1.ListEnvironmentsResponse
-	(*UpdateEnvironmentRequest)(nil),  // 7: loco.environment.v1.UpdateEnvironmentRequest
-	(*UpdateEnvironmentResponse)(nil), // 8: loco.environment.v1.UpdateEnvironmentResponse
-	(*DeleteEnvironmentRequest)(nil),  // 9: loco.environment.v1.DeleteEnvironmentRequest
-	(*DeleteEnvironmentResponse)(nil), // 10: loco.environment.v1.DeleteEnvironmentResponse
-	(*timestamppb.Timestamp)(nil),     // 11: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),     // 12: google.protobuf.FieldMask
+	(EnvironmentType)(0),              // 0: loco.environment.v1.EnvironmentType
+	(*Environment)(nil),               // 1: loco.environment.v1.Environment
+	(*CreateEnvironmentRequest)(nil),  // 2: loco.environment.v1.CreateEnvironmentRequest
+	(*CreateEnvironmentResponse)(nil), // 3: loco.environment.v1.CreateEnvironmentResponse
+	(*GetEnvironmentRequest)(nil),     // 4: loco.environment.v1.GetEnvironmentRequest
+	(*GetEnvironmentResponse)(nil),    // 5: loco.environment.v1.GetEnvironmentResponse
+	(*ListEnvironmentsRequest)(nil),   // 6: loco.environment.v1.ListEnvironmentsRequest
+	(*ListEnvironmentsResponse)(nil),  // 7: loco.environment.v1.ListEnvironmentsResponse
+	(*UpdateEnvironmentRequest)(nil),  // 8: loco.environment.v1.UpdateEnvironmentRequest
+	(*UpdateEnvironmentResponse)(nil), // 9: loco.environment.v1.UpdateEnvironmentResponse
+	(*DeleteEnvironmentRequest)(nil),  // 10: loco.environment.v1.DeleteEnvironmentRequest
+	(*DeleteEnvironmentResponse)(nil), // 11: loco.environment.v1.DeleteEnvironmentResponse
+	(*timestamppb.Timestamp)(nil),     // 12: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),     // 13: google.protobuf.FieldMask
 }
 var file_loco_environment_v1_environment_proto_depIdxs = []int32{
-	11, // 0: loco.environment.v1.Environment.created_at:type_name -> google.protobuf.Timestamp
-	11, // 1: loco.environment.v1.Environment.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: loco.environment.v1.GetEnvironmentResponse.environment:type_name -> loco.environment.v1.Environment
-	0,  // 3: loco.environment.v1.ListEnvironmentsResponse.environments:type_name -> loco.environment.v1.Environment
-	12, // 4: loco.environment.v1.UpdateEnvironmentRequest.update_mask:type_name -> google.protobuf.FieldMask
-	1,  // 5: loco.environment.v1.EnvironmentService.CreateEnvironment:input_type -> loco.environment.v1.CreateEnvironmentRequest
-	3,  // 6: loco.environment.v1.EnvironmentService.GetEnvironment:input_type -> loco.environment.v1.GetEnvironmentRequest
-	5,  // 7: loco.environment.v1.EnvironmentService.ListEnvironments:input_type -> loco.environment.v1.ListEnvironmentsRequest
-	7,  // 8: loco.environment.v1.EnvironmentService.UpdateEnvironment:input_type -> loco.environment.v1.UpdateEnvironmentRequest
-	9,  // 9: loco.environment.v1.EnvironmentService.DeleteEnvironment:input_type -> loco.environment.v1.DeleteEnvironmentRequest
-	2,  // 10: loco.environment.v1.EnvironmentService.CreateEnvironment:output_type -> loco.environment.v1.CreateEnvironmentResponse
-	4,  // 11: loco.environment.v1.EnvironmentService.GetEnvironment:output_type -> loco.environment.v1.GetEnvironmentResponse
-	6,  // 12: loco.environment.v1.EnvironmentService.ListEnvironments:output_type -> loco.environment.v1.ListEnvironmentsResponse
-	8,  // 13: loco.environment.v1.EnvironmentService.UpdateEnvironment:output_type -> loco.environment.v1.UpdateEnvironmentResponse
-	10, // 14: loco.environment.v1.EnvironmentService.DeleteEnvironment:output_type -> loco.environment.v1.DeleteEnvironmentResponse
-	10, // [10:15] is the sub-list for method output_type
-	5,  // [5:10] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	0,  // 0: loco.environment.v1.Environment.type:type_name -> loco.environment.v1.EnvironmentType
+	12, // 1: loco.environment.v1.Environment.created_at:type_name -> google.protobuf.Timestamp
+	12, // 2: loco.environment.v1.Environment.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: loco.environment.v1.CreateEnvironmentRequest.type:type_name -> loco.environment.v1.EnvironmentType
+	1,  // 4: loco.environment.v1.GetEnvironmentResponse.environment:type_name -> loco.environment.v1.Environment
+	1,  // 5: loco.environment.v1.ListEnvironmentsResponse.environments:type_name -> loco.environment.v1.Environment
+	13, // 6: loco.environment.v1.UpdateEnvironmentRequest.update_mask:type_name -> google.protobuf.FieldMask
+	0,  // 7: loco.environment.v1.UpdateEnvironmentRequest.type:type_name -> loco.environment.v1.EnvironmentType
+	2,  // 8: loco.environment.v1.EnvironmentService.CreateEnvironment:input_type -> loco.environment.v1.CreateEnvironmentRequest
+	4,  // 9: loco.environment.v1.EnvironmentService.GetEnvironment:input_type -> loco.environment.v1.GetEnvironmentRequest
+	6,  // 10: loco.environment.v1.EnvironmentService.ListEnvironments:input_type -> loco.environment.v1.ListEnvironmentsRequest
+	8,  // 11: loco.environment.v1.EnvironmentService.UpdateEnvironment:input_type -> loco.environment.v1.UpdateEnvironmentRequest
+	10, // 12: loco.environment.v1.EnvironmentService.DeleteEnvironment:input_type -> loco.environment.v1.DeleteEnvironmentRequest
+	3,  // 13: loco.environment.v1.EnvironmentService.CreateEnvironment:output_type -> loco.environment.v1.CreateEnvironmentResponse
+	5,  // 14: loco.environment.v1.EnvironmentService.GetEnvironment:output_type -> loco.environment.v1.GetEnvironmentResponse
+	7,  // 15: loco.environment.v1.EnvironmentService.ListEnvironments:output_type -> loco.environment.v1.ListEnvironmentsResponse
+	9,  // 16: loco.environment.v1.EnvironmentService.UpdateEnvironment:output_type -> loco.environment.v1.UpdateEnvironmentResponse
+	11, // 17: loco.environment.v1.EnvironmentService.DeleteEnvironment:output_type -> loco.environment.v1.DeleteEnvironmentResponse
+	13, // [13:18] is the sub-list for method output_type
+	8,  // [8:13] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_loco_environment_v1_environment_proto_init() }
@@ -744,13 +805,14 @@ func file_loco_environment_v1_environment_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_environment_v1_environment_proto_rawDesc), len(file_loco_environment_v1_environment_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_loco_environment_v1_environment_proto_goTypes,
 		DependencyIndexes: file_loco_environment_v1_environment_proto_depIdxs,
+		EnumInfos:         file_loco_environment_v1_environment_proto_enumTypes,
 		MessageInfos:      file_loco_environment_v1_environment_proto_msgTypes,
 	}.Build()
 	File_loco_environment_v1_environment_proto = out.File

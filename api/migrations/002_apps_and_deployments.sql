@@ -47,7 +47,7 @@ CREATE TABLE
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
-        is_production BOOLEAN NOT NULL DEFAULT false,
+        environment_type TEXT NOT NULL DEFAULT 'production' CHECK (environment_type IN ('dev', 'staging', 'production')),
         created_by UUID NOT NULL REFERENCES users (id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -76,7 +76,7 @@ CREATE TABLE
         capacity_memory_bytes BIGINT,
         agent_version TEXT,
         observability_proxy_endpoint TEXT,
-        environment_id UUID NOT NULL REFERENCES environments (id),
+        tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
         created_at TIMESTAMPTZ DEFAULT NOW (),
         updated_at TIMESTAMPTZ DEFAULT NOW ()
     );
@@ -84,6 +84,8 @@ CREATE TABLE
 CREATE INDEX idx_clusters_region ON clusters (region);
 
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
+
+CREATE INDEX idx_clusters_tier ON clusters (tier);
 
 CREATE UNIQUE INDEX idx_clusters_agent_token_hash ON clusters (agent_token_hash)
 WHERE

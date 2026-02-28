@@ -111,6 +111,13 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 						<div
 							key={resource.id}
 							className="bg-card hover:bg-muted/30 p-4 transition-colors cursor-pointer flex flex-col justify-between min-h-[100px]"
+							onClick={() => {
+								if (activeOrgId && activeWorkspaceId) {
+									void navigate(
+										`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.id}`,
+									);
+								}
+							}}
 						>
 							<div className="flex items-start justify-between">
 								<h4 className="font-semibold text-sm truncate pr-2">

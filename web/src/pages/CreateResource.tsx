@@ -247,6 +247,8 @@ export function CreateResource() {
 	const createResourceMutation = useMutation(createResource);
 	const createDeploymentMutation = useMutation(createDeployment);
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);
+	const checkSubdomainMutateRef = useRef(checkSubdomainMutation.mutateAsync);
+	checkSubdomainMutateRef.current = checkSubdomainMutation.mutateAsync;
 
 	// Set default platform domain on load
 	useEffect(() => {
@@ -297,7 +299,7 @@ export function CreateResource() {
 		checkSubdomainTimeoutRef.current = setTimeout(async () => {
 			try {
 				const fullDomain = `${subdomain.trim()}.${selectedPlatformDomain}`;
-				const availabilityRes = await checkSubdomainMutation.mutateAsync({
+				const availabilityRes = await checkSubdomainMutateRef.current({
 					domain: fullDomain,
 				});
 
@@ -315,12 +317,7 @@ export function CreateResource() {
 				clearTimeout(checkSubdomainTimeoutRef.current);
 			}
 		};
-	}, [
-		subdomain,
-		selectedPlatformDomain,
-		platformDomains,
-		checkSubdomainMutation,
-	]);
+	}, [subdomain, selectedPlatformDomain, platformDomains]);
 
 	// Validate Docker image URL
 	const validateDockerImage = (image: string): string => {

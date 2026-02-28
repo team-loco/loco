@@ -88,22 +88,22 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getActiveClusterByRegionAndEnv = `-- name: GetActiveClusterByRegionAndEnv :one
+const getActiveClusterByRegionAndTier = `-- name: GetActiveClusterByRegionAndTier :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE region = $1 AND environment_id = $2 AND is_active = true AND health_status = 'healthy'
+WHERE region = $1 AND tier = $2 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
 LIMIT 1
 `
 
-type GetActiveClusterByRegionAndEnvParams struct {
-	Region        string    `json:"region"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
+type GetActiveClusterByRegionAndTierParams struct {
+	Region string `json:"region"`
+	Tier   string `json:"tier"`
 }
 
-type GetActiveClusterByRegionAndEnvRow struct {
+type GetActiveClusterByRegionAndTierRow struct {
 	ID                    int64              `json:"id"`
 	Name                  string             `json:"name"`
 	Region                string             `json:"region"`
@@ -122,9 +122,9 @@ type GetActiveClusterByRegionAndEnvRow struct {
 	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
 }
 
-func (q *Queries) GetActiveClusterByRegionAndEnv(ctx context.Context, arg GetActiveClusterByRegionAndEnvParams) (GetActiveClusterByRegionAndEnvRow, error) {
-	row := q.db.QueryRow(ctx, getActiveClusterByRegionAndEnv, arg.Region, arg.EnvironmentID)
-	var i GetActiveClusterByRegionAndEnvRow
+func (q *Queries) GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error) {
+	row := q.db.QueryRow(ctx, getActiveClusterByRegionAndTier, arg.Region, arg.Tier)
+	var i GetActiveClusterByRegionAndTierRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,

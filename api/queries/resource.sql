@@ -61,12 +61,12 @@ WHERE id = $1;
 -- name: GetResourceWorkspaceID :one
 SELECT workspace_id FROM resources WHERE id = $1;
 
--- name: GetActiveClusterByRegionAndEnv :one
+-- name: GetActiveClusterByRegionAndTier :one
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
        last_health_check, agent_token_hash, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE region = $1 AND environment_id = $2 AND is_active = true AND health_status = 'healthy'
+WHERE region = $1 AND tier = $2 AND is_active = true AND health_status = 'healthy'
 ORDER BY is_default DESC, created_at ASC
 LIMIT 1;
 

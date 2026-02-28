@@ -355,9 +355,9 @@ type Cluster struct {
 	CapacityMemoryBytes        pgtype.Int8        `json:"capacityMemoryBytes"`
 	AgentVersion               pgtype.Text        `json:"agentVersion"`
 	ObservabilityProxyEndpoint pgtype.Text        `json:"observabilityProxyEndpoint"`
-	EnvironmentID              uuid.UUID          `json:"environmentId"`
 	CreatedAt                  pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt                  pgtype.Timestamptz `json:"updatedAt"`
+	Tier                       string             `json:"tier"`
 }
 
 type Deployment struct {
@@ -380,14 +380,14 @@ type Deployment struct {
 }
 
 type Environment struct {
-	ID           uuid.UUID          `json:"id"`
-	WorkspaceID  uuid.UUID          `json:"workspaceId"`
-	Name         string             `json:"name"`
-	Description  pgtype.Text        `json:"description"`
-	IsProduction bool               `json:"isProduction"`
-	CreatedBy    uuid.UUID          `json:"createdBy"`
-	CreatedAt    pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt    pgtype.Timestamptz `json:"updatedAt"`
+	ID              uuid.UUID          `json:"id"`
+	WorkspaceID     uuid.UUID          `json:"workspaceId"`
+	Name            string             `json:"name"`
+	Description     pgtype.Text        `json:"description"`
+	CreatedBy       uuid.UUID          `json:"createdBy"`
+	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
+	EnvironmentType string             `json:"environmentType"`
 }
 
 type Organization struct {

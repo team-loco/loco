@@ -770,10 +770,17 @@ func (s *ResourceServer) ScaleResource(
 	// Get the region to scale (use current deployment's region)
 	regionToScale := currentDeployment.Region
 
-	// Get the cluster for the region and environment (inherited from current deployment)
-	cluster, err := s.queries.GetActiveClusterByRegionAndEnv(ctx, genDb.GetActiveClusterByRegionAndEnvParams{
-		Region:        regionToScale,
-		EnvironmentID: currentDeployment.EnvironmentID,
+	// Get the environment tier (inherited from current deployment)
+	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	// Get the cluster for the region and tier
+	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
+		Region: regionToScale,
+		Tier:   deploymentEnv.EnvironmentType,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToScale, "error", err)
@@ -974,10 +981,17 @@ func (s *ResourceServer) UpdateResourceEnv(
 	// Get the region to update (use current deployment's region)
 	regionToUpdate := currentDeployment.Region
 
-	// Get the cluster for the region and environment (inherited from current deployment)
-	cluster, err := s.queries.GetActiveClusterByRegionAndEnv(ctx, genDb.GetActiveClusterByRegionAndEnvParams{
-		Region:        regionToUpdate,
-		EnvironmentID: currentDeployment.EnvironmentID,
+	// Get the environment tier (inherited from current deployment)
+	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	// Get the cluster for the region and tier
+	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
+		Region: regionToUpdate,
+		Tier:   deploymentEnv.EnvironmentType,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToUpdate, "error", err)
