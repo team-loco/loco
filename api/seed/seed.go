@@ -69,11 +69,10 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 	if orgIDs, err = seedOrganizations(ctx, q, userIDs); err != nil {
 		return err
 	}
-	var envIDs []uuid.UUID // len 4, one production env per workspace
-	if wksIDs, envIDs, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
+	if wksIDs, _, err = seedWorkspaces(ctx, q, orgIDs, userIDs); err != nil {
 		return err
 	}
-	if resourceIds, err = seedResources(ctx, q, wksIDs, envIDs); err != nil {
+	if resourceIds, err = seedResources(ctx, q, wksIDs); err != nil {
 		return err
 	}
 	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, resourceIds, userIDs); err != nil {
@@ -247,7 +246,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID
 	return wksIDs, envIDs, nil
 }
 
-func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID, envIDs []uuid.UUID) ([]uuid.UUID, error) {
+func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID) ([]uuid.UUID, error) {
 	var resourceIds []uuid.UUID
 
 	type resSpec struct {
@@ -266,13 +265,13 @@ func seedResources(ctx context.Context, queries *db.Queries, wksIDs []uuid.UUID,
 
 	for i, s := range specs {
 		id, err := queries.CreateResource(ctx, db.CreateResourceParams{
-			WorkspaceID:   wksIDs[s.wksIdx],
-			Name:          s.name,
-			Type:          db.ResourceTypeService,
-			Description:   s.desc,
-			Status:        db.ResourceStatusHealthy,
-			Spec:          specExample,
-			SpecVersion:   1,
+			WorkspaceID: wksIDs[s.wksIdx],
+			Name:        s.name,
+			Type:        db.ResourceTypeService,
+			Description: s.desc,
+			Status:      db.ResourceStatusHealthy,
+			Spec:        specExample,
+			SpecVersion: 1,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("creating resource %d: %w", i+1, err)
