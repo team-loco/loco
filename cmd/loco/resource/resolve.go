@@ -207,7 +207,7 @@ func resolveDomainInput(
 	}
 
 	// Find matching platform domain
-	var foundDomainID int64
+	var foundDomainID string
 	for _, pd := range resp.Msg.PlatformDomains {
 		if strings.HasSuffix(cfg.DomainConfig.Hostname, pd.Domain) {
 			foundDomainID = pd.Id
@@ -216,13 +216,13 @@ func resolveDomainInput(
 		}
 	}
 
-	if foundDomainID == 0 {
+	if foundDomainID == "" {
 		// Interactive selection as fallback
 		options := make([]ui.SelectOption, len(resp.Msg.PlatformDomains))
 		for i, domain := range resp.Msg.PlatformDomains {
 			options[i] = ui.SelectOption{
 				Label:       domain.Domain,
-				Description: fmt.Sprintf("ID: %d", domain.Id),
+				Description: fmt.Sprintf("ID: %s", domain.Id),
 				Value:       domain.Id,
 			}
 		}
@@ -232,9 +232,9 @@ func resolveDomainInput(
 			return nil, fmt.Errorf("domain selection cancelled: %w", selErr)
 		}
 
-		domainID, ok := selected.(int64)
+		domainID, ok := selected.(string)
 		if !ok {
-			return nil, fmt.Errorf("invalid domain ID: expected int64, got %T", selected)
+			return nil, fmt.Errorf("invalid domain ID: expected string, got %T", selected)
 		}
 		foundDomainID = domainID
 	}

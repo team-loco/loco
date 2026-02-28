@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.workspace.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -63,9 +64,9 @@ message WorkspaceMemberWithUser {
 
 // CreateWorkspaceRequest is the request to create a new workspace.
 message CreateWorkspaceRequest {
-  string org_id = 1;
-  string name = 2;
-  optional string description = 3;
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
+  optional string description = 3 [(buf.validate.field).string.max_len = 256];
 }
 
 // CreateWorkspaceResponse is the response containing the created workspace ID.
@@ -75,7 +76,7 @@ message CreateWorkspaceResponse {
 
 // GetWorkspaceRequest is the request to retrieve a workspace.
 message GetWorkspaceRequest {
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // GetWorkspaceResponse is the response containing the workspace.
@@ -85,8 +86,8 @@ message GetWorkspaceResponse {
 
 // ListUserWorkspacesRequest is the request to list workspaces for a user.
 message ListUserWorkspacesRequest {
-  string user_id = 1;
-  int32 page_size = 2; // default: 50, max: 200
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -98,8 +99,8 @@ message ListUserWorkspacesResponse {
 
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 message ListOrgWorkspacesRequest {
-  string org_id = 1;
-  int32 page_size = 2; // default: 50, max: 200
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -111,10 +112,10 @@ message ListOrgWorkspacesResponse {
 
 // UpdateWorkspaceRequest is the request to update a workspace.
 message UpdateWorkspaceRequest {
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string name = 3;
-  optional string description = 4;
+  optional string name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 63}];
+  optional string description = 4 [(buf.validate.field).string.max_len = 256];
 }
 
 // UpdateWorkspaceResponse is the response containing the updated workspace ID.
@@ -124,7 +125,7 @@ message UpdateWorkspaceResponse {
 
 // DeleteWorkspaceRequest is the request to delete a workspace.
 message DeleteWorkspaceRequest {
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   bool confirm_delete_apps = 2;
 }
 
@@ -133,9 +134,13 @@ message DeleteWorkspaceResponse {}
 
 // CreateMemberRequest is the request to add a member to a workspace.
 message CreateMemberRequest {
-  string workspace_id = 1;
-  string user_id = 2;
-  string role = 3;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
+  string role = 3 [(buf.validate.field).cel = {
+    id: "role.valid_values",
+    message: "role must be one of: admin, deploy, read",
+    expression: "this in ['admin', 'deploy', 'read']"
+  }];
 }
 
 // CreateMemberResponse is the response containing the workspace and user IDs.
@@ -146,8 +151,8 @@ message CreateMemberResponse {
 
 // DeleteMemberRequest is the request to remove a member from a workspace.
 message DeleteMemberRequest {
-  string workspace_id = 1;
-  string user_id = 2;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 2 [(buf.validate.field).string.uuid = true];
 }
 
 // DeleteMemberResponse is the response after removing a member from a workspace.
@@ -155,8 +160,8 @@ message DeleteMemberResponse {}
 
 // ListWorkspaceMembersRequest is the request to list members of a workspace.
 message ListWorkspaceMembersRequest {
-  string workspace_id = 1;
-  int32 page_size = 2; // default: 50, max: 200
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 

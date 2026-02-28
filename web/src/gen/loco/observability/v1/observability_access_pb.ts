@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/observability/v1/observability_access.proto.
  */
 export const file_loco_observability_v1_observability_access: GenFile = /*@__PURE__*/
-  fileDesc("CjBsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eV9hY2Nlc3MucHJvdG8SFWxvY28ub2JzZXJ2YWJpbGl0eS52MSJLCh1HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMcmVzb3VyY2VfaWRzGAIgAygJIlgKHkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRI2CghjbHVzdGVycxgBIAMoCzIkLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DbHVzdGVyQWNjZXNzIkYKDUNsdXN0ZXJBY2Nlc3MSEgoKY2x1c3Rlcl9pZBgBIAEoAxIRCglwcm94eV91cmwYAiABKAkSDgoGcmVnaW9uGAMgASgJIl4KFkNoZWNrUGVybWlzc2lvblJlcXVlc3QSDQoFdG9rZW4YASABKAkSEwoLZW50aXR5X3R5cGUYAiABKAkSEQoJZW50aXR5X2lkGAMgASgJEg0KBXNjb3BlGAQgASgJIioKF0NoZWNrUGVybWlzc2lvblJlc3BvbnNlEg8KB2FsbG93ZWQYASABKAgylgIKGk9ic2VydmFiaWxpdHlBY2Nlc3NTZXJ2aWNlEoUBChZHZXRPYnNlcnZhYmlsaXR5QWNjZXNzEjQubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXF1ZXN0GjUubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRJwCg9DaGVja1Blcm1pc3Npb24SLS5sb2NvLm9ic2VydmFiaWxpdHkudjEuQ2hlY2tQZXJtaXNzaW9uUmVxdWVzdBouLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DaGVja1Blcm1pc3Npb25SZXNwb25zZUJHWkVnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vb2JzZXJ2YWJpbGl0eS92MTtvYnNlcnZhYmlsaXR5djFiBnByb3RvMw");
+  fileDesc("CjBsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eV9hY2Nlc3MucHJvdG8SFWxvY28ub2JzZXJ2YWJpbGl0eS52MSJLCh1HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMcmVzb3VyY2VfaWRzGAIgAygJIlgKHkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRI2CghjbHVzdGVycxgBIAMoCzIkLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DbHVzdGVyQWNjZXNzIkYKDUNsdXN0ZXJBY2Nlc3MSEgoKY2x1c3Rlcl9pZBgBIAEoCRIRCglwcm94eV91cmwYAiABKAkSDgoGcmVnaW9uGAMgASgJIl4KFkNoZWNrUGVybWlzc2lvblJlcXVlc3QSDQoFdG9rZW4YASABKAkSEwoLZW50aXR5X3R5cGUYAiABKAkSEQoJZW50aXR5X2lkGAMgASgJEg0KBXNjb3BlGAQgASgJIioKF0NoZWNrUGVybWlzc2lvblJlc3BvbnNlEg8KB2FsbG93ZWQYASABKAgylgIKGk9ic2VydmFiaWxpdHlBY2Nlc3NTZXJ2aWNlEoUBChZHZXRPYnNlcnZhYmlsaXR5QWNjZXNzEjQubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXF1ZXN0GjUubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRJwCg9DaGVja1Blcm1pc3Npb24SLS5sb2NvLm9ic2VydmFiaWxpdHkudjEuQ2hlY2tQZXJtaXNzaW9uUmVxdWVzdBouLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DaGVja1Blcm1pc3Npb25SZXNwb25zZUJHWkVnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vb2JzZXJ2YWJpbGl0eS92MTtvYnNlcnZhYmlsaXR5djFiBnByb3RvMw");
 
 /**
  * @generated from message loco.observability.v1.GetObservabilityAccessRequest
@@ -85,9 +85,9 @@ export const GetObservabilityAccessResponseSchema: GenMessage<GetObservabilityAc
  */
 export type ClusterAccess = Message<"loco.observability.v1.ClusterAccess"> & {
   /**
-   * @generated from field: int64 cluster_id = 1;
+   * @generated from field: string cluster_id = 1;
    */
-  clusterId: bigint;
+  clusterId: string;
 
   /**
    * @generated from field: string proxy_url = 2;
@@ -105,7 +105,7 @@ export type ClusterAccess = Message<"loco.observability.v1.ClusterAccess"> & {
  */
 export type ClusterAccessJson = {
   /**
-   * @generated from field: int64 cluster_id = 1;
+   * @generated from field: string cluster_id = 1;
    */
   clusterId?: string;
 

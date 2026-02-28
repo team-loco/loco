@@ -120,7 +120,7 @@ func (x *GetObservabilityAccessResponse) GetClusters() []*ClusterAccess {
 
 type ClusterAccess struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClusterId     int64                  `protobuf:"varint,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	ProxyUrl      string                 `protobuf:"bytes,2,opt,name=proxy_url,json=proxyUrl,proto3" json:"proxy_url,omitempty"`
 	Region        string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -157,11 +157,11 @@ func (*ClusterAccess) Descriptor() ([]byte, []int) {
 	return file_loco_observability_v1_observability_access_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *ClusterAccess) GetClusterId() int64 {
+func (x *ClusterAccess) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
 	}
-	return 0
+	return ""
 }
 
 func (x *ClusterAccess) GetProxyUrl() string {
@@ -302,7 +302,7 @@ const file_loco_observability_v1_observability_access_proto_rawDesc = "" +
 	"\bclusters\x18\x01 \x03(\v2$.loco.observability.v1.ClusterAccessR\bclusters\"c\n" +
 	"\rClusterAccess\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\x03R\tclusterId\x12\x1b\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12\x1b\n" +
 	"\tproxy_url\x18\x02 \x01(\tR\bproxyUrl\x12\x16\n" +
 	"\x06region\x18\x03 \x01(\tR\x06region\"\x82\x01\n" +
 	"\x16CheckPermissionRequest\x12\x14\n" +

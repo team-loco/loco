@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.environment.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -43,10 +44,10 @@ message Environment {
 
 // CreateEnvironmentRequest is the request to create a new environment.
 message CreateEnvironmentRequest {
-  string workspace_id = 1;
-  string name = 2;
-  optional string description = 3;
-  EnvironmentType type = 4;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2 [(buf.validate.field).string.max_len = 63];
+  optional string description = 3 [(buf.validate.field).string.max_len = 256];
+  EnvironmentType type = 4 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 }
 
 // CreateEnvironmentResponse contains the created environment ID.
@@ -56,7 +57,7 @@ message CreateEnvironmentResponse {
 
 // GetEnvironmentRequest is the request to retrieve an environment.
 message GetEnvironmentRequest {
-  string environment_id = 1;
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // GetEnvironmentResponse contains the environment.
@@ -66,7 +67,7 @@ message GetEnvironmentResponse {
 
 // ListEnvironmentsRequest is the request to list environments in a workspace.
 message ListEnvironmentsRequest {
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // ListEnvironmentsResponse contains the list of environments.
@@ -76,11 +77,11 @@ message ListEnvironmentsResponse {
 
 // UpdateEnvironmentRequest is the request to update an environment.
 message UpdateEnvironmentRequest {
-  string environment_id = 1;
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string name = 3;
-  optional string description = 4;
-  optional EnvironmentType type = 5;
+  optional string name = 3 [(buf.validate.field).string.max_len = 63];
+  optional string description = 4 [(buf.validate.field).string.max_len = 256];
+  optional EnvironmentType type = 5 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 }
 
 // UpdateEnvironmentResponse contains the updated environment ID.
@@ -90,7 +91,7 @@ message UpdateEnvironmentResponse {
 
 // DeleteEnvironmentRequest is the request to delete an environment.
 message DeleteEnvironmentRequest {
-  string environment_id = 1;
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeleteEnvironmentResponse is the response after deleting an environment.

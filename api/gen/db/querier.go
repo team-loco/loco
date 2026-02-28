@@ -32,7 +32,7 @@ type Querier interface {
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
-	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (int64, error)
+	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (uuid.UUID, error)
 	// Resource queries
 	CreateResource(ctx context.Context, arg CreateResourceParams) (uuid.UUID, error)
 	CreateResourceDomain(ctx context.Context, arg CreateResourceDomainParams) (uuid.UUID, error)
@@ -44,7 +44,7 @@ type Querier interface {
 	// User queries for sqlc
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error)
-	DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error)
+	DeactivatePlatformDomain(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	DeleteAPIToken(ctx context.Context, id uuid.UUID) error
 	DeleteAPITokenByHash(ctx context.Context, tokenHash string) error
 	DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error
@@ -69,8 +69,8 @@ type Querier interface {
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	// Cluster queries for agent operations
 	GetClusterByAgentToken(ctx context.Context, agentTokenHash pgtype.Text) (GetClusterByAgentTokenRow, error)
-	GetClusterByID(ctx context.Context, id int64) (GetClusterByIDRow, error)
-	GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error)
+	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
+	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
@@ -84,7 +84,7 @@ type Querier interface {
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetOrganizationMember(ctx context.Context, arg GetOrganizationMemberParams) (GetOrganizationMemberRow, error)
-	GetPlatformDomain(ctx context.Context, id int64) (PlatformDomain, error)
+	GetPlatformDomain(ctx context.Context, id uuid.UUID) (PlatformDomain, error)
 	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
 	GetResourceByNameAndWorkspace(ctx context.Context, arg GetResourceByNameAndWorkspaceParams) (Resource, error)

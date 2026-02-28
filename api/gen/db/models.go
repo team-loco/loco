@@ -340,7 +340,7 @@ type ApiToken struct {
 }
 
 type Cluster struct {
-	ID                         int64              `json:"id"`
+	ID                         uuid.UUID          `json:"id"`
 	Name                       string             `json:"name"`
 	Region                     string             `json:"region"`
 	Provider                   string             `json:"provider"`
@@ -355,16 +355,16 @@ type Cluster struct {
 	CapacityMemoryBytes        pgtype.Int8        `json:"capacityMemoryBytes"`
 	AgentVersion               pgtype.Text        `json:"agentVersion"`
 	ObservabilityProxyEndpoint pgtype.Text        `json:"observabilityProxyEndpoint"`
+	Tier                       string             `json:"tier"`
 	CreatedAt                  pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt                  pgtype.Timestamptz `json:"updatedAt"`
-	Tier                       string             `json:"tier"`
 }
 
 type Deployment struct {
 	ID               uuid.UUID          `json:"id"`
 	ResourceID       uuid.UUID          `json:"resourceId"`
 	ResourceRegionID uuid.UUID          `json:"resourceRegionId"`
-	ClusterID        int64              `json:"clusterId"`
+	ClusterID        uuid.UUID          `json:"clusterId"`
 	Region           string             `json:"region"`
 	Replicas         int32              `json:"replicas"`
 	Status           DeploymentStatus   `json:"status"`
@@ -384,10 +384,10 @@ type Environment struct {
 	WorkspaceID     uuid.UUID          `json:"workspaceId"`
 	Name            string             `json:"name"`
 	Description     pgtype.Text        `json:"description"`
+	EnvironmentType string             `json:"environmentType"`
 	CreatedBy       uuid.UUID          `json:"createdBy"`
 	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
-	EnvironmentType string             `json:"environmentType"`
 }
 
 type Organization struct {
@@ -405,7 +405,7 @@ type OrganizationMember struct {
 }
 
 type PlatformDomain struct {
-	ID        int64              `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	Domain    string             `json:"domain"`
 	IsActive  bool               `json:"isActive"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
@@ -430,7 +430,7 @@ type ResourceDomain struct {
 	Domain           string             `json:"domain"`
 	DomainSource     DomainSource       `json:"domainSource"`
 	SubdomainLabel   pgtype.Text        `json:"subdomainLabel"`
-	PlatformDomainID pgtype.Int8        `json:"platformDomainId"`
+	PlatformDomainID *uuid.UUID         `json:"platformDomainId"`
 	IsPrimary        bool               `json:"isPrimary"`
 	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`

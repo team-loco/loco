@@ -22,7 +22,7 @@ WHERE agent_token_hash = $1
 `
 
 type GetClusterByAgentTokenRow struct {
-	ID                    int64              `json:"id"`
+	ID                    uuid.UUID          `json:"id"`
 	Name                  string             `json:"name"`
 	Region                string             `json:"region"`
 	Provider              string             `json:"provider"`
@@ -74,7 +74,7 @@ WHERE id = $1
 `
 
 type GetClusterByIDRow struct {
-	ID                    int64              `json:"id"`
+	ID                    uuid.UUID          `json:"id"`
 	Name                  string             `json:"name"`
 	Region                string             `json:"region"`
 	Provider              string             `json:"provider"`
@@ -92,7 +92,7 @@ type GetClusterByIDRow struct {
 	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
 }
 
-func (q *Queries) GetClusterByID(ctx context.Context, id int64) (GetClusterByIDRow, error) {
+func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error) {
 	row := q.db.QueryRow(ctx, getClusterByID, id)
 	var i GetClusterByIDRow
 	err := row.Scan(
@@ -127,7 +127,7 @@ WHERE r.workspace_id = $1
 `
 
 type GetClustersByWorkspaceDeploymentsRow struct {
-	ID                         int64       `json:"id"`
+	ID                         uuid.UUID   `json:"id"`
 	Name                       string      `json:"name"`
 	Region                     string      `json:"region"`
 	ObservabilityProxyEndpoint pgtype.Text `json:"observabilityProxyEndpoint"`
@@ -165,7 +165,7 @@ WHERE id = $1
 `
 
 type SetClusterAgentTokenParams struct {
-	ID             int64       `json:"id"`
+	ID             uuid.UUID   `json:"id"`
 	AgentTokenHash pgtype.Text `json:"agentTokenHash"`
 }
 
@@ -181,7 +181,7 @@ WHERE id = $1
 `
 
 type SetClusterObservabilityEndpointParams struct {
-	ID                         int64       `json:"id"`
+	ID                         uuid.UUID   `json:"id"`
 	ObservabilityProxyEndpoint pgtype.Text `json:"observabilityProxyEndpoint"`
 }
 
@@ -200,7 +200,7 @@ WHERE id = $1
 `
 
 type UpdateClusterAgentInfoParams struct {
-	ID                    int64       `json:"id"`
+	ID                    uuid.UUID   `json:"id"`
 	AgentVersion          pgtype.Text `json:"agentVersion"`
 	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
@@ -227,7 +227,7 @@ WHERE id = $1
 `
 
 type UpdateClusterHeartbeatParams struct {
-	ID                    int64              `json:"id"`
+	ID                    uuid.UUID          `json:"id"`
 	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
 	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`

@@ -22,7 +22,7 @@ RETURNING id
 type CreateDeploymentParams struct {
 	ResourceID       uuid.UUID        `json:"resourceId"`
 	ResourceRegionID uuid.UUID        `json:"resourceRegionId"`
-	ClusterID        int64            `json:"clusterId"`
+	ClusterID        uuid.UUID        `json:"clusterId"`
 	Region           string           `json:"region"`
 	Replicas         int32            `json:"replicas"`
 	Status           DeploymentStatus `json:"status"`

@@ -7,6 +7,7 @@
 package environmentv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -679,7 +680,7 @@ var File_loco_environment_v1_environment_proto protoreflect.FileDescriptor
 
 const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\n" +
-	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x02\n" +
+	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x02\n" +
 	"\vEnvironment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -692,37 +693,39 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x0e\n" +
-	"\f_description\"\xc2\x01\n" +
-	"\x18CreateEnvironmentRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x128\n" +
-	"\x04type\x18\x04 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeR\x04typeB\x0e\n" +
+	"\f_description\"\xeb\x01\n" +
+	"\x18CreateEnvironmentRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x00R\vdescription\x88\x01\x01\x12D\n" +
+	"\x04type\x18\x04 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04typeB\x0e\n" +
 	"\f_description\"B\n" +
 	"\x19CreateEnvironmentResponse\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\">\n" +
-	"\x15GetEnvironmentRequest\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\\\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"H\n" +
+	"\x15GetEnvironmentRequest\x12/\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\\\n" +
 	"\x16GetEnvironmentResponse\x12B\n" +
-	"\venvironment\x18\x01 \x01(\v2 .loco.environment.v1.EnvironmentR\venvironment\"<\n" +
-	"\x17ListEnvironmentsRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"`\n" +
+	"\venvironment\x18\x01 \x01(\v2 .loco.environment.v1.EnvironmentR\venvironment\"F\n" +
+	"\x17ListEnvironmentsRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"`\n" +
 	"\x18ListEnvironmentsResponse\x12D\n" +
-	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\x9f\x02\n" +
-	"\x18UpdateEnvironmentRequest\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12;\n" +
+	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\xc8\x02\n" +
+	"\x18UpdateEnvironmentRequest\x12/\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12\x17\n" +
-	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01\x12=\n" +
-	"\x04type\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeH\x02R\x04type\x88\x01\x01B\a\n" +
+	"updateMask\x12 \n" +
+	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12I\n" +
+	"\x04type\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00H\x02R\x04type\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\a\n" +
 	"\x05_type\"B\n" +
 	"\x19UpdateEnvironmentResponse\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"A\n" +
-	"\x18DeleteEnvironmentRequest\x12%\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"\x1b\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"K\n" +
+	"\x18DeleteEnvironmentRequest\x12/\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\x1b\n" +
 	"\x19DeleteEnvironmentResponse*\x8c\x01\n" +
 	"\x0fEnvironmentType\x12 \n" +
 	"\x1cENVIRONMENT_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +

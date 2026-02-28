@@ -119,20 +119,24 @@ func (s *ResourceServer) CreateResource(
 	domainSource := genDb.DomainSourceUserProvided
 	var fullDomain string
 	var subdomainLabel pgtype.Text
-	var platformDomainID pgtype.Int8
+	var platformDomainID *uuid.UUID
 
 	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
 		if r.GetDomain().GetSubdomain() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
 		}
-		if r.GetDomain().GetPlatformDomainId() == 0 {
+		if r.GetDomain().GetPlatformDomainId() == "" {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform_domain_id required for platform-provided domains"))
 		}
 
 		domainSource = genDb.DomainSourcePlatformProvided
-		platformDomainID = pgtype.Int8{Int64: r.GetDomain().GetPlatformDomainId(), Valid: true}
+		parsedPlatformDomainID, parseErr := uuid.Parse(r.GetDomain().GetPlatformDomainId())
+		if parseErr != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid platform_domain_id: %w", parseErr))
+		}
+		platformDomainID = &parsedPlatformDomainID
 
-		platformDomain, err := s.queries.GetPlatformDomain(ctx, r.GetDomain().GetPlatformDomainId())
+		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform domain not found"))
@@ -490,7 +494,7 @@ func (s *ResourceServer) DeleteResource(
 		// Dispatch delete command to the agent via CommandBus
 		cmd := &commandbus.Command{
 			ID:        uuid.NewString(),
-			ClusterID: deployment.ClusterID,
+			ClusterID: deployment.ClusterID.String(),
 			Type:      commandbus.CommandTypeDelete,
 			Payload:   payloadJSON,
 			CreatedAt: time.Now(),
@@ -868,7 +872,7 @@ func (s *ResourceServer) ScaleResource(
 
 	cmd := &commandbus.Command{
 		ID:        uuid.NewString(),
-		ClusterID: cluster.ID,
+		ClusterID: cluster.ID.String(),
 		Type:      commandbus.CommandTypeScale,
 		Payload:   payloadJSON,
 		CreatedAt: time.Now(),
@@ -1079,7 +1083,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	cmd := &commandbus.Command{
 		ID:        uuid.NewString(),
-		ClusterID: cluster.ID,
+		ClusterID: cluster.ID.String(),
 		Type:      commandbus.CommandTypeUpdateEnv,
 		Payload:   payloadJSON,
 		CreatedAt: time.Now(),
@@ -1152,8 +1156,9 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 		if d.SubdomainLabel.Valid {
 			domain.SubdomainLabel = &d.SubdomainLabel.String
 		}
-		if d.PlatformDomainID.Valid {
-			domain.PlatformDomainId = &d.PlatformDomainID.Int64
+		if d.PlatformDomainID != nil {
+			s := d.PlatformDomainID.String()
+			domain.PlatformDomainId = &s
 		}
 
 		protoDomains = append(protoDomains, domain)

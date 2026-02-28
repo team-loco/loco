@@ -104,7 +104,7 @@ type GetActiveClusterByRegionAndTierParams struct {
 }
 
 type GetActiveClusterByRegionAndTierRow struct {
-	ID                    int64              `json:"id"`
+	ID                    uuid.UUID          `json:"id"`
 	Name                  string             `json:"name"`
 	Region                string             `json:"region"`
 	Provider              string             `json:"provider"`
@@ -153,14 +153,14 @@ WHERE id = $1
 `
 
 type GetClusterDetailsRow struct {
-	ID            int64              `json:"id"`
+	ID            uuid.UUID          `json:"id"`
 	IsActive      bool               `json:"isActive"`
 	HealthStatus  pgtype.Text        `json:"healthStatus"`
 	AgentVersion  pgtype.Text        `json:"agentVersion"`
 	LastHeartbeat pgtype.Timestamptz `json:"lastHeartbeat"`
 }
 
-func (q *Queries) GetClusterDetails(ctx context.Context, id int64) (GetClusterDetailsRow, error) {
+func (q *Queries) GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error) {
 	row := q.db.QueryRow(ctx, getClusterDetails, id)
 	var i GetClusterDetailsRow
 	err := row.Scan(
@@ -184,7 +184,7 @@ LIMIT 1
 `
 
 type GetFirstActiveClusterRow struct {
-	ID                    int64              `json:"id"`
+	ID                    uuid.UUID          `json:"id"`
 	Name                  string             `json:"name"`
 	Region                string             `json:"region"`
 	Provider              string             `json:"provider"`
@@ -369,7 +369,7 @@ ORDER BY region ASC
 `
 
 type ListClustersActiveRow struct {
-	ID                    int64              `json:"id"`
+	ID                    uuid.UUID          `json:"id"`
 	Name                  string             `json:"name"`
 	Region                string             `json:"region"`
 	Provider              string             `json:"provider"`

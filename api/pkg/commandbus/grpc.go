@@ -11,13 +11,13 @@ import (
 // Commands flow through the bidirectional CommandStream RPC.
 type GRPCCommandBus struct {
 	mu         sync.RWMutex
-	agents     map[int64]*agentConn    // clusterID -> connection
+	agents     map[string]*agentConn   // clusterID -> connection
 	pending    map[string]*Command     // commandID -> command (for retry)
 	maxRetries int
 }
 
 type agentConn struct {
-	clusterID int64
+	clusterID string
 	cmdChan   chan *Command
 	cancel    context.CancelFunc
 }
@@ -29,7 +29,7 @@ func NewGRPCCommandBus(cfg *Config) *GRPCCommandBus {
 		maxRetries = 3
 	}
 	return &GRPCCommandBus{
-		agents:     make(map[int64]*agentConn),
+		agents:     make(map[string]*agentConn),
 		pending:    make(map[string]*Command),
 		maxRetries: maxRetries,
 	}
@@ -42,7 +42,7 @@ func (b *GRPCCommandBus) Send(ctx context.Context, cmd *Command) error {
 	b.mu.RUnlock()
 
 	if !ok {
-		return fmt.Errorf("no agent connected for cluster %d", cmd.ClusterID)
+		return fmt.Errorf("no agent connected for cluster %s", cmd.ClusterID)
 	}
 
 	// Track for potential retry
@@ -65,7 +65,7 @@ func (b *GRPCCommandBus) Send(ctx context.Context, cmd *Command) error {
 
 // Receive returns a channel of commands for a cluster.
 // This is called by the AgentService when an agent connects via CommandStream.
-func (b *GRPCCommandBus) Receive(ctx context.Context, clusterID int64) (<-chan *Command, error) {
+func (b *GRPCCommandBus) Receive(ctx context.Context, clusterID string) (<-chan *Command, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -138,7 +138,7 @@ func (b *GRPCCommandBus) Nack(ctx context.Context, commandID string, retry bool)
 }
 
 // IsConnected returns true if an agent is connected for the cluster.
-func (b *GRPCCommandBus) IsConnected(clusterID int64) bool {
+func (b *GRPCCommandBus) IsConnected(clusterID string) bool {
 	b.mu.RLock()
 	_, ok := b.agents[clusterID]
 	b.mu.RUnlock()
@@ -146,7 +146,7 @@ func (b *GRPCCommandBus) IsConnected(clusterID int64) bool {
 }
 
 // Disconnect disconnects an agent.
-func (b *GRPCCommandBus) Disconnect(clusterID int64) {
+func (b *GRPCCommandBus) Disconnect(clusterID string) {
 	b.mu.Lock()
 	if agent, ok := b.agents[clusterID]; ok {
 		agent.cancel()

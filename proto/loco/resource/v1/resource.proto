@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.resource.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "loco/deployment/v1/deployment.proto";
@@ -124,7 +125,7 @@ message RegionTarget {
 message ServiceSpec {
   RoutingConfig routing = 1;
   ObservabilityConfig observability = 2;
-  map<string, RegionTarget> regions = 3; // key = region name
+  map<string, RegionTarget> regions = 3 [(buf.validate.field).map.min_pairs = 1]; // key = region name
   optional deployment.v1.HealthCheckConfig health_check = 4; // health check defaults
 }
 
@@ -191,12 +192,12 @@ message RegionConfig {
 
 // CreateResourceRequest is the request to create a new resource.
 message CreateResourceRequest {
-  string workspace_id = 1;
-  string name = 2;
-  ResourceType type = 3;
-  domain.v1.DomainInput domain = 4;
-  ResourceSpec spec = 5;
-  optional string description = 6;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2 [(buf.validate.field).string.max_len = 63];
+  ResourceType type = 3 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  domain.v1.DomainInput domain = 4 [(buf.validate.field).required = true];
+  ResourceSpec spec = 5 [(buf.validate.field).required = true];
+  optional string description = 6 [(buf.validate.field).string.max_len = 256];
   reserved 7;
   reserved "environment_id";
 }
@@ -208,8 +209,8 @@ message CreateResourceResponse {
 
 // GetResourceNameKey is used to lookup a resource by name within a workspace.
 message GetResourceNameKey {
-  string workspace_id = 1;
-  string name = 2;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
 }
 
 // GetResourceRequest is the request to retrieve a resource.
@@ -227,8 +228,8 @@ message GetResourceResponse {
 
 // ListWorkspaceResourcesRequest is the request to list resources.
 message ListWorkspaceResourcesRequest {
-  string workspace_id = 1;
-  int32 page_size = 2; // default: 50, max: 200
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -240,10 +241,10 @@ message ListWorkspaceResourcesResponse {
 
 // UpdateResourceRequest is the request to update a resource.
 message UpdateResourceRequest {
-  string resource_id = 1;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string name = 3;
-  optional string description = 4;
+  optional string name = 3 [(buf.validate.field).string.max_len = 63];
+  optional string description = 4 [(buf.validate.field).string.max_len = 256];
 }
 
 // UpdateResourceResponse is the response containing the updated resource ID.
@@ -253,7 +254,7 @@ message UpdateResourceResponse {
 
 // DeleteResourceRequest is the request to delete a resource.
 message DeleteResourceRequest {
-  string resource_id = 1;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeleteResourceResponse is the response after deleting a resource.
@@ -276,7 +277,7 @@ message ListRegionsResponse {
 
 // GetResourceStatusRequest is the request to retrieve resource status.
 message GetResourceStatusRequest {
-  string resource_id = 1;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeploymentStatus represents the status of a resource deployment, including phase, replica count, and messages.
@@ -297,8 +298,8 @@ message GetResourceStatusResponse {
 
 // WatchLogsRequest is the request to stream resource logs.
 message WatchLogsRequest {
-  string resource_id = 1;
-  optional int32 limit = 2;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  optional int32 limit = 2 [(buf.validate.field).int32 = {gte: 1, lte: 10000}];
   optional bool follow = 3;
 }
 
@@ -325,8 +326,8 @@ message Event {
 
 // ListResourceEventsRequest is the request to retrieve resource events.
 message ListResourceEventsRequest {
-  string resource_id = 1;
-  optional int32 limit = 2; // max number of events to return
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  optional int32 limit = 2 [(buf.validate.field).int32 = {gte: 1, lte: 1000}]; // max number of events to return
 }
 
 // ListResourceEventsResponse is the response containing resource events.
@@ -338,10 +339,10 @@ message ListResourceEventsResponse {
 
 // ScaleResourceRequest is the request to scale a resource.
 message ScaleResourceRequest {
-  string resource_id = 1;
-  optional int32 replicas = 2;
-  optional string cpu = 3;
-  optional string memory = 4;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  optional int32 replicas = 2 [(buf.validate.field).int32.gte = 1];
+  optional string cpu = 3 [(buf.validate.field).string.min_len = 1];
+  optional string memory = 4 [(buf.validate.field).string.min_len = 1];
   optional string region = 5; // if provided, scale only this region; otherwise scale all regions
 }
 
@@ -350,8 +351,8 @@ message ScaleResourceResponse {}
 
 // UpdateResourceEnvRequest is the request to update resource environment variables.
 message UpdateResourceEnvRequest {
-  string resource_id = 1;
-  map<string, string> env = 2;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  map<string, string> env = 2 [(buf.validate.field).map.min_pairs = 1];
   optional string region = 3; // if provided, update only this region; otherwise update all regions
 }
 

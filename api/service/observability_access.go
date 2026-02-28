@@ -68,7 +68,7 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 			continue
 		}
 		clusterAccess = append(clusterAccess, &observabilityv1.ClusterAccess{
-			ClusterId: c.ID,
+			ClusterId: c.ID.String(),
 			ProxyUrl:  c.ObservabilityProxyEndpoint.String,
 			Region:    c.Region,
 		})

@@ -59,7 +59,7 @@ CREATE INDEX idx_environments_workspace_id ON environments (workspace_id);
 -- Clusters table
 CREATE TABLE
     clusters (
-        id BIGSERIAL PRIMARY KEY,
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
         name TEXT UNIQUE NOT NULL,
         region TEXT NOT NULL,
         provider TEXT NOT NULL,
@@ -94,7 +94,7 @@ WHERE
 -- Platform domains (loco-provided base domains)
 CREATE TABLE
     platform_domains (
-        id BIGSERIAL PRIMARY KEY,
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
         domain TEXT NOT NULL UNIQUE,
         is_active BOOLEAN NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW ()
@@ -150,7 +150,7 @@ CREATE TABLE
         domain TEXT NOT NULL UNIQUE,
         domain_source domain_source NOT NULL,
         subdomain_label TEXT,
-        platform_domain_id BIGINT REFERENCES platform_domains (id),
+        platform_domain_id UUID REFERENCES platform_domains (id),
         is_primary BOOLEAN NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW (),
         updated_at TIMESTAMPTZ DEFAULT NOW (),
@@ -188,7 +188,7 @@ CREATE TABLE
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
         resource_region_id UUID NOT NULL REFERENCES resource_regions (id) ON DELETE RESTRICT,
-        cluster_id BIGINT NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
         region TEXT NOT NULL,
         replicas INT NOT NULL,
         status deployment_status NOT NULL,

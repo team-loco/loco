@@ -16,8 +16,8 @@ import (
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
+	"connectrpc.com/validate"
 	charmLog "github.com/charmbracelet/log"
-
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -160,7 +160,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine))
+	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine), validate.NewInterceptor())
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

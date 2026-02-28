@@ -118,7 +118,7 @@ func (s *AgentServer) Register(
 	)
 
 	return connect.NewResponse(&agentv1.RegisterResponse{
-		ClusterId: cluster.ID,
+		ClusterId: cluster.ID.String(),
 	}), nil
 }
 
@@ -137,7 +137,7 @@ func (s *AgentServer) CommandStream(
 	slog.InfoContext(ctx, "command stream opened", "cluster_id", cluster.ID)
 
 	// Register this agent's command channel
-	cmdChan, err := s.commandBus.Receive(ctx, cluster.ID)
+	cmdChan, err := s.commandBus.Receive(ctx, cluster.ID.String())
 	if err != nil {
 		return connect.NewError(connect.CodeInternal, err)
 	}
@@ -266,7 +266,7 @@ func (s *AgentServer) ReportStatus(
 	}
 
 	// Verify this cluster owns the deployment
-	if r.GetClusterId() != cluster.ID {
+	if r.GetClusterId() != cluster.ID.String() {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("cluster ID mismatch"))
 	}
 
@@ -302,7 +302,7 @@ func (s *AgentServer) ReportStatus(
 
 // getDirectiveForCluster checks for pending directives for a cluster.
 // Returns nil if no directive is pending.
-func (s *AgentServer) getDirectiveForCluster(ctx context.Context, clusterID int64) *agentv1.HeartbeatResponse {
+func (s *AgentServer) getDirectiveForCluster(ctx context.Context, clusterID uuid.UUID) *agentv1.HeartbeatResponse {
 	// TODO: implement directive storage (e.g., in cache or DB)
 	// For now, no directives
 	return nil

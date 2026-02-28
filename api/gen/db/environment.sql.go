@@ -26,7 +26,7 @@ func (q *Queries) CountDeploymentsByEnvironment(ctx context.Context, environment
 const createEnvironment = `-- name: CreateEnvironment :one
 INSERT INTO environments (workspace_id, name, description, environment_type, created_by)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, workspace_id, name, description, created_by, created_at, updated_at, environment_type
+RETURNING id, workspace_id, name, description, environment_type, created_by, created_at, updated_at
 `
 
 type CreateEnvironmentParams struct {
@@ -51,10 +51,10 @@ func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentPa
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.EnvironmentType,
 	)
 	return i, err
 }
@@ -69,7 +69,7 @@ func (q *Queries) DeleteEnvironment(ctx context.Context, id uuid.UUID) error {
 }
 
 const getEnvironmentByID = `-- name: GetEnvironmentByID :one
-SELECT id, workspace_id, name, description, created_by, created_at, updated_at, environment_type FROM environments WHERE id = $1
+SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE id = $1
 `
 
 func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error) {
@@ -80,16 +80,16 @@ func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environ
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.EnvironmentType,
 	)
 	return i, err
 }
 
 const getWorkspaceProductionEnvironment = `-- name: GetWorkspaceProductionEnvironment :one
-SELECT id, workspace_id, name, description, created_by, created_at, updated_at, environment_type FROM environments WHERE workspace_id = $1 AND environment_type = 'production' ORDER BY created_at ASC LIMIT 1
+SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE workspace_id = $1 AND environment_type = 'production' ORDER BY created_at ASC LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error) {
@@ -100,16 +100,16 @@ func (q *Queries) GetWorkspaceProductionEnvironment(ctx context.Context, workspa
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.EnvironmentType,
 	)
 	return i, err
 }
 
 const listWorkspaceEnvironments = `-- name: ListWorkspaceEnvironments :many
-SELECT id, workspace_id, name, description, created_by, created_at, updated_at, environment_type FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC
+SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC
 `
 
 func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error) {
@@ -126,10 +126,10 @@ func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uui
 			&i.WorkspaceID,
 			&i.Name,
 			&i.Description,
+			&i.EnvironmentType,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.EnvironmentType,
 		); err != nil {
 			return nil, err
 		}
@@ -145,7 +145,7 @@ const updateEnvironment = `-- name: UpdateEnvironment :one
 UPDATE environments
 SET name = $2, description = $3, environment_type = $4, updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, description, created_by, created_at, updated_at, environment_type
+RETURNING id, workspace_id, name, description, environment_type, created_by, created_at, updated_at
 `
 
 type UpdateEnvironmentParams struct {
@@ -168,10 +168,10 @@ func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentPa
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.EnvironmentType,
 	)
 	return i, err
 }

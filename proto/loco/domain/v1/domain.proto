@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.domain.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -18,7 +19,7 @@ enum DomainType {
 
 // PlatformDomain represents a platform-provided domain.
 message PlatformDomain {
-  int64 id = 1;
+  string id = 1;
   string domain = 2;
   bool is_active = 3;
   google.protobuf.Timestamp created_at = 4;
@@ -27,10 +28,26 @@ message PlatformDomain {
 
 // DomainInput specifies domain configuration for a resource.
 message DomainInput {
-  DomainType domain_source = 1;
+  DomainType domain_source = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
   optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
-  optional int64 platform_domain_id = 3; // for PLATFORM_PROVIDED: id of the platform domain
+  optional string platform_domain_id = 3 [(buf.validate.field).string.uuid = true]; // for PLATFORM_PROVIDED: id of the platform domain
   optional string domain = 4; // for USER_PROVIDED: full custom domain
+
+  option (buf.validate.message).cel = {
+    id: "platform_provided.subdomain_required"
+    message: "subdomain is required for platform-provided domains"
+    expression: "this.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')"
+  };
+  option (buf.validate.message).cel = {
+    id: "platform_provided.platform_domain_id_required"
+    message: "platform_domain_id is required for platform-provided domains"
+    expression: "this.domain_source != 1 || (has(this.platform_domain_id) && this.platform_domain_id != '')"
+  };
+  option (buf.validate.message).cel = {
+    id: "user_provided.domain_required"
+    message: "domain is required for user-provided domains"
+    expression: "this.domain_source != 2 || (has(this.domain) && this.domain != '')"
+  };
 }
 
 // ResourceDomain represents a domain assigned to a resource.
@@ -40,7 +57,7 @@ message ResourceDomain {
   string domain = 3;
   DomainType domain_source = 4;
   optional string subdomain_label = 5;
-  optional int64 platform_domain_id = 6;
+  optional string platform_domain_id = 6;
   bool is_primary = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
@@ -83,20 +100,20 @@ service DomainService {
 
 // CreatePlatformDomainRequest is the request to create a platform domain.
 message CreatePlatformDomainRequest {
-  string domain = 1;
+  string domain = 1 [(buf.validate.field).string.min_len = 1];
   bool is_active = 2;
 }
 
 // CreatePlatformDomainResponse is the response containing the created platform domain ID.
 message CreatePlatformDomainResponse {
-  int64 id = 1;
+  string id = 1;
 }
 
 // GetPlatformDomainRequest is the request to retrieve a platform domain.
 message GetPlatformDomainRequest {
   oneof key {
-    int64 id = 1;
-    string domain = 2;
+    string id = 1 [(buf.validate.field).string.uuid = true];
+    string domain = 2 [(buf.validate.field).string.min_len = 1];
   }
 }
 
@@ -117,20 +134,20 @@ message ListPlatformDomainsResponse {
 
 // UpdatePlatformDomainRequest is the request to update a platform domain.
 message UpdatePlatformDomainRequest {
-  int64 id = 1;
+  string id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string domain = 3;
+  optional string domain = 3 [(buf.validate.field).string.min_len = 1];
   optional bool is_active = 4;
 }
 
 // UpdatePlatformDomainResponse is the response containing the updated platform domain ID.
 message UpdatePlatformDomainResponse {
-  int64 id = 1;
+  string id = 1;
 }
 
 // DeletePlatformDomainRequest is the request to delete a platform domain.
 message DeletePlatformDomainRequest {
-  int64 id = 1;
+  string id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeletePlatformDomainResponse is the response after deleting a platform domain.
@@ -161,8 +178,8 @@ message ListLocoOwnedDomainsResponse {
 
 // CreateResourceDomainRequest is the request to add a domain to a resource.
 message CreateResourceDomainRequest {
-  string resource_id = 1;
-  DomainInput domain = 2;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  DomainInput domain = 2 [(buf.validate.field).required = true];
 }
 
 // CreateResourceDomainResponse is the response containing the created resource domain ID.
@@ -172,9 +189,9 @@ message CreateResourceDomainResponse {
 
 // UpdateResourceDomainRequest is the request to update a resource's domain.
 message UpdateResourceDomainRequest {
-  string domain_id = 1;
+  string domain_id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string domain = 3;
+  optional string domain = 3 [(buf.validate.field).string.min_len = 1];
 }
 
 // UpdateResourceDomainResponse is the response containing the updated resource domain ID.
@@ -184,8 +201,8 @@ message UpdateResourceDomainResponse {
 
 // SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
 message SetPrimaryResourceDomainRequest {
-  string resource_id = 1;
-  string domain_id = 2;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  string domain_id = 2 [(buf.validate.field).string.uuid = true];
 }
 
 // SetPrimaryResourceDomainResponse is the response containing the resource and domain IDs.
@@ -196,7 +213,7 @@ message SetPrimaryResourceDomainResponse {
 
 // DeleteResourceDomainRequest is the request to remove a domain from a resource.
 message DeleteResourceDomainRequest {
-  string domain_id = 1;
+  string domain_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeleteResourceDomainResponse is the response after removing a domain from a resource.
@@ -206,7 +223,7 @@ message DeleteResourceDomainResponse {}
 
 // CheckDomainAvailabilityRequest is the request to check if a domain is available.
 message CheckDomainAvailabilityRequest {
-  string domain = 1;
+  string domain = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 // CheckDomainAvailabilityResponse contains the availability check result.

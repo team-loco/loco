@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package loco.oauth.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/team-loco/loco/proto/loco/oauth/v1;oauthv1";
 
 // OAuthProvider represents supported OAuth identity providers.
@@ -12,7 +14,7 @@ enum OAuthProvider {
 
 // GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
 message GetOAuthDetailsRequest {
-  OAuthProvider provider = 1;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 }
 
 // GetOAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
@@ -23,8 +25,8 @@ message GetOAuthDetailsResponse {
 
 // ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
 message ExchangeOAuthTokenRequest {
-  OAuthProvider provider = 1;
-  string token = 2;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  string token = 2 [(buf.validate.field).string.min_len = 1];
   bool create_user_if_not_exists = 3;
 }
 
@@ -39,7 +41,7 @@ message ExchangeOAuthTokenResponse {
 
 // GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
 message GetOAuthAuthorizationURLRequest {
-  OAuthProvider provider = 1;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
   string state = 2;
   string redirect_uri = 3;
 }
@@ -52,9 +54,9 @@ message GetOAuthAuthorizationURLResponse {
 
 // ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
 message ExchangeOAuthCodeRequest {
-  OAuthProvider provider = 1;
-  string code = 2;
-  string state = 3;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  string code = 2 [(buf.validate.field).string.min_len = 1];
+  string state = 3 [(buf.validate.field).string.min_len = 1];
   string redirect_uri = 4;
 }
 

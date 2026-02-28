@@ -7,6 +7,7 @@
 package tokenv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -716,12 +717,14 @@ var File_loco_token_v1_token_proto protoreflect.FileDescriptor
 
 const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/token/v1/token.proto\x12\rloco.token.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x92\x01\n" +
-	"\vEntityScope\x12*\n" +
-	"\x05scope\x18\x01 \x01(\x0e2\x14.loco.token.v1.ScopeR\x05scope\x12:\n" +
-	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
-	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\tR\bentityId\"\x9e\x02\n" +
+	"\x19loco/token/v1/token.proto\x12\rloco.token.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb4\x01\n" +
+	"\vEntityScope\x126\n" +
+	"\x05scope\x18\x01 \x01(\x0e2\x14.loco.token.v1.ScopeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05scope\x12F\n" +
+	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"entityType\x12%\n" +
+	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\"\x9e\x02\n" +
 	"\x05Token\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
@@ -731,35 +734,39 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x129\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xdb\x01\n" +
-	"\x12CreateTokenRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
-	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
-	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\tR\bentityId\x122\n" +
-	"\x06scopes\x18\x04 \x03(\v2\x1a.loco.token.v1.EntityScopeR\x06scopes\x12$\n" +
-	"\x0eexpires_in_sec\x18\x05 \x01(\x03R\fexpiresInSec\"h\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x8f\x02\n" +
+	"\x12CreateTokenRequest\x12\x1d\n" +
+	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12F\n" +
+	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"entityType\x12%\n" +
+	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\x12<\n" +
+	"\x06scopes\x18\x04 \x03(\v2\x1a.loco.token.v1.EntityScopeB\b\xbaH\x05\x92\x01\x02\b\x01R\x06scopes\x12-\n" +
+	"\x0eexpires_in_sec\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02(\x01R\fexpiresInSec\"h\n" +
 	"\x13CreateTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12;\n" +
-	"\x0etoken_metadata\x18\x02 \x01(\v2\x14.loco.token.v1.TokenR\rtokenMetadata\"l\n" +
-	"\x11ListTokensRequest\x12:\n" +
-	"\ventity_type\x18\x01 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
-	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x02 \x01(\tR\bentityId\"B\n" +
+	"\x0etoken_metadata\x18\x02 \x01(\v2\x14.loco.token.v1.TokenR\rtokenMetadata\"\x82\x01\n" +
+	"\x11ListTokensRequest\x12F\n" +
+	"\ventity_type\x18\x01 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"entityType\x12%\n" +
+	"\tentity_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\"B\n" +
 	"\x12ListTokensResponse\x12,\n" +
-	"\x06tokens\x18\x01 \x03(\v2\x14.loco.token.v1.TokenR\x06tokens\"~\n" +
-	"\x0fGetTokenRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
-	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
-	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\tR\bentityId\">\n" +
+	"\x06tokens\x18\x01 \x03(\v2\x14.loco.token.v1.TokenR\x06tokens\"\x9d\x01\n" +
+	"\x0fGetTokenRequest\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12F\n" +
+	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"entityType\x12%\n" +
+	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\">\n" +
 	"\x10GetTokenResponse\x12*\n" +
-	"\x05token\x18\x01 \x01(\v2\x14.loco.token.v1.TokenR\x05token\"\x81\x01\n" +
-	"\x12RevokeTokenRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
-	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
-	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\tR\bentityId\"\x15\n" +
+	"\x05token\x18\x01 \x01(\v2\x14.loco.token.v1.TokenR\x05token\"\xa0\x01\n" +
+	"\x12RevokeTokenRequest\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12F\n" +
+	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"entityType\x12%\n" +
+	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\"\x15\n" +
 	"\x13RevokeTokenResponse*\xaa\x01\n" +
 	"\n" +
 	"EntityType\x12\x1b\n" +

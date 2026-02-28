@@ -7,6 +7,7 @@
 package domainv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -76,7 +77,7 @@ func (DomainType) EnumDescriptor() ([]byte, []int) {
 // PlatformDomain represents a platform-provided domain.
 type PlatformDomain struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Domain        string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
 	IsActive      bool                   `protobuf:"varint,3,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -115,11 +116,11 @@ func (*PlatformDomain) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PlatformDomain) GetId() int64 {
+func (x *PlatformDomain) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *PlatformDomain) GetDomain() string {
@@ -154,9 +155,9 @@ func (x *PlatformDomain) GetUpdatedAt() *timestamppb.Timestamp {
 type DomainInput struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	DomainSource     DomainType             `protobuf:"varint,1,opt,name=domain_source,json=domainSource,proto3,enum=loco.domain.v1.DomainType" json:"domain_source,omitempty"`
-	Subdomain        *string                `protobuf:"bytes,2,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`                                          // for PLATFORM_PROVIDED: "myapp"
-	PlatformDomainId *int64                 `protobuf:"varint,3,opt,name=platform_domain_id,json=platformDomainId,proto3,oneof" json:"platform_domain_id,omitempty"` // for PLATFORM_PROVIDED: id of the platform domain
-	Domain           *string                `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`                                                // for USER_PROVIDED: full custom domain
+	Subdomain        *string                `protobuf:"bytes,2,opt,name=subdomain,proto3,oneof" json:"subdomain,omitempty"`                                         // for PLATFORM_PROVIDED: "myapp"
+	PlatformDomainId *string                `protobuf:"bytes,3,opt,name=platform_domain_id,json=platformDomainId,proto3,oneof" json:"platform_domain_id,omitempty"` // for PLATFORM_PROVIDED: id of the platform domain
+	Domain           *string                `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`                                               // for USER_PROVIDED: full custom domain
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -205,11 +206,11 @@ func (x *DomainInput) GetSubdomain() string {
 	return ""
 }
 
-func (x *DomainInput) GetPlatformDomainId() int64 {
+func (x *DomainInput) GetPlatformDomainId() string {
 	if x != nil && x.PlatformDomainId != nil {
 		return *x.PlatformDomainId
 	}
-	return 0
+	return ""
 }
 
 func (x *DomainInput) GetDomain() string {
@@ -227,7 +228,7 @@ type ResourceDomain struct {
 	Domain           string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
 	DomainSource     DomainType             `protobuf:"varint,4,opt,name=domain_source,json=domainSource,proto3,enum=loco.domain.v1.DomainType" json:"domain_source,omitempty"`
 	SubdomainLabel   *string                `protobuf:"bytes,5,opt,name=subdomain_label,json=subdomainLabel,proto3,oneof" json:"subdomain_label,omitempty"`
-	PlatformDomainId *int64                 `protobuf:"varint,6,opt,name=platform_domain_id,json=platformDomainId,proto3,oneof" json:"platform_domain_id,omitempty"`
+	PlatformDomainId *string                `protobuf:"bytes,6,opt,name=platform_domain_id,json=platformDomainId,proto3,oneof" json:"platform_domain_id,omitempty"`
 	IsPrimary        bool                   `protobuf:"varint,7,opt,name=is_primary,json=isPrimary,proto3" json:"is_primary,omitempty"`
 	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
@@ -300,11 +301,11 @@ func (x *ResourceDomain) GetSubdomainLabel() string {
 	return ""
 }
 
-func (x *ResourceDomain) GetPlatformDomainId() int64 {
+func (x *ResourceDomain) GetPlatformDomainId() string {
 	if x != nil && x.PlatformDomainId != nil {
 		return *x.PlatformDomainId
 	}
-	return 0
+	return ""
 }
 
 func (x *ResourceDomain) GetIsPrimary() bool {
@@ -384,7 +385,7 @@ func (x *CreatePlatformDomainRequest) GetIsActive() bool {
 // CreatePlatformDomainResponse is the response containing the created platform domain ID.
 type CreatePlatformDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -419,11 +420,11 @@ func (*CreatePlatformDomainResponse) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *CreatePlatformDomainResponse) GetId() int64 {
+func (x *CreatePlatformDomainResponse) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 // GetPlatformDomainRequest is the request to retrieve a platform domain.
@@ -475,13 +476,13 @@ func (x *GetPlatformDomainRequest) GetKey() isGetPlatformDomainRequest_Key {
 	return nil
 }
 
-func (x *GetPlatformDomainRequest) GetId() int64 {
+func (x *GetPlatformDomainRequest) GetId() string {
 	if x != nil {
 		if x, ok := x.Key.(*GetPlatformDomainRequest_Id); ok {
 			return x.Id
 		}
 	}
-	return 0
+	return ""
 }
 
 func (x *GetPlatformDomainRequest) GetDomain() string {
@@ -498,7 +499,7 @@ type isGetPlatformDomainRequest_Key interface {
 }
 
 type GetPlatformDomainRequest_Id struct {
-	Id int64 `protobuf:"varint,1,opt,name=id,proto3,oneof"`
+	Id string `protobuf:"bytes,1,opt,name=id,proto3,oneof"`
 }
 
 type GetPlatformDomainRequest_Domain struct {
@@ -647,7 +648,7 @@ func (x *ListPlatformDomainsResponse) GetPlatformDomains() []*PlatformDomain {
 // UpdatePlatformDomainRequest is the request to update a platform domain.
 type UpdatePlatformDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	Domain        *string                `protobuf:"bytes,3,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
 	IsActive      *bool                  `protobuf:"varint,4,opt,name=is_active,json=isActive,proto3,oneof" json:"is_active,omitempty"`
@@ -685,11 +686,11 @@ func (*UpdatePlatformDomainRequest) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *UpdatePlatformDomainRequest) GetId() int64 {
+func (x *UpdatePlatformDomainRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 func (x *UpdatePlatformDomainRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
@@ -716,7 +717,7 @@ func (x *UpdatePlatformDomainRequest) GetIsActive() bool {
 // UpdatePlatformDomainResponse is the response containing the updated platform domain ID.
 type UpdatePlatformDomainResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -751,17 +752,17 @@ func (*UpdatePlatformDomainResponse) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *UpdatePlatformDomainResponse) GetId() int64 {
+func (x *UpdatePlatformDomainResponse) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 // DeletePlatformDomainRequest is the request to delete a platform domain.
 type DeletePlatformDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -796,11 +797,11 @@ func (*DeletePlatformDomainRequest) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *DeletePlatformDomainRequest) GetId() int64 {
+func (x *DeletePlatformDomainRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 // DeletePlatformDomainResponse is the response after deleting a platform domain.
@@ -1485,20 +1486,24 @@ var File_loco_domain_v1_domain_proto protoreflect.FileDescriptor
 
 const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\n" +
-	"\x1bloco/domain/v1/domain.proto\x12\x0eloco.domain.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcb\x01\n" +
+	"\x1bloco/domain/v1/domain.proto\x12\x0eloco.domain.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcb\x01\n" +
 	"\x0ePlatformDomain\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x16\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1b\n" +
 	"\tis_active\x18\x03 \x01(\bR\bisActive\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf1\x01\n" +
-	"\vDomainInput\x12?\n" +
-	"\rdomain_source\x18\x01 \x01(\x0e2\x1a.loco.domain.v1.DomainTypeR\fdomainSource\x12!\n" +
-	"\tsubdomain\x18\x02 \x01(\tH\x00R\tsubdomain\x88\x01\x01\x121\n" +
-	"\x12platform_domain_id\x18\x03 \x01(\x03H\x01R\x10platformDomainId\x88\x01\x01\x12\x1b\n" +
-	"\x06domain\x18\x04 \x01(\tH\x02R\x06domain\x88\x01\x01B\f\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x96\x06\n" +
+	"\vDomainInput\x12K\n" +
+	"\rdomain_source\x18\x01 \x01(\x0e2\x1a.loco.domain.v1.DomainTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fdomainSource\x12!\n" +
+	"\tsubdomain\x18\x02 \x01(\tH\x00R\tsubdomain\x88\x01\x01\x12;\n" +
+	"\x12platform_domain_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x01R\x10platformDomainId\x88\x01\x01\x12\x1b\n" +
+	"\x06domain\x18\x04 \x01(\tH\x02R\x06domain\x88\x01\x01:\x8c\x04\xbaH\x88\x04\x1a\xa5\x01\n" +
+	"$platform_provided.subdomain_required\x123subdomain is required for platform-provided domains\x1aHthis.domain_source != 1 || (has(this.subdomain) && this.subdomain != '')\x1a\xc9\x01\n" +
+	"-platform_provided.platform_domain_id_required\x12<platform_domain_id is required for platform-provided domains\x1aZthis.domain_source != 1 || (has(this.platform_domain_id) && this.platform_domain_id != '')\x1a\x91\x01\n" +
+	"\x1duser_provided.domain_required\x12,domain is required for user-provided domains\x1aBthis.domain_source != 2 || (has(this.domain) && this.domain != '')B\f\n" +
 	"\n" +
 	"_subdomainB\x15\n" +
 	"\x13_platform_domain_idB\t\n" +
@@ -1510,7 +1515,7 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x06domain\x18\x03 \x01(\tR\x06domain\x12?\n" +
 	"\rdomain_source\x18\x04 \x01(\x0e2\x1a.loco.domain.v1.DomainTypeR\fdomainSource\x12,\n" +
 	"\x0fsubdomain_label\x18\x05 \x01(\tH\x00R\x0esubdomainLabel\x88\x01\x01\x121\n" +
-	"\x12platform_domain_id\x18\x06 \x01(\x03H\x01R\x10platformDomainId\x88\x01\x01\x12\x1d\n" +
+	"\x12platform_domain_id\x18\x06 \x01(\tH\x01R\x10platformDomainId\x88\x01\x01\x12\x1d\n" +
 	"\n" +
 	"is_primary\x18\a \x01(\bR\tisPrimary\x129\n" +
 	"\n" +
@@ -1518,15 +1523,15 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x12\n" +
 	"\x10_subdomain_labelB\x15\n" +
-	"\x13_platform_domain_id\"R\n" +
-	"\x1bCreatePlatformDomainRequest\x12\x16\n" +
-	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x1b\n" +
+	"\x13_platform_domain_id\"[\n" +
+	"\x1bCreatePlatformDomainRequest\x12\x1f\n" +
+	"\x06domain\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06domain\x12\x1b\n" +
 	"\tis_active\x18\x02 \x01(\bR\bisActive\".\n" +
 	"\x1cCreatePlatformDomainResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"M\n" +
-	"\x18GetPlatformDomainRequest\x12\x10\n" +
-	"\x02id\x18\x01 \x01(\x03H\x00R\x02id\x12\x18\n" +
-	"\x06domain\x18\x02 \x01(\tH\x00R\x06domainB\x05\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"`\n" +
+	"\x18GetPlatformDomainRequest\x12\x1a\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x02id\x12!\n" +
+	"\x06domain\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06domainB\x05\n" +
 	"\x03key\"d\n" +
 	"\x19GetPlatformDomainResponse\x12G\n" +
 	"\x0fplatform_domain\x18\x01 \x01(\v2\x1e.loco.domain.v1.PlatformDomainR\x0eplatformDomain\"R\n" +
@@ -1535,20 +1540,20 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"activeOnly\x88\x01\x01B\x0e\n" +
 	"\f_active_only\"h\n" +
 	"\x1bListPlatformDomainsResponse\x12I\n" +
-	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"\xc2\x01\n" +
-	"\x1bUpdatePlatformDomainRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12;\n" +
+	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"\xd5\x01\n" +
+	"\x1bUpdatePlatformDomainRequest\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12\x1b\n" +
-	"\x06domain\x18\x03 \x01(\tH\x00R\x06domain\x88\x01\x01\x12 \n" +
+	"updateMask\x12$\n" +
+	"\x06domain\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06domain\x88\x01\x01\x12 \n" +
 	"\tis_active\x18\x04 \x01(\bH\x01R\bisActive\x88\x01\x01B\t\n" +
 	"\a_domainB\f\n" +
 	"\n" +
 	"_is_active\".\n" +
 	"\x1cUpdatePlatformDomainResponse\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"-\n" +
-	"\x1bDeletePlatformDomainRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\x1e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"7\n" +
+	"\x1bDeletePlatformDomainRequest\x12\x18\n" +
+	"\x02id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x02id\"\x1e\n" +
 	"\x1cDeletePlatformDomainResponse\"\xa8\x01\n" +
 	"\x0fLocoOwnedDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
@@ -1559,34 +1564,34 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x0fplatform_domain\x18\x05 \x01(\tR\x0eplatformDomain\"\x1d\n" +
 	"\x1bListLocoOwnedDomainsRequest\"Y\n" +
 	"\x1cListLocoOwnedDomainsResponse\x129\n" +
-	"\adomains\x18\x01 \x03(\v2\x1f.loco.domain.v1.LocoOwnedDomainR\adomains\"s\n" +
-	"\x1bCreateResourceDomainRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x123\n" +
-	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\";\n" +
+	"\adomains\x18\x01 \x03(\v2\x1f.loco.domain.v1.LocoOwnedDomainR\adomains\"\x85\x01\n" +
+	"\x1bCreateResourceDomainRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12;\n" +
+	"\x06domain\x18\x02 \x01(\v2\x1b.loco.domain.v1.DomainInputB\x06\xbaH\x03\xc8\x01\x01R\x06domain\";\n" +
 	"\x1cCreateResourceDomainResponse\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\x9f\x01\n" +
-	"\x1bUpdateResourceDomainRequest\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\x12;\n" +
+	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\xb2\x01\n" +
+	"\x1bUpdateResourceDomainRequest\x12%\n" +
+	"\tdomain_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12\x1b\n" +
-	"\x06domain\x18\x03 \x01(\tH\x00R\x06domain\x88\x01\x01B\t\n" +
+	"updateMask\x12$\n" +
+	"\x06domain\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x00R\x06domain\x88\x01\x01B\t\n" +
 	"\a_domain\";\n" +
 	"\x1cUpdateResourceDomainResponse\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"_\n" +
-	"\x1fSetPrimaryResourceDomainRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x1b\n" +
-	"\tdomain_id\x18\x02 \x01(\tR\bdomainId\"`\n" +
+	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"s\n" +
+	"\x1fSetPrimaryResourceDomainRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12%\n" +
+	"\tdomain_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\"`\n" +
 	" SetPrimaryResourceDomainResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\x12\x1b\n" +
-	"\tdomain_id\x18\x02 \x01(\tR\bdomainId\":\n" +
-	"\x1bDeleteResourceDomainRequest\x12\x1b\n" +
-	"\tdomain_id\x18\x01 \x01(\tR\bdomainId\"\x1e\n" +
-	"\x1cDeleteResourceDomainResponse\"8\n" +
-	"\x1eCheckDomainAvailabilityRequest\x12\x16\n" +
-	"\x06domain\x18\x01 \x01(\tR\x06domain\"D\n" +
+	"\tdomain_id\x18\x02 \x01(\tR\bdomainId\"D\n" +
+	"\x1bDeleteResourceDomainRequest\x12%\n" +
+	"\tdomain_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\"\x1e\n" +
+	"\x1cDeleteResourceDomainResponse\"A\n" +
+	"\x1eCheckDomainAvailabilityRequest\x12\x1f\n" +
+	"\x06domain\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06domain\"D\n" +
 	"\x1fCheckDomainAvailabilityResponse\x12!\n" +
 	"\fis_available\x18\x01 \x01(\bR\visAvailable*k\n" +
 	"\n" +

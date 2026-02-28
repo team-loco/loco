@@ -8,6 +8,7 @@ plugins:
     opt: paths=source_relative
   - local: protoc-gen-es
     out: web/src/gen
+    include_imports: true
     opt:
       - target=ts
       - json_types=true

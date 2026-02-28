@@ -5,14 +5,15 @@ go 1.26.0
 require (
 	connectrpc.com/connect v1.19.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.30.1
+	github.com/allegro/bigcache/v3 v3.1.0
 	github.com/team-loco/loco/proto v0.0.0
-	golang.org/x/net v0.50.0
+	golang.org/x/net v0.51.0
 	google.golang.org/protobuf v1.36.11
 )
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1 // indirect
 	github.com/ClickHouse/ch-go v0.63.1 // indirect
-	github.com/allegro/bigcache/v3 v3.1.0 // indirect
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/go-faster/city v1.0.1 // indirect
 	github.com/go-faster/errors v0.7.1 // indirect

@@ -7,6 +7,7 @@
 package oauthv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -659,15 +660,17 @@ var File_loco_oauth_v1_oauth_proto protoreflect.FileDescriptor
 
 const file_loco_oauth_v1_oauth_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/oauth/v1/oauth.proto\x12\rloco.oauth.v1\"R\n" +
-	"\x16GetOAuthDetailsRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\"S\n" +
+	"\x19loco/oauth/v1/oauth.proto\x12\rloco.oauth.v1\x1a\x1bbuf/validate/validate.proto\"^\n" +
+	"\x16GetOAuthDetailsRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"S\n" +
 	"\x17GetOAuthDetailsResponse\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1b\n" +
-	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\xa5\x01\n" +
-	"\x19ExchangeOAuthTokenRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token\x128\n" +
+	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\xba\x01\n" +
+	"\x19ExchangeOAuthTokenRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12\x1d\n" +
+	"\x05token\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x128\n" +
 	"\x19create_user_if_not_exists\x18\x03 \x01(\bR\x15createUserIfNotExists\"\xac\x01\n" +
 	"\x1aExchangeOAuthTokenResponse\x12\x1d\n" +
 	"\n" +
@@ -676,18 +679,20 @@ const file_loco_oauth_v1_oauth_proto_rawDesc = "" +
 	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04name\x18\x04 \x01(\tR\x04name\x12#\n" +
-	"\rrefresh_token\x18\x05 \x01(\tR\frefreshToken\"\x94\x01\n" +
-	"\x1fGetOAuthAuthorizationURLRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
+	"\rrefresh_token\x18\x05 \x01(\tR\frefreshToken\"\xa0\x01\n" +
+	"\x1fGetOAuthAuthorizationURLRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12!\n" +
 	"\fredirect_uri\x18\x03 \x01(\tR\vredirectUri\"e\n" +
 	" GetOAuthAuthorizationURLResponse\x12+\n" +
 	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\"\xa1\x01\n" +
-	"\x18ExchangeOAuthCodeRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\x12\x14\n" +
-	"\x05state\x18\x03 \x01(\tR\x05state\x12!\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"\xbf\x01\n" +
+	"\x18ExchangeOAuthCodeRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12\x1b\n" +
+	"\x04code\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04code\x12\x1d\n" +
+	"\x05state\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05state\x12!\n" +
 	"\fredirect_uri\x18\x04 \x01(\tR\vredirectUri\"g\n" +
 	"\x19ExchangeOAuthCodeResponse\x12\x1d\n" +
 	"\n" +

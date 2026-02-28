@@ -82,7 +82,7 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		Id:            d.ID.String(),
 		ResourceId:    d.ResourceID.String(),
 		EnvironmentId: d.EnvironmentID.String(),
-		ClusterId:     d.ClusterID,
+		ClusterId:     d.ClusterID.String(),
 		Region:        d.Region,
 		Replicas:      d.Replicas,
 		Status:        parseDeploymentPhase(d.Status),
@@ -348,7 +348,7 @@ func (s *DeploymentServer) CreateDeployment(
 	// Dispatch deploy command to the agent via CommandBus
 	cmd := &commandbus.Command{
 		ID:        uuid.NewString(),
-		ClusterID: cluster.ID,
+		ClusterID: cluster.ID.String(),
 		Type:      commandbus.CommandTypeDeploy,
 		Payload:   payloadJSON,
 		CreatedAt: time.Now(),
@@ -530,7 +530,7 @@ func (s *DeploymentServer) DeleteDeployment(
 		// Dispatch delete command to the agent via CommandBus
 		cmd := &commandbus.Command{
 			ID:        uuid.NewString(),
-			ClusterID: deployment.ClusterID,
+			ClusterID: deployment.ClusterID.String(),
 			Type:      commandbus.CommandTypeDelete,
 			Payload:   payloadJSON,
 			CreatedAt: time.Now(),
