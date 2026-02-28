@@ -33,11 +33,11 @@ var (
 	ErrDomainNotFound        = errors.New("domain not found")
 	ErrResourceNameNotUnique = errors.New("resource name already exists in this workspace")
 	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
-	ErrClusterNotFound       = errors.New("cluster not found")
-	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
-	ErrInvalidResourceType   = errors.New("invalid resource type")
-	ErrInvalidCPU            = errors.New("invalid CPU format")
-	ErrInvalidMemory         = errors.New("invalid memory format")
+	ErrClusterNotFound     = errors.New("cluster not found")
+	ErrClusterNotHealthy   = errors.New("cluster is not healthy")
+	ErrInvalidResourceType = errors.New("invalid resource type")
+	ErrInvalidCPU          = errors.New("invalid CPU format")
+	ErrInvalidMemory       = errors.New("invalid memory format")
 )
 
 // protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
@@ -98,23 +98,12 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if r.GetSpec() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
-	}
-
 	// validate that spec contains a service spec (for now, only services are supported)
 	if r.GetSpec().GetService() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are currently supported"))
 	}
 
 	serviceSpec := r.GetSpec().GetService()
-	if len(serviceSpec.GetRegions()) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one region is required in spec"))
-	}
-
-	if r.GetDomain() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
-	}
 
 	domainSource := genDb.DomainSourceUserProvided
 	var fullDomain string
@@ -122,18 +111,8 @@ func (s *ResourceServer) CreateResource(
 	var platformDomainID *uuid.UUID
 
 	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-		if r.GetDomain().GetSubdomain() == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
-		}
-		if r.GetDomain().GetPlatformDomainId() == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform_domain_id required for platform-provided domains"))
-		}
-
 		domainSource = genDb.DomainSourcePlatformProvided
-		parsedPlatformDomainID, parseErr := uuid.Parse(r.GetDomain().GetPlatformDomainId())
-		if parseErr != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid platform_domain_id: %w", parseErr))
-		}
+		parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
 		platformDomainID = &parsedPlatformDomainID
 
 		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
@@ -145,9 +124,6 @@ func (s *ResourceServer) CreateResource(
 		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
 		subdomainLabel = pgtype.Text{String: r.GetDomain().GetSubdomain(), Valid: true}
 	} else {
-		if r.GetDomain().GetDomain() == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain required for user-provided domains"))
-		}
 		fullDomain = r.GetDomain().GetDomain()
 	}
 
@@ -160,11 +136,6 @@ func (s *ResourceServer) CreateResource(
 	if !available {
 		slog.WarnContext(ctx, "domain already in use", "domain", fullDomain)
 		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
-	}
-
-	if r.GetSpec() == nil {
-		slog.ErrorContext(ctx, "cannot create resource with nil spec")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
 	}
 
 	// save only the oneof spec (e.g., ServiceSpec) to db, not the wrapper
@@ -209,11 +180,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	workspaceId, err := uuid.Parse(r.GetWorkspaceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid workspace id format", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace id: %w", err))
-	}
+	workspaceId := uuid.MustParse(r.GetWorkspaceId())
 
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceId,
@@ -357,11 +324,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		}
 	}
 
-	wsId, err := uuid.Parse(r.GetWorkspaceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid workspace id format", "workspaceId", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace id: %w", err))
-	}
+	wsId := uuid.MustParse(r.GetWorkspaceId())
 
 	dbResources, err := s.queries.ListResourcesForWorkspace(ctx, genDb.ListResourcesForWorkspaceParams{
 		WorkspaceID: wsId,
@@ -417,11 +380,7 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id format", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
 	updateParams := genDb.UpdateResourceParams{
 		ID: resourceId,
@@ -431,7 +390,7 @@ func (s *ResourceServer) UpdateResource(
 		updateParams.Name = pgtype.Text{String: r.GetName(), Valid: true}
 	}
 
-	_, err = s.queries.UpdateResource(ctx, updateParams)
+	_, err := s.queries.UpdateResource(ctx, updateParams)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -458,11 +417,7 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id format", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
@@ -535,11 +490,7 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id format", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
@@ -645,10 +596,6 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one of replicas, cpu, or memory must be provided"))
 	}
 
-	if r.Replicas != nil && r.GetReplicas() < 1 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidReplicas)
-	}
-
 	if r.Cpu != nil && r.GetCpu() != "" {
 		if _, err := resource.ParseQuantity(r.GetCpu()); err != nil {
 			slog.WarnContext(ctx, "invalid cpu format", "cpu", r.GetCpu(), "error", err)
@@ -662,11 +609,7 @@ func (s *ResourceServer) ScaleResource(
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: %s", ErrInvalidMemory, r.GetMemory()))
 		}
 	}
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id format", "resourceId", r.GetResourceId(), "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
@@ -907,11 +850,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one environment variable must be provided"))
 	}
 
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id format", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {

@@ -132,12 +132,7 @@ func (s *OrgServer) GetOrg(
 
 	switch key := r.GetKey().(type) {
 	case *orgv1.GetOrgRequest_OrgId:
-		orgId, err := uuid.Parse(key.OrgId)
-		if err != nil {
-			slog.ErrorContext(ctx, "invalid org id", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
-		}
-		org, err = s.queries.GetOrgByID(ctx, orgId)
+		org, err = s.queries.GetOrgByID(ctx, uuid.MustParse(key.OrgId))
 	case *orgv1.GetOrgRequest_OrgName:
 		org, err = s.queries.GetOrgByName(ctx, key.OrgName)
 	default:
@@ -203,11 +198,7 @@ func (s *OrgServer) ListUserOrgs(
 		}
 	}
 
-	userId, err := uuid.Parse(r.GetUserId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid user id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
-	}
+	userId := uuid.MustParse(r.GetUserId())
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
 		UserID:    userId,
@@ -274,14 +265,8 @@ func (s *OrgServer) UpdateOrg(
 			}
 		}
 
-		parsed, err := uuid.Parse(r.GetOrgId())
-		if err != nil {
-			slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
-		}
-
 		_, err = s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-			ID:   parsed,
+			ID:   uuid.MustParse(r.GetOrgId()),
 			Name: r.GetName(),
 		})
 		if err != nil {
@@ -313,11 +298,7 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	orgId, err := uuid.Parse(r.GetOrgId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
-	}
+	orgId := uuid.MustParse(r.GetOrgId())
 
 	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgId)
 	if err != nil {
@@ -386,14 +367,8 @@ func (s *OrgServer) ListOrgWorkspaces(
 	}
 
 	// Get workspaces for org
-	orgId, err := uuid.Parse(r.GetOrgId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
-	}
-
 	workspaces, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
-		OrgID:     orgId,
+		OrgID:     uuid.MustParse(r.GetOrgId()),
 		Limit:     pageSize,
 		PageToken: pageToken,
 	})

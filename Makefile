@@ -19,8 +19,12 @@ all: test build
 build: ## Build the application
 	$(GOBUILD) -o bin/$(BINARY_NAME) -v
 
-vet:
-	@$(GOCMD) vet ./...
+vet: ## Run go vet against code.
+	go vet ./...
+
+fmt: ## Run go fmt against code.
+	go fmt ./...
+
 test: clean ## Run tests
 	$(GOTEST) -v -coverprofile=c.out
 
@@ -69,6 +73,13 @@ reload-obs-proxy:
 		--build.bin "./observability-proxy/bin/loco-obs-proxy" \
 		--build.exclude_dir "bin,web")
 
+cleanup: ## Kill all dev processes and close ports
+	@echo "Cleaning up dev processes..."
+	@pkill -f "go run" 2>/dev/null || true
+	@pkill -f "air" 2>/dev/null || true
+	@pkill -f "npm run dev" 2>/dev/null || true
+	@echo "Dev processes cleaned up"
+
 gen:
 	buf generate
 	cd api && sqlc generate
@@ -77,25 +88,16 @@ ui:
 	@echo "Starting UI..."
 	@cd web && npm run dev
 
-
-.PHONY: fmt
-fmt: ## Run go fmt against code.
-	go fmt ./...
-
-.PHONY: vet
-vet: ## Run go vet against code.
-	go vet ./...
-
 dev: fmt vet ## Start all local components (UI, API, Agent, Controller, Obs Proxy)
 	@echo "Starting all local components..."
 	@(trap 'kill $(jobs -p) 2>/dev/null' EXIT; \
-		$(MAKE) reload-api & \
+		$(MAKE) run-api & \
 		$(MAKE) reload-cli & \
-		$(MAKE) reload-agent & \
-		$(MAKE) reload-obs-proxy & \
+		$(MAKE) run-agent & \
+		$(MAKE) run-obs-proxy & \
 		$(MAKE) ui & \
-		cd controller && $(MAKE) run & \
-		wait)
+		$(MAKE) run-controller & \
+		wait || exit 1)
 
 helm-repos: ## Add/update helm repositories
 	helm repo add jetstack https://charts.jetstack.io

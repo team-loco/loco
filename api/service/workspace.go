@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
-
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -22,14 +20,11 @@ import (
 var (
 	ErrWorkspaceNotFound      = errors.New("workspace not found")
 	ErrWorkspaceNameNotUnique = errors.New("workspace name already exists in this organization")
-	ErrInvalidWorkspaceName   = errors.New("workspace name must be DNS-safe: lowercase alphanumeric and hyphens only")
 	ErrNotWorkspaceMember     = errors.New("user is not a member of this workspace")
 	ErrNotWorkspaceAdmin      = errors.New("user is not an admin of this workspace")
 	ErrWorkspaceHasResources  = errors.New("workspace has resources - must confirm deletion")
 	ErrInvalidRole            = errors.New("invalid role - must be admin, deploy, or read")
 )
-
-var workspaceNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
 // WorkspaceServer implements the WorkspaceService gRPC server
 type WorkspaceServer struct {
@@ -61,15 +56,8 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if !workspaceNamePattern.MatchString(r.GetName()) {
-		slog.WarnContext(ctx, "invalid workspace name", "name", r.GetName())
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
-	}
-	orgId, err := uuid.Parse(r.GetOrgId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid org id format", "orgId", r.GetOrgId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org id: %w", err))
-	}
+	orgId := uuid.MustParse(r.GetOrgId())
+
 	isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
 		OrgID: orgId,
 		Name:  r.GetName(),
@@ -148,8 +136,7 @@ func (s *WorkspaceServer) GetWorkspace(
 		slog.WarnContext(ctx, "unauthorized to get workspace", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	workspaceId, err := uuid.Parse(r.GetWorkspaceId())
-	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, workspaceId)
+	ws, err := s.queries.GetWorkspaceByIDQuery(ctx, uuid.MustParse(r.GetWorkspaceId()))
 	if err != nil {
 		slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
@@ -282,10 +269,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		}
 	}
 
-	orgId, err := uuid.Parse(r.GetOrgId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid org_id: %w", err))
-	}
+	orgId := uuid.MustParse(r.GetOrgId())
 
 	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
 		OrgID:     orgId,
@@ -340,15 +324,8 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	}
 
 	if r.GetName() != "" {
-		if !workspaceNamePattern.MatchString(r.GetName()) {
-			slog.WarnContext(ctx, "invalid workspace name", "name", r.GetName())
-			return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidWorkspaceName)
-		}
+		wsUUID := uuid.MustParse(r.GetWorkspaceId())
 
-		wsUUID, err := uuid.Parse(r.GetWorkspaceId())
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
-		}
 		orgID, err := s.queries.GetWorkspaceOrgID(ctx, wsUUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get workspace org", "error", err)
@@ -373,12 +350,8 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
-	updateWSUUID, err := uuid.Parse(r.GetWorkspaceId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
-	}
-	_, err = s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-		ID:          updateWSUUID,
+	_, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
+		ID:          uuid.MustParse(r.GetWorkspaceId()),
 		Name:        name,
 		Description: description,
 	})
@@ -410,11 +383,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	delWSUUID, err := uuid.Parse(r.GetWorkspaceId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
-	}
-	err = s.queries.RemoveWorkspace(ctx, delWSUUID)
+	err := s.queries.RemoveWorkspace(ctx, uuid.MustParse(r.GetWorkspaceId()))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -476,12 +445,8 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		}
 	}
 
-	memberWSUUID, err := uuid.Parse(r.GetWorkspaceId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
-	}
 	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(ctx, genDb.ListWorkspaceMembersWithUserDetailsParams{
-		WorkspaceID: memberWSUUID,
+		WorkspaceID: uuid.MustParse(r.GetWorkspaceId()),
 		Limit:       pageSize,
 		PageToken:   pageToken,
 	})

@@ -53,11 +53,6 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if r.GetDomain() == "" {
-		slog.ErrorContext(ctx, "invalid request: domain is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
-	}
-
 	platformDomain, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
 		Domain:   r.GetDomain(),
 		IsActive: r.GetIsActive(),
@@ -84,11 +79,7 @@ func (s *DomainServer) GetPlatformDomain(
 
 	switch key := r.GetKey().(type) {
 	case *domainv1.GetPlatformDomainRequest_Id:
-		parsedID, parseErr := uuid.Parse(key.Id)
-		if parseErr != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid platform domain ID: %w", parseErr))
-		}
-		result, err = s.queries.GetPlatformDomain(ctx, parsedID)
+		result, err = s.queries.GetPlatformDomain(ctx, uuid.MustParse(key.Id))
 	case *domainv1.GetPlatformDomainRequest_Domain:
 		result, err = s.queries.GetPlatformDomainByName(ctx, key.Domain)
 	default:
@@ -168,15 +159,7 @@ func (s *DomainServer) UpdatePlatformDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if r.GetId() == "" {
-		slog.ErrorContext(ctx, "invalid request: id is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
-	}
-
-	parsedID, err := uuid.Parse(r.GetId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid platform domain ID: %w", err))
-	}
+	parsedID := uuid.MustParse(r.GetId())
 
 	// For now, we'll update using the existing deactivate method if is_active is being changed
 	// This is a simplified implementation
@@ -211,18 +194,10 @@ func (s *DomainServer) DeletePlatformDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if r.GetId() == "" {
-		slog.ErrorContext(ctx, "invalid request: id is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
-	}
-
-	parsedID, err := uuid.Parse(r.GetId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid platform domain ID: %w", err))
-	}
+	parsedID := uuid.MustParse(r.GetId())
 
 	// Use deactivate for now as delete equivalent
-	_, err = s.queries.DeactivatePlatformDomain(ctx, parsedID)
+	_, err := s.queries.DeactivatePlatformDomain(ctx, parsedID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete platform domain", "id", r.GetId(), "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete platform domain: %w", err))
@@ -285,10 +260,6 @@ func (s *DomainServer) CreateResourceDomain(
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.AddDomain, r.GetResourceId())); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	if r.GetDomain() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain input is required"))
-	}
-
 	// extract and validate domain information based on source
 	var fullDomain string
 	var subdomainLabel pgtype.Text
@@ -296,17 +267,7 @@ func (s *DomainServer) CreateResourceDomain(
 	domainSource := genDb.DomainSourceUserProvided
 
 	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-		if r.GetDomain().GetSubdomain() == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subdomain required for platform-provided domains"))
-		}
-		if r.GetDomain().GetPlatformDomainId() == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform_domain_id required for platform_provided domains"))
-		}
-
-		parsedPlatformDomainID, parseErr := uuid.Parse(r.GetDomain().GetPlatformDomainId())
-		if parseErr != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid platform_domain_id: %w", parseErr))
-		}
+		parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
 		platformDomainID = &parsedPlatformDomainID
 		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
 		if err != nil {
@@ -317,9 +278,6 @@ func (s *DomainServer) CreateResourceDomain(
 		subdomainLabel = pgtype.Text{String: r.GetDomain().GetSubdomain(), Valid: true}
 		domainSource = genDb.DomainSourcePlatformProvided
 	} else {
-		if r.GetDomain().GetDomain() == "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain required for user-provided domains"))
-		}
 		fullDomain = r.GetDomain().GetDomain()
 	}
 
@@ -333,11 +291,7 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 
 	// check if this is the first domain for the resource
-	resourceId, err := uuid.Parse(r.ResourceId)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.ResourceId)
 
 	count, err := s.queries.GetResourceDomainCount(ctx, resourceId)
 	if err != nil {
@@ -369,11 +323,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource
-	domainId, err := uuid.Parse(r.DomainId)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid domain id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
-	}
+	domainId := uuid.MustParse(r.DomainId)
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainId)
 	if err != nil {
@@ -435,23 +385,15 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	}
 
 	// unset primary on all other domains
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
-	err = s.queries.UpdateResourceDomainPrimary(ctx, resourceId)
+	err := s.queries.UpdateResourceDomainPrimary(ctx, resourceId)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
 	// set this domain as primary
-	domainId, err := uuid.Parse(r.GetDomainId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid domain id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
-	}
+	domainId := uuid.MustParse(r.GetDomainId())
 
 	_, err = s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
 		ID:         domainId,
@@ -475,11 +417,7 @@ func (s *DomainServer) DeleteResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource and whether it's primary
-	domainId, err := uuid.Parse(r.GetDomainId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid domain id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid domain id: %w", err))
-	}
+	domainId := uuid.MustParse(r.GetDomainId())
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainId)
 	if err != nil {
@@ -525,11 +463,6 @@ func (s *DomainServer) CheckDomainAvailability(
 	req *connect.Request[domainv1.CheckDomainAvailabilityRequest],
 ) (*connect.Response[domainv1.CheckDomainAvailabilityResponse], error) {
 	r := req.Msg
-
-	if r.GetDomain() == "" {
-		slog.ErrorContext(ctx, "invalid request: domain is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("domain is required"))
-	}
 
 	result, err := s.queries.CheckDomainAvailability(ctx, r.GetDomain())
 	if err != nil {

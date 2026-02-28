@@ -59,15 +59,9 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	workspaceID, err := uuid.Parse(r.GetWorkspaceId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
-	}
+	workspaceID := uuid.MustParse(r.GetWorkspaceId())
 
 	envType := protoEnvTypeToString(r.GetType())
-	if envType == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("type is required and must be dev, staging, or production"))
-	}
 
 	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
 
@@ -98,10 +92,7 @@ func (s *EnvironmentServer) GetEnvironment(
 ) (*connect.Response[environmentv1.GetEnvironmentResponse], error) {
 	r := req.Msg
 
-	envID, err := uuid.Parse(r.GetEnvironmentId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid environment_id: %w", err))
-	}
+	envID := uuid.MustParse(r.GetEnvironmentId())
 
 	env, err := s.queries.GetEnvironmentByID(ctx, envID)
 	if err != nil {
@@ -143,10 +134,7 @@ func (s *EnvironmentServer) ListEnvironments(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	workspaceID, err := uuid.Parse(r.GetWorkspaceId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
-	}
+	workspaceID := uuid.MustParse(r.GetWorkspaceId())
 
 	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
 	if err != nil {
@@ -171,10 +159,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 ) (*connect.Response[environmentv1.UpdateEnvironmentResponse], error) {
 	r := req.Msg
 
-	envID, err := uuid.Parse(r.GetEnvironmentId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid environment_id: %w", err))
-	}
+	envID := uuid.MustParse(r.GetEnvironmentId())
 
 	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
 	if err != nil {
@@ -233,10 +218,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 ) (*connect.Response[environmentv1.DeleteEnvironmentResponse], error) {
 	r := req.Msg
 
-	envID, err := uuid.Parse(r.GetEnvironmentId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid environment_id: %w", err))
-	}
+	envID := uuid.MustParse(r.GetEnvironmentId())
 
 	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
 	if err != nil {

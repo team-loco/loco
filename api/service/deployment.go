@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"regexp"
 	"time"
 
 	"connectrpc.com/connect"
@@ -29,12 +28,7 @@ import (
 
 var (
 	ErrDeploymentNotFound = errors.New("deployment not found")
-	ErrInvalidImage       = errors.New("invalid image reference")
-	ErrInvalidPort        = errors.New("invalid port")
-	ErrInvalidReplicas    = errors.New("replicas must be >= 1")
 )
-
-var imagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$`)
 
 // DeployCommandPayload is the payload sent to agents for deploy commands.
 type DeployCommandPayload struct {
@@ -169,11 +163,7 @@ func (s *DeploymentServer) CreateDeployment(
 ) (*connect.Response[deploymentv1.CreateDeploymentResponse], error) {
 	r := req.Msg
 
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
@@ -192,31 +182,12 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
-	// todo: move below validations to a dedicated validation package.
-	if r.GetSpec() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("spec is required"))
-	}
-
 	// validate that request spec contains a service deployment (for now, only services are supported)
 	if r.GetSpec().GetService() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service deployments are currently supported"))
 	}
 
 	serviceSpec := r.GetSpec().GetService()
-
-	if serviceSpec.GetBuild() == nil || serviceSpec.GetBuild().GetImage() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("image is required"))
-	}
-
-	if serviceSpec.GetPort() < 1 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidPort)
-	}
-
-	if !imagePattern.MatchString(serviceSpec.GetBuild().GetImage()) {
-		slog.WarnContext(ctx, "invalid image format", "image", serviceSpec.GetBuild().GetImage())
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidImage)
-	}
-
 	replicas := serviceSpec.GetMinReplicas()
 
 	domain, err := s.queries.GetDomainByResourceId(ctx, resourceId)
@@ -225,16 +196,8 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
-	// Validate and get region
 	region := r.GetRegion()
-	if region == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("region is required"))
-	}
-
-	environmentID, err := uuid.Parse(r.GetEnvironmentId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid environment_id: %w", err))
-	}
+	environmentID := uuid.MustParse(r.GetEnvironmentId())
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if err != nil {
@@ -369,11 +332,7 @@ func (s *DeploymentServer) GetDeployment(
 ) (*connect.Response[deploymentv1.GetDeploymentResponse], error) {
 	r := req.Msg
 
-	deploymentId, err := uuid.Parse(r.DeploymentId)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid deployment id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment id: %w", err))
-	}
+	deploymentId := uuid.MustParse(r.DeploymentId)
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentId)
 	if err != nil {
@@ -422,11 +381,7 @@ func (s *DeploymentServer) ListDeployments(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	resourceId, err := uuid.Parse(r.GetResourceId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid resource id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
-	}
+	resourceId := uuid.MustParse(r.GetResourceId())
 
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
@@ -481,11 +436,7 @@ func (s *DeploymentServer) DeleteDeployment(
 ) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
 	r := req.Msg
 
-	deploymentId, err := uuid.Parse(r.DeploymentId)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid deployment id", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment id: %w", err))
-	}
+	deploymentId := uuid.MustParse(r.DeploymentId)
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentId)
 	if err != nil {
@@ -560,11 +511,7 @@ func (s *DeploymentServer) WatchDeployment(
 ) error {
 	r := req.Msg
 
-	deploymentId, err := uuid.Parse(r.DeploymentId)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid deployment id", "error", err)
-		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid deployment id: %w", err))
-	}
+	deploymentId := uuid.MustParse(r.DeploymentId)
 
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentId)
 	if err != nil {
