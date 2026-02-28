@@ -77,7 +77,16 @@ ui:
 	@echo "Starting UI..."
 	@cd web && npm run dev
 
-dev: ## Start all local components (UI, API, Agent, Controller, Obs Proxy)
+
+.PHONY: fmt
+fmt: ## Run go fmt against code.
+	go fmt ./...
+
+.PHONY: vet
+vet: ## Run go vet against code.
+	go vet ./...
+
+dev: fmt vet ## Start all local components (UI, API, Agent, Controller, Obs Proxy)
 	@echo "Starting all local components..."
 	@(trap 'kill $(jobs -p) 2>/dev/null' EXIT; \
 		$(MAKE) reload-api & \

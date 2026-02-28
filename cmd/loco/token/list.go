@@ -109,7 +109,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return nil
 			}
 
-			fmt.Fprintf(deps.Output, "Tokens for %s (ID: %d):\n", entityTypeStr, entityID)
+			fmt.Fprintf(deps.Output, "Tokens for %s (ID: %s):\n", entityTypeStr, entityID)
 
 			for _, t := range tokens {
 				expiresAt := "never"

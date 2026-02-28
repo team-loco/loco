@@ -11,8 +11,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
 )

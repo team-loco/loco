@@ -83,7 +83,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 
 			fmt.Fprintln(deps.Output, "Organizations:")
 			for _, org := range resp.Msg.Orgs {
-				fmt.Fprintf(deps.Output, "  - %s (ID: %d)\n", org.Name, org.Id)
+				fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", org.Name, org.Id)
 			}
 
 			return nil
