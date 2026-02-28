@@ -62,8 +62,14 @@ message HealthCheckConfig {
 // Scalers defines autoscaling configuration.
 message Scalers {
   bool enabled = 1; // enable autoscaling
-  optional int32 cpu_target = 2 [(buf.validate.field).int32 = {gte: 0, lte: 100}]; // target CPU percentage (0-100)
-  optional int32 memory_target = 3 [(buf.validate.field).int32 = {gte: 0, lte: 100}]; // target memory percentage (0-100)
+  optional int32 cpu_target = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }]; // target CPU percentage (0-100)
+  optional int32 memory_target = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }]; // target memory percentage (0-100)
 }
 
 // BuildSource defines where the code comes from.
@@ -83,7 +89,10 @@ message ServiceDeploymentSpec {
   optional int32 max_replicas = 6 [(buf.validate.field).int32.gte = 1]; // defaults from resource if omitted
   optional Scalers scalers = 7; // autoscaling config (defaults from resource if omitted)
   map<string, string> env = 8;
-  int32 port = 9 [(buf.validate.field).int32 = {gte: 1, lte: 65535}];
+  int32 port = 9 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 65535
+  }];
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"
@@ -164,7 +173,10 @@ message GetDeploymentResponse {
 // ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 

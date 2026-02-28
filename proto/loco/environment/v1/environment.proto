@@ -47,7 +47,10 @@ message CreateEnvironmentRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string name = 2 [(buf.validate.field).string.max_len = 63];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
-  EnvironmentType type = 4 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  EnvironmentType type = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // CreateEnvironmentResponse contains the created environment ID.
@@ -81,7 +84,10 @@ message UpdateEnvironmentRequest {
   google.protobuf.FieldMask update_mask = 2;
   optional string name = 3 [(buf.validate.field).string.max_len = 63];
   optional string description = 4 [(buf.validate.field).string.max_len = 256];
-  optional EnvironmentType type = 5 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  optional EnvironmentType type = 5 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // UpdateEnvironmentResponse contains the updated environment ID.

@@ -28,7 +28,10 @@ message PlatformDomain {
 
 // DomainInput specifies domain configuration for a resource.
 message DomainInput {
-  DomainType domain_source = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  DomainType domain_source = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   optional string subdomain = 2; // for PLATFORM_PROVIDED: "myapp"
   optional string platform_domain_id = 3 [(buf.validate.field).string.uuid = true]; // for PLATFORM_PROVIDED: id of the platform domain
   optional string domain = 4; // for USER_PROVIDED: full custom domain

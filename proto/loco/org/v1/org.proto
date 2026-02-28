@@ -46,7 +46,10 @@ message WorkspaceSummary {
 
 // CreateOrgRequest is the request to create a new organization.
 message CreateOrgRequest {
-  optional string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+  optional string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
 }
 
 // CreateOrgResponse is the response containing the created organization ID.
@@ -70,7 +73,10 @@ message GetOrgResponse {
 // ListUserOrgsRequest is the request to list organizations for a user.
 message ListUserOrgsRequest {
   string user_id = 1 [(buf.validate.field).string.uuid = true];
-  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -83,7 +89,10 @@ message ListUserOrgsResponse {
 // ListOrgUsersRequest is the request to list users in an organization.
 message ListOrgUsersRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
-  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -104,7 +113,10 @@ message User {
 // ListOrgWorkspacesRequest is the request to list workspaces in an organization.
 message ListOrgWorkspacesRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
-  int32 page_size = 2 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -118,7 +130,10 @@ message ListOrgWorkspacesResponse {
 message UpdateOrgRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
+  optional string name = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }];
 }
 
 // UpdateOrgResponse is the response containing the updated organization ID.

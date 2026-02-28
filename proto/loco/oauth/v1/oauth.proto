@@ -14,7 +14,10 @@ enum OAuthProvider {
 
 // GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
 message GetOAuthDetailsRequest {
-  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // GetOAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
@@ -25,7 +28,10 @@ message GetOAuthDetailsResponse {
 
 // ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
 message ExchangeOAuthTokenRequest {
-  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string token = 2 [(buf.validate.field).string.min_len = 1];
   bool create_user_if_not_exists = 3;
 }
@@ -41,7 +47,10 @@ message ExchangeOAuthTokenResponse {
 
 // GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
 message GetOAuthAuthorizationURLRequest {
-  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string state = 2;
   string redirect_uri = 3;
 }
@@ -54,7 +63,10 @@ message GetOAuthAuthorizationURLResponse {
 
 // ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
 message ExchangeOAuthCodeRequest {
-  OAuthProvider provider = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string code = 2 [(buf.validate.field).string.min_len = 1];
   string state = 3 [(buf.validate.field).string.min_len = 1];
   string redirect_uri = 4;

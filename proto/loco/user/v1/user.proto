@@ -78,7 +78,10 @@ message UpdateUserResponse {
 
 // ListUsersRequest is the request to list users.
 message ListUsersRequest {
-  int32 page_size = 1 [(buf.validate.field).int32 = {gte: 0, lte: 200}]; // default: 50, max: 200
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
   string page_token = 2; // cursor from previous page (base64-encoded timestamp+id)
 }
 

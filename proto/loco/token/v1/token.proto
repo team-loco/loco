@@ -39,8 +39,14 @@ enum Scope {
 
 // EntityScope represents a permission on a specific entity.
 message EntityScope {
-  Scope scope = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
-  EntityType entity_type = 2 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  Scope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  EntityType entity_type = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string entity_id = 3 [(buf.validate.field).string.uuid = true];
 }
 
@@ -56,8 +62,14 @@ message Token {
 
 // CreateTokenRequest is the request to create a new token.
 message CreateTokenRequest {
-  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 100}]; // Human-readable token name
-  EntityType entity_type = 2 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}]; // Entity type the token is for
+  string name = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 100
+  }]; // Human-readable token name
+  EntityType entity_type = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }]; // Entity type the token is for
   string entity_id = 3 [(buf.validate.field).string.uuid = true]; // Entity ID the token is for
   repeated EntityScope scopes = 4 [(buf.validate.field).repeated.min_items = 1]; // Scopes to grant to the token
   int64 expires_in_sec = 5 [(buf.validate.field).int64.gte = 1]; // Expiration duration in seconds (max: 2592000 = 30 days)
@@ -71,7 +83,10 @@ message CreateTokenResponse {
 
 // ListTokensRequest is the request to list tokens for an entity.
 message ListTokensRequest {
-  EntityType entity_type = 1 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  EntityType entity_type = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string entity_id = 2 [(buf.validate.field).string.uuid = true];
 }
 
@@ -83,7 +98,10 @@ message ListTokensResponse {
 // GetTokenRequest is the request to get a specific token's metadata.
 message GetTokenRequest {
   string name = 1 [(buf.validate.field).string.min_len = 1];
-  EntityType entity_type = 2 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  EntityType entity_type = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string entity_id = 3 [(buf.validate.field).string.uuid = true];
 }
 
@@ -95,7 +113,10 @@ message GetTokenResponse {
 // RevokeTokenRequest is the request to revoke a token.
 message RevokeTokenRequest {
   string name = 1 [(buf.validate.field).string.min_len = 1];
-  EntityType entity_type = 2 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  EntityType entity_type = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string entity_id = 3 [(buf.validate.field).string.uuid = true];
 }
 
