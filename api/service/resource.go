@@ -62,21 +62,19 @@ func protoResourceTypeToDb(rt resourcev1.ResourceType) (genDb.ResourceType, erro
 
 type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
-	db            *pgxpool.Pool
-	queries       genDb.Querier
-	machine       *tvm.VendingMachine
-	locoNamespace string
-	cmdBus        commandbus.CommandBus
+	db      *pgxpool.Pool
+	queries genDb.Querier
+	machine *tvm.VendingMachine
+	cmdBus  commandbus.CommandBus
 }
 
 // NewResourceServer creates a new ResourceServer instance
-func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string, cmdBus commandbus.CommandBus) *ResourceServer {
+func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, cmdBus commandbus.CommandBus) *ResourceServer {
 	return &ResourceServer{
-		db:            db,
-		queries:       queries,
-		machine:       machine,
-		locoNamespace: locoNamespace,
-		cmdBus:        cmdBus,
+		db:      db,
+		queries: queries,
+		machine: machine,
+		cmdBus:  cmdBus,
 	}
 }
 
@@ -435,9 +433,8 @@ func (s *ResourceServer) DeleteResource(
 	// Dispatch delete commands to all clusters with active deployments
 	for _, deployment := range activeDeployments {
 		cmdPayload := DeleteCommandPayload{
-			DeploymentID:  deployment.ID.String(),
-			ResourceID:    resource.ID.String(),
-			LocoNamespace: s.locoNamespace,
+			DeploymentID: deployment.ID.String(),
+			ResourceID:   resource.ID.String(),
 		}
 
 		payloadJSON, err := json.Marshal(cmdPayload)
@@ -801,7 +798,6 @@ func (s *ResourceServer) ScaleResource(
 		ResourceType:  string(resource.Type),
 		Region:        regionToScale,
 		Hostname:      domain.Domain,
-		LocoNamespace: s.locoNamespace,
 		AppSpec:       appSpec,
 	}
 
@@ -1008,7 +1004,6 @@ func (s *ResourceServer) UpdateResourceEnv(
 		ResourceType:  string(resource.Type),
 		Region:        regionToUpdate,
 		Hostname:      domain.Domain,
-		LocoNamespace: s.locoNamespace,
 		AppSpec:       appSpec,
 	}
 

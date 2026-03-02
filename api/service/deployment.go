@@ -39,15 +39,13 @@ type DeployCommandPayload struct {
 	ResourceType  string                            `json:"resource_type"`
 	Region        string                            `json:"region"`
 	Hostname      string                            `json:"hostname"`
-	LocoNamespace string                            `json:"loco_namespace"`
 	AppSpec       *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }
 
 // DeleteCommandPayload is the payload sent to agents for delete commands.
 type DeleteCommandPayload struct {
-	DeploymentID  string `json:"deployment_id"`
-	ResourceID    string `json:"resource_id"`
-	LocoNamespace string `json:"loco_namespace"`
+	DeploymentID string `json:"deployment_id"`
+	ResourceID   string `json:"resource_id"`
 }
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
@@ -138,21 +136,19 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
-	db            *pgxpool.Pool
-	queries       genDb.Querier
-	locoNamespace string
-	machine       *tvm.VendingMachine
-	cmdBus        commandbus.CommandBus
+	db      *pgxpool.Pool
+	queries genDb.Querier
+	machine *tvm.VendingMachine
+	cmdBus  commandbus.CommandBus
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, locoNamespace string, cmdBus commandbus.CommandBus) *DeploymentServer {
+func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, cmdBus commandbus.CommandBus) *DeploymentServer {
 	return &DeploymentServer{
-		db:            db,
-		queries:       queries,
-		locoNamespace: locoNamespace,
-		machine:       machine,
-		cmdBus:        cmdBus,
+		db:      db,
+		queries: queries,
+		machine: machine,
+		cmdBus:  cmdBus,
 	}
 }
 
@@ -296,7 +292,6 @@ func (s *DeploymentServer) CreateDeployment(
 		ResourceType:  string(resource.Type),
 		Region:        region,
 		Hostname:      domain.Domain,
-		LocoNamespace: s.locoNamespace,
 		AppSpec:       appSpec,
 	}
 
@@ -465,9 +460,8 @@ func (s *DeploymentServer) DeleteDeployment(
 	if deployment.IsActive {
 		// Create delete command payload
 		cmdPayload := DeleteCommandPayload{
-			DeploymentID:  deployment.ID.String(),
-			ResourceID:    resource.ID.String(),
-			LocoNamespace: s.locoNamespace,
+			DeploymentID: deployment.ID.String(),
+			ResourceID:   resource.ID.String(),
 		}
 
 		payloadJSON, err := json.Marshal(cmdPayload)
