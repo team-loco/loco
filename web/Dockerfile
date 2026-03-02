@@ -1,4 +1,4 @@
-FROM node:current-alpine3.23 AS builder
+FROM node:25-alpine AS builder
 
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
@@ -6,17 +6,26 @@ ENV VITE_API_URL=$VITE_API_URL
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-
 RUN npm ci
 
 COPY . .
 
+RUN apk add --no-cache brotli
+
 RUN npm run build
 
-FROM nginx:trixie-perl
+RUN find dist -type f -size +1k \( \
+    -name '*.js' -o \
+    -name '*.css' -o \
+    -name '*.html' -o \
+    -name '*.svg' -o \
+    -name '*.json' \
+    \) -exec brotli -f -q 9 {} \;
+
+
+FROM georgjung/nginx-brotli:trixie
 
 COPY nginx.conf /etc/nginx/nginx.conf
-
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 8080
