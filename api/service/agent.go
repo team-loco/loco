@@ -27,11 +27,6 @@ var (
 	ErrInvalidAgentToken     = errors.New("invalid agent token")
 )
 
-// clusterIDKey is used to store the cluster ID in context.
-type clusterIDKeyType struct{}
-
-var clusterIDKey = clusterIDKeyType{}
-
 // AgentServer implements the AgentService for agent communication.
 type AgentServer struct {
 	db         *pgxpool.Pool
@@ -157,9 +152,13 @@ func (s *AgentServer) CommandStream(
 			}
 
 			if ack.GetSuccess() {
-				s.commandBus.Ack(ctx, ack.GetCommandId())
+				if err := s.commandBus.Ack(ctx, ack.GetCommandId()); err != nil {
+					slog.WarnContext(ctx, "failed to ack command", "command_id", ack.GetCommandId(), "error", err)
+				}
 			} else {
-				s.commandBus.Nack(ctx, ack.GetCommandId(), ack.GetRetry())
+				if err := s.commandBus.Nack(ctx, ack.GetCommandId(), ack.GetRetry()); err != nil {
+					slog.WarnContext(ctx, "failed to nack command", "command_id", ack.GetCommandId(), "error", err)
+				}
 				slog.WarnContext(ctx, "command failed",
 					"command_id", ack.GetCommandId(),
 					"error", ack.GetErrorMessage(),

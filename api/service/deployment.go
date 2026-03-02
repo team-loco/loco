@@ -32,14 +32,14 @@ var (
 
 // DeployCommandPayload is the payload sent to agents for deploy commands.
 type DeployCommandPayload struct {
-	DeploymentID  string                            `json:"deployment_id"`
-	ResourceID    string                            `json:"resource_id"`
-	WorkspaceID   string                            `json:"workspace_id"`
-	ResourceName  string                            `json:"resource_name"`
-	ResourceType  string                            `json:"resource_type"`
-	Region        string                            `json:"region"`
-	Hostname      string                            `json:"hostname"`
-	AppSpec       *locoControllerV1.ApplicationSpec `json:"app_spec"`
+	DeploymentID string                            `json:"deployment_id"`
+	ResourceID   string                            `json:"resource_id"`
+	WorkspaceID  string                            `json:"workspace_id"`
+	ResourceName string                            `json:"resource_name"`
+	ResourceType string                            `json:"resource_type"`
+	Region       string                            `json:"region"`
+	Hostname     string                            `json:"hostname"`
+	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }
 
 // DeleteCommandPayload is the payload sent to agents for delete commands.
@@ -285,14 +285,14 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// Create command payload with all info the agent needs
 	cmdPayload := DeployCommandPayload{
-		DeploymentID:  deploymentID.String(),
-		ResourceID:    resource.ID.String(),
-		WorkspaceID:   resource.WorkspaceID.String(),
-		ResourceName:  resource.Name,
-		ResourceType:  string(resource.Type),
-		Region:        region,
-		Hostname:      domain.Domain,
-		AppSpec:       appSpec,
+		DeploymentID: deploymentID.String(),
+		ResourceID:   resource.ID.String(),
+		WorkspaceID:  resource.WorkspaceID.String(),
+		ResourceName: resource.Name,
+		ResourceType: string(resource.Type),
+		Region:       region,
+		Hostname:     domain.Domain,
+		AppSpec:      appSpec,
 	}
 
 	payloadJSON, err := json.Marshal(cmdPayload)
@@ -464,10 +464,10 @@ func (s *DeploymentServer) DeleteDeployment(
 			ResourceID:   resource.ID.String(),
 		}
 
-		payloadJSON, err := json.Marshal(cmdPayload)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
+		payloadJSON, marshalErr := json.Marshal(cmdPayload)
+		if marshalErr != nil {
+			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", marshalErr)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", marshalErr))
 		}
 
 		// Dispatch delete command to the agent via CommandBus
@@ -479,9 +479,9 @@ func (s *DeploymentServer) DeleteDeployment(
 			CreatedAt: time.Now(),
 		}
 
-		if err := s.cmdBus.Send(ctx, cmd); err != nil {
-			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", err)
-			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+		if sendErr := s.cmdBus.Send(ctx, cmd); sendErr != nil {
+			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", sendErr)
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", sendErr))
 		}
 
 		slog.InfoContext(ctx, "delete command dispatched", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "deployment_id", deployment.ID.String())

@@ -36,11 +36,11 @@ func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 	cfg.ConnConfig.ConnectTimeout = 5 * time.Second
 	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		for _, typeName := range []string{"entity_type", "entity_scope"} {
-			t, err := conn.LoadType(ctx, typeName)
-			if err != nil {
-				return fmt.Errorf("load pg type %q: %w", typeName, err)
+			pgType, pgErr := conn.LoadType(ctx, typeName)
+			if pgErr != nil {
+				return fmt.Errorf("load pg type %q: %w", typeName, pgErr)
 			}
-			conn.TypeMap().RegisterType(t)
+			conn.TypeMap().RegisterType(pgType)
 		}
 		return nil
 	}

@@ -153,7 +153,12 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 	}
 	defer tx.Rollback(ctx)
 
-	qtx := s.queries.(*genDb.Queries).WithTx(tx)
+	qtx, ok := s.queries.(*genDb.Queries)
+	if !ok {
+		slog.ErrorContext(ctx, "failed to cast queries to *genDb.Queries")
+		return nil, fmt.Errorf("database error: %w", fmt.Errorf("failed to cast queries"))
+	}
+	qtx = qtx.WithTx(tx)
 
 	avatarURLPgType := pgtype.Text{String: avatarURL, Valid: avatarURL != ""}
 	namePgType := pgtype.Text{String: name, Valid: name != ""}
@@ -250,11 +255,13 @@ func (s *OAuthServer) RefreshToken(
 ) (*connect.Response[oAuth.RefreshTokenResponse], error) {
 	refreshToken := req.Msg.GetRefreshToken()
 	if refreshToken == "" {
-		cookies, _ := http.ParseCookie(req.Header().Get("Cookie"))
-		for _, c := range cookies {
-			if c.Name == "loco_refresh_token" {
-				refreshToken = c.Value
-				break
+		cookies, err := http.ParseCookie(req.Header().Get("Cookie"))
+		if err == nil {
+			for _, c := range cookies {
+				if c.Name == "loco_refresh_token" {
+					refreshToken = c.Value
+					break
+				}
 			}
 		}
 	}
@@ -388,10 +395,10 @@ func (s *OAuthServer) ExchangeOAuthCode(
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch github user: %w", fetchErr))
 		}
 
-		createdUser, err := s.tempCreateUser(ctx, fmt.Sprintf("%d", githubUser.ID), address, githubUser.Name, githubUser.Avatar)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to create user", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create user: %w", err))
+		createdUser, createErr := s.tempCreateUser(ctx, fmt.Sprintf("%d", githubUser.ID), address, githubUser.Name, githubUser.Avatar)
+		if createErr != nil {
+			slog.ErrorContext(ctx, "failed to create user", "error", createErr)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create user: %w", createErr))
 		}
 
 		// exchange again with newly created user

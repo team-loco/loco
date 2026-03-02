@@ -33,11 +33,11 @@ var (
 	ErrDomainNotFound        = errors.New("domain not found")
 	ErrResourceNameNotUnique = errors.New("resource name already exists in this workspace")
 	ErrSubdomainNotAvailable = errors.New("subdomain already in use")
-	ErrClusterNotFound     = errors.New("cluster not found")
-	ErrClusterNotHealthy   = errors.New("cluster is not healthy")
-	ErrInvalidResourceType = errors.New("invalid resource type")
-	ErrInvalidCPU          = errors.New("invalid CPU format")
-	ErrInvalidMemory       = errors.New("invalid memory format")
+	ErrClusterNotFound       = errors.New("cluster not found")
+	ErrClusterNotHealthy     = errors.New("cluster is not healthy")
+	ErrInvalidResourceType   = errors.New("invalid resource type")
+	ErrInvalidCPU            = errors.New("invalid CPU format")
+	ErrInvalidMemory         = errors.New("invalid memory format")
 )
 
 // protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
@@ -437,10 +437,10 @@ func (s *ResourceServer) DeleteResource(
 			ResourceID:   resource.ID.String(),
 		}
 
-		payloadJSON, err := json.Marshal(cmdPayload)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
+		payloadJSON, marshalErr := json.Marshal(cmdPayload)
+		if marshalErr != nil {
+			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", marshalErr)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", marshalErr))
 		}
 
 		// Dispatch delete command to the agent via CommandBus
@@ -452,9 +452,9 @@ func (s *ResourceServer) DeleteResource(
 			CreatedAt: time.Now(),
 		}
 
-		if err := s.cmdBus.Send(ctx, cmd); err != nil {
-			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", err)
-			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+		if sendErr := s.cmdBus.Send(ctx, cmd); sendErr != nil {
+			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", sendErr)
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", sendErr))
 		}
 
 		slog.InfoContext(ctx, "delete command dispatched", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "resource_id", resource.ID)
@@ -791,14 +791,14 @@ func (s *ResourceServer) ScaleResource(
 
 	// Create command payload with all info the agent needs
 	cmdPayload := DeployCommandPayload{
-		DeploymentID:  scaleDeploymentID.String(),
-		ResourceID:    resource.ID.String(),
-		WorkspaceID:   resource.WorkspaceID.String(),
-		ResourceName:  resource.Name,
-		ResourceType:  string(resource.Type),
-		Region:        regionToScale,
-		Hostname:      domain.Domain,
-		AppSpec:       appSpec,
+		DeploymentID: scaleDeploymentID.String(),
+		ResourceID:   resource.ID.String(),
+		WorkspaceID:  resource.WorkspaceID.String(),
+		ResourceName: resource.Name,
+		ResourceType: string(resource.Type),
+		Region:       regionToScale,
+		Hostname:     domain.Domain,
+		AppSpec:      appSpec,
 	}
 
 	payloadJSON, err := json.Marshal(cmdPayload)
@@ -997,14 +997,14 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	// Create command payload with all info the agent needs
 	cmdPayload := DeployCommandPayload{
-		DeploymentID:  deploymentId.String(),
-		ResourceID:    resource.ID.String(),
-		WorkspaceID:   resource.WorkspaceID.String(),
-		ResourceName:  resource.Name,
-		ResourceType:  string(resource.Type),
-		Region:        regionToUpdate,
-		Hostname:      domain.Domain,
-		AppSpec:       appSpec,
+		DeploymentID: deploymentId.String(),
+		ResourceID:   resource.ID.String(),
+		WorkspaceID:  resource.WorkspaceID.String(),
+		ResourceName: resource.Name,
+		ResourceType: string(resource.Type),
+		Region:       regionToUpdate,
+		Hostname:     domain.Domain,
+		AppSpec:      appSpec,
 	}
 
 	payloadJSON, err := json.Marshal(cmdPayload)
@@ -1286,15 +1286,15 @@ func createDeploymentWithCleanup(
 			"oldStatus", activeDeployment.Status,
 			"newStatus", newStatus)
 
-		if err := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
+		if updateErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
 			ID:       activeDeployment.ID,
 			Status:   newStatus,
 			IsActive: false,
-		}); err != nil {
+		}); updateErr != nil {
 			slog.ErrorContext(ctx, "failed to finalize deployment",
 				"deploymentId", activeDeployment.ID,
-				"error", err)
-			return uuid.UUID{}, fmt.Errorf("failed to finalize deployment %v: %w", activeDeployment.ID, err)
+				"error", updateErr)
+			return uuid.UUID{}, fmt.Errorf("failed to finalize deployment %v: %w", activeDeployment.ID, updateErr)
 		}
 	}
 

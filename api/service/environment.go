@@ -173,9 +173,9 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String())); err != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String())); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to update environment", "environmentId", r.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	// Apply field mask: use existing values for unset fields.
@@ -232,9 +232,9 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String())); err != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String())); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to delete environment", "environmentId", r.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	count, err := s.queries.CountDeploymentsByEnvironment(ctx, envID)

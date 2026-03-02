@@ -24,8 +24,9 @@ func SetContext(next http.Handler) http.Handler {
 			if err != nil {
 				slog.Warn("failed to generate request ID, using empty string", "error", err)
 				requestHeader = ""
+			} else {
+				requestHeader = id.String()
 			}
-			requestHeader = id.String()
 		}
 
 		ctx := r.Context()

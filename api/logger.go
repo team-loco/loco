@@ -16,10 +16,22 @@ func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		return l.Handler.Handle(ctx, r)
 	}
 
-	requestId := ctx.Value(contextkeys.RequestIDKey).(string)
-	sourceIp := ctx.Value(contextkeys.SourceIPKey).(string)
-	path := ctx.Value(contextkeys.PathKey).(string)
-	method := ctx.Value(contextkeys.MethodKey).(string)
+	requestId, okReqId := ctx.Value(contextkeys.RequestIDKey).(string)
+	if !okReqId {
+		requestId = ""
+	}
+	sourceIp, okSourceIp := ctx.Value(contextkeys.SourceIPKey).(string)
+	if !okSourceIp {
+		sourceIp = ""
+	}
+	path, okPath := ctx.Value(contextkeys.PathKey).(string)
+	if !okPath {
+		path = ""
+	}
+	method, okMethod := ctx.Value(contextkeys.MethodKey).(string)
+	if !okMethod {
+		method = ""
+	}
 
 	// can be null on routes where oAuth Middleware is skipped.
 	entity := ctx.Value(contextkeys.EntityKey)
