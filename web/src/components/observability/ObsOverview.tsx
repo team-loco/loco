@@ -158,25 +158,21 @@ export function ObsOverview() {
 			<SparklineCard
 				title="CPU"
 				metricName="k8s.pod.cpu_request_utilization"
-				unit="%"
 				formatter={formatPct}
 			/>
 			<SparklineCard
 				title="Memory"
 				metricName="k8s.pod.memory_request_utilization"
-				unit="%"
 				formatter={formatPct}
 			/>
 			<SparklineCard
 				title="Network RX"
 				metricName="k8s.pod.network.io"
-				unit="bytes/s"
 				formatter={formatBytes}
 			/>
 			<SparklineCard
 				title="Network TX"
 				metricName="k8s.pod.network.io"
-				unit="bytes/s"
 				formatter={formatBytes}
 			/>
 		</div>

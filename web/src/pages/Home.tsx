@@ -167,16 +167,14 @@ export function Home() {
 					title="No Resources Yet"
 					description="Create your first resource to get started with Loco"
 					action={
-						currentOrgId && currentWorkspaceId
-							? {
-									label: "Create Your First Resource",
-									onClick: () => {
-										void navigate(
-											`/org/${currentOrgId.toString()}/wks/${currentWorkspaceId.toString()}/create-resource`,
-										);
-									},
-								}
-							: undefined
+						currentOrgId && currentWorkspaceId ? {
+							label: "Create Your First Resource",
+							onClick: () => {
+								void navigate(
+									`/org/${currentOrgId}/wks/${currentWorkspaceId}/create-resource`,
+								);
+							},
+						} : undefined
 					}
 				/>
 			)}
