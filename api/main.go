@@ -89,7 +89,7 @@ func newApiConfig() *ApiConfig {
 		DeployTokenName:    os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
 		GitlabPAT:          os.Getenv("GITLAB_PAT"),
 		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		Port:               os.Getenv("PORT"),
+		Port:               os.Getenv("APP_PORT"),
 		LogLevel:           logLevel,
 		RegistryTag:        os.Getenv("REGISTRY_TAG"),
 		CacheType:          cacheType,
