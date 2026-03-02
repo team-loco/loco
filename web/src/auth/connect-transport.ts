@@ -3,6 +3,7 @@ import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const APP_ENV = import.meta.env.VITE_APP_ENV || "PRODUCTION";
 
 const withCreds = (input: RequestInfo | URL, init?: RequestInit) =>
 	fetch(input, { ...init, credentials: "include" });
@@ -33,7 +34,7 @@ export const createTransport = (baseUrl: string = BASE_URL) => {
 	return createConnectTransport({
 		baseUrl,
 		fetch: withCreds,
-		useBinaryFormat: false,
+		useBinaryFormat: APP_ENV === "PRODUCTION",
 		interceptors: [
 			(next) => async (req) => {
 				// Skip retry logic for OAuth endpoints to avoid recursion.
