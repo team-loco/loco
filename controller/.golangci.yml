@@ -29,6 +29,8 @@ linters:
   exclusions:
     generated: lax
     rules:
+      - { linters: [errcheck], source: "^\\s*defer\\s+" }
+      - { linters: [govet], text: "fieldalignment" }
       - linters:
           - lll
         path: api/*

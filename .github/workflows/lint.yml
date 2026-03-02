@@ -61,7 +61,7 @@ jobs:
         with:
           version: v2.10
           working-directory: ${{ matrix.working-directory }}
-          args: --timeout=5m
+          args: --config=.golangci.yml --timeout=5m
   buf:
     name: Buf Lint
     runs-on: ubuntu-latest
