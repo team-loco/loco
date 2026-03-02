@@ -53,7 +53,6 @@ type ApiConfig struct {
 	LogLevel        slog.Level
 	Port            string
 	RegistryTag     string
-	LocoNamespace   string // Loco system namespace
 	LocoDomainBase  string // Base domain (e.g., deploy-app.com)
 	LocoDomainAPI   string // API domain (e.g., api.deploy-app.com)
 	CacheType       string // Cache backend type: "in-memory" or "valkey"
@@ -85,7 +84,6 @@ func newApiConfig() *ApiConfig {
 		Port:            os.Getenv("PORT"),
 		LogLevel:        logLevel,
 		RegistryTag:     os.Getenv("REGISTRY_TAG"),
-		LocoNamespace:   os.Getenv("LOCO_NAMESPACE"),
 		LocoDomainBase:  os.Getenv("LOCO_DOMAIN_BASE"),
 		LocoDomainAPI:   os.Getenv("LOCO_DOMAIN_API"),
 		CacheType:       cacheType,
@@ -200,8 +198,8 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, ac.LocoNamespace, cmdBus)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, cmdBus)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, cmdBus)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
