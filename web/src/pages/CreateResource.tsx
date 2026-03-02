@@ -463,7 +463,7 @@ export function CreateResource() {
 				domain: {
 					domainSource: DomainType.PLATFORM_PROVIDED,
 					subdomain: subdomain,
-					platformDomainId: platformDomain?.id ?? BigInt(0),
+					platformDomainId: platformDomain?.id.toString(),
 				},
 				spec,
 			});
@@ -486,7 +486,7 @@ export function CreateResource() {
 
 					await createDeploymentMutation.mutateAsync({
 						resourceId: resource.resourceId,
-						clusterId: BigInt(1), // Default cluster
+						clusterId: "1", // Default cluster
 						region: region,
 						spec: {
 							spec: {

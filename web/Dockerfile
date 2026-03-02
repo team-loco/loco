@@ -1,4 +1,4 @@
-FROM node:22-alpine AS builder
+FROM node:current-alpine3.23 AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 
 RUN npm run build
 
-FROM nginx:alpine
+FROM nginx:trixie-perl
 
 COPY nginx.conf /etc/nginx/nginx.conf
 

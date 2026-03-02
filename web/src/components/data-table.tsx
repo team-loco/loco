@@ -112,21 +112,21 @@ export const schema = z.object({
 
 // Create a separate component for the drag handle
 function DragHandle({ id }: { id: number }) {
-	const { attributes, listeners } = useSortable({
+	const { attributes, listeners, setNodeRef } = useSortable({
 		id,
 	});
 
 	return (
-		<Button
-			{...attributes}
-			{...listeners}
-			variant="ghost"
-			size="icon"
-			className="size-7 text-muted-foreground hover:bg-transparent"
-		>
-			<GripVerticalIcon className="size-3 text-muted-foreground" />
-			<span className="sr-only">Drag to reorder</span>
-		</Button>
+		<div ref={setNodeRef} {...attributes} {...listeners}>
+			<Button
+				variant="ghost"
+				size="icon"
+				className="size-7 text-muted-foreground hover:bg-transparent"
+			>
+				<GripVerticalIcon className="size-3 text-muted-foreground" />
+				<span className="sr-only">Drag to reorder</span>
+			</Button>
+		</div>
 	);
 }
 
@@ -145,7 +145,9 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 						table.getIsAllPageRowsSelected() ||
 						(table.getIsSomePageRowsSelected() && "indeterminate")
 					}
-					onCheckedChange={(value) => { table.toggleAllPageRowsSelected(!!value); }}
+					onCheckedChange={(value) => {
+						table.toggleAllPageRowsSelected(!!value);
+					}}
 					aria-label="Select all"
 				/>
 			</div>
@@ -154,7 +156,9 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 			<div className="flex items-center justify-center">
 				<Checkbox
 					checked={row.getIsSelected()}
-					onCheckedChange={(value) => { row.toggleSelected(!!value); }}
+					onCheckedChange={(value) => {
+						row.toggleSelected(!!value);
+					}}
 					aria-label="Select row"
 				/>
 			</div>
@@ -212,7 +216,10 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 					});
 				}}
 			>
-				<Label htmlFor={`${row.original.id.toString()}-target`} className="sr-only">
+				<Label
+					htmlFor={`${row.original.id.toString()}-target`}
+					className="sr-only"
+				>
 					Target
 				</Label>
 				<Input
@@ -237,7 +244,10 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 					});
 				}}
 			>
-				<Label htmlFor={`${row.original.id.toString()}-limit`} className="sr-only">
+				<Label
+					htmlFor={`${row.original.id.toString()}-limit`}
+					className="sr-only"
+				>
 					Limit
 				</Label>
 				<Input
@@ -260,7 +270,10 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
 
 			return (
 				<>
-					<Label htmlFor={`${row.original.id.toString()}-reviewer`} className="sr-only">
+					<Label
+						htmlFor={`${row.original.id.toString()}-reviewer`}
+						className="sr-only"
+					>
 						Reviewer
 					</Label>
 					<Select>
@@ -313,22 +326,26 @@ function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
 	});
 
 	return (
-		<TableRow
-			data-state={row.getIsSelected() && "selected"}
-			data-dragging={isDragging}
+		<div
 			ref={setNodeRef}
-			className="relative z-0 data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
+			className="relative z-0"
+			data-state={row.getIsSelected() ? "selected" : undefined}
+			data-dragging={isDragging ? "true" : undefined}
 			style={{
 				transform: CSS.Transform.toString(transform),
 				transition: transition,
 			}}
 		>
-			{row.getVisibleCells().map((cell) => (
-				<TableCell key={cell.id}>
-					{flexRender(cell.column.columnDef.cell, cell.getContext())}
-				</TableCell>
-			))}
-		</TableRow>
+			<TableRow
+				className="data-[dragging=true]:z-10 data-[dragging=true]:opacity-80"
+			>
+				{row.getVisibleCells().map((cell) => (
+					<TableCell key={cell.id}>
+						{flexRender(cell.column.columnDef.cell, cell.getContext())}
+					</TableCell>
+				))}
+			</TableRow>
+		</div>
 	);
 }
 
@@ -342,7 +359,7 @@ export function DataTable({
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-		[]
+		[],
 	);
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [pagination, setPagination] = React.useState({
@@ -353,12 +370,12 @@ export function DataTable({
 	const sensors = useSensors(
 		useSensor(MouseSensor, {}),
 		useSensor(TouchSensor, {}),
-		useSensor(KeyboardSensor, {})
+		useSensor(KeyboardSensor, {}),
 	);
 
 	const dataIds = React.useMemo<UniqueIdentifier[]>(
-		() => data?.map(({ id }) => id) || [],
-		[data]
+		() => data.map(({ id }) => id),
+		[data],
 	);
 
 	const table = useReactTable({
@@ -458,7 +475,7 @@ export function DataTable({
 								.filter(
 									(column) =>
 										typeof column.accessorFn !== "undefined" &&
-										column.getCanHide()
+										column.getCanHide(),
 								)
 								.map((column) => {
 									return (
@@ -466,9 +483,9 @@ export function DataTable({
 											key={column.id}
 											className="capitalize"
 											checked={column.getIsVisible()}
-											onCheckedChange={(value) =>
-												{ column.toggleVisibility(value); }
-											}
+											onCheckedChange={(value) => {
+												column.toggleVisibility(value);
+											}}
 										>
 											{column.id}
 										</DropdownMenuCheckboxItem>
@@ -505,8 +522,8 @@ export function DataTable({
 														? null
 														: flexRender(
 																header.column.columnDef.header,
-																header.getContext()
-														  )}
+																header.getContext(),
+															)}
 												</TableHead>
 											);
 										})}
@@ -575,7 +592,9 @@ export function DataTable({
 							<Button
 								variant="outline"
 								className="hidden h-8 w-8 p-0 lg:flex"
-								onClick={() => { table.setPageIndex(0); }}
+								onClick={() => {
+									table.setPageIndex(0);
+								}}
 								disabled={!table.getCanPreviousPage()}
 							>
 								<span className="sr-only">Go to first page</span>
@@ -585,7 +604,9 @@ export function DataTable({
 								variant="outline"
 								className="size-8"
 								size="icon"
-								onClick={() => { table.previousPage(); }}
+								onClick={() => {
+									table.previousPage();
+								}}
 								disabled={!table.getCanPreviousPage()}
 							>
 								<span className="sr-only">Go to previous page</span>
@@ -595,7 +616,9 @@ export function DataTable({
 								variant="outline"
 								className="size-8"
 								size="icon"
-								onClick={() => { table.nextPage(); }}
+								onClick={() => {
+									table.nextPage();
+								}}
 								disabled={!table.getCanNextPage()}
 							>
 								<span className="sr-only">Go to next page</span>
@@ -605,7 +628,9 @@ export function DataTable({
 								variant="outline"
 								className="hidden size-8 lg:flex"
 								size="icon"
-								onClick={() => { table.setPageIndex(table.getPageCount() - 1); }}
+								onClick={() => {
+									table.setPageIndex(table.getPageCount() - 1);
+								}}
 								disabled={!table.getCanNextPage()}
 							>
 								<span className="sr-only">Go to last page</span>

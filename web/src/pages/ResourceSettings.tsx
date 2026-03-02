@@ -122,7 +122,7 @@ export function ResourceSettings() {
 				subdomain: domainSource === "platform" ? newDomain : undefined,
 				platformDomainId:
 					domainSource === "platform" && platformDomainId
-						? BigInt(platformDomainId)
+						? platformDomainId
 						: undefined,
 				domain: domainSource === "user" ? newDomain : undefined,
 			};

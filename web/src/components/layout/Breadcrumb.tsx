@@ -86,7 +86,9 @@ export function BreadcrumbNav() {
 							{segment.href ? (
 								<BreadcrumbLink
 									onClick={() => {
-										void navigate(segment.href);
+										if (segment.href) {
+											void navigate(segment.href);
+										}
 									}}
 									className="cursor-pointer"
 								>

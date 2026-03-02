@@ -290,22 +290,27 @@ export function SiteHeader() {
 						)}
 
 						{getNavItems().map((item) => (
-							<Button
+							<div
 								key={item.title}
 								ref={(el) => {
-									if (el) buttonRefs.current[item.url] = el;
+									if (el && el.firstElementChild instanceof HTMLButtonElement) {
+										buttonRefs.current[item.url] = el.firstElementChild;
+									}
 								}}
-								variant="ghost"
-								size="sm"
-								onClick={() => {
-									void navigate(item.url);
-								}}
-								className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent ${
-									isActive(item.url) ? "text-primary-foreground" : ""
-								}`}
 							>
-								{item.title}
-							</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => {
+										void navigate(item.url);
+									}}
+									className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent ${
+										isActive(item.url) ? "text-primary-foreground" : ""
+									}`}
+								>
+									{item.title}
+								</Button>
+							</div>
 						))}
 					</div>
 

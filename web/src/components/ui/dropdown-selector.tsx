@@ -6,7 +6,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
-import { ReactNode, ComponentType } from "react";
+import type { ReactNode, ComponentType } from "react";
 
 interface DropdownSelectorProps {
 	label: ReactNode;
