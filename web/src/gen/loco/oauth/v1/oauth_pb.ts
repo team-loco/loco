@@ -4,13 +4,14 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/oauth/v1/oauth.proto.
  */
 export const file_loco_oauth_v1_oauth: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL29hdXRoL3YxL29hdXRoLnByb3RvEg1sb2NvLm9hdXRoLnYxIkgKFkdldE9BdXRoRGV0YWlsc1JlcXVlc3QSLgoIcHJvdmlkZXIYASABKA4yHC5sb2NvLm9hdXRoLnYxLk9BdXRoUHJvdmlkZXIiPwoXR2V0T0F1dGhEZXRhaWxzUmVzcG9uc2USEQoJY2xpZW50X2lkGAEgASgJEhEKCXRva2VuX3R0bBgCIAEoASJ9ChlFeGNoYW5nZU9BdXRoVG9rZW5SZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyEg0KBXRva2VuGAIgASgJEiEKGWNyZWF0ZV91c2VyX2lmX25vdF9leGlzdHMYAyABKAgiYwoaRXhjaGFuZ2VPQXV0aFRva2VuUmVzcG9uc2USEgoKbG9jb190b2tlbhgBIAEoCRISCgpleHBpcmVzX2luGAIgASgDEg8KB3VzZXJfaWQYAyABKAkSDAoEbmFtZRgEIAEoCSJ2Ch9HZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXF1ZXN0Ei4KCHByb3ZpZGVyGAEgASgOMhwubG9jby5vYXV0aC52MS5PQXV0aFByb3ZpZGVyEg0KBXN0YXRlGAIgASgJEhQKDHJlZGlyZWN0X3VyaRgDIAEoCSJMCiBHZXRPQXV0aEF1dGhvcml6YXRpb25VUkxSZXNwb25zZRIZChFhdXRob3JpemF0aW9uX3VybBgBIAEoCRINCgVzdGF0ZRgCIAEoCSJ9ChhFeGNoYW5nZU9BdXRoQ29kZVJlcXVlc3QSLgoIcHJvdmlkZXIYASABKA4yHC5sb2NvLm9hdXRoLnYxLk9BdXRoUHJvdmlkZXISDAoEY29kZRgCIAEoCRINCgVzdGF0ZRgDIAEoCRIUCgxyZWRpcmVjdF91cmkYBCABKAkiTgoZRXhjaGFuZ2VPQXV0aENvZGVSZXNwb25zZRISCgpleHBpcmVzX2luGAEgASgDEg8KB3VzZXJfaWQYAiABKAkSDAoEbmFtZRgDIAEoCSpMCg1PQXV0aFByb3ZpZGVyEh8KG09fQVVUSF9QUk9WSURFUl9VTlNQRUNJRklFRBAAEhoKFk9fQVVUSF9QUk9WSURFUl9HSVRIVUIQATLGAwoMT0F1dGhTZXJ2aWNlEmIKD0dldE9BdXRoRGV0YWlscxIlLmxvY28ub2F1dGgudjEuR2V0T0F1dGhEZXRhaWxzUmVxdWVzdBomLmxvY28ub2F1dGgudjEuR2V0T0F1dGhEZXRhaWxzUmVzcG9uc2UiABJpChJFeGNoYW5nZU9BdXRoVG9rZW4SKC5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlT0F1dGhUb2tlblJlcXVlc3QaKS5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlT0F1dGhUb2tlblJlc3BvbnNlEn0KGEdldE9BdXRoQXV0aG9yaXphdGlvblVSTBIuLmxvY28ub2F1dGgudjEuR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVxdWVzdBovLmxvY28ub2F1dGgudjEuR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVzcG9uc2UiABJoChFFeGNoYW5nZU9BdXRoQ29kZRInLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aENvZGVSZXF1ZXN0GigubG9jby5vYXV0aC52MS5FeGNoYW5nZU9BdXRoQ29kZVJlc3BvbnNlIgBCN1o1Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL29hdXRoL3YxO29hdXRodjFiBnByb3RvMw");
+  fileDesc("Chlsb2NvL29hdXRoL3YxL29hdXRoLnByb3RvEg1sb2NvLm9hdXRoLnYxIlQKFkdldE9BdXRoRGV0YWlsc1JlcXVlc3QSOgoIcHJvdmlkZXIYASABKA4yHC5sb2NvLm9hdXRoLnYxLk9BdXRoUHJvdmlkZXJCCrpIB4IBBBABIAAiPwoXR2V0T0F1dGhEZXRhaWxzUmVzcG9uc2USEQoJY2xpZW50X2lkGAEgASgJEhEKCXRva2VuX3R0bBgCIAEoASKSAQoZRXhjaGFuZ2VPQXV0aFRva2VuUmVxdWVzdBI6Cghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlckIKukgHggEEEAEgABIWCgV0b2tlbhgCIAEoCUIHukgEcgIQARIhChljcmVhdGVfdXNlcl9pZl9ub3RfZXhpc3RzGAMgASgIInoKGkV4Y2hhbmdlT0F1dGhUb2tlblJlc3BvbnNlEhIKCmxvY29fdG9rZW4YASABKAkSEgoKZXhwaXJlc19pbhgCIAEoAxIPCgd1c2VyX2lkGAMgASgJEgwKBG5hbWUYBCABKAkSFQoNcmVmcmVzaF90b2tlbhgFIAEoCSKCAQofR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVxdWVzdBI6Cghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlckIKukgHggEEEAEgABINCgVzdGF0ZRgCIAEoCRIUCgxyZWRpcmVjdF91cmkYAyABKAkiTAogR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkSDQoFc3RhdGUYAiABKAkimwEKGEV4Y2hhbmdlT0F1dGhDb2RlUmVxdWVzdBI6Cghwcm92aWRlchgBIAEoDjIcLmxvY28ub2F1dGgudjEuT0F1dGhQcm92aWRlckIKukgHggEEEAEgABIVCgRjb2RlGAIgASgJQge6SARyAhABEhYKBXN0YXRlGAMgASgJQge6SARyAhABEhQKDHJlZGlyZWN0X3VyaRgEIAEoCSJOChlFeGNoYW5nZU9BdXRoQ29kZVJlc3BvbnNlEhIKCmV4cGlyZXNfaW4YASABKAMSDwoHdXNlcl9pZBgCIAEoCRIMCgRuYW1lGAMgASgJIiwKE1JlZnJlc2hUb2tlblJlcXVlc3QSFQoNcmVmcmVzaF90b2tlbhgBIAEoCSJVChRSZWZyZXNoVG9rZW5SZXNwb25zZRISCgpsb2NvX3Rva2VuGAEgASgJEhIKCmV4cGlyZXNfaW4YAiABKAMSFQoNcmVmcmVzaF90b2tlbhgDIAEoCSpMCg1PQXV0aFByb3ZpZGVyEh8KG09fQVVUSF9QUk9WSURFUl9VTlNQRUNJRklFRBAAEhoKFk9fQVVUSF9QUk9WSURFUl9HSVRIVUIQATKhBAoMT0F1dGhTZXJ2aWNlEmIKD0dldE9BdXRoRGV0YWlscxIlLmxvY28ub2F1dGgudjEuR2V0T0F1dGhEZXRhaWxzUmVxdWVzdBomLmxvY28ub2F1dGgudjEuR2V0T0F1dGhEZXRhaWxzUmVzcG9uc2UiABJpChJFeGNoYW5nZU9BdXRoVG9rZW4SKC5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlT0F1dGhUb2tlblJlcXVlc3QaKS5sb2NvLm9hdXRoLnYxLkV4Y2hhbmdlT0F1dGhUb2tlblJlc3BvbnNlEn0KGEdldE9BdXRoQXV0aG9yaXphdGlvblVSTBIuLmxvY28ub2F1dGgudjEuR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVxdWVzdBovLmxvY28ub2F1dGgudjEuR2V0T0F1dGhBdXRob3JpemF0aW9uVVJMUmVzcG9uc2UiABJoChFFeGNoYW5nZU9BdXRoQ29kZRInLmxvY28ub2F1dGgudjEuRXhjaGFuZ2VPQXV0aENvZGVSZXF1ZXN0GigubG9jby5vYXV0aC52MS5FeGNoYW5nZU9BdXRoQ29kZVJlc3BvbnNlIgASWQoMUmVmcmVzaFRva2VuEiIubG9jby5vYXV0aC52MS5SZWZyZXNoVG9rZW5SZXF1ZXN0GiMubG9jby5vYXV0aC52MS5SZWZyZXNoVG9rZW5SZXNwb25zZSIAQjdaNWdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vcHJvdG8vbG9jby9vYXV0aC92MTtvYXV0aHYxYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
@@ -162,6 +163,11 @@ export type ExchangeOAuthTokenResponse = Message<"loco.oauth.v1.ExchangeOAuthTok
    * @generated from field: string name = 4;
    */
   name: string;
+
+  /**
+   * @generated from field: string refresh_token = 5;
+   */
+  refreshToken: string;
 };
 
 /**
@@ -191,6 +197,11 @@ export type ExchangeOAuthTokenResponseJson = {
    * @generated from field: string name = 4;
    */
   name?: string;
+
+  /**
+   * @generated from field: string refresh_token = 5;
+   */
+  refreshToken?: string;
 };
 
 /**
@@ -405,6 +416,94 @@ export const ExchangeOAuthCodeResponseSchema: GenMessage<ExchangeOAuthCodeRespon
   messageDesc(file_loco_oauth_v1_oauth, 7);
 
 /**
+ * RefreshTokenRequest requests a new session token pair using a refresh token.
+ * If refresh_token is empty, the server reads the loco_refresh_token cookie.
+ *
+ * @generated from message loco.oauth.v1.RefreshTokenRequest
+ */
+export type RefreshTokenRequest = Message<"loco.oauth.v1.RefreshTokenRequest"> & {
+  /**
+   * @generated from field: string refresh_token = 1;
+   */
+  refreshToken: string;
+};
+
+/**
+ * RefreshTokenRequest requests a new session token pair using a refresh token.
+ * If refresh_token is empty, the server reads the loco_refresh_token cookie.
+ *
+ * @generated from message loco.oauth.v1.RefreshTokenRequest
+ */
+export type RefreshTokenRequestJson = {
+  /**
+   * @generated from field: string refresh_token = 1;
+   */
+  refreshToken?: string;
+};
+
+/**
+ * Describes the message loco.oauth.v1.RefreshTokenRequest.
+ * Use `create(RefreshTokenRequestSchema)` to create a new message.
+ */
+export const RefreshTokenRequestSchema: GenMessage<RefreshTokenRequest, {jsonType: RefreshTokenRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_oauth_v1_oauth, 8);
+
+/**
+ * RefreshTokenResponse contains the new session token pair.
+ *
+ * @generated from message loco.oauth.v1.RefreshTokenResponse
+ */
+export type RefreshTokenResponse = Message<"loco.oauth.v1.RefreshTokenResponse"> & {
+  /**
+   * @generated from field: string loco_token = 1;
+   */
+  locoToken: string;
+
+  /**
+   * seconds
+   *
+   * @generated from field: int64 expires_in = 2;
+   */
+  expiresIn: bigint;
+
+  /**
+   * @generated from field: string refresh_token = 3;
+   */
+  refreshToken: string;
+};
+
+/**
+ * RefreshTokenResponse contains the new session token pair.
+ *
+ * @generated from message loco.oauth.v1.RefreshTokenResponse
+ */
+export type RefreshTokenResponseJson = {
+  /**
+   * @generated from field: string loco_token = 1;
+   */
+  locoToken?: string;
+
+  /**
+   * seconds
+   *
+   * @generated from field: int64 expires_in = 2;
+   */
+  expiresIn?: string;
+
+  /**
+   * @generated from field: string refresh_token = 3;
+   */
+  refreshToken?: string;
+};
+
+/**
+ * Describes the message loco.oauth.v1.RefreshTokenResponse.
+ * Use `create(RefreshTokenResponseSchema)` to create a new message.
+ */
+export const RefreshTokenResponseSchema: GenMessage<RefreshTokenResponse, {jsonType: RefreshTokenResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_oauth_v1_oauth, 9);
+
+/**
  * OAuthProvider represents supported OAuth identity providers.
  *
  * @generated from enum loco.oauth.v1.OAuthProvider
@@ -479,6 +578,16 @@ export const OAuthService: GenService<{
     methodKind: "unary";
     input: typeof ExchangeOAuthCodeRequestSchema;
     output: typeof ExchangeOAuthCodeResponseSchema;
+  },
+  /**
+   * RefreshToken rotates a session token pair using a refresh token.
+   *
+   * @generated from rpc loco.oauth.v1.OAuthService.RefreshToken
+   */
+  refreshToken: {
+    methodKind: "unary";
+    input: typeof RefreshTokenRequestSchema;
+    output: typeof RefreshTokenResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_oauth_v1_oauth, 0);

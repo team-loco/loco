@@ -1,0 +1,57 @@
+{
+	"$schema": "https://railway.com/railway.schema.json",
+	"build": {
+		"builder": "DOCKERFILE",
+		"dockerfilePath": "/api/Dockerfile"
+	},
+	"deploy": {
+		"numReplicas": 2,
+		"healthcheckPath": "/health",
+		"healthcheckTimeout": 30,
+		"sleepApplication": false,
+		"restartPolicyType": "ON_FAILURE",
+		"restartPolicyMaxRetries": 2,
+		"region": "us-east4-eqdc4a",
+		"overlapSeconds": 10,
+		"drainingSeconds": 30,
+		"ipv6EgressEnabled": true
+	},
+	"environments": {
+		"production": {
+			"build": {
+				"builder": "DOCKERFILE",
+				"dockerfilePath": "/api/Dockerfile"
+			},
+			"deploy": {
+				"numReplicas": 2,
+				"healthcheckPath": "/health",
+				"healthcheckTimeout": 30,
+				"sleepApplication": false,
+				"restartPolicyType": "ON_FAILURE",
+				"restartPolicyMaxRetries": 2,
+				"region": "us-east4-eqdc4a",
+				"overlapSeconds": 10,
+				"drainingSeconds": 30,
+				"ipv6EgressEnabled": true
+			}
+		},
+		"staging": {
+			"build": {
+				"builder": "DOCKERFILE",
+				"dockerfilePath": "/api/Dockerfile"
+			},
+			"deploy": {
+				"numReplicas": 2,
+				"healthcheckPath": "/health",
+				"healthcheckTimeout": 30,
+				"sleepApplication": false,
+				"restartPolicyType": "ON_FAILURE",
+				"restartPolicyMaxRetries": 2,
+				"region": "us-east4-eqdc4a",
+				"overlapSeconds": 10,
+				"drainingSeconds": 30,
+				"ipv6EgressEnabled": true
+			}
+		}
+	}
+}

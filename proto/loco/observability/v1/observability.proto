@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.observability.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/proto/loco/observability/v1;observabilityv1";
@@ -24,7 +25,7 @@ service ObservabilityProxyService {
 // QueryLogsRequest specifies filters and pagination for querying historical logs.
 message QueryLogsRequest {
   // Workspace ID to query logs from (required).
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Resource IDs to filter by (e.g., deployment IDs). Empty means all resources.
   repeated string resource_ids = 2;
 
@@ -43,12 +44,21 @@ message QueryLogsRequest {
   map<string, string> labels = 7;
 
   // Max rows to return (clamped by guardrails).
-  int32 limit = 8;
+  int32 limit = 8 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 10000
+  }];
   // Opaque cursor for pagination (from previous response). Empty for first request.
   string cursor = 9;
 
   // Ordering of results (newest/oldest first).
   LogOrder order = 10;
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "!has(this.start_time) || !has(this.end_time) || this.start_time <= this.end_time"
+  };
 }
 
 // LogOrder defines the sort order for historical log queries.
@@ -96,7 +106,7 @@ message LogEntry {
 // TailLogsRequest specifies filters for tailing live logs.
 message TailLogsRequest {
   // Workspace ID to tail logs from (required).
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Resource IDs to filter by. Empty means all resources.
   repeated string resource_ids = 2;
 
@@ -130,9 +140,9 @@ message Heartbeat {
 // QueryMetricsRequest specifies a metrics query with aggregation parameters.
 message QueryMetricsRequest {
   // Workspace ID to query metrics from (required).
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Resource IDs to filter by (required, non-empty).
-  repeated string resource_ids = 2;
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.min_items = 1];
 
   // Start of time range (inclusive).
   google.protobuf.Timestamp start_time = 3;
@@ -140,13 +150,23 @@ message QueryMetricsRequest {
   google.protobuf.Timestamp end_time = 4;
 
   // Metric name to query (e.g., "k8s.pod.cpu_limit_utilization", "k8s.pod.memory_usage").
-  string metric_name = 5;
+  string metric_name = 5 [(buf.validate.field).string.min_len = 1];
 
   // Aggregation window in seconds (e.g., 60 for 1-minute buckets).
-  int32 interval_seconds = 6;
+  int32 interval_seconds = 6 [(buf.validate.field).int32.gte = 1];
 
   // Aggregation function ("avg", "sum", "min", "max", "p50", "p95", "p99").
-  string aggregation = 7;
+  string aggregation = 7 [(buf.validate.field).cel = {
+    id: "aggregation.valid_values"
+    message: "aggregation must be one of: avg, sum, min, max, p50, p95, p99"
+    expression: "this in ['avg', 'sum', 'min', 'max', 'p50', 'p95', 'p99']"
+  }];
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "!has(this.start_time) || !has(this.end_time) || this.start_time <= this.end_time"
+  };
 }
 
 // QueryMetricsResponse contains the aggregated metric data.

@@ -10,8 +10,9 @@ import (
 const Service = "loco"
 
 type UserToken struct {
-	ExpiresAt time.Time
-	Token     string
+	ExpiresAt    time.Time
+	Token        string
+	RefreshToken string
 }
 
 func SetLocoToken(user string, t UserToken) error {

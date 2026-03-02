@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/api"
-	"github.com/team-loco/loco/internal/session"
-	"github.com/team-loco/loco/internal/keychain"
-	"github.com/team-loco/loco/internal/ui"
 	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/internal/session"
+	"github.com/team-loco/loco/internal/ui"
 	oAuth "github.com/team-loco/loco/proto/loco/oauth/v1"
 	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
 	orgv1 "github.com/team-loco/loco/proto/loco/org/v1"
@@ -306,11 +306,16 @@ var loginCmd = &cobra.Command{
 				return err
 			}
 
-			keychain.SetLocoToken(user.Name, keychain.UserToken{
-				Token: locoResp.Msg.LocoToken,
+			keychainErr := keychain.SetLocoToken(user.Name, keychain.UserToken{
+				Token:        locoResp.Msg.LocoToken,
+				RefreshToken: locoResp.Msg.RefreshToken,
 				// sub 10 mins
 				ExpiresAt: time.Now().Add(time.Duration(locoResp.Msg.ExpiresIn)*time.Second - (10 * time.Minute)),
 			})
+			if keychainErr != nil {
+				slog.Debug("failed to store token in keychain", "error", keychainErr)
+				return fmt.Errorf("failed to store token: %w", keychainErr)
+			}
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")

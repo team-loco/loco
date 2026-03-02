@@ -18,16 +18,16 @@ export function ErrorCard({
 }: ErrorCardProps) {
 	const [copied, setCopied] = useState(false);
 	const errorMessage = getErrorMessage(error, fallbackMessage);
-	const match = errorMessage.match(/^(.+?requestId)\s*(.+?)$/i);
+	const match = /^(.+?requestId)\s*(.+?)$/i.exec(errorMessage);
 	const mainMessage = match ? match[1] : errorMessage;
 	const requestId = match ? match[2] : null;
 
 	const handleCopy = () => {
 		if (requestId) {
-			navigator.clipboard.writeText(requestId);
+			void navigator.clipboard.writeText(requestId);
 			setCopied(true);
 			toast.success("Request ID copied");
-			setTimeout(() => setCopied(false), 2000);
+			setTimeout(() => { setCopied(false); }, 2000);
 		}
 	};
 

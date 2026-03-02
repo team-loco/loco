@@ -4,29 +4,31 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm/providers"
 )
 
-// Exchange returns a token for the user with the given email. It is expected that the email has been
-// provided by a provider in a trusted manner (e.g., after successful OAuth).
-func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse) (queries.User, string, error) {
+// Exchange authenticates a user via their OAuth-provided email and issues a new
+// session token pair (access + refresh). ip and userAgent are stored for session
+// display; either may be empty.
+func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse, ip string, userAgent string) (queries.User, string, string, error) {
 	address, err := email.Address()
 	if err != nil {
 		slog.Error(err.Error())
-		return queries.User{}, "", ErrExchange
+		return queries.User{}, "", "", ErrExchange
 	}
 
-	// get the user and their scopes by their email
 	userWithScopes, err := tvm.queries.GetUserWithScopesByEmail(ctx, address)
 	if err != nil {
 		slog.Error(err.Error())
-		return queries.User{}, "", ErrUserNotFound
+		return queries.User{}, "", "", ErrUserNotFound
 	}
 
-	// construct user object
 	user := queries.User{
 		ID:        userWithScopes.ID,
 		Email:     userWithScopes.Email,
@@ -36,15 +38,37 @@ func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailRe
 		UpdatedAt: userWithScopes.UpdatedAt,
 	}
 
-	// issue the token
-	token, err := tvm.issueNoCheck(ctx, fmt.Sprintf("login token for user %s created at %s", user.ID.String(), time.Now().Format(time.RFC1123)), queries.Entity{
-		Type: queries.EntityTypeUser,
-		ID:   user.ID,
-	}, userWithScopes.Scopes, tvm.Cfg.LoginTokenDuration)
-	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return queries.User{}, "", fmt.Errorf("issue login token: %w", err)
+	accessToken, accessHash := generateToken(prefixSession)
+	refreshToken, refreshHash := generateToken(prefixRefresh)
+
+	now := time.Now()
+
+	var ipAddr *netip.Addr
+	if ip != "" {
+		parsed, parseErr := netip.ParseAddr(ip)
+		if parseErr == nil {
+			ipAddr = &parsed
+		}
 	}
 
-	return user, token, nil
+	var ua pgtype.Text
+	if userAgent != "" {
+		ua = pgtype.Text{String: userAgent, Valid: true}
+	}
+
+	if err := tvm.queries.CreateSessionToken(ctx, queries.CreateSessionTokenParams{
+		ID:               uuid.Must(uuid.NewV7()),
+		AccessTokenHash:  accessHash,
+		RefreshTokenHash: refreshHash,
+		UserID:           user.ID,
+		AccessExpiresAt:  pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionAccessTokenDuration), Valid: true},
+		RefreshExpiresAt: pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionRefreshTokenDuration), Valid: true},
+		IpAddress:        ipAddr,
+		UserAgent:        ua,
+	}); err != nil {
+		slog.ErrorContext(ctx, fmt.Sprintf("failed to create session token: %s", err.Error()))
+		return queries.User{}, "", "", ErrStoreToken
+	}
+
+	return user, accessToken, refreshToken, nil
 }

@@ -82,18 +82,16 @@ export function NavWorkspaces({
 										onClick={() => onWorkspaceClick?.(workspace.id)}
 										tooltip={workspace.name}
 										isActive={workspace.isActive}
-										className={`${
-											workspace.isActive
+										className={workspace.isActive
 												? "bg-sidebar-accent text-sidebar-accent-foreground"
-												: ""
-										}`}
+												: ""}
 									>
 										<span>{workspace.name}</span>
 									</SidebarMenuButton>
 								</CollapsibleTrigger>
 								<CollapsibleTrigger asChild>
 									<SidebarMenuAction
-										onClick={(e) => e.stopPropagation()}
+										onClick={(e) => { e.stopPropagation(); }}
 										className="group-data-[state=open]/workspace:rotate-90 transition-transform"
 									>
 										<ChevronRight className="h-4 w-4" />
@@ -102,7 +100,7 @@ export function NavWorkspaces({
 								<CollapsibleContent>
 									<SidebarMenuSub>
 										{workspace.resources?.map((resource) => (
-											<SidebarMenuSubItem key={resource.id.toString()}>
+											<SidebarMenuSubItem key={resource.id}>
 												<SidebarMenuSubButton
 													onClick={() => onResourceClick?.(resource.id, workspace.id)}
 													isActive={activeResourceId === resource.id}

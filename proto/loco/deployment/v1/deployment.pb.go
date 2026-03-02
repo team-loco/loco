@@ -7,6 +7,7 @@
 package deploymentv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -736,7 +737,7 @@ type Deployment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	ResourceId    string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	ClusterId     int64                  `protobuf:"varint,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId     string                 `protobuf:"bytes,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Region        string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
 	Replicas      int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	Status        DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
@@ -748,6 +749,7 @@ type Deployment struct {
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	SpecVersion   int32                  `protobuf:"varint,13,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
 	Spec          *DeploymentSpec        `protobuf:"bytes,14,opt,name=spec,proto3" json:"spec,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,15,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -796,11 +798,11 @@ func (x *Deployment) GetResourceId() string {
 	return ""
 }
 
-func (x *Deployment) GetClusterId() int64 {
+func (x *Deployment) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
 	}
-	return 0
+	return ""
 }
 
 func (x *Deployment) GetRegion() string {
@@ -880,13 +882,21 @@ func (x *Deployment) GetSpec() *DeploymentSpec {
 	return nil
 }
 
+func (x *Deployment) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
 // CreateDeploymentRequest is the request to create a new deployment.
 type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	ClusterId     int64                  `protobuf:"varint,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId     string                 `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Region        string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
 	Spec          *DeploymentSpec        `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -928,11 +938,11 @@ func (x *CreateDeploymentRequest) GetResourceId() string {
 	return ""
 }
 
-func (x *CreateDeploymentRequest) GetClusterId() int64 {
+func (x *CreateDeploymentRequest) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
 	}
-	return 0
+	return ""
 }
 
 func (x *CreateDeploymentRequest) GetRegion() string {
@@ -947,6 +957,13 @@ func (x *CreateDeploymentRequest) GetSpec() *DeploymentSpec {
 		return x.Spec
 	}
 	return nil
+}
+
+func (x *CreateDeploymentRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
 }
 
 // CreateDeploymentResponse is the response containing the created deployment ID.
@@ -1398,7 +1415,7 @@ var File_loco_deployment_v1_deployment_proto protoreflect.FileDescriptor
 
 const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
-	"#loco/deployment/v1/deployment.proto\x12\x12loco.deployment.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
+	"#loco/deployment/v1/deployment.proto\x12\x12loco.deployment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
 	"\x04Port\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1a\n" +
 	"\bprotocol\x18\x02 \x01(\tR\bprotocol\"U\n" +
@@ -1406,38 +1423,39 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x03cpu\x18\x01 \x01(\tH\x00R\x03cpu\x88\x01\x01\x12\x1b\n" +
 	"\x06memory\x18\x02 \x01(\tH\x01R\x06memory\x88\x01\x01B\x06\n" +
 	"\x04_cpuB\t\n" +
-	"\a_memory\"\xdc\x01\n" +
-	"\x11HealthCheckConfig\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x122\n" +
-	"\x15initial_delay_seconds\x18\x02 \x01(\x05R\x13initialDelaySeconds\x12)\n" +
-	"\x10interval_seconds\x18\x03 \x01(\x05R\x0fintervalSeconds\x12'\n" +
-	"\x0ftimeout_seconds\x18\x04 \x01(\x05R\x0etimeoutSeconds\x12+\n" +
-	"\x11failure_threshold\x18\x05 \x01(\x05R\x10failureThreshold\"\x92\x01\n" +
+	"\a_memory\"\x80\x02\n" +
+	"\x11HealthCheckConfig\x12\x1b\n" +
+	"\x04path\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x122\n" +
+	"\x15initial_delay_seconds\x18\x02 \x01(\x05R\x13initialDelaySeconds\x122\n" +
+	"\x10interval_seconds\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0fintervalSeconds\x120\n" +
+	"\x0ftimeout_seconds\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x0etimeoutSeconds\x124\n" +
+	"\x11failure_threshold\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01R\x10failureThreshold\"\xa8\x01\n" +
 	"\aScalers\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\"\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12-\n" +
 	"\n" +
-	"cpu_target\x18\x02 \x01(\x05H\x00R\tcpuTarget\x88\x01\x01\x12(\n" +
-	"\rmemory_target\x18\x03 \x01(\x05H\x01R\fmemoryTarget\x88\x01\x01B\r\n" +
+	"cpu_target\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\tcpuTarget\x88\x01\x01\x123\n" +
+	"\rmemory_target\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x01R\fmemoryTarget\x88\x01\x01B\r\n" +
 	"\v_cpu_targetB\x10\n" +
-	"\x0e_memory_target\"y\n" +
-	"\vBuildSource\x12\x12\n" +
-	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
-	"\x05image\x18\x02 \x01(\tR\x05image\x12,\n" +
+	"\x0e_memory_target\"\xd5\x01\n" +
+	"\vBuildSource\x12\x1b\n" +
+	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12g\n" +
+	"\x05image\x18\x02 \x01(\tBQ\xbaHNrL\x10\x012H^([a-z0-9\\-._]+(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+|@sha256:[a-f0-9]{64})?$R\x05image\x12,\n" +
 	"\x0fdockerfile_path\x18\x03 \x01(\tH\x00R\x0edockerfilePath\x88\x01\x01B\x12\n" +
-	"\x10_dockerfile_path\"\xc1\x04\n" +
-	"\x15ServiceDeploymentSpec\x125\n" +
-	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceR\x05build\x12M\n" +
-	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x15\n" +
-	"\x03cpu\x18\x03 \x01(\tH\x01R\x03cpu\x88\x01\x01\x12\x1b\n" +
-	"\x06memory\x18\x04 \x01(\tH\x02R\x06memory\x88\x01\x01\x12&\n" +
-	"\fmin_replicas\x18\x05 \x01(\x05H\x03R\vminReplicas\x88\x01\x01\x12&\n" +
-	"\fmax_replicas\x18\x06 \x01(\x05H\x04R\vmaxReplicas\x88\x01\x01\x12:\n" +
+	"\x10_dockerfile_path\"\x9e\x06\n" +
+	"\x15ServiceDeploymentSpec\x12=\n" +
+	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
+	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +
+	"\x03cpu\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x01R\x03cpu\x88\x01\x01\x12$\n" +
+	"\x06memory\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x02R\x06memory\x88\x01\x01\x12/\n" +
+	"\fmin_replicas\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x03R\vminReplicas\x88\x01\x01\x12/\n" +
+	"\fmax_replicas\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x04R\vmaxReplicas\x88\x01\x01\x12:\n" +
 	"\ascalers\x18\a \x01(\v2\x1b.loco.deployment.v1.ScalersH\x05R\ascalers\x88\x01\x01\x12D\n" +
-	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12\x12\n" +
-	"\x04port\x18\t \x01(\x05R\x04port\x1a6\n" +
+	"\x03env\x18\b \x03(\v22.loco.deployment.v1.ServiceDeploymentSpec.EnvEntryR\x03env\x12\x1f\n" +
+	"\x04port\x18\t \x01(\x05B\v\xbaH\b\x1a\x06\x18\xff\xff\x03(\x01R\x04port\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0f\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xa1\x01\xbaH\x9d\x01\x1a\x9a\x01\n" +
+	"\x14replicas.min_lte_max\x12$min_replicas must be <= max_replicas\x1a\\!has(this.min_replicas) || !has(this.max_replicas) || this.min_replicas <= this.max_replicasB\x0f\n" +
 	"\r_health_checkB\x06\n" +
 	"\x04_cpuB\t\n" +
 	"\a_memoryB\x0f\n" +
@@ -1453,14 +1471,14 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
 	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
 	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\xf9\x04\n" +
+	"\x04spec\"\xa0\x05\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x03 \x01(\x03R\tclusterId\x12\x16\n" +
+	"cluster_id\x18\x03 \x01(\tR\tclusterId\x12\x16\n" +
 	"\x06region\x18\x04 \x01(\tR\x06region\x12\x1a\n" +
 	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
 	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
@@ -1475,42 +1493,45 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12!\n" +
 	"\fspec_version\x18\r \x01(\x05R\vspecVersion\x126\n" +
-	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04specB\r\n" +
+	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\x12%\n" +
+	"\x0eenvironment_id\x18\x0f \x01(\tR\renvironmentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\xa9\x01\n" +
-	"\x17CreateDeploymentRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x1d\n" +
+	"\r_completed_at\"\xff\x01\n" +
+	"\x17CreateDeploymentRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12'\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x12\x16\n" +
-	"\x06region\x18\x03 \x01(\tR\x06region\x126\n" +
-	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\"?\n" +
+	"cluster_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x12\x1f\n" +
+	"\x06region\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06region\x12>\n" +
+	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
+	"\x0eenvironment_id\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"?\n" +
 	"\x18CreateDeploymentResponse\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\";\n" +
-	"\x14GetDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"W\n" +
+	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"E\n" +
+	"\x14GetDeploymentRequest\x12-\n" +
+	"\rdeployment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\"W\n" +
 	"\x15GetDeploymentResponse\x12>\n" +
 	"\n" +
 	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
-	"deployment\"u\n" +
-	"\x16ListDeploymentsRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"deployment\"\x8b\x01\n" +
+	"\x16ListDeploymentsRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12'\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"=\n" +
-	"\x16WatchDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"\xcf\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"G\n" +
+	"\x16WatchDeploymentRequest\x12-\n" +
+	"\rdeployment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\"\xcf\x01\n" +
 	"\x17WatchDeploymentResponse\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12;\n" +
 	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x128\n" +
-	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\">\n" +
-	"\x17DeleteDeploymentRequest\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\"\x1a\n" +
+	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"H\n" +
+	"\x17DeleteDeploymentRequest\x12-\n" +
+	"\rdeployment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\"\x1a\n" +
 	"\x18DeleteDeploymentResponse*\xeb\x01\n" +
 	"\x0fDeploymentPhase\x12 \n" +
 	"\x1cDEPLOYMENT_PHASE_UNSPECIFIED\x10\x00\x12\x1c\n" +

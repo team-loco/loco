@@ -7,6 +7,7 @@
 package agentv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v1 "github.com/team-loco/loco/proto/loco/deployment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -151,7 +152,7 @@ func (x *RegisterRequest) GetCapacity() *AgentCapacity {
 // RegisterResponse contains the assigned cluster ID.
 type RegisterResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClusterId     int64                  `protobuf:"varint,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,18 +187,18 @@ func (*RegisterResponse) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *RegisterResponse) GetClusterId() int64 {
+func (x *RegisterResponse) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
 	}
-	return 0
+	return ""
 }
 
 // CommandStreamResponse represents a unit of work to be executed by an agent.
 type CommandStreamResponse struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	CommandId string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
-	ClusterId int64                  `protobuf:"varint,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string                 `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	Type      CommandType            `protobuf:"varint,4,opt,name=type,proto3,enum=loco.agent.v1.CommandType" json:"type,omitempty"`
 	// Types that are valid to be assigned to Payload:
@@ -248,11 +249,11 @@ func (x *CommandStreamResponse) GetCommandId() string {
 	return ""
 }
 
-func (x *CommandStreamResponse) GetClusterId() int64 {
+func (x *CommandStreamResponse) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
 	}
-	return 0
+	return ""
 }
 
 func (x *CommandStreamResponse) GetCreatedAt() *timestamppb.Timestamp {
@@ -664,7 +665,7 @@ func (x *CommandStreamRequest) GetRetry() bool {
 // HeartbeatRequest is sent periodically by the agent.
 type HeartbeatRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClusterId     int64                  `protobuf:"varint,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Capacity      *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
 	Health        *AgentHealth           `protobuf:"bytes,3,opt,name=health,proto3" json:"health,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -701,11 +702,11 @@ func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *HeartbeatRequest) GetClusterId() int64 {
+func (x *HeartbeatRequest) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
 	}
-	return 0
+	return ""
 }
 
 func (x *HeartbeatRequest) GetCapacity() *AgentCapacity {
@@ -1105,7 +1106,7 @@ func (x *AgentHealth) GetMessage() string {
 // ReportStatusRequest is sent by the agent when deployment status changes.
 type ReportStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClusterId     int64                  `protobuf:"varint,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	ResourceId    string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	DeploymentId  string                 `protobuf:"bytes,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	Phase         v1.DeploymentPhase     `protobuf:"varint,4,opt,name=phase,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"phase,omitempty"`
@@ -1145,11 +1146,11 @@ func (*ReportStatusRequest) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *ReportStatusRequest) GetClusterId() int64 {
+func (x *ReportStatusRequest) GetClusterId() string {
 	if x != nil {
 		return x.ClusterId
 	}
-	return 0
+	return ""
 }
 
 func (x *ReportStatusRequest) GetResourceId() string {
@@ -1305,7 +1306,7 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\"\xab\x01\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\"\xab\x01\n" +
 	"\x0fRegisterRequest\x12!\n" +
 	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12\x16\n" +
 	"\x06region\x18\x02 \x01(\tR\x06region\x12#\n" +
@@ -1313,12 +1314,12 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\bcapacity\x18\x04 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\"1\n" +
 	"\x10RegisterResponse\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\x03R\tclusterId\"\xb2\x03\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId\"\xb2\x03\n" +
 	"\x15CommandStreamResponse\x12\x1d\n" +
 	"\n" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\x03R\tclusterId\x129\n" +
+	"cluster_id\x18\x02 \x01(\tR\tclusterId\x129\n" +
 	"\n" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12.\n" +
 	"\x04type\x18\x04 \x01(\x0e2\x1a.loco.agent.v1.CommandTypeR\x04type\x126\n" +
@@ -1358,10 +1359,10 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"command_id\x18\x01 \x01(\tR\tcommandId\x12\x18\n" +
 	"\asuccess\x18\x02 \x01(\bR\asuccess\x12#\n" +
 	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\x12\x14\n" +
-	"\x05retry\x18\x04 \x01(\bR\x05retry\"\x9f\x01\n" +
-	"\x10HeartbeatRequest\x12\x1d\n" +
+	"\x05retry\x18\x04 \x01(\bR\x05retry\"\xa9\x01\n" +
+	"\x10HeartbeatRequest\x12'\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\x03R\tclusterId\x128\n" +
+	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
 	"\x06health\x18\x03 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\"\xde\x01\n" +
 	"\x11HeartbeatResponse\x125\n" +
@@ -1389,13 +1390,13 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x89\x02\n" +
-	"\x13ReportStatusRequest\x12\x1d\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xa7\x02\n" +
+	"\x13ReportStatusRequest\x12'\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\x03R\tclusterId\x12\x1f\n" +
-	"\vresource_id\x18\x02 \x01(\tR\n" +
-	"resourceId\x12#\n" +
-	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\x129\n" +
+	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x12)\n" +
+	"\vresource_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12-\n" +
+	"\rdeployment_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\x129\n" +
 	"\x05phase\x18\x04 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x05phase\x12\x18\n" +
 	"\amessage\x18\x05 \x01(\tR\amessage\x128\n" +
 	"\n" +

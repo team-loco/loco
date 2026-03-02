@@ -16,8 +16,8 @@ import (
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
+	"connectrpc.com/validate"
 	charmLog "github.com/charmbracelet/log"
-
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -150,15 +150,17 @@ func main() {
 	queries := genDb.New(pool)
 
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
-		MaxTokenDuration:   time.Hour * 24 * 30,
-		LoginTokenDuration: time.Hour * 1,
+		MaxAPITokenDuration:         time.Hour * 24 * 365,
+		SessionAccessTokenDuration:  time.Hour * 24,
+		SessionRefreshTokenDuration: time.Hour * 24 * 30,
+		LastUsedUpdateInterval:      time.Minute * 5,
 	})
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine))
+	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine), validate.NewInterceptor())
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -272,6 +274,7 @@ func main() {
 		resourcev1connect.ResourceServiceListWorkspaceResourcesProcedure,
 		resourcev1connect.ResourceServiceUpdateResourceProcedure,
 		resourcev1connect.ResourceServiceDeleteResourceProcedure,
+		resourcev1connect.ResourceServiceListResourceEventsProcedure,
 
 		// deployment service
 		deploymentv1connect.DeploymentServiceCreateDeploymentProcedure,
@@ -309,7 +312,7 @@ func main() {
 
 		// observability access service
 		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,
-		observabilityv1connect.ObservabilityAccessServiceValidateObservabilityTokenProcedure,
+		observabilityv1connect.ObservabilityAccessServiceCheckPermissionProcedure,
 
 		// environment service
 		environmentv1connect.EnvironmentServiceCreateEnvironmentProcedure,
@@ -341,7 +344,7 @@ func main() {
 	muxWContext := middleware.SetContext(muxWTiming)
 
 	server := &http.Server{
-		Addr:    ":8000",
+		Addr:    ac.Port,
 		Handler: h2c.NewHandler(muxWContext, &http2.Server{}),
 	}
 

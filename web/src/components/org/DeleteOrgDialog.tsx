@@ -112,7 +112,7 @@ export function DeleteOrgDialog({
 							id="confirm-name"
 							placeholder={orgName}
 							value={confirmName}
-							onChange={(e) => setConfirmName(e.target.value)}
+							onChange={(e) => { setConfirmName(e.target.value); }}
 							disabled={isPending}
 							autoFocus
 						/>

@@ -64,7 +64,7 @@ export function EventsList() {
 					<Button
 						variant="secondary"
 						size="sm"
-						onClick={() => handleDismiss(event.id)}
+						onClick={() => { handleDismiss(event.id); }}
 						className="h-4 w-4 p-0 shrink-0"
 					>
 						<X className="w-3 h-3" />
@@ -84,8 +84,8 @@ function formatTime(date: Date): string {
 
 	if (seconds < 60) return "just now";
 	if (minutes === 1) return "1m ago";
-	if (minutes < 60) return `${minutes}m ago`;
+	if (minutes < 60) return `${minutes.toString()}m ago`;
 	if (hours === 1) return "1h ago";
-	if (hours < 24) return `${hours}h ago`;
+	if (hours < 24) return `${hours.toString()}h ago`;
 	return date.toLocaleDateString();
 }

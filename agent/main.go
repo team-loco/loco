@@ -82,7 +82,7 @@ func main() {
 		cfg:       cfg,
 		client:    client,
 		applier:   kubeApplier,
-		clusterID: 0, // Will be set after registration
+		clusterID: "", // Will be set after registration
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -109,7 +109,7 @@ type Agent struct {
 	cfg       *Config
 	client    agentv1connect.AgentServiceClient
 	applier   *applier.Applier
-	clusterID int64
+	clusterID string
 }
 
 // Run starts the agent's main loop.
@@ -359,12 +359,12 @@ func (a *Agent) handleDirective(resp *agentv1.HeartbeatResponse) {
 func (a *Agent) getCapacity() *agentv1.AgentCapacity {
 	// TODO: query actual cluster capacity from Kubernetes
 	return &agentv1.AgentCapacity{
-		CpuMillicoresTotal: 8000,                       // 8 cores
-		CpuMillicoresUsed:  4000,                       // 4 cores used
-		MemoryBytesTotal:   16 * 1024 * 1024 * 1024,    // 16GB
-		MemoryBytesUsed:    8 * 1024 * 1024 * 1024,     // 8GB used
-		PodsTotal:          110,                        // typical node limit
-		PodsRunning:        50,                         // 50 pods running
+		CpuMillicoresTotal: 8000,                    // 8 cores
+		CpuMillicoresUsed:  4000,                    // 4 cores used
+		MemoryBytesTotal:   16 * 1024 * 1024 * 1024, // 16GB
+		MemoryBytesUsed:    8 * 1024 * 1024 * 1024,  // 8GB used
+		PodsTotal:          110,                     // typical node limit
+		PodsRunning:        50,                      // 50 pods running
 	}
 }
 

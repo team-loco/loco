@@ -9,3 +9,5 @@ breaking:
 modules:
   - path: proto
     name: buf.build/team-loco/loco
+deps:
+  - buf.build/bufbuild/protovalidate

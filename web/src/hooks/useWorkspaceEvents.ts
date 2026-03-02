@@ -32,7 +32,7 @@ export function useWorkspaceEvents(workspaceId: string) {
 		},
 	);
 
-	const resources = resourcesData?.resources || [];
+	const resources = resourcesData?.resources ?? [];
 	const firstResource = resources[0];
 
 	// For now, just fetch events for the first resource
@@ -52,7 +52,7 @@ export function useWorkspaceEvents(workspaceId: string) {
 			eventsData.events.forEach((event, idx) => {
 				allEvents.push({
 					...event,
-					id: `${firstResource.id}-${idx}`,
+					id: `${firstResource.id}-${idx.toString()}`,
 					resourceId: firstResource.id,
 					resourceName: firstResource.name,
 				});

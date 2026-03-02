@@ -12,46 +12,46 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countResourcesByEnvironment = `-- name: CountResourcesByEnvironment :one
-SELECT COUNT(*) FROM resources WHERE environment_id = $1
+const countDeploymentsByEnvironment = `-- name: CountDeploymentsByEnvironment :one
+SELECT COUNT(*) FROM deployments WHERE environment_id = $1
 `
 
-func (q *Queries) CountResourcesByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countResourcesByEnvironment, environmentID)
+func (q *Queries) CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countDeploymentsByEnvironment, environmentID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
 const createEnvironment = `-- name: CreateEnvironment :one
-INSERT INTO environments (org_id, name, description, is_production, created_by)
+INSERT INTO environments (workspace_id, name, description, environment_type, created_by)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, org_id, name, description, is_production, created_by, created_at, updated_at
+RETURNING id, workspace_id, name, description, environment_type, created_by, created_at, updated_at
 `
 
 type CreateEnvironmentParams struct {
-	OrgID        uuid.UUID   `json:"orgId"`
-	Name         string      `json:"name"`
-	Description  pgtype.Text `json:"description"`
-	IsProduction bool        `json:"isProduction"`
-	CreatedBy    uuid.UUID   `json:"createdBy"`
+	WorkspaceID     uuid.UUID   `json:"workspaceId"`
+	Name            string      `json:"name"`
+	Description     pgtype.Text `json:"description"`
+	EnvironmentType string      `json:"environmentType"`
+	CreatedBy       uuid.UUID   `json:"createdBy"`
 }
 
 func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error) {
 	row := q.db.QueryRow(ctx, createEnvironment,
-		arg.OrgID,
+		arg.WorkspaceID,
 		arg.Name,
 		arg.Description,
-		arg.IsProduction,
+		arg.EnvironmentType,
 		arg.CreatedBy,
 	)
 	var i Environment
 	err := row.Scan(
 		&i.ID,
-		&i.OrgID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
-		&i.IsProduction,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -69,7 +69,7 @@ func (q *Queries) DeleteEnvironment(ctx context.Context, id uuid.UUID) error {
 }
 
 const getEnvironmentByID = `-- name: GetEnvironmentByID :one
-SELECT id, org_id, name, description, is_production, created_by, created_at, updated_at FROM environments WHERE id = $1
+SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE id = $1
 `
 
 func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error) {
@@ -77,10 +77,10 @@ func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environ
 	var i Environment
 	err := row.Scan(
 		&i.ID,
-		&i.OrgID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
-		&i.IsProduction,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -88,24 +88,19 @@ func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environ
 	return i, err
 }
 
-const getEnvironmentByName = `-- name: GetEnvironmentByName :one
-SELECT id, org_id, name, description, is_production, created_by, created_at, updated_at FROM environments WHERE org_id = $1 AND name = $2
+const getWorkspaceProductionEnvironment = `-- name: GetWorkspaceProductionEnvironment :one
+SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE workspace_id = $1 AND environment_type = 'production' ORDER BY created_at ASC LIMIT 1
 `
 
-type GetEnvironmentByNameParams struct {
-	OrgID uuid.UUID `json:"orgId"`
-	Name  string    `json:"name"`
-}
-
-func (q *Queries) GetEnvironmentByName(ctx context.Context, arg GetEnvironmentByNameParams) (Environment, error) {
-	row := q.db.QueryRow(ctx, getEnvironmentByName, arg.OrgID, arg.Name)
+func (q *Queries) GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceProductionEnvironment, workspaceID)
 	var i Environment
 	err := row.Scan(
 		&i.ID,
-		&i.OrgID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
-		&i.IsProduction,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -113,32 +108,12 @@ func (q *Queries) GetEnvironmentByName(ctx context.Context, arg GetEnvironmentBy
 	return i, err
 }
 
-const getOrgProductionEnvironment = `-- name: GetOrgProductionEnvironment :one
-SELECT id, org_id, name, description, is_production, created_by, created_at, updated_at FROM environments WHERE org_id = $1 AND is_production = true ORDER BY created_at ASC LIMIT 1
+const listWorkspaceEnvironments = `-- name: ListWorkspaceEnvironments :many
+SELECT id, workspace_id, name, description, environment_type, created_by, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC
 `
 
-func (q *Queries) GetOrgProductionEnvironment(ctx context.Context, orgID uuid.UUID) (Environment, error) {
-	row := q.db.QueryRow(ctx, getOrgProductionEnvironment, orgID)
-	var i Environment
-	err := row.Scan(
-		&i.ID,
-		&i.OrgID,
-		&i.Name,
-		&i.Description,
-		&i.IsProduction,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const listOrgEnvironments = `-- name: ListOrgEnvironments :many
-SELECT id, org_id, name, description, is_production, created_by, created_at, updated_at FROM environments WHERE org_id = $1 ORDER BY created_at ASC
-`
-
-func (q *Queries) ListOrgEnvironments(ctx context.Context, orgID uuid.UUID) ([]Environment, error) {
-	rows, err := q.db.Query(ctx, listOrgEnvironments, orgID)
+func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceEnvironments, workspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -148,10 +123,10 @@ func (q *Queries) ListOrgEnvironments(ctx context.Context, orgID uuid.UUID) ([]E
 		var i Environment
 		if err := rows.Scan(
 			&i.ID,
-			&i.OrgID,
+			&i.WorkspaceID,
 			&i.Name,
 			&i.Description,
-			&i.IsProduction,
+			&i.EnvironmentType,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -168,16 +143,16 @@ func (q *Queries) ListOrgEnvironments(ctx context.Context, orgID uuid.UUID) ([]E
 
 const updateEnvironment = `-- name: UpdateEnvironment :one
 UPDATE environments
-SET name = $2, description = $3, is_production = $4, updated_at = NOW()
+SET name = $2, description = $3, environment_type = $4, updated_at = NOW()
 WHERE id = $1
-RETURNING id, org_id, name, description, is_production, created_by, created_at, updated_at
+RETURNING id, workspace_id, name, description, environment_type, created_by, created_at, updated_at
 `
 
 type UpdateEnvironmentParams struct {
-	ID           uuid.UUID   `json:"id"`
-	Name         string      `json:"name"`
-	Description  pgtype.Text `json:"description"`
-	IsProduction bool        `json:"isProduction"`
+	ID              uuid.UUID   `json:"id"`
+	Name            string      `json:"name"`
+	Description     pgtype.Text `json:"description"`
+	EnvironmentType string      `json:"environmentType"`
 }
 
 func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error) {
@@ -185,15 +160,15 @@ func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentPa
 		arg.ID,
 		arg.Name,
 		arg.Description,
-		arg.IsProduction,
+		arg.EnvironmentType,
 	)
 	var i Environment
 	err := row.Scan(
 		&i.ID,
-		&i.OrgID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Description,
-		&i.IsProduction,
+		&i.EnvironmentType,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,

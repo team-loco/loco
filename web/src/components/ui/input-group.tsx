@@ -2,22 +2,16 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const InputGroup = React.forwardRef<
-	HTMLDivElement,
-	React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+const InputGroup = ({ ref, className, ...props }: React.HTMLAttributes<HTMLDivElement> & { ref?: React.RefObject<HTMLDivElement | null> }) => (
 	<div
 		ref={ref}
 		className={cn("relative flex items-center gap-0", className)}
 		{...props}
 	/>
-))
+)
 InputGroup.displayName = "InputGroup"
 
-const InputGroupInput = React.forwardRef<
-	HTMLInputElement,
-	React.InputHTMLAttributes<HTMLInputElement>
->(({ className, ...props }, ref) => (
+const InputGroupInput = ({ ref, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.RefObject<HTMLInputElement | null> }) => (
 	<input
 		ref={ref}
 		className={cn(
@@ -26,15 +20,14 @@ const InputGroupInput = React.forwardRef<
 		)}
 		{...props}
 	/>
-))
+)
 InputGroupInput.displayName = "InputGroupInput"
 
 interface InputGroupAddonProps extends React.HTMLAttributes<HTMLDivElement> {
 	align?: "inline-start" | "inline-end"
 }
 
-const InputGroupAddon = React.forwardRef<HTMLDivElement, InputGroupAddonProps>(
-	({ className, align = "inline-start", ...props }, ref) => (
+const InputGroupAddon = ({ ref, className, align = "inline-start", ...props }: InputGroupAddonProps & { ref?: React.RefObject<HTMLDivElement | null> }) => (
 		<div
 			ref={ref}
 			className={cn(
@@ -46,7 +39,6 @@ const InputGroupAddon = React.forwardRef<HTMLDivElement, InputGroupAddonProps>(
 			{...props}
 		/>
 	)
-)
 InputGroupAddon.displayName = "InputGroupAddon"
 
 export { InputGroup, InputGroupInput, InputGroupAddon }

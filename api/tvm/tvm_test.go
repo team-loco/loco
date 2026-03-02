@@ -6,23 +6,39 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/providers"
 )
 
+// sessionEntry is the in-memory representation of a session_token row.
+type sessionEntry struct {
+	id               uuid.UUID
+	userID           uuid.UUID
+	accessHash       string
+	refreshHash      string
+	accessExpiresAt  pgtype.Timestamptz
+	refreshExpiresAt pgtype.Timestamptz
+	lastUsedAt       pgtype.Timestamptz
+}
+
+// TestingQueries is an in-memory implementation of queries.Querier for unit tests.
+// It supports the session and user-scope operations exercised by the TVM permission tests.
 type TestingQueries struct {
-	// here's the database:
-	// org 1, workspace 1, 2, resource 1 in ws 1, resource 2 in ws 2
-	// org 2, workspace 3, resource 3 in ws 3
-	// user 1 user1@loco-testing.com: has no scopes
-	// user 2 user2@loco-testing.com: r, w, a of org 1
-	// user 3 user3@loco-testing.com: r, w of org 1
-	// user 4 user4@loco-testing.com: r or ws 1
-	// user 5 user5@loco-testing.com: r, w, a of wks 3
 	queries.Querier
-	tokens map[string]queries.Token
+	sessions  map[uuid.UUID]*sessionEntry
+	byAccess  map[string]uuid.UUID
+	byRefresh map[string]uuid.UUID
+}
+
+func newTestingQueries() *TestingQueries {
+	return &TestingQueries{
+		sessions:  make(map[uuid.UUID]*sessionEntry),
+		byAccess:  make(map[string]uuid.UUID),
+		byRefresh: make(map[string]uuid.UUID),
+	}
 }
 
 var (
@@ -104,7 +120,7 @@ func (*TestingQueries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]q
 	}
 }
 
-func (tq *TestingQueries) GetUserScopesByEmail(ctx context.Context, email string) ([]queries.EntityScope, error) {
+func (tq *TestingQueries) getUserScopesByEmail(ctx context.Context, email string) ([]queries.EntityScope, error) {
 	switch email {
 	case "user1@loco-testing.com":
 		return tq.GetUserScopes(ctx, user1UUID)
@@ -126,7 +142,7 @@ func (tq *TestingQueries) GetUserWithScopesByEmail(ctx context.Context, email st
 	if err != nil {
 		return queries.UserWithScopesView{}, err
 	}
-	scopes, err := tq.GetUserScopesByEmail(ctx, email)
+	scopes, err := tq.getUserScopesByEmail(ctx, email)
 	if err != nil {
 		return queries.UserWithScopesView{}, err
 	}
@@ -173,38 +189,133 @@ func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(ctx context.Contex
 	return queries.GetWorkspaceOrganizationIDByResourceIDRow{}, tvm.ErrEntityNotFound
 }
 
-func (tq *TestingQueries) StoreToken(ctx context.Context, params queries.StoreTokenParams) error {
-	tq.tokens[params.Token] = queries.Token{
-		Scopes:     params.Scopes,
-		EntityID:   params.EntityID,
-		EntityType: params.EntityType,
-		ExpiresAt:  params.ExpiresAt,
+// --- Session token mock implementations ---
+
+func (tq *TestingQueries) CreateSessionToken(ctx context.Context, params queries.CreateSessionTokenParams) error {
+	entry := &sessionEntry{
+		id:               params.ID,
+		userID:           params.UserID,
+		accessHash:       params.AccessTokenHash,
+		refreshHash:      params.RefreshTokenHash,
+		accessExpiresAt:  params.AccessExpiresAt,
+		refreshExpiresAt: params.RefreshExpiresAt,
+		lastUsedAt:       pgtype.Timestamptz{Time: time.Now(), Valid: true},
 	}
+	tq.sessions[params.ID] = entry
+	tq.byAccess[params.AccessTokenHash] = params.ID
+	tq.byRefresh[params.RefreshTokenHash] = params.ID
 	return nil
 }
 
-func (tq *TestingQueries) GetToken(ctx context.Context, token string) (queries.Token, error) {
-	tk, ok := tq.tokens[token]
+func (tq *TestingQueries) GetSessionByAccessToken(ctx context.Context, accessTokenHash string) (queries.GetSessionByAccessTokenRow, error) {
+	id, ok := tq.byAccess[accessTokenHash]
 	if !ok {
-		return queries.Token{}, tvm.ErrTokenNotFound
+		return queries.GetSessionByAccessTokenRow{}, tvm.ErrTokenNotFound
 	}
-	return tk, nil
+	e := tq.sessions[id]
+	return queries.GetSessionByAccessTokenRow{
+		ID:               e.id,
+		UserID:           e.userID,
+		AccessExpiresAt:  e.accessExpiresAt,
+		RefreshExpiresAt: e.refreshExpiresAt,
+		LastUsedAt:       e.lastUsedAt,
+	}, nil
 }
 
-func (tq *TestingQueries) DeleteToken(ctx context.Context, token string) error {
-	delete(tq.tokens, token)
+func (tq *TestingQueries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (queries.GetSessionByRefreshTokenRow, error) {
+	id, ok := tq.byRefresh[refreshTokenHash]
+	if !ok {
+		return queries.GetSessionByRefreshTokenRow{}, tvm.ErrTokenNotFound
+	}
+	e := tq.sessions[id]
+	return queries.GetSessionByRefreshTokenRow{
+		ID:               e.id,
+		UserID:           e.userID,
+		RefreshTokenHash: e.refreshHash,
+		AccessExpiresAt:  e.accessExpiresAt,
+		RefreshExpiresAt: e.refreshExpiresAt,
+		LastUsedAt:       e.lastUsedAt,
+	}, nil
+}
+
+func (tq *TestingQueries) RotateSessionToken(ctx context.Context, params queries.RotateSessionTokenParams) error {
+	e, ok := tq.sessions[params.ID]
+	if !ok {
+		return tvm.ErrTokenNotFound
+	}
+	delete(tq.byAccess, e.accessHash)
+	delete(tq.byRefresh, e.refreshHash)
+	e.accessHash = params.AccessTokenHash
+	e.refreshHash = params.RefreshTokenHash
+	e.accessExpiresAt = params.AccessExpiresAt
+	e.refreshExpiresAt = params.RefreshExpiresAt
+	tq.byAccess[e.accessHash] = e.id
+	tq.byRefresh[e.refreshHash] = e.id
 	return nil
 }
 
-func (tq *TestingQueries) DeleteExpiredTokens(ctx context.Context) error {
-	now := time.Now()
-	for token, tk := range tq.tokens {
-		if tk.ExpiresAt.Before(now) {
-			delete(tq.tokens, token)
-		}
+func (tq *TestingQueries) TouchSessionLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
+
+func (tq *TestingQueries) DeleteSessionToken(ctx context.Context, id uuid.UUID) error {
+	e, ok := tq.sessions[id]
+	if !ok {
+		return nil
 	}
+	delete(tq.byAccess, e.accessHash)
+	delete(tq.byRefresh, e.refreshHash)
+	delete(tq.sessions, id)
 	return nil
 }
+
+func (tq *TestingQueries) DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error {
+	id, ok := tq.byAccess[accessTokenHash]
+	if !ok {
+		return nil
+	}
+	return tq.DeleteSessionToken(ctx, id)
+}
+
+func (tq *TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { return nil }
+
+func (tq *TestingQueries) ListSessionsForUser(_ context.Context, _ uuid.UUID) ([]queries.ListSessionsForUserRow, error) {
+	return nil, nil
+}
+
+// --- API token mock implementations (no-op; not exercised by permission tests) ---
+
+func (tq *TestingQueries) CreateAPIToken(_ context.Context, _ queries.CreateAPITokenParams) error {
+	return nil
+}
+
+func (tq *TestingQueries) GetAPIToken(_ context.Context, _ string) (queries.GetAPITokenRow, error) {
+	return queries.GetAPITokenRow{}, tvm.ErrTokenNotFound
+}
+
+func (tq *TestingQueries) TouchAPITokenLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
+
+func (tq *TestingQueries) DeleteAPIToken(_ context.Context, _ uuid.UUID) error { return nil }
+
+func (tq *TestingQueries) DeleteAPITokenByHash(_ context.Context, _ string) error { return nil }
+
+func (tq *TestingQueries) DeleteExpiredAPITokens(_ context.Context) error { return nil }
+
+func (tq *TestingQueries) ListAPITokensForEntity(_ context.Context, _ queries.ListAPITokensForEntityParams) ([]queries.ListAPITokensForEntityRow, error) {
+	return nil, nil
+}
+
+func (tq *TestingQueries) DeleteAPITokensForEntity(_ context.Context, _ queries.DeleteAPITokensForEntityParams) error {
+	return nil
+}
+
+func (tq *TestingQueries) GetAPITokenByNameAndEntity(_ context.Context, _ queries.GetAPITokenByNameAndEntityParams) (queries.GetAPITokenByNameAndEntityRow, error) {
+	return queries.GetAPITokenByNameAndEntityRow{}, tvm.ErrTokenNotFound
+}
+
+func (tq *TestingQueries) DeleteAPITokenByNameAndEntity(_ context.Context, _ queries.DeleteAPITokenByNameAndEntityParams) error {
+	return nil
+}
+
+// --- Test helpers ---
 
 func TestingGithubProvider(ctx context.Context, token string) providers.EmailResponse {
 	switch token {
@@ -222,13 +333,20 @@ func TestingGithubProvider(ctx context.Context, token string) providers.EmailRes
 	return providers.NewEmailResponse("", tvm.ErrUserNotFound)
 }
 
+func testConfig() tvm.Config {
+	return tvm.Config{
+		MaxAPITokenDuration:         24 * time.Hour,
+		SessionAccessTokenDuration:  time.Hour,
+		SessionRefreshTokenDuration: 24 * time.Hour,
+		LastUsedUpdateInterval:      5 * time.Minute,
+	}
+}
+
+// --- Permission tests ---
 // user 1 has only self read/write/admin
 func TestUser1Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.Token)}, tvm.Config{
-		MaxTokenDuration:   24 * time.Hour,
-		LoginTokenDuration: 15 * time.Minute,
-	})
-	_, token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user1"))
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user1"), "", "")
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -280,11 +398,8 @@ func TestUser1Permissions(t *testing.T) {
 
 // user 2 has org 1 r, w, a
 func TestUser2Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.Token)}, tvm.Config{
-		MaxTokenDuration:   24 * time.Hour,
-		LoginTokenDuration: 15 * time.Minute,
-	})
-	_, token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user2"))
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user2"), "", "")
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -292,7 +407,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted org 1 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID: org1UUID,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != nil {
@@ -303,7 +418,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID: org1UUID,
+			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -314,7 +429,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted workspace 2 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID: ws2UUID,
+			EntityID:   ws2UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -325,7 +440,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("denied workspace 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID: ws3UUID,
+			EntityID:   ws3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -336,7 +451,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("denied org 2 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID: org2UUID,
+			EntityID:   org2UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -347,7 +462,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted resource 2 write via org 1", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID: res2UUID,
+			EntityID:   res2UUID,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -358,7 +473,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("denied resource 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
 			EntityType: queries.EntityTypeResource,
-			EntityID: res3UUID,
+			EntityID:   res3UUID,
 			Scope:      queries.ScopeRead,
 		})
 		if err != tvm.ErrInsufficentPermissions {
@@ -369,11 +484,8 @@ func TestUser2Permissions(t *testing.T) {
 
 // user 3 has org 1 r, w
 func TestUser3Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.Token)}, tvm.Config{
-		MaxTokenDuration:   24 * time.Hour,
-		LoginTokenDuration: 15 * time.Minute,
-	})
-	_, token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user3"))
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user3"), "", "")
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -478,13 +590,10 @@ func TestUser3Permissions(t *testing.T) {
 	})
 }
 
-// user 4 has r or ws 1
+// user 4 has r of ws 1
 func TestUser4Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.Token)}, tvm.Config{
-		MaxTokenDuration:   24 * time.Hour,
-		LoginTokenDuration: 15 * time.Minute,
-	})
-	_, token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user4"))
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user4"), "", "")
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}
@@ -580,11 +689,8 @@ func TestUser4Permissions(t *testing.T) {
 
 // user 5 has r, w, a of wks 3
 func TestUser5Permissions(t *testing.T) {
-	machine := tvm.NewVendingMachine(nil, &TestingQueries{tokens: make(map[string]queries.Token)}, tvm.Config{
-		MaxTokenDuration:   24 * time.Hour,
-		LoginTokenDuration: 15 * time.Minute,
-	})
-	_, token, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user5"))
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user5"), "", "")
 	if err != nil {
 		t.Fatalf("unexpected error during exchange: %v", err)
 	}

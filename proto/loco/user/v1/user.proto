@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.user.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -38,10 +39,10 @@ message User {
 
 // CreateUserRequest is the request to create a new user.
 message CreateUserRequest {
-  string external_id = 1;
-  string email = 2;
-  optional string name = 3;
-  optional string avatar_url = 4;
+  string external_id = 1 [(buf.validate.field).string.min_len = 1];
+  string email = 2 [(buf.validate.field).string.email = true];
+  optional string name = 3 [(buf.validate.field).string.max_len = 200];
+  optional string avatar_url = 4 [(buf.validate.field).string.uri = true];
 }
 
 // CreateUserResponse is the response containing the created user ID.
@@ -52,8 +53,8 @@ message CreateUserResponse {
 // GetUserRequest is the request to retrieve a user.
 message GetUserRequest {
   oneof key {
-    string user_id = 1;
-    string email = 2;
+    string user_id = 1 [(buf.validate.field).string.uuid = true];
+    string email = 2 [(buf.validate.field).string.email = true];
   }
 }
 
@@ -64,10 +65,10 @@ message GetUserResponse {
 
 // UpdateUserRequest is the request to update user information.
 message UpdateUserRequest {
-  string user_id = 1;
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string avatar_url = 3;
-  optional string name = 4;
+  optional string avatar_url = 3 [(buf.validate.field).string.uri = true];
+  optional string name = 4 [(buf.validate.field).string.max_len = 200];
 }
 
 // UpdateUserResponse is the response containing the updated user ID.
@@ -77,7 +78,10 @@ message UpdateUserResponse {
 
 // ListUsersRequest is the request to list users.
 message ListUsersRequest {
-  int32 page_size = 1; // default: 50, max: 200
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
   string page_token = 2; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -97,7 +101,7 @@ message WhoAmIResponse {
 
 // DeleteUserRequest is the request to delete a user.
 message DeleteUserRequest {
-  string user_id = 1;
+  string user_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeleteUserResponse is the response after deleting a user.

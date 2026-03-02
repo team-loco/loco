@@ -95,7 +95,7 @@ export function RecentDeployments({
 
 	const getImage = (deployment: Deployment): string => {
 		const service = getServiceSpec(deployment);
-		return service?.build?.image || "—";
+		return service?.build?.image ?? "—";
 	};
 
 	const getCpuMemory = (
@@ -103,8 +103,8 @@ export function RecentDeployments({
 	): { cpu: string; memory: string } => {
 		const service = getServiceSpec(deployment);
 		return {
-			cpu: service?.cpu || "—",
-			memory: service?.memory || "—",
+			cpu: service?.cpu ?? "—",
+			memory: service?.memory ?? "—",
 		};
 	};
 
@@ -130,9 +130,9 @@ export function RecentDeployments({
 					</Tooltip>
 					<button
 						onClick={() =>
-							setExpandedId(
+							{ setExpandedId(
 								expandedId === row.original.id ? null : row.original.id
-							)
+							); }
 						}
 						className="p-0 h-6 w-6 flex items-center justify-center hover:bg-accent/50 rounded transition-colors"
 					>
@@ -150,7 +150,7 @@ export function RecentDeployments({
 			accessorKey: "id",
 			header: ({ column }) => (
 				<button
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					onClick={() => { column.toggleSorting(column.getIsSorted() === "asc"); }}
 					className="flex items-center gap-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
 				>
 					Deployment ID
@@ -162,11 +162,11 @@ export function RecentDeployments({
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<span className="font-mono text-xs max-w-xs truncate cursor-help">
-								{formatShortId(row.original.id.toString())}
+								{formatShortId(row.original.id)}
 							</span>
 						</TooltipTrigger>
 						<TooltipContent>
-							{row.original.id.toString()}
+							{row.original.id}
 						</TooltipContent>
 					</Tooltip>
 				</TooltipProvider>
@@ -177,7 +177,7 @@ export function RecentDeployments({
 			accessorKey: "status",
 			header: ({ column }) => (
 				<button
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					onClick={() => { column.toggleSorting(column.getIsSorted() === "asc"); }}
 					className="flex items-center gap-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
 				>
 					Status
@@ -207,7 +207,7 @@ export function RecentDeployments({
 			accessorKey: "replicas",
 			header: ({ column }) => (
 				<button
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					onClick={() => { column.toggleSorting(column.getIsSorted() === "asc"); }}
 					className="flex items-center gap-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
 				>
 					Replicas
@@ -231,7 +231,7 @@ export function RecentDeployments({
 			accessorKey: "createdAt",
 			header: ({ column }) => (
 				<button
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					onClick={() => { column.toggleSorting(column.getIsSorted() === "asc"); }}
 					className="flex items-center gap-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
 				>
 					Created
@@ -280,7 +280,7 @@ export function RecentDeployments({
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
-		getRowId: (row) => row.id.toString(),
+		getRowId: (row) => row.id,
 	});
 
 	if (isLoading) {
@@ -434,7 +434,7 @@ export function RecentDeployments({
 								Rows per page
 							</span>
 							<Select
-								value={`${table.getState().pagination.pageSize}`}
+								value={table.getState().pagination.pageSize.toString()}
 								onValueChange={(value) => {
 									table.setPageSize(Number(value));
 								}}
@@ -444,7 +444,7 @@ export function RecentDeployments({
 								</SelectTrigger>
 								<SelectContent side="top">
 									{[5, 10, 20, 30].map((pageSize) => (
-										<SelectItem key={pageSize} value={`${pageSize}`}>
+										<SelectItem key={pageSize} value={pageSize.toString()}>
 											{pageSize}
 										</SelectItem>
 									))}
@@ -456,7 +456,7 @@ export function RecentDeployments({
 								variant="outline"
 								size="sm"
 								className="h-8 px-2"
-								onClick={() => table.previousPage()}
+								onClick={() => { table.previousPage(); }}
 								disabled={!table.getCanPreviousPage()}
 							>
 								Previous
@@ -465,7 +465,7 @@ export function RecentDeployments({
 								variant="outline"
 								size="sm"
 								className="h-8 px-2"
-								onClick={() => table.nextPage()}
+								onClick={() => { table.nextPage(); }}
 								disabled={!table.getCanNextPage()}
 							>
 								Next

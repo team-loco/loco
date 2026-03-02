@@ -7,7 +7,7 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
-	"time"
+	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -326,8 +326,21 @@ func (ns NullWorkspaceRole) Value() (driver.Value, error) {
 	return string(ns.WorkspaceRole), nil
 }
 
+type ApiToken struct {
+	ID         uuid.UUID          `json:"id"`
+	TokenHash  string             `json:"tokenHash"`
+	Name       string             `json:"name"`
+	EntityType EntityType         `json:"entityType"`
+	EntityID   uuid.UUID          `json:"entityId"`
+	Scopes     []EntityScope      `json:"scopes"`
+	CreatedBy  uuid.UUID          `json:"createdBy"`
+	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
+	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
+}
+
 type Cluster struct {
-	ID                         int64              `json:"id"`
+	ID                         uuid.UUID          `json:"id"`
 	Name                       string             `json:"name"`
 	Region                     string             `json:"region"`
 	Provider                   string             `json:"provider"`
@@ -342,7 +355,7 @@ type Cluster struct {
 	CapacityMemoryBytes        pgtype.Int8        `json:"capacityMemoryBytes"`
 	AgentVersion               pgtype.Text        `json:"agentVersion"`
 	ObservabilityProxyEndpoint pgtype.Text        `json:"observabilityProxyEndpoint"`
-	EnvironmentID              uuid.UUID          `json:"environmentId"`
+	Tier                       string             `json:"tier"`
 	CreatedAt                  pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt                  pgtype.Timestamptz `json:"updatedAt"`
 }
@@ -351,12 +364,13 @@ type Deployment struct {
 	ID               uuid.UUID          `json:"id"`
 	ResourceID       uuid.UUID          `json:"resourceId"`
 	ResourceRegionID uuid.UUID          `json:"resourceRegionId"`
-	ClusterID        int64              `json:"clusterId"`
+	ClusterID        uuid.UUID          `json:"clusterId"`
 	Region           string             `json:"region"`
 	Replicas         int32              `json:"replicas"`
 	Status           DeploymentStatus   `json:"status"`
 	IsActive         bool               `json:"isActive"`
 	Message          string             `json:"message"`
+	EnvironmentID    uuid.UUID          `json:"environmentId"`
 	Spec             []byte             `json:"spec"`
 	SpecVersion      int32              `json:"specVersion"`
 	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
@@ -366,14 +380,14 @@ type Deployment struct {
 }
 
 type Environment struct {
-	ID           uuid.UUID          `json:"id"`
-	OrgID        uuid.UUID          `json:"orgId"`
-	Name         string             `json:"name"`
-	Description  pgtype.Text        `json:"description"`
-	IsProduction bool               `json:"isProduction"`
-	CreatedBy    uuid.UUID          `json:"createdBy"`
-	CreatedAt    pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt    pgtype.Timestamptz `json:"updatedAt"`
+	ID              uuid.UUID          `json:"id"`
+	WorkspaceID     uuid.UUID          `json:"workspaceId"`
+	Name            string             `json:"name"`
+	Description     pgtype.Text        `json:"description"`
+	EnvironmentType string             `json:"environmentType"`
+	CreatedBy       uuid.UUID          `json:"createdBy"`
+	CreatedAt       pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt       pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type Organization struct {
@@ -391,24 +405,23 @@ type OrganizationMember struct {
 }
 
 type PlatformDomain struct {
-	ID        int64              `json:"id"`
+	ID        uuid.UUID          `json:"id"`
 	Domain    string             `json:"domain"`
 	IsActive  bool               `json:"isActive"`
 	CreatedAt pgtype.Timestamptz `json:"createdAt"`
 }
 
 type Resource struct {
-	ID            uuid.UUID          `json:"id"`
-	WorkspaceID   uuid.UUID          `json:"workspaceId"`
-	Name          string             `json:"name"`
-	Type          ResourceType       `json:"type"`
-	Description   string             `json:"description"`
-	Status        ResourceStatus     `json:"status"`
-	Spec          []byte             `json:"spec"`
-	SpecVersion   int32              `json:"specVersion"`
-	EnvironmentID uuid.UUID          `json:"environmentId"`
-	CreatedAt     pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamptz `json:"updatedAt"`
+	ID          uuid.UUID          `json:"id"`
+	WorkspaceID uuid.UUID          `json:"workspaceId"`
+	Name        string             `json:"name"`
+	Type        ResourceType       `json:"type"`
+	Description string             `json:"description"`
+	Status      ResourceStatus     `json:"status"`
+	Spec        []byte             `json:"spec"`
+	SpecVersion int32              `json:"specVersion"`
+	CreatedAt   pgtype.Timestamptz `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamptz `json:"updatedAt"`
 }
 
 type ResourceDomain struct {
@@ -417,7 +430,7 @@ type ResourceDomain struct {
 	Domain           string             `json:"domain"`
 	DomainSource     DomainSource       `json:"domainSource"`
 	SubdomainLabel   pgtype.Text        `json:"subdomainLabel"`
-	PlatformDomainID pgtype.Int8        `json:"platformDomainId"`
+	PlatformDomainID *uuid.UUID         `json:"platformDomainId"`
 	IsPrimary        bool               `json:"isPrimary"`
 	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt        pgtype.Timestamptz `json:"updatedAt"`
@@ -434,13 +447,17 @@ type ResourceRegion struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updatedAt"`
 }
 
-type Token struct {
-	Name       string        `json:"name"`
-	Token      string        `json:"token"`
-	Scopes     []EntityScope `json:"scopes"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
+type SessionToken struct {
+	ID               uuid.UUID          `json:"id"`
+	AccessTokenHash  string             `json:"accessTokenHash"`
+	RefreshTokenHash string             `json:"refreshTokenHash"`
+	UserID           uuid.UUID          `json:"userId"`
+	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
+	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
+	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
+	IpAddress        *netip.Addr        `json:"ipAddress"`
+	UserAgent        pgtype.Text        `json:"userAgent"`
+	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
 }
 
 type User struct {

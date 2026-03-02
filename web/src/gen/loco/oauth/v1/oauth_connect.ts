@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ExchangeOAuthCodeRequest, ExchangeOAuthCodeResponse, ExchangeOAuthTokenRequest, ExchangeOAuthTokenResponse, GetOAuthAuthorizationURLRequest, GetOAuthAuthorizationURLResponse, GetOAuthDetailsRequest, GetOAuthDetailsResponse } from "./oauth_pb";
+import { ExchangeOAuthCodeRequest, ExchangeOAuthCodeResponse, ExchangeOAuthTokenRequest, ExchangeOAuthTokenResponse, GetOAuthAuthorizationURLRequest, GetOAuthAuthorizationURLResponse, GetOAuthDetailsRequest, GetOAuthDetailsResponse, RefreshTokenRequest, RefreshTokenResponse } from "./oauth_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -56,6 +56,17 @@ export const OAuthService = {
       name: "ExchangeOAuthCode",
       I: ExchangeOAuthCodeRequest,
       O: ExchangeOAuthCodeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * RefreshToken rotates a session token pair using a refresh token.
+     *
+     * @generated from rpc loco.oauth.v1.OAuthService.RefreshToken
+     */
+    refreshToken: {
+      name: "RefreshToken",
+      I: RefreshTokenRequest,
+      O: RefreshTokenResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -48,8 +48,8 @@ export function Home() {
 		[listWorkspacesRes],
 	);
 	const currentWorkspaceId =
-		activeWorkspaceId ||
-		selectedWorkspaceId ||
+		activeWorkspaceId ??
+		selectedWorkspaceId ??
 		(workspaces.length > 0 ? workspaces[0].id : null);
 
 	// Fetch resources in parallel after we have workspace ID
@@ -84,7 +84,7 @@ export function Home() {
 		const currentWorkspace = workspaces.find(
 			(ws) => ws.id === currentWorkspaceId,
 		);
-		const workspaceName = currentWorkspace?.name || "Workspace";
+		const workspaceName = currentWorkspace?.name ?? "Workspace";
 
 		setHeader(
 			<h2 className="text-2xl font-mono text-foreground">
@@ -102,7 +102,7 @@ export function Home() {
 				event.type === "deployment_completed" ||
 				event.type === "deployment_failed"
 			) {
-				refetchResources();
+				void refetchResources();
 			}
 		});
 
@@ -110,13 +110,13 @@ export function Home() {
 	}, [refetchResources]);
 
 	const isLoading = orgsLoading || resourcesLoading;
-	const error = orgsError || resourcesError;
+	const error = orgsError ?? resourcesError;
 
 	// Handle auth failures by redirecting to login
 	useEffect(() => {
 		if (orgsError) {
-			logout();
-			navigate("/login", { replace: true });
+			void logout();
+			void navigate("/login", { replace: true });
 		}
 	}, [orgsError, logout, navigate]);
 
@@ -144,7 +144,7 @@ export function Home() {
 				<WorkspaceDashboardMetrics
 					workspaceId={currentWorkspaceId}
 					workspaceName={
-						workspaces.find((ws) => ws.id === currentWorkspaceId)?.name || ""
+						workspaces.find((ws) => ws.id === currentWorkspaceId)?.name ?? ""
 					}
 				/>
 			)}
@@ -154,7 +154,7 @@ export function Home() {
 				<div className="mt-8">
 					<BentoDashboard
 						resources={filteredResources.length > 0 ? filteredResources : []}
-						workspaceId={currentWorkspaceId || undefined}
+						workspaceId={currentWorkspaceId ?? undefined}
 					/>
 				</div>
 			) : allResources.length > 0 ? (
@@ -170,10 +170,11 @@ export function Home() {
 						currentOrgId && currentWorkspaceId
 							? {
 									label: "Create Your First Resource",
-									onClick: () =>
-										navigate(
-											`/org/${currentOrgId}/wks/${currentWorkspaceId}/create-resource`,
-										),
+									onClick: () => {
+										void navigate(
+											`/org/${currentOrgId.toString()}/wks/${currentWorkspaceId.toString()}/create-resource`,
+										);
+									},
 								}
 							: undefined
 					}

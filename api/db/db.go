@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,6 +34,16 @@ func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 	cfg.MaxConnLifetime = 5 * time.Minute
 	cfg.MaxConnIdleTime = 2 * time.Minute
 	cfg.ConnConfig.ConnectTimeout = 5 * time.Second
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		for _, typeName := range []string{"entity_type", "entity_scope"} {
+			t, err := conn.LoadType(ctx, typeName)
+			if err != nil {
+				return fmt.Errorf("load pg type %q: %w", typeName, err)
+			}
+			conn.TypeMap().RegisterType(t)
+		}
+		return nil
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

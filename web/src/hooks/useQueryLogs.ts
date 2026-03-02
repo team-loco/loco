@@ -102,7 +102,7 @@ export function useQueryLogs({
 				region: clusterTransports[i].cluster.region,
 				data: q.data as LogsPage | undefined,
 				isLoading: q.isLoading,
-				error: q.error as Error | null,
+				error: q.error,
 			})),
 		[queries, clusterTransports],
 	);
@@ -130,7 +130,10 @@ export function useQueryLogs({
 	}, [clusterLogs, order]);
 
 	const isLoading = clusterLogs.some((c) => c.isLoading);
-	const errors = clusterLogs.filter((c) => c.error).map((c) => c.error!);
+	const errors = clusterLogs
+		.filter((c) => c.error)
+		.map((c) => c.error)
+		.filter((e): e is Error => e !== undefined);
 
 	return { clusterLogs, mergedEntries, isLoading, errors };
 }

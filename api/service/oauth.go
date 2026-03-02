@@ -89,10 +89,16 @@ var OAuthConf = &oauth2.Config{
 	Endpoint:     github.Endpoint,
 }
 
-var (
-	OAuthTokenTTL = time.Duration(8 * time.Hour)
-	OAuthStateTTL = time.Duration(10 * time.Minute)
-)
+var OAuthStateTTL = time.Duration(10 * time.Minute)
+
+// secureFlag returns "; Secure" when running in production so cookies are
+// only sent over HTTPS. In other environments it returns an empty string.
+func secureFlag() string {
+	if os.Getenv("LOCO_ENV") == "production" {
+		return "; Secure"
+	}
+	return ""
+}
 
 func generateSecureRandomString(length int) (string, error) {
 	bytes := make([]byte, length)
@@ -190,7 +196,7 @@ func (s *OAuthServer) GetOAuthDetails(
 
 	res := connect.NewResponse(&oAuth.GetOAuthDetailsResponse{
 		ClientId: OAuthConf.ClientID,
-		TokenTtl: OAuthTokenTTL.Seconds(),
+		TokenTtl: s.machine.Cfg.SessionAccessTokenDuration.Seconds(),
 	})
 	return res, nil
 }
@@ -211,21 +217,72 @@ func (s *OAuthServer) ExchangeOAuthToken(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("token is required"))
 	}
 
-	// initiate login
-	user, locoToken, err := s.machine.Exchange(ctx, providers.Github(token))
+	ip := req.Header().Get("X-Real-IP")
+	if ip == "" {
+		ip = req.Header().Get("X-Forwarded-For")
+	}
+	ua := req.Header().Get("User-Agent")
+
+	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, providers.Github(token), ip, ua)
 	if err != nil {
 		slog.ErrorContext(ctx, "exchange oauth token", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("exchange token: %w", err))
 	}
 
 	res := connect.NewResponse(&oAuth.ExchangeOAuthTokenResponse{
-		LocoToken: locoToken,
-		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
-		UserId:    user.ID.String(),
-		Name:      user.Name.String,
+		LocoToken:    accessToken,
+		ExpiresIn:    int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
+		UserId:       user.ID.String(),
+		Name:         user.Name.String,
+		RefreshToken: refreshToken,
 	})
 
 	slog.InfoContext(ctx, "exchanged oauth token for loco token", "userId", user.ID.String())
+	return res, nil
+}
+
+// RefreshToken rotates a session token pair using a refresh token.
+// If the request body contains a refresh_token it is used; otherwise the
+// loco_refresh_token cookie is read (browser flow).
+func (s *OAuthServer) RefreshToken(
+	ctx context.Context,
+	req *connect.Request[oAuth.RefreshTokenRequest],
+) (*connect.Response[oAuth.RefreshTokenResponse], error) {
+	refreshToken := req.Msg.GetRefreshToken()
+	if refreshToken == "" {
+		cookies, _ := http.ParseCookie(req.Header().Get("Cookie"))
+		for _, c := range cookies {
+			if c.Name == "loco_refresh_token" {
+				refreshToken = c.Value
+				break
+			}
+		}
+	}
+	if refreshToken == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("no refresh token provided"))
+	}
+
+	newAccess, newRefresh, err := s.machine.Refresh(ctx, refreshToken)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to refresh session token", "error", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	res := connect.NewResponse(&oAuth.RefreshTokenResponse{
+		LocoToken:    newAccess,
+		ExpiresIn:    int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
+		RefreshToken: newRefresh,
+	})
+	res.Header().Add("Set-Cookie", fmt.Sprintf(
+		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
+		newAccess, int(s.machine.Cfg.SessionAccessTokenDuration.Seconds()), secureFlag(),
+	))
+	res.Header().Add("Set-Cookie", fmt.Sprintf(
+		"loco_refresh_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
+		newRefresh, int(s.machine.Cfg.SessionRefreshTokenDuration.Seconds()), secureFlag(),
+	))
+
+	slog.InfoContext(ctx, "session token refreshed successfully")
 	return res, nil
 }
 
@@ -315,8 +372,14 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get email: %w", err))
 	}
 
+	ip := req.Header().Get("X-Real-IP")
+	if ip == "" {
+		ip = req.Header().Get("X-Forwarded-For")
+	}
+	ua := req.Header().Get("User-Agent")
+
 	// try to exchange token for existing user
-	user, locoToken, err := s.machine.Exchange(ctx, emailResp)
+	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, emailResp, ip, ua)
 	if err == tvm.ErrUserNotFound {
 		// user doesn't exist, fetch github profile and create user
 		githubUser, fetchErr := s.fetchGithubUserData(token.AccessToken)
@@ -332,7 +395,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		}
 
 		// exchange again with newly created user
-		user, locoToken, err = s.machine.Exchange(ctx, emailResp)
+		user, accessToken, refreshToken, err = s.machine.Exchange(ctx, emailResp, ip, ua)
 		if err != nil {
 			slog.ErrorContext(ctx, "exchange github token for new user", "error", err)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("exchange token: %w", err))
@@ -344,16 +407,22 @@ func (s *OAuthServer) ExchangeOAuthCode(
 	}
 
 	res := connect.NewResponse(&oAuth.ExchangeOAuthCodeResponse{
-		ExpiresIn: int64(OAuthTokenTTL.Seconds()),
+		ExpiresIn: int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
 		UserId:    user.ID.String(),
 		Name:      user.Name.String,
 	})
 
-	// set loco token as http-only cookie
-	res.Header().Set("Set-Cookie", fmt.Sprintf(
-		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax",
-		locoToken,
-		int(OAuthTokenTTL.Seconds()),
+	res.Header().Add("Set-Cookie", fmt.Sprintf(
+		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
+		accessToken,
+		int(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
+		secureFlag(),
+	))
+	res.Header().Add("Set-Cookie", fmt.Sprintf(
+		"loco_refresh_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
+		refreshToken,
+		int(s.machine.Cfg.SessionRefreshTokenDuration.Seconds()),
+		secureFlag(),
 	))
 
 	slog.InfoContext(ctx, "exchanged oauth code for loco token", "userId", user.ID, "method", "cookie", "provider", req.Msg.GetProvider())

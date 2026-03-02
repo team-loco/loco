@@ -24,7 +24,7 @@ function getMockMetrics(resourceId: string) {
 	return {
 		cpu: Math.floor((Math.sin(seed) * 0.5 + 0.5) * 100),
 		memory: Math.floor((Math.cos(seed) * 0.5 + 0.5) * 1000) + 256,
-		requests: `${Math.floor((Math.sin(seed * 2) * 0.5 + 0.5) * 900)}K/day`,
+		requests: `${Math.floor((Math.sin(seed * 2) * 0.5 + 0.5) * 900).toString()}K/day`,
 		uptime: "99.9%",
 		replicas: Math.floor((Math.cos(seed * 3) * 0.5 + 0.5) * 5) + 1,
 	};
@@ -50,9 +50,9 @@ function getLastDeployedText(createdAt: any): string {
 
 		if (hours === 0) return "just now";
 		if (hours === 1) return "1h ago";
-		if (hours < 24) return `${hours}h ago`;
+		if (hours < 24) return `${hours.toString()}h ago`;
 		if (days === 1) return "1d ago";
-		return `${days}d ago`;
+		return `${days.toString()}d ago`;
 	} catch {
 		return "unknown";
 	}
@@ -65,11 +65,11 @@ export function ApplicationsTable({
 	const navigate = useNavigate();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const orgId = activeOrgId;
-	const wsId = activeWorkspaceId || workspaceId;
+	const wsId = activeWorkspaceId ?? workspaceId;
 
 	const handleRowClick = (resourceId: string) => {
 		if (orgId && wsId) {
-			navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
+			void navigate(`/org/${orgId}/wks/${wsId}/resource/${resourceId}`);
 		}
 	};
 
@@ -108,12 +108,13 @@ export function ApplicationsTable({
 							resources.map((resource) => {
 								const metrics = getMockMetrics(resource.id);
 								const status = getStatusLabel(resource.status);
+								// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 								const isActive = resource.status !== 3;
 
 								return (
 									<TableRow
-										key={resource.id.toString()}
-										onClick={() => handleRowClick(resource.id)}
+										key={resource.id}
+										onClick={() => { handleRowClick(resource.id); }}
 										className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/50 transition-colors"
 									>
 										<TableCell className="px-6 py-4">
@@ -157,7 +158,7 @@ export function ApplicationsTable({
 																	: "bg-emerald-500"
 															}`}
 															style={{
-																width: `${metrics.cpu}%`,
+																width: `${metrics.cpu.toString()}%`,
 															}}
 														></div>
 													</div>

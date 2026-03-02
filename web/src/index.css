@@ -136,7 +136,7 @@
 	--radius: 8px;
 
 	/* Backgrounds */
-	--background: #faf9f6;
+	--background: #f8f2e8;
 	--foreground: #1c1917;
 
 	/* Cards and surfaces */
@@ -162,7 +162,7 @@
 
 	/* Accent */
 	--accent-color: #c7654f;
-	--accent: #f0ede8;
+	--accent: #f0eee6;
 	--accent-foreground: #1c1917;
 
 	/* Status colors */
@@ -307,10 +307,7 @@
 	code,
 	pre,
 	.font-mono {
-		font-family:
-			"JetBrains Mono",
-			"Courier New",
-			monospace;
+		font-family: "JetBrains Mono", "Courier New", monospace;
 	}
 
 	/* Dotted grid background pattern */

@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
+	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/service"
@@ -46,14 +47,20 @@ func main() {
 		slog.Warn("clickhouse ping failed on startup (may not be ready yet)", "error", err)
 	}
 
-	// Initialize token validator
-	validator := auth.NewValidator(cfg.ControlPlaneURL, cfg.ProxyAuthToken, cfg.TokenCacheTTL)
+	// Initialize permission cache and token validator
+	permCache, err := cache.NewBigCache(cfg.TokenCacheTTL)
+	if err != nil {
+		log.Fatalf("failed to create permission cache: %v", err)
+	}
+	defer permCache.Close()
+
+	validator := auth.NewValidator(cfg.ControlPlaneURL, cfg.ProxyAuthToken, permCache)
 
 	// Initialize service
-	svc := service.NewObservabilityService(ch, cfg)
+	svc := service.NewObservabilityService(ch, cfg, validator)
 
 	// Build mux with auth interceptor (handles both unary and streaming)
-	interceptors := connect.WithInterceptors(auth.NewAuthInterceptor(validator))
+	interceptors := connect.WithInterceptors(auth.NewAuthInterceptor())
 
 	mux := http.NewServeMux()
 

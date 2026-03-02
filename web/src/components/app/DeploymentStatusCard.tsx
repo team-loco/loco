@@ -125,7 +125,7 @@ export function DeploymentStatusCard({
 	// todo: do this in a better way.
 	const getImage = (deployment: Deployment): string => {
 		const service = getServiceSpec(deployment);
-		let image = service?.build?.image || "—";
+		let image = service?.build?.image ?? "—";
 		image = image.replace("registry.gitlab.com/locomotive-group/", "");
 		return image;
 	};
@@ -178,7 +178,7 @@ export function DeploymentStatusCard({
 				"border-red-600 bg-red-400/20 dark:bg-red-950/30 dark:border-red-900/50",
 		};
 		return (
-			bgMap[bgColor || ""] ||
+			bgMap[bgColor ?? ""] ??
 			"border-success-border bg-success-soft dark:bg-green-950/30 dark:border-green-900/50"
 		);
 	};
@@ -218,11 +218,11 @@ export function DeploymentStatusCard({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<span className="text-sm font-mono text-foreground opacity-70 cursor-help">
-										{formatShortId(deployment.id.toString())}
+										{formatShortId(deployment.id)}
 									</span>
 								</TooltipTrigger>
 								<TooltipContent>
-									{deployment.id.toString()}
+									{deployment.id}
 								</TooltipContent>
 							</Tooltip>
 						</div>
@@ -294,7 +294,7 @@ export function DeploymentStatusCard({
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => setIsEditing(true)}
+								onClick={() => { setIsEditing(true); }}
 							>
 								Scale
 							</Button>
@@ -332,7 +332,7 @@ export function DeploymentStatusCard({
 									</div>
 									<Slider
 										value={[cpuIndex]}
-										onValueChange={(value) => setCpuIndex(value[0])}
+										onValueChange={(value) => { setCpuIndex(value[0]); }}
 										min={0}
 										max={cpuOptions.length - 1}
 										step={1}
@@ -358,7 +358,7 @@ export function DeploymentStatusCard({
 									</div>
 									<Slider
 										value={[memoryIndex]}
-										onValueChange={(value) => setMemoryIndex(value[0])}
+										onValueChange={(value) => { setMemoryIndex(value[0]); }}
 										min={0}
 										max={memoryOptions.length - 1}
 										step={1}
@@ -376,13 +376,15 @@ export function DeploymentStatusCard({
 								<Button
 									variant="outline"
 									size="sm"
-									onClick={() => setIsEditing(false)}
+									onClick={() => { setIsEditing(false); }}
 								>
 									Cancel
 								</Button>
 								<Button
 									size="sm"
-									onClick={handleApply}
+									onClick={() => {
+										void handleApply();
+									}}
 									disabled={!hasChanges || scaleResourceMutation.isPending}
 								>
 									{scaleResourceMutation.isPending ? "Applying..." : "Apply"}

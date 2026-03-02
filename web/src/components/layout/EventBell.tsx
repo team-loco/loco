@@ -54,7 +54,9 @@ export function EventBell() {
 	};
 
 	return (
-		<DropdownMenu onOpenChange={(open) => open && handleOpen()}>
+		<DropdownMenu onOpenChange={(open) => {
+			if (open) handleOpen();
+		}}>
 			<DropdownMenuTrigger asChild>
 				<span className="flex">
 					<Bell className="w-4 h-4" /> Recent Events
@@ -111,7 +113,7 @@ export function EventBell() {
 										<Button
 											variant="secondary"
 											size="sm"
-											onClick={() => handleDismiss(event.id)}
+											onClick={() => { handleDismiss(event.id); }}
 											className="h-5 w-5 p-0 shrink-0"
 										>
 											<X className="w-3 h-3" />
@@ -136,8 +138,8 @@ function formatTime(date: Date): string {
 
 	if (seconds < 60) return "just now";
 	if (minutes === 1) return "1m ago";
-	if (minutes < 60) return `${minutes}m ago`;
+	if (minutes < 60) return `${minutes.toString()}m ago`;
 	if (hours === 1) return "1h ago";
-	if (hours < 24) return `${hours}h ago`;
+	if (hours < 24) return `${hours.toString()}h ago`;
 	return date.toLocaleDateString();
 }

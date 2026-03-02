@@ -4,6 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/domain/v1/domain.proto.
  */
 export const file_loco_domain_v1_domain: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2RvbWFpbi92MS9kb21haW4ucHJvdG8SDmxvY28uZG9tYWluLnYxIp8BCg5QbGF0Zm9ybURvbWFpbhIKCgJpZBgBIAEoAxIOCgZkb21haW4YAiABKAkSEQoJaXNfYWN0aXZlGAMgASgIEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIr4BCgtEb21haW5JbnB1dBIxCg1kb21haW5fc291cmNlGAEgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZRIWCglzdWJkb21haW4YAiABKAlIAIgBARIfChJwbGF0Zm9ybV9kb21haW5faWQYAyABKANIAYgBARITCgZkb21haW4YBCABKAlIAogBAUIMCgpfc3ViZG9tYWluQhUKE19wbGF0Zm9ybV9kb21haW5faWRCCQoHX2RvbWFpbiLSAgoOUmVzb3VyY2VEb21haW4SCgoCaWQYASABKAkSEwoLcmVzb3VyY2VfaWQYAiABKAkSDgoGZG9tYWluGAMgASgJEjEKDWRvbWFpbl9zb3VyY2UYBCABKA4yGi5sb2NvLmRvbWFpbi52MS5Eb21haW5UeXBlEhwKD3N1YmRvbWFpbl9sYWJlbBgFIAEoCUgAiAEBEh8KEnBsYXRmb3JtX2RvbWFpbl9pZBgGIAEoA0gBiAEBEhIKCmlzX3ByaW1hcnkYByABKAgSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCEgoQX3N1YmRvbWFpbl9sYWJlbEIVChNfcGxhdGZvcm1fZG9tYWluX2lkIkAKG0NyZWF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIOCgZkb21haW4YASABKAkSEQoJaXNfYWN0aXZlGAIgASgIIioKHENyZWF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USCgoCaWQYASABKAMiQQoYR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0EgwKAmlkGAEgASgDSAASEAoGZG9tYWluGAIgASgJSABCBQoDa2V5IlQKGUdldFBsYXRmb3JtRG9tYWluUmVzcG9uc2USNwoPcGxhdGZvcm1fZG9tYWluGAEgASgLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iRgoaTGlzdFBsYXRmb3JtRG9tYWluc1JlcXVlc3QSGAoLYWN0aXZlX29ubHkYASABKAhIAIgBAUIOCgxfYWN0aXZlX29ubHkiVwobTGlzdFBsYXRmb3JtRG9tYWluc1Jlc3BvbnNlEjgKEHBsYXRmb3JtX2RvbWFpbnMYASADKAsyHi5sb2NvLmRvbWFpbi52MS5QbGF0Zm9ybURvbWFpbiKgAQobVXBkYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0EgoKAmlkGAEgASgDEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxITCgZkb21haW4YAyABKAlIAIgBARIWCglpc19hY3RpdmUYBCABKAhIAYgBAUIJCgdfZG9tYWluQgwKCl9pc19hY3RpdmUiKgocVXBkYXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRIKCgJpZBgBIAEoAyIpChtEZWxldGVQbGF0Zm9ybURvbWFpblJlcXVlc3QSCgoCaWQYASABKAMiHgocRGVsZXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZSJyCg9Mb2NvT3duZWREb21haW4SCgoCaWQYASABKAkSDgoGZG9tYWluGAIgASgJEhUKDXJlc291cmNlX25hbWUYAyABKAkSEwoLcmVzb3VyY2VfaWQYBCABKAkSFwoPcGxhdGZvcm1fZG9tYWluGAUgASgJIh0KG0xpc3RMb2NvT3duZWREb21haW5zUmVxdWVzdCJQChxMaXN0TG9jb093bmVkRG9tYWluc1Jlc3BvbnNlEjAKB2RvbWFpbnMYASADKAsyHy5sb2NvLmRvbWFpbi52MS5Mb2NvT3duZWREb21haW4iXwobQ3JlYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0EhMKC3Jlc291cmNlX2lkGAEgASgJEisKBmRvbWFpbhgCIAEoCzIbLmxvY28uZG9tYWluLnYxLkRvbWFpbklucHV0IjEKHENyZWF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USEQoJZG9tYWluX2lkGAEgASgJIoEBChtVcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgJEi8KC3VwZGF0ZV9tYXNrGAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLkZpZWxkTWFzaxITCgZkb21haW4YAyABKAlIAIgBAUIJCgdfZG9tYWluIjEKHFVwZGF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USEQoJZG9tYWluX2lkGAEgASgJIkkKH1NldFByaW1hcnlSZXNvdXJjZURvbWFpblJlcXVlc3QSEwoLcmVzb3VyY2VfaWQYASABKAkSEQoJZG9tYWluX2lkGAIgASgJIkoKIFNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEhMKC3Jlc291cmNlX2lkGAEgASgJEhEKCWRvbWFpbl9pZBgCIAEoCSIwChtEZWxldGVSZXNvdXJjZURvbWFpblJlcXVlc3QSEQoJZG9tYWluX2lkGAEgASgJIh4KHERlbGV0ZVJlc291cmNlRG9tYWluUmVzcG9uc2UiMAoeQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Eg4KBmRvbWFpbhgBIAEoCSI3Ch9DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlc3BvbnNlEhQKDGlzX2F2YWlsYWJsZRgBIAEoCCprCgpEb21haW5UeXBlEhsKF0RPTUFJTl9UWVBFX1VOU1BFQ0lGSUVEEAASIQodRE9NQUlOX1RZUEVfUExBVEZPUk1fUFJPVklERUQQARIdChlET01BSU5fVFlQRV9VU0VSX1BST1ZJREVEEAIyiQoKDURvbWFpblNlcnZpY2UScQoUQ3JlYXRlUGxhdGZvcm1Eb21haW4SKy5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5DcmVhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEmgKEUdldFBsYXRmb3JtRG9tYWluEigubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0GikubG9jby5kb21haW4udjEuR2V0UGxhdGZvcm1Eb21haW5SZXNwb25zZRJuChNMaXN0UGxhdGZvcm1Eb21haW5zEioubG9jby5kb21haW4udjEuTGlzdFBsYXRmb3JtRG9tYWluc1JlcXVlc3QaKy5sb2NvLmRvbWFpbi52MS5MaXN0UGxhdGZvcm1Eb21haW5zUmVzcG9uc2UScQoUVXBkYXRlUGxhdGZvcm1Eb21haW4SKy5sb2NvLmRvbWFpbi52MS5VcGRhdGVQbGF0Zm9ybURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5VcGRhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEnEKFERlbGV0ZVBsYXRmb3JtRG9tYWluEisubG9jby5kb21haW4udjEuRGVsZXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuRGVsZXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRJxChRDcmVhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkNyZWF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkNyZWF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2UScQoUVXBkYXRlUmVzb3VyY2VEb21haW4SKy5sb2NvLmRvbWFpbi52MS5VcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5VcGRhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEn0KGFNldFByaW1hcnlSZXNvdXJjZURvbWFpbhIvLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlcXVlc3QaMC5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXNwb25zZRJxChREZWxldGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkRlbGV0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkRlbGV0ZVJlc291cmNlRG9tYWluUmVzcG9uc2UScQoUTGlzdExvY29Pd25lZERvbWFpbnMSKy5sb2NvLmRvbWFpbi52MS5MaXN0TG9jb093bmVkRG9tYWluc1JlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5MaXN0TG9jb093bmVkRG9tYWluc1Jlc3BvbnNlEnoKF0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5Ei4ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Gi8ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZUI5WjdnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vZG9tYWluL3YxO2RvbWFpbnYxYgZwcm90bzM", [file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2RvbWFpbi92MS9kb21haW4ucHJvdG8SDmxvY28uZG9tYWluLnYxIp8BCg5QbGF0Zm9ybURvbWFpbhIKCgJpZBgBIAEoCRIOCgZkb21haW4YAiABKAkSEQoJaXNfYWN0aXZlGAMgASgIEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIuMFCgtEb21haW5JbnB1dBI9Cg1kb21haW5fc291cmNlGAEgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZUIKukgHggEEEAEgABIWCglzdWJkb21haW4YAiABKAlIAIgBARIpChJwbGF0Zm9ybV9kb21haW5faWQYAyABKAlCCLpIBXIDsAEBSAGIAQESEwoGZG9tYWluGAQgASgJSAKIAQE6jAS6SIgEGqUBCiRwbGF0Zm9ybV9wcm92aWRlZC5zdWJkb21haW5fcmVxdWlyZWQSM3N1YmRvbWFpbiBpcyByZXF1aXJlZCBmb3IgcGxhdGZvcm0tcHJvdmlkZWQgZG9tYWlucxpIdGhpcy5kb21haW5fc291cmNlICE9IDEgfHwgKGhhcyh0aGlzLnN1YmRvbWFpbikgJiYgdGhpcy5zdWJkb21haW4gIT0gJycpGskBCi1wbGF0Zm9ybV9wcm92aWRlZC5wbGF0Zm9ybV9kb21haW5faWRfcmVxdWlyZWQSPHBsYXRmb3JtX2RvbWFpbl9pZCBpcyByZXF1aXJlZCBmb3IgcGxhdGZvcm0tcHJvdmlkZWQgZG9tYWlucxpadGhpcy5kb21haW5fc291cmNlICE9IDEgfHwgKGhhcyh0aGlzLnBsYXRmb3JtX2RvbWFpbl9pZCkgJiYgdGhpcy5wbGF0Zm9ybV9kb21haW5faWQgIT0gJycpGpEBCh11c2VyX3Byb3ZpZGVkLmRvbWFpbl9yZXF1aXJlZBIsZG9tYWluIGlzIHJlcXVpcmVkIGZvciB1c2VyLXByb3ZpZGVkIGRvbWFpbnMaQnRoaXMuZG9tYWluX3NvdXJjZSAhPSAyIHx8IChoYXModGhpcy5kb21haW4pICYmIHRoaXMuZG9tYWluICE9ICcnKUIMCgpfc3ViZG9tYWluQhUKE19wbGF0Zm9ybV9kb21haW5faWRCCQoHX2RvbWFpbiLSAgoOUmVzb3VyY2VEb21haW4SCgoCaWQYASABKAkSEwoLcmVzb3VyY2VfaWQYAiABKAkSDgoGZG9tYWluGAMgASgJEjEKDWRvbWFpbl9zb3VyY2UYBCABKA4yGi5sb2NvLmRvbWFpbi52MS5Eb21haW5UeXBlEhwKD3N1YmRvbWFpbl9sYWJlbBgFIAEoCUgAiAEBEh8KEnBsYXRmb3JtX2RvbWFpbl9pZBgGIAEoCUgBiAEBEhIKCmlzX3ByaW1hcnkYByABKAgSLgoKY3JlYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCEgoQX3N1YmRvbWFpbl9sYWJlbEIVChNfcGxhdGZvcm1fZG9tYWluX2lkIkkKG0NyZWF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIXCgZkb21haW4YASABKAlCB7pIBHICEAESEQoJaXNfYWN0aXZlGAIgASgIIioKHENyZWF0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2USCgoCaWQYASABKAkiVAoYR2V0UGxhdGZvcm1Eb21haW5SZXF1ZXN0EhYKAmlkGAEgASgJQgi6SAVyA7ABAUgAEhkKBmRvbWFpbhgCIAEoCUIHukgEcgIQAUgAQgUKA2tleSJUChlHZXRQbGF0Zm9ybURvbWFpblJlc3BvbnNlEjcKD3BsYXRmb3JtX2RvbWFpbhgBIAEoCzIeLmxvY28uZG9tYWluLnYxLlBsYXRmb3JtRG9tYWluIkYKGkxpc3RQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0EhgKC2FjdGl2ZV9vbmx5GAEgASgISACIAQFCDgoMX2FjdGl2ZV9vbmx5IlcKG0xpc3RQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRI4ChBwbGF0Zm9ybV9kb21haW5zGAEgAygLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4iswEKG1VwZGF0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIUCgJpZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhwKBmRvbWFpbhgDIAEoCUIHukgEcgIQAUgAiAEBEhYKCWlzX2FjdGl2ZRgEIAEoCEgBiAEBQgkKB19kb21haW5CDAoKX2lzX2FjdGl2ZSIqChxVcGRhdGVQbGF0Zm9ybURvbWFpblJlc3BvbnNlEgoKAmlkGAEgASgJIjMKG0RlbGV0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBIUCgJpZBgBIAEoCUIIukgFcgOwAQEiHgocRGVsZXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZSJyCg9Mb2NvT3duZWREb21haW4SCgoCaWQYASABKAkSDgoGZG9tYWluGAIgASgJEhUKDXJlc291cmNlX25hbWUYAyABKAkSEwoLcmVzb3VyY2VfaWQYBCABKAkSFwoPcGxhdGZvcm1fZG9tYWluGAUgASgJIh0KG0xpc3RMb2NvT3duZWREb21haW5zUmVxdWVzdCJQChxMaXN0TG9jb093bmVkRG9tYWluc1Jlc3BvbnNlEjAKB2RvbWFpbnMYASADKAsyHy5sb2NvLmRvbWFpbi52MS5Mb2NvT3duZWREb21haW4icQobQ3JlYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIzCgZkb21haW4YAiABKAsyGy5sb2NvLmRvbWFpbi52MS5Eb21haW5JbnB1dEIGukgDyAEBIjEKHENyZWF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USEQoJZG9tYWluX2lkGAEgASgJIpQBChtVcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QSGwoJZG9tYWluX2lkGAEgASgJQgi6SAVyA7ABARIvCgt1cGRhdGVfbWFzaxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSHAoGZG9tYWluGAMgASgJQge6SARyAhABSACIAQFCCQoHX2RvbWFpbiIxChxVcGRhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEhEKCWRvbWFpbl9pZBgBIAEoCSJdCh9TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIkoKIFNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEhMKC3Jlc291cmNlX2lkGAEgASgJEhEKCWRvbWFpbl9pZBgCIAEoCSI6ChtEZWxldGVSZXNvdXJjZURvbWFpblJlcXVlc3QSGwoJZG9tYWluX2lkGAEgASgJQgi6SAVyA7ABASIeChxEZWxldGVSZXNvdXJjZURvbWFpblJlc3BvbnNlIjkKHkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBIXCgZkb21haW4YASABKAlCB7pIBHICEAEiNwofQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRIUCgxpc19hdmFpbGFibGUYASABKAgqawoKRG9tYWluVHlwZRIbChdET01BSU5fVFlQRV9VTlNQRUNJRklFRBAAEiEKHURPTUFJTl9UWVBFX1BMQVRGT1JNX1BST1ZJREVEEAESHQoZRE9NQUlOX1RZUEVfVVNFUl9QUk9WSURFRBACMokKCg1Eb21haW5TZXJ2aWNlEnEKFENyZWF0ZVBsYXRmb3JtRG9tYWluEisubG9jby5kb21haW4udjEuQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuQ3JlYXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRJoChFHZXRQbGF0Zm9ybURvbWFpbhIoLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluUmVxdWVzdBopLmxvY28uZG9tYWluLnYxLkdldFBsYXRmb3JtRG9tYWluUmVzcG9uc2USbgoTTGlzdFBsYXRmb3JtRG9tYWlucxIqLmxvY28uZG9tYWluLnYxLkxpc3RQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0GisubG9jby5kb21haW4udjEuTGlzdFBsYXRmb3JtRG9tYWluc1Jlc3BvbnNlEnEKFFVwZGF0ZVBsYXRmb3JtRG9tYWluEisubG9jby5kb21haW4udjEuVXBkYXRlUGxhdGZvcm1Eb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuVXBkYXRlUGxhdGZvcm1Eb21haW5SZXNwb25zZRJxChREZWxldGVQbGF0Zm9ybURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkRlbGV0ZVBsYXRmb3JtRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkRlbGV0ZVBsYXRmb3JtRG9tYWluUmVzcG9uc2UScQoUQ3JlYXRlUmVzb3VyY2VEb21haW4SKy5sb2NvLmRvbWFpbi52MS5DcmVhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5DcmVhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEnEKFFVwZGF0ZVJlc291cmNlRG9tYWluEisubG9jby5kb21haW4udjEuVXBkYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuVXBkYXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRJ9ChhTZXRQcmltYXJ5UmVzb3VyY2VEb21haW4SLy5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXF1ZXN0GjAubG9jby5kb21haW4udjEuU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVzcG9uc2UScQoURGVsZXRlUmVzb3VyY2VEb21haW4SKy5sb2NvLmRvbWFpbi52MS5EZWxldGVSZXNvdXJjZURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5EZWxldGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEnEKFExpc3RMb2NvT3duZWREb21haW5zEisubG9jby5kb21haW4udjEuTGlzdExvY29Pd25lZERvbWFpbnNSZXF1ZXN0GiwubG9jby5kb21haW4udjEuTGlzdExvY29Pd25lZERvbWFpbnNSZXNwb25zZRJ6ChdDaGVja0RvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2VCOVo3Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL2RvbWFpbi92MTtkb21haW52MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * PlatformDomain represents a platform-provided domain.
@@ -21,9 +22,9 @@ export const file_loco_domain_v1_domain: GenFile = /*@__PURE__*/
  */
 export type PlatformDomain = Message<"loco.domain.v1.PlatformDomain"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
-  id: bigint;
+  id: string;
 
   /**
    * @generated from field: string domain = 2;
@@ -53,7 +54,7 @@ export type PlatformDomain = Message<"loco.domain.v1.PlatformDomain"> & {
  */
 export type PlatformDomainJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 
@@ -106,9 +107,9 @@ export type DomainInput = Message<"loco.domain.v1.DomainInput"> & {
   /**
    * for PLATFORM_PROVIDED: id of the platform domain
    *
-   * @generated from field: optional int64 platform_domain_id = 3;
+   * @generated from field: optional string platform_domain_id = 3;
    */
-  platformDomainId?: bigint;
+  platformDomainId?: string;
 
   /**
    * for USER_PROVIDED: full custom domain
@@ -139,7 +140,7 @@ export type DomainInputJson = {
   /**
    * for PLATFORM_PROVIDED: id of the platform domain
    *
-   * @generated from field: optional int64 platform_domain_id = 3;
+   * @generated from field: optional string platform_domain_id = 3;
    */
   platformDomainId?: string;
 
@@ -190,9 +191,9 @@ export type ResourceDomain = Message<"loco.domain.v1.ResourceDomain"> & {
   subdomainLabel?: string;
 
   /**
-   * @generated from field: optional int64 platform_domain_id = 6;
+   * @generated from field: optional string platform_domain_id = 6;
    */
-  platformDomainId?: bigint;
+  platformDomainId?: string;
 
   /**
    * @generated from field: bool is_primary = 7;
@@ -242,7 +243,7 @@ export type ResourceDomainJson = {
   subdomainLabel?: string;
 
   /**
-   * @generated from field: optional int64 platform_domain_id = 6;
+   * @generated from field: optional string platform_domain_id = 6;
    */
   platformDomainId?: string;
 
@@ -317,9 +318,9 @@ export const CreatePlatformDomainRequestSchema: GenMessage<CreatePlatformDomainR
  */
 export type CreatePlatformDomainResponse = Message<"loco.domain.v1.CreatePlatformDomainResponse"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
-  id: bigint;
+  id: string;
 };
 
 /**
@@ -329,7 +330,7 @@ export type CreatePlatformDomainResponse = Message<"loco.domain.v1.CreatePlatfor
  */
 export type CreatePlatformDomainResponseJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 };
@@ -352,9 +353,9 @@ export type GetPlatformDomainRequest = Message<"loco.domain.v1.GetPlatformDomain
    */
   key: {
     /**
-     * @generated from field: int64 id = 1;
+     * @generated from field: string id = 1;
      */
-    value: bigint;
+    value: string;
     case: "id";
   } | {
     /**
@@ -372,7 +373,7 @@ export type GetPlatformDomainRequest = Message<"loco.domain.v1.GetPlatformDomain
  */
 export type GetPlatformDomainRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 
@@ -489,9 +490,9 @@ export const ListPlatformDomainsResponseSchema: GenMessage<ListPlatformDomainsRe
  */
 export type UpdatePlatformDomainRequest = Message<"loco.domain.v1.UpdatePlatformDomainRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
-  id: bigint;
+  id: string;
 
   /**
    * @generated from field: google.protobuf.FieldMask update_mask = 2;
@@ -516,7 +517,7 @@ export type UpdatePlatformDomainRequest = Message<"loco.domain.v1.UpdatePlatform
  */
 export type UpdatePlatformDomainRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 
@@ -550,9 +551,9 @@ export const UpdatePlatformDomainRequestSchema: GenMessage<UpdatePlatformDomainR
  */
 export type UpdatePlatformDomainResponse = Message<"loco.domain.v1.UpdatePlatformDomainResponse"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
-  id: bigint;
+  id: string;
 };
 
 /**
@@ -562,7 +563,7 @@ export type UpdatePlatformDomainResponse = Message<"loco.domain.v1.UpdatePlatfor
  */
 export type UpdatePlatformDomainResponseJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 };
@@ -581,9 +582,9 @@ export const UpdatePlatformDomainResponseSchema: GenMessage<UpdatePlatformDomain
  */
 export type DeletePlatformDomainRequest = Message<"loco.domain.v1.DeletePlatformDomainRequest"> & {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
-  id: bigint;
+  id: string;
 };
 
 /**
@@ -593,7 +594,7 @@ export type DeletePlatformDomainRequest = Message<"loco.domain.v1.DeletePlatform
  */
 export type DeletePlatformDomainRequestJson = {
   /**
-   * @generated from field: int64 id = 1;
+   * @generated from field: string id = 1;
    */
   id?: string;
 };

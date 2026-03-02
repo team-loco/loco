@@ -29,8 +29,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 	const contextValue = { theme, toggleTheme };
 
 	return (
-		<ThemeContext.Provider value={contextValue}>
+		<ThemeContext value={contextValue}>
 			{children}
-		</ThemeContext.Provider>
+		</ThemeContext>
 	);
 }

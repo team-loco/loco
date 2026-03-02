@@ -49,10 +49,10 @@ export function OAuthCallback() {
 
 	useEffect(() => {
 		if (error) {
-			const errorMsg = errorDescription || "OAuth error";
+			const errorMsg = errorDescription ?? "OAuth error";
 			console.error("OAuthCallback: OAuth error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
-			navigate("/login");
+			void navigate("/login");
 			return;
 		}
 
@@ -68,7 +68,7 @@ export function OAuthCallback() {
 			);
 			console.error("OAuthCallback: Exchange error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
-			navigate("/login");
+			void navigate("/login");
 			return;
 		}
 
@@ -79,7 +79,7 @@ export function OAuthCallback() {
 			);
 			console.error("OAuthCallback: Orgs error:", errorMsg);
 			sessionStorage.setItem("oauth_error", errorMsg);
-			navigate("/login");
+			void navigate("/login");
 			return;
 		}
 
@@ -98,12 +98,12 @@ export function OAuthCallback() {
 			if (hasOrgs) {
 				console.log("OAuthCallback: User has orgs, navigating to dashboard");
 				// Will be redirected by DashboardRedirect component
-				navigate("/dashboard");
+				void navigate("/dashboard");
 			} else {
 				console.log(
 					"OAuthCallback: User has no orgs, navigating to onboarding",
 				);
-				navigate("/onboarding");
+				void navigate("/onboarding");
 			}
 		}
 	}, [

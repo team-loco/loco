@@ -19,7 +19,7 @@ const (
 // Command represents a unit of work to be executed by an agent.
 type Command struct {
 	ID        string
-	ClusterID int64
+	ClusterID string
 	Type      CommandType
 	Payload   []byte // JSON-encoded command payload
 	CreatedAt time.Time
@@ -34,7 +34,7 @@ type CommandBus interface {
 
 	// Receive returns a channel of commands for a cluster.
 	// Called by the AgentService when an agent connects.
-	Receive(ctx context.Context, clusterID int64) (<-chan *Command, error)
+	Receive(ctx context.Context, clusterID string) (<-chan *Command, error)
 
 	// Ack acknowledges successful command processing.
 	Ack(ctx context.Context, commandID string) error
@@ -44,7 +44,7 @@ type CommandBus interface {
 	Nack(ctx context.Context, commandID string, retry bool) error
 
 	// IsConnected returns true if an agent is connected for the cluster.
-	IsConnected(clusterID int64) bool
+	IsConnected(clusterID string) bool
 
 	// Close shuts down the command bus.
 	Close() error

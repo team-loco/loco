@@ -61,7 +61,7 @@ export function OrgCard({
 						<Button
 							variant="default"
 							size="sm"
-							onClick={() => onSwitch(org.id)}
+							onClick={() => { onSwitch(org.id); }}
 						>
 							View
 						</Button>
@@ -69,8 +69,10 @@ export function OrgCard({
 					<Button
 						variant="secondary"
 						size="sm"
-						onClick={() => navigate(`/org/${org.id}/settings`)}
-					>
+						onClick={() => {
+							void navigate(`/org/${org.id}/settings`);
+						}}
+						>
 						<Settings className="size-4 mr-2" />
 						Settings
 					</Button>
@@ -78,7 +80,7 @@ export function OrgCard({
 						<Button
 							variant="ghost"
 							size="sm"
-							onClick={() => onDelete(org)}
+							onClick={() => { onDelete(org); }}
 							className="ml-auto text-destructive hover:text-destructive hover:bg-destructive/10"
 						>
 							<Trash2 className="size-4 mr-2" />

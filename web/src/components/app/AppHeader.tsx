@@ -38,7 +38,7 @@ export function AppHeader({ resource, isLoading = false }: AppHeaderProps) {
 	const regions = resource.regions || [];
 
 	const handleCopyUrl = () => {
-		navigator.clipboard.writeText(`https://${resourceUrl}`);
+		void navigator.clipboard.writeText(`https://${resourceUrl}`);
 		toast.success("URL copied to clipboard");
 	};
 
@@ -91,7 +91,7 @@ export function AppHeader({ resource, isLoading = false }: AppHeaderProps) {
 						size="sm"
 						onClick={() => {
 							if (activeOrgId && activeWorkspaceId) {
-								navigate(
+								void navigate(
 									`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.id}/settings`
 								);
 							}

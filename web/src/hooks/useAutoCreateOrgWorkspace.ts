@@ -16,7 +16,7 @@ export function useAutoCreateOrgWorkspace() {
 
 	const createOrgMutation = useMutation(createOrg);
 	const createWorkspaceMutation = useMutation(createWorkspace);
-	const { data: userOrgsData, refetch: refetchOrgs } = useQuery(
+	const { data: userOrgsData, isPending: isOrgsQueryPending, refetch: refetchOrgs } = useQuery(
 		listUserOrgs,
 		user ? { userId: user.id } : undefined,
 		{ enabled: !!user }
@@ -119,7 +119,9 @@ export function useAutoCreateOrgWorkspace() {
 		[createOrgMutation, createWorkspaceMutation, refetchOrgs, refetchWorkspaces]
 	);
 
-	const hasOrgs = userOrgsData?.orgs && userOrgsData.orgs.length > 0;
+	const hasOrgs = !!(userOrgsData?.orgs && userOrgsData.orgs.length > 0);
+	// Wait for the orgs query to finish before deciding whether to auto-create
+	const isLoadingOrgs = isOrgsQueryPending && !!user;
 
 	return {
 		autoCreate,
@@ -128,6 +130,9 @@ export function useAutoCreateOrgWorkspace() {
 		orgId,
 		workspaceId,
 		isLoading: createOrgMutation.isPending || createWorkspaceMutation.isPending,
-		shouldAutoCreate: !hasOrgs && !!user,
+		isLoadingOrgs,
+		hasOrgs,
+		existingOrgId: userOrgsData?.orgs?.[0]?.id ?? null,
+		shouldAutoCreate: !isLoadingOrgs && !hasOrgs && !!user,
 	};
 }

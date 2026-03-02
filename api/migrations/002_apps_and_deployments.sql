@@ -40,26 +40,26 @@ CREATE TYPE region_intent_status AS ENUM (
     'failed'
 );
 
--- Environments: org-level isolation concept
+-- Environments: workspace-level isolation concept
 CREATE TABLE
     environments (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        org_id UUID NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
+        workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
-        is_production BOOLEAN NOT NULL DEFAULT false,
+        environment_type TEXT NOT NULL DEFAULT 'production' CHECK (environment_type IN ('dev', 'staging', 'production')),
         created_by UUID NOT NULL REFERENCES users (id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (org_id, name)
+        UNIQUE (workspace_id, name)
     );
 
-CREATE INDEX idx_environments_org_id ON environments (org_id);
+CREATE INDEX idx_environments_workspace_id ON environments (workspace_id);
 
 -- Clusters table
 CREATE TABLE
     clusters (
-        id BIGSERIAL PRIMARY KEY,
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
         name TEXT UNIQUE NOT NULL,
         region TEXT NOT NULL,
         provider TEXT NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE
         capacity_memory_bytes BIGINT,
         agent_version TEXT,
         observability_proxy_endpoint TEXT,
-        environment_id UUID NOT NULL REFERENCES environments (id),
+        tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
         created_at TIMESTAMPTZ DEFAULT NOW (),
         updated_at TIMESTAMPTZ DEFAULT NOW ()
     );
@@ -85,6 +85,8 @@ CREATE INDEX idx_clusters_region ON clusters (region);
 
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
 
+CREATE INDEX idx_clusters_tier ON clusters (tier);
+
 CREATE UNIQUE INDEX idx_clusters_agent_token_hash ON clusters (agent_token_hash)
 WHERE
     agent_token_hash IS NOT NULL;
@@ -92,7 +94,7 @@ WHERE
 -- Platform domains (loco-provided base domains)
 CREATE TABLE
     platform_domains (
-        id BIGSERIAL PRIMARY KEY,
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
         domain TEXT NOT NULL UNIQUE,
         is_active BOOLEAN NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW ()
@@ -109,7 +111,6 @@ CREATE TABLE
         status resource_status NOT NULL,
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
-        environment_id UUID NOT NULL REFERENCES environments (id),
         created_at TIMESTAMPTZ DEFAULT NOW (),
         updated_at TIMESTAMPTZ DEFAULT NOW (),
         UNIQUE (workspace_id, name)
@@ -149,7 +150,7 @@ CREATE TABLE
         domain TEXT NOT NULL UNIQUE,
         domain_source domain_source NOT NULL,
         subdomain_label TEXT,
-        platform_domain_id BIGINT REFERENCES platform_domains (id),
+        platform_domain_id UUID REFERENCES platform_domains (id),
         is_primary BOOLEAN NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW (),
         updated_at TIMESTAMPTZ DEFAULT NOW (),
@@ -187,12 +188,13 @@ CREATE TABLE
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
         resource_region_id UUID NOT NULL REFERENCES resource_regions (id) ON DELETE RESTRICT,
-        cluster_id BIGINT NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
         region TEXT NOT NULL,
         replicas INT NOT NULL,
         status deployment_status NOT NULL,
         is_active BOOLEAN NOT NULL,
         message TEXT NOT NULL,
+        environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW (),
@@ -220,3 +222,5 @@ WHERE
 CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deployments (resource_id, created_at DESC, id DESC);
+
+CREATE INDEX idx_deployments_environment_id ON deployments (environment_id);

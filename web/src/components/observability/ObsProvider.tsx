@@ -1,13 +1,13 @@
 import {
 	createContext,
-	useContext,
+	use,
 	useMemo,
 	useState,
 	type ReactNode,
 } from "react";
 import type { Transport } from "@connectrpc/connect";
 import { useObsAccess } from "@/hooks/useObsAccess";
-import { createObsTransport } from "@/lib/obs-transport";
+import { createTransport } from "@/auth/connect-transport";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 import type { ClusterAccess } from "@/gen/loco/observability/v1/observability_access_pb";
 
@@ -21,8 +21,6 @@ export interface ClusterTransport {
 interface ObsContextType {
 	workspaceId: string;
 	resources: Resource[];
-	// Token + cluster access
-	token: string;
 	clusters: ClusterAccess[];
 	clusterTransports: ClusterTransport[];
 	isLoading: boolean;
@@ -53,11 +51,10 @@ export function ObsProvider({
 	const [activeClusterIds, setActiveClusterIds] = useState<string[]>([]);
 	const [timeRange, setTimeRange] = useState<TimeRange>("1h");
 
-	const token = access?.token ?? "";
 	const clusters = useMemo(() => access?.clusters ?? [], [access]);
 
 	const clusterTransports = useMemo((): ClusterTransport[] => {
-		if (!token || clusters.length === 0) return [];
+		if (clusters.length === 0) return [];
 		return clusters
 			.filter(
 				(c) =>
@@ -66,16 +63,15 @@ export function ObsProvider({
 			)
 			.map((cluster) => ({
 				cluster,
-				transport: createObsTransport(cluster.proxyUrl, token),
+				transport: createTransport(cluster.proxyUrl),
 			}));
-	}, [token, clusters, activeClusterIds]);
+	}, [clusters, activeClusterIds]);
 
 	return (
-		<ObsContext.Provider
+		<ObsContext
 			value={{
 				workspaceId,
 				resources,
-				token,
 				clusters,
 				clusterTransports,
 				isLoading,
@@ -89,17 +85,18 @@ export function ObsProvider({
 			}}
 		>
 			{children}
-		</ObsContext.Provider>
+		</ObsContext>
 	);
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useObs() {
-	const ctx = useContext(ObsContext);
+	const ctx = use(ObsContext);
 	if (!ctx) throw new Error("useObs must be used within ObsProvider");
 	return ctx;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function timeRangeMs(range: TimeRange): number {
 	const map: Record<TimeRange, number> = {
 		"15m": 15 * 60 * 1000,
@@ -112,6 +109,7 @@ export function timeRangeMs(range: TimeRange): number {
 	return map[range];
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function timeRangeIntervalSeconds(range: TimeRange): number {
 	const map: Record<TimeRange, number> = {
 		"15m": 30,

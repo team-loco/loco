@@ -2,39 +2,48 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { whoAmI } from "@/gen/loco/user/v1";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router";
 
 export function Onboarding() {
 	const hasStarted = useRef(false);
 	const { data: whoAmIResponse } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
-	const { autoCreate, step, error, shouldAutoCreate } =
+	const { autoCreate, step, error, shouldAutoCreate, isLoadingOrgs, hasOrgs } =
 		useAutoCreateOrgWorkspace();
-	const { setActiveOrg } = useOrgWorkspace();
+	const navigate = useNavigate();
 
 	useEffect(() => {
-		if (!shouldAutoCreate || hasStarted.current || !user) {
+		if (!user || isLoadingOrgs) {
+			return;
+		}
+
+		// User already has an org — redirect to dashboard
+		if (hasOrgs) {
+			void navigate("/dashboard");
+			return;
+		}
+
+		// Only create once
+		if (!shouldAutoCreate || hasStarted.current) {
 			return;
 		}
 
 		hasStarted.current = true;
 
-		// Start auto-creation
 		autoCreate(user.email)
 			.then((result) => {
-				// Wait a moment for smooth UX, then redirect
 				setTimeout(() => {
-					if (result?.orgId) {
-						setActiveOrg(result.orgId);
+					if (result?.orgId && result?.workspaceId) {
+						void navigate(`/org/${result.orgId}/wks/${result.workspaceId}`);
 					}
 				}, 500);
 			})
 			.catch(() => {
 				// Error is handled in hook state
 			});
-	}, [user, autoCreate, shouldAutoCreate, setActiveOrg]);
+	}, [user, autoCreate, shouldAutoCreate, hasOrgs, isLoadingOrgs, navigate]);
 
 	if (!user) {
 		return null;
@@ -102,7 +111,7 @@ export function Onboarding() {
 							<div className="bg-red-50 border border-red-200 rounded p-3">
 								<p className="text-sm text-red-700">Error: {error}</p>
 								<button
-									onClick={() => window.location.reload()}
+									onClick={() => { window.location.reload(); }}
 									className="text-sm text-red-600 underline mt-2 hover:text-red-700"
 								>
 									Try again

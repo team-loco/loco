@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode, useEffect, useMemo, useState } from "react";
+import { createContext, use, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import type { Organization } from "@/gen/loco/org/v1/org_pb";
 import type { Workspace } from "@/gen/loco/workspace/v1/workspace_pb";
@@ -109,15 +109,15 @@ export function ContextProvider({
 			(ws) => ws.orgId === orgId
 		) ?? workspaces[0];
 		if (workspace) {
-			navigate(`/org/${orgId}/wks/${workspace.id}`);
+			void navigate(`/org/${orgId}/wks/${workspace.id}`);
 		} else {
-			navigate(`/org/${orgId}/wks/select`);
+			void navigate(`/org/${orgId}/wks/select`);
 		}
 	};
 
 	const setActiveWorkspace = (workspaceId: string) => {
 		if (activeOrgId) {
-			navigate(
+			void navigate(
 				`/org/${activeOrgId}/wks/${workspaceId}`
 			);
 		}
@@ -154,11 +154,11 @@ export function ContextProvider({
 	const clearContext = () => {
 		localStorage.removeItem(ORG_STORAGE_KEY);
 		localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-		navigate("/organizations");
+		void navigate("/organizations");
 	};
 
 	return (
-		<OrgWorkspaceContext.Provider
+		<OrgWorkspaceContext
 			value={{
 				activeOrgId,
 				activeWorkspaceId,
@@ -174,13 +174,13 @@ export function ContextProvider({
 			}}
 		>
 			{children}
-		</OrgWorkspaceContext.Provider>
+		</OrgWorkspaceContext>
 	);
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useOrgWorkspace() {
-	const ctx = useContext(OrgWorkspaceContext);
+	const ctx = use(OrgWorkspaceContext);
 	if (!ctx) {
 		// Return null values when not in provider (e.g., on public pages)
 		return {
@@ -188,13 +188,27 @@ export function useOrgWorkspace() {
 			activeWorkspaceId: null,
 			orgs: [],
 			workspaces: [],
-			setActiveOrg: () => {},
-			setActiveWorkspace: () => {},
-			setOrgs: () => {},
-			setWorkspaces: () => {},
-			addOrg: () => {},
-			addWorkspace: () => {},
-			clearContext: () => {},
+			setActiveOrg: () => {
+				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
+			},
+			setActiveWorkspace: () => {
+				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
+			},
+			setOrgs: () => {
+				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
+			},
+			setWorkspaces: () => {
+				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
+			},
+			addOrg: () => {
+				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
+			},
+			addWorkspace: () => {
+				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
+			},
+			clearContext: () => {
+				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
+			},
 		};
 	}
 	return ctx;

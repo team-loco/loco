@@ -5,7 +5,7 @@
 import { EnvironmentService } from "./environment_pb";
 
 /**
- * CreateEnvironment creates a new environment in an organization.
+ * CreateEnvironment creates a new environment in a workspace.
  *
  * @generated from rpc loco.environment.v1.EnvironmentService.CreateEnvironment
  */
@@ -19,7 +19,7 @@ export const createEnvironment = EnvironmentService.method.createEnvironment;
 export const getEnvironment = EnvironmentService.method.getEnvironment;
 
 /**
- * ListEnvironments lists all environments in an organization.
+ * ListEnvironments lists all environments in a workspace.
  *
  * @generated from rpc loco.environment.v1.EnvironmentService.ListEnvironments
  */

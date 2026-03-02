@@ -7,6 +7,7 @@
 package oauthv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -234,6 +235,7 @@ type ExchangeOAuthTokenResponse struct {
 	ExpiresIn     int64                  `protobuf:"varint,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"` // seconds
 	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	RefreshToken  string                 `protobuf:"bytes,5,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -292,6 +294,13 @@ func (x *ExchangeOAuthTokenResponse) GetUserId() string {
 func (x *ExchangeOAuthTokenResponse) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *ExchangeOAuthTokenResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
 	}
 	return ""
 }
@@ -540,52 +549,173 @@ func (x *ExchangeOAuthCodeResponse) GetName() string {
 	return ""
 }
 
+// RefreshTokenRequest requests a new session token pair using a refresh token.
+// If refresh_token is empty, the server reads the loco_refresh_token cookie.
+type RefreshTokenRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RefreshToken  string                 `protobuf:"bytes,1,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenRequest) Reset() {
+	*x = RefreshTokenRequest{}
+	mi := &file_loco_oauth_v1_oauth_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenRequest) ProtoMessage() {}
+
+func (x *RefreshTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_oauth_v1_oauth_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenRequest.ProtoReflect.Descriptor instead.
+func (*RefreshTokenRequest) Descriptor() ([]byte, []int) {
+	return file_loco_oauth_v1_oauth_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *RefreshTokenRequest) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+// RefreshTokenResponse contains the new session token pair.
+type RefreshTokenResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LocoToken     string                 `protobuf:"bytes,1,opt,name=loco_token,json=locoToken,proto3" json:"loco_token,omitempty"`
+	ExpiresIn     int64                  `protobuf:"varint,2,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"` // seconds
+	RefreshToken  string                 `protobuf:"bytes,3,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshTokenResponse) Reset() {
+	*x = RefreshTokenResponse{}
+	mi := &file_loco_oauth_v1_oauth_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshTokenResponse) ProtoMessage() {}
+
+func (x *RefreshTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_oauth_v1_oauth_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshTokenResponse.ProtoReflect.Descriptor instead.
+func (*RefreshTokenResponse) Descriptor() ([]byte, []int) {
+	return file_loco_oauth_v1_oauth_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RefreshTokenResponse) GetLocoToken() string {
+	if x != nil {
+		return x.LocoToken
+	}
+	return ""
+}
+
+func (x *RefreshTokenResponse) GetExpiresIn() int64 {
+	if x != nil {
+		return x.ExpiresIn
+	}
+	return 0
+}
+
+func (x *RefreshTokenResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
 var File_loco_oauth_v1_oauth_proto protoreflect.FileDescriptor
 
 const file_loco_oauth_v1_oauth_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/oauth/v1/oauth.proto\x12\rloco.oauth.v1\"R\n" +
-	"\x16GetOAuthDetailsRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\"S\n" +
+	"\x19loco/oauth/v1/oauth.proto\x12\rloco.oauth.v1\x1a\x1bbuf/validate/validate.proto\"^\n" +
+	"\x16GetOAuthDetailsRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"S\n" +
 	"\x17GetOAuthDetailsResponse\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1b\n" +
-	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\xa5\x01\n" +
-	"\x19ExchangeOAuthTokenRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token\x128\n" +
-	"\x19create_user_if_not_exists\x18\x03 \x01(\bR\x15createUserIfNotExists\"\x87\x01\n" +
+	"\ttoken_ttl\x18\x02 \x01(\x01R\btokenTtl\"\xba\x01\n" +
+	"\x19ExchangeOAuthTokenRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12\x1d\n" +
+	"\x05token\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x128\n" +
+	"\x19create_user_if_not_exists\x18\x03 \x01(\bR\x15createUserIfNotExists\"\xac\x01\n" +
 	"\x1aExchangeOAuthTokenResponse\x12\x1d\n" +
 	"\n" +
 	"loco_token\x18\x01 \x01(\tR\tlocoToken\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04name\x18\x04 \x01(\tR\x04name\"\x94\x01\n" +
-	"\x1fGetOAuthAuthorizationURLRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x14\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12#\n" +
+	"\rrefresh_token\x18\x05 \x01(\tR\frefreshToken\"\xa0\x01\n" +
+	"\x1fGetOAuthAuthorizationURLRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12!\n" +
 	"\fredirect_uri\x18\x03 \x01(\tR\vredirectUri\"e\n" +
 	" GetOAuthAuthorizationURLResponse\x12+\n" +
 	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\x12\x14\n" +
-	"\x05state\x18\x02 \x01(\tR\x05state\"\xa1\x01\n" +
-	"\x18ExchangeOAuthCodeRequest\x128\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderR\bprovider\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\x12\x14\n" +
-	"\x05state\x18\x03 \x01(\tR\x05state\x12!\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"\xbf\x01\n" +
+	"\x18ExchangeOAuthCodeRequest\x12D\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x1c.loco.oauth.v1.OAuthProviderB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12\x1b\n" +
+	"\x04code\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04code\x12\x1d\n" +
+	"\x05state\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05state\x12!\n" +
 	"\fredirect_uri\x18\x04 \x01(\tR\vredirectUri\"g\n" +
 	"\x19ExchangeOAuthCodeResponse\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x01 \x01(\x03R\texpiresIn\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name*L\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\":\n" +
+	"\x13RefreshTokenRequest\x12#\n" +
+	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"y\n" +
+	"\x14RefreshTokenResponse\x12\x1d\n" +
+	"\n" +
+	"loco_token\x18\x01 \x01(\tR\tlocoToken\x12\x1d\n" +
+	"\n" +
+	"expires_in\x18\x02 \x01(\x03R\texpiresIn\x12#\n" +
+	"\rrefresh_token\x18\x03 \x01(\tR\frefreshToken*L\n" +
 	"\rOAuthProvider\x12\x1f\n" +
 	"\x1bO_AUTH_PROVIDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
-	"\x16O_AUTH_PROVIDER_GITHUB\x10\x012\xc6\x03\n" +
+	"\x16O_AUTH_PROVIDER_GITHUB\x10\x012\xa1\x04\n" +
 	"\fOAuthService\x12b\n" +
 	"\x0fGetOAuthDetails\x12%.loco.oauth.v1.GetOAuthDetailsRequest\x1a&.loco.oauth.v1.GetOAuthDetailsResponse\"\x00\x12i\n" +
 	"\x12ExchangeOAuthToken\x12(.loco.oauth.v1.ExchangeOAuthTokenRequest\x1a).loco.oauth.v1.ExchangeOAuthTokenResponse\x12}\n" +
 	"\x18GetOAuthAuthorizationURL\x12..loco.oauth.v1.GetOAuthAuthorizationURLRequest\x1a/.loco.oauth.v1.GetOAuthAuthorizationURLResponse\"\x00\x12h\n" +
-	"\x11ExchangeOAuthCode\x12'.loco.oauth.v1.ExchangeOAuthCodeRequest\x1a(.loco.oauth.v1.ExchangeOAuthCodeResponse\"\x00B7Z5github.com/team-loco/loco/proto/loco/oauth/v1;oauthv1b\x06proto3"
+	"\x11ExchangeOAuthCode\x12'.loco.oauth.v1.ExchangeOAuthCodeRequest\x1a(.loco.oauth.v1.ExchangeOAuthCodeResponse\"\x00\x12Y\n" +
+	"\fRefreshToken\x12\".loco.oauth.v1.RefreshTokenRequest\x1a#.loco.oauth.v1.RefreshTokenResponse\"\x00B7Z5github.com/team-loco/loco/proto/loco/oauth/v1;oauthv1b\x06proto3"
 
 var (
 	file_loco_oauth_v1_oauth_proto_rawDescOnce sync.Once
@@ -600,7 +730,7 @@ func file_loco_oauth_v1_oauth_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_oauth_v1_oauth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_oauth_v1_oauth_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_loco_oauth_v1_oauth_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_loco_oauth_v1_oauth_proto_goTypes = []any{
 	(OAuthProvider)(0),                       // 0: loco.oauth.v1.OAuthProvider
 	(*GetOAuthDetailsRequest)(nil),           // 1: loco.oauth.v1.GetOAuthDetailsRequest
@@ -611,25 +741,29 @@ var file_loco_oauth_v1_oauth_proto_goTypes = []any{
 	(*GetOAuthAuthorizationURLResponse)(nil), // 6: loco.oauth.v1.GetOAuthAuthorizationURLResponse
 	(*ExchangeOAuthCodeRequest)(nil),         // 7: loco.oauth.v1.ExchangeOAuthCodeRequest
 	(*ExchangeOAuthCodeResponse)(nil),        // 8: loco.oauth.v1.ExchangeOAuthCodeResponse
+	(*RefreshTokenRequest)(nil),              // 9: loco.oauth.v1.RefreshTokenRequest
+	(*RefreshTokenResponse)(nil),             // 10: loco.oauth.v1.RefreshTokenResponse
 }
 var file_loco_oauth_v1_oauth_proto_depIdxs = []int32{
-	0, // 0: loco.oauth.v1.GetOAuthDetailsRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	0, // 1: loco.oauth.v1.ExchangeOAuthTokenRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	0, // 2: loco.oauth.v1.GetOAuthAuthorizationURLRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	0, // 3: loco.oauth.v1.ExchangeOAuthCodeRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
-	1, // 4: loco.oauth.v1.OAuthService.GetOAuthDetails:input_type -> loco.oauth.v1.GetOAuthDetailsRequest
-	3, // 5: loco.oauth.v1.OAuthService.ExchangeOAuthToken:input_type -> loco.oauth.v1.ExchangeOAuthTokenRequest
-	5, // 6: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:input_type -> loco.oauth.v1.GetOAuthAuthorizationURLRequest
-	7, // 7: loco.oauth.v1.OAuthService.ExchangeOAuthCode:input_type -> loco.oauth.v1.ExchangeOAuthCodeRequest
-	2, // 8: loco.oauth.v1.OAuthService.GetOAuthDetails:output_type -> loco.oauth.v1.GetOAuthDetailsResponse
-	4, // 9: loco.oauth.v1.OAuthService.ExchangeOAuthToken:output_type -> loco.oauth.v1.ExchangeOAuthTokenResponse
-	6, // 10: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:output_type -> loco.oauth.v1.GetOAuthAuthorizationURLResponse
-	8, // 11: loco.oauth.v1.OAuthService.ExchangeOAuthCode:output_type -> loco.oauth.v1.ExchangeOAuthCodeResponse
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: loco.oauth.v1.GetOAuthDetailsRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	0,  // 1: loco.oauth.v1.ExchangeOAuthTokenRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	0,  // 2: loco.oauth.v1.GetOAuthAuthorizationURLRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	0,  // 3: loco.oauth.v1.ExchangeOAuthCodeRequest.provider:type_name -> loco.oauth.v1.OAuthProvider
+	1,  // 4: loco.oauth.v1.OAuthService.GetOAuthDetails:input_type -> loco.oauth.v1.GetOAuthDetailsRequest
+	3,  // 5: loco.oauth.v1.OAuthService.ExchangeOAuthToken:input_type -> loco.oauth.v1.ExchangeOAuthTokenRequest
+	5,  // 6: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:input_type -> loco.oauth.v1.GetOAuthAuthorizationURLRequest
+	7,  // 7: loco.oauth.v1.OAuthService.ExchangeOAuthCode:input_type -> loco.oauth.v1.ExchangeOAuthCodeRequest
+	9,  // 8: loco.oauth.v1.OAuthService.RefreshToken:input_type -> loco.oauth.v1.RefreshTokenRequest
+	2,  // 9: loco.oauth.v1.OAuthService.GetOAuthDetails:output_type -> loco.oauth.v1.GetOAuthDetailsResponse
+	4,  // 10: loco.oauth.v1.OAuthService.ExchangeOAuthToken:output_type -> loco.oauth.v1.ExchangeOAuthTokenResponse
+	6,  // 11: loco.oauth.v1.OAuthService.GetOAuthAuthorizationURL:output_type -> loco.oauth.v1.GetOAuthAuthorizationURLResponse
+	8,  // 12: loco.oauth.v1.OAuthService.ExchangeOAuthCode:output_type -> loco.oauth.v1.ExchangeOAuthCodeResponse
+	10, // 13: loco.oauth.v1.OAuthService.RefreshToken:output_type -> loco.oauth.v1.RefreshTokenResponse
+	9,  // [9:14] is the sub-list for method output_type
+	4,  // [4:9] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_loco_oauth_v1_oauth_proto_init() }
@@ -643,7 +777,7 @@ func file_loco_oauth_v1_oauth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_oauth_v1_oauth_proto_rawDesc), len(file_loco_oauth_v1_oauth_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -22,37 +22,50 @@ CREATE INDEX user_scopes_entity_scope_idx ON user_scopes (entity_type, entity_id
 -- what scopes does user x have?
 CREATE INDEX user_scopes_user_idx ON user_scopes (user_id);
 
--- token without the actual token string
-CREATE TYPE token_head AS (
-    name TEXT,
-    entity_type entity_type,
-    entity_id UUID,
-    scopes JSONB,
-    expires_at TIMESTAMPTZ
+-- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
+-- token format: loco_s_<base64url(uuidv7 bytes)>  access token
+--               loco_r_<base64url(uuidv7 bytes)>  refresh token
+-- stored as sha256(full_token_string), never the raw token
+CREATE UNLOGGED TABLE session_tokens (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    access_token_hash TEXT NOT NULL UNIQUE,
+    refresh_token_hash TEXT NOT NULL UNIQUE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    access_expires_at TIMESTAMPTZ NOT NULL,
+    refresh_expires_at TIMESTAMPTZ NOT NULL,
+    last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- "cost-saving measure"
-CREATE UNLOGGED TABLE tokens (
+CREATE INDEX session_tokens_user_idx ON session_tokens (user_id);
+CREATE INDEX session_tokens_access_expires_idx ON session_tokens (access_expires_at);
+-- cleanup cron uses refresh expiry to determine if a session is fully dead
+CREATE INDEX session_tokens_refresh_expires_idx ON session_tokens (refresh_expires_at);
+
+-- api tokens: logged, durable, scopes baked in at creation and never change
+-- token format: loco_k_<base64url(uuidv7 bytes)>
+-- stored as sha256(full_token_string), never the raw token
+CREATE TABLE api_tokens (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    token_hash TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    token TEXT PRIMARY KEY,
-    scopes JSONB NOT NULL, -- list of entity scopes associated with the token
-    entity_type entity_type NOT NULL, --  e.g. 'organization', 'workspace', 'resource', 'user'
-    entity_id UUID NOT NULL, -- on behalf of which entity the token is issued (e.g. organization_id or workspace_id)
+    entity_type entity_type NOT NULL,
+    entity_id UUID NOT NULL,
+    scopes JSONB NOT NULL,
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
+    last_used_at TIMESTAMPTZ,
     UNIQUE (name, entity_type, entity_id)
 );
 
--- which tokens exist on behalf of entity y?
-CREATE INDEX tokens_entity_idx ON tokens (entity_type, entity_id);
-
--- to quickly find tokens by their token name and entity
-CREATE INDEX tokens_name_idx ON tokens (name, entity_type, entity_id);
- 
--- to quickly find expired tokens
-CREATE INDEX tokens_expires_at_idx ON tokens (expires_at);
+CREATE INDEX api_tokens_entity_idx ON api_tokens (entity_type, entity_id);
+CREATE INDEX api_tokens_expires_idx ON api_tokens (expires_at);
 
 CREATE VIEW user_with_scopes_view AS
-SELECT 
+SELECT
     u.id,
     u.external_id,
     u.email,

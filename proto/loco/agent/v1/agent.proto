@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.agent.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 import "loco/deployment/v1/deployment.proto";
 
@@ -34,7 +35,7 @@ message RegisterRequest {
 
 // RegisterResponse contains the assigned cluster ID.
 message RegisterResponse {
-  int64 cluster_id = 1;
+  string cluster_id = 1;
 }
 
 // CommandType identifies the type of command.
@@ -49,7 +50,7 @@ enum CommandType {
 // CommandStreamResponse represents a unit of work to be executed by an agent.
 message CommandStreamResponse {
   string command_id = 1;
-  int64 cluster_id = 2;
+  string cluster_id = 2;
   google.protobuf.Timestamp created_at = 3;
   CommandType type = 4;
 
@@ -100,7 +101,7 @@ message CommandStreamRequest {
 
 // HeartbeatRequest is sent periodically by the agent.
 message HeartbeatRequest {
-  int64 cluster_id = 1;
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
   AgentCapacity capacity = 2;
   AgentHealth health = 3;
 }
@@ -148,9 +149,9 @@ message AgentHealth {
 
 // ReportStatusRequest is sent by the agent when deployment status changes.
 message ReportStatusRequest {
-  int64 cluster_id = 1;
-  string resource_id = 2;
-  string deployment_id = 3;
+  string cluster_id = 1 [(buf.validate.field).string.uuid = true];
+  string resource_id = 2 [(buf.validate.field).string.uuid = true];
+  string deployment_id = 3 [(buf.validate.field).string.uuid = true];
   loco.deployment.v1.DeploymentPhase phase = 4;
   string message = 5;
   repeated Condition conditions = 6;

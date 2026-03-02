@@ -1,76 +1,33 @@
 package auth
 
 import (
-	"sync"
-	"time"
+	"context"
+	"errors"
+
+	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
 
-// ValidatedClaims holds the result of a successful token validation.
-type ValidatedClaims struct {
-	WorkspaceID string
-	ResourceIDs []string
-	Scopes      []string
-	ExpiresAt   time.Time
-}
+// permissionCacheAllowed is the value stored when permission is granted.
+var permissionCacheAllowed = []byte("1")
 
-type cacheEntry struct {
-	claims   *ValidatedClaims
-	cachedAt time.Time
-}
-
-// TokenCache is a simple in-memory TTL cache for validated tokens.
-type TokenCache struct {
-	mu      sync.RWMutex
-	entries map[string]cacheEntry
-	ttl     time.Duration
-}
-
-func NewTokenCache(ttl time.Duration) *TokenCache {
-	tc := &TokenCache{
-		entries: make(map[string]cacheEntry),
-		ttl:     ttl,
+// setPermission stores a permission result in the cache.
+func setPermission(ctx context.Context, c cache.Cache, key string, allowed bool) {
+	val := []byte("0")
+	if allowed {
+		val = permissionCacheAllowed
 	}
-	go tc.cleanup()
-	return tc
+	_ = c.Set(ctx, key, val, 0)
 }
 
-func (c *TokenCache) Get(token string) (*ValidatedClaims, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	entry, ok := c.entries[token]
-	if !ok {
-		return nil, false
+// getPermission retrieves a cached permission result.
+// Returns (allowed, found).
+func getPermission(ctx context.Context, c cache.Cache, key string) (bool, bool) {
+	val, err := c.Get(ctx, key)
+	if errors.Is(err, cache.ErrNotFound) {
+		return false, false
 	}
-	if time.Since(entry.cachedAt) > c.ttl {
-		return nil, false
+	if err != nil {
+		return false, false
 	}
-	return entry.claims, true
-}
-
-func (c *TokenCache) Set(token string, claims *ValidatedClaims) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.entries[token] = cacheEntry{
-		claims:   claims,
-		cachedAt: time.Now(),
-	}
-}
-
-// cleanup runs every minute and removes expired entries.
-func (c *TokenCache) cleanup() {
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		c.mu.Lock()
-		now := time.Now()
-		for k, v := range c.entries {
-			if now.Sub(v.cachedAt) > c.ttl {
-				delete(c.entries, k)
-			}
-		}
-		c.mu.Unlock()
-	}
+	return string(val) == "1", true
 }

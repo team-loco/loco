@@ -74,10 +74,10 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 	const logsEndRef = useRef<HTMLDivElement>(null);
 
 	const handleCopyLog = (logText: string, index: number) => {
-		navigator.clipboard.writeText(logText);
+		void navigator.clipboard.writeText(logText);
 		setCopiedIndex(index);
 		toast.success("Log copied to clipboard");
-		setTimeout(() => setCopiedIndex(null), 2000);
+		setTimeout(() => { setCopiedIndex(null); }, 2000);
 	};
 
 	const handleRefresh = () => {
@@ -98,7 +98,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 		const tzName =
 			Intl.DateTimeFormat("en-US", { timeZoneName: "short" })
 				.formatToParts(date)
-				.find((part) => part.type === "timeZoneName")?.value || "UTC";
+				.find((part) => part.type === "timeZoneName")?.value ?? "UTC";
 		return tzName;
 	};
 
@@ -149,7 +149,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 			"href",
 			"data:text/plain;charset=utf-8," + encodeURIComponent(logsText)
 		);
-		element.setAttribute("download", `logs-${resourceId}-${Date.now()}.txt`);
+		element.setAttribute("download", `logs-${resourceId}-${Date.now().toString()}.txt`);
 		element.style.display = "none";
 		document.body.appendChild(element);
 		element.click();
@@ -161,7 +161,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 			accessorKey: "timestamp",
 			header: ({ column }) => (
 				<button
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+					onClick={() => { column.toggleSorting(column.getIsSorted() === "asc"); }}
 					className="flex items-center gap-1 hover:bg-slate-200/30 dark:hover:bg-slate-800/30 px-1 py-0.5 rounded transition-colors"
 				>
 					<span>
@@ -264,7 +264,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 							<Input
 								placeholder="Search logs..."
 								value={searchTerm}
-								onChange={(e) => setSearchTerm(e.target.value)}
+								onChange={(e) => { setSearchTerm(e.target.value); }}
 								className="pl-9"
 							/>
 						</div>
@@ -276,9 +276,9 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 										variant={timezoneMode === "utc" ? "default" : "outline"}
 										size="sm"
 										onClick={() =>
-											setTimezoneMode(
+											{ setTimezoneMode(
 												timezoneMode === "utc" ? "relative" : "utc"
-											)
+											); }
 										}
 										className="flex-1 sm:flex-none"
 									>
@@ -296,7 +296,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 									<Button
 										variant="outline"
 										size="sm"
-										onClick={() => setIsFollowing(!isFollowing)}
+										onClick={() => { setIsFollowing(!isFollowing); }}
 										className="flex-1 sm:flex-none"
 									>
 										{isFollowing ? (
@@ -357,7 +357,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 											<TableHead
 												key={header.id}
 												style={{
-													width: `${header.getSize()}px`,
+													width: `${header.getSize().toString()}px`,
 												}}
 												className="text-slate-500 dark:text-slate-500 font-normal px-2 py-1.5 text-xs relative group"
 											>
@@ -396,7 +396,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 												<TableCell
 													key={cell.id}
 													style={{
-														width: `${cell.column.getSize()}px`,
+														width: `${cell.column.getSize().toString()}px`,
 													}}
 													className={paddingClass}
 												>
@@ -434,13 +434,13 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 				<div className="flex items-center justify-between text-sm">
 					<div className="text-foreground opacity-70">
 						Showing {table.getRowModel().rows.length} of{" "}
-						{table.getFilteredRowModel().rows.length} logs
+						{table.getFilteredRowModel().rows.length.toString()} logs
 					</div>
 					<div className="flex items-center gap-2">
 						<div className="hidden sm:flex items-center gap-2">
 							<span className="text-foreground opacity-70">Rows per page</span>
 							<Select
-								value={`${table.getState().pagination.pageSize}`}
+								value={table.getState().pagination.pageSize.toString()}
 								onValueChange={(value) => {
 									table.setPageSize(Number(value));
 								}}
@@ -450,7 +450,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 								</SelectTrigger>
 								<SelectContent side="top">
 									{[10, 20, 50].map((pageSize) => (
-										<SelectItem key={pageSize} value={`${pageSize}`}>
+										<SelectItem key={pageSize} value={pageSize.toString()}>
 											{pageSize}
 										</SelectItem>
 									))}
@@ -466,7 +466,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 										? "opacity-30 text-muted-foreground"
 										: ""
 								}`}
-								onClick={() => table.previousPage()}
+								onClick={() => { table.previousPage(); }}
 								disabled={!table.getCanPreviousPage()}
 							>
 								Previous
@@ -479,7 +479,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 										? "opacity-30 text-muted-foreground"
 										: ""
 								}`}
-								onClick={() => table.nextPage()}
+								onClick={() => { table.nextPage(); }}
 								disabled={!table.getCanNextPage()}
 							>
 								Next

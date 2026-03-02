@@ -5,18 +5,17 @@
 import { ObservabilityAccessService } from "./observability_access_pb";
 
 /**
- * GetObservabilityAccess mints a short-lived token scoped to a workspace and optional
- * resource set, and returns the regional proxy endpoints the client should connect to.
+ * GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
+ * The client's existing TVM token is used directly when talking to the proxy.
  *
  * @generated from rpc loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess
  */
 export const getObservabilityAccess = ObservabilityAccessService.method.getObservabilityAccess;
 
 /**
- * ValidateObservabilityToken is called by the observability proxy to validate a token
- * received from a client. This endpoint is authenticated with a proxy auth token
- * (similar to agent token) and is NOT intended for end users.
+ * CheckPermission is called by the observability proxy to validate whether a token
+ * has the requested permission on an entity. Authenticated with a proxy auth token.
  *
- * @generated from rpc loco.observability.v1.ObservabilityAccessService.ValidateObservabilityToken
+ * @generated from rpc loco.observability.v1.ObservabilityAccessService.CheckPermission
  */
-export const validateObservabilityToken = ObservabilityAccessService.method.validateObservabilityToken;
+export const checkPermission = ObservabilityAccessService.method.checkPermission;

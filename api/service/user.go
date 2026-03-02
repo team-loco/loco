@@ -47,11 +47,6 @@ func (s *UserServer) CreateUser(
 ) (*connect.Response[userv1.CreateUserResponse], error) {
 	r := req.Msg
 
-	if r.GetExternalId() == "" || r.GetEmail() == "" {
-		slog.ErrorContext(ctx, "invalid request: missing required fields")
-		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidRequest)
-	}
-
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
@@ -213,16 +208,10 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	userId, err := uuid.Parse(r.GetUserId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid user id format", "userId", r.GetUserId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
-	}
-
 	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
 
-	_, err = s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
-		ID:        userId,
+	_, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
+		ID:        uuid.MustParse(r.GetUserId()),
 		AvatarUrl: avatarURL,
 	})
 	if err != nil {
@@ -308,13 +297,9 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	userId, err := uuid.Parse(r.GetUserId())
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid user id format", "userId", r.GetUserId())
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
-	}
+	userId := uuid.MustParse(r.GetUserId())
 
-	_, err = s.queries.GetUserByID(ctx, userId)
+	_, err := s.queries.GetUserByID(ctx, userId)
 	if err != nil {
 		slog.WarnContext(ctx, "user not found", "user_id", r.GetUserId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
@@ -357,7 +342,8 @@ func (s *UserServer) Logout(
 	req *connect.Request[userv1.LogoutRequest],
 ) (*connect.Response[userv1.LogoutResponse], error) {
 	res := connect.NewResponse(&userv1.LogoutResponse{})
-	res.Header().Set("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax")
+	res.Header().Add("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag())
+	res.Header().Add("Set-Cookie", "loco_refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag())
 
 	token, ok := ctx.Value(contextkeys.TokenKey).(string)
 	if !ok {
@@ -377,13 +363,7 @@ func (s *UserServer) Logout(
 // Helper methods
 
 func (s *UserServer) getUserByID(ctx context.Context, id string) (*userv1.User, error) {
-	userId, err := uuid.Parse(id)
-	if err != nil {
-		slog.ErrorContext(ctx, "invalid user id format", "userId", id)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
-	}
-
-	user, err := s.queries.GetUserByID(ctx, userId)
+	user, err := s.queries.GetUserByID(ctx, uuid.MustParse(id))
 	if err != nil {
 		slog.WarnContext(ctx, "user not found", "id", id)
 		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)

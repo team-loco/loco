@@ -37,9 +37,9 @@ type CreatePlatformDomainParams struct {
 	IsActive bool   `json:"isActive"`
 }
 
-func (q *Queries) CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (int64, error) {
+func (q *Queries) CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createPlatformDomain, arg.Domain, arg.IsActive)
-	var id int64
+	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
 }
@@ -62,7 +62,7 @@ type CreateResourceDomainParams struct {
 	Domain           string       `json:"domain"`
 	DomainSource     DomainSource `json:"domainSource"`
 	SubdomainLabel   pgtype.Text  `json:"subdomainLabel"`
-	PlatformDomainID pgtype.Int8  `json:"platformDomainId"`
+	PlatformDomainID *uuid.UUID   `json:"platformDomainId"`
 	IsPrimary        bool         `json:"isPrimary"`
 }
 
@@ -87,7 +87,7 @@ WHERE id = $1
 RETURNING id
 `
 
-func (q *Queries) DeactivatePlatformDomain(ctx context.Context, id int64) (int64, error) {
+func (q *Queries) DeactivatePlatformDomain(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, deactivatePlatformDomain, id)
 	err := row.Scan(&id)
 	return id, err
@@ -117,7 +117,7 @@ type GetDomainByResourceIdRow struct {
 	Domain             string             `json:"domain"`
 	DomainSource       DomainSource       `json:"domainSource"`
 	SubdomainLabel     pgtype.Text        `json:"subdomainLabel"`
-	PlatformDomainID   pgtype.Int8        `json:"platformDomainId"`
+	PlatformDomainID   *uuid.UUID         `json:"platformDomainId"`
 	IsPrimary          bool               `json:"isPrimary"`
 	CreatedAt          pgtype.Timestamptz `json:"createdAt"`
 	UpdatedAt          pgtype.Timestamptz `json:"updatedAt"`
@@ -147,7 +147,7 @@ SELECT id, domain, is_active, created_at FROM platform_domains
 WHERE id = $1
 `
 
-func (q *Queries) GetPlatformDomain(ctx context.Context, id int64) (PlatformDomain, error) {
+func (q *Queries) GetPlatformDomain(ctx context.Context, id uuid.UUID) (PlatformDomain, error) {
 	row := q.db.QueryRow(ctx, getPlatformDomain, id)
 	var i PlatformDomain
 	err := row.Scan(

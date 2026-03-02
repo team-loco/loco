@@ -56,7 +56,7 @@ export function WorkspaceSettings() {
 			},
 			{
 				onSuccess: () => {
-					refetch();
+					void refetch();
 					toast.success("Workspace updated");
 					setIsEditing(false);
 				},
@@ -101,7 +101,7 @@ export function WorkspaceSettings() {
 						<Input
 							id="ws-name"
 							value={isEditing ? wsName : workspace.name}
-							onChange={(e) => setWsName(e.target.value)}
+							onChange={(e) => { setWsName(e.target.value); }}
 							disabled={!isEditing}
 							className="border-border"
 						/>
@@ -115,7 +115,7 @@ export function WorkspaceSettings() {
 						<Textarea
 							id="ws-desc"
 							value={isEditing ? wsDescription : workspace.description ?? ""}
-							onChange={(e) => setWsDescription(e.target.value)}
+							onChange={(e) => { setWsDescription(e.target.value); }}
 							disabled={!isEditing}
 							className="border-border"
 							placeholder="Describe this workspace..."
@@ -126,7 +126,7 @@ export function WorkspaceSettings() {
 					{/* Actions */}
 					<div className="flex gap-3 pt-4 border-t border-border">
 						{!isEditing ? (
-							<Button variant="secondary" onClick={() => setIsEditing(true)}>
+							<Button variant="secondary" onClick={() => { setIsEditing(true); }}>
 								Edit Workspace
 							</Button>
 						) : (
@@ -189,7 +189,7 @@ export function WorkspaceSettings() {
 				<CardContent>
 					<Button
 						variant="destructive"
-						onClick={() => setDeleteDialogOpen(true)}
+						onClick={() => { setDeleteDialogOpen(true); }}
 					>
 						Delete Workspace
 					</Button>

@@ -7,6 +7,7 @@
 package resourcev1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v1 "github.com/team-loco/loco/proto/loco/deployment/v1"
 	v11 "github.com/team-loco/loco/proto/loco/domain/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -971,7 +972,6 @@ type Resource struct {
 	CreatedBy     string                 `protobuf:"bytes,11,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	EnvironmentId *string                `protobuf:"bytes,14,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1097,13 +1097,6 @@ func (x *Resource) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Resource) GetEnvironmentId() string {
-	if x != nil && x.EnvironmentId != nil {
-		return *x.EnvironmentId
-	}
-	return ""
-}
-
 // RegionConfig represents a region deployment intent for a resource.
 type RegionConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1175,15 +1168,13 @@ func (x *RegionConfig) GetLastError() string {
 
 // CreateResourceRequest is the request to create a new resource.
 type CreateResourceRequest struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Type        ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
-	Domain      *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
-	Spec        *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
-	Description *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	// environment_id scopes this resource to an environment. Defaults to the org's production environment if omitted.
-	EnvironmentId *string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type          ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
+	Domain        *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	Spec          *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
+	Description   *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1256,13 +1247,6 @@ func (x *CreateResourceRequest) GetSpec() *ResourceSpec {
 func (x *CreateResourceRequest) GetDescription() string {
 	if x != nil && x.Description != nil {
 		return *x.Description
-	}
-	return ""
-}
-
-func (x *CreateResourceRequest) GetEnvironmentId() string {
-	if x != nil && x.EnvironmentId != nil {
-		return *x.EnvironmentId
 	}
 	return ""
 }
@@ -2650,7 +2634,7 @@ var File_loco_resource_v1_resource_proto protoreflect.FileDescriptor
 
 const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
-	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\"g\n" +
+	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\"g\n" +
 	"\rRoutingConfig\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1f\n" +
 	"\vpath_prefix\x18\x02 \x01(\tR\n" +
@@ -2687,11 +2671,11 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\x12:\n" +
 	"\ascalers\x18\a \x01(\v2\x1b.loco.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
 	"\n" +
-	"\b_scalers\"\x97\x03\n" +
+	"\b_scalers\"\xa1\x03\n" +
 	"\vServiceSpec\x129\n" +
 	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12K\n" +
-	"\robservability\x18\x02 \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12D\n" +
-	"\aregions\x18\x03 \x03(\v2*.loco.resource.v1.ServiceSpec.RegionsEntryR\aregions\x12M\n" +
+	"\robservability\x18\x02 \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12N\n" +
+	"\aregions\x18\x03 \x03(\v2*.loco.resource.v1.ServiceSpec.RegionsEntryB\b\xbaH\x05\x9a\x01\x02\b\x01R\aregions\x12M\n" +
 	"\fhealth_check\x18\x04 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x1aZ\n" +
 	"\fRegionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
@@ -2708,7 +2692,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x05cache\x18\x03 \x01(\v2\x1b.loco.resource.v1.CacheSpecH\x00R\x05cache\x123\n" +
 	"\x05queue\x18\x04 \x01(\v2\x1b.loco.resource.v1.QueueSpecH\x00R\x05queue\x120\n" +
 	"\x04blob\x18\x05 \x01(\v2\x1a.loco.resource.v1.BlobSpecH\x00R\x04blobB\x06\n" +
-	"\x04spec\"\xa3\x05\n" +
+	"\x04spec\"\xfa\x04\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -2726,11 +2710,9 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12*\n" +
-	"\x0eenvironment_id\x18\x0e \x01(\tH\x02R\renvironmentId\x88\x01\x01B\a\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\a\n" +
 	"\x05_specB\x0e\n" +
-	"\f_descriptionB\x11\n" +
-	"\x0f_environment_id\"\xb6\x01\n" +
+	"\f_descriptionJ\x04\b\x0e\x10\x0fR\x0eenvironment_id\"\xb6\x01\n" +
 	"\fRegionConfig\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1d\n" +
 	"\n" +
@@ -2738,52 +2720,52 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2$.loco.resource.v1.RegionIntentStatusR\x06status\x12\"\n" +
 	"\n" +
 	"last_error\x18\x04 \x01(\tH\x00R\tlastError\x88\x01\x01B\r\n" +
-	"\v_last_error\"\xe1\x02\n" +
-	"\x15CreateResourceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x122\n" +
-	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x123\n" +
-	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputR\x06domain\x122\n" +
-	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecR\x04spec\x12%\n" +
-	"\vdescription\x18\x06 \x01(\tH\x00R\vdescription\x88\x01\x01\x12*\n" +
-	"\x0eenvironment_id\x18\a \x01(\tH\x01R\renvironmentId\x88\x01\x01B\x0e\n" +
-	"\f_descriptionB\x11\n" +
-	"\x0f_environment_id\"9\n" +
+	"\v_last_error\"\xf1\x02\n" +
+	"\x15CreateResourceRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12>\n" +
+	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04type\x12;\n" +
+	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputB\x06\xbaH\x03\xc8\x01\x01R\x06domain\x12:\n" +
+	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
+	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x00R\vdescription\x88\x01\x01B\x0e\n" +
+	"\f_descriptionJ\x04\b\a\x10\bR\x0eenvironment_id\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\"K\n" +
-	"\x12GetResourceNameKey\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"\x81\x01\n" +
+	"resourceId\"^\n" +
+	"\x12GetResourceNameKey\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
+	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\x81\x01\n" +
 	"\x12GetResourceRequest\x12!\n" +
 	"\vresource_id\x18\x01 \x01(\tH\x00R\n" +
 	"resourceId\x12A\n" +
 	"\bname_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceNameKeyH\x00R\anameKeyB\x05\n" +
 	"\x03key\"M\n" +
 	"\x13GetResourceResponse\x126\n" +
-	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"~\n" +
-	"\x1dListWorkspaceResourcesRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\x94\x01\n" +
+	"\x1dListWorkspaceResourcesRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xce\x01\n" +
-	"\x15UpdateResourceRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xeb\x01\n" +
+	"\x15UpdateResourceRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12\x17\n" +
-	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01B\a\n" +
+	"updateMask\x12 \n" +
+	"\x04name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_description\"9\n" +
 	"\x16UpdateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\"8\n" +
-	"\x15DeleteResourceRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
+	"resourceId\"B\n" +
+	"\x15DeleteResourceRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\"\x18\n" +
 	"\x16DeleteResourceResponse\"h\n" +
 	"\n" +
@@ -2794,9 +2776,9 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\rhealth_status\x18\x03 \x01(\tR\fhealthStatus\"\x14\n" +
 	"\x12ListRegionsRequest\"M\n" +
 	"\x13ListRegionsResponse\x126\n" +
-	"\aregions\x18\x01 \x03(\v2\x1c.loco.resource.v1.RegionInfoR\aregions\";\n" +
-	"\x18GetResourceStatusRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
+	"\aregions\x18\x01 \x03(\v2\x1c.loco.resource.v1.RegionInfoR\aregions\"E\n" +
+	"\x18GetResourceStatusRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\"\xa6\x01\n" +
 	"\x10DeploymentStatus\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12;\n" +
@@ -2807,11 +2789,12 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\b_message\"\xa6\x01\n" +
 	"\x19GetResourceStatusResponse\x126\n" +
 	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\x12Q\n" +
-	"\x12current_deployment\x18\x02 \x01(\v2\".loco.resource.v1.DeploymentStatusR\x11currentDeployment\"\x80\x01\n" +
-	"\x10WatchLogsRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x19\n" +
-	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01\x12\x1b\n" +
+	"\x12current_deployment\x18\x02 \x01(\v2\".loco.resource.v1.DeploymentStatusR\x11currentDeployment\"\x96\x01\n" +
+	"\x10WatchLogsRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12%\n" +
+	"\x05limit\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N(\x01H\x00R\x05limit\x88\x01\x01\x12\x1b\n" +
 	"\x06follow\x18\x03 \x01(\bH\x01R\x06follow\x88\x01\x01B\b\n" +
 	"\x06_limitB\t\n" +
 	"\a_follow\"\xcc\x01\n" +
@@ -2827,30 +2810,31 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12\x12\n" +
 	"\x04type\x18\x04 \x01(\tR\x04type\x12\x19\n" +
-	"\bpod_name\x18\x05 \x01(\tR\apodName\"a\n" +
-	"\x19ListResourceEventsRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x19\n" +
-	"\x05limit\x18\x02 \x01(\x05H\x00R\x05limit\x88\x01\x01B\b\n" +
+	"\bpod_name\x18\x05 \x01(\tR\apodName\"w\n" +
+	"\x19ListResourceEventsRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12%\n" +
+	"\x05limit\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xe8\a(\x01H\x00R\x05limit\x88\x01\x01B\b\n" +
 	"\x06_limit\"M\n" +
 	"\x1aListResourceEventsResponse\x12/\n" +
-	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xd4\x01\n" +
-	"\x14ScaleResourceRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x1f\n" +
-	"\breplicas\x18\x02 \x01(\x05H\x00R\breplicas\x88\x01\x01\x12\x15\n" +
-	"\x03cpu\x18\x03 \x01(\tH\x01R\x03cpu\x88\x01\x01\x12\x1b\n" +
-	"\x06memory\x18\x04 \x01(\tH\x02R\x06memory\x88\x01\x01\x12\x1b\n" +
+	"\x06events\x18\x01 \x03(\v2\x17.loco.resource.v1.EventR\x06events\"\xf9\x01\n" +
+	"\x14ScaleResourceRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12(\n" +
+	"\breplicas\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x01H\x00R\breplicas\x88\x01\x01\x12\x1e\n" +
+	"\x03cpu\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x01R\x03cpu\x88\x01\x01\x12$\n" +
+	"\x06memory\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01H\x02R\x06memory\x88\x01\x01\x12\x1b\n" +
 	"\x06region\x18\x05 \x01(\tH\x03R\x06region\x88\x01\x01B\v\n" +
 	"\t_replicasB\x06\n" +
 	"\x04_cpuB\t\n" +
 	"\a_memoryB\t\n" +
 	"\a_region\"\x17\n" +
-	"\x15ScaleResourceResponse\"\xe2\x01\n" +
-	"\x18UpdateResourceEnvRequest\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12E\n" +
-	"\x03env\x18\x02 \x03(\v23.loco.resource.v1.UpdateResourceEnvRequest.EnvEntryR\x03env\x12\x1b\n" +
+	"\x15ScaleResourceResponse\"\xf6\x01\n" +
+	"\x18UpdateResourceEnvRequest\x12)\n" +
+	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
+	"resourceId\x12O\n" +
+	"\x03env\x18\x02 \x03(\v23.loco.resource.v1.UpdateResourceEnvRequest.EnvEntryB\b\xbaH\x05\x9a\x01\x02\b\x01R\x03env\x12\x1b\n" +
 	"\x06region\x18\x03 \x01(\tH\x00R\x06region\x88\x01\x01\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +

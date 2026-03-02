@@ -31,3 +31,10 @@ export const getOAuthAuthorizationURL = OAuthService.method.getOAuthAuthorizatio
  * @generated from rpc loco.oauth.v1.OAuthService.ExchangeOAuthCode
  */
 export const exchangeOAuthCode = OAuthService.method.exchangeOAuthCode;
+
+/**
+ * RefreshToken rotates a session token pair using a refresh token.
+ *
+ * @generated from rpc loco.oauth.v1.OAuthService.RefreshToken
+ */
+export const refreshToken = OAuthService.method.refreshToken;

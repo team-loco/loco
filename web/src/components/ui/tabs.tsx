@@ -16,10 +16,7 @@ function Tabs({
 	);
 }
 
-const TabsList = React.forwardRef<
-	React.ElementRef<typeof TabsPrimitive.List>,
-	React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => {
+const TabsList = ({ ref, className, ...props }: React.ComponentPropsWithoutRef<typeof TabsPrimitive.List> & { ref?: React.RefObject<React.ComponentRef<typeof TabsPrimitive.List> | null> }) => {
 	const [indicatorStyle, setIndicatorStyle] = useState({
 		left: 0,
 		top: 0,
@@ -78,7 +75,7 @@ const TabsList = React.forwardRef<
 				ref={ref}
 				data-slot="tabs-list"
 				className={cn(
-					"bg-muted text-muted-foreground relative inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
+					"bg-accent text-muted-foreground relative inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
 					className
 				)}
 				{...props}
@@ -89,13 +86,10 @@ const TabsList = React.forwardRef<
 			/>
 		</div>
 	);
-});
+};
 TabsList.displayName = TabsPrimitive.List.displayName;
 
-const TabsTrigger = React.forwardRef<
-	React.ElementRef<typeof TabsPrimitive.Trigger>,
-	React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
+const TabsTrigger = ({ ref, className, ...props }: React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & { ref?: React.RefObject<React.ComponentRef<typeof TabsPrimitive.Trigger> | null> }) => (
 	<TabsPrimitive.Trigger
 		ref={ref}
 		data-slot="tabs-trigger"
@@ -105,20 +99,17 @@ const TabsTrigger = React.forwardRef<
 		)}
 		{...props}
 	/>
-));
+);
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
-const TabsContent = React.forwardRef<
-	React.ElementRef<typeof TabsPrimitive.Content>,
-	React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
->(({ className, ...props }, ref) => (
+const TabsContent = ({ ref, className, ...props }: React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content> & { ref?: React.RefObject<React.ComponentRef<typeof TabsPrimitive.Content> | null> }) => (
 	<TabsPrimitive.Content
 		ref={ref}
 		data-slot="tabs-content"
 		className={cn("flex-1 outline-none mt-2", className)}
 		{...props}
 	/>
-));
+);
 TabsContent.displayName = TabsPrimitive.Content.displayName;
 
 export { Tabs, TabsContent, TabsList, TabsTrigger };

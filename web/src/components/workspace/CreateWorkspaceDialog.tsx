@@ -87,7 +87,7 @@ export function CreateWorkspaceDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
-			<DialogContent className="sm:max-w-[425px]">
+			<DialogContent className="sm:max-w-[400px]">
 				<form onSubmit={handleSubmit}>
 					<DialogHeader>
 						<DialogTitle>Create Workspace</DialogTitle>
@@ -104,7 +104,7 @@ export function CreateWorkspaceDialog({
 								id="workspace-name"
 								placeholder="Production"
 								value={workspaceName}
-								onChange={(e) => setWorkspaceName(e.target.value)}
+								onChange={(e) => { setWorkspaceName(e.target.value); }}
 								disabled={isPending}
 								autoFocus
 							/>
@@ -119,7 +119,7 @@ export function CreateWorkspaceDialog({
 								id="workspace-description"
 								placeholder="Production environment for customer-facing applications"
 								value={description}
-								onChange={(e) => setDescription(e.target.value)}
+								onChange={(e) => { setDescription(e.target.value); }}
 								disabled={isPending}
 								rows={3}
 							/>

@@ -8,7 +8,6 @@ import {
 	AlertDialogAction,
 	AlertDialogCancel,
 	AlertDialogContent,
-	AlertDialogDescription,
 	AlertDialogHeader,
 	AlertDialogTitle,
 	AlertDialogTrigger,
@@ -34,10 +33,10 @@ function formatRelativeTimeFuture(date: Date): string {
 	const diffMonth = Math.floor(diffDay / 30);
 
 	if (diffSec < 0) return "expired";
-	if (diffMin < 60) return `in ${diffMin} minute${diffMin !== 1 ? "s" : ""}`;
-	if (diffHour < 24) return `in ${diffHour} hour${diffHour !== 1 ? "s" : ""}`;
-	if (diffDay < 30) return `in ${diffDay} day${diffDay !== 1 ? "s" : ""}`;
-	return `in ${diffMonth} month${diffMonth !== 1 ? "s" : ""}`;
+	if (diffMin < 60) return `in ${diffMin.toString()} minute${diffMin !== 1 ? "s" : ""}`;
+	if (diffHour < 24) return `in ${diffHour.toString()} hour${diffHour !== 1 ? "s" : ""}`;
+	if (diffDay < 30) return `in ${diffDay.toString()} day${diffDay !== 1 ? "s" : ""}`;
+	return `in ${diffMonth.toString()} month${diffMonth !== 1 ? "s" : ""}`;
 }
 
 function maskToken(token: string): string {
@@ -183,11 +182,16 @@ export function getTokenColumns(
 					if (!scopeGroups.has(scope.entityType)) {
 						scopeGroups.set(scope.entityType, new Map());
 					}
-					const entityMap = scopeGroups.get(scope.entityType)!;
-					if (!entityMap.has(scope.entityId)) {
-						entityMap.set(scope.entityId, new Set());
+					const entityMap = scopeGroups.get(scope.entityType);
+					if (entityMap) {
+						if (!entityMap.has(scope.entityId)) {
+							entityMap.set(scope.entityId, new Set());
+						}
+						const scopeSet = entityMap.get(scope.entityId);
+						if (scopeSet) {
+							scopeSet.add(scope.scope);
+						}
 					}
-					entityMap.get(scope.entityId)!.add(scope.scope);
 				});
 
 				return (
@@ -216,11 +220,11 @@ export function getTokenColumns(
 													variant={entityInfo.variant}
 													className="h-5 text-[10px] px-1.5 py-0 cursor-help"
 												>
-													{entityInfo.label}: {formatShortId(entityId.toString())} {scopeStr}
+													{entityInfo.label}: {formatShortId(entityId)} {scopeStr}
 												</Badge>
 											</TooltipTrigger>
 											<TooltipContent>
-												{entityInfo.label}: {entityId.toString()}
+												{entityInfo.label}: {entityId}
 											</TooltipContent>
 										</Tooltip>
 									</TooltipProvider>

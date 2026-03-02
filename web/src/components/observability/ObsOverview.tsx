@@ -56,12 +56,10 @@ const SPARKLINE_CONFIG: ChartConfig = {
 function SparklineCard({
 	title,
 	metricName,
-	unit,
 	formatter,
 }: {
 	title: string;
 	metricName: string;
-	unit?: string;
 	formatter?: (v: number) => string;
 }) {
 	const { clusterTransports, workspaceId, selectedResourceIds, timeRange } =

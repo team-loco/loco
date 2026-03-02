@@ -9,15 +9,15 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
 	"charm.land/bubbles/v2/table"
 	"charm.land/lipgloss/v2"
+	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/client"
+	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/internal/httputil"
 	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
 	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
 )

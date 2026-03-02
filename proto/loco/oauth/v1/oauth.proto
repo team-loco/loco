@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package loco.oauth.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/team-loco/loco/proto/loco/oauth/v1;oauthv1";
 
 // OAuthProvider represents supported OAuth identity providers.
@@ -12,7 +14,10 @@ enum OAuthProvider {
 
 // GetOAuthDetailsRequest is the request to get OAuth configuration for a provider.
 message GetOAuthDetailsRequest {
-  OAuthProvider provider = 1;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // GetOAuthDetailsResponse contains OAuth configuration details needed for client-side OAuth flow.
@@ -23,8 +28,11 @@ message GetOAuthDetailsResponse {
 
 // ExchangeOAuthTokenRequest exchanges an OAuth provider access token for a Loco authentication token.
 message ExchangeOAuthTokenRequest {
-  OAuthProvider provider = 1;
-  string token = 2;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string token = 2 [(buf.validate.field).string.min_len = 1];
   bool create_user_if_not_exists = 3;
 }
 
@@ -34,11 +42,15 @@ message ExchangeOAuthTokenResponse {
   int64 expires_in = 2; // seconds
   string user_id = 3;
   string name = 4;
+  string refresh_token = 5;
 }
 
 // GetOAuthAuthorizationURLRequest is the request to initiate OAuth authorization flow.
 message GetOAuthAuthorizationURLRequest {
-  OAuthProvider provider = 1;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
   string state = 2;
   string redirect_uri = 3;
 }
@@ -51,9 +63,12 @@ message GetOAuthAuthorizationURLResponse {
 
 // ExchangeOAuthCodeRequest exchanges an OAuth authorization code for authentication tokens.
 message ExchangeOAuthCodeRequest {
-  OAuthProvider provider = 1;
-  string code = 2;
-  string state = 3;
+  OAuthProvider provider = 1 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string code = 2 [(buf.validate.field).string.min_len = 1];
+  string state = 3 [(buf.validate.field).string.min_len = 1];
   string redirect_uri = 4;
 }
 
@@ -62,6 +77,19 @@ message ExchangeOAuthCodeResponse {
   int64 expires_in = 1;
   string user_id = 2;
   string name = 3;
+}
+
+// RefreshTokenRequest requests a new session token pair using a refresh token.
+// If refresh_token is empty, the server reads the loco_refresh_token cookie.
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// RefreshTokenResponse contains the new session token pair.
+message RefreshTokenResponse {
+  string loco_token = 1;
+  int64 expires_in = 2; // seconds
+  string refresh_token = 3;
 }
 
 // OAuthService handles OAuth authentication flows.
@@ -74,4 +102,6 @@ service OAuthService {
   rpc GetOAuthAuthorizationURL(GetOAuthAuthorizationURLRequest) returns (GetOAuthAuthorizationURLResponse) {}
   // ExchangeOAuthCode exchanges an OAuth authorization code for a Loco token.
   rpc ExchangeOAuthCode(ExchangeOAuthCodeRequest) returns (ExchangeOAuthCodeResponse) {}
+  // RefreshToken rotates a session token pair using a refresh token.
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {}
 }

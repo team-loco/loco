@@ -55,7 +55,7 @@ export function ResourceSettings() {
 	);
 	const resource = resourceResponse?.resource;
 
-	const [name, setName] = useState(resource?.name || "");
+	const [name, setName] = useState(resource?.name ?? "");
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [newDomain, setNewDomain] = useState("");
 	const [domainSource, setDomainSource] = useState<"platform" | "user">(
@@ -68,7 +68,7 @@ export function ResourceSettings() {
 	const [memoryValue, setMemoryValue] = useState<number[]>([512]);
 
 	const { data: platformDomainsRes } = useQuery(listPlatformDomains, {});
-	const platformDomains = platformDomainsRes?.platformDomains || [];
+	const platformDomains = platformDomainsRes?.platformDomains ?? [];
 
 	const updateResourceMutation = useMutation(updateResource);
 	const deleteResourceMutation = useMutation(deleteResource);
@@ -86,7 +86,7 @@ export function ResourceSettings() {
 		try {
 			await updateResourceMutation.mutateAsync({
 				resourceId: resourceId,
-				name: name || resource?.name || "",
+				name: name ?? resource?.name ?? "",
 			});
 			toast.success("Resource updated successfully");
 		} catch (error) {
@@ -103,7 +103,7 @@ export function ResourceSettings() {
 			});
 			toast.success("Resource deleted successfully");
 			if (activeOrgId && activeWorkspaceId) {
-				navigate(`/org/${activeOrgId}/wks/${activeWorkspaceId}`);
+				void navigate(`/org/${activeOrgId}/wks/${activeWorkspaceId}`);
 			}
 		} catch (error) {
 			toastConnectError(error);
@@ -215,8 +215,8 @@ export function ResourceSettings() {
 		try {
 			await scaleResourceMutation.mutateAsync({
 				resourceId: resourceId,
-				cpu: `${cpuValue[0]}m`,
-				memory: `${memoryValue[0]}Mi`,
+				cpu: `${cpuValue[0].toString()}m`,
+				memory: `${memoryValue[0].toString()}Mi`,
 			});
 			toast.success("Resource scaling initiated");
 			await refetch();
@@ -274,7 +274,9 @@ export function ResourceSettings() {
 						</label>
 						<Input
 							value={name}
-							onChange={(e) => setName(e.target.value)}
+							onChange={(e) => {
+								setName(e.target.value);
+							}}
 							className="mt-1"
 						/>
 					</div>
@@ -291,7 +293,9 @@ export function ResourceSettings() {
 							Reset
 						</Button>
 						<Button
-							onClick={handleSave}
+							onClick={() => {
+								void handleSave();
+							}}
 							disabled={!hasChanges || updateResourceMutation.isPending}
 						>
 							{updateResourceMutation.isPending ? (
@@ -326,14 +330,18 @@ export function ResourceSettings() {
 											<div className="flex items-center justify-between gap-2">
 												<Input
 													value={editDomainValue}
-													onChange={(e) => setEditDomainValue(e.target.value)}
+													onChange={(e) => {
+														setEditDomainValue(e.target.value);
+													}}
 													className="flex-1"
 													placeholder="Enter domain"
 												/>
 												<Button
 													size="sm"
 													className="text-xs shrink-0"
-													onClick={handleSaveDomainEdit}
+													onClick={() => {
+														void handleSaveDomainEdit();
+													}}
 													disabled={!editDomainValue.trim()}
 												>
 													Save
@@ -363,7 +371,9 @@ export function ResourceSettings() {
 													variant="outline"
 													size="sm"
 													className="text-xs border-2 shrink-0"
-													onClick={() => handleEditDomain(domain)}
+													onClick={() => {
+														handleEditDomain(domain);
+													}}
 												>
 													Edit
 												</Button>
@@ -372,9 +382,9 @@ export function ResourceSettings() {
 														variant="outline"
 														size="sm"
 														className="text-xs border-2 shrink-0"
-														onClick={() =>
-															handleSetPrimary(domain.id)
-														}
+														onClick={() => {
+															void handleSetPrimary(domain.id);
+														}}
 														disabled={setPrimaryMutation.isPending}
 													>
 														Set Primary
@@ -384,9 +394,9 @@ export function ResourceSettings() {
 													variant="outline"
 													size="sm"
 													className="text-xs border-2 border-error-border text-error-text shrink-0"
-													onClick={() =>
-														handleRemoveDomain(domain.id)
-													}
+													onClick={() => {
+														void handleRemoveDomain(domain.id);
+													}}
 													disabled={
 														removeDomainMutation.isPending || domain.isPrimary
 													}
@@ -418,9 +428,9 @@ export function ResourceSettings() {
 							</label>
 							<Select
 								value={domainSource}
-								onValueChange={(value) =>
-									setDomainSource(value as "platform" | "user")
-								}
+								onValueChange={(value) => {
+									setDomainSource(value as "platform" | "user");
+								}}
 							>
 								<SelectTrigger>
 									<SelectValue />
@@ -466,7 +476,9 @@ export function ResourceSettings() {
 							</label>
 							<Input
 								value={newDomain}
-								onChange={(e) => setNewDomain(e.target.value)}
+								onChange={(e) => {
+									setNewDomain(e.target.value);
+								}}
 								placeholder={
 									domainSource === "platform" ? "myapp.loco.dev" : "example.com"
 								}
@@ -475,7 +487,9 @@ export function ResourceSettings() {
 						</div>
 
 						<Button
-							onClick={handleAddDomain}
+							onClick={() => {
+								void handleAddDomain();
+							}}
 							disabled={
 								!newDomain ||
 								(domainSource === "platform" && !platformDomainId) ||
@@ -569,7 +583,9 @@ export function ResourceSettings() {
 					</div>
 
 					<Button
-						onClick={handleScale}
+						onClick={() => {
+							void handleScale();
+						}}
 						disabled={
 							scaleResourceMutation.isPending ||
 							resource?.status === ResourceStatus.UNAVAILABLE
@@ -603,7 +619,9 @@ export function ResourceSettings() {
 						<Button
 							className="text-red-700 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-950"
 							variant="outline"
-							onClick={() => setShowDeleteConfirm(true)}
+							onClick={() => {
+								setShowDeleteConfirm(true);
+							}}
 						>
 							Delete Resource
 						</Button>
@@ -625,7 +643,9 @@ export function ResourceSettings() {
 						<Button
 							variant="secondary"
 							className="flex-1 text-sm"
-							onClick={() => setShowDeleteConfirm(false)}
+							onClick={() => {
+								setShowDeleteConfirm(false);
+							}}
 							disabled={deleteResourceMutation.isPending}
 						>
 							Cancel
@@ -633,7 +653,9 @@ export function ResourceSettings() {
 						<Button
 							className="flex-1 text-sm text-red-700 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-100 dark:hover:bg-red-950"
 							variant="outline"
-							onClick={handleDelete}
+							onClick={() => {
+								void handleDelete();
+							}}
 							disabled={deleteResourceMutation.isPending}
 						>
 							{deleteResourceMutation.isPending ? "Deleting..." : "Delete"}

@@ -7,6 +7,7 @@
 package workspacev1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -1228,7 +1229,7 @@ var File_loco_workspace_v1_workspace_proto protoreflect.FileDescriptor
 
 const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
-	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfd\x01\n" +
+	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfd\x01\n" +
 	"\tWorkspace\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x12\n" +
@@ -1255,66 +1256,70 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\tuser_name\x18\x05 \x01(\tR\buserName\x12\x1d\n" +
 	"\n" +
 	"user_email\x18\x06 \x01(\tR\tuserEmail\x12&\n" +
-	"\x0fuser_avatar_url\x18\a \x01(\tR\ruserAvatarUrl\"z\n" +
-	"\x16CreateWorkspaceRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
-	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
+	"\x0fuser_avatar_url\x18\a \x01(\tR\ruserAvatarUrl\"\x99\x01\n" +
+	"\x16CreateWorkspaceRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12\x1d\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?R\x04name\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x00R\vdescription\x88\x01\x01B\x0e\n" +
 	"\f_description\"<\n" +
 	"\x17CreateWorkspaceResponse\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"8\n" +
-	"\x13GetWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"R\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"B\n" +
+	"\x13GetWorkspaceRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"R\n" +
 	"\x14GetWorkspaceResponse\x12:\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"p\n" +
-	"\x19ListUserWorkspacesRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"\x86\x01\n" +
+	"\x19ListUserWorkspacesRequest\x12!\n" +
+	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12'\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1aListUserWorkspacesResponse\x12<\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
 	"workspaces\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"m\n" +
-	"\x18ListOrgWorkspacesRequest\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x83\x01\n" +
+	"\x18ListOrgWorkspacesRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12'\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x81\x01\n" +
 	"\x19ListOrgWorkspacesResponse\x12<\n" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
 	"workspaces\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd1\x01\n" +
-	"\x16UpdateWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12;\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xf0\x01\n" +
+	"\x16UpdateWorkspaceRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12;\n" +
 	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x12\x17\n" +
-	"\x04name\x18\x03 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
-	"\vdescription\x18\x04 \x01(\tH\x01R\vdescription\x88\x01\x01B\a\n" +
+	"updateMask\x12\"\n" +
+	"\x04name\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_description\"<\n" +
 	"\x17UpdateWorkspaceResponse\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"k\n" +
-	"\x16DeleteWorkspaceRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12.\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"u\n" +
+	"\x16DeleteWorkspaceRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12.\n" +
 	"\x13confirm_delete_apps\x18\x02 \x01(\bR\x11confirmDeleteApps\"\x19\n" +
-	"\x17DeleteWorkspaceResponse\"e\n" +
-	"\x13CreateMemberRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\"R\n" +
+	"\x17DeleteWorkspaceResponse\"\xe3\x01\n" +
+	"\x13CreateMemberRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
+	"\auser_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12|\n" +
+	"\x04role\x18\x03 \x01(\tBh\xbaHe\xba\x01b\n" +
+	"\x11role.valid_values\x12(role must be one of: admin, deploy, read\x1a#this in ['admin', 'deploy', 'read']R\x04role\"R\n" +
 	"\x14CreateMemberResponse\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"Q\n" +
-	"\x13DeleteMemberRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x16\n" +
-	"\x14DeleteMemberResponse\"|\n" +
-	"\x1bListWorkspaceMembersRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"e\n" +
+	"\x13DeleteMemberRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12!\n" +
+	"\auser_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x16\n" +
+	"\x14DeleteMemberResponse\"\x92\x01\n" +
+	"\x1bListWorkspaceMembersRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x8c\x01\n" +
 	"\x1cListWorkspaceMembersResponse\x12D\n" +

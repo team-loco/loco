@@ -11,8 +11,6 @@ import { useTailLogs } from "@/hooks/useTailLogs";
 import { parseObsQuery } from "@/lib/obs-query-parser";
 import { LogOrder } from "@/gen/loco/observability/v1/observability_pb";
 
-const LEVELS = ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"];
-
 function levelBadgeVariant(level: string): "default" | "outline" | "destructive" | "secondary" {
 	switch (level) {
 		case "ERROR":
@@ -74,40 +72,46 @@ export function ObsLogs() {
 	return (
 		<div className="flex flex-col gap-3">
 			{/* Query bar */}
-			<div className="flex items-center gap-2">
-				<div className="relative flex-1">
+			<div className="flex items-center gap-2 justify-between">
+				<div className="relative w-96">
 					<Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
 					<Input
 						value={queryText}
-						onChange={(e) => setQueryText(e.target.value)}
+						onChange={(e) => { setQueryText(e.target.value); }}
 						placeholder='e.g. level:error pod:api-xxx "search text"'
 						className="pl-8 h-8 text-sm font-mono"
 					/>
 				</div>
-				<Toggle
-					pressed={order === LogOrder.OLDEST_FIRST}
-					onPressedChange={(v) =>
-						setOrder(v ? LogOrder.OLDEST_FIRST : LogOrder.NEWEST_FIRST)
-					}
-					size="sm"
-					aria-label="Toggle order"
-					className="text-xs"
-				>
-					{order === LogOrder.NEWEST_FIRST ? "Newest first" : "Oldest first"}
-				</Toggle>
-				<Toggle
-					pressed={liveMode}
-					onPressedChange={setLiveMode}
-					size="sm"
-					aria-label="Live tail"
-					className="gap-1.5 text-xs"
-				>
-					<Radio className="h-3.5 w-3.5" />
-					Live
-					{liveMode && isConnected && (
-						<span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-					)}
-				</Toggle>
+				<div className="flex items-center gap-2">
+					<Toggle
+						pressed={order === LogOrder.OLDEST_FIRST}
+						onPressedChange={(v) =>
+							{ setOrder(v ? LogOrder.OLDEST_FIRST : LogOrder.NEWEST_FIRST); }
+						}
+						size="sm"
+						aria-label="Toggle order"
+						className="text-xs bg-accent"
+					>
+						{order === LogOrder.NEWEST_FIRST ? "Newest first" : "Oldest first"}
+					</Toggle>
+					<Toggle
+						pressed={liveMode}
+						onPressedChange={setLiveMode}
+						size="sm"
+						aria-label="Live tail"
+						className="gap-1.5 text-xs"
+						style={{
+							backgroundColor: liveMode ? "var(--primary)" : "var(--accent)",
+							color: liveMode ? "var(--primary-foreground)" : "inherit",
+						}}
+					>
+						<Radio className="h-3.5 w-3.5" />
+						Live
+						{liveMode && isConnected && (
+							<span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+						)}
+					</Toggle>
+				</div>
 			</div>
 
 			{/* Active level filters parsed from query */}
@@ -154,7 +158,7 @@ export function ObsLogs() {
 					<div>
 						{displayEntries.map((entry, i) => (
 							<ObsLogRow
-								key={`${entry.timestamp?.seconds}-${entry.traceId}-${i}`}
+								key={`${entry.timestamp?.seconds.toString() ?? ""}-${entry.traceId}-${i.toString()}`}
 								entry={entry}
 							/>
 						))}

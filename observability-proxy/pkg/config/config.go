@@ -14,12 +14,12 @@ type Config struct {
 	ClickHouseDB    string
 
 	// Guardrails
-	DefaultLimit     int32
-	MaxLimit         int32
-	MaxTimeRange     time.Duration
-	QueryTimeout     int // seconds, passed to ClickHouse max_execution_time
-	MaxConcurrent    int // max concurrent queries per workspace
-	MaxTailDuration  time.Duration
+	DefaultLimit       int32
+	MaxLimit           int32
+	MaxTimeRange       time.Duration
+	QueryTimeout       int // seconds, passed to ClickHouse max_execution_time
+	MaxConcurrent      int // max concurrent queries per workspace
+	MaxTailDuration    time.Duration
 	MaxConcurrentTails int
 
 	// Token cache

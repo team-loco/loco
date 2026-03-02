@@ -59,7 +59,7 @@ export function useStreamLogs(resourceId: string, tailLimit?: number) {
 			}
 		};
 
-		streamLogs();
+		void streamLogs();
 
 		return () => {
 			isMounted = false;

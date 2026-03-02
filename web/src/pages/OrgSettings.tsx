@@ -70,7 +70,7 @@ export function OrgSettings() {
 			},
 			{
 				onSuccess: () => {
-					refetch();
+					void refetch();
 					toast.success("Organization updated");
 					setIsEditing(false);
 				},
@@ -109,7 +109,7 @@ export function OrgSettings() {
 						<Input
 							id="org-name"
 							value={isEditing ? orgName : org.name}
-							onChange={(e) => setOrgName(e.target.value)}
+							onChange={(e) => { setOrgName(e.target.value); }}
 							disabled={!isEditing}
 							className="border-border"
 						/>
@@ -138,7 +138,7 @@ export function OrgSettings() {
 					{/* Actions */}
 					<div className="flex gap-3 pt-4 border-t border-border">
 						{!isEditing ? (
-							<Button variant="secondary" onClick={() => setIsEditing(true)}>
+							<Button variant="secondary" onClick={() => { setIsEditing(true); }}>
 								Edit Organization
 							</Button>
 						) : (
@@ -194,7 +194,9 @@ export function OrgSettings() {
 										<Button
 											variant="secondary"
 											size="sm"
-											onClick={() => navigate(`/org/${activeOrgId}/wks/${ws.id}/settings`)}
+											onClick={() => {
+												void navigate(`/org/${activeOrgId ?? ""}/wks/${ws.id}/settings`);
+											}}
 										>
 											Edit
 										</Button>
@@ -217,7 +219,7 @@ export function OrgSettings() {
 					<div className="mt-4 pt-4 border-t border-border">
 						<Button
 							variant="secondary"
-							onClick={() => setCreateWorkspaceOpen(true)}
+							onClick={() => { setCreateWorkspaceOpen(true); }}
 						>
 							Create New Workspace
 						</Button>
@@ -234,7 +236,7 @@ export function OrgSettings() {
 					<CardDescription>Irreversible actions</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<Button variant="destructive" onClick={() => setDeleteOrgOpen(true)}>
+					<Button variant="destructive" onClick={() => { setDeleteOrgOpen(true); }}>
 						Delete Organization
 					</Button>
 					<p className="text-xs text-muted-foreground mt-3">
@@ -253,7 +255,7 @@ export function OrgSettings() {
 						onOpenChange={setCreateWorkspaceOpen}
 						orgId={orgId}
 						onSuccess={() => {
-							refetchWorkspaces();
+							void refetchWorkspaces();
 						}}
 					/>
 					{deleteWorkspaceId && (
@@ -268,7 +270,7 @@ export function OrgSettings() {
 							workspaceId={deleteWorkspaceId}
 							workspaceName={deleteWorkspaceName}
 							onSuccess={() => {
-								refetchWorkspaces();
+								void refetchWorkspaces();
 							}}
 						/>
 					)}

@@ -43,7 +43,7 @@ export function useResourceDetails(resourceId: string) {
 				statusQuery.isLoading ||
 				deploymentsQuery.isLoading),
 		error: isEnabled
-			? resourceQuery.error || statusQuery.error || deploymentsQuery.error
+			? resourceQuery.error ?? statusQuery.error ?? deploymentsQuery.error
 			: null,
 	};
 }

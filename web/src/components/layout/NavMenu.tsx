@@ -52,7 +52,9 @@ export function NavMenu() {
 			<NavigationMenuList className="gap-2">
 				<NavigationMenuItem>
 					<NavigationMenuLink
-						onClick={() => navigate(dashboardUrl)}
+						onClick={() => {
+							void navigate(dashboardUrl);
+						}}
 						className={cn(navigationMenuTriggerStyle(), "cursor-pointer")}
 					>
 						Dashboard

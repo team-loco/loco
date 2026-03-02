@@ -31,10 +31,10 @@ export function OrgsSidebar({
 			) : (
 				orgs.map((org) => (
 					<OrgItem
-						key={org.id.toString()}
+						key={org.id}
 						org={org}
 						isExpanded={expandedOrgs.has(org.id)}
-						onExpand={() => onExpandOrg(org.id)}
+						onExpand={() => { onExpandOrg(org.id); }}
 						onWorkspaceClick={onWorkspaceClick}
 						onWorkspaceNameChange={onWorkspaceNameChange}
 						activeWorkspaceId={activeWorkspaceId}
@@ -79,7 +79,7 @@ function OrgItem({
 	}
 
 	return (
-		<div key={org.id.toString()} className="space-y-1">
+		<div key={org.id} className="space-y-1">
 			<button
 				onClick={onExpand}
 				className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-base hover:bg-secondary-background transition-colors"
@@ -102,7 +102,7 @@ function OrgItem({
 					) : (
 						workspaces.map((ws) => (
 							<button
-								key={ws.id.toString()}
+								key={ws.id}
 								onClick={() => {
 									onWorkspaceClick(ws.id);
 									onWorkspaceNameChange(ws.name);

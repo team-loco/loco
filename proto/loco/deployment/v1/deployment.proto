@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package loco.deployment.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/proto/loco/deployment/v1;deploymentv1";
@@ -51,38 +52,56 @@ message ResourceSpec {
 
 // HealthCheckConfig defines health check parameters.
 message HealthCheckConfig {
-  string path = 1;
+  string path = 1 [(buf.validate.field).string.min_len = 1];
   int32 initial_delay_seconds = 2;
-  int32 interval_seconds = 3; // how often to probe
-  int32 timeout_seconds = 4; // how long to wait for response
-  int32 failure_threshold = 5; // number of failures before marking unhealthy
+  int32 interval_seconds = 3 [(buf.validate.field).int32.gte = 1]; // how often to probe
+  int32 timeout_seconds = 4 [(buf.validate.field).int32.gte = 1]; // how long to wait for response
+  int32 failure_threshold = 5 [(buf.validate.field).int32.gte = 1]; // number of failures before marking unhealthy
 }
 
 // Scalers defines autoscaling configuration.
 message Scalers {
   bool enabled = 1; // enable autoscaling
-  optional int32 cpu_target = 2; // target CPU percentage (0-100)
-  optional int32 memory_target = 3; // target memory percentage (0-100)
+  optional int32 cpu_target = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }]; // target CPU percentage (0-100)
+  optional int32 memory_target = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }]; // target memory percentage (0-100)
 }
 
 // BuildSource defines where the code comes from.
 message BuildSource {
-  string type = 1; // "dockerfile", "buildpack", "image"
-  string image = 2; // final image or pre-built
+  string type = 1 [(buf.validate.field).string.min_len = 1]; // "dockerfile", "buildpack", "image"
+  string image = 2 [(buf.validate.field).string = {
+    min_len: 1,
+    pattern: "^([a-z0-9\\-._]+(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+|@sha256:[a-f0-9]{64})?$"
+  }]; // final image or pre-built
   optional string dockerfile_path = 3;
 }
 
 // ServiceDeploymentSpec is the deployment specification for SERVICE type resources.
 message ServiceDeploymentSpec {
-  BuildSource build = 1;
+  BuildSource build = 1 [(buf.validate.field).required = true];
   optional HealthCheckConfig health_check = 2;
-  optional string cpu = 3; // e.g., "100m" (defaults from resource if omitted)
-  optional string memory = 4; // e.g., "256Mi" (defaults from resource if omitted)
-  optional int32 min_replicas = 5; // defaults from resource if omitted
-  optional int32 max_replicas = 6; // defaults from resource if omitted
+  optional string cpu = 3 [(buf.validate.field).string.min_len = 1]; // e.g., "100m" (defaults from resource if omitted)
+  optional string memory = 4 [(buf.validate.field).string.min_len = 1]; // e.g., "256Mi" (defaults from resource if omitted)
+  optional int32 min_replicas = 5 [(buf.validate.field).int32.gte = 1]; // defaults from resource if omitted
+  optional int32 max_replicas = 6 [(buf.validate.field).int32.gte = 1]; // defaults from resource if omitted
   optional Scalers scalers = 7; // autoscaling config (defaults from resource if omitted)
   map<string, string> env = 8;
-  int32 port = 9;
+  int32 port = 9 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 65535
+  }];
+
+  option (buf.validate.message).cel = {
+    id: "replicas.min_lte_max"
+    message: "min_replicas must be <= max_replicas"
+    expression: "!has(this.min_replicas) || !has(this.max_replicas) || this.min_replicas <= this.max_replicas"
+  };
 }
 
 // DatabaseDeploymentSpec is a placeholder for DATABASE type deployments (future implementation).
@@ -115,7 +134,7 @@ message DeploymentSpec {
 message Deployment {
   string id = 1;
   string resource_id = 2;
-  int64 cluster_id = 3;
+  string cluster_id = 3;
   string region = 4;
   int32 replicas = 5;
   DeploymentPhase status = 6;
@@ -127,14 +146,16 @@ message Deployment {
   google.protobuf.Timestamp updated_at = 12;
   int32 spec_version = 13;
   DeploymentSpec spec = 14;
+  string environment_id = 15;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
-  string resource_id = 1;
-  int64 cluster_id = 2;
-  string region = 3;
-  DeploymentSpec spec = 4;
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  string cluster_id = 2 [(buf.validate.field).string.uuid = true];
+  string region = 3 [(buf.validate.field).string.min_len = 1];
+  DeploymentSpec spec = 4 [(buf.validate.field).required = true];
+  string environment_id = 5 [(buf.validate.field).string.uuid = true];
 }
 
 // CreateDeploymentResponse is the response containing the created deployment ID.
@@ -144,7 +165,7 @@ message CreateDeploymentResponse {
 
 // GetDeploymentRequest is the request to retrieve a deployment.
 message GetDeploymentRequest {
-  string deployment_id = 1;
+  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // GetDeploymentResponse is the response containing the deployment.
@@ -154,8 +175,11 @@ message GetDeploymentResponse {
 
 // ListDeploymentsRequest is the request to list deployments.
 message ListDeploymentsRequest {
-  string resource_id = 1;
-  int32 page_size = 2; // default: 50, max: 200
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }]; // default: 50, max: 200
   string page_token = 3; // cursor from previous page (base64-encoded timestamp+id)
 }
 
@@ -167,7 +191,7 @@ message ListDeploymentsResponse {
 
 // WatchDeploymentRequest is the request to stream deployment events.
 message WatchDeploymentRequest {
-  string deployment_id = 1;
+  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // WatchDeploymentResponse represents a deployment event stream response.
@@ -180,7 +204,7 @@ message WatchDeploymentResponse {
 
 // DeleteDeploymentRequest is the request to delete/inactivate a deployment.
 message DeleteDeploymentRequest {
-  string deployment_id = 1;
+  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeleteDeploymentResponse is the response after deleting/inactivating a deployment.

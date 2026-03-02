@@ -2,18 +2,27 @@ syntax = "proto3";
 
 package loco.environment.v1;
 
+import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/proto/loco/environment/v1;environmentv1";
 
-// EnvironmentService manages environments within an organization.
+// EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
+enum EnvironmentType {
+  ENVIRONMENT_TYPE_UNSPECIFIED = 0;
+  ENVIRONMENT_TYPE_DEV = 1;
+  ENVIRONMENT_TYPE_STAGING = 2;
+  ENVIRONMENT_TYPE_PRODUCTION = 3;
+}
+
+// EnvironmentService manages environments within a workspace.
 service EnvironmentService {
-  // CreateEnvironment creates a new environment in an organization.
+  // CreateEnvironment creates a new environment in a workspace.
   rpc CreateEnvironment(CreateEnvironmentRequest) returns (CreateEnvironmentResponse);
   // GetEnvironment retrieves an environment by ID.
   rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
-  // ListEnvironments lists all environments in an organization.
+  // ListEnvironments lists all environments in a workspace.
   rpc ListEnvironments(ListEnvironmentsRequest) returns (ListEnvironmentsResponse);
   // UpdateEnvironment updates an environment.
   rpc UpdateEnvironment(UpdateEnvironmentRequest) returns (UpdateEnvironmentResponse);
@@ -21,15 +30,13 @@ service EnvironmentService {
   rpc DeleteEnvironment(DeleteEnvironmentRequest) returns (DeleteEnvironmentResponse);
 }
 
-// Environment represents an isolation boundary within an organization.
-// Each org has at least one environment ("production") created automatically.
-// Clusters are assigned to environments; resources are deployed to a fixed environment.
+// Environment represents an isolation boundary within a workspace.
 message Environment {
   string id = 1;
-  string org_id = 2;
+  string workspace_id = 2;
   string name = 3;
   optional string description = 4;
-  bool is_production = 5;
+  EnvironmentType type = 5;
   string created_by = 6;
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;
@@ -37,10 +44,13 @@ message Environment {
 
 // CreateEnvironmentRequest is the request to create a new environment.
 message CreateEnvironmentRequest {
-  string org_id = 1;
-  string name = 2;
-  optional string description = 3;
-  bool is_production = 4;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2 [(buf.validate.field).string.max_len = 63];
+  optional string description = 3 [(buf.validate.field).string.max_len = 256];
+  EnvironmentType type = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // CreateEnvironmentResponse contains the created environment ID.
@@ -50,7 +60,7 @@ message CreateEnvironmentResponse {
 
 // GetEnvironmentRequest is the request to retrieve an environment.
 message GetEnvironmentRequest {
-  string environment_id = 1;
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // GetEnvironmentResponse contains the environment.
@@ -58,9 +68,9 @@ message GetEnvironmentResponse {
   Environment environment = 1;
 }
 
-// ListEnvironmentsRequest is the request to list environments in an org.
+// ListEnvironmentsRequest is the request to list environments in a workspace.
 message ListEnvironmentsRequest {
-  string org_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // ListEnvironmentsResponse contains the list of environments.
@@ -70,11 +80,14 @@ message ListEnvironmentsResponse {
 
 // UpdateEnvironmentRequest is the request to update an environment.
 message UpdateEnvironmentRequest {
-  string environment_id = 1;
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
   google.protobuf.FieldMask update_mask = 2;
-  optional string name = 3;
-  optional string description = 4;
-  optional bool is_production = 5;
+  optional string name = 3 [(buf.validate.field).string.max_len = 63];
+  optional string description = 4 [(buf.validate.field).string.max_len = 256];
+  optional EnvironmentType type = 5 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // UpdateEnvironmentResponse contains the updated environment ID.
@@ -84,7 +97,7 @@ message UpdateEnvironmentResponse {
 
 // DeleteEnvironmentRequest is the request to delete an environment.
 message DeleteEnvironmentRequest {
-  string environment_id = 1;
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
 }
 
 // DeleteEnvironmentResponse is the response after deleting an environment.

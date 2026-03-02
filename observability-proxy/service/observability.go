@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -20,40 +19,40 @@ import (
 var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityService)(nil)
 
 type ObservabilityService struct {
-	ch  *chClient.Client
-	cfg *config.Config
+	ch        *chClient.Client
+	cfg       *config.Config
+	validator *auth.Validator
 }
 
-func NewObservabilityService(ch *chClient.Client, cfg *config.Config) *ObservabilityService {
-	return &ObservabilityService{ch: ch, cfg: cfg}
+func NewObservabilityService(ch *chClient.Client, cfg *config.Config, validator *auth.Validator) *ObservabilityService {
+	return &ObservabilityService{ch: ch, cfg: cfg, validator: validator}
 }
 
 func (s *ObservabilityService) QueryLogs(
 	ctx context.Context,
 	req *connect.Request[observabilityv1.QueryLogsRequest],
 ) (*connect.Response[observabilityv1.QueryLogsResponse], error) {
-	claims, ok := auth.ClaimsFromContext(ctx)
+	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing claims"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token"))
 	}
 
 	msg := req.Msg
-	if err := enforceScope(claims, msg.GetWorkspaceId(), msg.GetResourceIds()); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	}
-
 	if err := guardrails.ValidateLogsRequest(msg, s.cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
+	if err := s.validator.CheckPermission(ctx, token, "workspace", msg.GetWorkspaceId(), "read"); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	limit := guardrails.ClampLimit(msg.GetLimit(), s.cfg)
-	resourceIDs := effectiveResourceIDs(claims, msg.GetResourceIds())
 
 	entries, nextCursor, err := chClient.QueryLogs(
 		ctx,
 		s.ch.Conn(),
-		claims.WorkspaceID,
-		resourceIDs,
+		msg.GetWorkspaceId(),
+		msg.GetResourceIds(),
 		msg.GetStartTime().AsTime(),
 		msg.GetEndTime().AsTime(),
 		msg.GetSearch(),
@@ -80,23 +79,22 @@ func (s *ObservabilityService) TailLogs(
 	req *connect.Request[observabilityv1.TailLogsRequest],
 	stream *connect.ServerStream[observabilityv1.TailLogsResponse],
 ) error {
-	claims, ok := auth.ClaimsFromContext(ctx)
+	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing claims"))
+		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token"))
 	}
 
 	msg := req.Msg
-	if err := enforceScope(claims, msg.GetWorkspaceId(), msg.GetResourceIds()); err != nil {
-		return connect.NewError(connect.CodePermissionDenied, err)
-	}
-
 	if err := guardrails.ValidateTailRequest(msg, s.cfg); err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	resourceIDs := effectiveResourceIDs(claims, msg.GetResourceIds())
+	if err := s.validator.CheckPermission(ctx, token, "workspace", msg.GetWorkspaceId(), "read"); err != nil {
+		return connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	deadline := time.Now().Add(s.cfg.MaxTailDuration)
-	lastSeen := time.Now().Add(-2 * time.Second) // start from 2s ago
+	lastSeen := time.Now().Add(-2 * time.Second)
 	heartbeatInterval := 5 * time.Second
 	pollInterval := 2 * time.Second
 	lastHeartbeat := time.Now()
@@ -117,21 +115,20 @@ func (s *ObservabilityService) TailLogs(
 		entries, _, err := chClient.QueryLogs(
 			ctx,
 			s.ch.Conn(),
-			claims.WorkspaceID,
-			resourceIDs,
+			msg.GetWorkspaceId(),
+			msg.GetResourceIds(),
 			lastSeen,
 			now,
 			msg.GetSearch(),
 			msg.GetLevels(),
 			msg.GetLabels(),
-			100, // small batch for tail
+			100,
 			"",
 			observabilityv1.LogOrder_LOG_ORDER_OLDEST_FIRST,
 			s.cfg.QueryTimeout,
 		)
 		if err != nil {
 			slog.ErrorContext(ctx, "tail poll failed", "error", err)
-			// Don't kill the stream on transient errors, just skip this poll
 			time.Sleep(pollInterval)
 			continue
 		}
@@ -147,7 +144,6 @@ func (s *ObservabilityService) TailLogs(
 			}
 		}
 
-		// Send heartbeat if no entries and interval elapsed
 		if len(entries) == 0 && time.Since(lastHeartbeat) >= heartbeatInterval {
 			if err := stream.Send(&observabilityv1.TailLogsResponse{
 				Event: &observabilityv1.TailLogsResponse_Heartbeat{
@@ -169,27 +165,25 @@ func (s *ObservabilityService) QueryMetrics(
 	ctx context.Context,
 	req *connect.Request[observabilityv1.QueryMetricsRequest],
 ) (*connect.Response[observabilityv1.QueryMetricsResponse], error) {
-	claims, ok := auth.ClaimsFromContext(ctx)
+	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing claims"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token"))
 	}
 
 	msg := req.Msg
-	if err := enforceScope(claims, msg.GetWorkspaceId(), msg.GetResourceIds()); err != nil {
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
-	}
-
 	if err := guardrails.ValidateMetricsRequest(msg, s.cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	resourceIDs := effectiveResourceIDs(claims, msg.GetResourceIds())
+	if err := s.validator.CheckPermission(ctx, token, "workspace", msg.GetWorkspaceId(), "read"); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
 
 	series, err := chClient.QueryMetrics(
 		ctx,
 		s.ch.Conn(),
-		claims.WorkspaceID,
-		resourceIDs,
+		msg.GetWorkspaceId(),
+		msg.GetResourceIds(),
 		msg.GetStartTime().AsTime(),
 		msg.GetEndTime().AsTime(),
 		msg.GetMetricName(),
@@ -205,31 +199,4 @@ func (s *ObservabilityService) QueryMetrics(
 	return connect.NewResponse(&observabilityv1.QueryMetricsResponse{
 		Series: series,
 	}), nil
-}
-
-// enforceScope ensures the request's workspace and resources match the token claims.
-func enforceScope(claims *auth.ValidatedClaims, requestedWorkspace string, requestedResources []string) error {
-	if requestedWorkspace != claims.WorkspaceID {
-		return fmt.Errorf("workspace mismatch: token is scoped to %s", claims.WorkspaceID)
-	}
-
-	// If claims restrict to specific resources, validate the request doesn't exceed them
-	if len(claims.ResourceIDs) > 0 && len(requestedResources) > 0 {
-		for _, rid := range requestedResources {
-			if !slices.Contains(claims.ResourceIDs, rid) {
-				return fmt.Errorf("resource %s not in token scope", rid)
-			}
-		}
-	}
-
-	return nil
-}
-
-// effectiveResourceIDs returns the resource IDs to filter by: the request's if specified,
-// otherwise falls back to the token's scope.
-func effectiveResourceIDs(claims *auth.ValidatedClaims, requested []string) []string {
-	if len(requested) > 0 {
-		return requested
-	}
-	return claims.ResourceIDs
 }

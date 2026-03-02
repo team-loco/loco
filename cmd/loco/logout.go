@@ -8,12 +8,12 @@ import (
 	"os"
 	"os/user"
 
-	"connectrpc.com/connect"
 	"charm.land/lipgloss/v2"
+	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/internal/httputil"
 	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
 	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 )

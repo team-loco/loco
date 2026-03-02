@@ -29,69 +29,17 @@ import {
 	Bell,
 	Building2,
 	Check,
-	ChevronDown,
-	Database,
 	Edit,
-	HardDrive,
 	HelpCircle,
-	Layers,
 	Loader2,
 	LogOut,
-	Mail,
 	Plus,
-	Server,
 	Settings,
-	Zap,
 } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import "./layout/ThemeToggle.css";
-
-const RESOURCE_TYPES = [
-	{
-		value: "SERVICE",
-		label: "Service",
-		icon: Server,
-		available: true,
-		color: "text-blue-600",
-	},
-	{
-		value: "DATABASE",
-		label: "Database",
-		icon: Database,
-		available: false,
-		color: "text-orange-600",
-	},
-	{
-		value: "FUNCTION",
-		label: "Function",
-		icon: Zap,
-		available: false,
-		color: "text-yellow-600",
-	},
-	{
-		value: "CACHE",
-		label: "Cache",
-		icon: Layers,
-		available: false,
-		color: "text-purple-600",
-	},
-	{
-		value: "QUEUE",
-		label: "Queue",
-		icon: Mail,
-		available: false,
-		color: "text-pink-600",
-	},
-	{
-		value: "BLOB",
-		label: "Blob Storage",
-		icon: HardDrive,
-		available: false,
-		color: "text-green-600",
-	},
-];
 
 export function SiteHeader() {
 	const navigate = useNavigate();
@@ -110,7 +58,6 @@ export function SiteHeader() {
 	const { data: whoAmIResponse } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
 	const { theme, toggleTheme } = useTheme();
-	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 	const [switchContextOpen, setSwitchContextOpen] = useState(false);
 	const [showCreateOrgForm, setShowCreateOrgForm] = useState(false);
@@ -132,7 +79,7 @@ export function SiteHeader() {
 
 	const playSound = async (isDark: boolean) => {
 		new window.AudioContext();
-		const audio = new Audio(`${isDark ? "/lightMode.wav" : "/darkMode.wav"}`);
+		const audio = new Audio(isDark ? "/lightMode.wav" : "/darkMode.wav");
 		audio.volume = 0.9;
 		await audio.play();
 	};
@@ -204,7 +151,7 @@ export function SiteHeader() {
 						toast.success(`Workspace "${newWorkspaceName}" created`);
 						addWorkspace({
 							id: newWorkspaceId,
-							orgId: activeOrgId!,
+							orgId: activeOrgId,
 							name: newWorkspaceName,
 							description: newWorkspaceDescription,
 						} as Workspace);
@@ -229,13 +176,6 @@ export function SiteHeader() {
 					activeOrgId && activeWorkspaceId
 						? `/org/${activeOrgId}/wks/${activeWorkspaceId}/dashboard`
 						: "/dashboard",
-			},
-			{
-				title: "Resources",
-				url:
-					activeOrgId && activeWorkspaceId
-						? `/org/${activeOrgId}/wks/${activeWorkspaceId}/resources`
-						: "/resources",
 			},
 			{
 				title: "Observability",
@@ -283,7 +223,7 @@ export function SiteHeader() {
 	);
 
 	const navContainerRef = useRef<HTMLDivElement>(null);
-	const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+	const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 	const [sliderStyle, setSliderStyle] = useState<{
 		width: number;
 		left: number;
@@ -320,12 +260,17 @@ export function SiteHeader() {
 		};
 
 		window.addEventListener("resize", handleResize);
-		return () => window.removeEventListener("resize", handleResize);
+		return () => {
+			window.removeEventListener("resize", handleResize);
+		};
 	}, [calculateSliderStyle]);
 
 	return (
 		<>
-			<header className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-border/50 bg-background/95 backdrop-blur-sm">
+			<header
+				className="fixed top-0 left-0 right-0 z-40 flex w-full items-center border-b border-border/50 bg-background/95 backdrop-blur-sm"
+				style={{ backgroundColor: "var(--background)" }}
+			>
 				<div className="flex h-11 w-full items-center px-6">
 					{/* Inline Navigation - Evenly Spaced */}
 					<div
@@ -335,10 +280,11 @@ export function SiteHeader() {
 						{/* Sliding background */}
 						{sliderStyle && (
 							<div
-								className="absolute h-8 bg-primary rounded-sm transition-all duration-300 ease-out"
+								className="absolute h-8 bg-primary rounded-sm transition-all duration-300 ease-out border border-black/15"
 								style={{
-									width: `${sliderStyle.width}px`,
-									left: `${sliderStyle.left}px`,
+									width: `${sliderStyle.width.toString()}px`,
+									left: `${sliderStyle.left.toString()}px`,
+									boxShadow: "4px 4px 0px #000000",
 								}}
 							/>
 						)}
@@ -351,7 +297,9 @@ export function SiteHeader() {
 								}}
 								variant="ghost"
 								size="sm"
-								onClick={() => navigate(item.url)}
+								onClick={() => {
+									void navigate(item.url);
+								}}
 								className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent ${
 									isActive(item.url) ? "text-primary-foreground" : ""
 								}`}
@@ -362,47 +310,6 @@ export function SiteHeader() {
 					</div>
 
 					<div className="ml-auto inline-flex items-center justify-end gap-3">
-						{/* New Service Button */}
-						<div className="inline-flex items-center justify-center rounded-none bg-primary/5">
-							<Button
-								className="rounded-r-none border-r border-primary/20 h-7.5 px-3"
-								onClick={() => setDropdownOpen(true)}
-							>
-								New Resource
-							</Button>
-							<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-								<DropdownMenuTrigger asChild>
-									<Button
-										size="icon"
-										className="h-7.5 w-9 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
-									>
-										<ChevronDown
-											className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
-										/>
-										<span className="sr-only">Toggle menu</span>
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="end" className="w-36">
-									{RESOURCE_TYPES.map((type) => (
-										<DropdownMenuItem
-											key={type.value}
-											onClick={() => {
-												if (activeOrgId && activeWorkspaceId) {
-													navigate(
-														`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
-													);
-												}
-											}}
-											disabled={!type.available}
-											className="cursor-pointer"
-										>
-											{type.label}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
-						</div>
-
 						{/* User Avatar Dropdown */}
 						<DropdownMenu
 							open={userDropdownOpen}
@@ -413,7 +320,7 @@ export function SiteHeader() {
 									<Avatar className="h-6 w-6">
 										<AvatarImage src={user?.avatarUrl} alt={user?.name} />
 										<AvatarFallback className="text-xs">
-											{user?.name?.charAt(0)?.toUpperCase()}
+											{user?.name.charAt(0).toUpperCase()}
 										</AvatarFallback>
 									</Avatar>
 								</Button>
@@ -450,8 +357,10 @@ export function SiteHeader() {
 												Organization
 											</div>
 											<button
-												onClick={() => setSwitchContextOpen(true)}
-												className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-accent/20 hover:bg-accent/30 active:bg-accent/40 transition-all duration-150 text-sm font-medium cursor-pointer border border-accent/30"
+												onClick={() => {
+													setSwitchContextOpen(true);
+												}}
+												className="w-full flex items-center justify-between gap-2 px-3 py-1 rounded-sm bg-accent text-muted-foreground hover:bg-accent/80 active:bg-accent/70 transition-all duration-150 text-sm font-medium cursor-pointer border border-transparent"
 											>
 												<span className="truncate font-semibold">
 													{activeOrg.name}
@@ -465,12 +374,14 @@ export function SiteHeader() {
 													Workspace
 												</div>
 												<button
-													onClick={() => setSwitchContextOpen(true)}
-													className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md bg-accent/20 hover:bg-accent/30 active:bg-accent/40 transition-all duration-150 text-sm font-medium cursor-pointer border border-accent/30"
+													onClick={() => {
+														setSwitchContextOpen(true);
+													}}
+													className="w-full flex items-center justify-between gap-2 px-3 py-1 rounded-sm bg-accent text-muted-foreground hover:bg-accent/80 active:bg-accent/70 transition-all duration-150 text-sm font-medium cursor-pointer border border-transparent"
 												>
 													<span className="truncate font-semibold">
 														{workspaces.find((w) => w.id === activeWorkspaceId)
-															?.name || "Select workspace"}
+															?.name ?? "Select workspace"}
 													</span>
 													<Edit className="size-3 shrink-0" />
 												</button>
@@ -494,7 +405,9 @@ export function SiteHeader() {
 											e.preventDefault();
 											void handleThemeToggle();
 										}}
-										onSelect={(e) => e.preventDefault()}
+										onSelect={(e) => {
+											e.preventDefault();
+										}}
 										className="cursor-pointer flex justify-between"
 									>
 										<span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
@@ -509,14 +422,16 @@ export function SiteHeader() {
 								</DropdownMenuGroup>
 								<DropdownMenuSeparator />
 								<DropdownMenuItem
-									onClick={async () => {
-										try {
-											await logout();
-											navigate("/");
-											toast.success("Logged out successfully");
-										} catch (error) {
-											toastConnectError(error, "Failed to logout");
-										}
+									onClick={() => {
+										void (async () => {
+											try {
+												await logout();
+												void navigate("/");
+												toast.success("Logged out successfully");
+											} catch (error) {
+												toastConnectError(error, "Failed to logout");
+											}
+										})();
 									}}
 									className="cursor-pointer flex justify-between"
 								>
@@ -530,8 +445,21 @@ export function SiteHeader() {
 			</header>
 
 			{/* Context Switch Dialog */}
-			<Dialog open={switchContextOpen} onOpenChange={setSwitchContextOpen}>
-				<DialogContent className="max-w-2xl">
+			<Dialog
+				open={switchContextOpen}
+				onOpenChange={(newOpen) => {
+					if (!newOpen) {
+						// Reset form state on close
+						setShowCreateOrgForm(false);
+						setShowCreateWorkspaceForm(false);
+						setNewOrgName("");
+						setNewWorkspaceName("");
+						setNewWorkspaceDescription("");
+					}
+					setSwitchContextOpen(newOpen);
+				}}
+			>
+				<DialogContent className="max-w-xl">
 					<DialogHeader>
 						<DialogTitle>
 							{showCreateOrgForm
@@ -551,17 +479,21 @@ export function SiteHeader() {
 									type="text"
 									placeholder="My Organization"
 									value={newOrgName}
-									onChange={(e) => setNewOrgName(e.target.value)}
+									onChange={(e) => {
+										setNewOrgName(e.target.value);
+									}}
 									disabled={isCreatingOrg}
 									autoFocus
-									className="w-full px-3 py-2 border rounded-sm bg-background"
+									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
 								/>
 							</div>
 							<div className="flex gap-2 justify-end">
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => setShowCreateOrgForm(false)}
+									onClick={() => {
+										setShowCreateOrgForm(false);
+									}}
 									disabled={isCreatingOrg}
 								>
 									Back
@@ -592,10 +524,12 @@ export function SiteHeader() {
 									type="text"
 									placeholder="Production"
 									value={newWorkspaceName}
-									onChange={(e) => setNewWorkspaceName(e.target.value)}
+									onChange={(e) => {
+										setNewWorkspaceName(e.target.value);
+									}}
 									disabled={isCreatingWorkspace}
 									autoFocus
-									className="w-full px-3 py-2 border rounded-sm bg-background"
+									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
 								/>
 							</div>
 							<div className="space-y-2">
@@ -606,17 +540,21 @@ export function SiteHeader() {
 								<textarea
 									placeholder="Production environment for customer-facing applications"
 									value={newWorkspaceDescription}
-									onChange={(e) => setNewWorkspaceDescription(e.target.value)}
+									onChange={(e) => {
+										setNewWorkspaceDescription(e.target.value);
+									}}
 									disabled={isCreatingWorkspace}
 									rows={3}
-									className="w-full px-3 py-2 border rounded-sm bg-background"
+									className="max-w-sm px-3 py-2 border rounded-sm bg-background"
 								/>
 							</div>
 							<div className="flex gap-2 justify-end">
 								<Button
 									type="button"
 									variant="outline"
-									onClick={() => setShowCreateWorkspaceForm(false)}
+									onClick={() => {
+										setShowCreateWorkspaceForm(false);
+									}}
 									disabled={isCreatingWorkspace}
 								>
 									Back
@@ -648,8 +586,10 @@ export function SiteHeader() {
 									<div className="space-y-1 overflow-y-auto max-h-64">
 										{orgs.map((org) => (
 											<button
-												key={org.id.toString()}
-												onClick={() => handleOrgSwitch(org.id)}
+												key={org.id}
+												onClick={() => {
+													handleOrgSwitch(org.id);
+												}}
 												className={`w-full text-left px-3 py-2 rounded-sm transition-colors flex items-center gap-2 ${
 													activeOrgId === org.id
 														? "bg-primary text-primary-foreground"
@@ -664,8 +604,10 @@ export function SiteHeader() {
 											</button>
 										))}
 										<button
-											onClick={() => setShowCreateOrgForm(true)}
-											className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
+											onClick={() => {
+												setShowCreateOrgForm(true);
+											}}
+											className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 										>
 											<Plus className="size-4" />
 											<span>Create Organization</span>
@@ -681,8 +623,10 @@ export function SiteHeader() {
 											<>
 												{workspaces.map((workspace) => (
 													<button
-														key={workspace.id.toString()}
-														onClick={() => handleWorkspaceSwitch(workspace.id)}
+														key={workspace.id}
+														onClick={() => {
+															handleWorkspaceSwitch(workspace.id);
+														}}
 														className={`w-full text-left px-3 py-2 rounded-sm transition-colors flex items-center justify-between ${
 															activeWorkspaceId === workspace.id
 																? "bg-primary text-primary-foreground"
@@ -696,8 +640,10 @@ export function SiteHeader() {
 													</button>
 												))}
 												<button
-													onClick={() => setShowCreateWorkspaceForm(true)}
-													className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t"
+													onClick={() => {
+														setShowCreateWorkspaceForm(true);
+													}}
+													className="w-full text-left px-3 py-2 rounded-sm hover:bg-secondary transition-colors flex items-center gap-2 text-primary mt-2 pt-2 border-t cursor-pointer"
 												>
 													<Plus className="size-4" />
 													<span>Create Workspace</span>

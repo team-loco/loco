@@ -126,7 +126,7 @@ export function CreateResource() {
 	const navigate = useNavigate();
 	const { workspaceId: paramWorkspaceId } = useParams();
 	const [searchParams] = useSearchParams();
-	const typeFromUrl = searchParams.get("type") || "SERVICE";
+	const typeFromUrl = searchParams.get("type") ?? "SERVICE";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 
 	const [resourceName, setResourceName] = useState("");
@@ -211,7 +211,7 @@ export function CreateResource() {
 		setIsEnvModalOpen(false);
 		setEnvFileContent("");
 		toast.success(
-			`Imported ${parsed.length} environment variable${
+			`Imported ${parsed.length.toString()} environment variable${
 				parsed.length !== 1 ? "s" : ""
 			}`,
 		);
@@ -234,7 +234,7 @@ export function CreateResource() {
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 	const workspaceId =
-		paramWorkspaceId || (workspaces.length > 0 ? workspaces[0].id : null);
+		paramWorkspaceId ?? (workspaces.length > 0 ? workspaces[0].id : null);
 
 	const { data: platformDomainsRes } = useQuery(listPlatformDomains, {
 		activeOnly: true,
@@ -247,11 +247,18 @@ export function CreateResource() {
 	const createResourceMutation = useMutation(createResource);
 	const createDeploymentMutation = useMutation(createDeployment);
 	const checkSubdomainMutation = useMutation(checkDomainAvailability);
+	const checkSubdomainMutateRef = useRef(checkSubdomainMutation.mutateAsync);
+	checkSubdomainMutateRef.current = checkSubdomainMutation.mutateAsync;
 
 	// Set default platform domain on load
 	useEffect(() => {
 		if (platformDomains.length > 0 && !selectedPlatformDomain) {
-			setSelectedPlatformDomain(platformDomains[0].domain);
+			const timer = setTimeout(() => {
+				setSelectedPlatformDomain(platformDomains[0].domain);
+			}, 0);
+			return () => {
+				clearTimeout(timer);
+			};
 		}
 	}, [platformDomains, selectedPlatformDomain]);
 
@@ -263,7 +270,12 @@ export function CreateResource() {
 			.toLowerCase()
 			.replace(/[^a-z0-9-]/g, "")
 			.replace(/^-+|-+$/g, "");
-		setSubdomain(sanitized);
+		const timer = setTimeout(() => {
+			setSubdomain(sanitized);
+		}, 0);
+		return () => {
+			clearTimeout(timer);
+		};
 	}, [resourceName]);
 
 	// Check subdomain availability as user types (debounced)
@@ -274,8 +286,12 @@ export function CreateResource() {
 		}
 
 		if (!subdomain.trim()) {
-			setSubdomainAvailability(null);
-			return;
+			const timer = setTimeout(() => {
+				setSubdomainAvailability(null);
+			}, 0);
+			return () => {
+				clearTimeout(timer);
+			};
 		}
 
 		setSubdomainAvailability("checking");
@@ -283,7 +299,7 @@ export function CreateResource() {
 		checkSubdomainTimeoutRef.current = setTimeout(async () => {
 			try {
 				const fullDomain = `${subdomain.trim()}.${selectedPlatformDomain}`;
-				const availabilityRes = await checkSubdomainMutation.mutateAsync({
+				const availabilityRes = await checkSubdomainMutateRef.current({
 					domain: fullDomain,
 				});
 
@@ -447,12 +463,12 @@ export function CreateResource() {
 				domain: {
 					domainSource: DomainType.PLATFORM_PROVIDED,
 					subdomain: subdomain,
-					platformDomainId: platformDomain?.id || BigInt(0),
+					platformDomainId: platformDomain?.id ?? BigInt(0),
 				},
 				spec,
 			});
 
-			if (!resource?.resourceId) {
+			if (!resource.resourceId) {
 				toast.error("Failed to create resource");
 				return;
 			}
@@ -461,7 +477,7 @@ export function CreateResource() {
 			if (dockerImageUrl.trim() && appPort.trim()) {
 				try {
 					// Convert env vars array to object
-					const envObject: { [key: string]: string } = {};
+					const envObject: Record<string, string> = {};
 					envVars.forEach((env) => {
 						if (env.key.trim() && env.value.trim()) {
 							envObject[env.key.trim()] = env.value.trim();
@@ -506,7 +522,7 @@ export function CreateResource() {
 
 			// Navigate to resource details
 			if (activeOrgId && activeWorkspaceId) {
-				navigate(
+				void navigate(
 					`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.resourceId}`,
 				);
 			}
@@ -529,7 +545,12 @@ export function CreateResource() {
 				</h1>
 			</div> */}
 
-			<form onSubmit={handleSubmit} className="space-y-6">
+			<form
+				onSubmit={(e) => {
+					void handleSubmit(e);
+				}}
+				className="space-y-6"
+			>
 				{/* Resource Configuration */}
 				<Card>
 					<CardHeader>
@@ -546,7 +567,9 @@ export function CreateResource() {
 								id="resource-name"
 								placeholder="my-awesome-app"
 								value={resourceName}
-								onChange={(e) => setResourceName(e.target.value)}
+								onChange={(e) => {
+									setResourceName(e.target.value);
+								}}
 							/>
 							<p className="text-xs text-muted-foreground">
 								Choose a descriptive name for your resource
@@ -635,223 +658,238 @@ export function CreateResource() {
 				</Card>
 
 				{/* Deployment Configuration - Only show for SERVICE type */}
-				{selectedResourceType?.available && resourceType === "SERVICE" && (
-					<Card className="border-dashed shadow-none">
-						<CardHeader>
-							<CardTitle className="text-lg flex items-center gap-2">
-								<Server className="h-5 w-5 text-main" />
-								Deploy Now (Optional)
-							</CardTitle>
-							<CardDescription>
-								Provide a Docker image to create an initial deployment
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							<div className="space-y-2">
-								<Label htmlFor="docker-image" className="text-sm font-medium">
-									Docker Image URL
-								</Label>
-								<Input
-									id="docker-image"
-									placeholder="nginx:latest or registry.example.com/my-app:v1.0.0"
-									value={dockerImageUrl}
-									onChange={(e) => {
-										const value = e.target.value;
-										setDockerImageUrl(value);
-										if (value.trim()) {
-											setDockerImageError(validateDockerImage(value));
-										} else {
-											setDockerImageError("");
-										}
-									}}
-									className={` bg-background ${
-										dockerImageError ? "border-error-text" : ""
-									}`}
-								/>
-								{dockerImageError ? (
-									<p className="text-xs text-error-text">{dockerImageError}</p>
-								) : (
-									<p className="text-xs text-muted-foreground">
-										Leave empty to configure deployment later
-									</p>
-								)}
-							</div>
-
-							{dockerImageUrl.trim() && (
-								<div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-									{/* App Port */}
-									<div className="space-y-2">
-										<Label htmlFor="app-port" className="text-sm font-medium">
-											Application Port{" "}
-											<span className="text-error-text">*</span>
-										</Label>
-										<Input
-											id="app-port"
-											type="number"
-											placeholder="8080"
-											value={appPort}
-											onChange={(e) => setAppPort(e.target.value)}
-											className=" bg-background w-32"
-											min="1"
-											max="65535"
-										/>
-										<p className="text-xs text-muted-foreground">
-											The port your application listens on inside the container
+				{selectedResourceType &&
+					selectedResourceType.available &&
+					resourceType === "SERVICE" && (
+						<Card className="border-dashed shadow-none">
+							<CardHeader>
+								<CardTitle className="text-lg flex items-center gap-2">
+									<Server className="h-5 w-5 text-main" />
+									Deploy Now (Optional)
+								</CardTitle>
+								<CardDescription>
+									Provide a Docker image to create an initial deployment
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="docker-image" className="text-sm font-medium">
+										Docker Image URL
+									</Label>
+									<Input
+										id="docker-image"
+										placeholder="nginx:latest or registry.example.com/my-app:v1.0.0"
+										value={dockerImageUrl}
+										onChange={(e) => {
+											const value = e.target.value;
+											setDockerImageUrl(value);
+											if (value.trim()) {
+												setDockerImageError(validateDockerImage(value));
+											} else {
+												setDockerImageError("");
+											}
+										}}
+										className={` bg-background ${
+											dockerImageError ? "border-error-text" : ""
+										}`}
+									/>
+									{dockerImageError ? (
+										<p className="text-xs text-error-text">
+											{dockerImageError}
 										</p>
-									</div>
-
-									{/* Region Selection */}
-									<div className="space-y-2">
-										<Label htmlFor="region" className="text-sm font-medium">
-											Region
-										</Label>
-										<Select value={region} onValueChange={setRegion}>
-											<SelectTrigger id="region" className=" bg-background">
-												<SelectValue />
-											</SelectTrigger>
-											<SelectContent>
-												{REGIONS.map((r) => (
-													<SelectItem key={r.value} value={r.value}>
-														{r.label}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
+									) : (
 										<p className="text-xs text-muted-foreground">
-											Choose the region where your service will be deployed
+											Leave empty to configure deployment later
 										</p>
-									</div>
-
-									{/* Resource Configuration */}
-									<div className="space-y-4 pt-3 border-t ">
-										<Label className="text-sm font-medium">
-											Resource Limits (Optional)
-										</Label>
-										<div className="grid grid-cols-2 gap-6">
-											{/* CPU Slider */}
-											<div className="space-y-3">
-												<div className="flex items-center justify-between">
-													<Label className="text-xs text-muted-foreground">
-														CPU
-													</Label>
-													<span className="text-sm font-semibold text-foreground">
-														{CPU_OPTIONS[cpuIndex]} vCPU
-													</span>
-												</div>
-												<Slider
-													value={[cpuIndex]}
-													onValueChange={(value) => setCpuIndex(value[0])}
-													min={0}
-													max={CPU_OPTIONS.length - 1}
-													step={1}
-													className="w-full"
-												/>
-												<div className="flex justify-between text-xs text-muted-foreground">
-													<span>{CPU_OPTIONS[0]}</span>
-													<span>{CPU_OPTIONS[CPU_OPTIONS.length - 1]}</span>
-												</div>
-											</div>
-
-											{/* Memory Slider */}
-											<div className="space-y-3">
-												<div className="flex items-center justify-between">
-													<Label className="text-xs text-muted-foreground">
-														Memory
-													</Label>
-													<span className="text-sm font-semibold text-foreground">
-														{MEMORY_OPTIONS[memoryIndex]}
-													</span>
-												</div>
-												<Slider
-													value={[memoryIndex]}
-													onValueChange={(value) => setMemoryIndex(value[0])}
-													min={0}
-													max={MEMORY_OPTIONS.length - 1}
-													step={1}
-													className="w-full"
-												/>
-												<div className="flex justify-between text-xs text-muted-foreground">
-													<span>{MEMORY_OPTIONS[0]}</span>
-													<span>
-														{MEMORY_OPTIONS[MEMORY_OPTIONS.length - 1]}
-													</span>
-												</div>
-											</div>
-										</div>
-									</div>
-
-									{/* Environment Variables */}
-									<div className="space-y-3 pt-3 border-t ">
-										<div className="flex items-center justify-between">
-											<Label className="text-sm font-medium">
-												Environment Variables (Optional)
-											</Label>
-											<div className="flex gap-2">
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onClick={() => setIsEnvModalOpen(true)}
-													className="h-8"
-												>
-													<FileText className="h-4 w-4 mr-1" />
-													Import .env
-												</Button>
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onClick={addEnvVar}
-													className="h-8"
-												>
-													<Plus className="h-4 w-4 mr-1" />
-													Add Variable
-												</Button>
-											</div>
-										</div>
-										{envVars.length === 0 ? (
-											<p className="text-xs text-muted-foreground">
-												No environment variables added yet
-											</p>
-										) : (
-											<div className="space-y-2">
-												{envVars.map((env, index) => (
-													<div key={index} className="flex gap-2">
-														<Input
-															placeholder="KEY"
-															value={env.key}
-															onChange={(e) =>
-																updateEnvVar(index, "key", e.target.value)
-															}
-															className=" bg-background flex-1 font-mono text-sm"
-														/>
-														<Input
-															placeholder="value"
-															value={env.value}
-															onChange={(e) =>
-																updateEnvVar(index, "value", e.target.value)
-															}
-															className=" bg-background flex-1"
-														/>
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															onClick={() => removeEnvVar(index)}
-															className="h-10 px-3 text-muted-foreground hover:text-error-text"
-														>
-															<Trash2 className="h-4 w-4" />
-														</Button>
-													</div>
-												))}
-											</div>
-										)}
-									</div>
+									)}
 								</div>
-							)}
-						</CardContent>
-					</Card>
-				)}
+
+								{dockerImageUrl.trim() && (
+									<div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+										{/* App Port */}
+										<div className="space-y-2">
+											<Label htmlFor="app-port" className="text-sm font-medium">
+												Application Port{" "}
+												<span className="text-error-text">*</span>
+											</Label>
+											<Input
+												id="app-port"
+												type="number"
+												placeholder="8080"
+												value={appPort}
+												onChange={(e) => {
+													setAppPort(e.target.value);
+												}}
+												className=" bg-background w-32"
+												min="1"
+												max="65535"
+											/>
+											<p className="text-xs text-muted-foreground">
+												The port your application listens on inside the
+												container
+											</p>
+										</div>
+
+										{/* Region Selection */}
+										<div className="space-y-2">
+											<Label htmlFor="region" className="text-sm font-medium">
+												Region
+											</Label>
+											<Select value={region} onValueChange={setRegion}>
+												<SelectTrigger id="region" className=" bg-background">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{REGIONS.map((r) => (
+														<SelectItem key={r.value} value={r.value}>
+															{r.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+											<p className="text-xs text-muted-foreground">
+												Choose the region where your service will be deployed
+											</p>
+										</div>
+
+										{/* Resource Configuration */}
+										<div className="space-y-4 pt-3 border-t ">
+											<Label className="text-sm font-medium">
+												Resource Limits (Optional)
+											</Label>
+											<div className="grid grid-cols-2 gap-6">
+												{/* CPU Slider */}
+												<div className="space-y-3">
+													<div className="flex items-center justify-between">
+														<Label className="text-xs text-muted-foreground">
+															CPU
+														</Label>
+														<span className="text-sm font-semibold text-foreground">
+															{CPU_OPTIONS[cpuIndex]} vCPU
+														</span>
+													</div>
+													<Slider
+														value={[cpuIndex]}
+														onValueChange={(value) => {
+															setCpuIndex(value[0]);
+														}}
+														min={0}
+														max={CPU_OPTIONS.length - 1}
+														step={1}
+														className="w-full"
+													/>
+													<div className="flex justify-between text-xs text-muted-foreground">
+														<span>{CPU_OPTIONS[0]}</span>
+														<span>{CPU_OPTIONS[CPU_OPTIONS.length - 1]}</span>
+													</div>
+												</div>
+
+												{/* Memory Slider */}
+												<div className="space-y-3">
+													<div className="flex items-center justify-between">
+														<Label className="text-xs text-muted-foreground">
+															Memory
+														</Label>
+														<span className="text-sm font-semibold text-foreground">
+															{MEMORY_OPTIONS[memoryIndex]}
+														</span>
+													</div>
+													<Slider
+														value={[memoryIndex]}
+														onValueChange={(value) => {
+															setMemoryIndex(value[0]);
+														}}
+														min={0}
+														max={MEMORY_OPTIONS.length - 1}
+														step={1}
+														className="w-full"
+													/>
+													<div className="flex justify-between text-xs text-muted-foreground">
+														<span>{MEMORY_OPTIONS[0]}</span>
+														<span>
+															{MEMORY_OPTIONS[MEMORY_OPTIONS.length - 1]}
+														</span>
+													</div>
+												</div>
+											</div>
+										</div>
+
+										{/* Environment Variables */}
+										<div className="space-y-3 pt-3 border-t ">
+											<div className="flex items-center justify-between">
+												<Label className="text-sm font-medium">
+													Environment Variables (Optional)
+												</Label>
+												<div className="flex gap-2">
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={() => {
+															setIsEnvModalOpen(true);
+														}}
+														className="h-8"
+													>
+														<FileText className="h-4 w-4 mr-1" />
+														Import .env
+													</Button>
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={addEnvVar}
+														className="h-8"
+													>
+														<Plus className="h-4 w-4 mr-1" />
+														Add Variable
+													</Button>
+												</div>
+											</div>
+											{envVars.length === 0 ? (
+												<p className="text-xs text-muted-foreground">
+													No environment variables added yet
+												</p>
+											) : (
+												<div className="space-y-2">
+													{envVars.map((env, index) => (
+														<div key={env.key} className="flex gap-2">
+															<Input
+																placeholder="KEY"
+																value={env.key}
+																onChange={(e) => {
+																	updateEnvVar(index, "key", e.target.value);
+																}}
+																className=" bg-background flex-1 font-mono text-sm"
+															/>
+															<Input
+																placeholder="value"
+																value={env.value}
+																onChange={(e) => {
+																	updateEnvVar(index, "value", e.target.value);
+																}}
+																className=" bg-background flex-1"
+															/>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																onClick={() => {
+																	removeEnvVar(index);
+																}}
+																className="h-10 px-3 text-muted-foreground hover:text-error-text"
+															>
+																<Trash2 className="h-4 w-4" />
+															</Button>
+														</div>
+													))}
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+					)}
 
 				{/* Actions */}
 				<div className="flex gap-3 justify-end pt-4">
@@ -860,9 +898,7 @@ export function CreateResource() {
 						variant="secondary"
 						onClick={() => {
 							if (activeOrgId && activeWorkspaceId) {
-								navigate(
-									`/org/${activeOrgId.toString()}/wks/${activeWorkspaceId.toString()}`,
-								);
+								void navigate(`/org/${activeOrgId}/wks/${activeWorkspaceId}`);
 							}
 						}}
 						disabled={isCreating}
@@ -909,7 +945,9 @@ export function CreateResource() {
 					<div className="space-y-4">
 						<Textarea
 							value={envFileContent}
-							onChange={(e) => setEnvFileContent(e.target.value)}
+							onChange={(e) => {
+								setEnvFileContent(e.target.value);
+							}}
 							placeholder="DATABASE_URL=postgresql://user:pass@localhost:5432/db&#10;API_KEY=your-api-key-here&#10;NODE_ENV=production&#10;# Comments are supported"
 							className="font-mono text-sm min-h-[400px] resize-none "
 							spellCheck={false}

@@ -4,10 +4,10 @@ import { listUserWorkspaces } from "@/gen/loco/workspace/v1";
 export function useWorkspace() {
 	const { data } = useQuery(listUserWorkspaces, {});
 
-	const workspace = data?.workspaces?.[0] || null;
+	const workspace = data?.workspaces?.[0] ?? null;
 
 	return {
 		workspace,
-		workspaces: data?.workspaces || [],
+		workspaces: data?.workspaces ?? [],
 	};
 }
