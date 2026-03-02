@@ -1,15 +1,12 @@
 # pulled from fiber's golangci, may need to update this.
 version: "2"
 output:
-  show-stats: true
   formats:
-    html:
-      path: lint.html
     text:
       print-linter-name: true
       print-issued-lines: true
       colors: true
-      path: stdout
+  show-stats: true
   sort-order:
     - severity
 run:
