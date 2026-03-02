@@ -200,13 +200,13 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        run: cd terraform && terraform init
+        run: cd terraform/do && terraform init
 
       - name: Terraform Plan
-        run: cd terraform && terraform plan -out=tfplan
+        run: cd terraform/do && terraform plan -out=tfplan
 
       - name: Terraform Apply
-        run: cd terraform && terraform apply -auto-approve "tfplan"
+        run: cd terraform/do && terraform apply -auto-approve "tfplan"
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
