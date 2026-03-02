@@ -87,13 +87,13 @@ func (s *TokenServer) CreateToken(
 		ID:   entityId,
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeWrite,
-	}); err != nil {
+	}); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to create token for entity", "entityType", targetEntity.Type, "entityId", targetEntity.ID)
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	dbScopes := make([]genDb.EntityScope, len(r.GetScopes()))
@@ -161,13 +161,13 @@ func (s *TokenServer) ListTokens(
 		ID:   entityId,
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
-	}); err != nil {
+	}); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to list tokens for entity", "entityType", targetEntity.Type, "entityId", targetEntity.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
@@ -220,13 +220,13 @@ func (s *TokenServer) GetToken(
 		ID:   entityId,
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
 		Scope:      genDb.ScopeRead,
-	}); err != nil {
+	}); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to get token for entity", "entityType", targetEntity.Type, "entityId", targetEntity.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	token, err := s.queries.GetAPITokenByNameAndEntity(ctx, genDb.GetAPITokenByNameAndEntityParams{

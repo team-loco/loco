@@ -146,7 +146,11 @@ func (tvm *VendingMachine) UpdateRoles(ctx context.Context, userID string, addSc
 	}
 	defer tx.Rollback(ctx)
 
-	qtx := tvm.queries.(*queries.Queries).WithTx(tx)
+	qtx, ok := tvm.queries.(*queries.Queries)
+	if !ok {
+		return fmt.Errorf("failed to cast queries to *queries.Queries")
+	}
+	qtx = qtx.WithTx(tx)
 
 	userId, err := uuid.Parse(userID)
 	if err != nil {

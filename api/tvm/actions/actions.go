@@ -326,7 +326,7 @@ var (
 )
 
 func New(a Action, entityID string) db.EntityScope {
-	parsed, _ := uuid.Parse(entityID)
+	parsed := uuid.MustParse(entityID)
 	return db.EntityScope{
 		EntityType: a.entityType,
 		EntityID:   parsed,

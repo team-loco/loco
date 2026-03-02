@@ -48,11 +48,11 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
 		EntityType: genDb.EntityTypeWorkspace,
 		EntityID:   workspaceID,
 		Scope:      genDb.ScopeRead,
-	}); err != nil {
+	}); verifyErr != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("insufficient permissions"))
 	}
 
