@@ -19,7 +19,6 @@ async function doRefresh(): Promise<void> {
 		useBinaryFormat: false,
 	});
 	// server reads loco_refresh_token from the cookie; body can be empty.
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 	await createClient(OAuthService, authTransport).refreshToken({});
 }
 
