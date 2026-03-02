@@ -47,6 +47,9 @@ import (
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
 	finalizerSecretRefresher = "loco.io/secret-refresher"
+	phaseDeploying           = "Deploying"
+	phaseFailed              = "Failed"
+	phaseReady               = "Ready"
 )
 
 // LocoResourceReconciler reconciles a Application object
@@ -117,20 +120,20 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// initialize status
 	if locoRes.Status.Phase == "" {
-		locoRes.Status.Phase = "Deploying"
+		locoRes.Status.Phase = phaseDeploying
 		now := metav1.Now()
 		locoRes.Status.StartedAt = &now
 	}
 	slog.InfoContext(ctx, "initializing status", "phase", locoRes.Status.Phase)
 
 	// Track status locally - only update at the end
-	currentPhase := "Deploying"
+	currentPhase := phaseDeploying
 	currentMessage := "Reconciling resources..."
 
 	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
 	if err := ensureNamespace(ctx, r.Client, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure namespace", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure namespace: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after namespace error", "error", statusErr)
@@ -140,7 +143,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := ensureEnvSecret(ctx, r.Client, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure secrets", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure secrets: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after secrets error", "error", statusErr)
@@ -150,7 +153,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := r.ensureImagePullSecret(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure image pull secret", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure image pull secret: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after image pull secret error", "error", statusErr)
@@ -160,7 +163,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := r.ensureServiceAccount(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure service account", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure service account: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after service account error", "error", statusErr)
@@ -170,7 +173,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := r.ensureRoleAndBinding(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure role & binding", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure role & binding: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after role & binding error", "error", statusErr)
@@ -181,7 +184,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	dep, err := r.ensureDeployment(ctx, &locoRes)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to ensure deployment", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure deployment: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after deployment error", "error", statusErr)
@@ -191,7 +194,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := r.ensureService(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure service", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure service: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after service error", "error", statusErr)
@@ -201,7 +204,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	if err := r.ensureHTTPRoute(ctx, &locoRes); err != nil {
 		slog.ErrorContext(ctx, "failed to ensure HTTP route", "error", err)
-		currentPhase = "Failed"
+		currentPhase = phaseFailed
 		currentMessage = fmt.Sprintf("failed to ensure HTTP route: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after HTTP route error", "error", statusErr)
@@ -213,10 +216,10 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	if dep != nil {
 		replicas := int32(1)
 		if dep.Status.ReadyReplicas < replicas {
-			currentPhase = "Deploying"
+			currentPhase = phaseDeploying
 			currentMessage = "Waiting for pods to be ready..."
 		} else {
-			currentPhase = "Ready"
+			currentPhase = phaseReady
 			currentMessage = "Deployment ready"
 		}
 	}
@@ -230,7 +233,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	r.startSecretRefresherGoroutine(ctx, &locoRes)
 
 	slog.InfoContext(ctx, "reconcile complete", "phase", locoRes.Status.Phase, "resource", locoRes.Name)
-	if locoRes.Status.Phase == "Deploying" {
+	if locoRes.Status.Phase == phaseDeploying {
 		// requeue faster while deployment is rolling out
 		return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
 	}
@@ -244,7 +247,7 @@ func (r *LocoResourceReconciler) updatePhase(ctx context.Context, locoRes *locov
 	locoRes.Status.Message = message
 	now := &metav1.Time{Time: time.Now()}
 	locoRes.Status.UpdatedAt = now
-	if phase == "Ready" {
+	if phase == phaseReady {
 		locoRes.Status.CompletedAt = now
 	}
 	return r.updateLRStatus(ctx, locoRes, &locoRes.Status)
@@ -613,7 +616,7 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 	namespace := getNamespace(locoRes)
 	image := ""
 	replicas := int32(1)
-	var envVars []corev1.EnvVar
+	envVars := make([]corev1.EnvVar, 0, len(locoRes.Spec.ServiceSpec.Deployment.Env))
 	var livenessProbe *corev1.Probe
 	var readinessProbe *corev1.Probe
 	var containerPort int32 = 8080
@@ -779,10 +782,6 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 		}
 	}
 
-	if backendPort == nil {
-		backendPort = ptrToPortNumber(80)
-	}
-
 	route := &v1Gateway.HTTPRoute{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      routeName,
@@ -810,7 +809,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 					{
 						Path: &v1Gateway.HTTPPathMatch{
 							Type:  &pathType,
-							Value: ptrToString(pathValue),
+							Value: new(pathValue),
 						},
 					},
 				},
@@ -819,7 +818,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 						BackendRef: v1Gateway.BackendRef{
 							BackendObjectReference: v1Gateway.BackendObjectReference{
 								Name: v1Gateway.ObjectName(name),
-								Port: ptrToPortNumber(80),
+								Port: backendPort,
 								Kind: ptrToKind("Service"),
 							},
 						},
@@ -856,11 +855,6 @@ func (r *LocoResourceReconciler) updateLRStatus(
 func ptrToPortNumber(p int) *v1Gateway.PortNumber {
 	n := v1Gateway.PortNumber(p)
 	return &n
-}
-
-// ptrToString returns a pointer to a string
-func ptrToString(s string) *string {
-	return &s
 }
 
 // ptrToKind returns a pointer to a Kind
@@ -987,8 +981,8 @@ func (r *LocoResourceReconciler) getGitlabRegistryToken(ctx context.Context) (*g
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("PRIVATE-TOKEN", r.gitlabPAT)
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+	httpClient := &http.Client{Timeout: 10 * time.Second}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to execute gitlab api request", "error", err)
 		return nil, fmt.Errorf("failed to create deploy token: %w", err)
@@ -1047,19 +1041,19 @@ func buildDockerConfig(registryURL, username, token string) ([]byte, error) {
 // validateLocoResource validates that required fields exist in the spec
 func (r *LocoResourceReconciler) validateLocoResource(locoRes *locov1alpha1.Application) error {
 	if locoRes.Spec.ServiceSpec == nil {
-		return fmt.Errorf("ServiceSpec is required")
+		return fmt.Errorf("serviceSpec is required")
 	}
 	if locoRes.Spec.ServiceSpec.Deployment == nil {
-		return fmt.Errorf("ServiceSpec.Deployment is required")
+		return fmt.Errorf("serviceSpec.Deployment is required")
 	}
 	if locoRes.Spec.ServiceSpec.Deployment.Image == "" {
-		return fmt.Errorf("Image is required")
+		return fmt.Errorf("image is required")
 	}
 	if locoRes.Spec.ResourceId == "" {
-		return fmt.Errorf("ResourceId is required")
+		return fmt.Errorf("resourceId is required")
 	}
 	if locoRes.Spec.WorkspaceId == "" {
-		return fmt.Errorf("WorkspaceID is required")
+		return fmt.Errorf("workspaceID is required")
 	}
 	return nil
 }

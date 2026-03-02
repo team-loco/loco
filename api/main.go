@@ -6,10 +6,10 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -43,20 +43,19 @@ import (
 )
 
 type ApiConfig struct {
-	Env             string // Environment (e.g., dev, prod)
-	ProjectID       string // GitLab project ID
-	GitlabURL       string // Container registry URL
-	RegistryURL     string // Container registry URL
-	DeployTokenName string // Deploy token name
-	GitlabPAT       string // GitLab Personal Access Token
-	DatabaseURL     string // PostgreSQL connection string
-	LogLevel        slog.Level
-	Port            string
-	RegistryTag     string
-	LocoDomainBase  string // Base domain (e.g., deploy-app.com)
-	LocoDomainAPI   string // API domain (e.g., api.deploy-app.com)
-	CacheType       string // Cache backend type: "in-memory" or "valkey"
-	CacheAddr       string // Valkey address (when CacheType is "valkey")
+	Env                string // Environment (e.g., dev, prod)
+	ProjectID          string // GitLab project ID
+	GitlabURL          string // Container registry URL
+	RegistryURL        string // Container registry URL
+	DeployTokenName    string // Deploy token name
+	GitlabPAT          string // GitLab Personal Access Token
+	DatabaseURL        string // PostgreSQL connection string
+	LogLevel           slog.Level
+	Port               string
+	RegistryTag        string
+	CacheType          string   // Cache backend type: "in-memory" or "valkey"
+	CacheAddr          string   // Valkey address (when CacheType is "valkey")
+	CORSAllowedOrigins []string // CORS allowed origins (e.g., http://localhost:5173)
 }
 
 func newApiConfig() *ApiConfig {
@@ -73,32 +72,30 @@ func newApiConfig() *ApiConfig {
 		cacheType = "in-memory"
 	}
 
-	return &ApiConfig{
-		Env:             os.Getenv("APP_ENV"),
-		ProjectID:       os.Getenv("GITLAB_PROJECT_ID"),
-		GitlabURL:       os.Getenv("GITLAB_URL"),
-		RegistryURL:     os.Getenv("GITLAB_REGISTRY_URL"),
-		DeployTokenName: os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
-		GitlabPAT:       os.Getenv("GITLAB_PAT"),
-		DatabaseURL:     os.Getenv("DATABASE_URL"),
-		Port:            os.Getenv("PORT"),
-		LogLevel:        logLevel,
-		RegistryTag:     os.Getenv("REGISTRY_TAG"),
-		LocoDomainBase:  os.Getenv("LOCO_DOMAIN_BASE"),
-		LocoDomainAPI:   os.Getenv("LOCO_DOMAIN_API"),
-		CacheType:       cacheType,
-		CacheAddr:       os.Getenv("CACHE_ADDR"),
+	corsOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
+	corsOrigins := []string{}
+	if corsOriginsStr != "" {
+		corsOrigins = strings.Split(corsOriginsStr, ",")
+		for i := range corsOrigins {
+			corsOrigins[i] = strings.TrimSpace(corsOrigins[i])
+		}
 	}
-}
 
-func isAllowedOrigin(hostname, baseDomain string) bool {
-	if hostname == "localhost" {
-		return true
+	return &ApiConfig{
+		Env:                os.Getenv("APP_ENV"),
+		ProjectID:          os.Getenv("GITLAB_PROJECT_ID"),
+		GitlabURL:          os.Getenv("GITLAB_URL"),
+		RegistryURL:        os.Getenv("GITLAB_REGISTRY_URL"),
+		DeployTokenName:    os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
+		GitlabPAT:          os.Getenv("GITLAB_PAT"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		Port:               os.Getenv("PORT"),
+		LogLevel:           logLevel,
+		RegistryTag:        os.Getenv("REGISTRY_TAG"),
+		CacheType:          cacheType,
+		CacheAddr:          os.Getenv("CACHE_ADDR"),
+		CORSAllowedOrigins: corsOrigins,
 	}
-	if baseDomain == "" {
-		return false
-	}
-	return hostname == baseDomain || hostname == "www."+baseDomain
 }
 
 func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
@@ -115,17 +112,11 @@ func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cach
 	}
 }
 
-func withCORS(baseDomain string) func(http.Handler) http.Handler {
+func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id")
 	return func(h http.Handler) http.Handler {
 		middleware := cors.New(cors.Options{
-			AllowOriginFunc: func(origin string) bool {
-				u, err := url.Parse(origin)
-				if err != nil {
-					return false
-				}
-				return isAllowedOrigin(u.Hostname(), baseDomain)
-			},
+			AllowedOrigins:   allowedOrigins,
 			AllowedMethods:   connectcors.AllowedMethods(),
 			AllowedHeaders:   connectcors.AllowedHeaders(),
 			ExposedHeaders:   exposedHeaders,
@@ -337,7 +328,7 @@ func main() {
 	mux.Handle(observabilityAccessPath, observabilityAccessH)
 	mux.Handle(environmentPath, environmentHandler)
 
-	muxWCors := withCORS(ac.LocoDomainBase)(mux)
+	muxWCors := withCORS(ac.CORSAllowedOrigins)(mux)
 	muxWTiming := middleware.Timing(muxWCors)
 	muxWContext := middleware.SetContext(muxWTiming)
 
