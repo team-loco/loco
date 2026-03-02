@@ -2,7 +2,7 @@ import { OAuthService } from "@/gen/loco/oauth/v1/oauth_pb";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const withCreds = (input: RequestInfo | URL, init?: RequestInit) =>
 	fetch(input, { ...init, credentials: "include" });
