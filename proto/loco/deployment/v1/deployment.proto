@@ -76,7 +76,7 @@ message Scalers {
 message BuildSource {
   string type = 1 [(buf.validate.field).string.min_len = 1]; // "dockerfile", "buildpack", "image"
   string image = 2 [(buf.validate.field).string = {
-    min_len: 1,
+    min_len: 1
     pattern: "^([a-z0-9\\-._]+(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+|@sha256:[a-f0-9]{64})?$"
   }]; // final image or pre-built
   optional string dockerfile_path = 3;
