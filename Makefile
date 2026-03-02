@@ -91,7 +91,7 @@ ui:
 dev: fmt vet ## Start all local components (UI, API, Agent, Controller, Obs Proxy)
 	@echo "Starting all local components..."
 	@(trap 'kill $(jobs -p) 2>/dev/null' EXIT; \
-		$(MAKE) run-api & \
+		$(MAKE) reload-api & \
 		$(MAKE) reload-cli & \
 		$(MAKE) run-agent & \
 		$(MAKE) run-obs-proxy & \
