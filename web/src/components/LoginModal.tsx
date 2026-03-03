@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
@@ -106,6 +107,9 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 					<DialogTitle className="text-3xl text-center text-gray-900">
 						Let&apos;s get started
 					</DialogTitle>
+					<DialogDescription className="hidden">
+						Sign in to your account
+					</DialogDescription>
 				</DialogHeader>
 
 				{/* Error Message Container */}

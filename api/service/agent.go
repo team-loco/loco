@@ -301,7 +301,7 @@ func (s *AgentServer) ReportStatus(
 
 // getDirectiveForCluster checks for pending directives for a cluster.
 // Returns nil if no directive is pending.
-func (s *AgentServer) getDirectiveForCluster(ctx context.Context, clusterID uuid.UUID) *agentv1.HeartbeatResponse {
+func (s *AgentServer) getDirectiveForCluster(_ context.Context, _ uuid.UUID) *agentv1.HeartbeatResponse {
 	// TODO: implement directive storage (e.g., in cache or DB)
 	// For now, no directives
 	return nil
