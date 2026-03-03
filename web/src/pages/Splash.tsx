@@ -352,10 +352,7 @@ export function Splash() {
 
 					<div className="grid md:grid-cols-3 gap-6">
 						<div className="bg-white border border-[#E7E5E0] rounded-xl p-7">
-							<GitHubIcon
-								className="w-6 h-6 mb-4"
-								style={{ color: "#1C1917" }}
-							/>
+							<GitHubIcon className="w-6 h-6 mb-4 text-[#1C1917]" />
 							<h3 className="text-base font-semibold mb-2">
 								Full Source on GitHub
 							</h3>
