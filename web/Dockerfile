@@ -23,7 +23,7 @@ RUN find dist -type f -size +1k \( \
     -name '*.svg' -o \
     -name '*.json' -o \
     -name '*.woff2' \
-    \) -exec brotli -f -k -q 9 {} \;
+    \) -exec brotli -f -k -q 11 {} \;
 
 
 FROM georgjung/nginx-brotli:trixie
