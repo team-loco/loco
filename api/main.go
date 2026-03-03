@@ -21,7 +21,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/interceptors"
+	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/service"
@@ -150,8 +150,8 @@ func main() {
 
 	mux := http.NewServeMux()
 	httpInterceptors := connect.WithInterceptors(
-		interceptors.NewContextInterceptor(),
-		interceptors.NewGithubAuthInterceptor(machine),
+		interceptor.NewContextInterceptor(),
+		interceptor.NewGithubAuthInterceptor(machine),
 		validate.NewInterceptor(),
 	)
 
