@@ -3,7 +3,7 @@ import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const APP_ENV = import.meta.env.VITE_APP_ENV || "PRODUCTION";
+const APP_ENV = import.meta.env.VITE_APP_ENV || "DEVELOPMENT";
 
 const withCreds = (input: RequestInfo | URL, init?: RequestInit) =>
 	fetch(input, { ...init, credentials: "include" });

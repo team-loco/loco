@@ -21,7 +21,7 @@ import (
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/middleware"
+	"github.com/team-loco/loco/api/interceptors"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/service"
@@ -113,7 +113,7 @@ func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cach
 }
 
 func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
-	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id")
+	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id", "server-timing")
 	return func(h http.Handler) http.Handler {
 		middleware := cors.New(cors.Options{
 			AllowedOrigins:   allowedOrigins,
@@ -149,7 +149,11 @@ func main() {
 	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
-	interceptors := connect.WithInterceptors(middleware.NewGithubAuthInterceptor(machine), validate.NewInterceptor())
+	httpInterceptors := connect.WithInterceptors(
+		interceptors.NewContextInterceptor(),
+		interceptors.NewGithubAuthInterceptor(machine),
+		validate.NewInterceptor(),
+	)
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -209,18 +213,18 @@ func main() {
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 
-	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, interceptors)
-	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, interceptors)
-	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, interceptors)
-	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(workspaceServiceHandler, interceptors)
-	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(resourceServiceHandler, interceptors)
-	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(deploymentServiceHandler, interceptors)
-	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, interceptors)
-	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, interceptors)
-	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, interceptors)
+	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
+	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
+	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
+	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(workspaceServiceHandler, httpInterceptors)
+	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(resourceServiceHandler, httpInterceptors)
+	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(deploymentServiceHandler, httpInterceptors)
+	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, httpInterceptors)
+	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, httpInterceptors)
+	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, httpInterceptors)
 	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler)
-	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(observabilityAccessHandler, interceptors)
-	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(environmentServiceHandler, interceptors)
+	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(observabilityAccessHandler, httpInterceptors)
+	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(environmentServiceHandler, httpInterceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
 		// oauth service
@@ -329,12 +333,10 @@ func main() {
 	mux.Handle(environmentPath, environmentHandler)
 
 	muxWCors := withCORS(ac.CORSAllowedOrigins)(mux)
-	muxWTiming := middleware.Timing(muxWCors)
-	muxWContext := middleware.SetContext(muxWTiming)
 
 	server := &http.Server{
 		Addr:    ac.Port,
-		Handler: h2c.NewHandler(muxWContext, &http2.Server{}),
+		Handler: h2c.NewHandler(muxWCors, &http2.Server{}),
 	}
 
 	quit := make(chan error, 1)
