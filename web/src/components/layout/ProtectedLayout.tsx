@@ -1,3 +1,4 @@
+import Loader from "@/assets/loader.svg?react";
 import { useAuth } from "@/auth/AuthProvider";
 import { SiteHeader } from "@/components/site-header";
 import { ContextProvider } from "@/context/ContextProvider";
@@ -49,8 +50,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		return (
 			<div className="flex items-center justify-center min-h-screen bg-background">
 				<div className="text-center">
-					<div className="w-8 h-8 bg-main rounded-lg mx-auto mb-4 animate-pulse"></div>
-					<p className="text-foreground font-base">Loading Loco...</p>
+					<Loader className="w-12 h-12 mx-auto mb-4" />
 				</div>
 			</div>
 		);

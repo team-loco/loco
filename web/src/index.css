@@ -481,7 +481,7 @@
 	}
 
 	.btn-destructive:hover {
-		@apply shadow-md transform -translate-y-[1px] opacity-90;
+		@apply shadow-md transform -translate-y-px opacity-90;
 	}
 
 	/* Button disabled */
