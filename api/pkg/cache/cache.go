@@ -70,9 +70,11 @@ type ValkeyAdapter struct {
 }
 
 func NewValkey(CacheAddr string, defaultTTL time.Duration) (*ValkeyAdapter, error) {
-	client, err := valkey.NewClient(valkey.ClientOption{
-		InitAddress: []string{CacheAddr},
-	})
+	clientOpts, parseErr := valkey.ParseURL(CacheAddr)
+	if parseErr != nil {
+		return nil, fmt.Errorf("failed to valkey URL: %w", parseErr)
+	}
+	client, err := valkey.NewClient(clientOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to valkey: %w", err)
 	}

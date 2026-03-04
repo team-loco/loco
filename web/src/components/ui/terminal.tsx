@@ -93,7 +93,11 @@ interface TerminalProps {
 	headerClassName?: string;
 }
 
-export const Terminal = ({ children, className, headerClassName }: TerminalProps) => {
+export const Terminal = ({
+	children,
+	className,
+	headerClassName,
+}: TerminalProps) => {
 	return (
 		<div
 			className={cn(
@@ -101,7 +105,12 @@ export const Terminal = ({ children, className, headerClassName }: TerminalProps
 				className,
 			)}
 		>
-			<div className={cn("flex flex-col gap-y-2 border-b border-border p-4", headerClassName)}>
+			<div
+				className={cn(
+					"flex flex-col gap-y-2 border-b border-border p-2",
+					headerClassName,
+				)}
+			>
 				<div className="flex flex-row gap-x-2">
 					<div className="h-2 w-2 rounded-full bg-red-500" />
 					<div className="h-2 w-2 rounded-full bg-yellow-500" />
