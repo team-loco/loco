@@ -36,7 +36,7 @@ Port = 8000
 PathPrefix = "/"
 
 [DomainConfig]
-Hostname = "my-api.deploy-app.com"
+Hostname = "my-api"
 
 [RegionConfig."us-east-1"]
 CPU = "100m"
@@ -189,7 +189,7 @@ export function Splash() {
 							<code className="bg-black/30 backdrop-blur border border-white/20 px-2 py-0.5 rounded-md font-mono text-sm text-orange-300">
 								loco deploy
 							</code>
-							, and we handle the rest on Kubernetes.
+							, and we handle the rest.
 						</p>
 
 						<div className="flex flex-wrap gap-4">
@@ -197,7 +197,7 @@ export function Splash() {
 								onClick={() => {
 									setLoginModalOpen(true);
 								}}
-								className="px-7 py-3.5 bg-[#C7654F] text-white border-2 border-[#1C1917] rounded-sm font-bold text-base shadow-[4px_4px_0px_#1C1917] hover:shadow-[2px_2px_0px_#1C1917] hover:translate-x-[2px] hover:translate-y-[2px] transition-all cursor-pointer"
+								className="px-7 py-3.5 bg-[#C7654F] text-white border-2 border-[#1C1917] rounded-sm font-bold text-base shadow-[4px_4px_0px_#1C1917] hover:shadow-[2px_2px_0px_#1C1917] hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer"
 							>
 								Deploy Your First App
 							</button>
@@ -205,7 +205,7 @@ export function Splash() {
 								href="https://github.com/team-loco/loco"
 								target="_blank"
 								rel="noreferrer"
-								className="px-7 py-3.5 bg-white text-[#1C1917] border-2 border-[#1C1917] rounded-sm font-bold text-base shadow-[4px_4px_0px_#1C1917] hover:shadow-[2px_2px_0px_#1C1917] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center gap-2"
+								className="px-7 py-3.5 bg-white text-[#1C1917] border-2 border-[#1C1917] rounded-sm font-bold text-base shadow-[4px_4px_0px_#1C1917] hover:shadow-[2px_2px_0px_#1C1917] hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center gap-2"
 							>
 								<GitHubIcon className="w-4 h-4" />
 								View on GitHub
@@ -226,10 +226,7 @@ export function Splash() {
 							</TypingAnimation>
 						</AnimatedSpan>
 						<AnimatedSpan delay={1400} className="text-[#94A8B0]">
-							✓ Created loco.toml with defaults
-						</AnimatedSpan>
-						<AnimatedSpan delay={1700} className="text-[#94A8B0]">
-							✓ Ready to deploy
+							✓ Created loco.toml in working directory.
 						</AnimatedSpan>
 						{/* spacer */}
 						<AnimatedSpan delay={1900} className="select-none opacity-0">
