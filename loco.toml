@@ -2,8 +2,8 @@
 ConfigVersion = "0.1"
 Description = "Default Loco app configuration"
 Name = "foo"
-Type = "SERVICE"
 Region = "us-east-1"
+Type = "SERVICE"
 
 [Build]
 DockerfilePath = "Dockerfile"
@@ -15,7 +15,7 @@ PathPrefix = "/"
 Port = 8000
 
 [DomainConfig]
-Hostname = "foo.deploy-app.com"
+Hostname = "foo.onloco.app"
 Type = "platform"
 
 [RegionConfig]

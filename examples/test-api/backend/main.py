@@ -1,30 +1,32 @@
 import asyncio
 import time
+
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import httpx
 
 app = FastAPI()
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # <-- Allow any origin
+    allow_origins=["*"],  # <-- Allow any origin
     allow_credentials=True,
-    allow_methods=["*"],       # GET, POST, PUT, DELETE, etc.
-    allow_headers=["*"],       # Allow any headers
+    allow_methods=["*"],  # GET, POST, PUT, DELETE, etc.
+    allow_headers=["*"],  # Allow any headers
 )
-
 
 
 @app.get("/api/health")
 async def health():
     return {"status": "server is healthy"}
 
+
 @app.get("/api/fail")
 async def fail():
     while True:
         time.sleep(30)
+
 
 @app.post("/api/echo")
 async def echo(request: Request):
@@ -42,7 +44,7 @@ async def echo(request: Request):
 async def echo_get(request: Request):
     async with httpx.AsyncClient() as c:
         SERVICE_BASE_URL = "http://auth.auth-nikumar1206.svc.cluster.local:80"
-        BALANCER_BASE_URL = "http://test-api.deploy-app.com"
+        BALANCER_BASE_URL = "http://test-api.onloco.app"
         await asyncio.sleep(1)
         start_time = time.perf_counter()
         try:
@@ -69,10 +71,11 @@ async def echo_get(request: Request):
         "auth_service_response_time": service_end_time - end_time,
         "auth_balancer_base_url": BALANCER_BASE_URL,
         "auth_balancer": balancer_json,
-        "auth_balancer_response_time": end_time - start_time
+        "auth_balancer_response_time": end_time - start_time,
     }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

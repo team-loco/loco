@@ -92,7 +92,7 @@ data:
       memory_limiter:
         check_interval: 1s
         limit_mib: 512
-      k8sattributes:
+      k8s_attributes:
         auth_type: "serviceAccount"
         passthrough: false
         extract:
@@ -126,7 +126,7 @@ data:
       pipelines:
         metrics:
           receivers: [kubeletstats]
-          processors: [k8sattributes, batch, memory_limiter]
+          processors: [k8s_attributes, batch, memory_limiter]
           exporters: [otlp, debug]
 ---
 apiVersion: apps/v1
@@ -147,40 +147,40 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: otelcol
-        image: otel/opentelemetry-collector-contrib:0.142.0
-        args:
-          - "--config=/etc/otelcol/config.yaml"
-        env:
-        - name: K8S_NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: K8S_POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: K8S_POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: HYPERDX_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: hyperdx-secret
-              key: HYPERDX_API_KEY
-              optional: true
-        volumeMounts:
-        - name: config
-          mountPath: /etc/otelcol
-        resources:
-          limits:
-            cpu: 250m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.147.0
+          args:
+            - "--config=/etc/otelcol/config.yaml"
+          env:
+            - name: K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: K8S_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: HYPERDX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: hyperdx-secret
+                  key: HYPERDX_API_KEY
+                  optional: true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol
+          resources:
+            limits:
+              cpu: 250m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
       volumes:
-      - name: config
-        configMap:
-          name: k8s-metrics-collector-config
+        - name: config
+          configMap:
+            name: k8s-metrics-collector-config

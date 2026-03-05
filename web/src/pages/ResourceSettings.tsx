@@ -480,7 +480,9 @@ export function ResourceSettings() {
 									setNewDomain(e.target.value);
 								}}
 								placeholder={
-									domainSource === "platform" ? "myapp.loco.dev" : "example.com"
+									domainSource === "platform"
+										? "myapp.onloco.app"
+										: "example.com"
 								}
 								className="mt-1"
 							/>

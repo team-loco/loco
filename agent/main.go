@@ -17,7 +17,7 @@ import (
 )
 
 type Config struct {
-	ControlPlaneURL string // e.g., "https://api.loco.dev"
+	ControlPlaneURL string // e.g., "https://api.loco.build"
 	AgentToken      string // Bearer token for authentication
 	Region          string // Region this agent is in
 	AgentVersion    string // Version of the agent

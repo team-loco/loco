@@ -89,7 +89,7 @@ Phase II
 
 [ ] App Sleep Mode (auto and user defined.)
 
-[ ] Global health endpoint: `status.deploy-app.com`
+[ ] Global health endpoint: `status.loco.build`
 
 [ ] Loco Admin Dashboard (also other APIs)
 

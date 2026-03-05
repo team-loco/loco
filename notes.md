@@ -27,7 +27,7 @@
   - metrics need multi-tenant support.
   - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
   - can potentially create dashboards dynamically, or atleast pull the data down.
-  - deploy a self-hosted instance on monitoring.loco.deploy-app.com
+  - deploy a self-hosted instance on monitoring.loco.build
   - tracing will be a to-do
 
 - Profiles
@@ -40,7 +40,7 @@
     [Profile.dev]
       CPU = "100m"
       Memory = "128Mi"
-      BaseDomain = "dev.deploy-app.com"
+      BaseDomain = "dev.onloco.app"
 
     [Profile.prod]
       CPU = "500m"
@@ -103,9 +103,9 @@
   - secrets need to pulled properly
   - need to take hourly snapshots of the cluster?
 
-- Loco Health Endpoint; served on status.deploy-app.com;
+- Loco Health Endpoint; served on status.loco.build;
 - when we do multicluster, is there a cluster specific one.
-- should we also get \*.loco.deploy-app.com
+- should we also get \*.loco.build
   -API latency and uptime (last 24h)
   -Builder queue backlog
   -Average deploy duration
@@ -194,7 +194,7 @@ we finally have basic logs/metrics popping up.
 sleep mode; if app not used in last 7 days or something. deployment is removed; can be recreated on request.
 
 - who sleeps the app/ who rebuilds the app?
-- actually maybe u point to actually the loco backend, and path rewrite to /revive-app?app-name=foobar123&og_url=foobar123.loco.deploy-app.com/cheesecake, and this revives app, and then redirects you to the correct domain again
+- actually maybe u point to actually the loco backend, and path rewrite to /revive-app?app-name=foobar123&og_url=foobar123.loco.onloco.app/cheesecake, and this revives app, and then redirects you to the correct domain again
 - there is value to having an admin dashboard, for those who are planning to bring your own cloud. but need to figure out keys and roles and whatnot.
 
 - some sort of env for configuring deployment behavior:
@@ -422,3 +422,5 @@ clickhouse is named weirdly and so is our controller.
 - eventually will need canaries against our service.
 
 - loco init should also grab defaults from the static config endpoint.
+
+- the UI needs to look at the vite_api_base_url

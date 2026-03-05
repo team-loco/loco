@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -22,7 +23,7 @@ var webCmd = &cobra.Command{
 }
 
 func webCmdFunc(cmd *cobra.Command, args []string) error {
-	host, err := getHost(cmd)
+	host, err := cmdutil.GetHost(cmd)
 	if err != nil {
 		return err
 	}

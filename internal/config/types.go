@@ -43,7 +43,7 @@ type Routing struct {
 
 type DomainConfig struct {
 	Type     string `json:"type,omitempty" toml:"Type"` // "platform" (default) or "custom"
-	Hostname string `json:"hostname" toml:"Hostname"`   // full resolvable hostname (e.g., "myapp.deploy-app.com")
+	Hostname string `json:"hostname" toml:"Hostname"`   // full resolvable hostname (e.g., "myapp.onloco.app")
 }
 
 type Health struct {
