@@ -41,6 +41,15 @@ export default defineConfig({
 						return "vendor-tanstack";
 					}
 
+					// Recharts + its d3/victory deps
+					if (
+						id.includes("recharts") ||
+						id.includes("victory-vendor") ||
+						id.includes("d3-")
+					) {
+						return "vendor-recharts";
+					}
+
 					// Other node_modules
 					if (id.includes("node_modules")) {
 						return "vendor-other";
