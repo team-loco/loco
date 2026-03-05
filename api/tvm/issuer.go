@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -67,7 +66,7 @@ func (tvm *VendingMachine) issueAPITokenNoCheck(ctx context.Context, name string
 		EntityID:   entity.ID,
 		Scopes:     entityScopes,
 		CreatedBy:  createdBy,
-		ExpiresAt:  pgtype.Timestamptz{Time: time.Now().Add(duration), Valid: true},
+		ExpiresAt:  time.Now().Add(duration),
 	}); err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return "", ErrStoreToken

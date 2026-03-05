@@ -493,7 +493,6 @@ type ExchangeOAuthCodeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ExpiresIn     int64                  `protobuf:"varint,1,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
 	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -538,13 +537,6 @@ func (x *ExchangeOAuthCodeResponse) GetExpiresIn() int64 {
 func (x *ExchangeOAuthCodeResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
-	}
-	return ""
-}
-
-func (x *ExchangeOAuthCodeResponse) GetName() string {
-	if x != nil {
-		return x.Name
 	}
 	return ""
 }
@@ -693,12 +685,11 @@ const file_loco_oauth_v1_oauth_proto_rawDesc = "" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12\x1b\n" +
 	"\x04code\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04code\x12\x1d\n" +
 	"\x05state\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05state\x12!\n" +
-	"\fredirect_uri\x18\x04 \x01(\tR\vredirectUri\"g\n" +
+	"\fredirect_uri\x18\x04 \x01(\tR\vredirectUri\"S\n" +
 	"\x19ExchangeOAuthCodeResponse\x12\x1d\n" +
 	"\n" +
 	"expires_in\x18\x01 \x01(\x03R\texpiresIn\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\":\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\":\n" +
 	"\x13RefreshTokenRequest\x12#\n" +
 	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"y\n" +
 	"\x14RefreshTokenResponse\x12\x1d\n" +

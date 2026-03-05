@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/gen/db"
 	queries "github.com/team-loco/loco/api/gen/db"
@@ -117,60 +116,60 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool, filepaths []string) 
 func seedUsers(ctx context.Context, queries *db.Queries) ([]uuid.UUID, error) {
 	var userIDs []uuid.UUID
 	if user1, err := queries.CreateUser(ctx, db.CreateUserParams{
-		Name:       opttext("The First"),
+		Name:       new("The First"),
 		Email:      "user1@example.com",
 		ExternalID: "github-user1",
-		AvatarUrl:  opttext("https://example.com/avatar1.png"),
+		AvatarUrl:  new("https://example.com/avatar1.png"),
 	}); err != nil {
 		return nil, fmt.Errorf("creating user 1: %w", err)
 	} else {
 		userIDs = append(userIDs, user1.ID)
 	}
 	if user2, err := queries.CreateUser(ctx, db.CreateUserParams{
-		Name:       opttext("The Second"),
+		Name:       new("The Second"),
 		Email:      "user2@example.com",
 		ExternalID: "github-user2",
-		AvatarUrl:  opttext("https://example.com/avatar2.png"),
+		AvatarUrl:  new("https://example.com/avatar2.png"),
 	}); err != nil {
 		return nil, fmt.Errorf("creating user 2: %w", err)
 	} else {
 		userIDs = append(userIDs, user2.ID)
 	}
 	if user3, err := queries.CreateUser(ctx, db.CreateUserParams{
-		Name:       opttext("The Third"),
+		Name:       new("The Third"),
 		Email:      "user3@example.com",
 		ExternalID: "github-user3",
-		AvatarUrl:  opttext("https://example.com/avatar3.png"),
+		AvatarUrl:  new("https://example.com/avatar3.png"),
 	}); err != nil {
 		return nil, fmt.Errorf("creating user 3: %w", err)
 	} else {
 		userIDs = append(userIDs, user3.ID)
 	}
 	if user4, err := queries.CreateUser(ctx, db.CreateUserParams{
-		Name:       opttext("The Fourth"),
+		Name:       new("The Fourth"),
 		Email:      "user4@example.com",
 		ExternalID: "github-user4",
-		AvatarUrl:  opttext("https://example.com/avatar4.png"),
+		AvatarUrl:  new("https://example.com/avatar4.png"),
 	}); err != nil {
 		return nil, fmt.Errorf("creating user 4: %w", err)
 	} else {
 		userIDs = append(userIDs, user4.ID)
 	}
 	if user5, err := queries.CreateUser(ctx, db.CreateUserParams{
-		Name:       opttext("The Fifth"),
+		Name:       new("The Fifth"),
 		Email:      "user5@example.com",
 		ExternalID: "github-user5",
-		AvatarUrl:  opttext("https://example.com/avatar5.png"),
+		AvatarUrl:  new("https://example.com/avatar5.png"),
 	}); err != nil {
 		return nil, fmt.Errorf("creating user 5: %w", err)
 	} else {
 		userIDs = append(userIDs, user5.ID)
 	}
 	if user6, err := queries.CreateUser(ctx, db.CreateUserParams{
-		Name:       opttext("Nikhil Kumar"),
+		Name:       new("Nikhil Kumar"),
 		Email:      "nikumar1206@gmail.com",
 		ExternalID: "github-nikumar1206",
-		AvatarUrl:  opttext("https://avatars.githubusercontent.com/u/96546721?v=4"),
+		AvatarUrl:  new("https://avatars.githubusercontent.com/u/96546721?v=4"),
 	}); err != nil {
 		return nil, fmt.Errorf("creating user 6: %w", err)
 	} else {
@@ -224,7 +223,7 @@ func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID
 		wsID, err := queries.CreateWorkspace(ctx, db.CreateWorkspaceParams{
 			OrgID:       orgIDs[s.orgIdx],
 			Name:        s.name,
-			Description: opttext(s.desc),
+			Description: new(s.desc),
 			CreatedBy:   userIDs[s.userIdx],
 		})
 		if err != nil {
@@ -547,10 +546,6 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, re
 // func seedClusters(ctx context.Context, q *db.Queries) error {
 // 	q.Clu
 // }
-
-func opttext(s string) pgtype.Text {
-	return pgtype.Text{Valid: true, String: s}
-}
 
 func main() {
 	migrationFiles := os.Getenv("MIGRATION_FILES")

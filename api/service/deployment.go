@@ -10,7 +10,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -77,8 +76,8 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		Replicas:      d.Replicas,
 		Status:        parseDeploymentPhase(d.Status),
 		IsActive:      d.IsActive,
-		CreatedAt:     timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
-		UpdatedAt:     timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+		CreatedAt:     timeutil.ParsePostgresTimestamp(d.CreatedAt),
+		UpdatedAt:     timeutil.ParsePostgresTimestamp(d.UpdatedAt),
 		SpecVersion:   d.SpecVersion,
 		Message:       d.Message,
 	}
@@ -122,13 +121,9 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		deployment.Spec = spec
 	}
 
-	if d.StartedAt.Valid {
-		ts := timeutil.ParsePostgresTimestamp(d.StartedAt.Time)
-		deployment.StartedAt = ts
-	}
-	if d.CompletedAt.Valid {
-		ts := timeutil.ParsePostgresTimestamp(d.CompletedAt.Time)
-		deployment.CompletedAt = ts
+	deployment.StartedAt = timeutil.ParsePostgresTimestamp(d.StartedAt)
+	if d.CompletedAt != nil {
+		deployment.CompletedAt = timeutil.ParsePostgresTimestampPtr(d.CompletedAt)
 	}
 
 	return deployment
@@ -386,16 +381,13 @@ func (s *DeploymentServer) ListDeployments(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, decodeErr := decodeCursor(r.GetPageToken())
 		if decodeErr != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", decodeErr))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{

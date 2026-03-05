@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createDeployment = `-- name: CreateDeployment :one
@@ -208,9 +207,9 @@ LIMIT $2
 `
 
 type ListDeploymentsForResourceParams struct {
-	ResourceID uuid.UUID   `json:"resourceId"`
-	Limit      int32       `json:"limit"`
-	PageToken  pgtype.Text `json:"pageToken"`
+	ResourceID uuid.UUID `json:"resourceId"`
+	Limit      int32     `json:"limit"`
+	PageToken  *string   `json:"pageToken"`
 }
 
 func (q *Queries) ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error) {

@@ -47,7 +47,9 @@ CREATE TABLE
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
-        environment_type TEXT NOT NULL DEFAULT 'production' CHECK (environment_type IN ('dev', 'staging', 'production')),
+        environment_type TEXT NOT NULL DEFAULT 'production' CHECK (
+            environment_type IN ('dev', 'staging', 'production')
+        ),
         created_by UUID NOT NULL REFERENCES users (id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -77,8 +79,8 @@ CREATE TABLE
         agent_version TEXT,
         observability_proxy_endpoint TEXT,
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
-        created_at TIMESTAMPTZ DEFAULT NOW (),
-        updated_at TIMESTAMPTZ DEFAULT NOW ()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
 CREATE INDEX idx_clusters_region ON clusters (region);
@@ -97,7 +99,7 @@ CREATE TABLE
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         domain TEXT NOT NULL UNIQUE,
         is_active BOOLEAN NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW ()
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
 -- Resources table
@@ -111,8 +113,8 @@ CREATE TABLE
         status resource_status NOT NULL,
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW (),
-        updated_at TIMESTAMPTZ DEFAULT NOW (),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (workspace_id, name)
     );
 
@@ -129,8 +131,8 @@ CREATE TABLE
         is_primary BOOLEAN NOT NULL,
         status region_intent_status NOT NULL,
         last_error TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW (),
-        updated_at TIMESTAMPTZ DEFAULT NOW (),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (resource_id, region)
     );
 
@@ -152,8 +154,8 @@ CREATE TABLE
         subdomain_label TEXT,
         platform_domain_id UUID REFERENCES platform_domains (id),
         is_primary BOOLEAN NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW (),
-        updated_at TIMESTAMPTZ DEFAULT NOW (),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         CONSTRAINT domain_source_check CHECK (
             (
                 domain_source = 'platform_provided'
@@ -197,10 +199,10 @@ CREATE TABLE
         environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW (),
-        started_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        started_at TIMESTAMPTZ NOT NULL,
         completed_at TIMESTAMPTZ,
-        updated_at TIMESTAMPTZ DEFAULT NOW ()
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
 CREATE INDEX idx_deployments_resource_id ON deployments (resource_id);

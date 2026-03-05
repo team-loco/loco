@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
 
@@ -68,7 +69,12 @@ func initCmdFunc(cmd *cobra.Command) error {
 		appName = dirName
 	}
 
-	if err := config.CreateDefault(appName); err != nil {
+	appDomain := config.DefaultAppDomain
+	if cfg, err := session.Load(); err == nil && cfg.DefaultAppDomain != "" {
+		appDomain = cfg.DefaultAppDomain
+	}
+
+	if err := config.CreateDefault(appName, appDomain); err != nil {
 		return fmt.Errorf("failed to create loco.toml: %w", err)
 	}
 

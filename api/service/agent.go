@@ -13,7 +13,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/commandbus"
@@ -65,7 +64,7 @@ func (s *AgentServer) authenticateAgent(ctx context.Context, authHeader string) 
 	}
 
 	tokenHash := hashToken(token)
-	cluster, err := s.queries.GetClusterByAgentToken(ctx, pgtype.Text{String: tokenHash, Valid: true})
+	cluster, err := s.queries.GetClusterByAgentToken(ctx, &tokenHash)
 	if err != nil {
 		slog.WarnContext(ctx, "invalid agent token", "error", err)
 		return genDb.GetClusterByAgentTokenRow{}, ErrInvalidAgentToken
@@ -88,17 +87,14 @@ func (s *AgentServer) Register(
 	}
 
 	// Update cluster with agent info
+	agentVersion := r.GetAgentVersion()
+	cpuCores := r.GetCapacity().GetCpuMillicoresTotal()
+	memBytes := r.GetCapacity().GetMemoryBytesTotal()
 	err = s.queries.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
-		ID:           cluster.ID,
-		AgentVersion: pgtype.Text{String: r.GetAgentVersion(), Valid: true},
-		CapacityCpuMillicores: pgtype.Int8{
-			Int64: r.GetCapacity().GetCpuMillicoresTotal(),
-			Valid: r.GetCapacity() != nil,
-		},
-		CapacityMemoryBytes: pgtype.Int8{
-			Int64: r.GetCapacity().GetMemoryBytesTotal(),
-			Valid: r.GetCapacity() != nil,
-		},
+		ID:                    cluster.ID,
+		AgentVersion:          &agentVersion,
+		CapacityCpuMillicores: &cpuCores,
+		CapacityMemoryBytes:   &memBytes,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update cluster agent info", "error", err, "cluster_id", cluster.ID)
@@ -217,24 +213,15 @@ func (s *AgentServer) Heartbeat(
 		}
 
 		// Update cluster heartbeat in database
+		cpuCores := req.GetCapacity().GetCpuMillicoresTotal()
+		memBytes := req.GetCapacity().GetMemoryBytesTotal()
+		healthStatus := healthStatusFromProto(req.GetHealth())
 		err = s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
-			ID: cluster.ID,
-			LastHeartbeat: pgtype.Timestamptz{
-				Time:  time.Now(),
-				Valid: true,
-			},
-			CapacityCpuMillicores: pgtype.Int8{
-				Int64: req.GetCapacity().GetCpuMillicoresTotal(),
-				Valid: req.GetCapacity() != nil,
-			},
-			CapacityMemoryBytes: pgtype.Int8{
-				Int64: req.GetCapacity().GetMemoryBytesTotal(),
-				Valid: req.GetCapacity() != nil,
-			},
-			HealthStatus: pgtype.Text{
-				String: healthStatusFromProto(req.GetHealth()),
-				Valid:  true,
-			},
+			ID:                    cluster.ID,
+			LastHeartbeat:         func() *time.Time { t := time.Now(); return &t }(),
+			CapacityCpuMillicores: &cpuCores,
+			CapacityMemoryBytes:   &memBytes,
+			HealthStatus:          &healthStatus,
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", cluster.ID)

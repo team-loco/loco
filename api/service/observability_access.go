@@ -64,12 +64,12 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 
 	clusterAccess := make([]*observabilityv1.ClusterAccess, 0, len(clusters))
 	for _, c := range clusters {
-		if !c.ObservabilityProxyEndpoint.Valid || c.ObservabilityProxyEndpoint.String == "" {
+		if c.ObservabilityProxyEndpoint == nil || *c.ObservabilityProxyEndpoint == "" {
 			continue
 		}
 		clusterAccess = append(clusterAccess, &observabilityv1.ClusterAccess{
 			ClusterId: c.ID.String(),
-			ProxyUrl:  c.ObservabilityProxyEndpoint.String,
+			ProxyUrl:  *c.ObservabilityProxyEndpoint,
 			Region:    c.Region,
 		})
 	}

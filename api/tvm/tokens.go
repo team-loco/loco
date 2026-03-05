@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -106,8 +105,8 @@ func (tvm *VendingMachine) Refresh(ctx context.Context, refreshToken string) (ac
 		ID:               session.ID,
 		AccessTokenHash:  newAccessHash,
 		RefreshTokenHash: newRefreshHash,
-		AccessExpiresAt:  pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionAccessTokenDuration), Valid: true},
-		RefreshExpiresAt: pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionRefreshTokenDuration), Valid: true},
+		AccessExpiresAt:  now.Add(tvm.Cfg.SessionAccessTokenDuration),
+		RefreshExpiresAt: now.Add(tvm.Cfg.SessionRefreshTokenDuration),
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to rotate session token", "err", err)
 		return "", "", ErrStoreToken
@@ -138,8 +137,8 @@ func (tvm *VendingMachine) ListAPITokensForEntity(ctx context.Context, entity qu
 }
 
 // touchSessionLastUsed updates last_used_at on the session row, throttled by LastUsedUpdateInterval.
-func (tvm *VendingMachine) touchSessionLastUsed(ctx context.Context, sessionID uuid.UUID, lastUsedAt pgtype.Timestamptz) {
-	if lastUsedAt.Valid && time.Since(lastUsedAt.Time) < tvm.Cfg.LastUsedUpdateInterval {
+func (tvm *VendingMachine) touchSessionLastUsed(ctx context.Context, sessionID uuid.UUID, lastUsedAt time.Time) {
+	if time.Since(lastUsedAt) < tvm.Cfg.LastUsedUpdateInterval {
 		return
 	}
 	if err := tvm.queries.TouchSessionLastUsed(ctx, sessionID); err != nil {
@@ -148,8 +147,8 @@ func (tvm *VendingMachine) touchSessionLastUsed(ctx context.Context, sessionID u
 }
 
 // touchAPITokenLastUsed updates last_used_at on the API token row, throttled by LastUsedUpdateInterval.
-func (tvm *VendingMachine) touchAPITokenLastUsed(ctx context.Context, tokenID uuid.UUID, lastUsedAt pgtype.Timestamptz) {
-	if lastUsedAt.Valid && time.Since(lastUsedAt.Time) < tvm.Cfg.LastUsedUpdateInterval {
+func (tvm *VendingMachine) touchAPITokenLastUsed(ctx context.Context, tokenID uuid.UUID, lastUsedAt *time.Time) {
+	if lastUsedAt != nil && time.Since(*lastUsedAt) < tvm.Cfg.LastUsedUpdateInterval {
 		return
 	}
 	if err := tvm.queries.TouchAPITokenLastUsed(ctx, tokenID); err != nil {

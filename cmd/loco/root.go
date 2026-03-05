@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/config"
 	"github.com/team-loco/loco/cmd/loco/org"
 	"github.com/team-loco/loco/cmd/loco/resource"
 	"github.com/team-loco/loco/cmd/loco/token"
@@ -70,7 +71,15 @@ func initLogger(cmd *cobra.Command) error {
 
 func init() {
 	// Root-level commands
-	RootCmd.AddCommand(loginCmd, buildLogoutCmd(), useCmd, buildWhoAmICmd(), initCmd, validateCmd, webCmd)
+	RootCmd.AddCommand(loginCmd,
+		buildLogoutCmd(),
+		useCmd,
+		buildWhoAmICmd(),
+		initCmd,
+		validateCmd,
+		webCmd,
+		config.BuildConfigCmd(),
+	)
 
 	// Resource-based commands
 	RootCmd.AddCommand(resource.BuildResourceCmd())

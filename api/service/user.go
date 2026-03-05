@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -76,8 +75,14 @@ func (s *UserServer) CreateUser(
 	}
 
 	// Create new user
-	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
-	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
+	var name *string
+	if n := r.GetName(); n != "" {
+		name = &n
+	}
+	var avatarURL *string
+	if a := r.GetAvatarUrl(); a != "" {
+		avatarURL = &a
+	}
 
 	user, err := s.queries.CreateUser(ctx, genDb.CreateUserParams{
 		ExternalID: r.GetExternalId(),
@@ -208,11 +213,9 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
-
 	_, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
 		ID:        uuid.MustParse(r.GetUserId()),
-		AvatarUrl: avatarURL,
+		AvatarUrl: r.AvatarUrl,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user", "error", err)
@@ -242,16 +245,13 @@ func (s *UserServer) ListUsers(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
@@ -377,9 +377,9 @@ func dbUserToProto(user genDb.User) *userv1.User {
 		Id:         user.ID.String(),
 		ExternalId: user.ExternalID,
 		Email:      user.Email,
-		Name:       user.Name.String,
-		AvatarUrl:  user.AvatarUrl.String,
-		CreatedAt:  timeutil.ParsePostgresTimestamp(user.CreatedAt.Time),
-		UpdatedAt:  timeutil.ParsePostgresTimestamp(user.UpdatedAt.Time),
+		Name:       derefString(user.Name),
+		AvatarUrl:  derefString(user.AvatarUrl),
+		CreatedAt:  timeutil.ParsePostgresTimestamp(user.CreatedAt),
+		UpdatedAt:  timeutil.ParsePostgresTimestamp(user.UpdatedAt),
 	}
 }

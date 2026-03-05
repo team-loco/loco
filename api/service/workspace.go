@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -21,10 +20,7 @@ import (
 var (
 	ErrWorkspaceNotFound      = errors.New("workspace not found")
 	ErrWorkspaceNameNotUnique = errors.New("workspace name already exists in this organization")
-	ErrNotWorkspaceMember     = errors.New("user is not a member of this workspace")
-	ErrNotWorkspaceAdmin      = errors.New("user is not an admin of this workspace")
 	ErrWorkspaceHasResources  = errors.New("workspace has resources - must confirm deletion")
-	ErrInvalidRole            = errors.New("invalid role - must be admin, deploy, or read")
 )
 
 // WorkspaceServer implements the WorkspaceService gRPC server
@@ -73,8 +69,6 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
 	}
 
-	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
-
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -86,8 +80,8 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}
 	wsID, err := s.queries.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
 		OrgID:       orgId,
-		Name:        r.GetName(),
-		Description: description,
+		Name:        r.Name,
+		Description: r.Description,
 		CreatedBy:   entity.ID,
 	})
 	if err != nil {
@@ -148,10 +142,10 @@ func (s *WorkspaceServer) GetWorkspace(
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
 			Name:        ws.Name,
-			Description: ws.Description.String,
+			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
+			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
+			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
 		},
 	}), nil
 }
@@ -185,16 +179,13 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	workspaceList, err := s.queries.ListWorkspacesForUser(ctx, genDb.ListWorkspacesForUserParams{
@@ -213,10 +204,10 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
 			Name:        ws.Name,
-			Description: ws.Description.String,
+			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
+			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
+			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
 		})
 	}
 
@@ -258,16 +249,13 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	orgId := uuid.MustParse(r.GetOrgId())
@@ -288,10 +276,10 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
 			Name:        ws.Name,
-			Description: ws.Description.String,
+			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
-			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
-			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt.Time),
+			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
+			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
 		})
 	}
 
@@ -348,13 +336,10 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		}
 	}
 
-	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
-	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
-
 	_, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-		ID:          uuid.MustParse(r.GetWorkspaceId()),
-		Name:        name,
-		Description: description,
+		ID:          uuid.MustParse(r.WorkspaceId),
+		Name:        r.Name,
+		Description: r.Description,
 	})
 	if err != nil {
 		slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
@@ -393,25 +378,76 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
 }
 
-// CreateMember adds a member to a workspace
+// CreateMember adds a member to a workspace with the given scopes
 func (s *WorkspaceServer) CreateMember(
 	ctx context.Context,
 	req *connect.Request[workspacev1.CreateMemberRequest],
 ) (*connect.Response[workspacev1.CreateMemberResponse], error) {
 	r := req.Msg
+
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.AddWorkspaceMember, r.GetWorkspaceId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to add workspace member", "workspaceId", r.GetWorkspaceId())
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
+	wsID := uuid.MustParse(r.GetWorkspaceId())
+	var addScopes []genDb.EntityScope
+	for _, s := range r.GetScopes() {
+		addScopes = append(addScopes, genDb.EntityScope{
+			EntityType: genDb.EntityTypeWorkspace,
+			EntityID:   wsID,
+			Scope:      genDb.Scope(s),
+		})
+	}
+
+	if err := s.machine.UpdateRoles(ctx, r.GetUserId(), addScopes, []genDb.EntityScope{}); err != nil {
+		slog.ErrorContext(ctx, "failed to add workspace member scopes", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
 	return connect.NewResponse(&workspacev1.CreateMemberResponse{
 		WorkspaceId: r.GetWorkspaceId(),
 		UserId:      r.GetUserId(),
 	}), nil
 }
 
-// DeleteMember removes a member from a workspace
+// DeleteMember removes a member from a workspace by revoking all their workspace scopes
 func (s *WorkspaceServer) DeleteMember(
 	ctx context.Context,
 	req *connect.Request[workspacev1.DeleteMemberRequest],
 ) (*connect.Response[workspacev1.DeleteMemberResponse], error) {
-	// TODO: implement delete member
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("not implemented"))
+	r := req.Msg
+
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.RemoveWorkspaceMember, r.GetWorkspaceId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to remove workspace member", "workspaceId", r.GetWorkspaceId())
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
+	wsID := uuid.MustParse(r.GetWorkspaceId())
+	removeScopes := []genDb.EntityScope{
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
+		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
+	}
+
+	if err := s.machine.UpdateRoles(ctx, r.GetUserId(), []genDb.EntityScope{}, removeScopes); err != nil {
+		slog.ErrorContext(ctx, "failed to remove workspace member scopes", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+	}
+
+	return connect.NewResponse(&workspacev1.DeleteMemberResponse{}), nil
 }
 
 // ListWorkspaceMembers lists all members of a workspace with pagination
@@ -434,22 +470,19 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(ctx, genDb.ListWorkspaceMembersWithUserDetailsParams{
-		WorkspaceID: uuid.MustParse(r.GetWorkspaceId()),
-		Limit:       pageSize,
-		PageToken:   pageToken,
+		EntityID:  uuid.MustParse(r.GetWorkspaceId()),
+		Limit:     pageSize,
+		PageToken: pageToken,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list members", "error", err)
@@ -461,11 +494,11 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		members = append(members, &workspacev1.WorkspaceMemberWithUser{
 			WorkspaceId:   member.WorkspaceID.String(),
 			UserId:        member.UserID.String(),
-			Role:          string(member.Role),
-			CreatedAt:     timeutil.ParsePostgresTimestamp(member.CreatedAt.Time),
-			UserName:      member.Name.String,
+			Scopes:        member.Scopes,
+			CreatedAt:     timeutil.ParsePostgresTimestamp(member.JoinedAt),
+			UserName:      derefString(member.Name),
 			UserEmail:     member.Email,
-			UserAvatarUrl: member.AvatarUrl.String,
+			UserAvatarUrl: derefString(member.AvatarUrl),
 		})
 	}
 

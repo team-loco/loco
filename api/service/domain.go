@@ -8,14 +8,13 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
 	domainv1 "github.com/team-loco/loco/proto/loco/domain/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -96,8 +95,7 @@ func (s *DomainServer) GetPlatformDomain(
 			Id:        result.ID.String(),
 			Domain:    result.Domain,
 			IsActive:  result.IsActive,
-			CreatedAt: timestamppb.New(result.CreatedAt.Time),
-			UpdatedAt: timestamppb.New(result.CreatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(result.CreatedAt),
 		},
 	}), nil
 }
@@ -131,8 +129,7 @@ func (s *DomainServer) ListPlatformDomains(
 			Id:        result.ID.String(),
 			Domain:    result.Domain,
 			IsActive:  result.IsActive,
-			CreatedAt: timestamppb.New(result.CreatedAt.Time),
-			UpdatedAt: timestamppb.New(result.CreatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(result.CreatedAt),
 		}
 	}
 
@@ -262,7 +259,7 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 	// extract and validate domain information based on source
 	var fullDomain string
-	var subdomainLabel pgtype.Text
+	var subdomainLabel *string
 	var platformDomainID *uuid.UUID
 	domainSource := genDb.DomainSourceUserProvided
 
@@ -275,7 +272,8 @@ func (s *DomainServer) CreateResourceDomain(
 		}
 
 		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-		subdomainLabel = pgtype.Text{String: r.GetDomain().GetSubdomain(), Valid: true}
+		subdomain := r.GetDomain().GetSubdomain()
+		subdomainLabel = &subdomain
 		domainSource = genDb.DomainSourcePlatformProvided
 	} else {
 		fullDomain = r.GetDomain().GetDomain()

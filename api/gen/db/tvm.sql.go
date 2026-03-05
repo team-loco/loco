@@ -8,9 +8,9 @@ package db
 import (
 	"context"
 	"net/netip"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addUserScope = `-- name: AddUserScope :exec
@@ -41,14 +41,14 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateAPITokenParams struct {
-	ID         uuid.UUID          `json:"id"`
-	TokenHash  string             `json:"tokenHash"`
-	Name       string             `json:"name"`
-	EntityType EntityType         `json:"entityType"`
-	EntityID   uuid.UUID          `json:"entityId"`
-	Scopes     []EntityScope      `json:"scopes"`
-	CreatedBy  uuid.UUID          `json:"createdBy"`
-	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
+	ID         uuid.UUID     `json:"id"`
+	TokenHash  string        `json:"tokenHash"`
+	Name       string        `json:"name"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   uuid.UUID     `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	CreatedBy  uuid.UUID     `json:"createdBy"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
 }
 
 // -----------------------------------------------------------------------------
@@ -75,14 +75,14 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateSessionTokenParams struct {
-	ID               uuid.UUID          `json:"id"`
-	AccessTokenHash  string             `json:"accessTokenHash"`
-	RefreshTokenHash string             `json:"refreshTokenHash"`
-	UserID           uuid.UUID          `json:"userId"`
-	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
-	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
-	IpAddress        *netip.Addr        `json:"ipAddress"`
-	UserAgent        pgtype.Text        `json:"userAgent"`
+	ID               uuid.UUID   `json:"id"`
+	AccessTokenHash  string      `json:"accessTokenHash"`
+	RefreshTokenHash string      `json:"refreshTokenHash"`
+	UserID           uuid.UUID   `json:"userId"`
+	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
+	IpAddress        *netip.Addr `json:"ipAddress"`
+	UserAgent        *string     `json:"userAgent"`
 }
 
 // -----------------------------------------------------------------------------
@@ -193,15 +193,15 @@ WHERE token_hash = $1 AND expires_at > NOW()
 `
 
 type GetAPITokenRow struct {
-	ID         uuid.UUID          `json:"id"`
-	Name       string             `json:"name"`
-	EntityType EntityType         `json:"entityType"`
-	EntityID   uuid.UUID          `json:"entityId"`
-	Scopes     []EntityScope      `json:"scopes"`
-	CreatedBy  uuid.UUID          `json:"createdBy"`
-	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
-	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
-	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
+	ID         uuid.UUID     `json:"id"`
+	Name       string        `json:"name"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   uuid.UUID     `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	CreatedBy  uuid.UUID     `json:"createdBy"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
+	LastUsedAt *time.Time    `json:"lastUsedAt"`
 }
 
 func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error) {
@@ -234,14 +234,14 @@ type GetAPITokenByNameAndEntityParams struct {
 }
 
 type GetAPITokenByNameAndEntityRow struct {
-	ID         uuid.UUID          `json:"id"`
-	Name       string             `json:"name"`
-	EntityType EntityType         `json:"entityType"`
-	EntityID   uuid.UUID          `json:"entityId"`
-	Scopes     []EntityScope      `json:"scopes"`
-	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
-	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
-	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
+	ID         uuid.UUID     `json:"id"`
+	Name       string        `json:"name"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   uuid.UUID     `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
+	LastUsedAt *time.Time    `json:"lastUsedAt"`
 }
 
 func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error) {
@@ -267,14 +267,14 @@ WHERE access_token_hash = $1 AND access_expires_at > NOW()
 `
 
 type GetSessionByAccessTokenRow struct {
-	ID               uuid.UUID          `json:"id"`
-	UserID           uuid.UUID          `json:"userId"`
-	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
-	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
-	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
-	IpAddress        *netip.Addr        `json:"ipAddress"`
-	UserAgent        pgtype.Text        `json:"userAgent"`
-	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	ID               uuid.UUID   `json:"id"`
+	UserID           uuid.UUID   `json:"userId"`
+	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
+	LastUsedAt       time.Time   `json:"lastUsedAt"`
+	IpAddress        *netip.Addr `json:"ipAddress"`
+	UserAgent        *string     `json:"userAgent"`
+	CreatedAt        time.Time   `json:"createdAt"`
 }
 
 func (q *Queries) GetSessionByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionByAccessTokenRow, error) {
@@ -300,15 +300,15 @@ WHERE refresh_token_hash = $1 AND refresh_expires_at > NOW()
 `
 
 type GetSessionByRefreshTokenRow struct {
-	ID               uuid.UUID          `json:"id"`
-	UserID           uuid.UUID          `json:"userId"`
-	RefreshTokenHash string             `json:"refreshTokenHash"`
-	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
-	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
-	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
-	IpAddress        *netip.Addr        `json:"ipAddress"`
-	UserAgent        pgtype.Text        `json:"userAgent"`
-	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	ID               uuid.UUID   `json:"id"`
+	UserID           uuid.UUID   `json:"userId"`
+	RefreshTokenHash string      `json:"refreshTokenHash"`
+	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
+	LastUsedAt       time.Time   `json:"lastUsedAt"`
+	IpAddress        *netip.Addr `json:"ipAddress"`
+	UserAgent        *string     `json:"userAgent"`
+	CreatedAt        time.Time   `json:"createdAt"`
 }
 
 func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error) {
@@ -513,14 +513,14 @@ type ListAPITokensForEntityParams struct {
 }
 
 type ListAPITokensForEntityRow struct {
-	ID         uuid.UUID          `json:"id"`
-	Name       string             `json:"name"`
-	EntityType EntityType         `json:"entityType"`
-	EntityID   uuid.UUID          `json:"entityId"`
-	Scopes     []EntityScope      `json:"scopes"`
-	CreatedAt  pgtype.Timestamptz `json:"createdAt"`
-	ExpiresAt  pgtype.Timestamptz `json:"expiresAt"`
-	LastUsedAt pgtype.Timestamptz `json:"lastUsedAt"`
+	ID         uuid.UUID     `json:"id"`
+	Name       string        `json:"name"`
+	EntityType EntityType    `json:"entityType"`
+	EntityID   uuid.UUID     `json:"entityId"`
+	Scopes     []EntityScope `json:"scopes"`
+	CreatedAt  time.Time     `json:"createdAt"`
+	ExpiresAt  time.Time     `json:"expiresAt"`
+	LastUsedAt *time.Time    `json:"lastUsedAt"`
 }
 
 func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error) {
@@ -560,13 +560,13 @@ ORDER BY last_used_at DESC
 `
 
 type ListSessionsForUserRow struct {
-	ID               uuid.UUID          `json:"id"`
-	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
-	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
-	LastUsedAt       pgtype.Timestamptz `json:"lastUsedAt"`
-	IpAddress        *netip.Addr        `json:"ipAddress"`
-	UserAgent        pgtype.Text        `json:"userAgent"`
-	CreatedAt        pgtype.Timestamptz `json:"createdAt"`
+	ID               uuid.UUID   `json:"id"`
+	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
+	LastUsedAt       time.Time   `json:"lastUsedAt"`
+	IpAddress        *netip.Addr `json:"ipAddress"`
+	UserAgent        *string     `json:"userAgent"`
+	CreatedAt        time.Time   `json:"createdAt"`
 }
 
 func (q *Queries) ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error) {
@@ -663,11 +663,11 @@ WHERE id = $1
 `
 
 type RotateSessionTokenParams struct {
-	ID               uuid.UUID          `json:"id"`
-	AccessTokenHash  string             `json:"accessTokenHash"`
-	RefreshTokenHash string             `json:"refreshTokenHash"`
-	AccessExpiresAt  pgtype.Timestamptz `json:"accessExpiresAt"`
-	RefreshExpiresAt pgtype.Timestamptz `json:"refreshExpiresAt"`
+	ID               uuid.UUID `json:"id"`
+	AccessTokenHash  string    `json:"accessTokenHash"`
+	RefreshTokenHash string    `json:"refreshTokenHash"`
+	AccessExpiresAt  time.Time `json:"accessExpiresAt"`
+	RefreshExpiresAt time.Time `json:"refreshExpiresAt"`
 }
 
 func (q *Queries) RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) error {

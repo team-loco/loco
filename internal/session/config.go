@@ -16,8 +16,10 @@ const (
 // SessionConfig represents the CLI's local state and authentication configuration.
 // It is persisted to ~/.loco/config.toml.
 type SessionConfig struct {
-	Scopes       map[string]*Scope `toml:"scopes"`
-	CurrentScope string            `toml:"currentScope"`
+	LocoHost         string            `toml:"locoHost,omitempty"`
+	DefaultAppDomain string            `toml:"defaultAppDomain,omitempty"`
+	Scopes           map[string]*Scope `toml:"scopes"`
+	CurrentScope     string            `toml:"currentScope"`
 }
 
 // Scope represents a CLI context with an organization and workspace.

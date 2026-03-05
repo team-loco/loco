@@ -13,6 +13,8 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+const DefaultAppDomain = "onloco.app"
+
 // AllowedSchemaVersions defines supported config versions
 var AllowedSchemaVersions = []string{
 	"0.1",
@@ -65,7 +67,7 @@ var Default = &LocoConfig{
 	},
 	DomainConfig: DomainConfig{
 		Type:     "platform",
-		Hostname: "loco.deploy-app.com",
+		Hostname: "loco.onloco.app",
 	},
 }
 
@@ -120,7 +122,7 @@ func Validate(cfg *LocoConfig) error {
 	}
 
 	if cfg.DomainConfig.Hostname == "" {
-		return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.deploy-app.com')")
+		return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.onloco.app')")
 	}
 
 	if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != "platform" && cfg.DomainConfig.Type != "custom" {
@@ -276,7 +278,7 @@ func parseRetention(value string) (time.Duration, error) {
 }
 
 // ExtractSubdomainFromHostname extracts the leftmost label from a hostname
-// e.g., "myapp.deploy-app.com" -> "myapp"
+// e.g., "myapp.onloco.app" -> "myapp"
 func ExtractSubdomainFromHostname(hostname string) string {
 	if hostname == "" {
 		return ""
@@ -385,11 +387,11 @@ func Create(cfg *LocoConfig, outputPath string) error {
 
 // CreateDefault creates a new loco.toml file with sensible defaults
 // appName is used as the application name and hostname
-func CreateDefault(appName string) error {
+func CreateDefault(appName, appDomain string) error {
 	cfg := *Default // Copy the default config
 	cfg.Metadata.Name = appName
 	cfg.Metadata.Region = "us-east-1"
-	cfg.DomainConfig.Hostname = appName + ".deploy-app.com"
+	cfg.DomainConfig.Hostname = appName + "." + appDomain
 	cfg.RegionConfig = map[string]Resources{
 		"us-east-1": {
 			CPU:         "100m",

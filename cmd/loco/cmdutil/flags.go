@@ -1,4 +1,4 @@
-package loco
+package cmdutil
 
 import (
 	"fmt"
@@ -6,12 +6,13 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/internal/session"
 )
 
-const locoProdHost = "https://loco.deploy-app.com"
+const defaultLocoHost = "https://loco.build"
 
-// getHost resolves the API host from flag > env > default.
-func getHost(cmd *cobra.Command) (string, error) {
+// GetHost resolves the API host from flag > env > config file > default.
+func GetHost(cmd *cobra.Command) (string, error) {
 	host, err := cmd.Flags().GetString("host")
 	if err != nil {
 		return "", fmt.Errorf("error reading host flag: %w", err)
@@ -27,11 +28,18 @@ func getHost(cmd *cobra.Command) (string, error) {
 		return host, nil
 	}
 
+	cfg, err := session.Load()
+	if err == nil && cfg.LocoHost != "" {
+		slog.Debug("using host from config file")
+		return cfg.LocoHost, nil
+	}
+
 	slog.Debug("defaulting to prod url")
-	return locoProdHost, nil
+	return defaultLocoHost, nil
 }
 
-func getLocoTomlPath(cmd *cobra.Command) (string, error) {
+// GetLocoTomlPath resolves the loco.toml path from flag or default.
+func GetLocoTomlPath(cmd *cobra.Command) (string, error) {
 	configPath, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return "", fmt.Errorf("error reading config flag: %w", err)

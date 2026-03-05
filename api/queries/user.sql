@@ -45,8 +45,8 @@ SELECT EXISTS(SELECT 1 FROM organizations WHERE created_by = $1) AS has_orgs;
 
 -- name: CheckUserHasWorkspaces :one
 SELECT EXISTS(
-  SELECT 1 FROM workspace_members
-  WHERE user_id = $1
+  SELECT 1 FROM user_scopes
+  WHERE user_id = $1 AND entity_type = 'workspace'
 ) AS has_workspaces;
 
 -- Organization queries
@@ -70,64 +70,6 @@ WHERE name = $1;
 SELECT COUNT(*) = 0 AS is_unique
 FROM organizations
 WHERE name = $1;
-
--- Organization members queries
-
--- name: AddOrganizationMember :one
-INSERT INTO organization_members (organization_id, user_id)
-VALUES ($1, $2)
-RETURNING organization_id, user_id;
-
--- name: GetOrganizationMember :one
-SELECT organization_id, user_id
-FROM organization_members
-WHERE organization_id = $1 AND user_id = $2;
-
--- name: ListOrganizationMembers :many
-SELECT organization_id, user_id
-FROM organization_members
-WHERE organization_id = $1
-ORDER BY created_at DESC;
-
--- name: RemoveOrganizationMember :exec
-DELETE FROM organization_members
-WHERE organization_id = $1 AND user_id = $2;
-
--- Workspace members queries
-
--- name: AddWorkspaceMember :one
-INSERT INTO workspace_members (workspace_id, user_id)
-VALUES ($1, $2)
-RETURNING workspace_id, user_id;
-
--- name: GetWorkspaceMember :one
-SELECT workspace_id, user_id
-FROM workspace_members
-WHERE workspace_id = $1 AND user_id = $2;
-
--- name: ListWorkspaceMembers :many
-SELECT workspace_id, user_id
-FROM workspace_members
-WHERE workspace_id = $1
-ORDER BY created_at DESC;
-
--- name: RemoveWorkspaceMember :exec
-DELETE FROM workspace_members
-WHERE workspace_id = $1 AND user_id = $2;
-
--- name: ListUserWorkspaces :many
-SELECT DISTINCT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
-FROM workspaces w
-JOIN workspace_members wm ON wm.workspace_id = w.id
-WHERE wm.user_id = $1
-ORDER BY w.created_at DESC;
-
--- name: ListUserOrganizations :many
-SELECT DISTINCT o.id, o.name, o.created_by, o.created_at, o.updated_at
-FROM organizations o
-JOIN organization_members om ON om.organization_id = o.id
-WHERE om.user_id = $1
-ORDER BY o.created_at DESC;
 
 -- name: DeleteOrganization :exec
 DELETE FROM organizations WHERE id = $1;

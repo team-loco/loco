@@ -7,9 +7,9 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const checkDomainAvailability = `-- name: CheckDomainAvailability :one
@@ -61,7 +61,7 @@ type CreateResourceDomainParams struct {
 	ResourceID       uuid.UUID    `json:"resourceId"`
 	Domain           string       `json:"domain"`
 	DomainSource     DomainSource `json:"domainSource"`
-	SubdomainLabel   pgtype.Text  `json:"subdomainLabel"`
+	SubdomainLabel   *string      `json:"subdomainLabel"`
 	PlatformDomainID *uuid.UUID   `json:"platformDomainId"`
 	IsPrimary        bool         `json:"isPrimary"`
 }
@@ -112,16 +112,16 @@ WHERE rd.resource_id = $1
 `
 
 type GetDomainByResourceIdRow struct {
-	ID                 uuid.UUID          `json:"id"`
-	ResourceID         uuid.UUID          `json:"resourceId"`
-	Domain             string             `json:"domain"`
-	DomainSource       DomainSource       `json:"domainSource"`
-	SubdomainLabel     pgtype.Text        `json:"subdomainLabel"`
-	PlatformDomainID   *uuid.UUID         `json:"platformDomainId"`
-	IsPrimary          bool               `json:"isPrimary"`
-	CreatedAt          pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt          pgtype.Timestamptz `json:"updatedAt"`
-	PlatformBaseDomain pgtype.Text        `json:"platformBaseDomain"`
+	ID                 uuid.UUID    `json:"id"`
+	ResourceID         uuid.UUID    `json:"resourceId"`
+	Domain             string       `json:"domain"`
+	DomainSource       DomainSource `json:"domainSource"`
+	SubdomainLabel     *string      `json:"subdomainLabel"`
+	PlatformDomainID   *uuid.UUID   `json:"platformDomainId"`
+	IsPrimary          bool         `json:"isPrimary"`
+	CreatedAt          time.Time    `json:"createdAt"`
+	UpdatedAt          time.Time    `json:"updatedAt"`
+	PlatformBaseDomain *string      `json:"platformBaseDomain"`
 }
 
 func (q *Queries) GetDomainByResourceId(ctx context.Context, resourceID uuid.UUID) (GetDomainByResourceIdRow, error) {
@@ -304,7 +304,7 @@ WHERE ($1::boolean IS NULL OR is_active = $1::boolean)
 ORDER BY domain
 `
 
-func (q *Queries) ListPlatformDomains(ctx context.Context, activeOnly pgtype.Bool) ([]PlatformDomain, error) {
+func (q *Queries) ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error) {
 	rows, err := q.db.Query(ctx, listPlatformDomains, activeOnly)
 	if err != nil {
 		return nil, err

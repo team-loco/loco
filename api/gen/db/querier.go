@@ -8,16 +8,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
-	AddOrgMember(ctx context.Context, arg AddOrgMemberParams) error
-	// Organization members queries
-	AddOrganizationMember(ctx context.Context, arg AddOrganizationMemberParams) (AddOrganizationMemberRow, error)
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
-	// Workspace members queries
-	AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) (AddWorkspaceMemberRow, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -62,13 +56,12 @@ type Querier interface {
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
-	DeleteWorkspaceMember(ctx context.Context, arg DeleteWorkspaceMemberParams) error
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
 	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	// Cluster queries for agent operations
-	GetClusterByAgentToken(ctx context.Context, agentTokenHash pgtype.Text) (GetClusterByAgentTokenRow, error)
+	GetClusterByAgentToken(ctx context.Context, agentTokenHash *string) (GetClusterByAgentTokenRow, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error)
@@ -83,7 +76,6 @@ type Querier interface {
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	GetOrganizationMember(ctx context.Context, arg GetOrganizationMemberParams) (GetOrganizationMemberRow, error)
 	GetPlatformDomain(ctx context.Context, id uuid.UUID) (PlatformDomain, error)
 	GetPlatformDomainByName(ctx context.Context, domain string) (PlatformDomain, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
@@ -105,16 +97,11 @@ type Querier interface {
 	// what users have scope z on entity y?
 	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]uuid.UUID, error)
 	GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (Workspace, error)
-	GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error)
-	GetWorkspaceMemberRole(ctx context.Context, arg GetWorkspaceMemberRoleParams) (WorkspaceRole, error)
-	GetWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]WorkspaceMember, error)
 	GetWorkspaceOrgID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
-	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgNameUnique(ctx context.Context, name string) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
-	IsWorkspaceMember(ctx context.Context, arg IsWorkspaceMemberParams) (bool, error)
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
 	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
@@ -124,18 +111,14 @@ type Querier interface {
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
-	ListOrganizationMembers(ctx context.Context, organizationID uuid.UUID) ([]ListOrganizationMembersRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
-	ListPlatformDomains(ctx context.Context, activeOnly pgtype.Bool) ([]PlatformDomain, error)
+	ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error)
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
-	ListUserOrganizations(ctx context.Context, userID uuid.UUID) ([]Organization, error)
-	ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]Workspace, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
-	ListWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceMembersRow, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error)
@@ -146,10 +129,8 @@ type Querier interface {
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
-	RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
-	RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) error
 	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
@@ -170,7 +151,6 @@ type Querier interface {
 	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
-	UpsertWorkspaceMember(ctx context.Context, arg UpsertWorkspaceMemberParams) (uuid.UUID, error)
 }
 
 var _ Querier = (*Queries)(nil)

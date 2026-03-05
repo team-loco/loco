@@ -13,6 +13,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/api"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
@@ -66,7 +67,7 @@ var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Login to loco via Github OAuth",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		host, err := getHost(cmd)
+		host, err := cmdutil.GetHost(cmd)
 		if err != nil {
 			return err
 		}
@@ -104,7 +105,7 @@ var loginCmd = &cobra.Command{
 			Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
 		}))
 		if err != nil {
-			logRequestID(cmd.Context(), err, "failed to get oAuth details")
+			cmdutil.LogRequestID(cmd.Context(), err, "failed to get oAuth details")
 			return err
 		}
 		slog.Debug("retrieved oauth details", "client_id", resp.Msg.ClientId)

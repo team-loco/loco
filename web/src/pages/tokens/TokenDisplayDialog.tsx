@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -7,11 +8,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Check, Copy, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Check, Copy } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface TokenDisplayDialogProps {
@@ -32,7 +32,9 @@ export function TokenDisplayDialog({
 			await navigator.clipboard.writeText(token);
 			setCopied(true);
 			toast.success("Token copied to clipboard");
-			setTimeout(() => { setCopied(false); }, 2000);
+			setTimeout(() => {
+				setCopied(false);
+			}, 2000);
 		} catch {
 			toast.error("Failed to copy token");
 		}
@@ -47,8 +49,8 @@ export function TokenDisplayDialog({
 						Token Created Successfully
 					</DialogTitle>
 					<DialogDescription>
-						Your API token has been created. Make sure to copy it now as you won't
-						be able to see it again.
+						Your API token has been created. Make sure to copy it now as you
+						won't be able to see it again.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -57,9 +59,9 @@ export function TokenDisplayDialog({
 					<Alert className="border-orange-500/50 bg-orange-50 dark:bg-orange-950/50">
 						<AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
 						<AlertDescription className="text-orange-800 dark:text-orange-200">
-							<strong>Important:</strong> This token will only be shown once. Make
-							sure to copy and store it securely. If you lose it, you'll need to
-							create a new token.
+							<strong>Important:</strong> This token will only be shown once.
+							Make sure to copy and store it securely. If you lose it, you'll
+							need to create a new token.
 						</AlertDescription>
 					</Alert>
 
@@ -74,7 +76,9 @@ export function TokenDisplayDialog({
 								value={token}
 								readOnly
 								className="font-mono text-sm border-border bg-muted"
-								onClick={(e) => { e.currentTarget.select(); }}
+								onClick={(e) => {
+									e.currentTarget.select();
+								}}
 							/>
 							<Button
 								type="button"
@@ -93,8 +97,14 @@ export function TokenDisplayDialog({
 							</Button>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Use this token in the <code className="bg-muted px-1 py-0.5 rounded">Authorization</code> header as{" "}
-							<code className="bg-muted px-1 py-0.5 rounded">Bearer &lt;token&gt;</code>
+							Use this token in the{" "}
+							<code className="bg-muted px-1 py-0.5 rounded">
+								Authorization
+							</code>{" "}
+							header as{" "}
+							<code className="bg-muted px-1 py-0.5 rounded">
+								Bearer &lt;token&gt;
+							</code>
 						</p>
 					</div>
 
@@ -104,7 +114,7 @@ export function TokenDisplayDialog({
 						<div className="p-4 bg-muted rounded-lg border border-border">
 							<pre className="text-xs overflow-x-auto">
 								<code>{`curl -H "Authorization: Bearer ${token.substring(0, 20)}..." \\
-  https://api.loco.dev/v1/resources`}</code>
+  https://api.loco.build/v1/resources`}</code>
 							</pre>
 						</div>
 					</div>
@@ -113,7 +123,9 @@ export function TokenDisplayDialog({
 				<DialogFooter>
 					<Button
 						type="button"
-						onClick={() => { onOpenChange(false); }}
+						onClick={() => {
+							onOpenChange(false);
+						}}
 						className="w-full sm:w-auto"
 					>
 						I've Saved My Token

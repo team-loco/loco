@@ -9,7 +9,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -313,7 +312,7 @@ func (s *TokenServer) RevokeToken(
 
 // Helper functions
 
-func apiTokenRowToProto(name string, entityType genDb.EntityType, entityID uuid.UUID, dbScopes []genDb.EntityScope, expiresAt pgtype.Timestamptz) *tokenv1.Token {
+func apiTokenRowToProto(name string, entityType genDb.EntityType, entityID uuid.UUID, dbScopes []genDb.EntityScope, expiresAt time.Time) *tokenv1.Token {
 	scopes := make([]*tokenv1.EntityScope, len(dbScopes))
 	for i, scope := range dbScopes {
 		scopes[i] = &tokenv1.EntityScope{
@@ -328,7 +327,7 @@ func apiTokenRowToProto(name string, entityType genDb.EntityType, entityID uuid.
 		EntityType: dbEntityTypeToProto(entityType),
 		EntityId:   entityID.String(),
 		Scopes:     scopes,
-		ExpiresAt:  timeutil.ParsePostgresTimestamp(expiresAt.Time),
+		ExpiresAt:  timeutil.ParsePostgresTimestamp(expiresAt),
 	}
 }
 
