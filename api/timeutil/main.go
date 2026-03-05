@@ -3,16 +3,18 @@ package timeutil
 import (
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// ParsePostgresTimestamp parses a timestamp string from PostgreSQL
+// ParsePostgresTimestamp converts a time.Time to a protobuf Timestamp.
 func ParsePostgresTimestamp(ts time.Time) *timestamppb.Timestamp {
 	return timestamppb.New(ts)
 }
 
-// ToPostgresTimestamp converts a protobuf timestamp to a PostgreSQL-compatible string
-func ToPostgresTimestamp(ts *timestamppb.Timestamp) pgtype.Timestamptz {
-	return pgtype.Timestamptz{Time: ts.AsTime(), Valid: true}
+// ParsePostgresTimestampPtr converts a *time.Time to a protobuf Timestamp.
+func ParsePostgresTimestampPtr(ts *time.Time) *timestamppb.Timestamp {
+	if ts == nil {
+		return nil
+	}
+	return ParsePostgresTimestamp(*ts)
 }

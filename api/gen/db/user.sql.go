@@ -12,56 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addOrganizationMember = `-- name: AddOrganizationMember :one
-
-INSERT INTO organization_members (organization_id, user_id)
-VALUES ($1, $2)
-RETURNING organization_id, user_id
-`
-
-type AddOrganizationMemberParams struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-type AddOrganizationMemberRow struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-// Organization members queries
-func (q *Queries) AddOrganizationMember(ctx context.Context, arg AddOrganizationMemberParams) (AddOrganizationMemberRow, error) {
-	row := q.db.QueryRow(ctx, addOrganizationMember, arg.OrganizationID, arg.UserID)
-	var i AddOrganizationMemberRow
-	err := row.Scan(&i.OrganizationID, &i.UserID)
-	return i, err
-}
-
-const addWorkspaceMember = `-- name: AddWorkspaceMember :one
-
-INSERT INTO workspace_members (workspace_id, user_id)
-VALUES ($1, $2)
-RETURNING workspace_id, user_id
-`
-
-type AddWorkspaceMemberParams struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	UserID      uuid.UUID `json:"userId"`
-}
-
-type AddWorkspaceMemberRow struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	UserID      uuid.UUID `json:"userId"`
-}
-
-// Workspace members queries
-func (q *Queries) AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMemberParams) (AddWorkspaceMemberRow, error) {
-	row := q.db.QueryRow(ctx, addWorkspaceMember, arg.WorkspaceID, arg.UserID)
-	var i AddWorkspaceMemberRow
-	err := row.Scan(&i.WorkspaceID, &i.UserID)
-	return i, err
-}
-
 const checkUserHasOrganizations = `-- name: CheckUserHasOrganizations :one
 SELECT EXISTS(SELECT 1 FROM organizations WHERE created_by = $1) AS has_orgs
 `
@@ -75,8 +25,8 @@ func (q *Queries) CheckUserHasOrganizations(ctx context.Context, createdBy uuid.
 
 const checkUserHasWorkspaces = `-- name: CheckUserHasWorkspaces :one
 SELECT EXISTS(
-  SELECT 1 FROM workspace_members
-  WHERE user_id = $1
+  SELECT 1 FROM user_scopes
+  WHERE user_id = $1 AND entity_type = 'workspace'
 ) AS has_workspaces
 `
 
@@ -213,29 +163,6 @@ func (q *Queries) GetOrganizationByName(ctx context.Context, name string) (Organ
 	return i, err
 }
 
-const getOrganizationMember = `-- name: GetOrganizationMember :one
-SELECT organization_id, user_id
-FROM organization_members
-WHERE organization_id = $1 AND user_id = $2
-`
-
-type GetOrganizationMemberParams struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-type GetOrganizationMemberRow struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) GetOrganizationMember(ctx context.Context, arg GetOrganizationMemberParams) (GetOrganizationMemberRow, error) {
-	row := q.db.QueryRow(ctx, getOrganizationMember, arg.OrganizationID, arg.UserID)
-	var i GetOrganizationMemberRow
-	err := row.Scan(&i.OrganizationID, &i.UserID)
-	return i, err
-}
-
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, external_id, email, name, avatar_url, created_at, updated_at
 FROM users
@@ -299,29 +226,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	return i, err
 }
 
-const getWorkspaceMember = `-- name: GetWorkspaceMember :one
-SELECT workspace_id, user_id
-FROM workspace_members
-WHERE workspace_id = $1 AND user_id = $2
-`
-
-type GetWorkspaceMemberParams struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	UserID      uuid.UUID `json:"userId"`
-}
-
-type GetWorkspaceMemberRow struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	UserID      uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) GetWorkspaceMember(ctx context.Context, arg GetWorkspaceMemberParams) (GetWorkspaceMemberRow, error) {
-	row := q.db.QueryRow(ctx, getWorkspaceMember, arg.WorkspaceID, arg.UserID)
-	var i GetWorkspaceMemberRow
-	err := row.Scan(&i.WorkspaceID, &i.UserID)
-	return i, err
-}
-
 const isOrganizationNameUnique = `-- name: IsOrganizationNameUnique :one
 SELECT COUNT(*) = 0 AS is_unique
 FROM organizations
@@ -333,108 +237,6 @@ func (q *Queries) IsOrganizationNameUnique(ctx context.Context, name string) (bo
 	var is_unique bool
 	err := row.Scan(&is_unique)
 	return is_unique, err
-}
-
-const listOrganizationMembers = `-- name: ListOrganizationMembers :many
-SELECT organization_id, user_id
-FROM organization_members
-WHERE organization_id = $1
-ORDER BY created_at DESC
-`
-
-type ListOrganizationMembersRow struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) ListOrganizationMembers(ctx context.Context, organizationID uuid.UUID) ([]ListOrganizationMembersRow, error) {
-	rows, err := q.db.Query(ctx, listOrganizationMembers, organizationID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListOrganizationMembersRow
-	for rows.Next() {
-		var i ListOrganizationMembersRow
-		if err := rows.Scan(&i.OrganizationID, &i.UserID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listUserOrganizations = `-- name: ListUserOrganizations :many
-SELECT DISTINCT o.id, o.name, o.created_by, o.created_at, o.updated_at
-FROM organizations o
-JOIN organization_members om ON om.organization_id = o.id
-WHERE om.user_id = $1
-ORDER BY o.created_at DESC
-`
-
-func (q *Queries) ListUserOrganizations(ctx context.Context, userID uuid.UUID) ([]Organization, error) {
-	rows, err := q.db.Query(ctx, listUserOrganizations, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Organization
-	for rows.Next() {
-		var i Organization
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CreatedBy,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listUserWorkspaces = `-- name: ListUserWorkspaces :many
-SELECT DISTINCT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
-FROM workspaces w
-JOIN workspace_members wm ON wm.workspace_id = w.id
-WHERE wm.user_id = $1
-ORDER BY w.created_at DESC
-`
-
-func (q *Queries) ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]Workspace, error) {
-	rows, err := q.db.Query(ctx, listUserWorkspaces, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Workspace
-	for rows.Next() {
-		var i Workspace
-		if err := rows.Scan(
-			&i.ID,
-			&i.OrgID,
-			&i.Name,
-			&i.Description,
-			&i.CreatedBy,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listUsers = `-- name: ListUsers :many
@@ -480,68 +282,6 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		return nil, err
 	}
 	return items, nil
-}
-
-const listWorkspaceMembers = `-- name: ListWorkspaceMembers :many
-SELECT workspace_id, user_id
-FROM workspace_members
-WHERE workspace_id = $1
-ORDER BY created_at DESC
-`
-
-type ListWorkspaceMembersRow struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	UserID      uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) ListWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceMembersRow, error) {
-	rows, err := q.db.Query(ctx, listWorkspaceMembers, workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListWorkspaceMembersRow
-	for rows.Next() {
-		var i ListWorkspaceMembersRow
-		if err := rows.Scan(&i.WorkspaceID, &i.UserID); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const removeOrganizationMember = `-- name: RemoveOrganizationMember :exec
-DELETE FROM organization_members
-WHERE organization_id = $1 AND user_id = $2
-`
-
-type RemoveOrganizationMemberParams struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) RemoveOrganizationMember(ctx context.Context, arg RemoveOrganizationMemberParams) error {
-	_, err := q.db.Exec(ctx, removeOrganizationMember, arg.OrganizationID, arg.UserID)
-	return err
-}
-
-const removeWorkspaceMember = `-- name: RemoveWorkspaceMember :exec
-DELETE FROM workspace_members
-WHERE workspace_id = $1 AND user_id = $2
-`
-
-type RemoveWorkspaceMemberParams struct {
-	WorkspaceID uuid.UUID `json:"workspaceId"`
-	UserID      uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) error {
-	_, err := q.db.Exec(ctx, removeWorkspaceMember, arg.WorkspaceID, arg.UserID)
-	return err
 }
 
 const updateUserAvatarURL = `-- name: UpdateUserAvatarURL :one

@@ -7,25 +7,11 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-const addOrgMember = `-- name: AddOrgMember :exec
-INSERT INTO organization_members (organization_id, user_id)
-VALUES ($1, $2)
-`
-
-type AddOrgMemberParams struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) AddOrgMember(ctx context.Context, arg AddOrgMemberParams) error {
-	_, err := q.db.Exec(ctx, addOrgMember, arg.OrganizationID, arg.UserID)
-	return err
-}
 
 const createOrg = `-- name: CreateOrg :one
 INSERT INTO organizations (name, created_by)
@@ -107,25 +93,6 @@ func (q *Queries) GetOrgByName(ctx context.Context, name string) (Organization, 
 	return i, err
 }
 
-const isOrgMember = `-- name: IsOrgMember :one
-SELECT EXISTS(
-  SELECT 1 FROM organization_members
-  WHERE organization_id = $1 AND user_id = $2
-) as is_member
-`
-
-type IsOrgMemberParams struct {
-	OrganizationID uuid.UUID `json:"organizationId"`
-	UserID         uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isOrgMember, arg.OrganizationID, arg.UserID)
-	var is_member bool
-	err := row.Scan(&is_member)
-	return is_member, err
-}
-
 const isOrgNameUnique = `-- name: IsOrgNameUnique :one
 SELECT COUNT(*) = 0 as is_unique
 FROM organizations
@@ -142,9 +109,10 @@ func (q *Queries) IsOrgNameUnique(ctx context.Context, name string) (bool, error
 const listOrgsForUser = `-- name: ListOrgsForUser :many
 SELECT DISTINCT o.id, o.name, o.created_by, o.created_at, o.updated_at
 FROM organizations o
-JOIN organization_members om ON om.organization_id = o.id
-WHERE om.user_id = $1
-  AND ($3::text IS NULL
+JOIN user_scopes us ON us.entity_id = o.id
+  AND us.entity_type = 'organization'
+  AND us.user_id = $1
+WHERE ($3::text IS NULL
        OR (o.created_at, o.id) < (
          (SELECT created_at FROM organizations WHERE id = $3::uuid),
          $3::uuid
@@ -205,10 +173,10 @@ type ListWorkspacesForOrgParams struct {
 }
 
 type ListWorkspacesForOrgRow struct {
-	ID        uuid.UUID          `json:"id"`
-	Name      string             `json:"name"`
-	CreatedBy uuid.UUID          `json:"createdBy"`
-	CreatedAt pgtype.Timestamptz `json:"createdAt"`
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedBy uuid.UUID `json:"createdBy"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 func (q *Queries) ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error) {

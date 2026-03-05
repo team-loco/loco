@@ -219,10 +219,7 @@ func (s *AgentServer) Heartbeat(
 		// Update cluster heartbeat in database
 		err = s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
 			ID: cluster.ID,
-			LastHeartbeat: pgtype.Timestamptz{
-				Time:  time.Now(),
-				Valid: true,
-			},
+			LastHeartbeat: func() *time.Time { t := time.Now(); return &t }(),
 			CapacityCpuMillicores: pgtype.Int8{
 				Int64: req.GetCapacity().GetCpuMillicoresTotal(),
 				Valid: req.GetCapacity() != nil,

@@ -61,8 +61,8 @@ func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailRe
 		AccessTokenHash:  accessHash,
 		RefreshTokenHash: refreshHash,
 		UserID:           user.ID,
-		AccessExpiresAt:  pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionAccessTokenDuration), Valid: true},
-		RefreshExpiresAt: pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionRefreshTokenDuration), Valid: true},
+		AccessExpiresAt:  now.Add(tvm.Cfg.SessionAccessTokenDuration),
+		RefreshExpiresAt: now.Add(tvm.Cfg.SessionRefreshTokenDuration),
 		IpAddress:        ipAddr,
 		UserAgent:        ua,
 	}); err != nil {

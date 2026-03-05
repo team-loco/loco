@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -104,22 +105,22 @@ type GetActiveClusterByRegionAndTierParams struct {
 }
 
 type GetActiveClusterByRegionAndTierRow struct {
-	ID                    uuid.UUID          `json:"id"`
-	Name                  string             `json:"name"`
-	Region                string             `json:"region"`
-	Provider              string             `json:"provider"`
-	IsActive              bool               `json:"isActive"`
-	IsDefault             bool               `json:"isDefault"`
-	Endpoint              pgtype.Text        `json:"endpoint"`
-	HealthStatus          pgtype.Text        `json:"healthStatus"`
-	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
-	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
-	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
-	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
-	AgentVersion          pgtype.Text        `json:"agentVersion"`
-	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+	ID                    uuid.UUID   `json:"id"`
+	Name                  string      `json:"name"`
+	Region                string      `json:"region"`
+	Provider              string      `json:"provider"`
+	IsActive              bool        `json:"isActive"`
+	IsDefault             bool        `json:"isDefault"`
+	Endpoint              pgtype.Text `json:"endpoint"`
+	HealthStatus          pgtype.Text `json:"healthStatus"`
+	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text `json:"agentTokenHash"`
+	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text `json:"agentVersion"`
+	CreatedAt             time.Time   `json:"createdAt"`
+	UpdatedAt             time.Time   `json:"updatedAt"`
 }
 
 func (q *Queries) GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error) {
@@ -153,11 +154,11 @@ WHERE id = $1
 `
 
 type GetClusterDetailsRow struct {
-	ID            uuid.UUID          `json:"id"`
-	IsActive      bool               `json:"isActive"`
-	HealthStatus  pgtype.Text        `json:"healthStatus"`
-	AgentVersion  pgtype.Text        `json:"agentVersion"`
-	LastHeartbeat pgtype.Timestamptz `json:"lastHeartbeat"`
+	ID            uuid.UUID   `json:"id"`
+	IsActive      bool        `json:"isActive"`
+	HealthStatus  pgtype.Text `json:"healthStatus"`
+	AgentVersion  pgtype.Text `json:"agentVersion"`
+	LastHeartbeat *time.Time  `json:"lastHeartbeat"`
 }
 
 func (q *Queries) GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error) {
@@ -184,22 +185,22 @@ LIMIT 1
 `
 
 type GetFirstActiveClusterRow struct {
-	ID                    uuid.UUID          `json:"id"`
-	Name                  string             `json:"name"`
-	Region                string             `json:"region"`
-	Provider              string             `json:"provider"`
-	IsActive              bool               `json:"isActive"`
-	IsDefault             bool               `json:"isDefault"`
-	Endpoint              pgtype.Text        `json:"endpoint"`
-	HealthStatus          pgtype.Text        `json:"healthStatus"`
-	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
-	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
-	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
-	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
-	AgentVersion          pgtype.Text        `json:"agentVersion"`
-	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+	ID                    uuid.UUID   `json:"id"`
+	Name                  string      `json:"name"`
+	Region                string      `json:"region"`
+	Provider              string      `json:"provider"`
+	IsActive              bool        `json:"isActive"`
+	IsDefault             bool        `json:"isDefault"`
+	Endpoint              pgtype.Text `json:"endpoint"`
+	HealthStatus          pgtype.Text `json:"healthStatus"`
+	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text `json:"agentTokenHash"`
+	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text `json:"agentVersion"`
+	CreatedAt             time.Time   `json:"createdAt"`
+	UpdatedAt             time.Time   `json:"updatedAt"`
 }
 
 // todo: eventually remove
@@ -369,22 +370,22 @@ ORDER BY region ASC
 `
 
 type ListClustersActiveRow struct {
-	ID                    uuid.UUID          `json:"id"`
-	Name                  string             `json:"name"`
-	Region                string             `json:"region"`
-	Provider              string             `json:"provider"`
-	IsActive              bool               `json:"isActive"`
-	IsDefault             bool               `json:"isDefault"`
-	Endpoint              pgtype.Text        `json:"endpoint"`
-	HealthStatus          pgtype.Text        `json:"healthStatus"`
-	LastHealthCheck       pgtype.Timestamptz `json:"lastHealthCheck"`
-	AgentTokenHash        pgtype.Text        `json:"agentTokenHash"`
-	LastHeartbeat         pgtype.Timestamptz `json:"lastHeartbeat"`
-	CapacityCpuMillicores pgtype.Int8        `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8        `json:"capacityMemoryBytes"`
-	AgentVersion          pgtype.Text        `json:"agentVersion"`
-	CreatedAt             pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt             pgtype.Timestamptz `json:"updatedAt"`
+	ID                    uuid.UUID   `json:"id"`
+	Name                  string      `json:"name"`
+	Region                string      `json:"region"`
+	Provider              string      `json:"provider"`
+	IsActive              bool        `json:"isActive"`
+	IsDefault             bool        `json:"isDefault"`
+	Endpoint              pgtype.Text `json:"endpoint"`
+	HealthStatus          pgtype.Text `json:"healthStatus"`
+	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
+	AgentTokenHash        pgtype.Text `json:"agentTokenHash"`
+	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
+	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
+	AgentVersion          pgtype.Text `json:"agentVersion"`
+	CreatedAt             time.Time   `json:"createdAt"`
+	UpdatedAt             time.Time   `json:"updatedAt"`
 }
 
 func (q *Queries) ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error) {

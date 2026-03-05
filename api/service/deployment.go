@@ -77,8 +77,8 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		Replicas:      d.Replicas,
 		Status:        parseDeploymentPhase(d.Status),
 		IsActive:      d.IsActive,
-		CreatedAt:     timeutil.ParsePostgresTimestamp(d.CreatedAt.Time),
-		UpdatedAt:     timeutil.ParsePostgresTimestamp(d.UpdatedAt.Time),
+		CreatedAt:     timeutil.ParsePostgresTimestamp(d.CreatedAt),
+		UpdatedAt:     timeutil.ParsePostgresTimestamp(d.UpdatedAt),
 		SpecVersion:   d.SpecVersion,
 		Message:       d.Message,
 	}
@@ -122,13 +122,9 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		deployment.Spec = spec
 	}
 
-	if d.StartedAt.Valid {
-		ts := timeutil.ParsePostgresTimestamp(d.StartedAt.Time)
-		deployment.StartedAt = ts
-	}
-	if d.CompletedAt.Valid {
-		ts := timeutil.ParsePostgresTimestamp(d.CompletedAt.Time)
-		deployment.CompletedAt = ts
+	deployment.StartedAt = timeutil.ParsePostgresTimestamp(d.StartedAt)
+	if d.CompletedAt != nil {
+		deployment.CompletedAt = timeutil.ParsePostgresTimestampPtr(d.CompletedAt)
 	}
 
 	return deployment

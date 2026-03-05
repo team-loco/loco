@@ -96,15 +96,6 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
-	err = s.queries.AddOrgMember(ctx, genDb.AddOrgMemberParams{
-		OrganizationID: org.ID,
-		UserID:         entity.ID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to add organization member", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
 	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
@@ -160,8 +151,8 @@ func (s *OrgServer) GetOrg(
 			Id:        org.ID.String(),
 			Name:      org.Name,
 			CreatedBy: org.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt),
+			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt),
 		},
 	}), nil
 }
@@ -216,8 +207,8 @@ func (s *OrgServer) ListUserOrgs(
 			Id:        org.ID.String(),
 			Name:      org.Name,
 			CreatedBy: org.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt),
+			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt),
 		})
 	}
 
@@ -383,7 +374,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 			Id:        ws.ID.String(),
 			Name:      ws.Name,
 			CreatedBy: ws.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(ws.CreatedAt),
 		}
 	}
 

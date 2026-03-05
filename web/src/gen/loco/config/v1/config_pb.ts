@@ -220,7 +220,7 @@ export const DefaultServiceConfigSchema: GenMessage<DefaultServiceConfig, {jsonT
   messageDesc(file_loco_config_v1_config, 2);
 
 /**
- * ConfigService provides static configuration values.
+ * ConfigService provides static configuration values. Clients can query this to show safe defaults.
  *
  * @generated from service loco.config.v1.ConfigService
  */

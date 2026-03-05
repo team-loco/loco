@@ -7,7 +7,7 @@ import { GetDefaultServiceConfigRequest, GetDefaultServiceConfigResponse } from 
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * ConfigService provides static configuration values.
+ * ConfigService provides static configuration values. Clients can query this to show safe defaults.
  *
  * @generated from service loco.config.v1.ConfigService
  */

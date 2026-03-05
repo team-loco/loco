@@ -265,8 +265,8 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 		Description: &desc,
 		Type:        stringToProtoEnvType(env.EnvironmentType),
 		CreatedBy:   env.CreatedBy.String(),
-		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(env.UpdatedAt.Time),
+		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(env.UpdatedAt),
 	}
 }
 

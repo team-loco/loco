@@ -24,7 +24,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
 	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -1083,8 +1082,8 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 			Domain:       d.Domain,
 			DomainSource: domainSource,
 			IsPrimary:    d.IsPrimary,
-			CreatedAt:    timestamppb.New(d.CreatedAt.Time),
-			UpdatedAt:    timestamppb.New(d.UpdatedAt.Time),
+			CreatedAt:    timeutil.ParsePostgresTimestamp(d.CreatedAt),
+			UpdatedAt:    timeutil.ParsePostgresTimestamp(d.UpdatedAt),
 		}
 
 		if d.SubdomainLabel.Valid {
@@ -1146,8 +1145,8 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 		Spec:        spec,
 		Domains:     resourceDomainToListProto(domains),
 		Regions:     protoRegions,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt.Time),
+		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt),
 		Status:      resourceStatus,
 		Description: &resource.Description,
 	}

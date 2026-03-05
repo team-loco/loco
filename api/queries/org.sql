@@ -12,9 +12,10 @@ SELECT * FROM organizations WHERE name = $1;
 -- name: ListOrgsForUser :many
 SELECT DISTINCT o.*
 FROM organizations o
-JOIN organization_members om ON om.organization_id = o.id
-WHERE om.user_id = $1
-  AND (sqlc.narg('page_token')::text IS NULL
+JOIN user_scopes us ON us.entity_id = o.id
+  AND us.entity_type = 'organization'
+  AND us.user_id = $1
+WHERE (sqlc.narg('page_token')::text IS NULL
        OR (o.created_at, o.id) < (
          (SELECT created_at FROM organizations WHERE id = sqlc.narg('page_token')::uuid),
          sqlc.narg('page_token')::uuid
@@ -63,13 +64,3 @@ AND NOT EXISTS (
 SELECT COUNT(*) = 0 as is_unique
 FROM organizations
 WHERE name = $1;
-
--- name: IsOrgMember :one
-SELECT EXISTS(
-  SELECT 1 FROM organization_members
-  WHERE organization_id = $1 AND user_id = $2
-) as is_member;
-
--- name: AddOrgMember :exec
-INSERT INTO organization_members (organization_id, user_id)
-VALUES ($1, $2);

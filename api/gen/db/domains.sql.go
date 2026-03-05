@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -112,16 +113,16 @@ WHERE rd.resource_id = $1
 `
 
 type GetDomainByResourceIdRow struct {
-	ID                 uuid.UUID          `json:"id"`
-	ResourceID         uuid.UUID          `json:"resourceId"`
-	Domain             string             `json:"domain"`
-	DomainSource       DomainSource       `json:"domainSource"`
-	SubdomainLabel     pgtype.Text        `json:"subdomainLabel"`
-	PlatformDomainID   *uuid.UUID         `json:"platformDomainId"`
-	IsPrimary          bool               `json:"isPrimary"`
-	CreatedAt          pgtype.Timestamptz `json:"createdAt"`
-	UpdatedAt          pgtype.Timestamptz `json:"updatedAt"`
-	PlatformBaseDomain pgtype.Text        `json:"platformBaseDomain"`
+	ID                 uuid.UUID    `json:"id"`
+	ResourceID         uuid.UUID    `json:"resourceId"`
+	Domain             string       `json:"domain"`
+	DomainSource       DomainSource `json:"domainSource"`
+	SubdomainLabel     pgtype.Text  `json:"subdomainLabel"`
+	PlatformDomainID   *uuid.UUID   `json:"platformDomainId"`
+	IsPrimary          bool         `json:"isPrimary"`
+	CreatedAt          time.Time    `json:"createdAt"`
+	UpdatedAt          time.Time    `json:"updatedAt"`
+	PlatformBaseDomain pgtype.Text  `json:"platformBaseDomain"`
 }
 
 func (q *Queries) GetDomainByResourceId(ctx context.Context, resourceID uuid.UUID) (GetDomainByResourceIdRow, error) {

@@ -379,7 +379,7 @@ func dbUserToProto(user genDb.User) *userv1.User {
 		Email:      user.Email,
 		Name:       user.Name.String,
 		AvatarUrl:  user.AvatarUrl.String,
-		CreatedAt:  timeutil.ParsePostgresTimestamp(user.CreatedAt.Time),
-		UpdatedAt:  timeutil.ParsePostgresTimestamp(user.UpdatedAt.Time),
+		CreatedAt:  timeutil.ParsePostgresTimestamp(user.CreatedAt),
+		UpdatedAt:  timeutil.ParsePostgresTimestamp(user.UpdatedAt),
 	}
 }

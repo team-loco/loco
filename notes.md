@@ -424,3 +424,5 @@ clickhouse is named weirdly and so is our controller.
 - loco init should also grab defaults from the static config endpoint.
 
 - the UI needs to look at the vite_api_base_url
+
+- theres a possibility the defaultAppDomain is something returned by the locoHost for simple default config settings.
