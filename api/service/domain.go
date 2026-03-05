@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -260,7 +259,7 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 	// extract and validate domain information based on source
 	var fullDomain string
-	var subdomainLabel pgtype.Text
+	var subdomainLabel *string
 	var platformDomainID *uuid.UUID
 	domainSource := genDb.DomainSourceUserProvided
 
@@ -273,7 +272,8 @@ func (s *DomainServer) CreateResourceDomain(
 		}
 
 		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-		subdomainLabel = pgtype.Text{String: r.GetDomain().GetSubdomain(), Valid: true}
+		subdomain := r.GetDomain().GetSubdomain()
+		subdomainLabel = &subdomain
 		domainSource = genDb.DomainSourcePlatformProvided
 	} else {
 		fullDomain = r.GetDomain().GetDomain()

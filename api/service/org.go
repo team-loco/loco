@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -73,7 +72,7 @@ func (s *OrgServer) CreateOrg(
 
 	orgName := r.GetName()
 	if orgName == "" {
-		orgName = fmt.Sprintf("%s's Organization", user.Name.String)
+		orgName = fmt.Sprintf("%s's Organization", derefString(user.Name))
 	}
 
 	isUnique, err := s.queries.IsOrgNameUnique(ctx, orgName)
@@ -177,16 +176,13 @@ func (s *OrgServer) ListUserOrgs(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	userId := uuid.MustParse(r.GetUserId())
@@ -345,16 +341,13 @@ func (s *OrgServer) ListOrgWorkspaces(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	// Get workspaces for org

@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -70,8 +69,6 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
 	}
 
-	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
-
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
@@ -83,8 +80,8 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}
 	wsID, err := s.queries.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
 		OrgID:       orgId,
-		Name:        r.GetName(),
-		Description: description,
+		Name:        r.Name,
+		Description: r.Description,
 		CreatedBy:   entity.ID,
 	})
 	if err != nil {
@@ -145,7 +142,7 @@ func (s *WorkspaceServer) GetWorkspace(
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
 			Name:        ws.Name,
-			Description: ws.Description.String,
+			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
 			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
 			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
@@ -182,16 +179,13 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	workspaceList, err := s.queries.ListWorkspacesForUser(ctx, genDb.ListWorkspacesForUserParams{
@@ -210,7 +204,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
 			Name:        ws.Name,
-			Description: ws.Description.String,
+			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
 			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
 			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
@@ -255,16 +249,13 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	orgId := uuid.MustParse(r.GetOrgId())
@@ -285,7 +276,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 			Id:          ws.ID.String(),
 			OrgId:       ws.OrgID.String(),
 			Name:        ws.Name,
-			Description: ws.Description.String,
+			Description: derefString(ws.Description),
 			CreatedBy:   ws.CreatedBy.String(),
 			CreatedAt:   timeutil.ParsePostgresTimestamp(ws.CreatedAt),
 			UpdatedAt:   timeutil.ParsePostgresTimestamp(ws.UpdatedAt),
@@ -345,13 +336,10 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		}
 	}
 
-	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
-	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
-
 	_, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-		ID:          uuid.MustParse(r.GetWorkspaceId()),
-		Name:        name,
-		Description: description,
+		ID:          uuid.MustParse(r.WorkspaceId),
+		Name:        r.Name,
+		Description: r.Description,
 	})
 	if err != nil {
 		slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
@@ -482,16 +470,13 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(ctx, genDb.ListWorkspaceMembersWithUserDetailsParams{
@@ -511,9 +496,9 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 			UserId:        member.UserID.String(),
 			Scopes:        member.Scopes,
 			CreatedAt:     timeutil.ParsePostgresTimestamp(member.JoinedAt),
-			UserName:      member.Name.String,
+			UserName:      derefString(member.Name),
 			UserEmail:     member.Email,
-			UserAvatarUrl: member.AvatarUrl.String,
+			UserAvatarUrl: derefString(member.AvatarUrl),
 		})
 	}
 

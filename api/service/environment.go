@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -63,12 +62,11 @@ func (s *EnvironmentServer) CreateEnvironment(
 
 	envType := protoEnvTypeToString(r.GetType())
 
-	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
-
+	desc := r.GetDescription()
 	env, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 		WorkspaceID:     workspaceID,
 		Name:            r.GetName(),
-		Description:     description,
+		Description:     &desc,
 		EnvironmentType: envType,
 		CreatedBy:       entity.ID,
 	})
@@ -185,7 +183,8 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	}
 	description := existing.Description
 	if r.GetDescription() != "" {
-		description = pgtype.Text{String: r.GetDescription(), Valid: true}
+		d := r.GetDescription()
+		description = &d
 	}
 	envType := existing.EnvironmentType
 	if r.Type != nil {
@@ -257,12 +256,11 @@ func (s *EnvironmentServer) DeleteEnvironment(
 
 // dbEnvToProto converts a db.Environment to its proto representation.
 func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
-	desc := env.Description.String
 	return &environmentv1.Environment{
 		Id:          env.ID.String(),
 		WorkspaceId: env.WorkspaceID.String(),
 		Name:        env.Name,
-		Description: &desc,
+		Description: env.Description,
 		Type:        stringToProtoEnvType(env.EnvironmentType),
 		CreatedBy:   env.CreatedBy.String(),
 		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt),

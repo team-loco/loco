@@ -10,7 +10,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -104,7 +103,7 @@ func (s *ResourceServer) CreateResource(
 
 	domainSource := genDb.DomainSourceUserProvided
 	var fullDomain string
-	var subdomainLabel pgtype.Text
+	var subdomainLabel *string
 	var platformDomainID *uuid.UUID
 
 	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
@@ -119,7 +118,8 @@ func (s *ResourceServer) CreateResource(
 		}
 
 		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-		subdomainLabel = pgtype.Text{String: r.GetDomain().GetSubdomain(), Valid: true}
+		subdomain := r.GetDomain().GetSubdomain()
+		subdomainLabel = &subdomain
 	} else {
 		fullDomain = r.GetDomain().GetDomain()
 	}
@@ -309,16 +309,13 @@ func (s *ResourceServer) ListWorkspaceResources(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	wsId := uuid.MustParse(r.GetWorkspaceId())
@@ -384,7 +381,8 @@ func (s *ResourceServer) UpdateResource(
 	}
 
 	if r.GetName() != "" {
-		updateParams.Name = pgtype.Text{String: r.GetName(), Valid: true}
+		n := r.GetName()
+		updateParams.Name = &n
 	}
 
 	_, err := s.queries.UpdateResource(ctx, updateParams)
@@ -497,7 +495,7 @@ func (s *ResourceServer) GetResourceStatus(
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
 		ResourceID: resourceId,
 		Limit:      1,
-		PageToken:  pgtype.Text{}, // empty for first page
+		PageToken:  nil, // empty for first page
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
@@ -547,15 +545,10 @@ func (s *ResourceServer) ListRegions(
 	regionMap := make(map[string]*resourcev1.RegionInfo)
 	for _, cluster := range clusters {
 		if _, exists := regionMap[cluster.Region]; !exists {
-			isDefault := cluster.IsDefault
-			healthStatus := ""
-			if cluster.HealthStatus.Valid {
-				healthStatus = cluster.HealthStatus.String
-			}
 			regionMap[cluster.Region] = &resourcev1.RegionInfo{
 				Region:       cluster.Region,
-				IsDefault:    isDefault,
-				HealthStatus: healthStatus,
+				IsDefault:    cluster.IsDefault,
+				HealthStatus: derefString(cluster.HealthStatus),
 			}
 		}
 	}
@@ -1086,8 +1079,8 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 			UpdatedAt:    timeutil.ParsePostgresTimestamp(d.UpdatedAt),
 		}
 
-		if d.SubdomainLabel.Valid {
-			domain.SubdomainLabel = &d.SubdomainLabel.String
+		if d.SubdomainLabel != nil {
+			domain.SubdomainLabel = d.SubdomainLabel
 		}
 		if d.PlatformDomainID != nil {
 			s := d.PlatformDomainID.String()

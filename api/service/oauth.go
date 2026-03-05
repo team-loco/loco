@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
@@ -160,14 +159,11 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 	}
 	qtx = qtx.WithTx(tx)
 
-	avatarURLPgType := pgtype.Text{String: avatarURL, Valid: avatarURL != ""}
-	namePgType := pgtype.Text{String: name, Valid: name != ""}
-
 	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
 		ExternalID: externalID,
 		Email:      email,
-		Name:       namePgType,
-		AvatarUrl:  avatarURLPgType,
+		Name:       &name,
+		AvatarUrl:  &avatarURL,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
@@ -238,7 +234,7 @@ func (s *OAuthServer) ExchangeOAuthToken(
 		LocoToken:    accessToken,
 		ExpiresIn:    int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
 		UserId:       user.ID.String(),
-		Name:         user.Name.String,
+		Name:         derefString(user.Name),
 		RefreshToken: refreshToken,
 	})
 
@@ -416,7 +412,6 @@ func (s *OAuthServer) ExchangeOAuthCode(
 	res := connect.NewResponse(&oAuth.ExchangeOAuthCodeResponse{
 		ExpiresIn: int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
 		UserId:    user.ID.String(),
-		Name:      user.Name.String,
 	})
 
 	res.Header().Add("Set-Cookie", fmt.Sprintf(
