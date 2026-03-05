@@ -47,7 +47,8 @@ export function WorkspaceDashboardMetrics({
 	const membersByRole = useMemo(() => {
 		const grouped: Record<string, number> = {};
 		members.forEach((member) => {
-			grouped[member.role] = (grouped[member.role] || 0) + 1;
+			const role = member.scopes[0] ?? "member";
+			grouped[role] = (grouped[role] || 0) + 1;
 		});
 		return grouped;
 	}, [members]);

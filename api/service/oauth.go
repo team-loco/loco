@@ -313,6 +313,7 @@ func (s *OAuthServer) GetOAuthAuthorizationURL(
 	if err := s.stateCache.StoreState(ctx, state); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to store state: %w", err))
 	}
+	slog.InfoContext(ctx, "stored state in cache successfully")
 
 	// build github oauth url
 	authURL := OAuthConf.AuthCodeURL(state, oauth2.AccessTypeOffline)
