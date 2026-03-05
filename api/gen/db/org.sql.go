@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrg = `-- name: CreateOrg :one
@@ -122,9 +121,9 @@ LIMIT $2
 `
 
 type ListOrgsForUserParams struct {
-	UserID    uuid.UUID   `json:"userId"`
-	Limit     int32       `json:"limit"`
-	PageToken pgtype.Text `json:"pageToken"`
+	UserID    uuid.UUID `json:"userId"`
+	Limit     int32     `json:"limit"`
+	PageToken *string   `json:"pageToken"`
 }
 
 func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error) {
@@ -167,9 +166,9 @@ LIMIT $2
 `
 
 type ListWorkspacesForOrgParams struct {
-	OrgID     uuid.UUID   `json:"orgId"`
-	Limit     int32       `json:"limit"`
-	PageToken pgtype.Text `json:"pageToken"`
+	OrgID     uuid.UUID `json:"orgId"`
+	Limit     int32     `json:"limit"`
+	PageToken *string   `json:"pageToken"`
 }
 
 type ListWorkspacesForOrgRow struct {

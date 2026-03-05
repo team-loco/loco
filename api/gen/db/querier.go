@@ -8,7 +8,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -62,7 +61,7 @@ type Querier interface {
 	GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	// Cluster queries for agent operations
-	GetClusterByAgentToken(ctx context.Context, agentTokenHash pgtype.Text) (GetClusterByAgentTokenRow, error)
+	GetClusterByAgentToken(ctx context.Context, agentTokenHash *string) (GetClusterByAgentTokenRow, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error)
@@ -113,7 +112,7 @@ type Querier interface {
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
-	ListPlatformDomains(ctx context.Context, activeOnly pgtype.Bool) ([]PlatformDomain, error)
+	ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error)
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)
 	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)

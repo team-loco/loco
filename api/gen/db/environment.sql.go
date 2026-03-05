@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const countDeploymentsByEnvironment = `-- name: CountDeploymentsByEnvironment :one
@@ -30,11 +29,11 @@ RETURNING id, workspace_id, name, description, environment_type, created_by, cre
 `
 
 type CreateEnvironmentParams struct {
-	WorkspaceID     uuid.UUID   `json:"workspaceId"`
-	Name            string      `json:"name"`
-	Description     pgtype.Text `json:"description"`
-	EnvironmentType string      `json:"environmentType"`
-	CreatedBy       uuid.UUID   `json:"createdBy"`
+	WorkspaceID     uuid.UUID `json:"workspaceId"`
+	Name            string    `json:"name"`
+	Description     *string   `json:"description"`
+	EnvironmentType string    `json:"environmentType"`
+	CreatedBy       uuid.UUID `json:"createdBy"`
 }
 
 func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error) {
@@ -149,10 +148,10 @@ RETURNING id, workspace_id, name, description, environment_type, created_by, cre
 `
 
 type UpdateEnvironmentParams struct {
-	ID              uuid.UUID   `json:"id"`
-	Name            string      `json:"name"`
-	Description     pgtype.Text `json:"description"`
-	EnvironmentType string      `json:"environmentType"`
+	ID              uuid.UUID `json:"id"`
+	Name            string    `json:"name"`
+	Description     *string   `json:"description"`
+	EnvironmentType string    `json:"environmentType"`
 }
 
 func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error) {

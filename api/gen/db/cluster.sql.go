@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const getClusterByAgentToken = `-- name: GetClusterByAgentToken :one
@@ -23,26 +22,26 @@ WHERE agent_token_hash = $1
 `
 
 type GetClusterByAgentTokenRow struct {
-	ID                    uuid.UUID   `json:"id"`
-	Name                  string      `json:"name"`
-	Region                string      `json:"region"`
-	Provider              string      `json:"provider"`
-	IsActive              bool        `json:"isActive"`
-	IsDefault             bool        `json:"isDefault"`
-	Endpoint              pgtype.Text `json:"endpoint"`
-	HealthStatus          pgtype.Text `json:"healthStatus"`
-	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
-	AgentTokenHash        pgtype.Text `json:"agentTokenHash"`
-	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
-	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
-	AgentVersion          pgtype.Text `json:"agentVersion"`
-	CreatedAt             time.Time   `json:"createdAt"`
-	UpdatedAt             time.Time   `json:"updatedAt"`
+	ID                    uuid.UUID  `json:"id"`
+	Name                  string     `json:"name"`
+	Region                string     `json:"region"`
+	Provider              string     `json:"provider"`
+	IsActive              bool       `json:"isActive"`
+	IsDefault             bool       `json:"isDefault"`
+	Endpoint              *string    `json:"endpoint"`
+	HealthStatus          *string    `json:"healthStatus"`
+	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
+	AgentTokenHash        *string    `json:"agentTokenHash"`
+	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
+	AgentVersion          *string    `json:"agentVersion"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
 }
 
 // Cluster queries for agent operations
-func (q *Queries) GetClusterByAgentToken(ctx context.Context, agentTokenHash pgtype.Text) (GetClusterByAgentTokenRow, error) {
+func (q *Queries) GetClusterByAgentToken(ctx context.Context, agentTokenHash *string) (GetClusterByAgentTokenRow, error) {
 	row := q.db.QueryRow(ctx, getClusterByAgentToken, agentTokenHash)
 	var i GetClusterByAgentTokenRow
 	err := row.Scan(
@@ -75,22 +74,22 @@ WHERE id = $1
 `
 
 type GetClusterByIDRow struct {
-	ID                    uuid.UUID   `json:"id"`
-	Name                  string      `json:"name"`
-	Region                string      `json:"region"`
-	Provider              string      `json:"provider"`
-	IsActive              bool        `json:"isActive"`
-	IsDefault             bool        `json:"isDefault"`
-	Endpoint              pgtype.Text `json:"endpoint"`
-	HealthStatus          pgtype.Text `json:"healthStatus"`
-	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
-	AgentTokenHash        pgtype.Text `json:"agentTokenHash"`
-	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
-	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
-	AgentVersion          pgtype.Text `json:"agentVersion"`
-	CreatedAt             time.Time   `json:"createdAt"`
-	UpdatedAt             time.Time   `json:"updatedAt"`
+	ID                    uuid.UUID  `json:"id"`
+	Name                  string     `json:"name"`
+	Region                string     `json:"region"`
+	Provider              string     `json:"provider"`
+	IsActive              bool       `json:"isActive"`
+	IsDefault             bool       `json:"isDefault"`
+	Endpoint              *string    `json:"endpoint"`
+	HealthStatus          *string    `json:"healthStatus"`
+	LastHealthCheck       *time.Time `json:"lastHealthCheck"`
+	AgentTokenHash        *string    `json:"agentTokenHash"`
+	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
+	AgentVersion          *string    `json:"agentVersion"`
+	CreatedAt             time.Time  `json:"createdAt"`
+	UpdatedAt             time.Time  `json:"updatedAt"`
 }
 
 func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error) {
@@ -128,10 +127,10 @@ WHERE r.workspace_id = $1
 `
 
 type GetClustersByWorkspaceDeploymentsRow struct {
-	ID                         uuid.UUID   `json:"id"`
-	Name                       string      `json:"name"`
-	Region                     string      `json:"region"`
-	ObservabilityProxyEndpoint pgtype.Text `json:"observabilityProxyEndpoint"`
+	ID                         uuid.UUID `json:"id"`
+	Name                       string    `json:"name"`
+	Region                     string    `json:"region"`
+	ObservabilityProxyEndpoint *string   `json:"observabilityProxyEndpoint"`
 }
 
 func (q *Queries) GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error) {
@@ -166,8 +165,8 @@ WHERE id = $1
 `
 
 type SetClusterAgentTokenParams struct {
-	ID             uuid.UUID   `json:"id"`
-	AgentTokenHash pgtype.Text `json:"agentTokenHash"`
+	ID             uuid.UUID `json:"id"`
+	AgentTokenHash *string   `json:"agentTokenHash"`
 }
 
 func (q *Queries) SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error {
@@ -182,8 +181,8 @@ WHERE id = $1
 `
 
 type SetClusterObservabilityEndpointParams struct {
-	ID                         uuid.UUID   `json:"id"`
-	ObservabilityProxyEndpoint pgtype.Text `json:"observabilityProxyEndpoint"`
+	ID                         uuid.UUID `json:"id"`
+	ObservabilityProxyEndpoint *string   `json:"observabilityProxyEndpoint"`
 }
 
 func (q *Queries) SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error {
@@ -201,10 +200,10 @@ WHERE id = $1
 `
 
 type UpdateClusterAgentInfoParams struct {
-	ID                    uuid.UUID   `json:"id"`
-	AgentVersion          pgtype.Text `json:"agentVersion"`
-	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
+	ID                    uuid.UUID `json:"id"`
+	AgentVersion          *string   `json:"agentVersion"`
+	CapacityCpuMillicores *int64    `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64    `json:"capacityMemoryBytes"`
 }
 
 func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error {
@@ -228,11 +227,11 @@ WHERE id = $1
 `
 
 type UpdateClusterHeartbeatParams struct {
-	ID                    uuid.UUID   `json:"id"`
-	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
-	CapacityCpuMillicores pgtype.Int8 `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes   pgtype.Int8 `json:"capacityMemoryBytes"`
-	HealthStatus          pgtype.Text `json:"healthStatus"`
+	ID                    uuid.UUID  `json:"id"`
+	LastHeartbeat         *time.Time `json:"lastHeartbeat"`
+	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
+	HealthStatus          *string    `json:"healthStatus"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {

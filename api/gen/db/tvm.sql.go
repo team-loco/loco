@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const addUserScope = `-- name: AddUserScope :exec
@@ -83,7 +82,7 @@ type CreateSessionTokenParams struct {
 	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        pgtype.Text `json:"userAgent"`
+	UserAgent        *string     `json:"userAgent"`
 }
 
 // -----------------------------------------------------------------------------
@@ -274,7 +273,7 @@ type GetSessionByAccessTokenRow struct {
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	LastUsedAt       time.Time   `json:"lastUsedAt"`
 	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        pgtype.Text `json:"userAgent"`
+	UserAgent        *string     `json:"userAgent"`
 	CreatedAt        time.Time   `json:"createdAt"`
 }
 
@@ -308,7 +307,7 @@ type GetSessionByRefreshTokenRow struct {
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	LastUsedAt       time.Time   `json:"lastUsedAt"`
 	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        pgtype.Text `json:"userAgent"`
+	UserAgent        *string     `json:"userAgent"`
 	CreatedAt        time.Time   `json:"createdAt"`
 }
 
@@ -566,7 +565,7 @@ type ListSessionsForUserRow struct {
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	LastUsedAt       time.Time   `json:"lastUsedAt"`
 	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        pgtype.Text `json:"userAgent"`
+	UserAgent        *string     `json:"userAgent"`
 	CreatedAt        time.Time   `json:"createdAt"`
 }
 

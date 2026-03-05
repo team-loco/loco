@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createWorkspace = `-- name: CreateWorkspace :one
@@ -20,10 +19,10 @@ RETURNING id
 `
 
 type CreateWorkspaceParams struct {
-	OrgID       uuid.UUID   `json:"orgId"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	CreatedBy   uuid.UUID   `json:"createdBy"`
+	OrgID       uuid.UUID `json:"orgId"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedBy   uuid.UUID `json:"createdBy"`
 }
 
 func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error) {
@@ -120,19 +119,19 @@ LIMIT $2
 `
 
 type ListWorkspaceMembersWithUserDetailsParams struct {
-	EntityID  uuid.UUID   `json:"entityId"`
-	Limit     int32       `json:"limit"`
-	PageToken pgtype.Text `json:"pageToken"`
+	EntityID  uuid.UUID `json:"entityId"`
+	Limit     int32     `json:"limit"`
+	PageToken *string   `json:"pageToken"`
 }
 
 type ListWorkspaceMembersWithUserDetailsRow struct {
-	WorkspaceID uuid.UUID   `json:"workspaceId"`
-	UserID      uuid.UUID   `json:"userId"`
-	Scopes      []string    `json:"scopes"`
-	JoinedAt    time.Time   `json:"joinedAt"`
-	Name        pgtype.Text `json:"name"`
-	Email       string      `json:"email"`
-	AvatarUrl   pgtype.Text `json:"avatarUrl"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	UserID      uuid.UUID `json:"userId"`
+	Scopes      []string  `json:"scopes"`
+	JoinedAt    time.Time `json:"joinedAt"`
+	Name        *string   `json:"name"`
+	Email       string    `json:"email"`
+	AvatarUrl   *string   `json:"avatarUrl"`
 }
 
 func (q *Queries) ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error) {
@@ -179,9 +178,9 @@ LIMIT $2
 `
 
 type ListWorkspacesForUserParams struct {
-	UserID    uuid.UUID   `json:"userId"`
-	Limit     int32       `json:"limit"`
-	PageToken pgtype.Text `json:"pageToken"`
+	UserID    uuid.UUID `json:"userId"`
+	Limit     int32     `json:"limit"`
+	PageToken *string   `json:"pageToken"`
 }
 
 func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error) {
@@ -225,9 +224,9 @@ LIMIT $2
 `
 
 type ListWorkspacesInOrgParams struct {
-	OrgID     uuid.UUID   `json:"orgId"`
-	Limit     int32       `json:"limit"`
-	PageToken pgtype.Text `json:"pageToken"`
+	OrgID     uuid.UUID `json:"orgId"`
+	Limit     int32     `json:"limit"`
+	PageToken *string   `json:"pageToken"`
 }
 
 func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error) {
@@ -277,9 +276,9 @@ RETURNING id
 `
 
 type UpdateWorkspaceParams struct {
-	ID          uuid.UUID   `json:"id"`
-	Name        pgtype.Text `json:"name"`
-	Description pgtype.Text `json:"description"`
+	ID          uuid.UUID `json:"id"`
+	Name        *string   `json:"name"`
+	Description *string   `json:"description"`
 }
 
 func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error) {

@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const checkUserHasOrganizations = `-- name: CheckUserHasOrganizations :one
@@ -71,10 +70,10 @@ RETURNING id, external_id, email, name, avatar_url, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	ExternalID string      `json:"externalId"`
-	Email      string      `json:"email"`
-	Name       pgtype.Text `json:"name"`
-	AvatarUrl  pgtype.Text `json:"avatarUrl"`
+	ExternalID string  `json:"externalId"`
+	Email      string  `json:"email"`
+	Name       *string `json:"name"`
+	AvatarUrl  *string `json:"avatarUrl"`
 }
 
 // User queries for sqlc
@@ -252,8 +251,8 @@ LIMIT $1
 `
 
 type ListUsersParams struct {
-	Limit     int32       `json:"limit"`
-	PageToken pgtype.Text `json:"pageToken"`
+	Limit     int32   `json:"limit"`
+	PageToken *string `json:"pageToken"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error) {
@@ -292,8 +291,8 @@ RETURNING id, external_id, email, name, avatar_url, created_at, updated_at
 `
 
 type UpdateUserAvatarURLParams struct {
-	ID        uuid.UUID   `json:"id"`
-	AvatarUrl pgtype.Text `json:"avatarUrl"`
+	ID        uuid.UUID `json:"id"`
+	AvatarUrl *string   `json:"avatarUrl"`
 }
 
 func (q *Queries) UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error) {

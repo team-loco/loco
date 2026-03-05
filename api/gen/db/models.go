@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type DeploymentStatus string
@@ -298,24 +297,24 @@ type ApiToken struct {
 }
 
 type Cluster struct {
-	ID                         uuid.UUID   `json:"id"`
-	Name                       string      `json:"name"`
-	Region                     string      `json:"region"`
-	Provider                   string      `json:"provider"`
-	IsActive                   bool        `json:"isActive"`
-	IsDefault                  bool        `json:"isDefault"`
-	Endpoint                   pgtype.Text `json:"endpoint"`
-	HealthStatus               pgtype.Text `json:"healthStatus"`
-	LastHealthCheck            *time.Time  `json:"lastHealthCheck"`
-	AgentTokenHash             pgtype.Text `json:"agentTokenHash"`
-	LastHeartbeat              *time.Time  `json:"lastHeartbeat"`
-	CapacityCpuMillicores      pgtype.Int8 `json:"capacityCpuMillicores"`
-	CapacityMemoryBytes        pgtype.Int8 `json:"capacityMemoryBytes"`
-	AgentVersion               pgtype.Text `json:"agentVersion"`
-	ObservabilityProxyEndpoint pgtype.Text `json:"observabilityProxyEndpoint"`
-	Tier                       string      `json:"tier"`
-	CreatedAt                  time.Time   `json:"createdAt"`
-	UpdatedAt                  time.Time   `json:"updatedAt"`
+	ID                         uuid.UUID  `json:"id"`
+	Name                       string     `json:"name"`
+	Region                     string     `json:"region"`
+	Provider                   string     `json:"provider"`
+	IsActive                   bool       `json:"isActive"`
+	IsDefault                  bool       `json:"isDefault"`
+	Endpoint                   *string    `json:"endpoint"`
+	HealthStatus               *string    `json:"healthStatus"`
+	LastHealthCheck            *time.Time `json:"lastHealthCheck"`
+	AgentTokenHash             *string    `json:"agentTokenHash"`
+	LastHeartbeat              *time.Time `json:"lastHeartbeat"`
+	CapacityCpuMillicores      *int64     `json:"capacityCpuMillicores"`
+	CapacityMemoryBytes        *int64     `json:"capacityMemoryBytes"`
+	AgentVersion               *string    `json:"agentVersion"`
+	ObservabilityProxyEndpoint *string    `json:"observabilityProxyEndpoint"`
+	Tier                       string     `json:"tier"`
+	CreatedAt                  time.Time  `json:"createdAt"`
+	UpdatedAt                  time.Time  `json:"updatedAt"`
 }
 
 type Deployment struct {
@@ -338,14 +337,14 @@ type Deployment struct {
 }
 
 type Environment struct {
-	ID              uuid.UUID   `json:"id"`
-	WorkspaceID     uuid.UUID   `json:"workspaceId"`
-	Name            string      `json:"name"`
-	Description     pgtype.Text `json:"description"`
-	EnvironmentType string      `json:"environmentType"`
-	CreatedBy       uuid.UUID   `json:"createdBy"`
-	CreatedAt       time.Time   `json:"createdAt"`
-	UpdatedAt       time.Time   `json:"updatedAt"`
+	ID              uuid.UUID `json:"id"`
+	WorkspaceID     uuid.UUID `json:"workspaceId"`
+	Name            string    `json:"name"`
+	Description     *string   `json:"description"`
+	EnvironmentType string    `json:"environmentType"`
+	CreatedBy       uuid.UUID `json:"createdBy"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 type Organization struct {
@@ -381,7 +380,7 @@ type ResourceDomain struct {
 	ResourceID       uuid.UUID    `json:"resourceId"`
 	Domain           string       `json:"domain"`
 	DomainSource     DomainSource `json:"domainSource"`
-	SubdomainLabel   pgtype.Text  `json:"subdomainLabel"`
+	SubdomainLabel   *string      `json:"subdomainLabel"`
 	PlatformDomainID *uuid.UUID   `json:"platformDomainId"`
 	IsPrimary        bool         `json:"isPrimary"`
 	CreatedAt        time.Time    `json:"createdAt"`
@@ -394,7 +393,7 @@ type ResourceRegion struct {
 	Region     string             `json:"region"`
 	IsPrimary  bool               `json:"isPrimary"`
 	Status     RegionIntentStatus `json:"status"`
-	LastError  pgtype.Text        `json:"lastError"`
+	LastError  *string            `json:"lastError"`
 	CreatedAt  time.Time          `json:"createdAt"`
 	UpdatedAt  time.Time          `json:"updatedAt"`
 }
@@ -408,18 +407,18 @@ type SessionToken struct {
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	LastUsedAt       time.Time   `json:"lastUsedAt"`
 	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        pgtype.Text `json:"userAgent"`
+	UserAgent        *string     `json:"userAgent"`
 	CreatedAt        time.Time   `json:"createdAt"`
 }
 
 type User struct {
-	ID         uuid.UUID   `json:"id"`
-	ExternalID string      `json:"externalId"`
-	Email      string      `json:"email"`
-	Name       pgtype.Text `json:"name"`
-	AvatarUrl  pgtype.Text `json:"avatarUrl"`
-	CreatedAt  time.Time   `json:"createdAt"`
-	UpdatedAt  time.Time   `json:"updatedAt"`
+	ID         uuid.UUID `json:"id"`
+	ExternalID string    `json:"externalId"`
+	Email      string    `json:"email"`
+	Name       *string   `json:"name"`
+	AvatarUrl  *string   `json:"avatarUrl"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type UserScope struct {
@@ -433,19 +432,19 @@ type UserWithScopesView struct {
 	ID         uuid.UUID     `json:"id"`
 	ExternalID string        `json:"externalId"`
 	Email      string        `json:"email"`
-	Name       pgtype.Text   `json:"name"`
-	AvatarUrl  pgtype.Text   `json:"avatarUrl"`
+	Name       *string       `json:"name"`
+	AvatarUrl  *string       `json:"avatarUrl"`
 	CreatedAt  time.Time     `json:"createdAt"`
 	UpdatedAt  time.Time     `json:"updatedAt"`
 	Scopes     []EntityScope `json:"scopes"`
 }
 
 type Workspace struct {
-	ID          uuid.UUID   `json:"id"`
-	OrgID       uuid.UUID   `json:"orgId"`
-	Name        string      `json:"name"`
-	Description pgtype.Text `json:"description"`
-	CreatedBy   uuid.UUID   `json:"createdBy"`
-	CreatedAt   time.Time   `json:"createdAt"`
-	UpdatedAt   time.Time   `json:"updatedAt"`
+	ID          uuid.UUID `json:"id"`
+	OrgID       uuid.UUID `json:"orgId"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedBy   uuid.UUID `json:"createdBy"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
