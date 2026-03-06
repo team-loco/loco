@@ -8,15 +8,15 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
-	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
-	"github.com/team-loco/loco/proto/loco/observability/v1/observabilityv1connect"
+	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
+	"github.com/team-loco/loco/proto/loco/token/v1/tokenv1connect"
 	"golang.org/x/net/http2"
 )
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
-	client    observabilityv1connect.ObservabilityAccessServiceClient
-	authToken string // proxy auth token for calling CheckPermission
+	client    tokenv1connect.TokenServiceClient
+	authToken string // proxy auth token for calling the control plane
 	cache     cache.Cache
 }
 
@@ -28,7 +28,7 @@ func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Vali
 	}
 	httpClient := &http.Client{Transport: transport}
 
-	client := observabilityv1connect.NewObservabilityAccessServiceClient(
+	client := tokenv1connect.NewTokenServiceClient(
 		httpClient,
 		controlPlaneURL,
 	)
@@ -42,8 +42,8 @@ func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Vali
 
 // CheckPermission validates whether the given token has the requested permission.
 // Results are cached for the cache's configured TTL.
-func (v *Validator) CheckPermission(ctx context.Context, token string, entityType string, entityID string, scope string) error {
-	cacheKey := token + ":" + entityType + ":" + entityID + ":" + scope
+func (v *Validator) CheckPermission(ctx context.Context, token string, entityType tokenv1.EntityType, entityID string, scope tokenv1.Scope) error {
+	cacheKey := token + ":" + entityType.String() + ":" + entityID + ":" + scope.String()
 
 	if allowed, ok := getPermission(ctx, v.cache, cacheKey); ok {
 		if !allowed {
@@ -52,7 +52,7 @@ func (v *Validator) CheckPermission(ctx context.Context, token string, entityTyp
 		return nil
 	}
 
-	req := connect.NewRequest(&observabilityv1.CheckPermissionRequest{
+	req := connect.NewRequest(&tokenv1.CheckPermissionRequest{
 		Token:      token,
 		EntityType: entityType,
 		EntityId:   entityID,

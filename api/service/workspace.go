@@ -398,11 +398,16 @@ func (s *WorkspaceServer) CreateMember(
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
 	var addScopes []genDb.EntityScope
-	for _, s := range r.GetScopes() {
+	for _, sc := range r.GetScopes() {
+		switch genDb.Scope(sc) {
+		case genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin:
+		default:
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid scope: %s", sc))
+		}
 		addScopes = append(addScopes, genDb.EntityScope{
 			EntityType: genDb.EntityTypeWorkspace,
 			EntityID:   wsID,
-			Scope:      genDb.Scope(s),
+			Scope:      genDb.Scope(sc),
 		})
 	}
 

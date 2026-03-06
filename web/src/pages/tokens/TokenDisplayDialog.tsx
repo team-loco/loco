@@ -8,7 +8,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle, Check, Copy } from "lucide-react";
 import { useState } from "react";
@@ -26,6 +25,7 @@ export function TokenDisplayDialog({
 	token,
 }: TokenDisplayDialogProps) {
 	const [copied, setCopied] = useState(false);
+	const [copiedCurl, setCopiedCurl] = useState(false);
 
 	const handleCopy = async () => {
 		try {
@@ -37,6 +37,23 @@ export function TokenDisplayDialog({
 			}, 2000);
 		} catch {
 			toast.error("Failed to copy token");
+		}
+	};
+
+	const handleCopyCurl = async () => {
+		const curlCommand = `curl -X POST https://api.loco.build/loco.token.v1.TokenService/GetScopes \\
+  -H "Authorization: Bearer ${token}" \\
+  -H "Content-Type: application/json" \\
+  -d '{}'`;
+		try {
+			await navigator.clipboard.writeText(curlCommand);
+			setCopiedCurl(true);
+			toast.success("Command copied to clipboard");
+			setTimeout(() => {
+				setCopiedCurl(false);
+			}, 2000);
+		} catch {
+			toast.error("Failed to copy command");
 		}
 	};
 
@@ -70,24 +87,21 @@ export function TokenDisplayDialog({
 						<Label htmlFor="token-value" className="text-sm font-medium">
 							API Token
 						</Label>
-						<div className="flex gap-2">
-							<Input
+						<div className="relative p-2 pr-12 bg-muted rounded-lg border border-border">
+							<div
 								id="token-value"
-								value={token}
-								readOnly
-								className="font-mono text-sm border-border bg-muted"
-								onClick={(e) => {
-									e.currentTarget.select();
-								}}
-							/>
+								className="font-mono text-sm border-border bg-transparent py-0"
+							>
+								{token}
+							</div>
 							<Button
 								type="button"
-								variant={copied ? "default" : "outline"}
 								size="icon"
 								onClick={() => {
 									void handleCopy();
 								}}
-								className="shrink-0"
+								className="absolute top-1 right-1 shrink-0"
+								variant="ghost"
 							>
 								{copied ? (
 									<Check className="h-4 w-4" />
@@ -111,11 +125,25 @@ export function TokenDisplayDialog({
 					{/* Usage Example */}
 					<div className="space-y-2">
 						<Label className="text-sm font-medium">Example Usage</Label>
-						<div className="p-4 bg-muted rounded-lg border border-border">
+						<div className="relative p-4 pr-12 bg-muted rounded-lg border border-border">
 							<pre className="text-xs overflow-x-auto">
-								<code>{`curl -H "Authorization: Bearer ${token.substring(0, 20)}..." \\
-  https://api.loco.build/v1/resources`}</code>
+								<code>{`curl -X POST https://api.loco.build/loco.token.v1.TokenService/GetScopes \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{}'`}</code>
 							</pre>
+							<Button
+								type="button"
+								size="icon"
+								onClick={() => {
+									void handleCopyCurl();
+								}}
+								className="absolute top-2 right-2 shrink-0"
+								variant="ghost"
+							>
+								{copiedCurl ? (
+									<Check className="h-4 w-4" />
+								) : (
+									<Copy className="h-4 w-4" />
+								)}
+							</Button>
 						</div>
 					</div>
 				</div>

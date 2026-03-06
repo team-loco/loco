@@ -141,8 +141,9 @@ func (s *OrgServer) GetOrg(
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetOrg, org.ID.String())); err != nil {
+		// Return NotFound (not PermissionDenied) to prevent org-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
 	}
 
 	return connect.NewResponse(&orgv1.GetOrgResponse{
@@ -312,9 +313,20 @@ func (s *OrgServer) ListOrgUsers(
 	ctx context.Context,
 	req *connect.Request[orgv1.ListOrgUsersRequest],
 ) (*connect.Response[orgv1.ListOrgUsersResponse], error) {
-	// TODO: Implement authorization check for listing org users
+	r := req.Msg
+
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListOrgMembers, r.GetOrgId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list org users", "orgId", r.GetOrgId())
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	// TODO: Implement database query to get org users
-	// For now, return empty list
 	return connect.NewResponse(&orgv1.ListOrgUsersResponse{
 		Users:         []*orgv1.User{},
 		NextPageToken: "",

@@ -31,3 +31,18 @@ export const getToken = TokenService.method.getToken;
  * @generated from rpc loco.token.v1.TokenService.RevokeToken
  */
 export const revokeToken = TokenService.method.revokeToken;
+
+/**
+ * GetScopes returns the entity and all scopes the current token has access to.
+ *
+ * @generated from rpc loco.token.v1.TokenService.GetScopes
+ */
+export const getScopes = TokenService.method.getScopes;
+
+/**
+ * CheckPermission validates whether a given token has a specific permission on an entity.
+ * Intended for service-to-service calls (e.g. observability proxy → control plane).
+ *
+ * @generated from rpc loco.token.v1.TokenService.CheckPermission
+ */
+export const checkPermission = TokenService.method.checkPermission;

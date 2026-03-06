@@ -17,6 +17,11 @@ service TokenService {
   rpc GetToken(GetTokenRequest) returns (GetTokenResponse);
   // RevokeToken revokes/deletes a token.
   rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
+  // GetScopes returns the entity and all scopes the current token has access to.
+  rpc GetScopes(GetScopesRequest) returns (GetScopesResponse);
+  // CheckPermission validates whether a given token has a specific permission on an entity.
+  // Intended for service-to-service calls (e.g. observability proxy → control plane).
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
 }
 
 // EntityType represents the type of entity a token can be associated with.
@@ -58,6 +63,7 @@ message Token {
   repeated EntityScope scopes = 4;
   google.protobuf.Timestamp expires_at = 5;
   google.protobuf.Timestamp created_at = 6;
+  optional google.protobuf.Timestamp last_used_at = 7;
 }
 
 // CreateTokenRequest is the request to create a new token.
@@ -122,3 +128,32 @@ message RevokeTokenRequest {
 
 // RevokeTokenResponse is the response after revoking a token.
 message RevokeTokenResponse {}
+
+// GetScopesRequest has no fields; the token is read from the auth context.
+message GetScopesRequest {}
+
+// CheckPermissionRequest validates whether a token has a specific permission.
+message CheckPermissionRequest {
+  string token = 1 [(buf.validate.field).string.min_len = 1];
+  EntityType entity_type = 2 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string entity_id = 3 [(buf.validate.field).string.uuid = true];
+  Scope scope = 4 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+}
+
+// CheckPermissionResponse contains the result of a permission check.
+message CheckPermissionResponse {
+  bool allowed = 1;
+}
+
+// GetScopesResponse returns the entity the token is bound to and all its scopes.
+message GetScopesResponse {
+  EntityType entity_type = 1;
+  string entity_id = 2;
+  repeated EntityScope scopes = 3;
+}

@@ -9,7 +9,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Plus } from "lucide-react";
 import {
 	Tooltip,
 	TooltipContent,
@@ -23,8 +30,7 @@ import { EntityType } from "@/gen/loco/token/v1/token_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Loader2, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
@@ -114,9 +120,9 @@ function TokenCard({
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8 cursor-pointer hover:bg-destructive/10"
+								className="h-8 w-8 cursor-pointer"
 							>
-								<Trash2 className="w-4 h-4 text-destructive" />
+								<Trash2 className="w-4 h-4 text-black" />
 							</Button>
 						</AlertDialogTrigger>
 						<AlertDialogContent>
@@ -266,7 +272,6 @@ function TokenCard({
 }
 
 export function Tokens() {
-	const queryClient = useQueryClient();
 	const { user } = useAuth();
 
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -276,7 +281,11 @@ export function Tokens() {
 
 	const { activeOrgId } = useOrgWorkspace();
 
-	const { data: tokensRes, isLoading } = useQuery(
+	const {
+		data: tokensRes,
+		isLoading,
+		refetch,
+	} = useQuery(
 		listTokens,
 		user?.id ? { entityType: EntityType.USER, entityId: user.id } : undefined,
 		{ enabled: !!user?.id },
@@ -288,14 +297,7 @@ export function Tokens() {
 		{
 			onSuccess: async () => {
 				toast.success("Token revoked successfully");
-				await queryClient.invalidateQueries({
-					queryKey: [
-						{
-							service: "token.v1.TokenService",
-							method: "ListTokens",
-						},
-					],
-				});
+				await refetch();
 			},
 			onError: (error) => {
 				toastConnectError(error, "Failed to revoke token");
@@ -317,38 +319,29 @@ export function Tokens() {
 	const handleTokenCreated = async (tokenString: string) => {
 		setNewlyCreatedToken(tokenString);
 		setIsCreateDialogOpen(false);
-		await queryClient.invalidateQueries({
-			queryKey: [
-				{
-					service: "token.v1.TokenService",
-					method: "ListTokens",
-				},
-			],
-		});
+		await refetch();
 	};
 
 	return (
 		<div className="space-y-6">
 			<Card className="w-[95%] mx-auto">
-				<CardContent className="w-[95%]">
-					{/* Page Header */}
-					<div className="flex items-center justify-between mb-6">
-						<div>
-							<h1 className="text-3xl font-bold text-gray-900">API Tokens</h1>
-							<p className="text-sm text-gray-600 mt-1">
-								Manage authentication tokens for accessing the Loco API
-							</p>
-						</div>
-						<Button
-							onClick={() => {
-								setIsCreateDialogOpen(true);
-							}}
-						>
-							<Plus className="h-4 w-4 mr-2" />
-							Create Token
-						</Button>
+				<CardHeader className="flex flex-row items-start justify-between">
+					<div>
+						<CardTitle>API Tokens</CardTitle>
+						<CardDescription>Manage authentication tokens for accessing the Loco API</CardDescription>
 					</div>
-
+					<Button
+						onClick={() => {
+							setIsCreateDialogOpen(true);
+						}}
+						size="sm"
+						className="h-8 px-3 text-sm bg-black dark:bg-white text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90 leading-relaxed"
+					>
+						<Plus className="h-4 w-4 mr-2" />
+						Create Token
+					</Button>
+				</CardHeader>
+				<CardContent>
 					{/* Warning Banner */}
 					<div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-4 mb-6">
 						<AlertCircle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
@@ -374,18 +367,9 @@ export function Tokens() {
 					) : tokens.length === 0 ? (
 						<div className="flex items-center justify-center py-12">
 							<div className="text-center">
-								<p className="text-gray-600 mb-4">
+								<p className="text-gray-600">
 									No tokens yet. Create one to get started.
 								</p>
-								<Button
-									onClick={() => {
-										setIsCreateDialogOpen(true);
-									}}
-									variant="outline"
-								>
-									<Plus className="h-4 w-4 mr-2" />
-									Create Your First Token
-								</Button>
 							</div>
 						</div>
 					) : (
@@ -408,7 +392,9 @@ export function Tokens() {
 				open={isCreateDialogOpen}
 				onOpenChange={setIsCreateDialogOpen}
 				activeOrgId={activeOrgId}
-				onSuccess={handleTokenCreated}
+				onSuccess={(tokenString) => {
+					void handleTokenCreated(tokenString);
+				}}
 			/>
 
 			{/* Token Display Dialog */}

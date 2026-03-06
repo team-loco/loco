@@ -42,6 +42,16 @@ func (c *OAuthStateCache) StoreState(ctx context.Context, state string) error {
 	return nil
 }
 
+// MarkTokenExchanged enforces one-time use for ExchangeOAuthToken. Returns an error
+// if the GitHub token has already been exchanged within OAuthStateTTL.
+func (c *OAuthStateCache) MarkTokenExchanged(ctx context.Context, githubToken string) error {
+	key := "loco_api:oauth:token_used:" + hashToken(githubToken)
+	if _, err := c.cache.Get(ctx, key); err == nil {
+		return errors.New("oauth token has already been exchanged")
+	}
+	return c.cache.Set(ctx, key, []byte("1"), OAuthStateTTL)
+}
+
 func (c *OAuthStateCache) VerifyAndDeleteState(ctx context.Context, state string) error {
 	slog.InfoContext(ctx, "looking for state", "state", state)
 	key := "loco_api:oauth:state:" + state
@@ -170,17 +180,20 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit transaction", "error", err)
-		return nil, fmt.Errorf("database error: %w", err)
+	// Grant self-scopes in the same transaction so user+scopes are atomic.
+	for _, es := range []genDb.AddUserScopeParams{
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
+	} {
+		if err := qtx.AddUserScope(ctx, es); err != nil {
+			slog.ErrorContext(ctx, "failed to grant user scope", "error", err, "userId", user.ID)
+			return nil, fmt.Errorf("database error: %w", err)
+		}
 	}
 
-	if err := s.machine.UpdateRoles(ctx, user.ID.String(), []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
-	}, []genDb.EntityScope{}); err != nil {
-		slog.ErrorContext(ctx, "failed to update user roles", "error", err, "userId", user.ID)
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit transaction", "error", err)
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
@@ -202,7 +215,6 @@ func (s *OAuthServer) GetOAuthDetails(
 	return res, nil
 }
 
-// todo: fix this function to exchange once.
 func (s *OAuthServer) ExchangeOAuthToken(
 	ctx context.Context,
 	req *connect.Request[oAuth.ExchangeOAuthTokenRequest],
@@ -216,6 +228,12 @@ func (s *OAuthServer) ExchangeOAuthToken(
 	if token == "" {
 		slog.ErrorContext(ctx, "empty oauth access token")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("token is required"))
+	}
+
+	// Enforce one-time use: reject if this GitHub token has already been exchanged.
+	if err := s.stateCache.MarkTokenExchanged(ctx, token); err != nil {
+		slog.WarnContext(ctx, "oauth token already exchanged", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("oauth token has already been exchanged"))
 	}
 
 	ip := req.Header().Get("X-Real-IP")

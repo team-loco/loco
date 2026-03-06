@@ -13,177 +13,202 @@ const Toaster = ({ ...props }: ToasterProps) => {
         }
 
         [data-sonner-toast] {
-          border: 1px solid var(--border) !important;
-          border-radius: 12px !important;
-          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04) !important;
-          padding: 20px 24px !important;
-          gap: 16px !important;
+          border: none !important;
+          border-radius: 8px !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+          padding: 16px 20px !important;
+          gap: 12px !important;
           background-color: hsl(var(--card)) !important;
           color: hsl(var(--foreground)) !important;
           font-family: inherit !important;
-          backdrop-filter: blur(8px) !important;
-          animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+          animation: slideIn 0.2s ease-out !important;
         }
 
         @keyframes slideIn {
           from {
-            transform: translateY(100%) translateX(0) !important;
+            transform: translateY(100%) !important;
             opacity: 0 !important;
           }
           to {
-            transform: translateY(0) translateX(0) !important;
+            transform: translateY(0) !important;
             opacity: 1 !important;
           }
         }
 
         @keyframes slideOut {
           from {
-            transform: translateY(0) translateX(0) !important;
+            transform: translateY(0) !important;
             opacity: 1 !important;
           }
           to {
-            transform: translateY(100%) translateX(0) !important;
+            transform: translateY(100%) !important;
             opacity: 0 !important;
           }
         }
 
         [data-sonner-toast][data-type="success"] {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-          border-color: #047857 !important;
-          color: white !important;
-          box-shadow: 0 12px 32px rgba(16, 185, 129, 0.2), 0 4px 16px rgba(16, 185, 129, 0.1) !important;
+          background-color: #f0fdf4 !important;
+          color: #166534 !important;
         }
 
         [data-sonner-toast][data-type="success"] [data-sonner-toast-title] {
-          color: white !important;
+          color: #166534 !important;
+          font-weight: 500 !important;
         }
 
         [data-sonner-toast][data-type="success"] [data-sonner-toast-description] {
-          color: rgba(255, 255, 255, 0.85) !important;
+          color: #4b7c5f !important;
+          font-weight: 400 !important;
         }
 
         [data-sonner-toast][data-type="error"] {
-          background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-          border-color: #b91c1c !important;
-          color: white !important;
-          box-shadow: 0 12px 32px rgba(239, 68, 68, 0.2), 0 4px 16px rgba(239, 68, 68, 0.1) !important;
+          background-color: #fef2f2 !important;
+          color: #7f1d1d !important;
         }
 
         [data-sonner-toast][data-type="error"] [data-sonner-toast-title] {
-          color: white !important;
+          color: #7f1d1d !important;
+          font-weight: 500 !important;
         }
 
         [data-sonner-toast][data-type="error"] [data-sonner-toast-description] {
-          color: rgba(255, 255, 255, 0.85) !important;
+          color: #b34949 !important;
+          font-weight: 400 !important;
         }
 
         [data-sonner-toast][data-type="warning"] {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-          border-color: #b45309 !important;
-          color: white !important;
-          box-shadow: 0 12px 32px rgba(245, 158, 11, 0.2), 0 4px 16px rgba(245, 158, 11, 0.1) !important;
+          background-color: #fffbeb !important;
+          color: #92400e !important;
         }
 
         [data-sonner-toast][data-type="warning"] [data-sonner-toast-title] {
-          color: white !important;
+          color: #92400e !important;
+          font-weight: 500 !important;
         }
 
         [data-sonner-toast][data-type="warning"] [data-sonner-toast-description] {
-          color: rgba(255, 255, 255, 0.85) !important;
+          color: #b88a2c !important;
+          font-weight: 400 !important;
         }
 
         [data-sonner-toast][data-type="info"] {
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
-          border-color: #1d4ed8 !important;
-          color: white !important;
-          box-shadow: 0 12px 32px rgba(59, 130, 246, 0.2), 0 4px 16px rgba(59, 130, 246, 0.1) !important;
+          background-color: #eff6ff !important;
+          color: #0c4a6e !important;
         }
 
         [data-sonner-toast][data-type="info"] [data-sonner-toast-title] {
-          color: white !important;
+          color: #0c4a6e !important;
+          font-weight: 500 !important;
         }
 
         [data-sonner-toast][data-type="info"] [data-sonner-toast-description] {
-          color: rgba(255, 255, 255, 0.85) !important;
+          color: #4b7a99 !important;
+          font-weight: 400 !important;
         }
 
         [data-sonner-toast] [data-sonner-toast-title] {
-          font-weight: 700 !important;
-          font-size: 15px !important;
-          color: var(--foreground) !important;
+          font-size: 14px !important;
           margin: 0 !important;
         }
 
         [data-sonner-toast] [data-sonner-toast-description] {
-          font-weight: 400 !important;
           font-size: 13px !important;
-          color: var(--muted-foreground) !important;
           margin: 0 !important;
         }
 
         [data-sonner-toast-action-button],
         [data-sonner-toast-cancel-button] {
-          border: none !important;
-          border-radius: 8px !important;
-          background: rgba(255, 255, 255, 0.25) !important;
-          color: white !important;
-          font-weight: 600 !important;
-          padding: 8px 16px !important;
+          border: 1px solid currentColor !important;
+          border-radius: 6px !important;
+          background: transparent !important;
+          color: inherit !important;
+          font-weight: 500 !important;
+          padding: 6px 12px !important;
           cursor: pointer !important;
-          transition: all 180ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-          font-size: 13px !important;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-          backdrop-filter: blur(4px) !important;
+          transition: all 150ms ease !important;
+          font-size: 12px !important;
+          opacity: 0.8 !important;
         }
 
         [data-sonner-toast-action-button]:hover {
-          background: rgba(255, 255, 255, 0.35) !important;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-          transform: translateY(-2px) !important;
+          opacity: 1 !important;
+          background: currentColor !important;
+          color: white !important;
         }
 
         [data-sonner-toast-action-button]:active {
-          transform: translateY(0) !important;
+          transform: scale(0.98) !important;
         }
 
         [data-sonner-toast-close-button] {
           background: none !important;
           border: none !important;
-          color: rgba(255, 255, 255, 0.7) !important;
+          color: currentColor !important;
           cursor: pointer !important;
-          padding: 4px !important;
-          font-size: 20px !important;
+          padding: 2px !important;
+          font-size: 18px !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
-          border-radius: 6px !important;
-          transition: all 180ms ease !important;
+          opacity: 0.5 !important;
+          transition: opacity 150ms ease !important;
         }
 
         [data-sonner-toast-close-button]:hover {
-          background: rgba(255, 255, 255, 0.15) !important;
-          color: white !important;
+          opacity: 0.8 !important;
         }
 
         @media (prefers-color-scheme: dark) {
-          [data-sonner-toast] {
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+          [data-sonner-toast][data-type="success"] {
+            background-color: #064e3b !important;
+            color: #d1fae5 !important;
           }
 
-          [data-sonner-toast][data-type="success"] {
-            box-shadow: 0 12px 32px rgba(16, 185, 129, 0.3), 0 4px 16px rgba(16, 185, 129, 0.15) !important;
+          [data-sonner-toast][data-type="success"] [data-sonner-toast-title] {
+            color: #d1fae5 !important;
+          }
+
+          [data-sonner-toast][data-type="success"] [data-sonner-toast-description] {
+            color: #a7f3d0 !important;
           }
 
           [data-sonner-toast][data-type="error"] {
-            box-shadow: 0 12px 32px rgba(239, 68, 68, 0.3), 0 4px 16px rgba(239, 68, 68, 0.15) !important;
+            background-color: #7f1d1d !important;
+            color: #fecaca !important;
+          }
+
+          [data-sonner-toast][data-type="error"] [data-sonner-toast-title] {
+            color: #fecaca !important;
+          }
+
+          [data-sonner-toast][data-type="error"] [data-sonner-toast-description] {
+            color: #fca5a5 !important;
           }
 
           [data-sonner-toast][data-type="warning"] {
-            box-shadow: 0 12px 32px rgba(245, 158, 11, 0.3), 0 4px 16px rgba(245, 158, 11, 0.15) !important;
+            background-color: #78350f !important;
+            color: #fcd34d !important;
+          }
+
+          [data-sonner-toast][data-type="warning"] [data-sonner-toast-title] {
+            color: #fcd34d !important;
+          }
+
+          [data-sonner-toast][data-type="warning"] [data-sonner-toast-description] {
+            color: #fbbf24 !important;
           }
 
           [data-sonner-toast][data-type="info"] {
-            box-shadow: 0 12px 32px rgba(59, 130, 246, 0.3), 0 4px 16px rgba(59, 130, 246, 0.15) !important;
+            background-color: #0c2d4d !important;
+            color: #93c5fd !important;
+          }
+
+          [data-sonner-toast][data-type="info"] [data-sonner-toast-title] {
+            color: #93c5fd !important;
+          }
+
+          [data-sonner-toast][data-type="info"] [data-sonner-toast-description] {
+            color: #60a5fa !important;
           }
         }
       `}</style>

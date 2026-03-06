@@ -47,7 +47,7 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreatePlatformDomain, "")); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.NewSystem(actions.CreatePlatformDomain)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -151,7 +151,7 @@ func (s *DomainServer) UpdatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdatePlatformDomain, "")); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.NewSystem(actions.UpdatePlatformDomain)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -186,7 +186,7 @@ func (s *DomainServer) DeletePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeletePlatformDomain, "")); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.NewSystem(actions.DeletePlatformDomain)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete platform domain")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -214,7 +214,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListLocoOwnedDomains, "")); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.NewSystem(actions.ListLocoOwnedDomains)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list loco owned domains")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}

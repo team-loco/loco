@@ -37,9 +37,6 @@ const (
 	// ObservabilityAccessServiceGetObservabilityAccessProcedure is the fully-qualified name of the
 	// ObservabilityAccessService's GetObservabilityAccess RPC.
 	ObservabilityAccessServiceGetObservabilityAccessProcedure = "/loco.observability.v1.ObservabilityAccessService/GetObservabilityAccess"
-	// ObservabilityAccessServiceCheckPermissionProcedure is the fully-qualified name of the
-	// ObservabilityAccessService's CheckPermission RPC.
-	ObservabilityAccessServiceCheckPermissionProcedure = "/loco.observability.v1.ObservabilityAccessService/CheckPermission"
 )
 
 // ObservabilityAccessServiceClient is a client for the
@@ -48,9 +45,6 @@ type ObservabilityAccessServiceClient interface {
 	// GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
 	// The client's existing TVM token is used directly when talking to the proxy.
 	GetObservabilityAccess(context.Context, *connect.Request[v1.GetObservabilityAccessRequest]) (*connect.Response[v1.GetObservabilityAccessResponse], error)
-	// CheckPermission is called by the observability proxy to validate whether a token
-	// has the requested permission on an entity. Authenticated with a proxy auth token.
-	CheckPermission(context.Context, *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error)
 }
 
 // NewObservabilityAccessServiceClient constructs a client for the
@@ -71,19 +65,12 @@ func NewObservabilityAccessServiceClient(httpClient connect.HTTPClient, baseURL 
 			connect.WithSchema(observabilityAccessServiceMethods.ByName("GetObservabilityAccess")),
 			connect.WithClientOptions(opts...),
 		),
-		checkPermission: connect.NewClient[v1.CheckPermissionRequest, v1.CheckPermissionResponse](
-			httpClient,
-			baseURL+ObservabilityAccessServiceCheckPermissionProcedure,
-			connect.WithSchema(observabilityAccessServiceMethods.ByName("CheckPermission")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // observabilityAccessServiceClient implements ObservabilityAccessServiceClient.
 type observabilityAccessServiceClient struct {
 	getObservabilityAccess *connect.Client[v1.GetObservabilityAccessRequest, v1.GetObservabilityAccessResponse]
-	checkPermission        *connect.Client[v1.CheckPermissionRequest, v1.CheckPermissionResponse]
 }
 
 // GetObservabilityAccess calls
@@ -92,20 +79,12 @@ func (c *observabilityAccessServiceClient) GetObservabilityAccess(ctx context.Co
 	return c.getObservabilityAccess.CallUnary(ctx, req)
 }
 
-// CheckPermission calls loco.observability.v1.ObservabilityAccessService.CheckPermission.
-func (c *observabilityAccessServiceClient) CheckPermission(ctx context.Context, req *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error) {
-	return c.checkPermission.CallUnary(ctx, req)
-}
-
 // ObservabilityAccessServiceHandler is an implementation of the
 // loco.observability.v1.ObservabilityAccessService service.
 type ObservabilityAccessServiceHandler interface {
 	// GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
 	// The client's existing TVM token is used directly when talking to the proxy.
 	GetObservabilityAccess(context.Context, *connect.Request[v1.GetObservabilityAccessRequest]) (*connect.Response[v1.GetObservabilityAccessResponse], error)
-	// CheckPermission is called by the observability proxy to validate whether a token
-	// has the requested permission on an entity. Authenticated with a proxy auth token.
-	CheckPermission(context.Context, *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error)
 }
 
 // NewObservabilityAccessServiceHandler builds an HTTP handler from the service implementation. It
@@ -121,18 +100,10 @@ func NewObservabilityAccessServiceHandler(svc ObservabilityAccessServiceHandler,
 		connect.WithSchema(observabilityAccessServiceMethods.ByName("GetObservabilityAccess")),
 		connect.WithHandlerOptions(opts...),
 	)
-	observabilityAccessServiceCheckPermissionHandler := connect.NewUnaryHandler(
-		ObservabilityAccessServiceCheckPermissionProcedure,
-		svc.CheckPermission,
-		connect.WithSchema(observabilityAccessServiceMethods.ByName("CheckPermission")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/loco.observability.v1.ObservabilityAccessService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ObservabilityAccessServiceGetObservabilityAccessProcedure:
 			observabilityAccessServiceGetObservabilityAccessHandler.ServeHTTP(w, r)
-		case ObservabilityAccessServiceCheckPermissionProcedure:
-			observabilityAccessServiceCheckPermissionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -144,8 +115,4 @@ type UnimplementedObservabilityAccessServiceHandler struct{}
 
 func (UnimplementedObservabilityAccessServiceHandler) GetObservabilityAccess(context.Context, *connect.Request[v1.GetObservabilityAccessRequest]) (*connect.Response[v1.GetObservabilityAccessResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess is not implemented"))
-}
-
-func (UnimplementedObservabilityAccessServiceHandler) CheckPermission(context.Context, *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.observability.v1.ObservabilityAccessService.CheckPermission is not implemented"))
 }

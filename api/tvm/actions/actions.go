@@ -333,3 +333,12 @@ func New(a Action, entityID string) db.EntityScope {
 		Scope:      a.scope,
 	}
 }
+
+// NewSystem builds an EntityScope for system-level actions where entity ID is not meaningful.
+func NewSystem(a Action) db.EntityScope {
+	return db.EntityScope{
+		EntityType: a.entityType,
+		EntityID:   uuid.Nil,
+		Scope:      a.scope,
+	}
+}

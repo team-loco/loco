@@ -27,7 +27,7 @@ func GetCurrentLocoToken() (*keychain.UserToken, error) {
 	locoToken, err := keychain.GetLocoToken(usr.Name)
 	if err != nil {
 		slog.Debug("failed to get loco token", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("could not get token from secrets storage. Please login via `loco login`")
 	}
 
 	if locoToken.ExpiresAt.Before(time.Now().Add(5 * time.Minute)) {
@@ -50,6 +50,7 @@ func GetCurrentLocoToken() (*keychain.UserToken, error) {
 // refreshLocoToken calls the RefreshToken RPC using the stored refresh token,
 // stores the new token pair in the keychain, and returns the updated UserToken.
 func refreshLocoToken(refreshToken, userName string) (*keychain.UserToken, error) {
+	// todo: cleanup, we shouldnt be doing this inline here.
 	host := os.Getenv("LOCO__HOST")
 	if host == "" {
 		host = defaultLocoHost

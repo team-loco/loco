@@ -11,11 +11,3 @@ import { ObservabilityAccessService } from "./observability_access_pb";
  * @generated from rpc loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess
  */
 export const getObservabilityAccess = ObservabilityAccessService.method.getObservabilityAccess;
-
-/**
- * CheckPermission is called by the observability proxy to validate whether a token
- * has the requested permission on an entity. Authenticated with a proxy auth token.
- *
- * @generated from rpc loco.observability.v1.ObservabilityAccessService.CheckPermission
- */
-export const checkPermission = ObservabilityAccessService.method.checkPermission;

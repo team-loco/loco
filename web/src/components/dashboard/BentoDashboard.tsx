@@ -52,212 +52,207 @@ export function BentoDashboard({ resources }: BentoDashboardProps) {
 	return (
 		<div className="w-[95%] mx-auto">
 			<div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-4 lg:gap-6 auto-rows-[minmax(120px,auto)]">
-			{/* WIDGET 3: Resources Roster (col-span-8, row-span-2) - MOVED UP */}
-			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-2 border-border rounded-2xl shadow-sm flex flex-col overflow-visible py-0">
-				<div className="p-5 py-3 border-b border-border/50 flex justify-between items-center">
-					<h3 className="font-bold text-foreground">Resources</h3>
-					<div className="flex items-center gap-3">
-						<span className="text-xs font-mono bg-muted px-2 py-1 rounded-md text-muted-foreground border border-border">
-							{activeResources} Active
-						</span>
-						<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-							<DropdownMenuTrigger asChild>
-								<div
-									className="inline-flex items-center justify-center rounded-lg bg-primary/5"
-									style={{
-										boxShadow: "4px 4px 0px #000000",
+				{/* WIDGET 3: Resources Roster (col-span-8, row-span-2) - MOVED UP */}
+				<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-2 border-border rounded-2xl shadow-sm flex flex-col overflow-visible py-0">
+					<div className="p-5 py-3 border-b border-border/50 flex justify-between items-center">
+						<h3 className="font-bold text-foreground">Resources</h3>
+						<div className="flex items-center gap-3">
+							<span className="text-xs font-mono bg-muted px-2 py-1 rounded-md text-muted-foreground border border-border">
+								{activeResources} Active
+							</span>
+							<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+								<DropdownMenuTrigger asChild>
+									<div className="inline-flex items-center justify-center rounded-lg bg-primary/5">
+										<Button
+											className="rounded-r-none h-8 px-3 text-sm bg-black dark:bg-white text-white dark:text-black hover:bg-black/90"
+											size="sm"
+										>
+											New Resource
+										</Button>
+										<Button
+											size="sm"
+											className="h-8 w-8 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-black dark:bg-white text-white dark:text-black hover:bg-black/90"
+										>
+											<ChevronDown
+												className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+											/>
+											<span className="sr-only">Toggle menu</span>
+										</Button>
+									</div>
+								</DropdownMenuTrigger>
+								<DropdownMenuContent align="end" className="w-36">
+									{RESOURCE_TYPES.map((type) => (
+										<DropdownMenuItem
+											key={type.value}
+											onClick={() => {
+												if (activeOrgId && activeWorkspaceId) {
+													void navigate(
+														`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
+													);
+												}
+											}}
+											disabled={!type.available}
+											className="cursor-pointer"
+										>
+											{type.label}
+										</DropdownMenuItem>
+									))}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						</div>
+					</div>
+					<div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/50 p-px">
+						{resources.slice(0, 8).map((resource) => (
+							<div
+								key={resource.id}
+								className="bg-card hover:bg-muted/30 p-4 transition-colors cursor-pointer flex flex-col justify-between min-h-[100px]"
+								onClick={() => {
+									if (activeOrgId && activeWorkspaceId) {
+										void navigate(
+											`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.id}`,
+										);
+									}
+								}}
+							>
+								<div className="flex items-start justify-between">
+									<h4 className="font-semibold text-sm truncate pr-2">
+										{resource.name}
+									</h4>
+									<div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] shrink-0 mt-1.5" />
+								</div>
+								<div className="flex items-center justify-between mt-4">
+									<div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+										<Cpu className="w-3 h-3" />
+										{Math.floor(Math.random() * 40)}%
+									</div>
+									<span className="text-xs text-muted-foreground">Prod</span>
+								</div>
+							</div>
+						))}
+						{resources.length === 0 && (
+							<div className="col-span-full p-6 text-center text-muted-foreground bg-card">
+								No resources provisioned
+							</div>
+						)}
+					</div>
+				</Card>
+
+				{/* WIDGET 2: Active Deployments Feed (col-span-4, row-span-4) */}
+				<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-4 border-border rounded-2xl shadow-sm flex flex-col overflow-hidden py-0">
+					<div className="p-5 py-3 border-b border-border/50">
+						<h3 className="font-bold text-foreground flex items-center gap-2">
+							<Terminal className="w-4 h-4" /> Deployment Activity
+						</h3>
+					</div>
+					<div className="flex-1 overflow-y-auto p-5 space-y-4">
+						{/* Mock feed items */}
+						{[...Array(5)].map((_, i) => (
+							<div
+								key={i}
+								className="flex gap-3 relative before:absolute before:left-2.5 before:top-6 before:-bottom-4 before:w-px before:bg-border last:before:hidden"
+							>
+								<div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 z-10">
+									<div className="w-1.5 h-1.5 rounded-full bg-primary" />
+								</div>
+								<div className="pb-2">
+									<p className="text-sm font-medium text-foreground">
+										<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono text-primary mr-1 border border-border">
+											api-gateway
+										</code>
+										deployed successfully
+									</p>
+									<div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+										<span className="flex items-center gap-1">
+											<GitBranch className="w-3 h-3" /> main
+										</span>
+										<span>•</span>
+										<span>2m ago</span>
+										<span>•</span>
+										<span className="font-mono">#b719f10</span>
+									</div>
+								</div>
+							</div>
+						))}
+					</div>
+				</Card>
+
+				<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-3 border-border rounded-2xl shadow-sm overflow-hidden flex flex-col relative group py-0">
+					<div className="p-6 py-4 border-b border-border/50 flex justify-between items-center z-10">
+						<div>
+							<h2 className="text-xl font-bold font-mono tracking-tight text-foreground flex items-center gap-2">
+								<Box className="w-5 h-5 text-primary" />
+								cluster::production
+							</h2>
+							<p className="text-sm text-muted-foreground mt-1">
+								Live telemetry across {resources.length} resources
+							</p>
+						</div>
+						<div className="flex items-center gap-4">
+							<div className="flex flex-col items-end">
+								<span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+									99.9%
+								</span>
+								<span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+									Uptime
+								</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Hero Chart Area */}
+					<div className="flex-1 p-6 relative z-10 w-full min-h-[250px]">
+						<ResponsiveContainer width="100%" height="100%">
+							<LineChart data={chartData}>
+								<Tooltip
+									contentStyle={{
+										backgroundColor: "var(--card)",
+										borderColor: "var(--border)",
+										borderRadius: "8px",
 									}}
-								>
-									<Button
-										className="rounded-r-none border-r border-primary/20 h-8 px-3 text-sm"
-										size="sm"
-									>
-										New Resource
-									</Button>
-									<Button
-										size="sm"
-										className="h-8 w-8 rounded-l-none focus-visible:ring-0 focus-visible:ring-offset-0"
-									>
-										<ChevronDown
-											className={`h-4 w-4 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
-										/>
-										<span className="sr-only">Toggle menu</span>
-									</Button>
-								</div>
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-36">
-								{RESOURCE_TYPES.map((type) => (
-									<DropdownMenuItem
-										key={type.value}
-										onClick={() => {
-											if (activeOrgId && activeWorkspaceId) {
-												void navigate(
-													`/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource?type=${type.value}`,
-												);
-											}
-										}}
-										disabled={!type.available}
-										className="cursor-pointer"
-									>
-										{type.label}
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
+									itemStyle={{ color: "var(--foreground)" }}
+								/>
+								<Line
+									type="monotone"
+									dataKey="cpu"
+									stroke="#C7654F"
+									strokeWidth={3}
+									dot={false}
+									activeDot={{
+										r: 6,
+										fill: "#C7654F",
+										stroke: "var(--background)",
+										strokeWidth: 2,
+									}}
+								/>
+								<Line
+									type="monotone"
+									dataKey="memory"
+									stroke="#d97706"
+									strokeWidth={3}
+									dot={false}
+									activeDot={{
+										r: 6,
+										fill: "#d97706",
+										stroke: "var(--background)",
+										strokeWidth: 2,
+									}}
+								/>
+							</LineChart>
+						</ResponsiveContainer>
 					</div>
-				</div>
-				<div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/50 p-px">
-					{resources.slice(0, 8).map((resource) => (
-						<div
-							key={resource.id}
-							className="bg-card hover:bg-muted/30 p-4 transition-colors cursor-pointer flex flex-col justify-between min-h-[100px]"
-							onClick={() => {
-								if (activeOrgId && activeWorkspaceId) {
-									void navigate(
-										`/org/${activeOrgId}/wks/${activeWorkspaceId}/resource/${resource.id}`,
-									);
-								}
-							}}
-						>
-							<div className="flex items-start justify-between">
-								<h4 className="font-semibold text-sm truncate pr-2">
-									{resource.name}
-								</h4>
-								<div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] shrink-0 mt-1.5" />
-							</div>
-							<div className="flex items-center justify-between mt-4">
-								<div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
-									<Cpu className="w-3 h-3" />
-									{Math.floor(Math.random() * 40)}%
-								</div>
-								<span className="text-xs text-muted-foreground">Prod</span>
-							</div>
-						</div>
-					))}
-					{resources.length === 0 && (
-						<div className="col-span-full p-6 text-center text-muted-foreground bg-card">
-							No resources provisioned
-						</div>
-					)}
-				</div>
-			</Card>
+				</Card>
 
-			{/* WIDGET 2: Active Deployments Feed (col-span-4, row-span-4) */}
-			<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-4 border-border rounded-2xl shadow-sm flex flex-col overflow-hidden py-0">
-				<div className="p-5 py-3 border-b border-border/50">
-					<h3 className="font-bold text-foreground flex items-center gap-2">
-						<Terminal className="w-4 h-4" /> Deployment Activity
+				{/* WIDGET 4: Quick Cost/Traffic metrics (col-span-4, row-span-1) */}
+				<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-1 border-border rounded-2xl shadow-sm p-5 flex flex-col justify-center relative overflow-hidden">
+					<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+						<Activity className="w-4 h-4" /> Global Traffic
 					</h3>
-				</div>
-				<div className="flex-1 overflow-y-auto p-5 space-y-4">
-					{/* Mock feed items */}
-					{[...Array(5)].map((_, i) => (
-						<div
-							key={i}
-							className="flex gap-3 relative before:absolute before:left-2.5 before:top-6 before:-bottom-4 before:w-px before:bg-border last:before:hidden"
-						>
-							<div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5 z-10">
-								<div className="w-1.5 h-1.5 rounded-full bg-primary" />
-							</div>
-							<div className="pb-2">
-								<p className="text-sm font-medium text-foreground">
-									<code className="text-xs bg-muted px-1 py-0.5 rounded font-mono text-primary mr-1 border border-border">
-										api-gateway
-									</code>
-									deployed successfully
-								</p>
-								<div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-									<span className="flex items-center gap-1">
-										<GitBranch className="w-3 h-3" /> main
-									</span>
-									<span>•</span>
-									<span>2m ago</span>
-									<span>•</span>
-									<span className="font-mono">#b719f10</span>
-								</div>
-							</div>
-						</div>
-					))}
-				</div>
-			</Card>
-
-			<Card className="col-span-1 md:col-span-4 lg:col-span-8 lg:row-span-3 border-border rounded-2xl shadow-sm overflow-hidden flex flex-col relative group py-0">
-				<div className="p-6 py-4 border-b border-border/50 flex justify-between items-center z-10">
-					<div>
-						<h2 className="text-xl font-bold font-mono tracking-tight text-foreground flex items-center gap-2">
-							<Box className="w-5 h-5 text-primary" />
-							cluster::production
-						</h2>
-						<p className="text-sm text-muted-foreground mt-1">
-							Live telemetry across {resources.length} resources
-						</p>
+					<div className="mt-2 flex items-baseline gap-2">
+						<span className="text-3xl font-bold tracking-tight">2.4M</span>
+						<span className="text-sm text-muted-foreground">reqs/mo</span>
 					</div>
-					<div className="flex items-center gap-4">
-						<div className="flex flex-col items-end">
-							<span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-								99.9%
-							</span>
-							<span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-								Uptime
-							</span>
-						</div>
-					</div>
-				</div>
-
-				{/* Hero Chart Area */}
-				<div className="flex-1 p-6 relative z-10 w-full min-h-[250px]">
-					<ResponsiveContainer width="100%" height="100%">
-						<LineChart data={chartData}>
-							<Tooltip
-								contentStyle={{
-									backgroundColor: "var(--card)",
-									borderColor: "var(--border)",
-									borderRadius: "8px",
-								}}
-								itemStyle={{ color: "var(--foreground)" }}
-							/>
-							<Line
-								type="monotone"
-								dataKey="cpu"
-								stroke="#C7654F"
-								strokeWidth={3}
-								dot={false}
-								activeDot={{
-									r: 6,
-									fill: "#C7654F",
-									stroke: "var(--background)",
-									strokeWidth: 2,
-								}}
-							/>
-							<Line
-								type="monotone"
-								dataKey="memory"
-								stroke="#d97706"
-								strokeWidth={3}
-								dot={false}
-								activeDot={{
-									r: 6,
-									fill: "#d97706",
-									stroke: "var(--background)",
-									strokeWidth: 2,
-								}}
-							/>
-						</LineChart>
-					</ResponsiveContainer>
-				</div>
-			</Card>
-
-			{/* WIDGET 4: Quick Cost/Traffic metrics (col-span-4, row-span-1) */}
-			<Card className="col-span-1 md:col-span-4 lg:col-span-4 lg:row-span-1 border-border rounded-2xl shadow-sm p-5 flex flex-col justify-center relative overflow-hidden">
-				<h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-					<Activity className="w-4 h-4" /> Global Traffic
-				</h3>
-				<div className="mt-2 flex items-baseline gap-2">
-					<span className="text-3xl font-bold tracking-tight">2.4M</span>
-					<span className="text-sm text-muted-foreground">reqs/mo</span>
-				</div>
-			</Card>
-		</div>
+				</Card>
+			</div>
 		</div>
 	);
 }
