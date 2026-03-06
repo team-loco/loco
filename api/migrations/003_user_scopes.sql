@@ -10,6 +10,7 @@ CREATE TABLE user_scopes (
     scope TEXT NOT NULL, -- e.g. 'read', 'write', 'admin'
     entity_type entity_type NOT NULL, -- e.g. 'organization', 'workspace', 'resource', will never be 'user' since users cannot have scopes on themselves
     entity_id UUID NOT NULL, -- e.g. organization_id or workspace_id
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, scope, entity_type, entity_id)
 );
 

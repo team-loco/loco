@@ -193,8 +193,8 @@ func parseScope(s string) (tokenv1.Scope, error) {
 
 func parseDuration(s string) (int64, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
-	if strings.HasSuffix(s, "d") {
-		days := strings.TrimSuffix(s, "d")
+	if before, ok := strings.CutSuffix(s, "d"); ok {
+		days := before
 		var d int
 		if _, err := fmt.Sscanf(days, "%d", &d); err != nil {
 			return 0, fmt.Errorf("invalid duration %q", s)

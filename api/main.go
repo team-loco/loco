@@ -293,6 +293,8 @@ func main() {
 		tokenv1connect.TokenServiceListTokensProcedure,
 		tokenv1connect.TokenServiceGetTokenProcedure,
 		tokenv1connect.TokenServiceRevokeTokenProcedure,
+		tokenv1connect.TokenServiceGetScopesProcedure,
+		tokenv1connect.TokenServiceCheckPermissionProcedure,
 
 		// registry service
 		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
@@ -305,7 +307,6 @@ func main() {
 
 		// observability access service
 		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,
-		observabilityv1connect.ObservabilityAccessServiceCheckPermissionProcedure,
 
 		// environment service
 		environmentv1connect.EnvironmentServiceCreateEnvironmentProcedure,

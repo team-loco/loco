@@ -426,6 +426,7 @@ type UserScope struct {
 	Scope      Scope      `json:"scope"`
 	EntityType EntityType `json:"entityType"`
 	EntityID   uuid.UUID  `json:"entityId"`
+	CreatedAt  time.Time  `json:"createdAt"`
 }
 
 type UserWithScopesView struct {

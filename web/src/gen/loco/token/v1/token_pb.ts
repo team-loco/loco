@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/token/v1/token.proto.
  */
 export const file_loco_token_v1_token: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL3Rva2VuL3YxL3Rva2VuLnByb3RvEg1sb2NvLnRva2VuLnYxIpcBCgtFbnRpdHlTY29wZRIvCgVzY29wZRgBIAEoDjIULmxvY28udG9rZW4udjEuU2NvcGVCCrpIB4IBBBABIAASOgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGVCCrpIB4IBBBABIAASGwoJZW50aXR5X2lkGAMgASgJQgi6SAVyA7ABASLkAQoFVG9rZW4SDAoEbmFtZRgBIAEoCRIuCgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZRIRCgllbnRpdHlfaWQYAyABKAkSKgoGc2NvcGVzGAQgAygLMhoubG9jby50b2tlbi52MS5FbnRpdHlTY29wZRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLdAQoSQ3JlYXRlVG9rZW5SZXF1ZXN0EhcKBG5hbWUYASABKAlCCbpIBnIEEAEYZBI6CgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZUIKukgHggEEEAEgABIbCgllbnRpdHlfaWQYAyABKAlCCLpIBXIDsAEBEjQKBnNjb3BlcxgEIAMoCzIaLmxvY28udG9rZW4udjEuRW50aXR5U2NvcGVCCLpIBZIBAggBEh8KDmV4cGlyZXNfaW5fc2VjGAUgASgDQge6SAQiAigBIlIKE0NyZWF0ZVRva2VuUmVzcG9uc2USDQoFdG9rZW4YASABKAkSLAoOdG9rZW5fbWV0YWRhdGEYAiABKAsyFC5sb2NvLnRva2VuLnYxLlRva2VuImwKEUxpc3RUb2tlbnNSZXF1ZXN0EjoKC2VudGl0eV90eXBlGAEgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlQgq6SAeCAQQQASAAEhsKCWVudGl0eV9pZBgCIAEoCUIIukgFcgOwAQEiOgoSTGlzdFRva2Vuc1Jlc3BvbnNlEiQKBnRva2VucxgBIAMoCzIULmxvY28udG9rZW4udjEuVG9rZW4igQEKD0dldFRva2VuUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABEjoKC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlQgq6SAeCAQQQASAAEhsKCWVudGl0eV9pZBgDIAEoCUIIukgFcgOwAQEiNwoQR2V0VG9rZW5SZXNwb25zZRIjCgV0b2tlbhgBIAEoCzIULmxvY28udG9rZW4udjEuVG9rZW4ihAEKElJldm9rZVRva2VuUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABEjoKC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlQgq6SAeCAQQQASAAEhsKCWVudGl0eV9pZBgDIAEoCUIIukgFcgOwAQEiFQoTUmV2b2tlVG9rZW5SZXNwb25zZSqqAQoKRW50aXR5VHlwZRIbChdFTlRJVFlfVFlQRV9VTlNQRUNJRklFRBAAEhYKEkVOVElUWV9UWVBFX1NZU1RFTRABEhwKGEVOVElUWV9UWVBFX09SR0FOSVpBVElPThACEhkKFUVOVElUWV9UWVBFX1dPUktTUEFDRRADEhgKFEVOVElUWV9UWVBFX1JFU09VUkNFEAQSFAoQRU5USVRZX1RZUEVfVVNFUhAFKlAKBVNjb3BlEhUKEVNDT1BFX1VOU1BFQ0lGSUVEEAASDgoKU0NPUEVfUkVBRBABEg8KC1NDT1BFX1dSSVRFEAISDwoLU0NPUEVfQURNSU4QAzLaAgoMVG9rZW5TZXJ2aWNlElQKC0NyZWF0ZVRva2VuEiEubG9jby50b2tlbi52MS5DcmVhdGVUb2tlblJlcXVlc3QaIi5sb2NvLnRva2VuLnYxLkNyZWF0ZVRva2VuUmVzcG9uc2USUQoKTGlzdFRva2VucxIgLmxvY28udG9rZW4udjEuTGlzdFRva2Vuc1JlcXVlc3QaIS5sb2NvLnRva2VuLnYxLkxpc3RUb2tlbnNSZXNwb25zZRJLCghHZXRUb2tlbhIeLmxvY28udG9rZW4udjEuR2V0VG9rZW5SZXF1ZXN0Gh8ubG9jby50b2tlbi52MS5HZXRUb2tlblJlc3BvbnNlElQKC1Jldm9rZVRva2VuEiEubG9jby50b2tlbi52MS5SZXZva2VUb2tlblJlcXVlc3QaIi5sb2NvLnRva2VuLnYxLlJldm9rZVRva2VuUmVzcG9uc2VCN1o1Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL3Rva2VuL3YxO3Rva2VudjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL3Rva2VuL3YxL3Rva2VuLnByb3RvEg1sb2NvLnRva2VuLnYxIpcBCgtFbnRpdHlTY29wZRIvCgVzY29wZRgBIAEoDjIULmxvY28udG9rZW4udjEuU2NvcGVCCrpIB4IBBBABIAASOgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGVCCrpIB4IBBBABIAASGwoJZW50aXR5X2lkGAMgASgJQgi6SAVyA7ABASKsAgoFVG9rZW4SDAoEbmFtZRgBIAEoCRIuCgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZRIRCgllbnRpdHlfaWQYAyABKAkSKgoGc2NvcGVzGAQgAygLMhoubG9jby50b2tlbi52MS5FbnRpdHlTY29wZRIuCgpleHBpcmVzX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI1CgxsYXN0X3VzZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQFCDwoNX2xhc3RfdXNlZF9hdCLdAQoSQ3JlYXRlVG9rZW5SZXF1ZXN0EhcKBG5hbWUYASABKAlCCbpIBnIEEAEYZBI6CgtlbnRpdHlfdHlwZRgCIAEoDjIZLmxvY28udG9rZW4udjEuRW50aXR5VHlwZUIKukgHggEEEAEgABIbCgllbnRpdHlfaWQYAyABKAlCCLpIBXIDsAEBEjQKBnNjb3BlcxgEIAMoCzIaLmxvY28udG9rZW4udjEuRW50aXR5U2NvcGVCCLpIBZIBAggBEh8KDmV4cGlyZXNfaW5fc2VjGAUgASgDQge6SAQiAigBIlIKE0NyZWF0ZVRva2VuUmVzcG9uc2USDQoFdG9rZW4YASABKAkSLAoOdG9rZW5fbWV0YWRhdGEYAiABKAsyFC5sb2NvLnRva2VuLnYxLlRva2VuImwKEUxpc3RUb2tlbnNSZXF1ZXN0EjoKC2VudGl0eV90eXBlGAEgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlQgq6SAeCAQQQASAAEhsKCWVudGl0eV9pZBgCIAEoCUIIukgFcgOwAQEiOgoSTGlzdFRva2Vuc1Jlc3BvbnNlEiQKBnRva2VucxgBIAMoCzIULmxvY28udG9rZW4udjEuVG9rZW4igQEKD0dldFRva2VuUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABEjoKC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlQgq6SAeCAQQQASAAEhsKCWVudGl0eV9pZBgDIAEoCUIIukgFcgOwAQEiNwoQR2V0VG9rZW5SZXNwb25zZRIjCgV0b2tlbhgBIAEoCzIULmxvY28udG9rZW4udjEuVG9rZW4ihAEKElJldm9rZVRva2VuUmVxdWVzdBIVCgRuYW1lGAEgASgJQge6SARyAhABEjoKC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlQgq6SAeCAQQQASAAEhsKCWVudGl0eV9pZBgDIAEoCUIIukgFcgOwAQEiFQoTUmV2b2tlVG9rZW5SZXNwb25zZSISChBHZXRTY29wZXNSZXF1ZXN0IroBChZDaGVja1Blcm1pc3Npb25SZXF1ZXN0EhYKBXRva2VuGAEgASgJQge6SARyAhABEjoKC2VudGl0eV90eXBlGAIgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlQgq6SAeCAQQQASAAEhsKCWVudGl0eV9pZBgDIAEoCUIIukgFcgOwAQESLwoFc2NvcGUYBCABKA4yFC5sb2NvLnRva2VuLnYxLlNjb3BlQgq6SAeCAQQQASAAIioKF0NoZWNrUGVybWlzc2lvblJlc3BvbnNlEg8KB2FsbG93ZWQYASABKAgiggEKEUdldFNjb3Blc1Jlc3BvbnNlEi4KC2VudGl0eV90eXBlGAEgASgOMhkubG9jby50b2tlbi52MS5FbnRpdHlUeXBlEhEKCWVudGl0eV9pZBgCIAEoCRIqCgZzY29wZXMYAyADKAsyGi5sb2NvLnRva2VuLnYxLkVudGl0eVNjb3BlKqoBCgpFbnRpdHlUeXBlEhsKF0VOVElUWV9UWVBFX1VOU1BFQ0lGSUVEEAASFgoSRU5USVRZX1RZUEVfU1lTVEVNEAESHAoYRU5USVRZX1RZUEVfT1JHQU5JWkFUSU9OEAISGQoVRU5USVRZX1RZUEVfV09SS1NQQUNFEAMSGAoURU5USVRZX1RZUEVfUkVTT1VSQ0UQBBIUChBFTlRJVFlfVFlQRV9VU0VSEAUqUAoFU2NvcGUSFQoRU0NPUEVfVU5TUEVDSUZJRUQQABIOCgpTQ09QRV9SRUFEEAESDwoLU0NPUEVfV1JJVEUQAhIPCgtTQ09QRV9BRE1JThADMowECgxUb2tlblNlcnZpY2USVAoLQ3JlYXRlVG9rZW4SIS5sb2NvLnRva2VuLnYxLkNyZWF0ZVRva2VuUmVxdWVzdBoiLmxvY28udG9rZW4udjEuQ3JlYXRlVG9rZW5SZXNwb25zZRJRCgpMaXN0VG9rZW5zEiAubG9jby50b2tlbi52MS5MaXN0VG9rZW5zUmVxdWVzdBohLmxvY28udG9rZW4udjEuTGlzdFRva2Vuc1Jlc3BvbnNlEksKCEdldFRva2VuEh4ubG9jby50b2tlbi52MS5HZXRUb2tlblJlcXVlc3QaHy5sb2NvLnRva2VuLnYxLkdldFRva2VuUmVzcG9uc2USVAoLUmV2b2tlVG9rZW4SIS5sb2NvLnRva2VuLnYxLlJldm9rZVRva2VuUmVxdWVzdBoiLmxvY28udG9rZW4udjEuUmV2b2tlVG9rZW5SZXNwb25zZRJOCglHZXRTY29wZXMSHy5sb2NvLnRva2VuLnYxLkdldFNjb3Blc1JlcXVlc3QaIC5sb2NvLnRva2VuLnYxLkdldFNjb3Blc1Jlc3BvbnNlEmAKD0NoZWNrUGVybWlzc2lvbhIlLmxvY28udG9rZW4udjEuQ2hlY2tQZXJtaXNzaW9uUmVxdWVzdBomLmxvY28udG9rZW4udjEuQ2hlY2tQZXJtaXNzaW9uUmVzcG9uc2VCN1o1Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL3Rva2VuL3YxO3Rva2VudjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * EntityScope represents a permission on a specific entity.
@@ -101,6 +101,11 @@ export type Token = Message<"loco.token.v1.Token"> & {
    * @generated from field: google.protobuf.Timestamp created_at = 6;
    */
   createdAt?: Timestamp;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp last_used_at = 7;
+   */
+  lastUsedAt?: Timestamp;
 };
 
 /**
@@ -138,6 +143,11 @@ export type TokenJson = {
    * @generated from field: google.protobuf.Timestamp created_at = 6;
    */
   createdAt?: TimestampJson;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp last_used_at = 7;
+   */
+  lastUsedAt?: TimestampJson;
 };
 
 /**
@@ -516,6 +526,172 @@ export const RevokeTokenResponseSchema: GenMessage<RevokeTokenResponse, {jsonTyp
   messageDesc(file_loco_token_v1_token, 9);
 
 /**
+ * GetScopesRequest has no fields; the token is read from the auth context.
+ *
+ * @generated from message loco.token.v1.GetScopesRequest
+ */
+export type GetScopesRequest = Message<"loco.token.v1.GetScopesRequest"> & {
+};
+
+/**
+ * GetScopesRequest has no fields; the token is read from the auth context.
+ *
+ * @generated from message loco.token.v1.GetScopesRequest
+ */
+export type GetScopesRequestJson = {
+};
+
+/**
+ * Describes the message loco.token.v1.GetScopesRequest.
+ * Use `create(GetScopesRequestSchema)` to create a new message.
+ */
+export const GetScopesRequestSchema: GenMessage<GetScopesRequest, {jsonType: GetScopesRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_token_v1_token, 10);
+
+/**
+ * CheckPermissionRequest validates whether a token has a specific permission.
+ *
+ * @generated from message loco.token.v1.CheckPermissionRequest
+ */
+export type CheckPermissionRequest = Message<"loco.token.v1.CheckPermissionRequest"> & {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token: string;
+
+  /**
+   * @generated from field: loco.token.v1.EntityType entity_type = 2;
+   */
+  entityType: EntityType;
+
+  /**
+   * @generated from field: string entity_id = 3;
+   */
+  entityId: string;
+
+  /**
+   * @generated from field: loco.token.v1.Scope scope = 4;
+   */
+  scope: Scope;
+};
+
+/**
+ * CheckPermissionRequest validates whether a token has a specific permission.
+ *
+ * @generated from message loco.token.v1.CheckPermissionRequest
+ */
+export type CheckPermissionRequestJson = {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token?: string;
+
+  /**
+   * @generated from field: loco.token.v1.EntityType entity_type = 2;
+   */
+  entityType?: EntityTypeJson;
+
+  /**
+   * @generated from field: string entity_id = 3;
+   */
+  entityId?: string;
+
+  /**
+   * @generated from field: loco.token.v1.Scope scope = 4;
+   */
+  scope?: ScopeJson;
+};
+
+/**
+ * Describes the message loco.token.v1.CheckPermissionRequest.
+ * Use `create(CheckPermissionRequestSchema)` to create a new message.
+ */
+export const CheckPermissionRequestSchema: GenMessage<CheckPermissionRequest, {jsonType: CheckPermissionRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_token_v1_token, 11);
+
+/**
+ * CheckPermissionResponse contains the result of a permission check.
+ *
+ * @generated from message loco.token.v1.CheckPermissionResponse
+ */
+export type CheckPermissionResponse = Message<"loco.token.v1.CheckPermissionResponse"> & {
+  /**
+   * @generated from field: bool allowed = 1;
+   */
+  allowed: boolean;
+};
+
+/**
+ * CheckPermissionResponse contains the result of a permission check.
+ *
+ * @generated from message loco.token.v1.CheckPermissionResponse
+ */
+export type CheckPermissionResponseJson = {
+  /**
+   * @generated from field: bool allowed = 1;
+   */
+  allowed?: boolean;
+};
+
+/**
+ * Describes the message loco.token.v1.CheckPermissionResponse.
+ * Use `create(CheckPermissionResponseSchema)` to create a new message.
+ */
+export const CheckPermissionResponseSchema: GenMessage<CheckPermissionResponse, {jsonType: CheckPermissionResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_token_v1_token, 12);
+
+/**
+ * GetScopesResponse returns the entity the token is bound to and all its scopes.
+ *
+ * @generated from message loco.token.v1.GetScopesResponse
+ */
+export type GetScopesResponse = Message<"loco.token.v1.GetScopesResponse"> & {
+  /**
+   * @generated from field: loco.token.v1.EntityType entity_type = 1;
+   */
+  entityType: EntityType;
+
+  /**
+   * @generated from field: string entity_id = 2;
+   */
+  entityId: string;
+
+  /**
+   * @generated from field: repeated loco.token.v1.EntityScope scopes = 3;
+   */
+  scopes: EntityScope[];
+};
+
+/**
+ * GetScopesResponse returns the entity the token is bound to and all its scopes.
+ *
+ * @generated from message loco.token.v1.GetScopesResponse
+ */
+export type GetScopesResponseJson = {
+  /**
+   * @generated from field: loco.token.v1.EntityType entity_type = 1;
+   */
+  entityType?: EntityTypeJson;
+
+  /**
+   * @generated from field: string entity_id = 2;
+   */
+  entityId?: string;
+
+  /**
+   * @generated from field: repeated loco.token.v1.EntityScope scopes = 3;
+   */
+  scopes?: EntityScopeJson[];
+};
+
+/**
+ * Describes the message loco.token.v1.GetScopesResponse.
+ * Use `create(GetScopesResponseSchema)` to create a new message.
+ */
+export const GetScopesResponseSchema: GenMessage<GetScopesResponse, {jsonType: GetScopesResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_token_v1_token, 13);
+
+/**
  * EntityType represents the type of entity a token can be associated with.
  *
  * @generated from enum loco.token.v1.EntityType
@@ -650,6 +826,27 @@ export const TokenService: GenService<{
     methodKind: "unary";
     input: typeof RevokeTokenRequestSchema;
     output: typeof RevokeTokenResponseSchema;
+  },
+  /**
+   * GetScopes returns the entity and all scopes the current token has access to.
+   *
+   * @generated from rpc loco.token.v1.TokenService.GetScopes
+   */
+  getScopes: {
+    methodKind: "unary";
+    input: typeof GetScopesRequestSchema;
+    output: typeof GetScopesResponseSchema;
+  },
+  /**
+   * CheckPermission validates whether a given token has a specific permission on an entity.
+   * Intended for service-to-service calls (e.g. observability proxy → control plane).
+   *
+   * @generated from rpc loco.token.v1.TokenService.CheckPermission
+   */
+  checkPermission: {
+    methodKind: "unary";
+    input: typeof CheckPermissionRequestSchema;
+    output: typeof CheckPermissionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_token_v1_token, 0);

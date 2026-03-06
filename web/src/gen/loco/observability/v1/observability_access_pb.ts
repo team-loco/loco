@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/observability/v1/observability_access.proto.
  */
 export const file_loco_observability_v1_observability_access: GenFile = /*@__PURE__*/
-  fileDesc("CjBsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eV9hY2Nlc3MucHJvdG8SFWxvY28ub2JzZXJ2YWJpbGl0eS52MSJLCh1HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMcmVzb3VyY2VfaWRzGAIgAygJIlgKHkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRI2CghjbHVzdGVycxgBIAMoCzIkLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DbHVzdGVyQWNjZXNzIkYKDUNsdXN0ZXJBY2Nlc3MSEgoKY2x1c3Rlcl9pZBgBIAEoCRIRCglwcm94eV91cmwYAiABKAkSDgoGcmVnaW9uGAMgASgJIl4KFkNoZWNrUGVybWlzc2lvblJlcXVlc3QSDQoFdG9rZW4YASABKAkSEwoLZW50aXR5X3R5cGUYAiABKAkSEQoJZW50aXR5X2lkGAMgASgJEg0KBXNjb3BlGAQgASgJIioKF0NoZWNrUGVybWlzc2lvblJlc3BvbnNlEg8KB2FsbG93ZWQYASABKAgylgIKGk9ic2VydmFiaWxpdHlBY2Nlc3NTZXJ2aWNlEoUBChZHZXRPYnNlcnZhYmlsaXR5QWNjZXNzEjQubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXF1ZXN0GjUubG9jby5vYnNlcnZhYmlsaXR5LnYxLkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRJwCg9DaGVja1Blcm1pc3Npb24SLS5sb2NvLm9ic2VydmFiaWxpdHkudjEuQ2hlY2tQZXJtaXNzaW9uUmVxdWVzdBouLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DaGVja1Blcm1pc3Npb25SZXNwb25zZUJHWkVnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL3Byb3RvL2xvY28vb2JzZXJ2YWJpbGl0eS92MTtvYnNlcnZhYmlsaXR5djFiBnByb3RvMw");
+  fileDesc("CjBsb2NvL29ic2VydmFiaWxpdHkvdjEvb2JzZXJ2YWJpbGl0eV9hY2Nlc3MucHJvdG8SFWxvY28ub2JzZXJ2YWJpbGl0eS52MSJLCh1HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVxdWVzdBIUCgx3b3Jrc3BhY2VfaWQYASABKAkSFAoMcmVzb3VyY2VfaWRzGAIgAygJIlgKHkdldE9ic2VydmFiaWxpdHlBY2Nlc3NSZXNwb25zZRI2CghjbHVzdGVycxgBIAMoCzIkLmxvY28ub2JzZXJ2YWJpbGl0eS52MS5DbHVzdGVyQWNjZXNzIkYKDUNsdXN0ZXJBY2Nlc3MSEgoKY2x1c3Rlcl9pZBgBIAEoCRIRCglwcm94eV91cmwYAiABKAkSDgoGcmVnaW9uGAMgASgJMqQBChpPYnNlcnZhYmlsaXR5QWNjZXNzU2VydmljZRKFAQoWR2V0T2JzZXJ2YWJpbGl0eUFjY2VzcxI0LmxvY28ub2JzZXJ2YWJpbGl0eS52MS5HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVxdWVzdBo1LmxvY28ub2JzZXJ2YWJpbGl0eS52MS5HZXRPYnNlcnZhYmlsaXR5QWNjZXNzUmVzcG9uc2VCR1pFZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL29ic2VydmFiaWxpdHkvdjE7b2JzZXJ2YWJpbGl0eXYxYgZwcm90bzM");
 
 /**
  * @generated from message loco.observability.v1.GetObservabilityAccessRequest
@@ -128,100 +128,8 @@ export const ClusterAccessSchema: GenMessage<ClusterAccess, {jsonType: ClusterAc
   messageDesc(file_loco_observability_v1_observability_access, 2);
 
 /**
- * @generated from message loco.observability.v1.CheckPermissionRequest
- */
-export type CheckPermissionRequest = Message<"loco.observability.v1.CheckPermissionRequest"> & {
-  /**
-   * @generated from field: string token = 1;
-   */
-  token: string;
-
-  /**
-   * e.g. "workspace"
-   *
-   * @generated from field: string entity_type = 2;
-   */
-  entityType: string;
-
-  /**
-   * @generated from field: string entity_id = 3;
-   */
-  entityId: string;
-
-  /**
-   * e.g. "read"
-   *
-   * @generated from field: string scope = 4;
-   */
-  scope: string;
-};
-
-/**
- * @generated from message loco.observability.v1.CheckPermissionRequest
- */
-export type CheckPermissionRequestJson = {
-  /**
-   * @generated from field: string token = 1;
-   */
-  token?: string;
-
-  /**
-   * e.g. "workspace"
-   *
-   * @generated from field: string entity_type = 2;
-   */
-  entityType?: string;
-
-  /**
-   * @generated from field: string entity_id = 3;
-   */
-  entityId?: string;
-
-  /**
-   * e.g. "read"
-   *
-   * @generated from field: string scope = 4;
-   */
-  scope?: string;
-};
-
-/**
- * Describes the message loco.observability.v1.CheckPermissionRequest.
- * Use `create(CheckPermissionRequestSchema)` to create a new message.
- */
-export const CheckPermissionRequestSchema: GenMessage<CheckPermissionRequest, {jsonType: CheckPermissionRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_observability_v1_observability_access, 3);
-
-/**
- * @generated from message loco.observability.v1.CheckPermissionResponse
- */
-export type CheckPermissionResponse = Message<"loco.observability.v1.CheckPermissionResponse"> & {
-  /**
-   * @generated from field: bool allowed = 1;
-   */
-  allowed: boolean;
-};
-
-/**
- * @generated from message loco.observability.v1.CheckPermissionResponse
- */
-export type CheckPermissionResponseJson = {
-  /**
-   * @generated from field: bool allowed = 1;
-   */
-  allowed?: boolean;
-};
-
-/**
- * Describes the message loco.observability.v1.CheckPermissionResponse.
- * Use `create(CheckPermissionResponseSchema)` to create a new message.
- */
-export const CheckPermissionResponseSchema: GenMessage<CheckPermissionResponse, {jsonType: CheckPermissionResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_observability_v1_observability_access, 4);
-
-/**
  * ObservabilityAccessService runs on the control plane.
- * It returns regional proxy endpoints and validates token permissions for the proxy.
+ * It returns regional proxy endpoints for the observability proxy.
  *
  * @generated from service loco.observability.v1.ObservabilityAccessService
  */
@@ -236,17 +144,6 @@ export const ObservabilityAccessService: GenService<{
     methodKind: "unary";
     input: typeof GetObservabilityAccessRequestSchema;
     output: typeof GetObservabilityAccessResponseSchema;
-  },
-  /**
-   * CheckPermission is called by the observability proxy to validate whether a token
-   * has the requested permission on an entity. Authenticated with a proxy auth token.
-   *
-   * @generated from rpc loco.observability.v1.ObservabilityAccessService.CheckPermission
-   */
-  checkPermission: {
-    methodKind: "unary";
-    input: typeof CheckPermissionRequestSchema;
-    output: typeof CheckPermissionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_observability_v1_observability_access, 0);

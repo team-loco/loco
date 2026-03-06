@@ -156,6 +156,10 @@ func (tq *TestingQueries) GetUserWithScopesByEmail(ctx context.Context, email st
 	}, nil
 }
 
+func (*TestingQueries) GetUserScopesOnWorkspace(_ context.Context, _ queries.GetUserScopesOnWorkspaceParams) ([]queries.EntityScope, error) {
+	return nil, nil
+}
+
 func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	if id == ws1UUID || id == ws2UUID {
 		return org1UUID, nil

@@ -449,6 +449,59 @@ func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserSc
 	return items, nil
 }
 
+const getUserScopesOnWorkspace = `-- name: GetUserScopesOnWorkspace :many
+WITH RECURSIVE entity_hierarchy AS (
+     -- Base case: the workspace itself
+     SELECT
+         'workspace'::entity_type as entity_type,
+         w.id as entity_id,
+         w.name as entity_name
+     FROM workspaces w
+     WHERE w.id = $1
+
+     UNION ALL
+
+     -- Resources in the workspace
+     SELECT
+         'resource'::entity_type,
+         r.id,
+         r.name
+     FROM resources r
+     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
+ )
+ SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
+     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+ FROM user_scopes us
+ INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
+ WHERE us.user_id = $2
+ ORDER BY us.entity_type, us.entity_id, us.scope
+`
+
+type GetUserScopesOnWorkspaceParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"userId"`
+}
+
+func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]EntityScope, error) {
+	rows, err := q.db.Query(ctx, getUserScopesOnWorkspace, arg.ID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []EntityScope
+	for rows.Next() {
+		var column_1 EntityScope
+		if err := rows.Scan(&column_1); err != nil {
+			return nil, err
+		}
+		items = append(items, column_1)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserWithScopesByEmail = `-- name: GetUserWithScopesByEmail :one
 SELECT id, external_id, email, name, avatar_url, created_at, updated_at, scopes FROM user_with_scopes_view WHERE email = $1
 `

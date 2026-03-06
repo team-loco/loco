@@ -1,17 +1,12 @@
 - Make loco work multi-cluster
-  - likely that there will be a controlplane and a dataplane for loco.
-  - controlplane can be deployed anywhere tbh. we just need a cache, service, db.
-  - dataplane will need to chat with the controlplane like loco-api.
-  - options:
-    - karmada
-    - ocm
-    - custom built.
-
-  - currently loco-api gets deployed into a cluster and manipulates kubernetes thru there
-  - but we will need multi-cluster for things like different envs, as well as multi-region
-  - can we get cross cluster metrics dashboards :O
-  - no clue what this would look like; perhaps we actually need some cross-cluster communication.
-  - aka we will need some admin apis for managing cluster as well as loco.
+  - this involves 2 related, but different concepts
+    - being able to administer the clusters
+      - ensuring updates are fully deployed.
+      - correct code is synced to each cluster.
+      - verifying the health, maintenance, status of each cluster.
+    - choosing a cluster for deploying.
+      - need a placement determining api that takes into account region, policies, current resources, environment (prod v nonprod)
+  - we might need some APIs for managing the cluster, but i really don't wanna make this the responsibility of loco. the first function remains
 
 - should certficates be created and managed in the region they are deployed?
 - this should technically also be a 1-time process as well; how do we manage that.
@@ -80,17 +75,6 @@
 
 - Service Mesh
   - need to let apps deployed in the same workspace, allowed to connect via egressing to internet
-
-- Inject Loco Env Vars
-  - Lets inject service URL via env variables: LOCO\_<APP_NAME>\_URL . (multiple of these, scoped to the project)
-  - other env variables we can add:
-    - LOCO_APP_NAME
-    - LOCO_APP_VERSION ~ tied to git commit?
-    - LOCO_PROFILE
-    - LOCO_DEPLOYMENT_ID ~ loco's deployment id (once we have a DB and everything.)
-    - LOCO_VERSION ~ loco version ? idk if we need to provide this
-    - LOCO_TRACING_ENDPOINT ~ this is the openobserve endpoint to submit traces to
-    - LOCO_METRICS_ENDPOINT ~ this is where loco will be scraping metrics from
 
 ## to-do in the future
 
@@ -297,8 +281,6 @@ Phase I ends Here
 
 - Custom Container Registry.
 
-- Deploy Loco via a Helm Chart?
-
 - Loco Docs.
   - we will autogenerate using code x AI. i know man.
 
@@ -407,7 +389,6 @@ clickhouse is named weirdly and so is our controller.
 - basic rate limiter for envoy.
 
 - questions:
-- is the current sql even correct.
 - the deployment or create app request for loco, must be heavily rate limited.
 - trace data needs to hold region/env info as well.
 - try to understand whether we should do loco-api distributed in cluster itself or not.
@@ -417,12 +398,13 @@ clickhouse is named weirdly and so is our controller.
   reduce scope::
 
 - no longer let ppl bring in their custom domains.
-- loco cli enhancements. focus on resource, followed by the actual action
 - disable color output in cli flag/env
 - eventually will need canaries against our service.
 
-- loco init should also grab defaults from the static config endpoint.
+- loco cli/ui on init should also grab defaults from the static config endpoint and store them.
 
 - the UI needs to look at the vite_api_base_url
 
 - theres a possibility the defaultAppDomain is something returned by the locoHost for simple default config settings.
+
+- need handling of environments, on both the UI, and better handling in the backend.

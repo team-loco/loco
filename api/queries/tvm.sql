@@ -48,7 +48,7 @@ WITH RECURSIVE entity_hierarchy AS (
  WHERE us.user_id = $2
  ORDER BY us.entity_type, us.entity_id, us.scope;
 
- -- name: GetUserScopesOnWorkspace :many
+-- name: GetUserScopesOnWorkspace :many
 WITH RECURSIVE entity_hierarchy AS (
      -- Base case: the workspace itself
      SELECT

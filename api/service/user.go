@@ -84,7 +84,14 @@ func (s *UserServer) CreateUser(
 		avatarURL = &a
 	}
 
-	user, err := s.queries.CreateUser(ctx, genDb.CreateUserParams{
+	qtx, ok := s.queries.(*genDb.Queries)
+	if !ok {
+		slog.ErrorContext(ctx, "failed to cast queries to *genDb.Queries")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error"))
+	}
+	qtx = qtx.WithTx(tx)
+
+	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
 		ExternalID: r.GetExternalId(),
 		Email:      r.GetEmail(),
 		Name:       name,
@@ -95,19 +102,21 @@ func (s *UserServer) CreateUser(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 	}
 
+	// Grant self-scopes in the same transaction so user+scopes are atomic.
+	for _, es := range []genDb.AddUserScopeParams{
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
+	} {
+		if err := qtx.AddUserScope(ctx, es); err != nil {
+			slog.ErrorContext(ctx, "failed to grant user scope", "error", err, "userId", user.ID)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		}
+	}
+
 	if commitErr := tx.Commit(ctx); commitErr != nil {
 		slog.ErrorContext(ctx, "failed to commit transaction", "error", commitErr)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
-	}
-
-	updateErr := s.tvm.UpdateRoles(ctx, user.ID.String(), []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
-	}, []genDb.EntityScope{})
-	if updateErr != nil {
-		slog.ErrorContext(ctx, "failed to update user roles", "error", updateErr, "userId", user.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", updateErr))
 	}
 
 	return connect.NewResponse(&userv1.CreateUserResponse{UserId: user.ID.String()}), nil
@@ -129,8 +138,9 @@ func (s *UserServer) GetUser(
 	case *userv1.GetUserRequest_Email:
 		dbUser, getErr := s.queries.GetUserByEmail(ctx, key.Email)
 		if getErr != nil {
-			slog.ErrorContext(ctx, "failed to query user by email", "error", getErr)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", getErr))
+			// Return NotFound regardless of reason to prevent user-existence probing by email.
+			slog.WarnContext(ctx, "user not found by email")
+			return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
 		}
 		targetUserID = dbUser.ID.String()
 	default:
@@ -145,8 +155,9 @@ func (s *UserServer) GetUser(
 	}
 
 	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetUser, targetUserID)); verifyErr != nil {
+		// Return NotFound (not PermissionDenied) to prevent user-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get user", "userId", targetUserID)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
+		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
 	}
 
 	user, err := s.getUserByID(ctx, targetUserID)
@@ -238,7 +249,7 @@ func (s *UserServer) ListUsers(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListUsers, "")); err != nil {
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.NewSystem(actions.ListUsers)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list users")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}

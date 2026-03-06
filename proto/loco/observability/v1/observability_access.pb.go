@@ -178,118 +178,6 @@ func (x *ClusterAccess) GetRegion() string {
 	return ""
 }
 
-type CheckPermissionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	EntityType    string                 `protobuf:"bytes,2,opt,name=entity_type,json=entityType,proto3" json:"entity_type,omitempty"` // e.g. "workspace"
-	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
-	Scope         string                 `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"` // e.g. "read"
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CheckPermissionRequest) Reset() {
-	*x = CheckPermissionRequest{}
-	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CheckPermissionRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CheckPermissionRequest) ProtoMessage() {}
-
-func (x *CheckPermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CheckPermissionRequest.ProtoReflect.Descriptor instead.
-func (*CheckPermissionRequest) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_access_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *CheckPermissionRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-func (x *CheckPermissionRequest) GetEntityType() string {
-	if x != nil {
-		return x.EntityType
-	}
-	return ""
-}
-
-func (x *CheckPermissionRequest) GetEntityId() string {
-	if x != nil {
-		return x.EntityId
-	}
-	return ""
-}
-
-func (x *CheckPermissionRequest) GetScope() string {
-	if x != nil {
-		return x.Scope
-	}
-	return ""
-}
-
-type CheckPermissionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Allowed       bool                   `protobuf:"varint,1,opt,name=allowed,proto3" json:"allowed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CheckPermissionResponse) Reset() {
-	*x = CheckPermissionResponse{}
-	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CheckPermissionResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CheckPermissionResponse) ProtoMessage() {}
-
-func (x *CheckPermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_observability_v1_observability_access_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CheckPermissionResponse.ProtoReflect.Descriptor instead.
-func (*CheckPermissionResponse) Descriptor() ([]byte, []int) {
-	return file_loco_observability_v1_observability_access_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *CheckPermissionResponse) GetAllowed() bool {
-	if x != nil {
-		return x.Allowed
-	}
-	return false
-}
-
 var File_loco_observability_v1_observability_access_proto protoreflect.FileDescriptor
 
 const file_loco_observability_v1_observability_access_proto_rawDesc = "" +
@@ -304,18 +192,9 @@ const file_loco_observability_v1_observability_access_proto_rawDesc = "" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12\x1b\n" +
 	"\tproxy_url\x18\x02 \x01(\tR\bproxyUrl\x12\x16\n" +
-	"\x06region\x18\x03 \x01(\tR\x06region\"\x82\x01\n" +
-	"\x16CheckPermissionRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12\x1f\n" +
-	"\ventity_type\x18\x02 \x01(\tR\n" +
-	"entityType\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\tR\bentityId\x12\x14\n" +
-	"\x05scope\x18\x04 \x01(\tR\x05scope\"3\n" +
-	"\x17CheckPermissionResponse\x12\x18\n" +
-	"\aallowed\x18\x01 \x01(\bR\aallowed2\x96\x02\n" +
+	"\x06region\x18\x03 \x01(\tR\x06region2\xa4\x01\n" +
 	"\x1aObservabilityAccessService\x12\x85\x01\n" +
-	"\x16GetObservabilityAccess\x124.loco.observability.v1.GetObservabilityAccessRequest\x1a5.loco.observability.v1.GetObservabilityAccessResponse\x12p\n" +
-	"\x0fCheckPermission\x12-.loco.observability.v1.CheckPermissionRequest\x1a..loco.observability.v1.CheckPermissionResponseBGZEgithub.com/team-loco/loco/proto/loco/observability/v1;observabilityv1b\x06proto3"
+	"\x16GetObservabilityAccess\x124.loco.observability.v1.GetObservabilityAccessRequest\x1a5.loco.observability.v1.GetObservabilityAccessResponseBGZEgithub.com/team-loco/loco/proto/loco/observability/v1;observabilityv1b\x06proto3"
 
 var (
 	file_loco_observability_v1_observability_access_proto_rawDescOnce sync.Once
@@ -329,22 +208,18 @@ func file_loco_observability_v1_observability_access_proto_rawDescGZIP() []byte 
 	return file_loco_observability_v1_observability_access_proto_rawDescData
 }
 
-var file_loco_observability_v1_observability_access_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_loco_observability_v1_observability_access_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_loco_observability_v1_observability_access_proto_goTypes = []any{
 	(*GetObservabilityAccessRequest)(nil),  // 0: loco.observability.v1.GetObservabilityAccessRequest
 	(*GetObservabilityAccessResponse)(nil), // 1: loco.observability.v1.GetObservabilityAccessResponse
 	(*ClusterAccess)(nil),                  // 2: loco.observability.v1.ClusterAccess
-	(*CheckPermissionRequest)(nil),         // 3: loco.observability.v1.CheckPermissionRequest
-	(*CheckPermissionResponse)(nil),        // 4: loco.observability.v1.CheckPermissionResponse
 }
 var file_loco_observability_v1_observability_access_proto_depIdxs = []int32{
 	2, // 0: loco.observability.v1.GetObservabilityAccessResponse.clusters:type_name -> loco.observability.v1.ClusterAccess
 	0, // 1: loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess:input_type -> loco.observability.v1.GetObservabilityAccessRequest
-	3, // 2: loco.observability.v1.ObservabilityAccessService.CheckPermission:input_type -> loco.observability.v1.CheckPermissionRequest
-	1, // 3: loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess:output_type -> loco.observability.v1.GetObservabilityAccessResponse
-	4, // 4: loco.observability.v1.ObservabilityAccessService.CheckPermission:output_type -> loco.observability.v1.CheckPermissionResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
+	1, // 2: loco.observability.v1.ObservabilityAccessService.GetObservabilityAccess:output_type -> loco.observability.v1.GetObservabilityAccessResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -361,7 +236,7 @@ func file_loco_observability_v1_observability_access_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_observability_v1_observability_access_proto_rawDesc), len(file_loco_observability_v1_observability_access_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

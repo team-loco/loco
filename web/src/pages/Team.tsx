@@ -116,9 +116,14 @@ export function Team() {
 	return (
 		<div className="w-full flex justify-center">
 			<Card className="w-[95%]">
-				<CardHeader>
-					<CardTitle>Workspace Members</CardTitle>
-					<CardDescription>Manage members in this workspace</CardDescription>
+				<CardHeader className="flex flex-row items-start justify-between">
+					<div>
+						<CardTitle>Workspace Members</CardTitle>
+						<CardDescription>Manage members in this workspace</CardDescription>
+					</div>
+					<Button className="h-8 px-3 text-sm bg-black dark:bg-white text-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90 leading-relaxed">
+						<span>Invite user</span>
+					</Button>
 				</CardHeader>
 				<CardContent className="space-y-6">
 					<DataTable columns={columns} data={members} isLoading={isLoading} />
@@ -156,12 +161,6 @@ export function Team() {
 								Next
 							</Button>
 						</div>
-					</div>
-
-					<div className="flex justify-center">
-						<Button variant="default">
-							<span>Invite user</span>
-						</Button>
 					</div>
 				</CardContent>
 			</Card>

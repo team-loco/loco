@@ -18,8 +18,6 @@ Phase I
 
 [ ] Implement proper ttl-ing for data.
 
-[ ] Inject important env variables into the app.
-
 [ ] Add support for non-interactive deploy.
     Dependant on tvm
 
