@@ -33,6 +33,7 @@ import {
 	DomainType,
 	listPlatformDomains,
 } from "@/gen/loco/domain/v1";
+import { listEnvironments } from "@/gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import {
 	createResource,
@@ -239,10 +240,19 @@ export function CreateResource() {
 	const { data: platformDomainsRes } = useQuery(listPlatformDomains, {
 		activeOnly: true,
 	});
+	const { data: environmentsRes } = useQuery(listEnvironments, {
+		workspaceId: paramWorkspaceId,
+	});
 	const platformDomains = useMemo(
 		() => platformDomainsRes?.platformDomains ?? [],
 		[platformDomainsRes?.platformDomains],
 	);
+
+	const environments = useMemo(
+		() => environmentsRes?.environments ?? [],
+		[environmentsRes?.environments],
+	);
+	console.log(environments);
 
 	const createResourceMutation = useMutation(createResource);
 	const createDeploymentMutation = useMutation(createDeployment);
@@ -486,7 +496,6 @@ export function CreateResource() {
 
 					await createDeploymentMutation.mutateAsync({
 						resourceId: resource.resourceId,
-						clusterId: "1", // Default cluster
 						region: region,
 						spec: {
 							spec: {
@@ -505,6 +514,7 @@ export function CreateResource() {
 								},
 							},
 						},
+						environmentId: environments[0].id,
 					});
 					toast.success("Resource and deployment created successfully");
 				} catch (deployError) {

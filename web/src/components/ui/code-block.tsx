@@ -63,7 +63,9 @@ export function CodeBlock({
 			.then((result) => {
 				if (!cancelled) setHtml(result);
 			})
-			.catch(() => {});
+			.catch((e: unknown) => {
+				console.error(e);
+			});
 		return () => {
 			cancelled = true;
 		};
@@ -106,8 +108,8 @@ export function CodeBlock({
 				className={cn(
 					"text-sm overflow-x-auto",
 					"[&_.shiki]:bg-transparent! [&_pre]:bg-transparent! [&_pre]:p-4 [&_pre]:m-0",
-					"dark:[&_.shiki_span]:text-[var(--shiki-dark)]!",
-					"dark:[&_.shiki]:text-[var(--shiki-dark)]!",
+					"dark:[&_.shiki_span]:text-(--shiki-dark)!",
+					"dark:[&_.shiki]:text-(--shiki-dark)!",
 				)}
 			>
 				{html ? (

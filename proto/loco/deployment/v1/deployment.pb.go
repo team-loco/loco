@@ -893,7 +893,6 @@ func (x *Deployment) GetEnvironmentId() string {
 type CreateDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	ClusterId     string                 `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	Region        string                 `protobuf:"bytes,3,opt,name=region,proto3" json:"region,omitempty"`
 	Spec          *DeploymentSpec        `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
 	EnvironmentId string                 `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
@@ -934,13 +933,6 @@ func (*CreateDeploymentRequest) Descriptor() ([]byte, []int) {
 func (x *CreateDeploymentRequest) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
-	}
-	return ""
-}
-
-func (x *CreateDeploymentRequest) GetClusterId() string {
-	if x != nil {
-		return x.ClusterId
 	}
 	return ""
 }
@@ -1496,12 +1488,10 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x04spec\x18\x0e \x01(\v2\".loco.deployment.v1.DeploymentSpecR\x04spec\x12%\n" +
 	"\x0eenvironment_id\x18\x0f \x01(\tR\renvironmentIdB\r\n" +
 	"\v_started_atB\x0f\n" +
-	"\r_completed_at\"\xff\x01\n" +
+	"\r_completed_at\"\xd6\x01\n" +
 	"\x17CreateDeploymentRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12'\n" +
-	"\n" +
-	"cluster_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x12\x1f\n" +
+	"resourceId\x12\x1f\n" +
 	"\x06region\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06region\x12>\n" +
 	"\x04spec\x18\x04 \x01(\v2\".loco.deployment.v1.DeploymentSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
 	"\x0eenvironment_id\x18\x05 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"?\n" +

@@ -3,7 +3,6 @@ import { useAuth } from "@/auth/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { listUserOrgs } from "@/gen/loco/org/v1";
 import { listTokens } from "@/gen/loco/token/v1";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
 import { deleteUser, whoAmI } from "@/gen/loco/user/v1";
@@ -19,14 +18,6 @@ export function Profile() {
 	const navigate = useNavigate();
 	const { data: whoAmIResponse, isLoading } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
-
-	// Fetch user's orgs to redirect to tokens
-	const { data: orgsRes } = useQuery(
-		listUserOrgs,
-		user?.id ? { userId: user.id } : undefined,
-		{ enabled: !!user?.id },
-	);
-	const firstOrgId = useMemo(() => orgsRes?.orgs[0]?.id, [orgsRes]);
 
 	// Fetch user's tokens
 	const { data: tokensRes, isLoading: isTokensLoading } = useQuery(

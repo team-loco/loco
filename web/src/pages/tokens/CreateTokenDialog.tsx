@@ -460,7 +460,9 @@ export function CreateTokenDialog({
 									id="token-name"
 									placeholder="e.g., CI/CD Pipeline"
 									value={tokenName}
-									onChange={(e) => void updateTokenName(e.target.value)}
+									onChange={(e) => {
+										updateTokenName(e.target.value);
+									}}
 									autoFocus
 								/>
 							</div>
