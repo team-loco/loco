@@ -5,12 +5,12 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-	"inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all duration-fast focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer relative",
+	"inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-shadow duration-200 focus-visible:outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 cursor-pointer relative",
 	{
 		variants: {
 			variant: {
 				default:
-					"bg-primary text-primary-foreground shadow-xs hover:shadow-sm active:shadow-xs",
+					"bg-[#0f0f0f] text-[#f5f5f5] rounded-[10px] font-medium tracking-[0.01em]",
 				destructive:
 					"bg-destructive text-white shadow-xs hover:shadow-sm active:shadow-xs",
 				outline:
@@ -21,9 +21,9 @@ const buttonVariants = cva(
 				link: "text-primary underline-offset-4 hover:underline",
 			},
 			size: {
-				default: "h-7 px-[22px] py-3 rounded-md",
-				sm: "h-7 px-4 text-xs rounded-md",
-				lg: "h-7 px-6 rounded-md",
+				default: "px-5 py-3 text-sm",
+				sm: "px-4 py-2 text-xs rounded-md",
+				lg: "px-6 py-3 text-base rounded-md",
 				icon: "h-7 w-9 rounded-md",
 			},
 		},
