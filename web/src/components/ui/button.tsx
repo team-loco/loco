@@ -14,14 +14,14 @@ const buttonVariants = cva(
 				destructive:
 					"bg-destructive text-white shadow-xs hover:shadow-sm active:shadow-xs",
 				outline:
-					"border border-border bg-card text-foreground shadow-xs hover:bg-accent hover:border-border-strong hover:shadow-sm",
+					"border border-border bg-card text-foreground shadow-xs hover:bg-accent hover:border-border-strong hover:shadow-sm rounded-[10px]",
 				secondary:
 					"bg-secondary text-secondary-foreground border border-border shadow-xs hover:bg-accent hover:border-border-strong",
 				ghost: "hover:bg-accent hover:text-accent-foreground",
 				link: "text-primary underline-offset-4 hover:underline",
 			},
 			size: {
-				default: "px-5 py-3 text-sm",
+				default: "px-4 py-2 text-sm",
 				sm: "px-4 py-2 text-xs rounded-md",
 				lg: "px-6 py-3 text-base rounded-md",
 				icon: "h-7 w-9 rounded-md",
@@ -41,20 +41,23 @@ export interface ButtonProps
 	asChild?: boolean;
 }
 
-const Button = ({ ref, className, variant, size, asChild = false, ...props }: ButtonProps & { ref?: React.RefObject<HTMLButtonElement | null> }) => {
-		const Comp = asChild ? Slot : "button";
-		return (
-			<Comp
-				className={cn(buttonVariants({ variant, size, className }))}
-				ref={ref}
-				{...props}
-			/>
-		);
-	};
+const Button = ({
+	ref,
+	className,
+	variant,
+	size,
+	asChild = false,
+	...props
+}: ButtonProps & { ref?: React.RefObject<HTMLButtonElement | null> }) => {
+	const Comp = asChild ? Slot : "button";
+	return (
+		<Comp
+			className={cn(buttonVariants({ variant, size, className }))}
+			ref={ref}
+			{...props}
+		/>
+	);
+};
 Button.displayName = "Button";
-
- 
- 
- 
 // eslint-disable-next-line react-refresh/only-export-components
 export { Button, buttonVariants };

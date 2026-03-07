@@ -351,16 +351,6 @@ func commandToProto(cmd *commandbus.Command) *agentv1.CommandStreamResponse {
 		protoCmd.Payload = &agentv1.CommandStreamResponse_Delete{
 			Delete: &agentv1.DeleteCommand{},
 		}
-	case commandbus.CommandTypeScale:
-		protoCmd.Type = agentv1.CommandType_COMMAND_TYPE_SCALE
-		protoCmd.Payload = &agentv1.CommandStreamResponse_Scale{
-			Scale: &agentv1.ScaleCommand{},
-		}
-	case commandbus.CommandTypeUpdateEnv:
-		protoCmd.Type = agentv1.CommandType_COMMAND_TYPE_UPDATE_ENV
-		protoCmd.Payload = &agentv1.CommandStreamResponse_UpdateEnv{
-			UpdateEnv: &agentv1.UpdateEnvCommand{},
-		}
 	}
 
 	return protoCmd

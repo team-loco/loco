@@ -72,7 +72,9 @@ export function CodeBlock({
 	function copy() {
 		void navigator.clipboard.writeText(children).then(() => {
 			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
+			setTimeout(() => {
+				setCopied(false);
+			}, 2000);
 		});
 	}
 

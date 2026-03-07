@@ -152,8 +152,8 @@ export function ObsLogs() {
 
 				{errors.length > 0 && (
 					<div className="px-3 py-2 text-xs text-destructive border-b border-border/40">
-						{errors.map((e, i) => (
-							<div key={i}>{e.message}</div>
+						{errors.map((e) => (
+							<div key={e.name}>{e.message}</div>
 						))}
 					</div>
 				)}

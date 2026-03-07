@@ -59,29 +59,33 @@ Phase I
 
 [ ] Publish Loco documentation
 
-Phase II
-
 [ ] Make Loco multi-cluster.
-
-[ ] Integrate certificate management, especially with multi-cluster support.
-
-[ ] Tracing.
 
 [ ] Different environments.
 
 [ ] Make deployment of services async.
 
+[ ] need a loco sync cli command to link your services between local and whats deployed. show a nice little diff between the 2 on both UI and Cli
+
+[ ] 
+
+Phase II
+
+[ ] Integrate certificate management, especially with multi-cluster support.
+
+[ ] Tracing.
+
+[ ] Org/Workspace/App management for CLI
+
 [ ] Allow control over egress to the internet.
 
-[ ] Add support for custom domain names.
+[ ] Add support for custom domains.
 
 [ ] Docker preflight checks (running daemon, socket connectivity).
 
 [ ] Scan docker images for vulnerabilities.
 
 [ ] Custom container registry.
-
-[ ] Org/Workspace/App management for CLI
 
 [ ] Resurrector Service
 
@@ -101,9 +105,9 @@ Phase II
 
 [ ] Recursive CLI deploy `-r`.
 
-[ ] Advanced app types (DB, cache, blob).
+[ ] Different resource types (DB, cache, blob).
 
-[ ] Dedicated per-service disks.
+[ ] Dedicated per-service disks (persistent volumes).
 
 [ ] Full infra patch management strategy.
 

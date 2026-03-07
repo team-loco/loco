@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { listWorkspaceResources } from "@/gen/loco/resource/v1";
-import { createToken } from "@/gen/loco/token/v1";
+import { createToken, type Token } from "@/gen/loco/token/v1";
 import {
 	EntityScopeSchema,
 	EntityType,
@@ -60,6 +60,7 @@ interface CreateTokenDialogProps {
 	onOpenChange: (open: boolean) => void;
 	activeOrgId: string | null;
 	onSuccess: (tokenString: string) => void;
+	tokens: Token[];
 }
 
 interface ScopeSelection {
@@ -171,14 +172,14 @@ function WorkspaceTreeItem({
 								type="button"
 								variant="outline"
 								size="sm"
-								onClick={() =>
-									{ onScopeSelect(
+								onClick={() => {
+									onScopeSelect(
 										EntityType.WORKSPACE,
 										workspace.id,
 										scopeOption.value,
 										workspace.name,
-									); }
-								}
+									);
+								}}
 								title={scopeOption.description}
 								className="h-7 w-7 p-0"
 							>
@@ -209,14 +210,14 @@ function WorkspaceTreeItem({
 												type="button"
 												variant="outline"
 												size="sm"
-												onClick={() =>
-													{ onScopeSelect(
+												onClick={() => {
+													onScopeSelect(
 														EntityType.RESOURCE,
 														resource.id,
 														scopeOption.value,
 														resource.name,
-													); }
-												}
+													);
+												}}
 												title={scopeOption.description}
 												className="h-7 w-7 p-0"
 											>
@@ -243,6 +244,7 @@ export function CreateTokenDialog({
 	onOpenChange,
 	activeOrgId,
 	onSuccess,
+	tokens,
 }: CreateTokenDialogProps) {
 	const { user } = useAuth();
 
@@ -251,8 +253,10 @@ export function CreateTokenDialog({
 	const entityType = EntityType.USER;
 	const entityId = user?.id ?? "";
 	const [tokenName, setTokenName] = useState("");
+	const [validationErrors, setValidationErrors] = useState<string[]>([]);
 	const [expiresInSec, setExpiresInSec] = useState(30 * 24 * 60 * 60); // 30 days default
 	const [selectedScopes, setSelectedScopes] = useState<ScopeSelection[]>([]);
+	const tokenNames = tokens.map((t) => t.name);
 
 	// Fetch the active org and its workspaces for scope selection
 	const { data: orgsRes } = useQuery(
@@ -277,11 +281,25 @@ export function CreateTokenDialog({
 
 	// Track which workspaces are expanded to show resources
 	const [expandedWorkspaceIds, setExpandedWorkspaceIds] = useState<Set<string>>(
-		new Set(),
+		() => new Set(),
 	);
 
 	const { mutate: createTokenMutation, isPending } = useMutation(createToken);
 
+	const updateTokenName = (tokenName: string) => {
+		setTokenName(tokenName);
+		if (tokenNames.includes(tokenName)) {
+			setValidationErrors(
+				validationErrors.concat([
+					`Token name ${tokenName} already exists. Please choose a different one`,
+				]),
+			);
+		} else {
+			setValidationErrors([]);
+		}
+	};
+
+	console.log("errors", validationErrors);
 	// Toggle workspace expansion
 	const toggleWorkspaceExpansion = (workspaceId: string) => {
 		setExpandedWorkspaceIds((prev) => {
@@ -335,7 +353,7 @@ export function CreateTokenDialog({
 	// Get entity name for display
 	const getEntityName = (eType: EntityType, eId: string): string => {
 		if (eType === EntityType.USER && eId === user?.id) {
-			return user?.name || user?.email || "User";
+			return user.name || user.email || "User";
 		}
 		if (eType === EntityType.ORGANIZATION) {
 			return activeOrg?.name ?? `Organization ${eId}`;
@@ -442,7 +460,7 @@ export function CreateTokenDialog({
 									id="token-name"
 									placeholder="e.g., CI/CD Pipeline"
 									value={tokenName}
-									onChange={(e) => { setTokenName(e.target.value); }}
+									onChange={(e) => void updateTokenName(e.target.value)}
 									autoFocus
 								/>
 							</div>
@@ -453,9 +471,9 @@ export function CreateTokenDialog({
 								</Label>
 								<Select
 									value={expiresInSec.toString()}
-									onValueChange={(value) =>
-										{ setExpiresInSec(parseInt(value, 10)); }
-									}
+									onValueChange={(value) => {
+										setExpiresInSec(parseInt(value, 10));
+									}}
 								>
 									<SelectTrigger id="expiration">
 										<SelectValue />
@@ -506,14 +524,14 @@ export function CreateTokenDialog({
 													type="button"
 													variant="outline"
 													size="sm"
-													onClick={() =>
-														{ addScopeSelection(
+													onClick={() => {
+														addScopeSelection(
 															entityType,
 															entityId,
 															scopeOption.value,
 															getEntityName(entityType, entityId),
-														); }
-													}
+														);
+													}}
 													title={scopeOption.description}
 													className="h-7 w-7 p-0"
 												>
@@ -544,14 +562,14 @@ export function CreateTokenDialog({
 														type="button"
 														variant="outline"
 														size="sm"
-														onClick={() =>
-															{ addScopeSelection(
+														onClick={() => {
+															addScopeSelection(
 																EntityType.ORGANIZATION,
 																activeOrg.id,
 																scopeOption.value,
 																activeOrg.name,
-															); }
-														}
+															);
+														}}
 														title={scopeOption.description}
 														className="h-7 w-7 p-0"
 													>
@@ -576,12 +594,10 @@ export function CreateTokenDialog({
 												<WorkspaceTreeItem
 													key={workspace.id}
 													workspace={workspace}
-													isExpanded={expandedWorkspaceIds.has(
-														workspace.id,
-													)}
-													onToggleExpand={() =>
-														{ toggleWorkspaceExpansion(workspace.id); }
-													}
+													isExpanded={expandedWorkspaceIds.has(workspace.id)}
+													onToggleExpand={() => {
+														toggleWorkspaceExpansion(workspace.id);
+													}}
 													onScopeSelect={addScopeSelection}
 													scopeOptions={SCOPE_OPTIONS}
 												/>
@@ -648,6 +664,7 @@ export function CreateTokenDialog({
 														indices: [],
 													});
 												}
+												// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 												const group = entityGroups.get(key)!;
 												if (!group.scopes.includes(scope.scope)) {
 													group.scopes.push(scope.scope);
@@ -733,6 +750,11 @@ export function CreateTokenDialog({
 							</div>
 						</div>
 					</div>
+					{validationErrors.length > 0 && (
+						<span className="flex flex-wrap max-h-16 overflow-y-auto p-0.5 border bg-destructive/80 text-center -mb-0.5 justify-center">
+							{validationErrors}
+						</span>
+					)}
 
 					<DialogFooter>
 						<Button
@@ -746,7 +768,10 @@ export function CreateTokenDialog({
 						<Button
 							type="submit"
 							disabled={
-								isPending || !tokenName.trim() || selectedScopes.length === 0
+								isPending ||
+								!tokenName.trim() ||
+								selectedScopes.length === 0 ||
+								validationErrors.length > 0
 							}
 							title={
 								!tokenName.trim()

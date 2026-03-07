@@ -804,7 +804,7 @@ func (s *ResourceServer) ScaleResource(
 	cmd := &commandbus.Command{
 		ID:        uuid.NewString(),
 		ClusterID: cluster.ID.String(),
-		Type:      commandbus.CommandTypeScale,
+		Type:      commandbus.CommandTypeDeploy,
 		Payload:   payloadJSON,
 		CreatedAt: time.Now(),
 	}
@@ -1010,7 +1010,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	cmd := &commandbus.Command{
 		ID:        uuid.NewString(),
 		ClusterID: cluster.ID.String(),
-		Type:      commandbus.CommandTypeUpdateEnv,
+		Type:      commandbus.CommandTypeDeploy,
 		Payload:   payloadJSON,
 		CreatedAt: time.Now(),
 	}

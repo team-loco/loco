@@ -16,7 +16,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Plus } from "lucide-react";
 import {
 	Tooltip,
 	TooltipContent,
@@ -30,7 +29,7 @@ import { EntityType } from "@/gen/loco/token/v1/token_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { AlertCircle, Loader2, Trash2 } from "lucide-react";
+import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
@@ -328,7 +327,9 @@ export function Tokens() {
 				<CardHeader className="flex flex-row items-start justify-between">
 					<div>
 						<CardTitle>API Tokens</CardTitle>
-						<CardDescription>Manage authentication tokens for accessing the Loco API</CardDescription>
+						<CardDescription>
+							Manage authentication tokens for accessing the Loco API
+						</CardDescription>
 					</div>
 					<Button
 						onClick={() => {
@@ -395,6 +396,7 @@ export function Tokens() {
 				onSuccess={(tokenString) => {
 					void handleTokenCreated(tokenString);
 				}}
+				tokens={tokens}
 			/>
 
 			{/* Token Display Dialog */}

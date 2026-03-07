@@ -1,3 +1,5 @@
+For V1:
+
 - Make loco work multi-cluster
   - this involves 2 related, but different concepts
     - being able to administer the clusters
@@ -13,59 +15,22 @@
 - potential fix for this is to maybe have a designated cluster/ perhaps per region that manages stuff like this. aka the 'leader'
 
 - Metrics/Logging/Tracing
-  - created some initial setup via handrolling otel, clickhouse, grafana.
-  - we are likely pushing completely un-necessary metrics and pushing high cardinality attributes we likely do not need at all.
-    - need to come up with a processor, that drops all the metrics we don't use.
-    - lets use a specific allow list instead?
-  - accuracy of dashboards is not clear.
-  - need to create a separate admin dashboard, or use something out of the box?
-  - metrics need multi-tenant support.
+  - created some initial setup via handrolling otel, clickhouse
+  - needs attributes for mutli-tenancy, workspace specific setup.
   - All logs/tracing/metrics must include org-id/app-id/app-name/wkspc combination
-  - can potentially create dashboards dynamically, or atleast pull the data down.
-  - deploy a self-hosted instance on monitoring.loco.build
-  - tracing will be a to-do
-
-- Profiles
-  - introduce multi-profile deployments to handle dev, uat, prod deployments.
-  - `loco deploy --profile=dev`
-    - maybe profiles are just staging and production
-  - profiles should be specifiable in loco.toml.
-
-    ```toml
-    [Profile.dev]
-      CPU = "100m"
-      Memory = "128Mi"
-      BaseDomain = "dev.onloco.app"
-
-    [Profile.prod]
-      CPU = "500m"
-      Memory = "1Gi"
-      Replicas.Max = 5
-    ```
-
-- Health Checks
-  - should eventually support non-http health checks.
-
+  - reduce cardinality, make sure otel processor drops/submits only whats necessary.
+  - dashboards must be accurate
+    - for now, build our own over the obs tab, but also potentially allow grafana to be setup as an export.
+  - need to create a separate admin dashboard, or use something out of the box?
+  - tracing will be v2
+- Logs
+  - CLI table should support a simple freeze as well.
 - GRPC Support
   - i believe the current implementation actually allows GRPC services, but need to double check.
-
-- Logs
-  - get logs from clickhouse instead.
-  - only for live tail can we grab logs from kubernetes.
-  - CLI table should support a simple freeze as well.
-
 - Deploy Command
   - take a token non-interactively via std in, maybe with simple output as well. `loco deploy --non-interactive --token {GH-TOKEN}`
   - take an image id, so that loco doesnt build the image and we get to skip some steps.
   - these image ids for now can only be from public container registries like ghcr.
-
-- Scanning Docker Images; we have a TDD for this
-
-- Pre-deployment loco needs to check if we can sustain the requested deployment (atleast 2x the requested resources to be safe.)
-  - not sure how to do this.
-
-  - needs to build everything from
-  -
 
 - Builders
   - Sometimes docker client is sleeping; we need to give better errors, and maybe tell users to just specify --image if stuff keeps going wrong. we need to check the status of docker before even trying to connect to it.
@@ -75,17 +40,17 @@
 
 - Service Mesh
   - need to let apps deployed in the same workspace, allowed to connect via egressing to internet
+  - need some sort of tunneling/wireguard protocol
 
 ## to-do in the future
 
+- backups for the clickhouse data as well.
 - Resurrector
   - deployed separately from the cluster, and will always resurrect just one cluster.
-  - maybe cluster interface with like clone cluster or something.
-  - continously monitors and pings cluster health status
-  - if not healthy, try to diagnose? and rebuild whats broken?
-  - needs to be done on a per provider basis
-  - secrets need to pulled properly
   - need to take hourly snapshots of the cluster?
+  - this can either use our postgres snapshots or etcd snapshots.
+
+  - secrets need to pulled properly
 
 - Loco Health Endpoint; served on status.loco.build;
 - when we do multicluster, is there a cluster specific one.
@@ -97,6 +62,10 @@
   -Current incidents (auto-created from Prometheus/Grafana alerts)
 
 - Emailing Service?
+- remove crds from helm chart
+  - i think helm chart can list dependencies, but crds must be installed explicitly and separately.
+  - im thinking we use fluxcd for this.
+- expose the loco default url for app domain deployment to the config endpoint/defaults endpoint.
 
 ---
 
@@ -186,9 +155,6 @@ sleep mode; if app not used in last 7 days or something. deployment is removed; 
 
 - resource management needs to be evaluated. how many resources are we using ? what are we wasting ?
 
-- wondering if there is value in tests where we actually literally spin up a docker container and we start running stuff on it. like literally use minikube and firing away at tests, atleast i think thats the most accurate way to test the deployment piece.
-- improve ci/cd pipelines for testing purposes
-
 - remove host from persistent flag.
 - update system design diagram to represent observability.
 - deploy needs to do a diff of the previous deployment done on loco, vs the incoming, and only update the resources that need changing.
@@ -259,15 +225,30 @@ Clickhouse logs issues:
 - when user deletes wkspc/app. we need to kick off metrics/logs deletion for that entire application.
   - save absolutely nothing.
 
-- lol tests.
+- Tests
+  - API
+    - unit tests
+    - integration tests
+  - CLI
+    - unit tests
+  - UI
+    - playground tests?
+  - Controller
+    - unit tests
+    - e2e with kind
 
-- on workspace / org / user creation, we need to also do the same for grafana resources.
-- most likely a 1-1 mapping, with the same RBAC as well.
+- Loco Docs.
+  - we have the api docs generated via the proto definitions
 
 ---
 
-Phase I ends Here
+For V2:
 
+- Tracing
+- Health Checks
+  - should eventually support non-http health checks.
+
+- Scanning Docker Images; we have a TDD for this
 - Loco Packages (eventually) -> Phase II of MVP.
   - a bundle of services. always deployed to 1 wkspc.
   - maybe deploy to existing workspace.
@@ -280,11 +261,6 @@ Phase I ends Here
 - Snapshots of Cluster and backing it up.
 
 - Custom Container Registry.
-
-- Loco Docs.
-  - we will autogenerate using code x AI. i know man.
-
-- Health Endpoint
 
 - Make apps sleep and then rebuild apps.
 
@@ -308,7 +284,6 @@ Phase I ends Here
   - lack of auditing. we will need an audit table? or atleast some sort of events recording.
 
 - will use github.com/grafana/grafana-openapi-client-go to generate the grafana dashboards programatically on workspace creation?
-- i think there is a better toml parser?
 - introduce interactivity during login.
 
 - saved from loco.toml:
@@ -324,8 +299,6 @@ Phase I ends Here
 - eventually use.go should be able to switch between different scopes.
 - we should have a way to list all the scopes and switch between them.
 
-- connect does not have any out of the box validation for requests coming in. we need to manually all incoming params
-
 - clickhouse integration to get logs, metrics, and tracing.
 - need an invitations microservice alongside an emailing microservice.
 - helm charts even for 'loco-core' need to be separated
@@ -335,7 +308,6 @@ Phase I ends Here
 - missing concept of schema versioning for the app config that should be scoped inside DB
 - potentially setup umami for analytics on the frontend?
 - whereever we make these multi saves, we need to run as a transaction.
-- on the UI, if API returns a message, we need to read that.
 
 missing a proper deployment interface as in whats happening inside allocateResources. we need a simple way to start, execute, and watch these changes.
 
@@ -357,10 +329,7 @@ create loco resource will need to handle loco spec versions.
 fully update the helm charts to be parametrized instead of using hardcoded values.
 potentially use the kubernetes dashboard for admin view.
 
-deployment defaults should come from where?
-the resource, the last deployment?
 for rolling back, we will need to persist the env someplace. and unfortunately, we cannot persist in postgres.
-for rolling back, how do we decide whcih deployment to push it back to? rollbacks will need to be regional
 clickhouse is named weirdly and so is our controller.
 
 - resourcespec needs to be different per type of resoure. the current one works specifically for services.
@@ -369,7 +338,6 @@ clickhouse is named weirdly and so is our controller.
 - owner reference?
 - cmd/deploy.go has become lost in the sauce. we need to clean it up.
 - do we need tls in-cluster communication?
-- api needs to set and validate defaults before firing to locoresource.
 - make controller an all or nothing approach.
 - mark previous deployments as inactive or something before creating the next deployment. do this transactionally.
 - do all the previous helm secrets and nonsense need to be removed? maybe we max history at 5.
@@ -386,7 +354,7 @@ clickhouse is named weirdly and so is our controller.
 - we need to create a dependency chart, on all our dependencies.
 - break it down by component and whatnot.
 - as long as we keep that in sync, we can always tell if we change something what will break.
-- basic rate limiter for envoy.
+- use the out of box envoy rate limiter.
 
 - questions:
 - the deployment or create app request for loco, must be heavily rate limited.
