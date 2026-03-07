@@ -1,7 +1,3 @@
-import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -12,9 +8,13 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { type WorkspaceMemberWithUser } from "@/gen/loco/workspace/v1/workspace_pb";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
+import { useState } from "react";
 
 const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 	admin: {
@@ -33,6 +33,7 @@ const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 
 // eslint-disable-next-line react-refresh/only-export-components
 function RoleBadge({ role }: { role: string }) {
+	console.log("what is role", role);
 	const variant =
 		roleBadgeVariants[role.toLowerCase()] || roleBadgeVariants.member;
 	return (
@@ -85,8 +86,8 @@ function ActionsCell({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Remove member</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to remove {member.userName} from the workspace? This
-							action cannot be undone.
+							Are you sure you want to remove {member.userName} from the
+							workspace? This action cannot be undone.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="flex gap-2 justify-end">
@@ -110,7 +111,7 @@ function ActionsCell({
 export function getColumns(
 	isAdmin: boolean,
 	onRemoveMember: (userId: string) => void,
-	isRemoving: boolean
+	isRemoving: boolean,
 ): ColumnDef<WorkspaceMemberWithUser>[] {
 	return [
 		{
@@ -142,9 +143,13 @@ export function getColumns(
 			},
 		},
 		{
-			accessorKey: "role",
+			accessorKey: "scopes",
 			header: "Role",
-			cell: ({ row }) => <RoleBadge role={row.getValue("role")} />,
+			cell: ({ row }) => {
+				const scopes = row.getValue("scopes") as string[];
+				const role = scopes?.[0] || "viewer";
+				return <RoleBadge role={role} />;
+			},
 		},
 		{
 			id: "actions",

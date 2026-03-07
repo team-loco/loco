@@ -102,11 +102,8 @@ export function Profile() {
 							<Button
 								size="sm"
 								onClick={() => {
-									if (firstOrgId) {
-										navigate(`/org/${firstOrgId}/tokens`);
-									}
+									navigate("/tokens");
 								}}
-								disabled={!firstOrgId}
 							>
 								Manage Tokens
 								<ArrowRight className="h-4 w-4 ml-2" />
