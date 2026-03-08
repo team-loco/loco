@@ -13,8 +13,8 @@ import (
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, started_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
 RETURNING id
 `
 

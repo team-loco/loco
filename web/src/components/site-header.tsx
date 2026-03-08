@@ -304,7 +304,7 @@ export function SiteHeader() {
 									onClick={() => {
 										void navigate(item.url);
 									}}
-									className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent ${
+									className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent font-mono ${
 										isActive(item.url) ? "text-primary-foreground" : ""
 									}`}
 								>

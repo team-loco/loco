@@ -42,4 +42,7 @@ message DefaultServiceConfig {
 
   // Default observability configuration
   resource.v1.ObservabilityConfig observability = 9;
+
+  // Default platform domain (e.g., "onloco.app")
+  string platform_domain = 10;
 }

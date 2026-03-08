@@ -379,13 +379,8 @@ clickhouse is named weirdly and so is our controller.
 - revisit domains setup.
   -> platform domain to deploy on should come from the config endpoint.
   -> i don't really see value in deploying ur app on multiple different domains, perhaps we just dont even need to call that endpoint.
-  -> redesign the create resource page to no longer take in the resource-name / domain / port. just a multi page modal with docker image / optional network settings.
-  -> honestly that 'optional' section is the one we might need to expose.
-  -> pages:
-  1. from: {docker-image}
-  2. network: domain, port.
-  3. resources: defaults filled, region
-  4. environment: the whole import and everything. environment needs to be hidden with \*\*s with a 10s view button.
 
 - graduating ur services would be a nice to have.
 - on the ui, maybe we just use toast.error() on error instead for mutations. instead of putting the value in a card.
+
+- networking config should be nillable. if its not present, the app simply will not receive internet traffic.

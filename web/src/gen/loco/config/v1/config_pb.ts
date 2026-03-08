@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIiAKHkdldERlZmF1bHRTZXJ2aWNlQ29uZmlnUmVxdWVzdCJXCh9HZXREZWZhdWx0U2VydmljZUNvbmZpZ1Jlc3BvbnNlEjQKBmNvbmZpZxgBIAEoCzIkLmxvY28uY29uZmlnLnYxLkRlZmF1bHRTZXJ2aWNlQ29uZmlnIrkCChREZWZhdWx0U2VydmljZUNvbmZpZxISCgpidWlsZF90eXBlGAEgASgJEhcKD2RvY2tlcmZpbGVfcGF0aBgCIAEoCRIwCgdyb3V0aW5nGAMgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgEIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYBSABKAkSDgoGbWVtb3J5GAYgASgJEhQKDG1pbl9yZXBsaWNhcxgHIAEoBRIUCgxtYXhfcmVwbGljYXMYCCABKAUSPAoNb2JzZXJ2YWJpbGl0eRgJIAEoCzIlLmxvY28ucmVzb3VyY2UudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZzKLAQoNQ29uZmlnU2VydmljZRJ6ChdHZXREZWZhdWx0U2VydmljZUNvbmZpZxIuLmxvY28uY29uZmlnLnYxLkdldERlZmF1bHRTZXJ2aWNlQ29uZmlnUmVxdWVzdBovLmxvY28uY29uZmlnLnYxLkdldERlZmF1bHRTZXJ2aWNlQ29uZmlnUmVzcG9uc2VCOVo3Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9wcm90by9sb2NvL2NvbmZpZy92MTtjb25maWd2MWIGcHJvdG8z", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIiAKHkdldERlZmF1bHRTZXJ2aWNlQ29uZmlnUmVxdWVzdCJXCh9HZXREZWZhdWx0U2VydmljZUNvbmZpZ1Jlc3BvbnNlEjQKBmNvbmZpZxgBIAEoCzIkLmxvY28uY29uZmlnLnYxLkRlZmF1bHRTZXJ2aWNlQ29uZmlnItICChREZWZhdWx0U2VydmljZUNvbmZpZxISCgpidWlsZF90eXBlGAEgASgJEhcKD2RvY2tlcmZpbGVfcGF0aBgCIAEoCRIwCgdyb3V0aW5nGAMgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgEIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYBSABKAkSDgoGbWVtb3J5GAYgASgJEhQKDG1pbl9yZXBsaWNhcxgHIAEoBRIUCgxtYXhfcmVwbGljYXMYCCABKAUSPAoNb2JzZXJ2YWJpbGl0eRgJIAEoCzIlLmxvY28ucmVzb3VyY2UudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZxIXCg9wbGF0Zm9ybV9kb21haW4YCiABKAkyiwEKDUNvbmZpZ1NlcnZpY2USegoXR2V0RGVmYXVsdFNlcnZpY2VDb25maWcSLi5sb2NvLmNvbmZpZy52MS5HZXREZWZhdWx0U2VydmljZUNvbmZpZ1JlcXVlc3QaLy5sb2NvLmNvbmZpZy52MS5HZXREZWZhdWx0U2VydmljZUNvbmZpZ1Jlc3BvbnNlQjlaN2dpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vcHJvdG8vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * GetDefaultServiceConfigRequest is the request to retrieve default service configuration.
@@ -139,6 +139,13 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
    * @generated from field: loco.resource.v1.ObservabilityConfig observability = 9;
    */
   observability?: ObservabilityConfig;
+
+  /**
+   * Default platform domain (e.g., "onloco.app")
+   *
+   * @generated from field: string platform_domain = 10;
+   */
+  platformDomain: string;
 };
 
 /**
@@ -210,6 +217,13 @@ export type DefaultServiceConfigJson = {
    * @generated from field: loco.resource.v1.ObservabilityConfig observability = 9;
    */
   observability?: ObservabilityConfigJson;
+
+  /**
+   * Default platform domain (e.g., "onloco.app")
+   *
+   * @generated from field: string platform_domain = 10;
+   */
+  platformDomain?: string;
 };
 
 /**

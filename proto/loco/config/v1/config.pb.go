@@ -123,8 +123,10 @@ type DefaultServiceConfig struct {
 	MaxReplicas int32  `protobuf:"varint,8,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
 	// Default observability configuration
 	Observability *v1.ObservabilityConfig `protobuf:"bytes,9,opt,name=observability,proto3" json:"observability,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Default platform domain (e.g., "onloco.app")
+	PlatformDomain string `protobuf:"bytes,10,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DefaultServiceConfig) Reset() {
@@ -220,6 +222,13 @@ func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
 	return nil
 }
 
+func (x *DefaultServiceConfig) GetPlatformDomain() string {
+	if x != nil {
+		return x.PlatformDomain
+	}
+	return ""
+}
+
 var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_loco_config_v1_config_proto_rawDesc = "" +
@@ -227,7 +236,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\" \n" +
 	"\x1eGetDefaultServiceConfigRequest\"_\n" +
 	"\x1fGetDefaultServiceConfigResponse\x12<\n" +
-	"\x06config\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x06config\"\xa0\x03\n" +
+	"\x06config\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x06config\"\xc9\x03\n" +
 	"\x14DefaultServiceConfig\x12\x1d\n" +
 	"\n" +
 	"build_type\x18\x01 \x01(\tR\tbuildType\x12'\n" +
@@ -238,7 +247,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x06memory\x18\x06 \x01(\tR\x06memory\x12!\n" +
 	"\fmin_replicas\x18\a \x01(\x05R\vminReplicas\x12!\n" +
 	"\fmax_replicas\x18\b \x01(\x05R\vmaxReplicas\x12K\n" +
-	"\robservability\x18\t \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability2\x8b\x01\n" +
+	"\robservability\x18\t \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
+	"\x0fplatform_domain\x18\n" +
+	" \x01(\tR\x0eplatformDomain2\x8b\x01\n" +
 	"\rConfigService\x12z\n" +
 	"\x17GetDefaultServiceConfig\x12..loco.config.v1.GetDefaultServiceConfigRequest\x1a/.loco.config.v1.GetDefaultServiceConfigResponseB9Z7github.com/team-loco/loco/proto/loco/config/v1;configv1b\x06proto3"
 

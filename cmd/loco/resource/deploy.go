@@ -111,7 +111,7 @@ Examples:
 			}
 
 			// Load config file
-			loadedCfg, err := loadDeployConfig(cmd, deps, name)
+			loadedCfg, err := loadDeployConfig(cmd, deps)
 			if err != nil {
 				return err
 			}
@@ -179,12 +179,12 @@ Examples:
 	cmd.Flags().String("workspace", "", "Workspace name")
 	cmd.Flags().StringP("image", "i", "", "Use existing image instead of building")
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().Bool("wait", false, "Wait for deployment to complete")
+	cmd.Flags().Bool("wait", false, "Wait for any replicas to fully scale out.")
 
 	return cmd
 }
 
-func loadDeployConfig(cmd *cobra.Command, deps deployDeps, name string) (*config.LoadedConfig, error) {
+func loadDeployConfig(cmd *cobra.Command, deps deployDeps) (*config.LoadedConfig, error) {
 	configPath, err := cmd.Flags().GetString("config")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config flag: %w", err)
@@ -312,6 +312,16 @@ func buildAndPushImage(
 			},
 		})
 	}
+
+	steps = append(steps, ui.Step{
+		Title: "Validate image",
+		Run: func(logf func(string)) error {
+			if validateErr := dockerClient.ValidateImage(ctx, imageName, logf); validateErr != nil {
+				return fmt.Errorf("image validation failed: %w", validateErr)
+			}
+			return nil
+		},
+	})
 
 	steps = append(steps, ui.Step{
 		Title: "Push image to registry",
