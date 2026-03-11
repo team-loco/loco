@@ -8,7 +8,7 @@ require (
 	connectrpc.com/grpcreflect v1.3.0
 	connectrpc.com/validate v0.6.0
 	github.com/allegro/bigcache/v3 v3.1.0
-	github.com/charmbracelet/log v0.4.2
+	github.com/charmbracelet/log v1.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/rs/cors v1.11.1
