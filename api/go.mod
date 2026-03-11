@@ -15,7 +15,7 @@ require (
 	github.com/team-loco/loco/k8sapi v0.0.0
 	github.com/team-loco/loco/proto v0.0.0
 	github.com/valkey-io/valkey-go v1.0.72
-	golang.org/x/oauth2 v0.35.0
+	golang.org/x/oauth2 v0.36.0
 	k8s.io/apimachinery v0.35.1
 )
 
