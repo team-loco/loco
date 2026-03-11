@@ -8,7 +8,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.0
 	connectrpc.com/connect v1.19.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/charmbracelet/fang v0.4.4
+	github.com/charmbracelet/fang v1.0.0
 	github.com/containerd/errdefs v1.0.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/goccy/go-json v0.10.5
