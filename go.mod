@@ -11,7 +11,7 @@ require (
 	github.com/charmbracelet/fang v0.4.4
 	github.com/containerd/errdefs v1.0.0
 	github.com/docker/docker v28.5.2+incompatible
-	github.com/goccy/go-json v0.10.5
+	github.com/goccy/go-json v0.10.6
 	github.com/joho/godotenv v1.5.1
 	github.com/moby/go-archive v0.2.0
 	github.com/spf13/cobra v1.10.2
