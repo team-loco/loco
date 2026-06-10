@@ -31,7 +31,7 @@ otel-col-daemon:
   mode: daemonset
   image:
     repository: "otel/opentelemetry-collector-contrib"
-    tag: "0.142.0"
+    tag: "0.147.0"
   hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet
   resources:
@@ -132,7 +132,7 @@ otel-col-deploy:
   mode: deployment
   image:
     repository: "otel/opentelemetry-collector-contrib"
-    tag: "0.142.0"
+    tag: "0.147.0"
   resources:
     limits:
       cpu: 250m

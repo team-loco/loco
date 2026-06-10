@@ -8,7 +8,7 @@ appVersion: "latest"
 
 dependencies:
   - name: gateway-helm
-    version: 1.6.1
+    version: 1.8.1
     repository: oci://docker.io/envoyproxy
     condition: gateway-helm.enabled
 
