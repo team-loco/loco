@@ -176,7 +176,7 @@ func (c *DockerClient) PushImage(ctx context.Context, logf func(string), usernam
 
 func (c *DockerClient) ValidateImage(ctx context.Context, imageID string, logf func(string)) error {
 	logf(fmt.Sprintf("Validating image: %s", imageID))
-	
+
 	inspect, err := c.dockerClient.ImageInspect(ctx, imageID)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
@@ -185,11 +185,11 @@ func (c *DockerClient) ValidateImage(ctx context.Context, imageID string, logf f
 		return fmt.Errorf("failed to inspect image %q: %w", imageID, err)
 	}
 	logf(fmt.Sprintf("Image %q found locally", imageID))
-	
+
 	if err := c.validateImageSize(inspect.Size, logf); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -197,14 +197,14 @@ func (c *DockerClient) validateImageSize(sizeBytes int64, logf func(string)) err
 	const maxSizeGB = 1
 	const bytesPerGB = 1024 * 1024 * 1024
 	maxSizeBytes := int64(maxSizeGB * bytesPerGB)
-	
+
 	sizeGB := float64(sizeBytes) / float64(bytesPerGB)
 	logf(fmt.Sprintf("Image size: %.2f GB", sizeGB))
-	
+
 	if sizeBytes > maxSizeBytes {
 		return fmt.Errorf("image size %.2f GB exceeds maximum allowed size of %d GB", sizeGB, maxSizeGB)
 	}
-	
+
 	return nil
 }
 

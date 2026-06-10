@@ -366,21 +366,18 @@ clickhouse is named weirdly and so is our controller.
   reduce scope::
 
 - no longer let ppl bring in their custom domains.
-- disable color output in cli flag/env
 - eventually will need canaries against our service.
 
-- loco cli/ui on init should also grab defaults from the static config endpoint and store them.
-
-- the UI needs to look at the vite_api_base_url
-
-- theres a possibility the defaultAppDomain is something returned by the locoHost for simple default config settings.
-
 - need handling of environments, on both the UI, and better handling in the backend.
-- revisit domains setup.
-  -> platform domain to deploy on should come from the config endpoint.
-  -> i don't really see value in deploying ur app on multiple different domains, perhaps we just dont even need to call that endpoint.
 
 - graduating ur services would be a nice to have.
 - on the ui, maybe we just use toast.error() on error instead for mutations. instead of putting the value in a card.
 
 - networking config should be nillable. if its not present, the app simply will not receive internet traffic.
+
+- will need better api verification on builds:
+  - like on docker image registry, size, ...
+
+Super Nice to Haves:
+
+- Respect NO_COLOR env or flag, and disable colored rendering, or other fancy utf-8 characters.

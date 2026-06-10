@@ -6,7 +6,8 @@ export default {
 		extend: {
 			fontFamily: {
 				sans: ["Satoshi", "Inter", "system-ui", "sans-serif"],
-				mono: ["JetBrains Mono", "Menlo", "Monaco", "monospace"],
+				mono: ["DM Mono", "JetBrains Mono", "Menlo", "Monaco", "monospace"],
+				serif: ["DM Serif Display", "Georgia", "serif"],
 			},
 			colors: {
 				primary: {
