@@ -1172,7 +1172,7 @@ type CreateResourceRequest struct {
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Type          ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
-	Domain        *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	Domain        *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
 	Spec          *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
 	Description   *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2720,15 +2720,16 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2$.loco.resource.v1.RegionIntentStatusR\x06status\x12\"\n" +
 	"\n" +
 	"last_error\x18\x04 \x01(\tH\x00R\tlastError\x88\x01\x01B\r\n" +
-	"\v_last_error\"\xf1\x02\n" +
+	"\v_last_error\"\xf9\x02\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12>\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04type\x12;\n" +
-	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputB\x06\xbaH\x03\xc8\x01\x01R\x06domain\x12:\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04type\x128\n" +
+	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputH\x00R\x06domain\x88\x01\x01\x12:\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
-	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x00R\vdescription\x88\x01\x01B\x0e\n" +
+	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\t\n" +
+	"\a_domainB\x0e\n" +
 	"\f_descriptionJ\x04\b\a\x10\bR\x0eenvironment_id\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +

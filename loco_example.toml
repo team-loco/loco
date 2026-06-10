@@ -14,8 +14,9 @@ IdleTimeout = 60 # Idle timeout in seconds before shutting down a pod. Required:
 PathPrefix = "/" # Path prefix for routing requests. Required: no. Default: "/"
 Port = 8000 # Port the app listens on. Required: yes. No default.
 
+# Optional: if omitted, the app will not receive internet traffic.
 [DomainConfig]
-Hostname = "myapp.onloco.app" # Full resolvable hostname for the app. Required: yes. No default.
+Hostname = "myapp.onloco.app" # Full resolvable hostname for the app. Required: yes (if DomainConfig is present). No default.
 Type = "platform" # Domain type: "platform" (Loco-provided, default) or "custom" (user-provided). Required: no. Default: "platform"
 
 # Regional configuration: each region specifies its own resources (CPU, Memory, Replicas, Scalers)

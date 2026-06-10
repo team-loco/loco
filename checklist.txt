@@ -4,6 +4,8 @@ Phase I
 
 [ ] Add network policies restricting cross-workspace traffic / intro in-cluster communication.
 
+[ ] Enforce that all apps in a workspace are deployed to the same cluster.
+
 [ ] OpenTelemetry Optimization
 
 [ ] Create metric processor to drop unnecessary/high-cardinality metrics.
@@ -18,22 +20,66 @@ Phase I
 
 [ ] Implement proper ttl-ing for data.
 
+[ ] Add multi-tenancy attributes to all obs records (org-id, workspace-id, app-id, app-name).
+
+[ ] Add loco-tenant-id header on successful routing for OTEL dashboarding.
+
+[ ] ClickHouse schema improvements — custom schema with indexes on app-id/workspace-id,
+    fix potential SQL injection in limits+query, fix TTL policy.
+
 [ ] Add support for non-interactive deploy.
     Dependant on tvm
 
+[ ] OCI image builder socket support — accept --docker-socket / LOCO__DOCKER_SOCKET,
+    branch version check on Platform.Name (Docker only).
+
+[ ] Container registry lifecycle policy — last 2 images per resource, random hash prefix,
+    write-only from Loco infra.
+
+[ ] Rotate GitLab registry token continuously (not just at deploy time).
+
 [ ] Cleanup partial resources on failure.
 
+[ ] Deployment flow cleanup — cmd/deploy.go, async deploy request flow, image tag on server.
+
+[ ] Verify GRPC passthrough works with current Envoy Gateway setup.
+
 [ ] Proper secrets management.
+
+[ ] Decide on TLS for in-cluster communication (mTLS or not).
+
+[ ] Auto-rotate Loco root password.
 
 [ ] Never return internal db errors back to the user.
 
 [ ] Reduce GitHub OAuth token longevity.
 
+[ ] API design review — CRUD endpoints should return ID only, not full resource.
+
+[ ] SQL hygiene — transactions for multi-step writes, indexes on created_at, unique check
+    should exclude current row ID on updates.
+
+[ ] Remove host from persistent flags.
+
+[ ] Expose default platform domain via config/defaults endpoint.
+
 [ ] Actual unit tests in critical parts of the codebase.
+
+[ ] Deployment scripts need tests.
 
 [ ] Initial load testing / benchmarking.
 
-[ ] Deploy to either cevo.do.gke
+[ ] Configure HPA for cluster nodes.
+
+[ ] Add HPA to Envoy Gateway deployment.
+
+[ ] Rate limiting — use Envoy's built-in rate limiter, protect deploy endpoint.
+
+[ ] Create dependency chart for all Loco components and dependencies.
+
+[ ] Resource management evaluation — baseline resource usage, reduce waste.
+
+[ ] Deploy to either cevo/do/gke
 
 [ ] App Configs need to be versioned.
 
@@ -53,9 +99,15 @@ Phase I
     - initial implementation done.
     - need something to manage crd lifecycle.
 
+[ ] Parametrize all helm charts, no hardcoded values. Separate CRD lifecycle from helm.
+
 [ ] Deploy app entirely without loco.toml.
 
 [ ] Full data deletion on user/app deletion.
+
+[ ] Postgres backups.
+
+[ ] ClickHouse backups.
 
 [ ] Publish Loco documentation
 
@@ -67,7 +119,6 @@ Phase I
 
 [ ] need a loco sync cli command to link your services between local and whats deployed. show a nice little diff between the 2 on both UI and Cli
 
-[ ] 
 
 Phase II
 
@@ -75,7 +126,11 @@ Phase II
 
 [ ] Tracing.
 
+[ ] Grafana programmatic dashboards per workspace on workspace creation.
+
 [ ] Org/Workspace/App management for CLI
+
+[ ] Interactive scope switching in use.go (list + switch scopes).
 
 [ ] Allow control over egress to the internet.
 
@@ -85,9 +140,11 @@ Phase II
 
 [ ] Scan docker images for vulnerabilities.
 
-[ ] Custom container registry.
+[ ] Custom container registry (Harbor/Quay, multi-tenant, integrated scanning).
 
 [ ] Resurrector Service
+
+[ ] Cluster snapshots (etcd or Postgres-based).
 
 [ ] App Sleep Mode (auto and user defined.)
 
@@ -95,7 +152,7 @@ Phase II
 
 [ ] Loco Admin Dashboard (also other APIs)
 
-[ ] Test even the UI using playright. (do not use unit tests)
+[ ] Test even the UI using playwright. (do not use unit tests)
 
 [ ] Audit/Events table.
 
@@ -114,3 +171,43 @@ Phase II
 [ ] One-click deletes.
 
 [ ] Ensure metrics/logs are deleted when apps/workspaces are deleted.
+
+[ ] Non-HTTP health checks (bash/exec based).
+
+[ ] Allow control over egress per app.
+
+[ ] User profiles / bring-your-own-cloud config.
+
+[ ] Secrets integration (AWS SSM, Vault, etc).
+
+[ ] Interactivity during login.
+
+[ ] Switch to normal IDs instead of UUIDs (simpler, cheaper, naturally sortable).
+
+[ ] Split sqlc queries into separate packages.
+
+[ ] Add created_at indexes wherever we order by it.
+
+[ ] Rate limiting per tenant (extend beyond Envoy global limiter).
+
+[ ] Evaluate ArgoCD and others for better CD of Kubernetes resources.
+
+[ ] Resource consumption tests — run loco with as little resources as possible.
+
+
+Phase III
+
+[ ] Account hygiene — background cleanup of inactive accounts, release domains, remove unused resources.
+
+[ ] Canary deployments — for Loco's own services first, then expose to users.
+
+[ ] Kubernetes export — loco export converts loco.toml to Kubernetes YAML.
+
+[ ] Graduating services — formal path for users to move off Loco to self-managed infra.
+
+
+Backlog (only if users ask for it)
+
+[ ] loco init --minimal flag.
+
+[ ] NO_COLOR / --no-color support.

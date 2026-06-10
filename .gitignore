@@ -69,3 +69,6 @@ seed.sql
 # e2e test artifacts
 e2e/pids/
 e2e/logs/
+
+
+CLAUDE.md

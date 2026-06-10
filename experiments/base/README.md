@@ -7,7 +7,7 @@ A minimal kind cluster setup with monitoring capabilities for quick experimentat
 - 1 control-plane node
 - 2 worker nodes
 - metrics-server for resource metrics
-- kubernetes-dashboard for cluster inspection
+- headlamp for cluster inspection
 
 ## Quick Start
 
@@ -32,9 +32,9 @@ kubectl top nodes --context kind-my-cluster
 
 ### Access dashboard
 ```bash
-kubectl proxy --context kind-my-cluster
+kubectl port-forward -n headlamp svc/headlamp 4466:4466 --context kind-my-cluster
 ```
-Then visit: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+Then visit: http://localhost:4466
 
 ### Delete cluster
 ```bash

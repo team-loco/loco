@@ -7,7 +7,7 @@ Testing environment for ClickStack - a full observability platform built on Clic
 - 1 control-plane node
 - 2 worker nodes
 - metrics-server for resource metrics
-- kubernetes-dashboard for cluster inspection
+- headlamp for cluster inspection
 - ClickStack with HyperDX UI and ClickHouse backend
 - OpenTelemetry Demo - microservices app that generates logs, metrics, and traces
 
@@ -72,11 +72,11 @@ helm upgrade clickstack clickstack/clickstack \
   --kube-context kind-my-clickstack
 ```
 
-### Access Kubernetes Dashboard
+### Access Headlamp dashboard
 ```bash
-kubectl proxy --context kind-my-clickstack
+kubectl port-forward -n headlamp svc/headlamp 4466:4466 --context kind-my-clickstack
 ```
-Then visit: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+Then visit: http://localhost:4466
 
 ### Monitor Resources
 ```bash

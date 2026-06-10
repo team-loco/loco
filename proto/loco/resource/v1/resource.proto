@@ -198,7 +198,7 @@ message CreateResourceRequest {
     defined_only: true
     not_in: [0]
   }];
-  domain.v1.DomainInput domain = 4 [(buf.validate.field).required = true];
+  optional domain.v1.DomainInput domain = 4;
   ResourceSpec spec = 5 [(buf.validate.field).required = true];
   optional string description = 6 [(buf.validate.field).string.max_len = 256];
   reserved 7;

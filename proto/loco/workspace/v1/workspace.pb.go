@@ -1267,9 +1267,9 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\x13GetWorkspaceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"R\n" +
 	"\x14GetWorkspaceResponse\x12:\n" +
-	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"\x86\x01\n" +
-	"\x19ListUserWorkspacesRequest\x12!\n" +
-	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x12'\n" +
+	"\tworkspace\x18\x01 \x01(\v2\x1c.loco.workspace.v1.WorkspaceR\tworkspace\"|\n" +
+	"\x19ListUserWorkspacesRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
