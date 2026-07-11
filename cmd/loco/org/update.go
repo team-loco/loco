@@ -89,6 +89,7 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().String("new-name", "", "New name for the organization")
 
 	return cmd

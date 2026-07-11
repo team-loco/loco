@@ -130,6 +130,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
 	cmd.Flags().Int64("entity-id", 0, "Entity ID (defaults to current user for user type)")
 

@@ -129,6 +129,7 @@ func buildListCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().Int64("org-id", 0, "Filter by organization ID")
 
 	return cmd

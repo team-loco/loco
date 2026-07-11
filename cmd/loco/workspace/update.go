@@ -103,6 +103,7 @@ func buildUpdateCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().String("name", "", "New name for the workspace")
 	cmd.Flags().String("description", "", "New description for the workspace")
 

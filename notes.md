@@ -203,6 +203,9 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - **Notifications service** — in-app + email. Generic webhook for notifying admins on failures.
 - **Build logs microservice** — separate from application logs; build output should be
   streamed and stored independently.
+- cluster locations should be hidden as well i wanna say.
+- separate repo for loco-saas?
+
 
 ### Testing
 

@@ -155,6 +155,7 @@ Tokens can be scoped to different entity types:
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().StringSlice("scope", []string{"read"}, "Token scopes: read, write, admin")
 	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d, 30d)")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")

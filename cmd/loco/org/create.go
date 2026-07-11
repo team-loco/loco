@@ -80,5 +80,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
+
 	return cmd
 }

@@ -143,8 +143,8 @@ func main() {
 
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		MaxAPITokenDuration:         time.Hour * 24 * 365,
-		SessionAccessTokenDuration:  time.Hour * 24,
-		SessionRefreshTokenDuration: time.Hour * 24 * 30,
+		SessionAccessTokenDuration:  time.Hour,
+		SessionRefreshTokenDuration: time.Hour * 24 * 7,
 		LastUsedUpdateInterval:      time.Minute * 5,
 	})
 

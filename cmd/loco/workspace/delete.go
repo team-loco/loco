@@ -113,6 +113,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().Bool("confirm-delete-apps", false, "Confirm deletion of all apps in the workspace")
 

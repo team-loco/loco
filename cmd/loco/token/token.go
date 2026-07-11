@@ -35,8 +35,6 @@ Tokens can be scoped to different entity types:
   loco token delete my-ci-token`,
 	}
 
-	cmd.PersistentFlags().String("host", "", "API host URL")
-
 	cmd.AddCommand(
 		buildShowCmd(),
 		buildRevokeCmd(),
