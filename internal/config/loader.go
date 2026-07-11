@@ -65,10 +65,6 @@ var Default = &LocoConfig{
 			Tags:       map[string]string{},
 		},
 	},
-	DomainConfig: DomainConfig{
-		Type:     "platform",
-		Hostname: "loco.onloco.app",
-	},
 }
 
 // FillSensibleDefaults applies defaults to a config where values are not set
@@ -121,16 +117,16 @@ func Validate(cfg *LocoConfig) error {
 		return fmt.Errorf("metadata.name must be set")
 	}
 
-	if cfg.DomainConfig.Hostname == "" {
-		return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.onloco.app')")
-	}
-
-	if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != "platform" && cfg.DomainConfig.Type != "custom" {
-		return fmt.Errorf("domainConfig.type must be 'platform' or 'custom', got %q", cfg.DomainConfig.Type)
-	}
-
-	if cfg.DomainConfig.Type == "" {
-		cfg.DomainConfig.Type = "platform"
+	if cfg.DomainConfig != nil {
+		if cfg.DomainConfig.Hostname == "" {
+			return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.onloco.app')")
+		}
+		if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != "platform" && cfg.DomainConfig.Type != "custom" {
+			return fmt.Errorf("domainConfig.type must be 'platform' or 'custom', got %q", cfg.DomainConfig.Type)
+		}
+		if cfg.DomainConfig.Type == "" {
+			cfg.DomainConfig.Type = "platform"
+		}
 	}
 
 	if cfg.Routing.Port <= 1023 || cfg.Routing.Port > 65535 {
@@ -391,7 +387,10 @@ func CreateDefault(appName, appDomain string) error {
 	cfg := *Default // Copy the default config
 	cfg.Metadata.Name = appName
 	cfg.Metadata.Region = "us-east-1"
-	cfg.DomainConfig.Hostname = appName + "." + appDomain
+	cfg.DomainConfig = &DomainConfig{
+		Type:     "platform",
+		Hostname: appName + "." + appDomain,
+	}
 	cfg.RegionConfig = map[string]Resources{
 		"us-east-1": {
 			CPU:         "100m",

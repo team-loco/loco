@@ -5,7 +5,7 @@ type LocoConfig struct {
 	Metadata     Metadata             `json:"metadata" toml:"Metadata"`
 	Build        Build                `json:"build" toml:"Build"`
 	Routing      Routing              `json:"routing" toml:"Routing"`
-	DomainConfig DomainConfig         `json:"domainConfig" toml:"DomainConfig"`
+	DomainConfig *DomainConfig        `json:"domainConfig,omitempty" toml:"DomainConfig"`
 	RegionConfig map[string]Resources `json:"regionConfig" toml:"RegionConfig"`
 	Health       Health               `json:"health" toml:"Health"`
 	Env          Env                  `json:"env,omitzero" toml:"Env"`

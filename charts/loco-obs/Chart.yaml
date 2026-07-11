@@ -2,41 +2,36 @@ apiVersion: v2
 name: loco-obs
 description: Helm chart for deploying Loco observability stack
 type: application
-
 version: 0.0.0
 appVersion: "latest"
-
 dependencies:
-  - name: clickhouse
-    version: 0.3.11
-    repository: https://helm.altinity.com
-    condition: clickhouse.enabled
-  - name: opentelemetry-operator
-    version: 0.114.1
-    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-    condition: opentelemetry-operator.enabled
-  - name: opentelemetry-collector
-    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-    version: 0.158.1
-    alias: otel-col-daemon
-    condition: otel-col-daemon.enabled
-  - name: opentelemetry-collector
-    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-    version: 0.158.1
-    alias: otel-col-deploy
-    condition: otel-col-deploy.enabled
-  - name: grafana
-    repository: https://grafana.github.io/helm-charts
-    version: 10.5.15
-    condition: grafana.enabled
-
+    - name: clickhouse
+      version: 0.3.12
+      repository: https://helm.altinity.com
+      condition: clickhouse.enabled
+    - name: opentelemetry-operator
+      version: 0.118.0
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      condition: opentelemetry-operator.enabled
+    - name: opentelemetry-collector
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      version: 0.162.0
+      alias: otel-col-daemon
+      condition: otel-col-daemon.enabled
+    - name: opentelemetry-collector
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      version: 0.162.0
+      alias: otel-col-deploy
+      condition: otel-col-deploy.enabled
+    - name: grafana
+      repository: https://grafana.github.io/helm-charts
+      version: 10.5.15
+      condition: grafana.enabled
 maintainers:
-  - name: Nikhil
-
+    - name: Nikhil
 sources:
-  - https://github.com/team-loco/loco
-
+    - https://github.com/team-loco/loco
 keywords:
-  - loco
-  - kubernetes
-  - observability
+    - loco
+    - kubernetes
+    - observability

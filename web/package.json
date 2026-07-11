@@ -74,5 +74,10 @@
 		"typescript-eslint": "^8.46.4",
 		"vite": "npm:rolldown-vite@7.2.5",
 		"vite-plugin-svgr": "^4.5.0"
+	},
+	"allowScripts": {
+		"@bufbuild/buf@1.70.0": true,
+		"@swc/core@1.15.41": true,
+		"fsevents@2.3.3": true
 	}
 }

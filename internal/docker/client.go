@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -40,6 +42,10 @@ type DockerClient struct {
 }
 
 func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
+	if err := checkDockerAvailable(); err != nil {
+		return nil, err
+	}
+
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
@@ -47,7 +53,7 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 
 	v, err := cli.ServerVersion(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Docker daemon is not responding — is Docker running?\n  Start Docker and try again, or skip the build step with: --image <your-image>")
 	}
 
 	if v.Version < MINIMUM_DOCKER_ENGINE_VERSION {
@@ -59,6 +65,30 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 		cfg:          cfg,
 		registryUrl:  GITLAB_REGISTRY_URL,
 	}, nil
+}
+
+// checkDockerAvailable checks whether the Docker socket exists before attempting
+// to connect, so we can give a clear error instead of a confusing dial failure.
+func checkDockerAvailable() error {
+	socketPaths := []string{"/var/run/docker.sock"}
+	if runtime.GOOS == "darwin" {
+		home, _ := os.UserHomeDir()
+		socketPaths = append(socketPaths,
+			home+"/.docker/run/docker.sock",
+			home+"/.docker/desktop/docker.sock",
+		)
+	}
+
+	for _, p := range socketPaths {
+		if _, err := os.Stat(p); err == nil {
+			return nil // socket exists
+		}
+	}
+
+	if runtime.GOOS == "darwin" {
+		return fmt.Errorf("Docker does not appear to be running — please start Docker Desktop\n  Alternatively, build your image separately and deploy with: --image <your-image>")
+	}
+	return fmt.Errorf("Docker socket not found — is the Docker daemon running?\n  Alternatively, build your image separately and deploy with: --image <your-image>")
 }
 
 func (c *DockerClient) Close() error {

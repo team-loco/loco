@@ -1,18 +1,18 @@
 dependencies:
 - name: clickhouse
   repository: https://helm.altinity.com
-  version: 0.3.11
+  version: 0.3.12
 - name: opentelemetry-operator
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.114.1
+  version: 0.118.0
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.158.1
+  version: 0.162.0
 - name: opentelemetry-collector
   repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-  version: 0.158.1
+  version: 0.162.0
 - name: grafana
   repository: https://grafana.github.io/helm-charts
   version: 10.5.15
-digest: sha256:e30d171fd950e1f961c32c85c02593e3c49eb7b55063c4ae32861b9725889ad5
-generated: "2026-06-10T08:45:05.493933-07:00"
+digest: sha256:8904dd558696355653deafb039bd3b0e67d3b15113ce2b5cf730de545f9117d9
+generated: "2026-07-06T13:25:28.139101-07:00"

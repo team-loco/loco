@@ -13,6 +13,10 @@ import { AlertTriangle, Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+const BASE_URL: string =
+	import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+
 interface TokenDisplayDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -41,7 +45,7 @@ export function TokenDisplayDialog({
 	};
 
 	const handleCopyCurl = async () => {
-		const curlCommand = `curl -X POST https://api.loco.build/loco.token.v1.TokenService/GetScopes \\
+		const curlCommand = `curl -X POST ${BASE_URL}/loco.token.v1.TokenService/GetScopes \\
   -H "Authorization: Bearer ${token}" \\
   -H "Content-Type: application/json" \\
   -d '{}'`;
@@ -127,7 +131,7 @@ export function TokenDisplayDialog({
 						<Label className="text-sm font-medium">Example Usage</Label>
 						<div className="relative p-4 pr-12 bg-muted rounded-lg border border-border">
 							<pre className="text-xs overflow-x-auto">
-								<code>{`curl -X POST https://api.loco.build/loco.token.v1.TokenService/GetScopes \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{}'`}</code>
+								<code>{`curl -X POST ${BASE_URL}/loco.token.v1.TokenService/GetScopes \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json" \\\n  -d '{}'`}</code>
 							</pre>
 							<Button
 								type="button"

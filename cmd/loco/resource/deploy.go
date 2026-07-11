@@ -278,7 +278,7 @@ func buildAndPushImage(
 ) (string, error) {
 	dockerClient, err := deps.NewDockerClient(loadedCfg)
 	if err != nil {
-		return "", fmt.Errorf("failed to create docker client: %w", err)
+		return "", err
 	}
 	defer dockerClient.Close()
 

@@ -101,42 +101,48 @@ func (s *ResourceServer) CreateResource(
 
 	serviceSpec := r.GetSpec().GetService()
 
+	hasDomain := r.GetDomain() != nil
 	domainSource := genDb.DomainSourceUserProvided
 	var fullDomain string
 	var subdomainLabel *string
 	var platformDomainID *uuid.UUID
 
-	if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
-		domainSource = genDb.DomainSourcePlatformProvided
-		parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
-		platformDomainID = &parsedPlatformDomainID
+	if hasDomain {
+		if r.GetDomain().GetDomainSource() == domainv1.DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED {
+			domainSource = genDb.DomainSourcePlatformProvided
+			parsedPlatformDomainID := uuid.MustParse(r.GetDomain().GetPlatformDomainId())
+			platformDomainID = &parsedPlatformDomainID
 
-		platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform domain not found"))
+			platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
+				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform domain not found"))
+			}
+
+			fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
+			subdomain := r.GetDomain().GetSubdomain()
+			subdomainLabel = &subdomain
+		} else {
+			fullDomain = r.GetDomain().GetDomain()
 		}
 
-		fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
-		subdomain := r.GetDomain().GetSubdomain()
-		subdomainLabel = &subdomain
-	} else {
-		fullDomain = r.GetDomain().GetDomain()
-	}
+		available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		}
 
-	available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	if !available {
-		slog.WarnContext(ctx, "domain already in use", "domain", fullDomain)
-		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
+		if !available {
+			slog.WarnContext(ctx, "domain already in use", "domain", fullDomain)
+			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
+		}
 	}
 
 	// save only the oneof spec (e.g., ServiceSpec) to db, not the wrapper
-	var specJSON []byte
+	var (
+		specJSON []byte
+		err      error
+	)
 	switch specType := r.GetSpec().Spec.(type) {
 	case *resourcev1.ResourceSpec_Service:
 		specJSON, err = protojson.Marshal(specType.Service)
@@ -212,19 +218,21 @@ func (s *ResourceServer) CreateResource(
 		}
 	}
 
-	domainParams := genDb.CreateResourceDomainParams{
-		ResourceID:       resourceID,
-		Domain:           fullDomain,
-		DomainSource:     domainSource,
-		SubdomainLabel:   subdomainLabel,
-		PlatformDomainID: platformDomainID,
-		IsPrimary:        true,
-	}
+	if hasDomain {
+		domainParams := genDb.CreateResourceDomainParams{
+			ResourceID:       resourceID,
+			Domain:           fullDomain,
+			DomainSource:     domainSource,
+			SubdomainLabel:   subdomainLabel,
+			PlatformDomainID: platformDomainID,
+			IsPrimary:        true,
+		}
 
-	_, err = s.queries.CreateResourceDomain(ctx, domainParams)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		_, err = s.queries.CreateResourceDomain(ctx, domainParams)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		}
 	}
 
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}), nil

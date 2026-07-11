@@ -88,11 +88,32 @@
 ---------------------------- */
 
 @theme inline {
+	/* Fonts */
+	--font-serif: "Raleway", "Georgia", serif;
+	--font-sans: "Satoshi", "Inter", system-ui, sans-serif;
+	--font-mono: "DM Mono", "JetBrains Mono", "Menlo", "Monaco", monospace;
+
+	/* Border radius */
+	--radius: 8px;
 	--radius-sm: 6px;
 	--radius-md: 10px;
 	--radius-lg: 12px;
 	--radius-xl: 14px;
 
+	/* Shadows */
+	--shadow-xs: 0 1px 2px rgba(28, 25, 23, 0.03);
+	--shadow-sm: 0 2px 4px rgba(28, 25, 23, 0.04), 0 1px 1px rgba(28, 25, 23, 0.02);
+	--shadow-md: 0 4px 8px rgba(28, 25, 23, 0.05), 0 2px 4px rgba(28, 25, 23, 0.03);
+	--shadow-lg: 0 8px 16px rgba(28, 25, 23, 0.06), 0 4px 8px rgba(28, 25, 23, 0.04);
+	--shadow-xl: 0 12px 24px rgba(28, 25, 23, 0.08), 0 6px 12px rgba(28, 25, 23, 0.05);
+
+	/* Transitions */
+	--transition-duration-fast: 180ms;
+	--transition-duration-medium: 220ms;
+	--transition-duration-slow: 350ms;
+	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* Semantic colors (referenced from :root CSS vars) */
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
@@ -123,9 +144,37 @@
 	--color-success-soft: var(--success-soft);
 	--color-success-border: var(--success-border);
 
-	--transition-duration-fast: 180ms;
-	--transition-duration-medium: 220ms;
-	--transition-duration-slow: 350ms;
+	/* Extended palette (static) */
+	--color-primary-light: #fbf3f1;
+	--color-primary-border: #e8c5bc;
+	--color-sage: #6b8e7f;
+	--color-sage-hover: #5a7a6d;
+	--color-sage-light: #f2f6f4;
+	--color-sage-border: #c9d9d2;
+	--color-sand: #a88f6f;
+	--color-sand-light: #f8f5f0;
+	--color-sand-border: #ddd5ca;
+	--color-success-light: #eef3f1;
+	--color-warning-light: #f9f6f0;
+	--color-warning-border: #e5dccf;
+	--color-error: #a85751;
+	--color-error-light: #f8f1f0;
+	--color-error-border: #e2c9c6;
+	--color-info: #6b8aaa;
+	--color-info-light: #f0f4f7;
+	--color-info-border: #c9d6e2;
+	--color-bg-canvas: #fdfcfa;
+	--color-bg-elevated: #ffffff;
+	--color-bg-subtle: #f7f5f2;
+	--color-bg-hover: #f0ede8;
+	--color-bg-muted: #e8e5e0;
+	--color-text-primary: #1c1917;
+	--color-text-secondary: #57534e;
+	--color-text-tertiary: #78716c;
+	--color-text-quaternary: #a8a29e;
+	--color-border-subtle: #e7e5e0;
+	--color-border-default: #d6d3ce;
+	--color-border-strong: #a8a29e;
 }
 
 /* ---------------------------
@@ -533,5 +582,16 @@
 	/* Disabled state utility */
 	.disabled {
 		@apply opacity-50 cursor-not-allowed pointer-events-none;
+	}
+}
+
+@keyframes status-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
+}
+
+@layer utilities {
+	.animate-status-pulse {
+		animation: status-pulse 2.2s ease-in-out infinite;
 	}
 }
