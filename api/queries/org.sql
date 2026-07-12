@@ -63,4 +63,5 @@ AND NOT EXISTS (
 -- name: IsOrgNameUnique :one
 SELECT COUNT(*) = 0 as is_unique
 FROM organizations
-WHERE name = $1;
+WHERE name = $1
+AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id')::uuid);

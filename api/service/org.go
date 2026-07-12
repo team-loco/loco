@@ -75,7 +75,7 @@ func (s *OrgServer) CreateOrg(
 		orgName = fmt.Sprintf("%s's Organization", derefString(user.Name))
 	}
 
-	isUnique, err := s.queries.IsOrgNameUnique(ctx, orgName)
+	isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{Name: orgName})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
@@ -239,22 +239,24 @@ func (s *OrgServer) UpdateOrg(
 	}
 
 	if r.GetName() != "" {
-		isUnique, err := s.queries.IsOrgNameUnique(ctx, r.GetName())
+		orgID := uuid.MustParse(r.GetOrgId())
+
+		isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{
+			Name:      r.GetName(),
+			ExcludeID: &orgID,
+		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
 		}
 
 		if !isUnique {
-			existingOrg, getErr := s.queries.GetOrgByName(ctx, r.GetName())
-			if getErr != nil || existingOrg.ID.String() != r.GetOrgId() {
-				slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
-				return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-			}
+			slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 		}
 
 		_, err = s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-			ID:   uuid.MustParse(r.GetOrgId()),
+			ID:   orgID,
 			Name: r.GetName(),
 		})
 		if err != nil {

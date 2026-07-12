@@ -322,8 +322,9 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		}
 
 		isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
-			OrgID: orgID,
-			Name:  r.GetName(),
+			OrgID:     orgID,
+			Name:      r.GetName(),
+			ExcludeID: &wsUUID,
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)

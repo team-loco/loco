@@ -58,6 +58,8 @@ CREATE TABLE
 
 CREATE INDEX idx_environments_workspace_id ON environments (workspace_id);
 
+CREATE INDEX IF NOT EXISTS idx_environments_workspace_id_created_at ON environments (workspace_id, created_at);
+
 -- Clusters table
 CREATE TABLE
     clusters (
@@ -173,6 +175,8 @@ CREATE TABLE
 CREATE INDEX idx_resource_domains_resource_id ON resource_domains (resource_id);
 
 CREATE INDEX idx_resource_domains_domain ON resource_domains (domain);
+
+CREATE INDEX IF NOT EXISTS idx_resource_domains_resource_id_primary_created ON resource_domains (resource_id, is_primary DESC, created_at ASC);
 
 -- Enforce max 1 primary domain per resource
 CREATE UNIQUE INDEX uniq_resource_primary_domain ON resource_domains (resource_id)

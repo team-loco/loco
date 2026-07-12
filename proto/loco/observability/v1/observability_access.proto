@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package loco.observability.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/team-loco/loco/proto/loco/observability/v1;observabilityv1";
 
 // ObservabilityAccessService runs on the control plane.
@@ -13,9 +15,9 @@ service ObservabilityAccessService {
 }
 
 message GetObservabilityAccessRequest {
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Optional: restrict to specific resources. Empty means all resources in workspace.
-  repeated string resource_ids = 2;
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 }
 
 message GetObservabilityAccessResponse {

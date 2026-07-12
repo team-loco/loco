@@ -83,15 +83,17 @@ SELECT COUNT(*) = 0 as is_unique
 FROM workspaces
 WHERE org_id = $1
 AND name = $2
+AND ($3::uuid IS NULL OR id != $3::uuid)
 `
 
 type IsWorkspaceNameUniqueInOrgParams struct {
-	OrgID uuid.UUID `json:"orgId"`
-	Name  string    `json:"name"`
+	OrgID     uuid.UUID  `json:"orgId"`
+	Name      string     `json:"name"`
+	ExcludeID *uuid.UUID `json:"excludeId"`
 }
 
 func (q *Queries) IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isWorkspaceNameUniqueInOrg, arg.OrgID, arg.Name)
+	row := q.db.QueryRow(ctx, isWorkspaceNameUniqueInOrg, arg.OrgID, arg.Name, arg.ExcludeID)
 	var is_unique bool
 	err := row.Scan(&is_unique)
 	return is_unique, err

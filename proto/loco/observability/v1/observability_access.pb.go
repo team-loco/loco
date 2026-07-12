@@ -7,6 +7,7 @@
 package observabilityv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -182,10 +183,11 @@ var File_loco_observability_v1_observability_access_proto protoreflect.FileDescr
 
 const file_loco_observability_v1_observability_access_proto_rawDesc = "" +
 	"\n" +
-	"0loco/observability/v1/observability_access.proto\x12\x15loco.observability.v1\"e\n" +
-	"\x1dGetObservabilityAccessRequest\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12!\n" +
-	"\fresource_ids\x18\x02 \x03(\tR\vresourceIds\"b\n" +
+	"0loco/observability/v1/observability_access.proto\x12\x15loco.observability.v1\x1a\x1bbuf/validate/validate.proto\"~\n" +
+	"\x1dGetObservabilityAccessRequest\x12+\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
+	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
+	"\x92\x01\a\"\x05r\x03\xb0\x01\x01R\vresourceIds\"b\n" +
 	"\x1eGetObservabilityAccessResponse\x12@\n" +
 	"\bclusters\x18\x01 \x03(\v2$.loco.observability.v1.ClusterAccessR\bclusters\"c\n" +
 	"\rClusterAccess\x12\x1d\n" +

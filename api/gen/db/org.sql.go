@@ -96,10 +96,16 @@ const isOrgNameUnique = `-- name: IsOrgNameUnique :one
 SELECT COUNT(*) = 0 as is_unique
 FROM organizations
 WHERE name = $1
+AND ($2::uuid IS NULL OR id != $2::uuid)
 `
 
-func (q *Queries) IsOrgNameUnique(ctx context.Context, name string) (bool, error) {
-	row := q.db.QueryRow(ctx, isOrgNameUnique, name)
+type IsOrgNameUniqueParams struct {
+	Name      string     `json:"name"`
+	ExcludeID *uuid.UUID `json:"excludeId"`
+}
+
+func (q *Queries) IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isOrgNameUnique, arg.Name, arg.ExcludeID)
 	var is_unique bool
 	err := row.Scan(&is_unique)
 	return is_unique, err

@@ -38,7 +38,8 @@ LIMIT $2;
 SELECT COUNT(*) = 0 as is_unique
 FROM workspaces
 WHERE org_id = $1
-AND name = $2;
+AND name = $2
+AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id')::uuid);
 
 -- name: UpdateWorkspace :one
 UPDATE workspaces
