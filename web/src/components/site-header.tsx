@@ -17,14 +17,17 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { createOrg } from "@/gen/loco/org/v1";
-import type { Organization } from "@/gen/loco/org/v1/org_pb";
+import { createOrg, listUserOrgs } from "@/gen/loco/org/v1";
 import { whoAmI } from "@/gen/loco/user/v1";
-import { createWorkspace } from "@/gen/loco/workspace/v1";
-import type { Workspace } from "@/gen/loco/workspace/v1/workspace_pb";
+import { createWorkspace, listOrgWorkspaces } from "@/gen/loco/workspace/v1";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { useTheme } from "@/lib/use-theme";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
+import {
+    createConnectQueryKey,
+    useMutation,
+    useQuery,
+} from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
     Bell,
     Building2,
@@ -51,10 +54,9 @@ export function SiteHeader() {
         workspaces,
         setActiveOrg,
         setActiveWorkspace,
-        addOrg,
-        addWorkspace,
     } = useOrgWorkspace();
     const { logout } = useAuth();
+    const queryClient = useQueryClient();
     const { data: whoAmIResponse } = useQuery(whoAmI, {});
     const user = whoAmIResponse?.user;
     const { theme, toggleTheme } = useTheme();
@@ -115,10 +117,12 @@ export function SiteHeader() {
                     const newOrgId = response.orgId;
                     if (newOrgId) {
                         toast.success(`Organization "${newOrgName}" created`);
-                        addOrg({
-                            id: newOrgId,
-                            name: newOrgName,
-                        } as Organization);
+                        void queryClient.invalidateQueries({
+                            queryKey: createConnectQueryKey({
+                                schema: listUserOrgs,
+                                cardinality: undefined,
+                            }),
+                        });
                         setPendingOrgId(newOrgId);
                         setNewOrgName("");
                         setShowCreateOrgForm(false);
@@ -154,12 +158,12 @@ export function SiteHeader() {
                         toast.success(
                             `Workspace "${newWorkspaceName}" created`,
                         );
-                        addWorkspace({
-                            id: newWorkspaceId,
-                            orgId: activeOrgId,
-                            name: newWorkspaceName,
-                            description: newWorkspaceDescription,
-                        } as Workspace);
+                        void queryClient.invalidateQueries({
+                            queryKey: createConnectQueryKey({
+                                schema: listOrgWorkspaces,
+                                cardinality: undefined,
+                            }),
+                        });
                         setPendingWorkspaceId(newWorkspaceId);
                         setNewWorkspaceName("");
                         setNewWorkspaceDescription("");

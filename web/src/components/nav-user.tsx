@@ -13,11 +13,10 @@ import {
 import { useNavigate } from "react-router";
 import { toastConnectError, getErrorMessage } from "@/lib/error-handler";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import type { Organization } from "@/gen/loco/org/v1/org_pb";
-import type { Workspace } from "@/gen/loco/workspace/v1/workspace_pb";
-import { createOrg } from "@/gen/loco/org/v1";
-import { createWorkspace } from "@/gen/loco/workspace/v1";
-import { useMutation } from "@connectrpc/connect-query";
+import { createOrg, listUserOrgs } from "@/gen/loco/org/v1";
+import { createWorkspace, listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { createConnectQueryKey, useMutation } from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,9 +66,8 @@ export function NavUser({
 		workspaces,
 		setActiveOrg,
 		setActiveWorkspace,
-		addOrg,
-		addWorkspace,
 	} = useOrgWorkspace();
+	const queryClient = useQueryClient();
 	const { theme, toggleTheme } = useTheme();
 
 	const activeOrg = orgs.find((org) => org.id === activeOrgId);
@@ -126,11 +124,12 @@ export function NavUser({
 					const newOrgId = response.orgId;
 					if (newOrgId) {
 						toast.success(`Organization "${newOrgName}" created`);
-						// Add to context
-						addOrg({
-							id: newOrgId,
-							name: newOrgName,
-						} as Organization);
+						void queryClient.invalidateQueries({
+							queryKey: createConnectQueryKey({
+								schema: listUserOrgs,
+								cardinality: undefined,
+							}),
+						});
 						// Store as pending - will switch when user clicks Done
 						setPendingOrgId(newOrgId);
 						setNewOrgName("");
@@ -163,13 +162,12 @@ export function NavUser({
 					const newWorkspaceId = response.workspaceId;
 					if (newWorkspaceId) {
 						toast.success(`Workspace "${newWorkspaceName}" created`);
-						// Add to context
-						addWorkspace({
-							id: newWorkspaceId,
-							orgId: activeOrgId,
-							name: newWorkspaceName,
-							description: newWorkspaceDescription,
-						} as Workspace);
+						void queryClient.invalidateQueries({
+							queryKey: createConnectQueryKey({
+								schema: listOrgWorkspaces,
+								cardinality: undefined,
+							}),
+						});
 						// Store as pending - will switch when user clicks Done
 						setPendingWorkspaceId(newWorkspaceId);
 						setNewWorkspaceName("");
