@@ -71,4 +71,12 @@ e2e/pids/
 e2e/logs/
 
 
+
+
+# temp ignores
+.sops.yaml
+v1-report.html
 CLAUDE.md
+clusters/
+.github/workflows/deploy-production.yml
+.github/workflows/deploy-staging.yml

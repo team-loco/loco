@@ -178,7 +178,6 @@ export function ContextProvider({
 	);
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useOrgWorkspace() {
 	const ctx = use(OrgWorkspaceContext);
 	if (!ctx) {

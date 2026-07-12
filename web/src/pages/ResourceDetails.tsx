@@ -931,8 +931,7 @@ function SettingsSheet({
 			return;
 		const newDomain = `${subdomain.trim()}${domainSuffix}`;
 		updateDomain(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			{ domainId: primaryDomain.id, domain: newDomain } as any,
+			{ domainId: primaryDomain.id, domain: newDomain },
 			{
 				onSuccess: () => {
 					toast.success("Domain updated");

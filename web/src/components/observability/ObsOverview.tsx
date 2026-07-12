@@ -106,7 +106,7 @@ function SparklineCard({
 								<XAxis dataKey="time" hide />
 								<YAxis hide domain={["auto", "auto"]} />
 								<Tooltip
-									formatter={(v: number) => [fmt(v), title]}
+									formatter={(v) => [fmt(Number(v)), title]}
 									labelFormatter={(l) => new Date(l).toLocaleTimeString()}
 									contentStyle={{ fontSize: 11, borderRadius: 6 }}
 								/>

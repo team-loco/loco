@@ -171,8 +171,8 @@ export function ObsMetricChart({
 									width={40}
 								/>
 								<Tooltip
-									formatter={(value: number) => [
-										formatValue(value, unit),
+									formatter={(value) => [
+										formatValue(Number(value), unit),
 										undefined,
 									]}
 									labelFormatter={(label) =>

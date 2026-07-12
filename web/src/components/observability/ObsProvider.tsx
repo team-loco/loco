@@ -89,14 +89,12 @@ export function ObsProvider({
 	);
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useObs() {
 	const ctx = use(ObsContext);
 	if (!ctx) throw new Error("useObs must be used within ObsProvider");
 	return ctx;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function timeRangeMs(range: TimeRange): number {
 	const map: Record<TimeRange, number> = {
 		"15m": 15 * 60 * 1000,
@@ -109,7 +107,6 @@ export function timeRangeMs(range: TimeRange): number {
 	return map[range];
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function timeRangeIntervalSeconds(range: TimeRange): number {
 	const map: Record<TimeRange, number> = {
 		"15m": 30,

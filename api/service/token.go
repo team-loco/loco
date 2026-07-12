@@ -119,7 +119,7 @@ func (s *TokenServer) CreateToken(
 			return nil, connect.NewError(connect.CodePermissionDenied, err)
 		}
 		slog.ErrorContext(ctx, "failed to issue token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to issue token: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to issue token"))
 	}
 
 	// fetch metadata using the token we just issued
@@ -127,7 +127,7 @@ func (s *TokenServer) CreateToken(
 	tokenData, err := s.queries.GetAPIToken(ctx, tokenHash)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to fetch created token metadata", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch token metadata: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to fetch token metadata"))
 	}
 
 	slog.InfoContext(ctx, "created token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID)
@@ -179,7 +179,7 @@ func (s *TokenServer) ListTokens(
 	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list tokens", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to list tokens: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to list tokens"))
 	}
 
 	protoTokens := make([]*tokenv1.Token, len(tokens))
@@ -309,7 +309,7 @@ func (s *TokenServer) RevokeToken(
 		EntityID:   targetEntity.ID,
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to revoke token"))
 	}
 
 	slog.InfoContext(ctx, "revoked token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID.String())

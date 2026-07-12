@@ -49,7 +49,7 @@ func (s *UserServer) CreateUser(
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 	defer tx.Rollback(ctx)
 
@@ -57,7 +57,7 @@ func (s *UserServer) CreateUser(
 	if err == nil {
 		if existingUserByEmail.ExternalID == r.GetExternalId() {
 			if commitErr := tx.Commit(ctx); commitErr != nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
+				return nil, connect.NewError(connect.CodeInternal, ErrDB)
 			}
 			return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByEmail.ID.String()}), nil
 		}
@@ -69,7 +69,7 @@ func (s *UserServer) CreateUser(
 	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.GetExternalId())
 	if err == nil {
 		if commitErr := tx.Commit(ctx); commitErr != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 		return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByExtID.ID.String()}), nil
 	}
@@ -99,7 +99,7 @@ func (s *UserServer) CreateUser(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// Grant self-scopes in the same transaction so user+scopes are atomic.
@@ -110,13 +110,13 @@ func (s *UserServer) CreateUser(
 	} {
 		if err := qtx.AddUserScope(ctx, es); err != nil {
 			slog.ErrorContext(ctx, "failed to grant user scope", "error", err, "userId", user.ID)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 	}
 
 	if commitErr := tx.Commit(ctx); commitErr != nil {
 		slog.ErrorContext(ctx, "failed to commit transaction", "error", commitErr)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&userv1.CreateUserResponse{UserId: user.ID.String()}), nil
@@ -230,7 +230,7 @@ func (s *UserServer) UpdateUser(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&userv1.UpdateUserResponse{UserId: r.GetUserId()}), nil
@@ -271,7 +271,7 @@ func (s *UserServer) ListUsers(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list users", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var users []*userv1.User
@@ -319,7 +319,7 @@ func (s *UserServer) DeleteUser(
 	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if hasWorkspaces {
@@ -330,7 +330,7 @@ func (s *UserServer) DeleteUser(
 	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if hasOrganizations {
@@ -341,7 +341,7 @@ func (s *UserServer) DeleteUser(
 	err = s.queries.DeleteUser(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&userv1.DeleteUserResponse{}), nil

@@ -100,11 +100,17 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
   - Would be better to deploy our own registry via Harbor or similar (V2).
 
 - **Deployment flow**
-  - `cmd/deploy.go` has become lost in the sauce — needs cleanup.
+  - `cmd/deploy.go` has become lost in the sauce — needs cleanup. Phase 1 done: split into
+    `deploy.go` / `deploy_image.go` / `deploy_deployment.go` by concern, flags parsed upfront,
+    removed a redundant duplicate `ImageTag` call in the push step.
   - Deployment should be async: CLI requests a deployment, gets back a short-lived token
     (TTL 30 min) + deployment ID tied to the request, then polls/streams.
-  - Image tag is currently built on the CLI — feels wrong.
-  - Mark previous deployments as inactive before creating a new one, transactionally.
+  - **Revisit**: image tag is currently generated client-side in `buildAndPushImage`
+    (`GenerateImageTag`, needs orgID/workspaceID/resourceID) — feels wrong, should move
+    server-side (e.g. returned from `CreateResource`/`CreateDeployment`) so the CLI doesn't
+    need those IDs just to name an image. Deferred — it's an API contract change, not cleanup.
+  - Mark previous deployments as inactive before creating a new one, transactionally — already
+    done server-side in `createDeploymentWithCleanup` (`api/service/resource.go`).
   - Cleanup partial resources if deployment fails at any step — simple implementation done.
   - `loco deploy` should be all-or-nothing per region. Controller should also be all-or-nothing.
   - Max helm history at 5, remove old helm secrets.

@@ -75,7 +75,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 		if isPgConstraintViolation(err) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
 		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&environmentv1.CreateEnvironmentResponse{
@@ -137,7 +137,7 @@ func (s *EnvironmentServer) ListEnvironments(
 	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list environments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var protoEnvs []*environmentv1.Environment
@@ -202,7 +202,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		if isPgConstraintViolation(err) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
 		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&environmentv1.UpdateEnvironmentResponse{
@@ -239,7 +239,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 	count, err := s.queries.CountDeploymentsByEnvironment(ctx, envID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to count deployments for environment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 	if count > 0 {
 		slog.WarnContext(ctx, "cannot delete environment with deployments", "environmentId", r.GetEnvironmentId(), "count", count)
@@ -248,7 +248,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 
 	if err := s.queries.DeleteEnvironment(ctx, envID); err != nil {
 		slog.ErrorContext(ctx, "failed to delete environment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&environmentv1.DeleteEnvironmentResponse{}), nil

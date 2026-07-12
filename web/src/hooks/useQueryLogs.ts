@@ -100,7 +100,7 @@ export function useQueryLogs({
 			queries.map((q, i) => ({
 				clusterId: clusterTransports[i].cluster.clusterId.toString(),
 				region: clusterTransports[i].cluster.region,
-				data: q.data as LogsPage | undefined,
+				data: q.data,
 				isLoading: q.isLoading,
 				error: q.error,
 			})),

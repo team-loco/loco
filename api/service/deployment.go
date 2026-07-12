@@ -25,9 +25,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var (
-	ErrDeploymentNotFound = errors.New("deployment not found")
-)
+var ErrDeploymentNotFound = errors.New("deployment not found")
 
 // DeployCommandPayload is the payload sent to agents for deploy commands.
 type DeployCommandPayload struct {
@@ -193,7 +191,7 @@ func (s *DeploymentServer) CreateDeployment(
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// Get active cluster for the specified region and environment tier
@@ -203,7 +201,7 @@ func (s *DeploymentServer) CreateDeployment(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", region, "tier", env.EnvironmentType, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s tier %s: %w", region, env.EnvironmentType, err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s tier %s", region, env.EnvironmentType))
 	}
 
 	// deserialize resource spec and merge with request spec
@@ -240,7 +238,7 @@ func (s *DeploymentServer) CreateDeployment(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource region", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resource region not found: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("resource region not found"))
 	}
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
@@ -259,7 +257,7 @@ func (s *DeploymentServer) CreateDeployment(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// Build the Application spec for the agent
@@ -333,7 +331,7 @@ func (s *DeploymentServer) GetDeployment(
 	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -397,7 +395,7 @@ func (s *DeploymentServer) ListDeployments(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var deployments []*deploymentv1.Deployment
@@ -434,7 +432,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	resource, err := s.queries.GetResourceByID(ctx, deployment.ResourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -483,7 +481,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	err = s.queries.MarkDeploymentNotActive(ctx, deploymentId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to mark deployment not active", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&deploymentv1.DeleteDeploymentResponse{}), nil
@@ -508,7 +506,7 @@ func (s *DeploymentServer) WatchDeployment(
 	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -555,7 +553,7 @@ func (s *DeploymentServer) sendDeploymentEvent(
 	deployment, err := s.queries.GetDeploymentByID(ctx, uuid.MustParse(deploymentID))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get deployment", "error", err)
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	statusPhase := parseDeploymentPhase(deployment.Status)

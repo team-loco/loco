@@ -67,7 +67,7 @@ func (s *OrgServer) CreateOrg(
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	orgName := r.GetName()
@@ -78,7 +78,7 @@ func (s *OrgServer) CreateOrg(
 	isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{Name: orgName})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if !isUnique {
@@ -92,7 +92,7 @@ func (s *OrgServer) CreateOrg(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create organization", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
@@ -102,7 +102,7 @@ func (s *OrgServer) CreateOrg(
 	}, []genDb.EntityScope{})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", org.ID.String(), "userId", entity.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&orgv1.CreateOrgResponse{
@@ -195,7 +195,7 @@ func (s *OrgServer) ListUserOrgs(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list orgs", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var orgResponses []*orgv1.Organization
@@ -247,7 +247,7 @@ func (s *OrgServer) UpdateOrg(
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 
 		if !isUnique {
@@ -293,7 +293,7 @@ func (s *OrgServer) DeleteOrg(
 	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for resources in workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if hasResources {
@@ -304,7 +304,7 @@ func (s *OrgServer) DeleteOrg(
 	err = s.queries.DeleteOrg(ctx, orgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete org", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&orgv1.DeleteOrgResponse{}), nil
@@ -372,7 +372,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	workspaceSummaries := make([]*orgv1.WorkspaceSummary, len(workspaces))

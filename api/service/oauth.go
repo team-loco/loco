@@ -158,14 +158,14 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, fmt.Errorf("database error: %w", err)
+		return nil, ErrDB
 	}
 	defer tx.Rollback(ctx)
 
 	qtx, ok := s.queries.(*genDb.Queries)
 	if !ok {
 		slog.ErrorContext(ctx, "failed to cast queries to *genDb.Queries")
-		return nil, fmt.Errorf("database error: %w", fmt.Errorf("failed to cast queries"))
+		return nil, errors.New("database error")
 	}
 	qtx = qtx.WithTx(tx)
 
@@ -177,7 +177,7 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
-		return nil, fmt.Errorf("database error: %w", err)
+		return nil, ErrDB
 	}
 
 	// Grant self-scopes in the same transaction so user+scopes are atomic.
@@ -188,13 +188,13 @@ func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, ema
 	} {
 		if err := qtx.AddUserScope(ctx, es); err != nil {
 			slog.ErrorContext(ctx, "failed to grant user scope", "error", err, "userId", user.ID)
-			return nil, fmt.Errorf("database error: %w", err)
+			return nil, ErrDB
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit transaction", "error", err)
-		return nil, fmt.Errorf("database error: %w", err)
+		return nil, ErrDB
 	}
 
 	return &user, nil

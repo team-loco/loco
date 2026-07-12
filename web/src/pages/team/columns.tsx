@@ -31,7 +31,6 @@ const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 	},
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 function RoleBadge({ role }: { role: string }) {
 	console.log("what is role", role);
 	const variant =
@@ -57,7 +56,6 @@ interface ActionsCellProps {
 	isRemoving: boolean;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 function ActionsCell({
 	member,
 	isAdmin,
@@ -146,8 +144,8 @@ export function getColumns(
 			accessorKey: "scopes",
 			header: "Role",
 			cell: ({ row }) => {
-				const scopes = row.getValue("scopes") as string[];
-				const role = scopes?.[0] || "viewer";
+				const scopes = row.getValue<string[]>("scopes");
+				const role = scopes[0] || "viewer";
 				return <RoleBadge role={role} />;
 			},
 		},

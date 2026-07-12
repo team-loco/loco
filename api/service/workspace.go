@@ -61,7 +61,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if !isUnique {
@@ -86,7 +86,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
@@ -96,7 +96,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}, []genDb.EntityScope{})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user roles for new workspace", "error", err, "workspaceId", wsID, "userId", entity.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
@@ -106,7 +106,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		CreatedBy:       entity.ID,
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create production environment for new workspace", "error", err, "workspaceId", wsID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&workspacev1.CreateWorkspaceResponse{
@@ -195,7 +195,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces for user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var workspaces []*workspacev1.Workspace
@@ -267,7 +267,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var workspaces []*workspacev1.Workspace
@@ -318,7 +318,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		orgID, err := s.queries.GetWorkspaceOrgID(ctx, wsUUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get workspace org", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 
 		isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
@@ -328,7 +328,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check workspace name uniqueness", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 
 		if !isUnique {
@@ -373,7 +373,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	err := s.queries.RemoveWorkspace(ctx, uuid.MustParse(r.GetWorkspaceId()))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
@@ -414,7 +414,7 @@ func (s *WorkspaceServer) CreateMember(
 
 	if err := s.machine.UpdateRoles(ctx, r.GetUserId(), addScopes, []genDb.EntityScope{}); err != nil {
 		slog.ErrorContext(ctx, "failed to add workspace member scopes", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&workspacev1.CreateMemberResponse{
@@ -450,7 +450,7 @@ func (s *WorkspaceServer) DeleteMember(
 
 	if err := s.machine.UpdateRoles(ctx, r.GetUserId(), []genDb.EntityScope{}, removeScopes); err != nil {
 		slog.ErrorContext(ctx, "failed to remove workspace member scopes", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteMemberResponse{}), nil
@@ -492,7 +492,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list members", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var members []*workspacev1.WorkspaceMemberWithUser

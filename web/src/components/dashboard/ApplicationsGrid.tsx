@@ -6,7 +6,7 @@ import {
     Cpu,
     ExternalLink,
     GitBranch,
-    Github,
+    GitFork,
     Settings
 } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -103,7 +103,7 @@ export function ApplicationsGrid({
 												onClick={(e) => { e.stopPropagation(); }}
 												className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
 											>
-												<Github className="w-3 h-3" />
+												<GitFork className="w-3 h-3" />
 												team-loco/{resource.name}
 											</a>
 										</div>

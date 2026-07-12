@@ -129,7 +129,7 @@ func (s *ResourceServer) CreateResource(
 		available, err := s.queries.CheckDomainAvailability(ctx, fullDomain)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check domain availability", "domain", fullDomain, "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 
 		if !available {
@@ -214,7 +214,7 @@ func (s *ResourceServer) CreateResource(
 		})
 		if regionErr != nil {
 			slog.ErrorContext(ctx, "failed to create resource region", "error", regionErr)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", regionErr))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 	}
 
@@ -231,7 +231,7 @@ func (s *ResourceServer) CreateResource(
 		_, err = s.queries.CreateResourceDomain(ctx, domainParams)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 	}
 
@@ -281,13 +281,13 @@ func (s *ResourceServer) GetResource(
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
@@ -335,7 +335,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resources", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var resources []*resourcev1.Resource
@@ -396,7 +396,7 @@ func (s *ResourceServer) UpdateResource(
 	_, err := s.queries.UpdateResource(ctx, updateParams)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.UpdateResourceResponse{ResourceId: r.GetResourceId()}), nil
@@ -425,14 +425,14 @@ func (s *ResourceServer) DeleteResource(
 	resource, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// Get active deployments to determine which clusters need delete commands
 	activeDeployments, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// Dispatch delete commands to all clusters with active deployments
@@ -468,7 +468,7 @@ func (s *ResourceServer) DeleteResource(
 	err = s.queries.DeleteResource(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete resource", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.DeleteResourceResponse{}), nil
@@ -507,7 +507,7 @@ func (s *ResourceServer) GetResourceStatus(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var deploymentStatus *resourcev1.DeploymentStatus
@@ -524,13 +524,13 @@ func (s *ResourceServer) GetResourceStatus(
 	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
@@ -547,7 +547,7 @@ func (s *ResourceServer) ListRegions(
 	clusters, err := s.queries.ListClustersActive(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list clusters", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	regionMap := make(map[string]*resourcev1.RegionInfo)
@@ -617,7 +617,7 @@ func (s *ResourceServer) ScaleResource(
 	resourceRegions, err := s.queries.ListResourceRegions(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var regionsToScale []string
@@ -646,7 +646,7 @@ func (s *ResourceServer) ScaleResource(
 	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if len(deploymentList) == 0 {
@@ -718,7 +718,7 @@ func (s *ResourceServer) ScaleResource(
 	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// Get the cluster for the region and tier
@@ -728,7 +728,7 @@ func (s *ResourceServer) ScaleResource(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToScale, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s: %w", regionToScale, err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s", regionToScale))
 	}
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
@@ -746,7 +746,7 @@ func (s *ResourceServer) ScaleResource(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	domain, err := s.queries.GetDomainByResourceId(ctx, resourceId)
@@ -764,7 +764,7 @@ func (s *ResourceServer) ScaleResource(
 	scaleEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", currentDeployment.EnvironmentID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	updatedDeploymentSpec := &deploymentv1.DeploymentSpec{
@@ -857,7 +857,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	resourceRegions, err := s.queries.ListResourceRegions(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var regionsToUpdate []string
@@ -886,7 +886,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if len(deploymentList) == 0 {
@@ -924,7 +924,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// Get the cluster for the region and tier
@@ -934,7 +934,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToUpdate, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s: %w", regionToUpdate, err))
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s", regionToUpdate))
 	}
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
@@ -952,7 +952,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	domain, err := s.queries.GetDomainByResourceId(ctx, resourceId)
@@ -970,7 +970,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	updateEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", currentDeployment.EnvironmentID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	updatedDeploymentSpec := &deploymentv1.DeploymentSpec{
