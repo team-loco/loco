@@ -1,5 +1,8 @@
 import Loader from "@/assets/loader.svg?react";
-import { DeploymentWizard, type DeploymentWizardValues } from "@/components/DeploymentWizard";
+import {
+	DeploymentWizard,
+	type DeploymentWizardValues,
+} from "@/components/DeploymentWizard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -388,7 +391,6 @@ function ArchDiagram({ resourceName }: { resourceName: string }) {
 								y={33}
 								textAnchor="middle"
 								fontSize="9"
-								fontFamily="'Satoshi',sans-serif"
 								fill="#a89880"
 							>
 								{subtitles[node.type] ?? ""}
@@ -448,15 +450,29 @@ function ArchModal({
 		>
 			<div
 				className="bg-card rounded-2xl border border-[#e0d8cc] shadow-[0_20px_60px_rgba(42,32,24,0.2)] w-[min(860px,calc(100vw-48px))] overflow-hidden flex flex-col"
-				onClick={(e) => { e.stopPropagation(); }}
+				onClick={(e) => {
+					e.stopPropagation();
+				}}
 			>
 				<div className="px-4 py-2.5 border-b border-[#ede7dd] flex items-center justify-between">
-					<span className="font-serif text-[15px]">Architecture · <span className="text-[#a0907e] font-sans font-normal text-[13px]">{resourceName}</span></span>
+					<span className="font-serif text-[15px]">
+						Architecture ·{" "}
+						<span className="text-[#a0907e] font-sans font-normal text-[13px]">
+							{resourceName}
+						</span>
+					</span>
 					<button
 						onClick={onClose}
 						className="bg-transparent border-none cursor-pointer text-[#8a7a68] p-1 shrink-0"
 					>
-						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+						<svg
+							width="16"
+							height="16"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+						>
 							<line x1="18" y1="6" x2="6" y2="18" />
 							<line x1="6" y1="6" x2="18" y2="18" />
 						</svg>
@@ -1252,7 +1268,6 @@ function SettingsSheet({
 	);
 }
 
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function ResourceDetails() {
@@ -1281,7 +1296,7 @@ export function ResourceDetails() {
 	const anySheetOpen = activityOpen || settingsOpen;
 
 	const redeployMutation = useMutation(createDeployment);
-	const deployMutation   = useMutation(createDeployment);
+	const deployMutation = useMutation(createDeployment);
 
 	useEffect(() => {
 		if (!resourceId) return;
@@ -1406,13 +1421,13 @@ export function ResourceDetails() {
 					spec: {
 						case: "service",
 						value: {
-							build:       { type: "image", image: values.imageUrl },
-							cpu:         values.cpu,
-							memory:      values.memory,
+							build: { type: "image", image: values.imageUrl },
+							cpu: values.cpu,
+							memory: values.memory,
 							minReplicas: values.replicas,
 							maxReplicas: values.replicas,
-							port:        values.port,
-							env:         values.envVars,
+							port: values.port,
+							env: values.envVars,
 						},
 					},
 				},
@@ -1589,7 +1604,9 @@ export function ResourceDetails() {
 						<button
 							className="inline-flex items-center justify-center w-[34px] h-[34px] rounded-lg cursor-pointer transition-all bg-transparent border border-[#ddd5c8] hover:bg-[#f0ebe3] hover:border-[#c9bbad] text-[#6b5d4f]"
 							title="Architecture"
-							onClick={() => { setArchOpen(true); }}
+							onClick={() => {
+								setArchOpen(true);
+							}}
 						>
 							<svg
 								width="14"
@@ -1953,7 +1970,7 @@ export function ResourceDetails() {
 					</div>
 				) : null}
 
-		{/* ── Deployments ── */}
+				{/* ── Deployments ── */}
 				<div className="bg-card border border-[#e8e0d4] rounded-xl overflow-hidden">
 					<div className="px-5 py-3 border-b border-[#ede7dd] flex items-center justify-between">
 						<span className="font-serif text-[17px]">Deployments</span>
@@ -2093,7 +2110,9 @@ export function ResourceDetails() {
 			{archOpen && (
 				<ArchModal
 					resourceName={resource.name}
-					onClose={() => { setArchOpen(false); }}
+					onClose={() => {
+						setArchOpen(false);
+					}}
 				/>
 			)}
 
@@ -2109,7 +2128,9 @@ export function ResourceDetails() {
 
 			<DeploymentWizard
 				open={deployDialogOpen}
-				onClose={() => { setDeployDialogOpen(false); }}
+				onClose={() => {
+					setDeployDialogOpen(false);
+				}}
 				title="Deploy"
 				submitLabel="Deploy"
 				onSubmit={handleDeploy}

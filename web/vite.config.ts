@@ -29,9 +29,9 @@ export default defineConfig({
 						return "vendor-react-dom";
 					}
 
-					// Radix UI components
-					if (id.includes("@radix-ui")) {
-						return "vendor-radix";
+					// Base UI components
+					if (id.includes("@base-ui/react")) {
+						return "vendor-base-ui";
 					}
 
 					// Tanstack libraries
