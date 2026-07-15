@@ -4,6 +4,7 @@ import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -71,7 +72,9 @@ export function ObsToolbar() {
 					<ChevronDown className="h-3.5 w-3.5 opacity-60" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-56">
-					<DropdownMenuLabel>Filter by resource</DropdownMenuLabel>
+					<DropdownMenuGroup>
+						<DropdownMenuLabel>Filter by resource</DropdownMenuLabel>
+					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
 					<DropdownMenuCheckboxItem
 						checked={selectedResourceIds.length === 0}

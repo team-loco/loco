@@ -357,22 +357,24 @@ export function SiteHeader() {
                                 align="end"
                                 sideOffset={4}
                             >
-                                <DropdownMenuLabel className="p-0 font-normal">
-                                    <a
-                                        href="/profile"
-                                        className="flex items-center justify-between gap-3 px-2 py-2 text-left rounded hover:bg-accent transition-colors"
-                                    >
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-sm font-semibold  truncate">
-                                                {user?.name}
+                                <DropdownMenuGroup>
+                                    <DropdownMenuLabel className="p-0 font-normal">
+                                        <a
+                                            href="/profile"
+                                            className="flex items-center justify-between gap-3 px-2 py-2 text-left rounded hover:bg-accent transition-colors"
+                                        >
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-semibold  truncate">
+                                                    {user?.name}
+                                                </div>
+                                                <div className="text-xs  truncate">
+                                                    {user?.email}
+                                                </div>
                                             </div>
-                                            <div className="text-xs  truncate">
-                                                {user?.email}
-                                            </div>
-                                        </div>
-                                        <Settings className="size-4 shrink-0 text-foreground/60" />
-                                    </a>
-                                </DropdownMenuLabel>
+                                            <Settings className="size-4 shrink-0 text-foreground/60" />
+                                        </a>
+                                    </DropdownMenuLabel>
+                                </DropdownMenuGroup>
                                 <DropdownMenuSeparator />
 
                                 {/* Current Organization & Workspace */}
