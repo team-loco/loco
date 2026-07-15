@@ -1,5 +1,5 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	Dialog,
 	DialogContent,
@@ -7,8 +7,8 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+} from "@/components/design/Dialog";
+import { Label } from "@/components/design/Label";
 import { AlertTriangle, Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

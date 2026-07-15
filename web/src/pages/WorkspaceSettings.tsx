@@ -1,13 +1,13 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/design/Card";
+import { Input } from "@/components/design/Input";
+import { Label } from "@/components/design/Label";
 import { Textarea } from "@/components/ui/textarea";
 import { getWorkspace, updateWorkspace } from "@/gen/loco/workspace/v1";
 import { useMutation, useQuery } from "@connectrpc/connect-query";

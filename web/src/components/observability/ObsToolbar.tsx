@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -65,12 +65,10 @@ export function ObsToolbar() {
 		<div className="flex items-center gap-2 flex-wrap">
 			{/* Resource picker */}
 			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="outline" size="sm" className="gap-1.5">
-						<Layers className="h-3.5 w-3.5" />
-						{resourceLabel}
-						<ChevronDown className="h-3.5 w-3.5 opacity-60" />
-					</Button>
+				<DropdownMenuTrigger render={<Button variant="outline" size="sm" className="gap-1.5" />}>
+					<Layers className="h-3.5 w-3.5" />
+					{resourceLabel}
+					<ChevronDown className="h-3.5 w-3.5 opacity-60" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-56">
 					<DropdownMenuLabel>Filter by resource</DropdownMenuLabel>
@@ -100,12 +98,10 @@ export function ObsToolbar() {
 
 			{/* Time range */}
 			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="outline" size="sm" className="gap-1.5">
-						<Clock className="h-3.5 w-3.5" />
-						{timeRangeLabel}
-						<ChevronDown className="h-3.5 w-3.5 opacity-60" />
-					</Button>
+				<DropdownMenuTrigger render={<Button variant="outline" size="sm" className="gap-1.5" />}>
+					<Clock className="h-3.5 w-3.5" />
+					{timeRangeLabel}
+					<ChevronDown className="h-3.5 w-3.5 opacity-60" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-40">
 					{TIME_RANGE_OPTIONS.map((opt) => (

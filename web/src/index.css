@@ -153,8 +153,8 @@
 	--color-success-border: var(--success-border);
 
 	/* Extended palette (static) */
-	--color-primary-light: #fbf3f1;
-	--color-primary-border: #e8c5bc;
+	--color-primary-light: #fdecea;
+	--color-primary-border: #f5b8b2;
 	--color-sage: #6b8e7f;
 	--color-sage-hover: #5a7a6d;
 	--color-sage-light: #f2f6f4;
@@ -206,33 +206,33 @@
 	--radius: 8px;
 
 	/* Backgrounds */
-	--background: #f8f2e8;
-	--foreground: #1c1917;
+	--background: #f4f0e6;
+	--foreground: #1c1a15;
 
 	/* Cards and surfaces */
-	--card: #fdfbf7;
-	--card-foreground: #1c1917;
+	--card: #fcfaf4;
+	--card-foreground: #1c1a15;
 
 	/* Popovers */
 	--popover: #ffffff;
 	--popover-foreground: #1c1917;
 
-	/* Primary - Terracotta */
-	--primary: #c7654f;
-	--primary-hover: #b55942;
+	/* Primary - LOCO Red */
+	--primary: #d92818;
+	--primary-hover: #b82014;
 	--primary-foreground: #ffffff;
 
 	/* Secondary */
-	--secondary: #f7f5f2;
-	--secondary-foreground: #1c1917;
+	--secondary: #ece5d2;
+	--secondary-foreground: #1c1a15;
 
 	/* Muted */
-	--muted: #f7f5f2;
-	--muted-foreground: #78716c;
+	--muted: #ece5d2;
+	--muted-foreground: #8a8172;
 
 	/* Accent */
-	--accent-color: #c7654f;
-	--accent: #f0eee6;
+	--accent-color: #d92818;
+	--accent: #e6dfd0;
 	--accent-foreground: #1c1917;
 
 	/* Status colors */
@@ -245,30 +245,30 @@
 	--success-border: #c5d5cf;
 
 	/* Borders */
-	--border: #e7e5e0;
-	--input: #d6d3ce;
+	--border: #d9d2c2;
+	--input: #c9bfa8;
 
 	/* Focus ring */
-	--ring: rgba(199, 101, 79, 0.3);
+	--ring: rgba(217, 40, 24, 0.3);
 
 	/* Sidebar */
-	--sidebar: #faf9f6;
-	--sidebar-foreground: #1c1917;
-	--sidebar-accent: #c7654f;
-	--sidebar-border: #e7e5e0;
+	--sidebar: #f6f2e8;
+	--sidebar-foreground: #1c1a15;
+	--sidebar-accent: #d92818;
+	--sidebar-border: #d9d2c2;
 
 	/* Additional semantic tokens */
-	--card-accent: #fdfcfa;
-	--header-bg: #faf9f6;
-	--chart-1: #c7654f;
+	--card-accent: #f6f2e8;
+	--header-bg: #f0ebe0;
+	--chart-1: #d92818;
 	--chart-2: #6b8e7f;
 	--chart-3: #a88f6f;
 	--chart-4: #6b8aaa;
 	--chart-5: #57534e;
-	--sidebar-primary: #c7654f;
+	--sidebar-primary: #d92818;
 	--sidebar-primary-foreground: #ffffff;
 	--sidebar-accent-foreground: #1c1917;
-	--sidebar-ring: rgba(199, 101, 79, 0.3);
+	--sidebar-ring: rgba(217, 40, 24, 0.3);
 }
 
 /* ---------------------------
@@ -288,9 +288,9 @@
 	--popover: #292524;
 	--popover-foreground: #e7e5e0;
 
-	/* Primary - brighter terracotta for dark */
-	--primary: #d4795f;
-	--primary-hover: #c96952;
+	/* Primary - LOCO red adapted for dark */
+	--primary: #e8391d;
+	--primary-hover: #d03018;
 	--primary-foreground: #ffffff;
 
 	/* Secondary */
@@ -319,29 +319,29 @@
 	--input: #57534e;
 
 	/* Ring */
-	--ring: rgba(212, 121, 95, 0.4);
+	--ring: rgba(232, 57, 29, 0.4);
 
 	/* Accent color */
-	--accent-color: #d4795f;
+	--accent-color: #e8391d;
 
 	/* Sidebar */
 	--sidebar: #1e1e1e;
 	--sidebar-foreground: #e7e5e0;
-	--sidebar-accent: #d4795f;
+	--sidebar-accent: #e8391d;
 	--sidebar-border: #44403c;
 
 	/* Card */
 	--card-accent: #292524;
 	--header-bg: #1c1917;
-	--chart-1: #d4795f;
+	--chart-1: #e8391d;
 	--chart-2: #7baa9e;
 	--chart-3: #d4b48a;
 	--chart-4: #6b8aaa;
 	--chart-5: #a8a29e;
-	--sidebar-primary: #d4795f;
+	--sidebar-primary: #e8391d;
 	--sidebar-primary-foreground: #ffffff;
 	--sidebar-accent-foreground: #e7e5e0;
-	--sidebar-ring: rgba(212, 121, 95, 0.4);
+	--sidebar-ring: rgba(232, 57, 29, 0.4);
 }
 
 /* ---------------------------
@@ -367,6 +367,17 @@
 	textarea:focus-visible,
 	select:focus-visible {
 		box-shadow: 0 0 0 3px var(--ring);
+	}
+
+	button:not(:disabled),
+	[role="button"]:not(:disabled),
+	select:not(:disabled),
+	label[for],
+	input[type="checkbox"]:not(:disabled),
+	input[type="radio"]:not(:disabled),
+	input[type="submit"]:not(:disabled),
+	input[type="button"]:not(:disabled) {
+		cursor: pointer;
 	}
 
 	html {
@@ -405,7 +416,12 @@
 		left: 0;
 		right: 0;
 		bottom: 0;
-		background-image: none;
+		background-image: radial-gradient(
+			circle,
+			rgba(28, 26, 21, 0.08) 1px,
+			transparent 1px
+		);
+		background-size: 24px 24px;
 		pointer-events: none;
 		z-index: 0;
 	}
@@ -420,13 +436,13 @@
 		bottom: 0;
 		background:
 			radial-gradient(
-				ellipse 80% 50% at 10% 20%,
-				rgba(199, 101, 79, 0.04) 0%,
+				ellipse 70% 50% at 5% 10%,
+				rgba(217, 40, 24, 0.05) 0%,
 				transparent 50%
 			),
 			radial-gradient(
-				ellipse 60% 40% at 90% 80%,
-				rgba(107, 142, 127, 0.04) 0%,
+				ellipse 60% 40% at 95% 90%,
+				rgba(58, 122, 74, 0.04) 0%,
 				transparent 50%
 			);
 		pointer-events: none;

@@ -7,21 +7,21 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
+} from "@/components/design/Card";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { listTokens, revokeToken } from "@/gen/loco/token/v1";
 import type { Token } from "@/gen/loco/token/v1/token_pb";
@@ -115,14 +115,8 @@ function TokenCard({
 				{/* Actions */}
 				<div className="flex gap-2">
 					<AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
-						<AlertDialogTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 cursor-pointer"
-							>
-								<Trash2 className="w-4 h-4 text-black" />
-							</Button>
+						<AlertDialogTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+							<Trash2 className="w-4 h-4 text-black" />
 						</AlertDialogTrigger>
 						<AlertDialogContent>
 							<AlertDialogHeader>
@@ -198,7 +192,7 @@ function TokenCard({
 												key={`${entityType.toString()}-${entityId}`}
 											>
 												<Tooltip>
-													<TooltipTrigger asChild>
+													<TooltipTrigger>
 														<Badge
 															variant="secondary"
 															className="text-xs cursor-help px-2 py-0.5"

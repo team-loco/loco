@@ -20,7 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -35,7 +35,7 @@ import {
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/design/Dialog";
 import {
 	SidebarMenu,
 	SidebarMenuButton,

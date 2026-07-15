@@ -1,10 +1,10 @@
-import { Badge, badgeVariants } from "@/components/ui/badge";
+import { Badge, badgeVariants } from "@/components/design/Badge";
 import { type VariantProps } from "class-variance-authority";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 import { getResourceStatusTooltip } from "@/lib/deployment-utils";
 
 type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
@@ -68,7 +68,7 @@ export function StatusBadge({ status, showTooltip = true }: StatusBadgeProps) {
 
 	return (
 		<Tooltip>
-			<TooltipTrigger asChild>{badge}</TooltipTrigger>
+			<TooltipTrigger render={badge} />
 			<TooltipContent>{getResourceStatusTooltip(status)}</TooltipContent>
 		</Tooltip>
 	);

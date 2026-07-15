@@ -1,12 +1,12 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/design/Dialog";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -322,9 +322,9 @@ export function SiteHeader() {
                                     onClick={() => {
                                         void navigate(item.url);
                                     }}
-                                    className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent font-mono ${
+                                    className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent font-mono text-muted-foreground hover:text-muted-foreground ${
                                         isActive(item.url)
-                                            ? "text-primary-foreground"
+                                            ? "!text-primary-foreground"
                                             : ""
                                     }`}
                                 >
@@ -340,22 +340,16 @@ export function SiteHeader() {
                             open={userDropdownOpen}
                             onOpenChange={setUserDropdownOpen}
                         >
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                >
-                                    <Avatar className="h-6 w-6">
-                                        <AvatarImage
-                                            src={user?.avatarUrl}
-                                            alt={user?.name}
-                                        />
-                                        <AvatarFallback className="text-xs">
-                                            {user?.name.charAt(0).toUpperCase()}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                </Button>
+                            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" />}>
+                                <Avatar className="h-6 w-6">
+                                    <AvatarImage
+                                        src={user?.avatarUrl}
+                                        alt={user?.name}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                        {user?.name.charAt(0).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                                 className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"

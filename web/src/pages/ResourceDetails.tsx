@@ -3,8 +3,8 @@ import {
 	DeploymentWizard,
 	type DeploymentWizardValues,
 } from "@/components/DeploymentWizard";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/design/Card";
+import { Input } from "@/components/design/Input";
 import { Slider } from "@/components/ui/slider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { createDeployment } from "@/gen/loco/deployment/v1";

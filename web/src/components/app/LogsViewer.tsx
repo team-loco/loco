@@ -1,12 +1,12 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
+import { Button } from "@/components/design/Button";
+import { Input } from "@/components/design/Input";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 import { useStreamLogs } from "@/hooks/useStreamLogs";
 import {
 	Search,
@@ -45,7 +45,7 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/components/design/Select";
 
 interface LogsViewerProps {
 	resourceId: string;
@@ -195,7 +195,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 			cell: ({ row }) => (
 				<div className="flex justify-end">
 					<Tooltip>
-						<TooltipTrigger asChild>
+						<TooltipTrigger>
 							<button
 								onClick={(e) => {
 									e.stopPropagation();
@@ -271,7 +271,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 
 						<div className="flex gap-2 w-full sm:w-auto">
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<Button
 										variant={timezoneMode === "utc" ? "default" : "outline"}
 										size="sm"
@@ -292,7 +292,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 								</TooltipContent>
 							</Tooltip>
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<Button
 										variant="outline"
 										size="sm"
@@ -311,7 +311,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 								</TooltipContent>
 							</Tooltip>
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<Button
 										variant="outline"
 										size="sm"
@@ -327,7 +327,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 								<TooltipContent>Refresh logs</TooltipContent>
 							</Tooltip>
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<Button
 										variant="outline"
 										size="sm"

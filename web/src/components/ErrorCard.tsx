@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent } from "@/components/design/Card";
 import { getErrorMessage } from "@/lib/error-handler";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";

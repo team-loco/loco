@@ -9,8 +9,8 @@ import {
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import { type WorkspaceMemberWithUser } from "@/gen/loco/workspace/v1/workspace_pb";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
@@ -69,16 +69,8 @@ function ActionsCell({
 	return (
 		<div className="flex justify-end">
 			<AlertDialog open={open} onOpenChange={setOpen}>
-				<AlertDialogTrigger asChild>
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						title="Remove user"
-						disabled={isRemoving}
-					>
-						<Trash2 className="h-4 w-4 text-destructive" />
-					</Button>
+				<AlertDialogTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" title="Remove user" disabled={isRemoving} />}>
+					<Trash2 className="h-4 w-4 text-destructive" />
 				</AlertDialogTrigger>
 				<AlertDialogContent>
 					<AlertDialogHeader>

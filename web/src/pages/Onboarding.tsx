@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/design/Card";
 import { Progress } from "@/components/ui/progress";
 import { whoAmI } from "@/gen/loco/user/v1";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";

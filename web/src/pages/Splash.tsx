@@ -1,6 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { LoginModal } from "@/components/LoginModal";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/ui/code-block";
 import {
 	AnimatedSpan,

@@ -1,14 +1,14 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { useMemo } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/design/Badge";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
+} from "@/components/design/Card";
 import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listWorkspaceMembers } from "@/gen/loco/workspace/v1";
 import { TrendingUpIcon } from "lucide-react";

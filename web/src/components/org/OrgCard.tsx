@@ -1,13 +1,13 @@
 import { Building2, Settings, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
+} from "@/components/design/Card";
 import type { Organization } from "@/gen/loco/org/v1/org_pb";
 
 interface OrgCardProps {

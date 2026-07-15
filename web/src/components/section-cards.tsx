@@ -1,13 +1,13 @@
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/components/design/Badge"
 import {
   Card,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/design/Card"
 
 export function SectionCards() {
   return (

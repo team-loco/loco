@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -57,15 +57,13 @@ export function EventBell() {
 		<DropdownMenu onOpenChange={(open) => {
 			if (open) handleOpen();
 		}}>
-			<DropdownMenuTrigger asChild>
-				<span className="flex">
-					<Bell className="w-4 h-4" /> Recent Events
-					{unreadCount > 0 && (
-						<span className="absolute -top-2 -right-2 bg-destructive text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-							{unreadCount > 9 ? "9+" : unreadCount}
-						</span>
-					)}
-				</span>
+			<DropdownMenuTrigger render={<span className="flex" />}>
+				<Bell className="w-4 h-4" /> Recent Events
+				{unreadCount > 0 && (
+					<span className="absolute -top-2 -right-2 bg-destructive text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+						{unreadCount > 9 ? "9+" : unreadCount}
+					</span>
+				)}
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-80">
 				{events.length === 0 ? (

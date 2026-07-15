@@ -1,6 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import {
 	Collapsible,
 	CollapsibleContent,
@@ -13,22 +13,22 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/design/Dialog";
+import { Input } from "@/components/design/Input";
+import { Label } from "@/components/design/Label";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/design/Select";
+import { Separator } from "@/components/design/Separator";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { createToken, type Token } from "@/gen/loco/token/v1";
@@ -140,23 +140,16 @@ function WorkspaceTreeItem({
 				{/* Workspace header row */}
 				<div className="flex gap-1.5 items-center">
 					<Tooltip>
-						<CollapsibleTrigger asChild>
-							<TooltipTrigger asChild>
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									className="h-7 w-7 p-0"
-								>
-									<ChevronRight
-										className={cn(
-											"h-4 w-4 transition-transform duration-200",
-											isExpanded && "rotate-90",
-										)}
-									/>
-								</Button>
-							</TooltipTrigger>
-						</CollapsibleTrigger>
+						<TooltipTrigger>
+							<CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" />}>
+								<ChevronRight
+									className={cn(
+										"h-4 w-4 transition-transform duration-200",
+										isExpanded && "rotate-90",
+									)}
+								/>
+							</CollapsibleTrigger>
+						</TooltipTrigger>
 						<TooltipContent side="left">
 							<p className="text-xs">
 								{isExpanded ? "Hide resources" : "Show resources"}

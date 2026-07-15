@@ -1,5 +1,5 @@
 import { MoreVertical, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -39,15 +39,8 @@ export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {
 	return (
 		<>
 			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-8 w-8 p-0"
-						onClick={(e) => { e.stopPropagation(); }}
-					>
-						<MoreVertical className="h-4 w-4" />
-					</Button>
+				<DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={(e) => { e.stopPropagation(); }} />}>
+					<MoreVertical className="h-4 w-4" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end">
 					<DropdownMenuItem

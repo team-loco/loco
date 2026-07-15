@@ -1,7 +1,7 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
+import { Label } from "@/components/design/Label";
 import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -9,7 +9,7 @@ import {
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 import {
 	DeploymentPhase,
 	type Deployment,
@@ -197,7 +197,7 @@ export function DeploymentStatusCard({
 								Status
 							</span>
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<Badge
 										variant="default"
 										className={`text-xs font-semibold ${
@@ -216,7 +216,7 @@ export function DeploymentStatusCard({
 								Deployment ID
 							</span>
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<span className="text-sm font-mono text-foreground opacity-70 cursor-help">
 										{formatShortId(deployment.id)}
 									</span>

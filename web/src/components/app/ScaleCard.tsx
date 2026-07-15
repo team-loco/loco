@@ -1,13 +1,13 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/design/Card";
+import { Input } from "@/components/design/Input";
+import { Label } from "@/components/design/Label";
 import { Slider } from "@/components/ui/slider";
 import type { Deployment } from "@/gen/loco/deployment/v1/deployment_pb";
 import { scaleResource } from "@/gen/loco/resource/v1";

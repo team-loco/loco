@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 import {
