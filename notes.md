@@ -9,27 +9,6 @@ None of these block anything today; they are the things we knowingly deferred.
 
 ### Frontend
 
-- **~~151 pre-existing ESLint errors.~~** Cleared. `bun run lint:types` is clean and
-  the `Web Build` CI job now gates on it (`continue-on-error` removed). Two things
-  worth knowing from that work:
-  - `web/tsconfig.json` is solution-style (`files: []` + `references`), so the
-    `compilerOptions` it carried — `noUncheckedIndexedAccess`,
-    `exactOptionalPropertyTypes`, `noEmitOnError` — applied to **no files**. They
-    now live in `tsconfig.app.json` / `tsconfig.node.json` where they take effect.
-    Turning them on surfaced 81 real type errors, mostly unguarded array-index
-    reads. Don't put per-project options back in the root config.
-  - Most `no-unnecessary-condition` hits were correct defensive guards paired with
-    types that were too optimistic — the fix was almost always to correct the type,
-    not to delete the guard. `nonEmpty()` in `src/lib/utils.ts` exists for the
-    `||`-on-a-proto-string case, where `??` would wrongly keep an empty string.
-
-- **Region status was mapped to the wrong enum.** `ResourceDetails.tsx` switched on
-  raw numbers (`case 1:` … `case 4:`) against `RegionIntentStatus`, whose members
-  are `DESIRED=1, PROVISIONING=2, ACTIVE=3, DEGRADED=4`. Healthy regions rendered as
-  "degraded" and degraded ones as "failed". Fixed to use the named enum members;
-  `switch-exhaustiveness-check` is what caught it. Same pass added the missing
-  `DeploymentPhase.DEPLOYING` case to `getDeploymentPhaseLabel`.
-
 - **`Home.tsx` empty states are untested in the wild.** `{true ? … : …}` had been
   short-circuiting since Feb 2026 (commit 27c2d69), so the "No Results" search state
   and the "Create Your First Resource" onboarding CTA never rendered. The original
