@@ -32,7 +32,6 @@ const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 };
 
 function RoleBadge({ role }: { role: string }) {
-	console.log("what is role", role);
 	const variant =
 		roleBadgeVariants[role.toLowerCase()] || roleBadgeVariants.member;
 	return (

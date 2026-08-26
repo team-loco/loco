@@ -150,10 +150,10 @@ export function Home() {
 			)}
 
 			{/* Applications and Deployments */}
-			{true ? (
+			{filteredResources.length > 0 ? (
 				<div className="mt-8">
 					<BentoDashboard
-						resources={filteredResources.length > 0 ? filteredResources : []}
+						resources={filteredResources}
 						workspaceId={currentWorkspaceId ?? undefined}
 					/>
 				</div>

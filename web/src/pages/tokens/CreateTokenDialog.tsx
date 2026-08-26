@@ -292,7 +292,6 @@ export function CreateTokenDialog({
 		}
 	};
 
-	console.log("errors", validationErrors);
 	// Toggle workspace expansion
 	const toggleWorkspaceExpansion = (workspaceId: string) => {
 		setExpandedWorkspaceIds((prev) => {
@@ -467,7 +466,11 @@ export function CreateTokenDialog({
 								<Select
 									value={expiresInSec.toString()}
 									onValueChange={(value) => {
-										setExpiresInSec(parseInt(value, 10));
+										// Base UI emits null when cleared; expiration is required,
+										// so ignore null and any non-numeric value.
+										if (value === null) return;
+										const parsed = parseInt(value, 10);
+										if (!Number.isNaN(parsed)) setExpiresInSec(parsed);
 									}}
 								>
 									<SelectTrigger id="expiration">

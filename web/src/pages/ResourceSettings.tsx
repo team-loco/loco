@@ -184,7 +184,6 @@ export function ResourceSettings() {
 			});
 
 			if (!res.isAvailable) {
-				console.log("hit this piece");
 				toast.error("This domain is already in use");
 				return;
 			}
@@ -449,7 +448,11 @@ export function ResourceSettings() {
 								</label>
 								<Select
 									value={platformDomainId}
-									onValueChange={setPlatformDomainId}
+									onValueChange={(value) => {
+										// Base UI emits null when cleared; "" is this field's
+										// empty state and restores the placeholder.
+										setPlatformDomainId(value ?? "");
+									}}
 								>
 									<SelectTrigger>
 										<SelectValue placeholder="Choose a domain..." />
