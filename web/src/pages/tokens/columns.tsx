@@ -20,8 +20,8 @@ import {
 } from "@/components/design/Tooltip";
 
 import { Trash2 } from "lucide-react";
-import { EntityType } from "@gen/loco/token/v1/token_pb";
-import { formatShortId } from "@/lib/utils";
+import { EntityType, Scope } from "@gen/loco/token/v1/token_pb";
+import { formatShortId, lookupEnum } from "@/lib/utils";
 
 function formatRelativeTimeFuture(date: Date): string {
 	const now = new Date();
@@ -45,13 +45,22 @@ function maskToken(token: string): string {
 }
 
 // Entity type display helpers - using badge variants
-const entityTypeDisplay: Record<
-	number,
-	{
-		label: string;
-		variant: "info" | "default" | "success" | "warning" | "error";
-	}
-> = {
+type EntityDisplay = {
+	label: string;
+	variant: "info" | "default" | "success" | "warning" | "error";
+};
+
+const UNKNOWN_ENTITY: EntityDisplay = { label: "Unknown", variant: "default" };
+
+const SCOPE_SHORT: Record<Scope, string> = {
+	[Scope.UNSPECIFIED]: "?",
+	[Scope.READ]: "R",
+	[Scope.WRITE]: "W",
+	[Scope.ADMIN]: "A",
+};
+
+const entityTypeDisplay: Record<EntityType, EntityDisplay> = {
+	[EntityType.UNSPECIFIED]: UNKNOWN_ENTITY,
 	[EntityType.USER]: {
 		label: "User",
 		variant: "info",
@@ -189,22 +198,16 @@ export function getTokenColumns(
 				return (
 					<div className="flex flex-wrap gap-1">
 						{Array.from(scopeGroups.entries()).map(([entityType, entityMap]) => {
-							const entityInfo = entityTypeDisplay[entityType] ?? {
-								label: "Unknown",
-								variant: "default" as const,
-							};
+							const entityInfo = lookupEnum(
+								entityTypeDisplay,
+								entityType,
+								UNKNOWN_ENTITY,
+							);
 							
 							return Array.from(entityMap.entries()).map(([entityId, scopes]) => {
-								const scopeList = Array.from(scopes);
-								const scopeShortMap: Record<number, string> = {
-									0: "?",
-									1: "R",
-									2: "W",
-									3: "A",
-								};
-								const scopeStr = Array.from(scopeList)
+								const scopeStr = Array.from(scopes)
 									.sort()
-									.map((s) => scopeShortMap[s] ?? "?")
+									.map((s) => lookupEnum(SCOPE_SHORT, s, "?"))
 									.join("");
 
 								return (

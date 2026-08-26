@@ -64,6 +64,7 @@ export function Onboarding() {
 			case "done":
 				return 100;
 			case "error":
+				return 0;
 			case "idle":
 				return 0;
 		}

@@ -10,6 +10,7 @@ import {
     Settings
 } from "lucide-react";
 import { useNavigate } from "react-router";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
 interface ApplicationsGridProps {
 	resources: Resource[];
@@ -30,32 +31,18 @@ function getMockMetrics(resourceId: string) {
 	};
 }
 
-function getLastDeployedText(createdAt: unknown): string {
+function getLastDeployedText(createdAt: Timestamp | undefined): string {
 	if (!createdAt) return "Never deployed";
 
-	try {
-		let timestamp: number;
-		if (typeof createdAt === "object" && "seconds" in createdAt) {
-			timestamp = Number((createdAt).seconds) * 1000;
-		} else if (typeof createdAt === "number") {
-			timestamp = createdAt;
-		} else {
-			return "Unknown status";
-		}
+	const diff = Date.now() - Number(createdAt.seconds) * 1000;
+	const hours = Math.floor(diff / (1000 * 60 * 60));
+	const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-		const now = new Date().getTime();
-		const diff = now - timestamp;
-		const hours = Math.floor(diff / (1000 * 60 * 60));
-		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-		if (hours === 0) return "Deployed just now";
-		if (hours === 1) return "Deployed 1h ago";
-		if (hours < 24) return `Deployed ${hours.toString()}h ago`;
-		if (days === 1) return "Deployed 1d ago";
-		return `Deployed ${days.toString()}d ago`;
-	} catch {
-		return "Unknown status";
-	}
+	if (hours === 0) return "Deployed just now";
+	if (hours === 1) return "Deployed 1h ago";
+	if (hours < 24) return `Deployed ${hours.toString()}h ago`;
+	if (days === 1) return "Deployed 1d ago";
+	return `Deployed ${days.toString()}d ago`;
 }
 
 export function ApplicationsGrid({

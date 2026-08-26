@@ -18,11 +18,15 @@ import { deleteResource, scaleResource, updateResource } from "@gen/loco/resourc
 import { RegionIntentStatus } from "@gen/loco/resource/v1/resource_pb";
 import { useResourceDetails } from "@/hooks/useResourceDetails";
 import { useStreamEvents } from "@/hooks/useStreamEvents";
-import { getStatusLabel } from "@/lib/app-status";
+import {
+	getStatusLabel,
+	type ResourceStatusLabel,
+} from "@/lib/app-status";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { subscribeToEvents } from "@/lib/events";
-import { cn, nonEmpty } from "@/lib/utils";
+import { cn, lookupEnum, nonEmpty } from "@/lib/utils";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { useMutation } from "@connectrpc/connect-query";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
@@ -35,7 +39,15 @@ interface StatusCfg {
 	label: string;
 }
 
-const STATUS_CFG: Record<string, StatusCfg> = {
+type StatusKey =
+	| "healthy"
+	| "deploying"
+	| "degraded"
+	| "failed"
+	| "suspended"
+	| "pending";
+
+const STATUS_CFG: Record<StatusKey, StatusCfg> = {
 	healthy: {
 		dot: "#4a7c59",
 		color: "#3a6b4a",
@@ -73,17 +85,6 @@ const STATUS_CFG: Record<string, StatusCfg> = {
 		label: "Pending",
 	},
 };
-
-const STATUS_CFG_FALLBACK: StatusCfg = {
-	dot: "#b0a090",
-	color: "#7a6a58",
-	bg: "#f0ece6",
-	label: "Pending",
-};
-
-function statusCfgFor(statusKey: string): StatusCfg {
-	return STATUS_CFG[statusKey] ?? STATUS_CFG_FALLBACK;
-}
 
 interface PhaseCfg {
 	label: string;
@@ -129,12 +130,6 @@ const PHASE_CFG: Record<DeploymentPhase, PhaseCfg> = {
 	},
 };
 
-// Protobuf enums are open: a newer server can send a phase this build doesn't
-// know about, so the lookup is deliberately treated as partial.
-function phaseCfgFor(phase: DeploymentPhase): PhaseCfg {
-	const cfg: Partial<Record<DeploymentPhase, PhaseCfg>> = PHASE_CFG;
-	return cfg[phase] ?? PHASE_CFG[DeploymentPhase.UNSPECIFIED];
-}
 
 interface NodeStyle {
 	border: string;
@@ -142,13 +137,15 @@ interface NodeStyle {
 	text: string;
 }
 
-const NODE_STYLE_FALLBACK: NodeStyle = {
-	border: "#c0b8ac",
-	bg: "#faf7f2",
-	text: "#4a3c30",
-};
+type NodeType =
+	| "self"
+	| "service"
+	| "gateway"
+	| "database"
+	| "cache"
+	| "external";
 
-const NODE_STYLE: Record<string, NodeStyle> =
+const NODE_STYLE: Record<NodeType, NodeStyle> =
 	{
 		self: { border: "#c4956a", bg: "#fdf6ee", text: "#3d2a14" },
 		service: { border: "#c0b8ac", bg: "#faf7f2", text: "#4a3c30" },
@@ -160,35 +157,23 @@ const NODE_STYLE: Record<string, NodeStyle> =
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function statusKeyFromLabel(label: string): string {
+function statusKeyFromLabel(label: ResourceStatusLabel): StatusKey {
 	if (label === "running") return "healthy";
 	if (label === "unavailable") return "failed";
 	return label;
 }
 
-function relativeTime(timestamp: unknown): string {
+function relativeTime(timestamp: Timestamp | undefined): string {
 	if (!timestamp) return "—";
-	try {
-		let ms: number;
-		if (typeof timestamp === "object" && "seconds" in timestamp) {
-			ms = Number((timestamp as Record<string, unknown>).seconds) * 1000;
-		} else if (typeof timestamp === "number") {
-			ms = timestamp;
-		} else {
-			return "—";
-		}
-		const diff = Date.now() - ms;
-		const mins = Math.floor(diff / 60_000);
-		const hrs = Math.floor(diff / 3_600_000);
-		const days = Math.floor(diff / 86_400_000);
-		if (mins < 1) return "Just now";
-		if (mins < 60) return `${mins}m ago`;
-		if (hrs < 24) return `${hrs}h ago`;
-		if (days === 1) return "Yesterday";
-		return `${days}d ago`;
-	} catch {
-		return "—";
-	}
+	const diff = Date.now() - Number(timestamp.seconds) * 1000;
+	const mins = Math.floor(diff / 60_000);
+	const hrs = Math.floor(diff / 3_600_000);
+	const days = Math.floor(diff / 86_400_000);
+	if (mins < 1) return "Just now";
+	if (mins < 60) return `${mins}m ago`;
+	if (hrs < 24) return `${hrs}h ago`;
+	if (days === 1) return "Yesterday";
+	return `${days}d ago`;
 }
 
 function shortId(id: string): string {
@@ -219,7 +204,7 @@ function parseMemMi(mem: string): number {
 }
 
 // Mock a usage pct based on health status + deterministic seed
-function mockUsagePct(statusKey: string, seed: number): number {
+function mockUsagePct(statusKey: StatusKey, seed: number): number {
 	const BASES = [23, 31, 17, 41, 29, 37, 13, 43] as const;
 	const base = BASES[seed % BASES.length] ?? BASES[0];
 	if (statusKey === "degraded") return 72 + (base % 18);
@@ -232,7 +217,7 @@ function mockUsagePct(statusKey: string, seed: number): number {
 interface ArchNode {
 	id: string;
 	label: string;
-	type: string;
+	type: NodeType;
 	x: number;
 	y: number;
 	replicas?: number;
@@ -365,12 +350,12 @@ function ArchDiagram({ resourceName }: { resourceName: string }) {
 				})}
 
 				{nodes.map((node) => {
-					const s = NODE_STYLE[node.type] ?? NODE_STYLE_FALLBACK;
+					const s = NODE_STYLE[node.type];
 					const isActive =
 						hovered === node.id ||
 						activeEdges.some((e) => e.from === node.id || e.to === node.id);
 					const isSelf = node.type === "self";
-					const subtitles: Record<string, string> = {
+					const subtitles: Record<NodeType, string> = {
 						self: `${node.replicas ?? 1} replicas`,
 						gateway: "ingress",
 						database: "postgresql",
@@ -424,7 +409,7 @@ function ArchDiagram({ resourceName }: { resourceName: string }) {
 								fontSize="9"
 								fill="#a89880"
 							>
-								{subtitles[node.type] ?? ""}
+								{subtitles[node.type]}
 							</text>
 							{node.type !== "external" && (
 								<circle cx={NW - 9} cy={9} r={4} fill="#4a7c59" />
@@ -442,7 +427,7 @@ function ArchDiagram({ resourceName }: { resourceName: string }) {
 						["database", "Database"],
 						["cache", "Cache"],
 						["external", "External"],
-					] as [string, string][]
+					] as [NodeType, string][]
 				).map(([t, l]) => (
 					<div key={t} className="flex items-center gap-[5px]">
 						<div
@@ -450,10 +435,8 @@ function ArchDiagram({ resourceName }: { resourceName: string }) {
 								width: "9px",
 								height: "9px",
 								borderRadius: "3px",
-								background: (NODE_STYLE[t] ?? NODE_STYLE_FALLBACK).bg,
-								border: `1.5px solid ${
-									(NODE_STYLE[t] ?? NODE_STYLE_FALLBACK).border
-								}`,
+								background: NODE_STYLE[t].bg,
+								border: `1.5px solid ${NODE_STYLE[t].border}`,
 							}}
 						/>
 						<span className="text-[10.5px] text-[#9a8a78] font-sans">{l}</span>
@@ -1411,7 +1394,7 @@ export function ResourceDetails() {
 
 	// ── derived data ─────────────────────────────────────────────────────────
 	const statusKey = statusKeyFromLabel(getStatusLabel(resource.status));
-	const st = statusCfgFor(statusKey);
+	const st = STATUS_CFG[statusKey];
 	const activeDep = deployments.find((d) => d.isActive) ?? deployments[0];
 	const primaryDomain = resource.domains[0]?.domain;
 	const activeSvc = activeDep ? getServiceSpec(activeDep) : undefined;
@@ -1502,11 +1485,12 @@ export function ResourceDetails() {
 				case RegionIntentStatus.REMOVING:
 					return "suspended";
 				case RegionIntentStatus.DESIRED:
+					return "pending";
 				case RegionIntentStatus.UNSPECIFIED:
 					return "pending";
 			}
 		})();
-		const rs = statusCfgFor(statusKey2);
+		const rs = STATUS_CFG[statusKey2];
 
 		const cpuLimit = parseCpuMilli(rSvc?.cpu ?? "500m");
 		const memLimit = parseMemMi(rSvc?.memory ?? "512Mi");
@@ -2049,7 +2033,11 @@ export function ResourceDetails() {
 							</div>
 						) : (
 							deployments.map((dep) => {
-								const ph = phaseCfgFor(dep.status);
+								const ph = lookupEnum(
+									PHASE_CFG,
+									dep.status,
+									PHASE_CFG[DeploymentPhase.UNSPECIFIED],
+								);
 								const isCurr = dep.isActive;
 								const canDiff = !isCurr && activeDep && activeDep.id !== dep.id;
 								return (

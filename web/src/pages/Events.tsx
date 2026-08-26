@@ -147,15 +147,7 @@ export function Events() {
 								{filteredEvents.map((event) => {
 									const severity = nonEmpty(event.type.toLowerCase(), "info");
 									const timestamp = event.timestamp
-										? new Date(
-												typeof event.timestamp === "object" &&
-													"seconds" in event.timestamp
-													? Number(
-															(event.timestamp as Record<string, unknown>)
-																.seconds,
-														) * 1000
-													: event.timestamp,
-											)
+										? new Date(Number(event.timestamp.seconds) * 1000)
 										: new Date();
 
 									return (

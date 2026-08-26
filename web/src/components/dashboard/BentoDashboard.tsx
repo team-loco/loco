@@ -160,14 +160,17 @@ const RESOURCE_TYPE_CFG: Partial<
 function phaseToStatus(phase: DeploymentPhase): VisualStatus {
     switch (phase) {
         case DeploymentPhase.RUNNING:
+            return "healthy";
         case DeploymentPhase.SUCCEEDED:
             return "healthy";
         case DeploymentPhase.DEPLOYING:
+            return "deploying";
         case DeploymentPhase.PENDING:
             return "deploying";
         case DeploymentPhase.FAILED:
             return "failed";
         case DeploymentPhase.CANCELED:
+            return "not_deployed";
         case DeploymentPhase.UNSPECIFIED:
             return "not_deployed";
     }

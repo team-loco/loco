@@ -18,51 +18,66 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 // Heavy pages — loaded only when the route is visited
-const ResourceDetails = lazy(async () =>
-	await import("@/pages/ResourceDetails").then((m) => ({ default: m.ResourceDetails })),
-);
-const ResourceSettings = lazy(async () =>
-	await import("@/pages/ResourceSettings").then((m) => ({ default: m.ResourceSettings })),
-);
-const CreateResource = lazy(async () =>
-	await import("@/pages/CreateResource").then((m) => ({ default: m.CreateResource })),
-);
-const Events = lazy(async () =>
-	await import("@/pages/Events").then((m) => ({ default: m.Events })),
-);
-const Home = lazy(async () =>
-	await import("@/pages/Home").then((m) => ({ default: m.Home })),
-);
-const Organizations = lazy(async () =>
-	await import("@/pages/Organizations").then((m) => ({ default: m.Organizations })),
-);
-const OrgSettings = lazy(async () =>
-	await import("@/pages/OrgSettings").then((m) => ({ default: m.OrgSettings })),
-);
-const Profile = lazy(async () =>
-	await import("@/pages/Profile").then((m) => ({ default: m.Profile })),
-);
-const Team = lazy(async () =>
-	await import("@/pages/Team").then((m) => ({ default: m.Team })),
-);
-const Tokens = lazy(async () =>
-	await import("@/pages/Tokens").then((m) => ({ default: m.Tokens })),
-);
-const WorkspaceSettings = lazy(async () =>
-	await import("@/pages/WorkspaceSettings").then((m) => ({ default: m.WorkspaceSettings })),
-);
-const Observability = lazy(async () =>
-	await import("@/pages/Observability").then((m) => ({ default: m.Observability })),
-);
-const Resources = lazy(async () =>
-	await import("@/pages/Resources").then((m) => ({ default: m.Resources })),
-);
-const Usage = lazy(async () =>
-	await import("@/pages/Usage").then((m) => ({ default: m.Usage })),
-);
-const DashboardRedirect = lazy(async () =>
-	await import("@/pages/DashboardRedirect").then((m) => ({ default: m.DashboardRedirect })),
-);
+const ResourceDetails = lazy(async () => {
+	const m = await import("@/pages/ResourceDetails");
+	return { default: m.ResourceDetails };
+});
+const ResourceSettings = lazy(async () => {
+	const m = await import("@/pages/ResourceSettings");
+	return { default: m.ResourceSettings };
+});
+const CreateResource = lazy(async () => {
+	const m = await import("@/pages/CreateResource");
+	return { default: m.CreateResource };
+});
+const Events = lazy(async () => {
+	const m = await import("@/pages/Events");
+	return { default: m.Events };
+});
+const Home = lazy(async () => {
+	const m = await import("@/pages/Home");
+	return { default: m.Home };
+});
+const Organizations = lazy(async () => {
+	const m = await import("@/pages/Organizations");
+	return { default: m.Organizations };
+});
+const OrgSettings = lazy(async () => {
+	const m = await import("@/pages/OrgSettings");
+	return { default: m.OrgSettings };
+});
+const Profile = lazy(async () => {
+	const m = await import("@/pages/Profile");
+	return { default: m.Profile };
+});
+const Team = lazy(async () => {
+	const m = await import("@/pages/Team");
+	return { default: m.Team };
+});
+const Tokens = lazy(async () => {
+	const m = await import("@/pages/Tokens");
+	return { default: m.Tokens };
+});
+const WorkspaceSettings = lazy(async () => {
+	const m = await import("@/pages/WorkspaceSettings");
+	return { default: m.WorkspaceSettings };
+});
+const Observability = lazy(async () => {
+	const m = await import("@/pages/Observability");
+	return { default: m.Observability };
+});
+const Resources = lazy(async () => {
+	const m = await import("@/pages/Resources");
+	return { default: m.Resources };
+});
+const Usage = lazy(async () => {
+	const m = await import("@/pages/Usage");
+	return { default: m.Usage };
+});
+const DashboardRedirect = lazy(async () => {
+	const m = await import("@/pages/DashboardRedirect");
+	return { default: m.DashboardRedirect };
+});
 import { createTransport } from "./auth/connect-transport";
 
 const queryClient = new QueryClient({

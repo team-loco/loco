@@ -1,7 +1,23 @@
 import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
-export function getStatusLabel(status?: ResourceStatus): string {
+export type ResourceStatusLabel =
+	| "running"
+	| "deploying"
+	| "degraded"
+	| "unavailable"
+	| "suspended"
+	| "pending";
+
+export type DeploymentPhaseLabel =
+	| "pending"
+	| "running"
+	| "succeeded"
+	| "failed"
+	| "deploying"
+	| "canceled";
+
+export function getStatusLabel(status?: ResourceStatus): ResourceStatusLabel {
 	if (status === undefined) return "pending";
 
 	switch (status) {
@@ -20,7 +36,9 @@ export function getStatusLabel(status?: ResourceStatus): string {
 	}
 }
 
-export function getDeploymentPhaseLabel(phase?: DeploymentPhase): string {
+export function getDeploymentPhaseLabel(
+	phase?: DeploymentPhase,
+): DeploymentPhaseLabel {
 	if (phase === undefined) return "pending";
 
 	switch (phase) {
