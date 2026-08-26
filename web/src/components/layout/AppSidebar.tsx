@@ -18,7 +18,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			const isMac = /Mac|iPhone|iPad|iPod/.test(
 				typeof navigator !== "undefined"
-					? // eslint-disable-next-line @typescript-eslint/no-deprecated
+					?  
 						navigator.userAgent || navigator.platform || ""
 					: "",
 			);

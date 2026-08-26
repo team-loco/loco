@@ -16,7 +16,7 @@ import { useState } from "react";
 
 interface AppMenuProps {
 	resource: Resource;
-	onResourceDeleted?: () => void;
+	onResourceDeleted?: (() => void) | undefined;
 }
 
 export function AppMenu({ resource, onResourceDeleted }: AppMenuProps) {

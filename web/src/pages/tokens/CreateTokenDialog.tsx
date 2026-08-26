@@ -67,7 +67,7 @@ interface CreateTokenDialogProps {
 interface ScopeSelection {
 	entityType: EntityType;
 	entityId: string;
-	entityName?: string;
+	entityName?: string | undefined;
 	scope: Scope;
 }
 
@@ -255,7 +255,7 @@ export function CreateTokenDialog({
 	// Fetch the active org and its workspaces for scope selection
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		{ userId: user?.id },
+		user ? { userId: user.id } : undefined,
 		{ enabled: !!user && open },
 	);
 	const activeOrg = useMemo(() => {
@@ -371,7 +371,7 @@ export function CreateTokenDialog({
 			[EntityType.RESOURCE]: "Resource",
 			[EntityType.SYSTEM]: "System",
 		};
-		return map[eType] || "Unknown";
+		return map[eType] ?? "Unknown";
 	};
 
 	const handleSubmit = (e: React.FormEvent) => {
@@ -663,7 +663,7 @@ export function CreateTokenDialog({
 														indices: [],
 													});
 												}
-												// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+												 
 												const group = entityGroups.get(key)!;
 												if (!group.scopes.includes(scope.scope)) {
 													group.scopes.push(scope.scope);

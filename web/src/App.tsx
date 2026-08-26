@@ -18,50 +18,50 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 // Heavy pages — loaded only when the route is visited
-const ResourceDetails = lazy(() =>
-	import("@/pages/ResourceDetails").then((m) => ({ default: m.ResourceDetails })),
+const ResourceDetails = lazy(async () =>
+	await import("@/pages/ResourceDetails").then((m) => ({ default: m.ResourceDetails })),
 );
-const ResourceSettings = lazy(() =>
-	import("@/pages/ResourceSettings").then((m) => ({ default: m.ResourceSettings })),
+const ResourceSettings = lazy(async () =>
+	await import("@/pages/ResourceSettings").then((m) => ({ default: m.ResourceSettings })),
 );
-const CreateResource = lazy(() =>
-	import("@/pages/CreateResource").then((m) => ({ default: m.CreateResource })),
+const CreateResource = lazy(async () =>
+	await import("@/pages/CreateResource").then((m) => ({ default: m.CreateResource })),
 );
-const Events = lazy(() =>
-	import("@/pages/Events").then((m) => ({ default: m.Events })),
+const Events = lazy(async () =>
+	await import("@/pages/Events").then((m) => ({ default: m.Events })),
 );
-const Home = lazy(() =>
-	import("@/pages/Home").then((m) => ({ default: m.Home })),
+const Home = lazy(async () =>
+	await import("@/pages/Home").then((m) => ({ default: m.Home })),
 );
-const Organizations = lazy(() =>
-	import("@/pages/Organizations").then((m) => ({ default: m.Organizations })),
+const Organizations = lazy(async () =>
+	await import("@/pages/Organizations").then((m) => ({ default: m.Organizations })),
 );
-const OrgSettings = lazy(() =>
-	import("@/pages/OrgSettings").then((m) => ({ default: m.OrgSettings })),
+const OrgSettings = lazy(async () =>
+	await import("@/pages/OrgSettings").then((m) => ({ default: m.OrgSettings })),
 );
-const Profile = lazy(() =>
-	import("@/pages/Profile").then((m) => ({ default: m.Profile })),
+const Profile = lazy(async () =>
+	await import("@/pages/Profile").then((m) => ({ default: m.Profile })),
 );
-const Team = lazy(() =>
-	import("@/pages/Team").then((m) => ({ default: m.Team })),
+const Team = lazy(async () =>
+	await import("@/pages/Team").then((m) => ({ default: m.Team })),
 );
-const Tokens = lazy(() =>
-	import("@/pages/Tokens").then((m) => ({ default: m.Tokens })),
+const Tokens = lazy(async () =>
+	await import("@/pages/Tokens").then((m) => ({ default: m.Tokens })),
 );
-const WorkspaceSettings = lazy(() =>
-	import("@/pages/WorkspaceSettings").then((m) => ({ default: m.WorkspaceSettings })),
+const WorkspaceSettings = lazy(async () =>
+	await import("@/pages/WorkspaceSettings").then((m) => ({ default: m.WorkspaceSettings })),
 );
-const Observability = lazy(() =>
-	import("@/pages/Observability").then((m) => ({ default: m.Observability })),
+const Observability = lazy(async () =>
+	await import("@/pages/Observability").then((m) => ({ default: m.Observability })),
 );
-const Resources = lazy(() =>
-	import("@/pages/Resources").then((m) => ({ default: m.Resources })),
+const Resources = lazy(async () =>
+	await import("@/pages/Resources").then((m) => ({ default: m.Resources })),
 );
-const Usage = lazy(() =>
-	import("@/pages/Usage").then((m) => ({ default: m.Usage })),
+const Usage = lazy(async () =>
+	await import("@/pages/Usage").then((m) => ({ default: m.Usage })),
 );
-const DashboardRedirect = lazy(() =>
-	import("@/pages/DashboardRedirect").then((m) => ({ default: m.DashboardRedirect })),
+const DashboardRedirect = lazy(async () =>
+	await import("@/pages/DashboardRedirect").then((m) => ({ default: m.DashboardRedirect })),
 );
 import { createTransport } from "./auth/connect-transport";
 
@@ -81,14 +81,14 @@ const queryClient = new QueryClient({
 
 // Async wrapper around localStorage for the persister
 const asyncLocalStorage: AsyncStorage = {
-	getItem: (key: string) => Promise.resolve(localStorage.getItem(key)),
-	setItem: (key: string, value: string) => {
+	getItem: async (key: string) => await Promise.resolve(localStorage.getItem(key)),
+	setItem: async (key: string, value: string) => {
 		localStorage.setItem(key, value);
-		return Promise.resolve();
+		await Promise.resolve();
 	},
-	removeItem: (key: string) => {
+	removeItem: async (key: string) => {
 		localStorage.removeItem(key);
-		return Promise.resolve();
+		await Promise.resolve();
 	},
 };
 

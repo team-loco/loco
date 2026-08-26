@@ -7,7 +7,7 @@ import type { HighlighterCore } from "shiki/core";
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
 
-function getHighlighter(): Promise<HighlighterCore> {
+async function getHighlighter(): Promise<HighlighterCore> {
 	highlighterPromise ??= Promise.all([
 		import("shiki/core"),
 		import("shiki/engine/javascript"),
@@ -15,20 +15,20 @@ function getHighlighter(): Promise<HighlighterCore> {
 		import("shiki/themes/vitesse-light.mjs"),
 		import("shiki/themes/vitesse-dark.mjs"),
 	]).then(
-		([
+		async ([
 			{ createHighlighterCore },
 			{ createJavaScriptRegexEngine },
 			toml,
 			vitesseLight,
 			vitesseDark,
 		]) =>
-			createHighlighterCore({
+			await createHighlighterCore({
 				themes: [vitesseLight.default, vitesseDark.default],
 				langs: [toml.default],
 				engine: createJavaScriptRegexEngine(),
 			}),
 	);
-	return highlighterPromise;
+	return await highlighterPromise;
 }
 
 async function highlight(code: string, lang: string): Promise<string> {

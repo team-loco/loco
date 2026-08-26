@@ -189,7 +189,10 @@ export function getTokenColumns(
 				return (
 					<div className="flex flex-wrap gap-1">
 						{Array.from(scopeGroups.entries()).map(([entityType, entityMap]) => {
-							const entityInfo = entityTypeDisplay[entityType];
+							const entityInfo = entityTypeDisplay[entityType] ?? {
+								label: "Unknown",
+								variant: "default" as const,
+							};
 							
 							return Array.from(entityMap.entries()).map(([entityId, scopes]) => {
 								const scopeList = Array.from(scopes);
@@ -201,7 +204,7 @@ export function getTokenColumns(
 								};
 								const scopeStr = Array.from(scopeList)
 									.sort()
-									.map((s) => scopeShortMap[s] || "?")
+									.map((s) => scopeShortMap[s] ?? "?")
 									.join("");
 
 								return (

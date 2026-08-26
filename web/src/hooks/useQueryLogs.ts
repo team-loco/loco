@@ -53,7 +53,7 @@ export function useQueryLogs({
 	order = LogOrder.NEWEST_FIRST,
 	enabled = true,
 }: UseQueryLogsOptions) {
-	const now = useMemo(() => Date.now(), [timeRange]); // eslint-disable-line react-hooks/exhaustive-deps
+	const now = useMemo(() => Date.now(), [timeRange]); // oxlint-disable-line react-hooks/exhaustive-deps
 	const startTime = dateToTimestamp(new Date(now - timeRangeMs(timeRange)));
 	const endTime = dateToTimestamp(new Date(now));
 
@@ -97,13 +97,16 @@ export function useQueryLogs({
 
 	const clusterLogs: ClusterLogs[] = useMemo(
 		() =>
-			queries.map((q, i) => ({
-				clusterId: clusterTransports[i].cluster.clusterId.toString(),
-				region: clusterTransports[i].cluster.region,
-				data: q.data,
-				isLoading: q.isLoading,
-				error: q.error,
-			})),
+			clusterTransports.map((ct, i) => {
+				const q = queries[i];
+				return {
+					clusterId: ct.cluster.clusterId.toString(),
+					region: ct.cluster.region,
+					data: q?.data,
+					isLoading: q?.isLoading ?? false,
+					error: q?.error ?? null,
+				};
+			}),
 		[queries, clusterTransports],
 	);
 
@@ -133,7 +136,7 @@ export function useQueryLogs({
 	const errors = clusterLogs
 		.filter((c) => c.error)
 		.map((c) => c.error)
-		.filter((e): e is Error => e !== undefined);
+		.filter((e): e is Error => e !== null);
 
 	return { clusterLogs, mergedEntries, isLoading, errors };
 }

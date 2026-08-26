@@ -76,7 +76,7 @@ function SparklineCard({
 	});
 
 	const data = useMemo(() => aggregateSeries(series), [series]);
-	const latest = data.length > 0 ? data[data.length - 1].value : null;
+	const latest = data.at(-1)?.value ?? null;
 	const fmt = formatter ?? ((v: number) => v.toFixed(2));
 
 	return (
@@ -109,10 +109,11 @@ function SparklineCard({
 									formatter={(v) => [fmt(Number(v)), title]}
 									labelFormatter={(l) =>
 										// recharts types this as ReactNode; only string|number
-										// is a valid Date input.
+										// is a valid Date input, and anything else has no
+										// useful string form.
 										typeof l === "string" || typeof l === "number"
 											? new Date(l).toLocaleTimeString()
-											: String(l)
+											: ""
 									}
 									contentStyle={{ fontSize: 11, borderRadius: 6 }}
 								/>

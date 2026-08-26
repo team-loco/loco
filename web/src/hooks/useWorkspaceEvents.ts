@@ -12,10 +12,7 @@ export interface WorkspaceEventWithResource extends Event {
 
 function getTimestampMs(timestamp: Timestamp | undefined): number {
 	if (!timestamp) return 0;
-	const seconds =
-		typeof timestamp.seconds === "bigint"
-			? Number(timestamp.seconds)
-			: timestamp.seconds || 0;
+	const seconds = Number(timestamp.seconds);
 	const nanos = timestamp.nanos || 0;
 	return seconds * 1000 + Math.floor(nanos / 1000000);
 }

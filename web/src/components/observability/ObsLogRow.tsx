@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, nonEmpty } from "@/lib/utils";
 import type { LogEntry } from "@gen/loco/observability/v1/observability_pb";
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -27,7 +27,7 @@ function formatTimestamp(ts: { seconds: bigint; nanos: number } | undefined): st
 
 export function ObsLogRow({ entry }: { entry: LogEntry }) {
 	const [expanded, setExpanded] = useState(false);
-	const severity = entry.severity ?? "INFO";
+	const severity = nonEmpty(entry.severity, "INFO");
 	const severityClass =
 		SEVERITY_STYLES[severity.toUpperCase()] ??
 		"text-muted-foreground";
@@ -56,7 +56,7 @@ export function ObsLogRow({ entry }: { entry: LogEntry }) {
 					{formatTimestamp(entry.timestamp)}
 				</span>
 				<span className={cn("shrink-0 w-12 uppercase", severityClass)}>
-					{(entry.severity ?? "INFO").slice(0, 5)}
+					{nonEmpty(entry.severity, "INFO").slice(0, 5)}
 				</span>
 				<span className="flex-1 break-all leading-relaxed">{entry.body}</span>
 				{hasExtra && (

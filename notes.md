@@ -9,11 +9,27 @@ None of these block anything today; they are the things we knowingly deferred.
 
 ### Frontend
 
-- **~151 pre-existing ESLint errors.** `bun run lint:types` fails. Dominated by
-  `@typescript-eslint/no-unnecessary-condition` (70), `promise-function-async` (22),
-  and assorted `no-unsafe-*`. The `Web Build` CI job runs ESLint with
-  `continue-on-error: true` for exactly this reason — flip it to a hard failure
-  once the backlog is cleared. `bun run build` and oxlint are both clean and do gate.
+- **~~151 pre-existing ESLint errors.~~** Cleared. `bun run lint:types` is clean and
+  the `Web Build` CI job now gates on it (`continue-on-error` removed). Two things
+  worth knowing from that work:
+  - `web/tsconfig.json` is solution-style (`files: []` + `references`), so the
+    `compilerOptions` it carried — `noUncheckedIndexedAccess`,
+    `exactOptionalPropertyTypes`, `noEmitOnError` — applied to **no files**. They
+    now live in `tsconfig.app.json` / `tsconfig.node.json` where they take effect.
+    Turning them on surfaced 81 real type errors, mostly unguarded array-index
+    reads. Don't put per-project options back in the root config.
+  - Most `no-unnecessary-condition` hits were correct defensive guards paired with
+    types that were too optimistic — the fix was almost always to correct the type,
+    not to delete the guard. `nonEmpty()` in `src/lib/utils.ts` exists for the
+    `||`-on-a-proto-string case, where `??` would wrongly keep an empty string.
+
+- **Region status was mapped to the wrong enum.** `ResourceDetails.tsx` switched on
+  raw numbers (`case 1:` … `case 4:`) against `RegionIntentStatus`, whose members
+  are `DESIRED=1, PROVISIONING=2, ACTIVE=3, DEGRADED=4`. Healthy regions rendered as
+  "degraded" and degraded ones as "failed". Fixed to use the named enum members;
+  `switch-exhaustiveness-check` is what caught it. Same pass added the missing
+  `DeploymentPhase.DEPLOYING` case to `getDeploymentPhaseLabel`.
+
 - **`Home.tsx` empty states are untested in the wild.** `{true ? … : …}` had been
   short-circuiting since Feb 2026 (commit 27c2d69), so the "No Results" search state
   and the "Create Your First Resource" onboarding CTA never rendered. The original
@@ -167,6 +183,9 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
     later, the token is expired (5 min TTL). Need continuous rotation tied to the image
     pull secret in the app namespace.
   - Would be better to deploy our own registry via Harbor or similar (V2).
+  - **Design doc:** [`docs/design/tdd-pluggable-dependencies.md`](docs/design/tdd-pluggable-dependencies.md)
+    proposes moving off GitLab to self-hosted zot behind a mode adapter, and covers the
+    credential/TTL problem, tenancy isolation, and the CLI/proto de-vendoring needed first.
 
 - **Deployment flow**
   - `cmd/deploy.go` has become lost in the sauce — needs cleanup. Phase 1 done: split into
@@ -312,12 +331,16 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - **Grafana programmatic dashboards** — use `grafana-openapi-client-go` to provision
   per-workspace dashboards on workspace creation. Eventually add email alerts.
 - **ClickHouse cloud** — potentially, but still need TTLs and custom table setups.
+  - Mostly a chart change: obs-proxy already reads `CLICKHOUSE_URL` from env. See
+    [`docs/design/tdd-pluggable-dependencies.md`](docs/design/tdd-pluggable-dependencies.md).
 
 ### Security & Networking
 
 - **Docker image scanning** — TDD exists. Scan on push using Trivy or Harbor's built-in scanner.
 - **Custom container registry** — Harbor or Quay, with tag-prefix/name-prefix access controls,
   multi-tenancy, integrated scanning. Artifact attestations eventually. Civo offers this.
+  - Superseded by [`docs/design/tdd-pluggable-dependencies.md`](docs/design/tdd-pluggable-dependencies.md),
+    which argues for zot over Harbor on footprint grounds.
 - **Egress control** — allow users to restrict or allow specific external egress per app.
 
 ### Deploy & Builders
@@ -408,3 +431,22 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - Stick to google, k8s, go-ecosystem packages — minimize external attack vectors.
 - Avoid outside packages where a stdlib or well-known alternative exists.
 - Define a process for patching security vulnerabilities in dependencies.
+
+
+
+- unanswered
+
+-- secrets
+    - how do we handle managing secrets for our app?
+    - openbao
+-- docker images
+    - i think we need to host our own? harbor? the complexity is growing insanely.
+    - do we just insert the image into the current cluster?
+        - or all clusters/registries
+    - like what happens if a whole cluster goes down or something, and we need to grab the docker image again
+    - still ties into secrets managent
+    - PARTLY ANSWERED in docs/design/tdd-pluggable-dependencies.md: keep the blob store
+      external so images survive cluster loss. The one-registry-per-region vs
+      global-with-pull-through question is still open.
+-- networking
+-- perhaps env variables, settings, are actually part of the app information, just copied over in a deployment or something.

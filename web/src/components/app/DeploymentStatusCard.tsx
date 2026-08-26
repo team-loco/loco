@@ -316,7 +316,7 @@ export function DeploymentStatusCard({
 									</div>
 									<Slider
 										value={[cpuIndex]}
-										onValueChange={(value) => { setCpuIndex(value[0]); }}
+										onValueChange={(value) => { setCpuIndex(value[0] ?? 0); }}
 										min={0}
 										max={cpuOptions.length - 1}
 										step={1}
@@ -342,7 +342,7 @@ export function DeploymentStatusCard({
 									</div>
 									<Slider
 										value={[memoryIndex]}
-										onValueChange={(value) => { setMemoryIndex(value[0]); }}
+										onValueChange={(value) => { setMemoryIndex(value[0] ?? 0); }}
 										min={0}
 										max={memoryOptions.length - 1}
 										step={1}

@@ -15,22 +15,27 @@ import {
 import { updateResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import type { ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
 import { deleteResource, scaleResource, updateResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { RegionIntentStatus } from "@gen/loco/resource/v1/resource_pb";
 import { useResourceDetails } from "@/hooks/useResourceDetails";
 import { useStreamEvents } from "@/hooks/useStreamEvents";
 import { getStatusLabel } from "@/lib/app-status";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { subscribeToEvents } from "@/lib/events";
-import { cn } from "@/lib/utils";
+import { cn, nonEmpty } from "@/lib/utils";
 import { useMutation } from "@connectrpc/connect-query";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 
-const STATUS_CFG: Record<
-	string,
-	{ dot: string; color: string; bg: string; label: string }
-> = {
+interface StatusCfg {
+	dot: string;
+	color: string;
+	bg: string;
+	label: string;
+}
+
+const STATUS_CFG: Record<string, StatusCfg> = {
 	healthy: {
 		dot: "#4a7c59",
 		color: "#3a6b4a",
@@ -69,10 +74,24 @@ const STATUS_CFG: Record<
 	},
 };
 
-const PHASE_CFG: Record<
-	DeploymentPhase,
-	{ label: string; bg: string; color: string }
-> = {
+const STATUS_CFG_FALLBACK: StatusCfg = {
+	dot: "#b0a090",
+	color: "#7a6a58",
+	bg: "#f0ece6",
+	label: "Pending",
+};
+
+function statusCfgFor(statusKey: string): StatusCfg {
+	return STATUS_CFG[statusKey] ?? STATUS_CFG_FALLBACK;
+}
+
+interface PhaseCfg {
+	label: string;
+	bg: string;
+	color: string;
+}
+
+const PHASE_CFG: Record<DeploymentPhase, PhaseCfg> = {
 	[DeploymentPhase.UNSPECIFIED]: {
 		label: "Unknown",
 		bg: "#ede7dd",
@@ -110,7 +129,26 @@ const PHASE_CFG: Record<
 	},
 };
 
-const NODE_STYLE: Record<string, { border: string; bg: string; text: string }> =
+// Protobuf enums are open: a newer server can send a phase this build doesn't
+// know about, so the lookup is deliberately treated as partial.
+function phaseCfgFor(phase: DeploymentPhase): PhaseCfg {
+	const cfg: Partial<Record<DeploymentPhase, PhaseCfg>> = PHASE_CFG;
+	return cfg[phase] ?? PHASE_CFG[DeploymentPhase.UNSPECIFIED];
+}
+
+interface NodeStyle {
+	border: string;
+	bg: string;
+	text: string;
+}
+
+const NODE_STYLE_FALLBACK: NodeStyle = {
+	border: "#c0b8ac",
+	bg: "#faf7f2",
+	text: "#4a3c30",
+};
+
+const NODE_STYLE: Record<string, NodeStyle> =
 	{
 		self: { border: "#c4956a", bg: "#fdf6ee", text: "#3d2a14" },
 		service: { border: "#c0b8ac", bg: "#faf7f2", text: "#4a3c30" },
@@ -132,11 +170,7 @@ function relativeTime(timestamp: unknown): string {
 	if (!timestamp) return "—";
 	try {
 		let ms: number;
-		if (
-			typeof timestamp === "object" &&
-			timestamp !== null &&
-			"seconds" in timestamp
-		) {
+		if (typeof timestamp === "object" && "seconds" in timestamp) {
 			ms = Number((timestamp as Record<string, unknown>).seconds) * 1000;
 		} else if (typeof timestamp === "number") {
 			ms = timestamp;
@@ -186,7 +220,8 @@ function parseMemMi(mem: string): number {
 
 // Mock a usage pct based on health status + deterministic seed
 function mockUsagePct(statusKey: string, seed: number): number {
-	const base = [23, 31, 17, 41, 29, 37, 13, 43][seed % 8];
+	const BASES = [23, 31, 17, 41, 29, 37, 13, 43] as const;
+	const base = BASES[seed % BASES.length] ?? BASES[0];
 	if (statusKey === "degraded") return 72 + (base % 18);
 	if (statusKey === "failed") return 88 + (base % 10);
 	return 28 + (base % 38);
@@ -330,7 +365,7 @@ function ArchDiagram({ resourceName }: { resourceName: string }) {
 				})}
 
 				{nodes.map((node) => {
-					const s = NODE_STYLE[node.type] ?? NODE_STYLE.service;
+					const s = NODE_STYLE[node.type] ?? NODE_STYLE_FALLBACK;
 					const isActive =
 						hovered === node.id ||
 						activeEdges.some((e) => e.from === node.id || e.to === node.id);
@@ -415,8 +450,10 @@ function ArchDiagram({ resourceName }: { resourceName: string }) {
 								width: "9px",
 								height: "9px",
 								borderRadius: "3px",
-								background: NODE_STYLE[t].bg,
-								border: `1.5px solid ${NODE_STYLE[t].border}`,
+								background: (NODE_STYLE[t] ?? NODE_STYLE_FALLBACK).bg,
+								border: `1.5px solid ${
+									(NODE_STYLE[t] ?? NODE_STYLE_FALLBACK).border
+								}`,
 							}}
 						/>
 						<span className="text-[10.5px] text-[#9a8a78] font-sans">{l}</span>
@@ -496,7 +533,12 @@ function buildDiff(current: Deployment, old: Deployment): DiffRow[] {
 	const os = getServiceSpec(old);
 	if (!cs || !os) return rows;
 
-	const row = (key: string, label: string, cv: unknown, ov: unknown) => {
+	const row = (
+		key: string,
+		label: string,
+		cv: string | number | undefined,
+		ov: string | number | undefined,
+	) => {
 		const c = String(cv ?? "—"),
 			o = String(ov ?? "—");
 		rows.push({ key, label, current: c, old: o, changed: c !== o });
@@ -821,6 +863,7 @@ const CPU_OPTIONS = [
 	"1750m",
 	"2000m",
 ];
+const DEFAULT_CPU = "500m";
 const MEM_OPTIONS = [
 	"256Mi",
 	"512Mi",
@@ -830,6 +873,7 @@ const MEM_OPTIONS = [
 	"1.5Gi",
 	"2Gi",
 ];
+const DEFAULT_MEM = "512Mi";
 
 interface SettingsSheetProps {
 	open: boolean;
@@ -905,8 +949,8 @@ function SettingsSheet({
 			{
 				resourceId,
 				replicas,
-				cpu: CPU_OPTIONS[cpuIndex],
-				memory: MEM_OPTIONS[memoryIndex],
+				cpu: CPU_OPTIONS[cpuIndex] ?? DEFAULT_CPU,
+				memory: MEM_OPTIONS[memoryIndex] ?? DEFAULT_MEM,
 			},
 			{
 				onSuccess: () => {
@@ -1055,7 +1099,7 @@ function SettingsSheet({
 							<Slider
 								value={[cpuIndex]}
 								onValueChange={(v) => {
-									setCpuIndex(v[0]);
+									setCpuIndex(v[0] ?? 0);
 								}}
 								min={0}
 								max={CPU_OPTIONS.length - 1}
@@ -1079,7 +1123,7 @@ function SettingsSheet({
 							<Slider
 								value={[memoryIndex]}
 								onValueChange={(v) => {
-									setMemoryIndex(v[0]);
+									setMemoryIndex(v[0] ?? 0);
 								}}
 								min={0}
 								max={MEM_OPTIONS.length - 1}
@@ -1367,9 +1411,9 @@ export function ResourceDetails() {
 
 	// ── derived data ─────────────────────────────────────────────────────────
 	const statusKey = statusKeyFromLabel(getStatusLabel(resource.status));
-	const st = STATUS_CFG[statusKey] ?? STATUS_CFG.pending;
+	const st = statusCfgFor(statusKey);
 	const activeDep = deployments.find((d) => d.isActive) ?? deployments[0];
-	const primaryDomain = resource.domains?.[0]?.domain;
+	const primaryDomain = resource.domains[0]?.domain;
 	const activeSvc = activeDep ? getServiceSpec(activeDep) : undefined;
 
 	const handleRedeploy = async () => {
@@ -1427,7 +1471,9 @@ export function ResourceDetails() {
 						},
 					},
 				},
-				environmentId: deployments[0]?.environmentId,
+				...(deployments[0]?.environmentId
+					? { environmentId: deployments[0].environmentId }
+					: {}),
 			});
 			setDeployDialogOpen(false);
 			toast.success("Deployment started");
@@ -1445,19 +1491,22 @@ export function ResourceDetails() {
 		const rSvc = rDep ? getServiceSpec(rDep) : activeSvc;
 		const statusKey2 = (() => {
 			switch (r.status) {
-				case 1:
+				case RegionIntentStatus.PROVISIONING:
 					return "deploying";
-				case 2:
+				case RegionIntentStatus.ACTIVE:
 					return "healthy";
-				case 3:
+				case RegionIntentStatus.DEGRADED:
 					return "degraded";
-				case 4:
+				case RegionIntentStatus.FAILED:
 					return "failed";
-				default:
+				case RegionIntentStatus.REMOVING:
+					return "suspended";
+				case RegionIntentStatus.DESIRED:
+				case RegionIntentStatus.UNSPECIFIED:
 					return "pending";
 			}
 		})();
-		const rs = STATUS_CFG[statusKey2] ?? STATUS_CFG.pending;
+		const rs = statusCfgFor(statusKey2);
 
 		const cpuLimit = parseCpuMilli(rSvc?.cpu ?? "500m");
 		const memLimit = parseMemMi(rSvc?.memory ?? "512Mi");
@@ -1735,6 +1784,7 @@ export function ResourceDetails() {
 					/* Single region: expanded 3-card layout */
 					(() => {
 						const r = regionCards[0];
+						if (!r) return null;
 						return (
 							<div className="grid grid-cols-3 gap-3 mb-5">
 								{/* Replicas */}
@@ -1999,9 +2049,7 @@ export function ResourceDetails() {
 							</div>
 						) : (
 							deployments.map((dep) => {
-								const ph =
-									PHASE_CFG[dep.status] ??
-									PHASE_CFG[DeploymentPhase.UNSPECIFIED];
+								const ph = phaseCfgFor(dep.status);
 								const isCurr = dep.isActive;
 								const canDiff = !isCurr && activeDep && activeDep.id !== dep.id;
 								return (
@@ -2021,15 +2069,14 @@ export function ResourceDetails() {
 												"minmax(80px,1fr) minmax(120px,2fr) 130px 110px 90px 110px",
 										}}
 										onClick={() => {
-											if (canDiff && activeDep)
-												setDiff({ current: activeDep, old: dep });
+											if (canDiff) setDiff({ current: activeDep, old: dep });
 										}}
 									>
 										<span className="font-mono text-[11px] text-[#6b5d4f] overflow-hidden text-ellipsis whitespace-nowrap">
 											{shortId(dep.id)}
 										</span>
 										<span className="font-mono text-[11px] text-[#6b5d4f] overflow-hidden text-ellipsis whitespace-nowrap">
-											{deploymentImage(dep).split("/").pop() || "—"}
+											{nonEmpty(deploymentImage(dep).split("/").pop(), "—")}
 										</span>
 										<span
 											className="text-[11px] px-[9px] py-[3px] rounded-[10px] font-semibold inline-flex items-center gap-[5px] w-fit"
@@ -2099,7 +2146,7 @@ export function ResourceDetails() {
 				}}
 				resourceId={resourceId}
 				resourceName={resource.name}
-				domains={resource.domains ?? []}
+				domains={resource.domains}
 				activeDep={activeDep}
 			/>
 

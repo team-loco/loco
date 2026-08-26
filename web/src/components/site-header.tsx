@@ -247,8 +247,9 @@ export function SiteHeader() {
         let activeButton: HTMLButtonElement | null = null;
 
         for (const item of getNavItems()) {
-            if (isActive(item.url) && buttonRefs.current[item.url]) {
-                activeButton = buttonRefs.current[item.url];
+            const button = buttonRefs.current[item.url];
+            if (isActive(item.url) && button) {
+                activeButton = button;
                 break;
             }
         }

@@ -42,7 +42,7 @@ export function WorkspaceSettings() {
 	// Update state when workspace data loads
 	if (workspace && !wsName && !isEditing) {
 		setWsName(workspace.name);
-		setWsDescription(workspace.description ?? "");
+		setWsDescription(workspace.description);
 	}
 
 	const handleSave = () => {
@@ -114,7 +114,7 @@ export function WorkspaceSettings() {
 						</Label>
 						<Textarea
 							id="ws-desc"
-							value={isEditing ? wsDescription : workspace.description ?? ""}
+							value={isEditing ? wsDescription : workspace.description}
 							onChange={(e) => { setWsDescription(e.target.value); }}
 							disabled={!isEditing}
 							className="border-border"
@@ -136,7 +136,7 @@ export function WorkspaceSettings() {
 									onClick={() => {
 										setIsEditing(false);
 										setWsName(workspace.name);
-										setWsDescription(workspace.description ?? "");
+										setWsDescription(workspace.description);
 									}}
 									disabled={isUpdatePending}
 								>
@@ -200,7 +200,7 @@ export function WorkspaceSettings() {
 			</Card>
 
 			{/* Delete Dialog */}
-			{workspaceId && workspace && (
+			{workspaceId && (
 				<DeleteWorkspaceDialog
 					open={deleteDialogOpen}
 					onOpenChange={setDeleteDialogOpen}

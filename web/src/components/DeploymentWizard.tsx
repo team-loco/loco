@@ -42,8 +42,13 @@ const REGIONS = [
 	{ value: "ap-southeast-1", label: "Asia Pacific (Singapore)" },
 ];
 
-const CPU_OPTIONS = ["0.25", "0.5", "1", "2", "4"];
-const MEMORY_OPTIONS = ["256Mi", "512Mi", "1Gi", "2Gi", "4Gi", "8Gi"];
+const CPU_OPTIONS = ["0.25", "0.5", "1", "2", "4"] as const;
+const MEMORY_OPTIONS = ["256Mi", "512Mi", "1Gi", "2Gi", "4Gi", "8Gi"] as const;
+
+// The sliders clamp their index to the array bounds, but the type system
+// can't see that, so fall back to the first option.
+const cpuAt = (i: number): string => CPU_OPTIONS[i] ?? CPU_OPTIONS[0];
+const memoryAt = (i: number): string => MEMORY_OPTIONS[i] ?? MEMORY_OPTIONS[0];
 
 const STEPS = [
 	{ id: 1, label: "From" },
@@ -112,7 +117,7 @@ export interface DeploymentWizardProps {
 	submitLabel?: string;
 	/** Show subdomain field in step 2 (only needed when creating a new resource) */
 	showSubdomain?: boolean;
-	platformDomain?: { id: string; domain: string };
+	platformDomain?: { id: string; domain: string } | undefined;
 	initialSubdomain?: string;
 	onSubmit: (values: DeploymentWizardValues) => Promise<void>;
 	isSubmitting: boolean;
@@ -321,8 +326,10 @@ export function DeploymentWizard({
 		field: "key" | "value",
 		value: string,
 	) => {
+		const existing = envVars[index];
+		if (!existing) return;
 		const updated = [...envVars];
-		updated[index][field] = value;
+		updated[index] = { ...existing, [field]: value };
 		setEnvVars(updated);
 	};
 
@@ -373,8 +380,8 @@ export function DeploymentWizard({
 			port: parseInt(port || "3000", 10) || 3000,
 			subdomain: subdomain.trim(),
 			region,
-			cpu: CPU_OPTIONS[cpuIndex],
-			memory: MEMORY_OPTIONS[memIndex],
+			cpu: cpuAt(cpuIndex),
+			memory: memoryAt(memIndex),
 			replicas: 1,
 			envVars: envObject,
 		});
@@ -648,13 +655,13 @@ export function DeploymentWizard({
 												CPU
 											</Label>
 											<span className="text-sm font-semibold tabular-nums">
-												{CPU_OPTIONS[cpuIndex]} vCPU
+												{cpuAt(cpuIndex)} vCPU
 											</span>
 										</div>
 										<Slider
 											value={[cpuIndex]}
 											onValueChange={(v) => {
-												setCpuIndex(v[0]);
+												setCpuIndex(v[0] ?? 0);
 											}}
 											min={0}
 											max={CPU_OPTIONS.length - 1}
@@ -672,13 +679,13 @@ export function DeploymentWizard({
 												Memory
 											</Label>
 											<span className="text-sm font-semibold tabular-nums">
-												{MEMORY_OPTIONS[memIndex]}
+												{memoryAt(memIndex)}
 											</span>
 										</div>
 										<Slider
 											value={[memIndex]}
 											onValueChange={(v) => {
-												setMemIndex(v[0]);
+												setMemIndex(v[0] ?? 0);
 											}}
 											min={0}
 											max={MEMORY_OPTIONS.length - 1}

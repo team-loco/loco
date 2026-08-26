@@ -84,7 +84,7 @@ export function OAuthCallback() {
 			return;
 		}
 
-		if (!isLoading && code && state && !queryError && exchangeRes) {
+		if (!isLoading && code && state && exchangeRes) {
 
 			// Clear any previous OAuth errors on successful login
 			sessionStorage.removeItem("oauth_error");
@@ -92,7 +92,7 @@ export function OAuthCallback() {
 
 		// After orgs are loaded, check if user has any orgs
 		if (!orgsLoading && orgsRes) {
-			const hasOrgs = (orgsRes.orgs ?? []).length > 0;
+			const hasOrgs = orgsRes.orgs.length > 0;
 
 			if (hasOrgs) {
 				// Will be redirected by DashboardRedirect component

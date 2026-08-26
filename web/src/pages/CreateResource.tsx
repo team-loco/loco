@@ -41,11 +41,11 @@ export function CreateResource({ onClose }: { onClose?: () => void } = {}) {
 	const { user } = useAuth();
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
-		{ userId: user?.id },
+		user ? { userId: user.id } : undefined,
 		{ enabled: !!user },
 	);
 	const orgs       = orgsRes?.orgs ?? [];
-	const firstOrgId = orgs.length > 0 ? orgs[0].id : null;
+	const firstOrgId = orgs[0]?.id ?? null;
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
@@ -53,11 +53,15 @@ export function CreateResource({ onClose }: { onClose?: () => void } = {}) {
 		{ enabled: !!firstOrgId },
 	);
 	const workspaces  = workspacesRes?.workspaces ?? [];
-	const workspaceId = paramWorkspaceId ?? (workspaces.length > 0 ? workspaces[0].id : null);
+	const workspaceId = paramWorkspaceId ?? workspaces[0]?.id ?? null;
 
 	const { data: platformDomainsRes } = useQuery(listPlatformDomains, { activeOnly: true });
 	const { data: defaultConfigRes }   = useQuery(getDefaultServiceConfig, {});
-	const { data: environmentsRes }    = useQuery(listEnvironments, { workspaceId: paramWorkspaceId });
+	const { data: environmentsRes }    = useQuery(
+		listEnvironments,
+		paramWorkspaceId ? { workspaceId: paramWorkspaceId } : undefined,
+		{ enabled: !!paramWorkspaceId },
+	);
 
 	const platformDomains = useMemo(
 		() => platformDomainsRes?.platformDomains ?? [],
@@ -183,7 +187,7 @@ export function CreateResource({ onClose }: { onClose?: () => void } = {}) {
 							},
 						},
 					},
-					environmentId: environments[0]?.id,
+					...(environments[0] ? { environmentId: environments[0].id } : {}),
 				});
 				toast.success("Resource created and deployment started");
 			} catch (deployError) {

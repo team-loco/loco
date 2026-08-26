@@ -1,12 +1,13 @@
 import { OAuthService } from "@gen/loco/oauth/v1/oauth_pb";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { nonEmpty } from "@/lib/utils";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-const APP_ENV = import.meta.env.VITE_APP_ENV || "DEVELOPMENT";
+const BASE_URL = nonEmpty(import.meta.env.VITE_API_URL, "http://localhost:8000");
+const APP_ENV = nonEmpty(import.meta.env.VITE_APP_ENV, "DEVELOPMENT");
 
-const withCreds = (input: RequestInfo | URL, init?: RequestInit) =>
-	fetch(input, { ...init, credentials: "include" });
+const withCreds = async (input: RequestInfo | URL, init?: RequestInit) =>
+	await fetch(input, { ...init, credentials: "include" });
 
 // Serialise concurrent refreshes so we only make one round-trip.
 let refreshing: Promise<void> | null = null;
@@ -23,11 +24,11 @@ async function doRefresh(): Promise<void> {
 	await createClient(OAuthService, authTransport).refreshToken({});
 }
 
-function refreshTokens(): Promise<void> {
+async function refreshTokens(): Promise<void> {
 	refreshing ??= doRefresh().finally(() => {
 		refreshing = null;
 	});
-	return refreshing;
+	await refreshing;
 }
 
 export const createTransport = (baseUrl: string = BASE_URL) => {
@@ -38,7 +39,7 @@ export const createTransport = (baseUrl: string = BASE_URL) => {
 		interceptors: [
 			(next) => async (req) => {
 				// Skip retry logic for OAuth endpoints to avoid recursion.
-				if (req.url.includes("/OAuthService/")) return next(req);
+				if (req.url.includes("/OAuthService/")) return await next(req);
 				try {
 					return await next(req);
 				} catch (err) {

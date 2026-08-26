@@ -174,7 +174,10 @@ function TokenCard({
 							([entityType, entityMap]) => {
 								return Array.from(entityMap.entries()).map(
 									([entityId, scopes]) => {
-										const entityInfo = entityTypeDisplay[entityType];
+										const entityInfo = entityTypeDisplay[entityType] ?? {
+											label: "Unknown",
+											variant: "default" as const,
+										};
 										const scopeList = Array.from(scopes);
 										const scopeShortMap: Record<number, string> = {
 											0: "?",
@@ -184,7 +187,7 @@ function TokenCard({
 										};
 										const scopeStr = Array.from(scopeList)
 											.sort()
-											.map((s) => scopeShortMap[s] || "?")
+											.map((s) => scopeShortMap[s] ?? "?")
 											.join("");
 
 										return (

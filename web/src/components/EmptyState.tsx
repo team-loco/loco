@@ -7,7 +7,7 @@ interface EmptyStateProps {
 	action?: {
 		label: string;
 		onClick: () => void;
-	};
+	} | undefined;
 }
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {

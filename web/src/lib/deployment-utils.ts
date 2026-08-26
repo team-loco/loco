@@ -53,5 +53,5 @@ export function getResourceStatusTooltip(statusLabel: string): string {
 		pending: "Waiting to deploy. Your app is queued.",
 		failed: "Deployment failed. Check the logs for more information.",
 	};
-	return tooltips[statusLabel.toLowerCase()] || "Unknown status";
+	return tooltips[statusLabel.toLowerCase()] ?? "Unknown status";
 }

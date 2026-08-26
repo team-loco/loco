@@ -93,7 +93,7 @@ export function Profile() {
 							<Button
 								size="sm"
 								onClick={() => {
-									navigate("/tokens");
+									void navigate("/tokens");
 								}}
 							>
 								Manage Tokens

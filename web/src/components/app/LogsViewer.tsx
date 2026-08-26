@@ -386,7 +386,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 					<div className="max-h-96 overflow-y-auto bg-white dark:bg-slate-950">
 						<Table className="w-full table-fixed">
 							<TableBody>
-								{table.getRowModel().rows?.length ? (
+								{table.getRowModel().rows.length ? (
 									table.getRowModel().rows.map((row) => (
 										<TableRow
 											key={row.id}

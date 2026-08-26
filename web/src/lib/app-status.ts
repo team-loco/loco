@@ -15,7 +15,7 @@ export function getStatusLabel(status?: ResourceStatus): string {
 			return "unavailable";
 		case ResourceStatus.SUSPENDED:
 			return "suspended";
-		default:
+		case ResourceStatus.UNSPECIFIED:
 			return "pending";
 	}
 }
@@ -32,9 +32,11 @@ export function getDeploymentPhaseLabel(phase?: DeploymentPhase): string {
 			return "succeeded";
 		case DeploymentPhase.FAILED:
 			return "failed";
+		case DeploymentPhase.DEPLOYING:
+			return "deploying";
 		case DeploymentPhase.CANCELED:
 			return "canceled";
-		default:
+		case DeploymentPhase.UNSPECIFIED:
 			return "pending";
 	}
 }

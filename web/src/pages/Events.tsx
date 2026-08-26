@@ -6,6 +6,7 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { AlertCircle, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { nonEmpty } from "@/lib/utils";
 
 const severityColors: Record<string, string> = {
 	error: "border-l-4 border-l-red-500 bg-red-50 dark:bg-red-950",
@@ -144,7 +145,7 @@ export function Events() {
 						) : (
 							<div className="space-y-3">
 								{filteredEvents.map((event) => {
-									const severity = event.type?.toLowerCase() || "info";
+									const severity = nonEmpty(event.type.toLowerCase(), "info");
 									const timestamp = event.timestamp
 										? new Date(
 												typeof event.timestamp === "object" &&
@@ -161,7 +162,7 @@ export function Events() {
 										<div
 											key={event.id}
 											className={`border border-border rounded-md p-4 ${
-												severityColors[severity] || ""
+												severityColors[severity] ?? ""
 											}`}
 										>
 											<div className="flex items-start justify-between gap-4">
@@ -176,7 +177,7 @@ export function Events() {
 														</h3>
 														<span
 															className={`text-xs px-2 py-1 rounded-full font-medium ${
-																severityBadgeColors[severity] || ""
+																severityBadgeColors[severity] ?? ""
 															}`}
 														>
 															{(event.reason || severity)

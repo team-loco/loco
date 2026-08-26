@@ -48,7 +48,7 @@ type VisualStatus = "healthy" | "deploying" | "failed" | "not_deployed";
 
 interface BentoDashboardProps {
     resources: Resource[];
-    workspaceId?: string;
+    workspaceId?: string | undefined;
 }
 
 // ─── Config ────────────────────────────────────────────────────────────────────
@@ -167,7 +167,8 @@ function phaseToStatus(phase: DeploymentPhase): VisualStatus {
             return "deploying";
         case DeploymentPhase.FAILED:
             return "failed";
-        default:
+        case DeploymentPhase.CANCELED:
+        case DeploymentPhase.UNSPECIFIED:
             return "not_deployed";
     }
 }
@@ -399,7 +400,7 @@ function EnvModal({
     onDelete,
 }: {
     mode: "create" | "edit" | "delete";
-    env?: Environment;
+    env?: Environment | undefined;
     isPending: boolean;
     onClose: () => void;
     onSave: (data: {
@@ -788,7 +789,7 @@ export function BentoDashboard({
             (e) => e.type === EnvironmentType.STAGING,
         );
         const dev = environments.find((e) => e.type === EnvironmentType.DEV);
-        return (prod ?? stg ?? dev ?? environments[0]).id;
+        return (prod ?? stg ?? dev ?? environments[0])?.id ?? null;
     }, [selectedEnvId, environments]);
 
     // ── Fetch deployments per resource ──

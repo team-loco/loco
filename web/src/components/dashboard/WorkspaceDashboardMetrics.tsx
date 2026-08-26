@@ -48,7 +48,7 @@ export function WorkspaceDashboardMetrics({
 		const grouped: Record<string, number> = {};
 		members.forEach((member) => {
 			const role = member.scopes[0] ?? "member";
-			grouped[role] = (grouped[role] || 0) + 1;
+			grouped[role] = (grouped[role] ?? 0) + 1;
 		});
 		return grouped;
 	}, [members]);

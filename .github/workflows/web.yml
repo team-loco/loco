@@ -59,10 +59,6 @@ jobs:
         working-directory: web
         run: bun run lint:fast
 
-      # ESLint's type-aware rules currently report ~151 pre-existing errors,
-      # dominated by @typescript-eslint/no-unnecessary-condition. Reported but
-      # not gating until that backlog is cleared; flip to a hard failure then.
-      - name: Lint (eslint, non-blocking)
+      - name: Lint (eslint)
         working-directory: web
-        continue-on-error: true
         run: bun run lint:types

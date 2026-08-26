@@ -49,8 +49,10 @@ export function EnvironmentVariables({
 		field: "key" | "value",
 		value: string,
 	) => {
+		const existing = vars[index];
+		if (!existing) return;
 		const newVars = [...vars];
-		newVars[index] = { ...newVars[index], [field]: value };
+		newVars[index] = { ...existing, [field]: value };
 		setVars(newVars);
 	};
 

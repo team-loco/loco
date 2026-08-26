@@ -30,13 +30,13 @@ function getMockMetrics(resourceId: string) {
 	};
 }
 
-function getLastDeployedText(createdAt: any): string {
+function getLastDeployedText(createdAt: unknown): string {
 	if (!createdAt) return "Never deployed";
 
 	try {
 		let timestamp: number;
 		if (typeof createdAt === "object" && "seconds" in createdAt) {
-			timestamp = Number(createdAt.seconds) * 1000;
+			timestamp = Number((createdAt).seconds) * 1000;
 		} else if (typeof createdAt === "number") {
 			timestamp = createdAt;
 		} else {

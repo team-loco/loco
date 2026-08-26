@@ -13,7 +13,7 @@ import { AlertTriangle, Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+ 
 const BASE_URL: string =
 	import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
