@@ -45,7 +45,11 @@ settings.json
 .archive/**
 scratch.txt
 secrets.md
-design/
+# Design/TDD docs. These must stay anchored: a bare `design/` matches at any
+# depth and silently swallowed web/src/components/design/, keeping the whole
+# UI design system out of the repo.
+/design/
+docs/design/
 
 # Mac
 .DS_Store
