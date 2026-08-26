@@ -18,7 +18,7 @@ require (
 	github.com/team-loco/loco/proto v0.0.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.56.0
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 

@@ -17,7 +17,7 @@ require (
 	github.com/valkey-io/valkey-go v1.0.76
 	golang.org/x/net v0.56.0
 	golang.org/x/oauth2 v0.36.0
-	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
+	google.golang.org/protobuf v1.36.12
 	k8s.io/apimachinery v0.36.2
 )
 

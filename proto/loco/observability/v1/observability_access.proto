@@ -29,4 +29,3 @@ message ClusterAccess {
   string proxy_url = 2;
   string region = 3;
 }
-

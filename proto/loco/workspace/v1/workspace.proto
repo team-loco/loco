@@ -149,13 +149,15 @@ message CreateMemberRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string user_id = 2 [(buf.validate.field).string.uuid = true];
   repeated string scopes = 3 [(buf.validate.field).repeated = {
-    min_items: 1,
+    min_items: 1
     items: {
-      cel: [{
-        id: "scope.valid_values"
-        message: "each scope must be one of: read, write, admin"
-        expression: "this in ['read', 'write', 'admin']"
-      }]
+      cel: [
+        {
+          id: "scope.valid_values"
+          message: "each scope must be one of: read, write, admin"
+          expression: "this in ['read', 'write', 'admin']"
+        }
+      ]
     }
   }];
 }
