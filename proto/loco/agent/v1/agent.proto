@@ -6,7 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 import "loco/deployment/v1/deployment.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/agent/v1;agentv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1";
 
 // AgentService handles communication between the control plane and data plane agents.
 service AgentService {

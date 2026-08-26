@@ -1,11 +1,7 @@
 import { useSearchParams } from "react-router";
 import { useQuery, useMutation } from "@connectrpc/connect-query";
-import {
-	listWorkspaceMembers,
-	listOrgWorkspaces,
-	deleteMember,
-} from "@/gen/loco/workspace/v1";
-import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listWorkspaceMembers, listOrgWorkspaces, deleteMember } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { toastConnectError } from "@/lib/error-handler";
 import { useAuth } from "@/auth/AuthProvider";
 import {

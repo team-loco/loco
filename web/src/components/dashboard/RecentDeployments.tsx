@@ -1,5 +1,5 @@
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { CheckCircle, XCircle } from "lucide-react";
 import { useMemo } from "react";
 import { useNavigate } from "react-router";

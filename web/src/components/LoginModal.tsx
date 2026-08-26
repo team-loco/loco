@@ -7,7 +7,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/design/Dialog";
-import { OAuthService } from "@/gen/loco/oauth/v1";
+import { OAuthService } from "@gen/loco/oauth/v1/oauth_pb";
 import { createClient } from "@connectrpc/connect";
 import { useState } from "react";
 import Loader from "@/assets/loader.svg?react";

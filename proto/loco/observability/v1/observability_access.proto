@@ -4,7 +4,7 @@ package loco.observability.v1;
 
 import "buf/validate/validate.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/observability/v1;observabilityv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1";
 
 // ObservabilityAccessService runs on the control plane.
 // It returns regional proxy endpoints for the observability proxy.

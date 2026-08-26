@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
-	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
-	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 

@@ -5,7 +5,7 @@ package loco.deployment.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/deployment/v1;deploymentv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/deployment/v1;deploymentv1";
 
 // DeploymentPhase indicates the current state of a deployment lifecycle.
 enum DeploymentPhase {

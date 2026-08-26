@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import { useObs } from "./ObsProvider";
 import { useQueryMetrics } from "@/hooks/useQueryMetrics";
-import type { MetricSeries } from "@/gen/loco/observability/v1/observability_pb";
+import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 
 interface SparklinePoint {
 	time: number;
@@ -107,7 +107,13 @@ function SparklineCard({
 								<YAxis hide domain={["auto", "auto"]} />
 								<Tooltip
 									formatter={(v) => [fmt(Number(v)), title]}
-									labelFormatter={(l) => new Date(l).toLocaleTimeString()}
+									labelFormatter={(l) =>
+										// recharts types this as ReactNode; only string|number
+										// is a valid Date input.
+										typeof l === "string" || typeof l === "number"
+											? new Date(l).toLocaleTimeString()
+											: String(l)
+									}
 									contentStyle={{ fontSize: 11, borderRadius: 6 }}
 								/>
 								<Area

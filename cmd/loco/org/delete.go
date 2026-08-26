@@ -8,10 +8,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/ui"
-	orgv1 "github.com/team-loco/loco/proto/loco/org/v1"
-	"github.com/team-loco/loco/proto/loco/org/v1/orgv1connect"
 )
 
 type deleteDeps struct {

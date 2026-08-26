@@ -1,0 +1,8 @@
+{
+	"name": "loco",
+	"private": true,
+	"workspaces": [
+		"web",
+		"gen/ts"
+	]
+}

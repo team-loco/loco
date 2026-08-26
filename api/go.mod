@@ -12,8 +12,8 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/rs/cors v1.11.1
+	github.com/team-loco/loco/gen/go v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0
-	github.com/team-loco/loco/proto v0.0.0
 	github.com/valkey-io/valkey-go v1.0.77
 	golang.org/x/net v0.58.0
 	golang.org/x/oauth2 v0.36.0
@@ -69,6 +69,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
 )
 
-replace github.com/team-loco/loco/proto => ../proto
+replace github.com/team-loco/loco/gen/go => ../gen/go
 
 replace github.com/team-loco/loco/k8sapi => ../k8sapi

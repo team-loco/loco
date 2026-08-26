@@ -1,7 +1,7 @@
 import { createContext, use, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import type { Organization } from "@/gen/loco/org/v1/org_pb";
-import type { Workspace } from "@/gen/loco/workspace/v1/workspace_pb";
+import type { Organization } from "@gen/loco/org/v1/org_pb";
+import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 const ORG_STORAGE_KEY = "loco_active_org_id";
 const WORKSPACE_STORAGE_KEY = "loco_active_workspace_id";

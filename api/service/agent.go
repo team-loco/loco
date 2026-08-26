@@ -16,8 +16,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/commandbus"
-	agentv1 "github.com/team-loco/loco/proto/loco/agent/v1"
-	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

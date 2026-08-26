@@ -9,10 +9,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/joho/godotenv"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
-	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
-	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
 )
 
 func createDeployment(

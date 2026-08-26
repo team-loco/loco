@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/design/Button";
 import { useAuth } from "@/auth/AuthProvider";
-import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { useQuery } from "@connectrpc/connect-query";
 import Loader from "@/assets/loader.svg?react";
 import { Plus } from "lucide-react";
@@ -9,7 +9,7 @@ import { OrgCard } from "@/components/org/OrgCard";
 import { CreateOrgDialog } from "@/components/org/CreateOrgDialog";
 import { DeleteOrgDialog } from "@/components/org/DeleteOrgDialog";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import type { Organization } from "@/gen/loco/org/v1/org_pb";
+import type { Organization } from "@gen/loco/org/v1/org_pb";
 
 export function Organizations() {
 	const { user } = useAuth();

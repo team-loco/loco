@@ -16,7 +16,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
-	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
+	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 )
 
 var (

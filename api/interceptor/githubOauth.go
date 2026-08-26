@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
+	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 
 	"github.com/team-loco/loco/api/tvm"
 )

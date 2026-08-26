@@ -6,7 +6,7 @@ import { ObsToolbar } from "@/components/observability/ObsToolbar";
 import { Card, CardContent } from "@/components/design/Card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { listWorkspaceResources } from "@/gen/loco/resource/v1";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { useQuery } from "@connectrpc/connect-query";
 import { AudioWaveform, Loader2, LogsIcon, Waypoints } from "lucide-react";
 import { useMemo } from "react";

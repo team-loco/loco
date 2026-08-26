@@ -13,8 +13,17 @@ export default defineConfig({
 		tailwindcss(),
 		svgr(),
 	],
+	server: {
+		fs: {
+			// gen/ts is outside the vite root; allow the dev server to read it.
+			allow: [path.resolve(__dirname, ".."), path.resolve(__dirname)],
+		},
+	},
 	resolve: {
 		alias: {
+			// Generated protobuf/connect code lives at <repo>/gen/ts, outside web/,
+			// so it is aliased separately from "@" (which means web/src).
+			"@gen": path.resolve(__dirname, "../gen/ts"),
 			"@": path.resolve(__dirname, "./src"),
 		},
 	},

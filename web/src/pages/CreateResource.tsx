@@ -4,26 +4,15 @@ import {
 	type DeploymentWizardValues,
 } from "@/components/DeploymentWizard";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { createDeployment } from "@/gen/loco/deployment/v1";
-import { getDefaultServiceConfig } from "@/gen/loco/config/v1/config-ConfigService_connectquery";
-import {
-	DomainType,
-	listPlatformDomains,
-} from "@/gen/loco/domain/v1";
-import { listEnvironments } from "@/gen/loco/environment/v1/environment-EnvironmentService_connectquery";
-import { listUserOrgs } from "@/gen/loco/org/v1";
-import {
-	createResource,
-	LoggingConfigSchema,
-	MetricsConfigSchema,
-	RegionTargetSchema,
-	ResourceSpecSchema,
-	ResourceType,
-	RoutingConfigSchema,
-	ServiceSpecSchema,
-	TracingConfigSchema,
-} from "@/gen/loco/resource/v1";
-import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { getDefaultServiceConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import { DomainType } from "@gen/loco/domain/v1/domain_pb";
+import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { createResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { LoggingConfigSchema, MetricsConfigSchema, RegionTargetSchema, ResourceSpecSchema, ResourceType, RoutingConfigSchema, ServiceSpecSchema, TracingConfigSchema } from "@gen/loco/resource/v1/resource_pb";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { getErrorMessage } from "@/lib/error-handler";
 import { create } from "@bufbuild/protobuf";
 import { useMutation, useQuery } from "@connectrpc/connect-query";

@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	oAuth "github.com/team-loco/loco/gen/go/loco/oauth/v1"
+	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/internal/keychain"
-	oAuth "github.com/team-loco/loco/proto/loco/oauth/v1"
-	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
 )
 
 // GetCurrentLocoToken retrieves the token for the current OS user.

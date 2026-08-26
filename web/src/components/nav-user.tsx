@@ -13,8 +13,8 @@ import {
 import { useNavigate } from "react-router";
 import { toastConnectError, getErrorMessage } from "@/lib/error-handler";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { createOrg, listUserOrgs } from "@/gen/loco/org/v1";
-import { createWorkspace, listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { createOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { createWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { createConnectQueryKey, useMutation } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";

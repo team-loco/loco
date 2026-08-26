@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 import "loco/deployment/v1/deployment.proto";
 import "loco/domain/v1/domain.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/resource/v1;resourcev1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/resource/v1;resourcev1";
 
 // ResourceType categorizes the type of resource being deployed.
 enum ResourceType {

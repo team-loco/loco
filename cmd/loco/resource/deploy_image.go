@@ -6,12 +6,12 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
+	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
-	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
-	registryv1 "github.com/team-loco/loco/proto/loco/registry/v1"
-	"github.com/team-loco/loco/proto/loco/registry/v1/registryv1connect"
-	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
 )
 
 // buildAndPushImage builds (or validates a pre-built) Docker image and pushes it to the registry.

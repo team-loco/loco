@@ -92,7 +92,9 @@ jobs:
         uses: ./.github/workflows/build-push.yml
         with:
           image_name: ${{ github.repository }}-ui
-          context: ./web
+          # Repo root: the UI imports generated TS from gen/ts, which lives
+          # outside web/. web/Dockerfile.dockerignore trims the context.
+          context: .
           dockerfile: ./web/Dockerfile
 
   push-agent-image:

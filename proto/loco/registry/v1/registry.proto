@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package loco.registry.v1;
 
-option go_package = "github.com/team-loco/loco/proto/loco/registry/v1;registryv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1";
 
 // GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
 message GetGitlabTokenRequest {}

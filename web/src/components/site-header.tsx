@@ -17,9 +17,9 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { createOrg, listUserOrgs } from "@/gen/loco/org/v1";
-import { whoAmI } from "@/gen/loco/user/v1";
-import { createWorkspace, listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { createOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { createWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { useTheme } from "@/lib/use-theme";
 import {

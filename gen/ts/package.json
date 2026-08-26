@@ -1,0 +1,10 @@
+{
+	"name": "@loco/gen-ts",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"description": "Generated protobuf/connect TypeScript. Produced by `make gen` — do not edit by hand.",
+	"dependencies": {
+		"@bufbuild/protobuf": "^2.12.1"
+	}
+}

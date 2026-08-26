@@ -7,9 +7,9 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
+	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
+	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
-	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
-	"github.com/team-loco/loco/proto/loco/token/v1/tokenv1connect"
 	"golang.org/x/net/http2"
 )
 

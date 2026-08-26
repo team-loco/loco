@@ -1,8 +1,5 @@
-import {
-	listResourceEvents,
-	listWorkspaceResources,
-} from "@/gen/loco/resource/v1";
-import type { Event } from "@/gen/loco/resource/v1/resource_pb";
+import { listResourceEvents, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import type { Event } from "@gen/loco/resource/v1/resource_pb";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { useQuery } from "@connectrpc/connect-query";
 import { useMemo } from "react";

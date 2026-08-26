@@ -1,8 +1,8 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Organization } from "@/gen/loco/org/v1/org_pb";
+import type { Organization } from "@gen/loco/org/v1/org_pb";
 
 interface OrgsSidebarProps {
 	orgs: Organization[];

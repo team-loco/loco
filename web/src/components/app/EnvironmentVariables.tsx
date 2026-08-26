@@ -10,7 +10,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { updateResourceEnv } from "@/gen/loco/resource/v1";
+import { updateResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { Plus, Trash2 } from "lucide-react";

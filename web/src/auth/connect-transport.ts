@@ -1,4 +1,4 @@
-import { OAuthService } from "@/gen/loco/oauth/v1/oauth_pb";
+import { OAuthService } from "@gen/loco/oauth/v1/oauth_pb";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 

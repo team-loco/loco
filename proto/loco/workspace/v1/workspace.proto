@@ -6,7 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/workspace/v1;workspacev1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/workspace/v1;workspacev1";
 
 // WorkspaceService manages workspaces and their members.
 service WorkspaceService {

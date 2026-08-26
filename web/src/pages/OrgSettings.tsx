@@ -8,8 +8,8 @@ import {
 } from "@/components/design/Card";
 import { Input } from "@/components/design/Input";
 import { Label } from "@/components/design/Label";
-import { getOrg, updateOrg } from "@/gen/loco/org/v1";
-import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+import { getOrg, updateOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";

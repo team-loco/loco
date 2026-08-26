@@ -8,10 +8,16 @@ on:
       - staging
     paths:
       - "web/**"
+      - "gen/ts/**"
+      - "package.json"
+      - "bun.lock"
       - ".github/workflows/web.yml"
   pull_request:
     paths:
       - "web/**"
+      - "gen/ts/**"
+      - "package.json"
+      - "bun.lock"
       - ".github/workflows/web.yml"
 
 permissions:
@@ -21,9 +27,6 @@ jobs:
   build:
     name: Web Build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
 
     steps:
       - uses: actions/checkout@v6
@@ -33,6 +36,8 @@ jobs:
           # Matches the builder stage in web/Dockerfile.
           bun-version: "1.4.0"
 
+      # Install from the repository root: web and gen/ts are bun workspaces, and
+      # the UI imports generated TypeScript from gen/ts.
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
@@ -40,20 +45,24 @@ jobs:
       # build`, the exact command web/Dockerfile runs. If it fails here, the UI
       # image cannot be built and a deploy would fail.
       - name: Build
+        working-directory: web
         run: bun run build
 
       # tsgo (the TypeScript native compiler) is still a dev preview, so we also
       # run the reference tsc over the same sources. If these two ever disagree,
       # this step is what surfaces it.
       - name: Typecheck with reference tsc
+        working-directory: web
         run: bun run typecheck:tsc
 
       - name: Lint (oxlint)
+        working-directory: web
         run: bun run lint:fast
 
       # ESLint's type-aware rules currently report ~151 pre-existing errors,
       # dominated by @typescript-eslint/no-unnecessary-condition. Reported but
       # not gating until that backlog is cleared; flip to a hard failure then.
       - name: Lint (eslint, non-blocking)
+        working-directory: web
         continue-on-error: true
         run: bun run lint:types
