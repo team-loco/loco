@@ -260,7 +260,7 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
   - Cilium Cluster Mesh was evaluated and rejected: it re-couples failure domains,
     contradicts the "no cross-cluster traffic" and "workspace apps stay in one cluster"
     rules above, and does not improve latency. `experiments/mcs` kept for reference.
-  - See `docs/design/tdd-cross-region-failover.md` and `experiments/gateway-failover/`.
+  - See `docs/tdd/cross-region-failover.md` and `experiments/gateway-failover/`.
   - Still open: distinguishing a region outage from a bad deploy (failing a
     crash-looping app over just spreads it), capacity headroom in the surviving region,
     and TLS between gateways.

@@ -80,6 +80,14 @@ CREATE TABLE
         capacity_memory_bytes BIGINT,
         agent_version TEXT,
         observability_proxy_endpoint TEXT,
+        -- Publicly resolvable FQDN of this cluster's Envoy Gateway, e.g.
+        -- us-east-1.deploy-app.com. Peer regions use it as a fallback backend for
+        -- cross-region failover; NULL means this cluster cannot act as a peer.
+        --
+        -- Must be an FQDN, not an address: Envoy Gateway only compiles backendRefs into
+        -- a single cluster with priority levels when every Backend uses an fqdn
+        -- endpoint. Given an ip endpoint it silently emits a weighted split instead.
+        gateway_hostname TEXT,
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
