@@ -2,6 +2,75 @@
 
 ---
 
+## Known issues / cleanup backlog
+
+Carried over from the Go 1.27 + dependency-bump + frontend-build work (PRs #116–#124).
+None of these block anything today; they are the things we knowingly deferred.
+
+### Frontend
+
+- **~151 pre-existing ESLint errors.** `bun run lint:types` fails. Dominated by
+  `@typescript-eslint/no-unnecessary-condition` (70), `promise-function-async` (22),
+  and assorted `no-unsafe-*`. The `Web Build` CI job runs ESLint with
+  `continue-on-error: true` for exactly this reason — flip it to a hard failure
+  once the backlog is cleared. `bun run build` and oxlint are both clean and do gate.
+- **`Home.tsx` empty states are untested in the wild.** `{true ? … : …}` had been
+  short-circuiting since Feb 2026 (commit 27c2d69), so the "No Results" search state
+  and the "Create Your First Resource" onboarding CTA never rendered. The original
+  `filteredResources.length > 0` guard is restored, but those two states have had no
+  real-world exercise — worth clicking through with an empty workspace.
+- **tsgo is a dev preview.** `build`/`typecheck` use `tsgo` (`@typescript/native-preview`,
+  7.0.0-dev), which is ~7x faster than tsc. `typecheck:tsc` runs the reference compiler
+  in CI as a cross-check. If the two ever disagree, that step is the tripwire. Drop the
+  extra step once tsgo ships stable.
+- **Bundle sizes shifted slightly** when we moved npm → bun, because bun resolved some
+  transitive deps differently. No `package.json` dependency changed. Only matters if we
+  start tracking bundle budgets.
+
+### Infrastructure
+
+- **socketLB is off, and `hostServices` never worked.** `cilium.hostServices.enabled: true`
+  had been dead config since Cilium 1.11 — silently ignored, confirmed by
+  `bpf-lb-sock="false"` in the rendered ConfigMap. Removed it rather than flip
+  `socketLB.enabled: true`, which is a real datapath change. Note prod has run without
+  socket LB for the life of the cluster with no symptom, so the burden of proof is on
+  turning it on. If we do, test locally first — `charts/loco-networking/values.yaml` is
+  the shared base for both `local` and `prod`.
+- **Cilium 1.20 moved where pod → NodePort traffic is load-balanced.** Because
+  `kubeProxyReplacement: true` with SocketLB disabled, in-cluster connections to NodePort
+  services are now balanced as traffic leaves the client pod rather than at the target
+  node. Not a failure mode, but it changes the path and what Hubble flows look like.
+  Worth a look after the first prod rollout on 1.20.
+- **`bpf.tproxy: true` is incompatible with the netkit datapath.** We render
+  `datapath-mode="veth"` so we are fine today, but Cilium 1.20 added
+  `bpf.datapathMode: auto` — enabling it would silently revert to veth or fail to start.
+  Warned inline in the values file; do not flip it casually.
+- **Helm chart bumps are always-latest.** `chartbump` has no minor-only mode, so infra
+  minors (cilium 1.19 → 1.20, gateway-helm 1.8 → 1.9) ride along with routine patches.
+  Read upstream notes before applying to a live cluster.
+
+### Tooling
+
+- **`chartbump`'s README documents the opposite of what it does.** It claims the tool only
+  reports; since commit `a6801fc` the bare command rewrites every `Chart.yaml` and runs
+  `helm dependency update`. `-dry-run` is the preview flag. Repo: `~/Documents/chartbump`.
+- **`cel-go` is pinned at v0.31.0.** v0.32.0 renamed its module path to `cel.dev/cel-go`,
+  so `go get -u` correctly refuses. It reaches us transitively via protovalidate and will
+  move once upstream migrates.
+- **No workflow watches `.github/workflows/**`.** Changes to CI config merge without any
+  check running against them — #119 merged with zero checks. Worth adding a lint/validate
+  job for workflow files.
+
+### Recently fixed (context, not TODO)
+
+- `.gitignore` had a bare `design/` that matched `web/src/components/design/`, keeping the
+  entire UI design system (11 components, 50 importers) out of the repo. The frontend could
+  not build from a clean checkout or in Docker. Fixed by anchoring the pattern.
+- The `BREAK_BUF` escape hatch never fired — it read `github.event.head_commit`, which only
+  exists on push events. Replaced with a `break-buf` PR label. Verified working on #120.
+
+---
+
 ## V1
 
 ### Networking & Security
