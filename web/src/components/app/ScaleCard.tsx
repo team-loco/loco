@@ -16,6 +16,7 @@ import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";
 import { Cpu, HardDrive, Layers, Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CPU_OPTIONS, MEMORY_OPTIONS } from "@/lib/resource-options";
 
 interface ScaleCardProps {
 	resourceId: string;
@@ -24,32 +25,15 @@ interface ScaleCardProps {
 	isLoading?: boolean;
 }
 
+const cpuOptions = CPU_OPTIONS;
+const memoryOptions = MEMORY_OPTIONS;
+
 export function ScaleCard({
 	resourceId,
 	currentReplicas = 1,
 	deployment,
 	isLoading = false,
 }: ScaleCardProps) {
-	const cpuOptions = [
-		"100m",
-		"250m",
-		"500m",
-		"750m",
-		"1000m",
-		"1250m",
-		"1500m",
-		"1750m",
-		"2000m",
-	];
-	const memoryOptions = [
-		"256Mi",
-		"512Mi",
-		"768Mi",
-		"1Gi",
-		"1.25Gi",
-		"1.5Gi",
-		"2Gi",
-	];
 
 	const { cpuIndex: initialCpuIndex, memoryIndex: initialMemoryIndex } =
 		useMemo(() => {

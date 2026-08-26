@@ -84,8 +84,6 @@ export function OAuthCallback() {
 		}
 
 		if (!isLoading && code && state && !queryError && exchangeRes) {
-			console.log("OAuthCallback: Response received");
-			console.log("Token is set as HTTP-only cookie by backend");
 
 			// Clear any previous OAuth errors on successful login
 			sessionStorage.removeItem("oauth_error");
@@ -96,13 +94,9 @@ export function OAuthCallback() {
 			const hasOrgs = (orgsRes.orgs ?? []).length > 0;
 
 			if (hasOrgs) {
-				console.log("OAuthCallback: User has orgs, navigating to dashboard");
 				// Will be redirected by DashboardRedirect component
 				void navigate("/dashboard");
 			} else {
-				console.log(
-					"OAuthCallback: User has no orgs, navigating to onboarding",
-				);
 				void navigate("/onboarding");
 			}
 		}

@@ -620,7 +620,14 @@ export function DeploymentWizard({
 									<Label htmlFor="dw-region" className="text-sm">
 										Region
 									</Label>
-									<Select value={region} onValueChange={setRegion}>
+									<Select
+										value={region}
+										onValueChange={(value) => {
+											// Base UI emits null when cleared; region is required
+											// and always has a default, so keep the current value.
+											if (value !== null) setRegion(value);
+										}}
+									>
 										<SelectTrigger id="dw-region">
 											<SelectValue />
 										</SelectTrigger>

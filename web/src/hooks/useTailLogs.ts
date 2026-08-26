@@ -26,6 +26,17 @@ export function useTailLogs({
 	const [isConnected, setIsConnected] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 
+	// Stable identity keys for the props the effect depends on. The raw
+	// `resourceIds`, `parsedQuery` and `clusterTransports` values get a new
+	// identity on every render, so depending on them directly would tear down and
+	// re-open every log stream on each render. These change only when the
+	// contents actually change.
+	const resourceIdsKey = JSON.stringify(resourceIds);
+	const parsedQueryKey = JSON.stringify(parsedQuery);
+	const clusterIdsKey = clusterTransports
+		.map((ct) => ct.cluster.clusterId)
+		.join(",");
+
 	useEffect(() => {
 		if (!enabled || !workspaceId || clusterTransports.length === 0) {
 			setEntries([]);
@@ -84,14 +95,11 @@ export function useTailLogs({
 			abort.abort();
 			setIsConnected(false);
 		};
-	}, [
-		enabled,
-		workspaceId,
-		// Use JSON for stable comparison of arrays/objects
-		JSON.stringify(resourceIds), // eslint-disable-line react-hooks/exhaustive-deps
-		JSON.stringify(parsedQuery), // eslint-disable-line react-hooks/exhaustive-deps
-		clusterTransports.map((ct) => ct.cluster.clusterId).join(","), // eslint-disable-line react-hooks/exhaustive-deps
-	]);
+		// Depends on the serialized keys above rather than the raw props, so the
+		// raw values are intentionally absent from this array. react-hooks is
+		// enforced by oxlint here, not ESLint, so the suppression is an oxlint one.
+		// oxlint-disable-next-line react-hooks/exhaustive-deps
+	}, [enabled, workspaceId, resourceIdsKey, parsedQueryKey, clusterIdsKey]);
 
 	return { entries, isConnected };
 }

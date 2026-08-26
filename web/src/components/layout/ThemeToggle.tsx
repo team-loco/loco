@@ -3,7 +3,6 @@ import "./ThemeToggle.css";
 
 const ThemeToggle = () => {
 	const { theme, toggleTheme } = useTheme();
-	console.log("theme", theme);
 	const isDark = theme === "dark";
 
 	const playSound = async () => {

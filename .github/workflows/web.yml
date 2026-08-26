@@ -1,0 +1,55 @@
+name: Web
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Web Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          # Matches the builder stage in web/Dockerfile.
+          node-version: "25"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # This is the gate that matters: `npm run build` is `tsc -b && vite build`,
+      # the exact command web/Dockerfile runs. If it fails here, the UI image
+      # cannot be built and a deploy would fail.
+      - name: Build
+        run: npm run build
+
+      - name: Lint (oxlint)
+        run: npm run lint:fast
+
+      # ESLint's type-aware rules currently report ~151 pre-existing errors,
+      # dominated by @typescript-eslint/no-unnecessary-condition. Reported but
+      # not gating until that backlog is cleared; flip to a hard failure then.
+      - name: Lint (eslint, non-blocking)
+        continue-on-error: true
+        run: npm run lint:types
