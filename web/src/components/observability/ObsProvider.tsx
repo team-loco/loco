@@ -8,8 +8,8 @@ import {
 import type { Transport } from "@connectrpc/connect";
 import { useObsAccess } from "@/hooks/useObsAccess";
 import { createTransport } from "@/auth/connect-transport";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
-import type { ClusterAccess } from "@/gen/loco/observability/v1/observability_access_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
+import type { ClusterAccess } from "@gen/loco/observability/v1/observability_access_pb";
 
 export type TimeRange = "15m" | "1h" | "3h" | "6h" | "24h" | "7d";
 

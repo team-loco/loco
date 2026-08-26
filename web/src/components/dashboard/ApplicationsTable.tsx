@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { getStatusLabel } from "@/lib/app-status";
 import { StatusBadge } from "@/components/StatusBadge";
 import {

@@ -29,15 +29,16 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/design/Tooltip";
-import { listUserOrgs } from "@/gen/loco/org/v1";
-import { listWorkspaceResources } from "@/gen/loco/resource/v1";
-import { createToken, type Token } from "@/gen/loco/token/v1";
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { createToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
+import { type Token } from "@gen/loco/token/v1/token_pb";
 import {
 	EntityScopeSchema,
 	EntityType,
 	Scope,
-} from "@/gen/loco/token/v1/token_pb";
-import { listOrgWorkspaces } from "@/gen/loco/workspace/v1";
+} from "@gen/loco/token/v1/token_pb";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { getErrorMessage } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 import { create } from "@bufbuild/protobuf";

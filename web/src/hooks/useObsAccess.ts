@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { getObservabilityAccess } from "@/gen/loco/observability/v1/observability_access-ObservabilityAccessService_connectquery";
+import { getObservabilityAccess } from "@gen/loco/observability/v1/observability_access-ObservabilityAccessService_connectquery";
 
 // Cluster endpoints change rarely — keep fresh for 10 minutes, hold in cache for 30.
 const STALE_TIME_MS = 10 * 60 * 1000;

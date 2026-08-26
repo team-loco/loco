@@ -12,12 +12,12 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
-	configv1 "github.com/team-loco/loco/proto/loco/config/v1"
-	"github.com/team-loco/loco/proto/loco/config/v1/configv1connect"
 )
 
 func init() {

@@ -10,11 +10,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
+	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/internal/httputil"
-	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
-	"github.com/team-loco/loco/proto/loco/token/v1/tokenv1connect"
-	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
-	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 )
 
 type listDeps struct {

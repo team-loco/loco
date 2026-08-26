@@ -51,6 +51,10 @@ secrets.md
 /design/
 docs/design/
 
+# JS dependencies. bun workspaces hoist to the repo root, so this must be
+# unanchored to cover ./node_modules, web/node_modules and gen/ts/node_modules.
+node_modules/
+
 # Mac
 .DS_Store
 

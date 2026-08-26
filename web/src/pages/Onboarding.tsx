@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/design/Card";
 import { Progress } from "@/components/ui/progress";
-import { whoAmI } from "@/gen/loco/user/v1";
+import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
 import { useQuery } from "@connectrpc/connect-query";
 import { useEffect, useRef } from "react";

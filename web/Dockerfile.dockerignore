@@ -1,0 +1,49 @@
+# Ignore rules for the UI image specifically (BuildKit picks up
+# <dockerfile>.dockerignore). The root .dockerignore excludes web/ entirely,
+# which is right for the Go image but wrong here — this build needs web/ and
+# gen/ts. Everything the UI build does not need is excluded below.
+
+# Never ship these
+.git
+**/node_modules
+**/dist
+**/.DS_Store
+*.log
+
+# Backend and infra — irrelevant to the UI bundle
+agent/
+api/
+cmd/
+controller/
+gen/go/
+internal/
+k8sapi/
+observability-proxy/
+proto/
+charts/
+dashboards/
+docs/
+env/
+examples/
+experiments/
+references/
+terraform/
+tdd/
+e2e/
+.github/
+*.go
+go.mod
+go.sum
+go.work
+go.work.sum
+Makefile
+Tiltfile
+helmfile.yaml.gotmpl
+notes.md
+README.md
+
+# Secrets / local-only
+.env
+.env.*
+*.pem
+secrets.md

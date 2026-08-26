@@ -9,8 +9,8 @@ import {
 import { Input } from "@/components/design/Input";
 import { Label } from "@/components/design/Label";
 import { Slider } from "@/components/ui/slider";
-import type { Deployment } from "@/gen/loco/deployment/v1/deployment_pb";
-import { scaleResource } from "@/gen/loco/resource/v1";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { scaleResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation } from "@connectrpc/connect-query";

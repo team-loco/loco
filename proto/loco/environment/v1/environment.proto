@@ -6,7 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/environment/v1;environmentv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/environment/v1;environmentv1";
 
 // EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
 enum EnvironmentType {

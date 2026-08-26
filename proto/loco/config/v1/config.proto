@@ -5,7 +5,7 @@ package loco.config.v1;
 import "loco/deployment/v1/deployment.proto";
 import "loco/resource/v1/resource.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/config/v1;configv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/config/v1;configv1";
 
 // ConfigService provides static configuration values. Clients can query this to show safe defaults.
 service ConfigService {

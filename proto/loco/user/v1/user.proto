@@ -6,7 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/user/v1;userv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/user/v1;userv1";
 
 // UserService manages user accounts and operations.
 service UserService {

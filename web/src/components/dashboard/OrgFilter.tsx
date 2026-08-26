@@ -1,6 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { DropdownSelector } from "@/components/ui/dropdown-selector";
-import { listUserOrgs } from "@/gen/loco/org/v1";
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { useQuery } from "@connectrpc/connect-query";
 import { Building2 } from "lucide-react";
 

@@ -8,9 +8,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { useMutation } from "@connectrpc/connect-query";
-import { deleteResource } from "@/gen/loco/resource/v1";
+import { deleteResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { toastConnectError } from "@/lib/error-handler";
 import { useState } from "react";
 

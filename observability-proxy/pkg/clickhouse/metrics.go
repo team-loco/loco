@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

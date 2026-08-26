@@ -15,7 +15,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/moby/go-archive v0.3.3
 	github.com/spf13/cobra v1.10.2
-	github.com/team-loco/loco/proto v0.0.0
+	github.com/team-loco/loco/gen/go v0.0.0
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.58.0
 	google.golang.org/protobuf v1.36.12
@@ -86,4 +86,4 @@ require (
 )
 
 // these replace directives seem to work better than go.work
-replace github.com/team-loco/loco/proto => ./proto
+replace github.com/team-loco/loco/gen/go => ./gen/go

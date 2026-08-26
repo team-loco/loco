@@ -12,17 +12,17 @@ import (
 	json "github.com/goccy/go-json"
 
 	"connectrpc.com/connect"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
+	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
+	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"github.com/team-loco/loco/internal/httputil"
-	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
-	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
-	orgv1 "github.com/team-loco/loco/proto/loco/org/v1"
-	"github.com/team-loco/loco/proto/loco/org/v1/orgv1connect"
-	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
-	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
-	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
-	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
-	workspacev1 "github.com/team-loco/loco/proto/loco/workspace/v1"
-	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 )
 
 // todo: is this too bloated? we likely need to fix this.

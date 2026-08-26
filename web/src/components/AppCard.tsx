@@ -1,7 +1,7 @@
 import { Badge } from "@/components/design/Badge";
 import { TooltipProvider } from "@/components/design/Tooltip";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
-import type { ResourceDomain } from "@/gen/loco/domain/v1/domain_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
+import type { ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
 import { getStatusLabel } from "@/lib/app-status";
 import { ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router";

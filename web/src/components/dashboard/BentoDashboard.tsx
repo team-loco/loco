@@ -13,18 +13,18 @@ import {
     createEnvironment,
     updateEnvironment,
     deleteEnvironment,
-} from "@/gen/loco/environment/v1/environment-EnvironmentService_connectquery";
+} from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import {
     EnvironmentType,
     type Environment,
-} from "@/gen/loco/environment/v1/environment_pb";
-import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
-import { ResourceType } from "@/gen/loco/resource/v1/resource_pb";
-import { listDeployments } from "@/gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+} from "@gen/loco/environment/v1/environment_pb";
+import type { Resource } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceType } from "@gen/loco/resource/v1/resource_pb";
+import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import {
     DeploymentPhase,
     type Deployment,
-} from "@/gen/loco/deployment/v1/deployment_pb";
+} from "@gen/loco/deployment/v1/deployment_pb";
 import { toast } from "sonner";
 import { toastConnectError } from "@/lib/error-handler";
 import { CreateResource } from "@/pages/CreateResource";

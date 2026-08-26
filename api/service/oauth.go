@@ -18,7 +18,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/providers"
-	oAuth "github.com/team-loco/loco/proto/loco/oauth/v1"
+	oAuth "github.com/team-loco/loco/gen/go/loco/oauth/v1"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 )

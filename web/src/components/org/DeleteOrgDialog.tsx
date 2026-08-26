@@ -11,7 +11,7 @@ import {
 } from "@/components/design/Dialog";
 import { Input } from "@/components/design/Input";
 import { Label } from "@/components/design/Label";
-import { deleteOrg } from "@/gen/loco/org/v1";
+import { deleteOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { useMutation } from "@connectrpc/connect-query";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/error-handler";

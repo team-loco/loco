@@ -19,7 +19,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { checkDomainAvailability } from "@/gen/loco/domain/v1";
+import { checkDomainAvailability } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@connectrpc/connect-query";
 import {

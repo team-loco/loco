@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
-	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
 )
 
 // ValidateLogsRequest validates and clamps the query parameters for a logs request.

@@ -11,7 +11,7 @@ import {
 	Tooltip,
 	ResponsiveContainer,
 } from "recharts";
-import type { MetricSeries } from "@/gen/loco/observability/v1/observability_pb";
+import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { useObs } from "./ObsProvider";
 import { useQueryMetrics } from "@/hooks/useQueryMetrics";
 
@@ -176,7 +176,11 @@ export function ObsMetricChart({
 										undefined,
 									]}
 									labelFormatter={(label) =>
-										new Date(label).toLocaleString()
+										// recharts types this as ReactNode; only string|number
+										// is a valid Date input.
+										typeof label === "string" || typeof label === "number"
+											? new Date(label).toLocaleString()
+											: String(label)
 									}
 									contentStyle={{
 										fontSize: 11,

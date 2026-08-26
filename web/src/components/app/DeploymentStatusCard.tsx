@@ -13,8 +13,8 @@ import {
 import {
 	DeploymentPhase,
 	type Deployment,
-} from "@/gen/loco/deployment/v1/deployment_pb";
-import { scaleResource } from "@/gen/loco/resource/v1";
+} from "@gen/loco/deployment/v1/deployment_pb";
+import { scaleResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { BADGE_COLOR_MAP, PHASE_COLOR_MAP } from "@/lib/deployment-constants";
 import { getPhaseTooltip, getServiceSpec } from "@/lib/deployment-utils";
 import { toastConnectError } from "@/lib/error-handler";

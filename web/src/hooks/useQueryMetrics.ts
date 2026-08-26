@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { createClient } from "@connectrpc/connect";
-import { ObservabilityProxyService } from "@/gen/loco/observability/v1/observability_pb";
-import type { MetricSeries } from "@/gen/loco/observability/v1/observability_pb";
+import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
+import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { create } from "@bufbuild/protobuf";
 import { TimestampSchema } from "@bufbuild/protobuf/wkt";
 import type { ClusterTransport } from "@/components/observability/ObsProvider";

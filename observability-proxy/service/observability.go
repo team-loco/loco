@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
+	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/observability-proxy/pkg/auth"
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/guardrails"
-	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
-	"github.com/team-loco/loco/proto/loco/observability/v1/observabilityv1connect"
-	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

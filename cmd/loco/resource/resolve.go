@@ -10,12 +10,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
+	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
+	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
-	domainv1 "github.com/team-loco/loco/proto/loco/domain/v1"
-	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
 )
 
 // resolveOrg resolves organization name from flag > env > config.

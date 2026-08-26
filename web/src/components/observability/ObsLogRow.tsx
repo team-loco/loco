@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { LogEntry } from "@/gen/loco/observability/v1/observability_pb";
+import type { LogEntry } from "@gen/loco/observability/v1/observability_pb";
 
 const SEVERITY_STYLES: Record<string, string> = {
 	DEBUG: "text-muted-foreground",

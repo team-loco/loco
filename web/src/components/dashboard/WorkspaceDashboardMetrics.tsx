@@ -9,8 +9,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/design/Card";
-import { listWorkspaceResources } from "@/gen/loco/resource/v1";
-import { listWorkspaceMembers } from "@/gen/loco/workspace/v1";
+import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listWorkspaceMembers } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { TrendingUpIcon } from "lucide-react";
 
 interface WorkspaceDashboardMetricsProps {

@@ -14,7 +14,7 @@ import (
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
-	environmentv1 "github.com/team-loco/loco/proto/loco/environment/v1"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
 
 var (

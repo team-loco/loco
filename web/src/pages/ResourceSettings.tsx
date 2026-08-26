@@ -11,23 +11,11 @@ import {
 } from "@/components/design/Select";
 import { Slider } from "@/components/ui/slider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import {
-	checkDomainAvailability,
-	createResourceDomain,
-	deleteResourceDomain,
-	listPlatformDomains,
-	setPrimaryResourceDomain,
-	updateResourceDomain,
-} from "@/gen/loco/domain/v1";
-import type { ResourceDomain } from "@/gen/loco/domain/v1/domain_pb";
-import { DomainType } from "@/gen/loco/domain/v1/domain_pb";
-import {
-	ResourceStatus,
-	deleteResource,
-	getResource,
-	scaleResource,
-	updateResource,
-} from "@/gen/loco/resource/v1";
+import { checkDomainAvailability, createResourceDomain, deleteResourceDomain, listPlatformDomains, setPrimaryResourceDomain, updateResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import type { ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
+import { DomainType } from "@gen/loco/domain/v1/domain_pb";
+import { deleteResource, getResource, scaleResource, updateResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { Cpu, HardDrive } from "lucide-react";

@@ -12,8 +12,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/agent/pkg/applier"
-	agentv1 "github.com/team-loco/loco/proto/loco/agent/v1"
-	"github.com/team-loco/loco/proto/loco/agent/v1/agentv1connect"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"golang.org/x/net/http2"
 )
 

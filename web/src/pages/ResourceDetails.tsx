@@ -7,18 +7,14 @@ import { Card, CardContent } from "@/components/design/Card";
 import { Input } from "@/components/design/Input";
 import { Slider } from "@/components/ui/slider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { createDeployment } from "@/gen/loco/deployment/v1";
+import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import {
 	DeploymentPhase,
 	type Deployment,
-} from "@/gen/loco/deployment/v1/deployment_pb";
-import { updateResourceDomain } from "@/gen/loco/domain/v1";
-import type { ResourceDomain } from "@/gen/loco/domain/v1/domain_pb";
-import {
-	deleteResource,
-	scaleResource,
-	updateResource,
-} from "@/gen/loco/resource/v1";
+} from "@gen/loco/deployment/v1/deployment_pb";
+import { updateResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
+import type { ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
+import { deleteResource, scaleResource, updateResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { useResourceDetails } from "@/hooks/useResourceDetails";
 import { useStreamEvents } from "@/hooks/useStreamEvents";
 import { getStatusLabel } from "@/lib/app-status";

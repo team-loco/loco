@@ -6,7 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/domain/v1;domainv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/domain/v1;domainv1";
 
 // DomainType indicates the source of a domain: platform-provided or user-provided.
 enum DomainType {

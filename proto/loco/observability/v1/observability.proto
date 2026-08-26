@@ -5,7 +5,7 @@ package loco.observability.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/observability/v1;observabilityv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/observability/v1;observabilityv1";
 
 // ObservabilityProxyService provides secure, workspace-scoped access to logs and metrics
 // stored in cluster-local ClickHouse. Runs in the data plane (per-cluster).

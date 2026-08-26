@@ -12,7 +12,7 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
-	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
 // ObservabilityAccessServer implements the ObservabilityAccessService on the control plane.

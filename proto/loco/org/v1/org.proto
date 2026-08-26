@@ -6,7 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/org/v1;orgv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/org/v1;orgv1";
 
 // OrgService manages organizations.
 service OrgService {

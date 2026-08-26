@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
-import { type Token } from "@/gen/loco/token/v1/token_pb";
+import { type Token } from "@gen/loco/token/v1/token_pb";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import {
@@ -20,7 +20,7 @@ import {
 } from "@/components/design/Tooltip";
 
 import { Trash2 } from "lucide-react";
-import { EntityType } from "@/gen/loco/token/v1/token_pb";
+import { EntityType } from "@gen/loco/token/v1/token_pb";
 import { formatShortId } from "@/lib/utils";
 
 function formatRelativeTimeFuture(date: Date): string {

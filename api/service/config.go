@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	configv1 "github.com/team-loco/loco/proto/loco/config/v1"
-	deploymentv1 "github.com/team-loco/loco/proto/loco/deployment/v1"
-	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.

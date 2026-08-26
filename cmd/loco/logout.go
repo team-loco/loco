@@ -12,11 +12,11 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
-	userv1 "github.com/team-loco/loco/proto/loco/user/v1"
-	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 )
 
 type logoutDeps struct {

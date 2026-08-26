@@ -1,5 +1,5 @@
-import { getResource, getResourceStatus } from "@/gen/loco/resource/v1";
-import { listDeployments } from "@/gen/loco/deployment/v1";
+import { getResource, getResourceStatus } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { useQueries } from "@tanstack/react-query";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 

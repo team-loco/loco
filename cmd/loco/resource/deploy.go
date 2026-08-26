@@ -11,17 +11,17 @@ import (
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
+	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
+	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/docker"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
-	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
-	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
-	"github.com/team-loco/loco/proto/loco/registry/v1/registryv1connect"
-	resourcev1 "github.com/team-loco/loco/proto/loco/resource/v1"
-	"github.com/team-loco/loco/proto/loco/resource/v1/resourcev1connect"
 )
 
 type deployDeps struct {

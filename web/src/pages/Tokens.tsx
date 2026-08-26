@@ -23,9 +23,9 @@ import {
 	TooltipTrigger,
 } from "@/components/design/Tooltip";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { listTokens, revokeToken } from "@/gen/loco/token/v1";
-import type { Token } from "@/gen/loco/token/v1/token_pb";
-import { EntityType } from "@/gen/loco/token/v1/token_pb";
+import { listTokens, revokeToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
+import type { Token } from "@gen/loco/token/v1/token_pb";
+import { EntityType } from "@gen/loco/token/v1/token_pb";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatShortId } from "@/lib/utils";
 import { useMutation, useQuery } from "@connectrpc/connect-query";

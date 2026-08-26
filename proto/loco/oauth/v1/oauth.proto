@@ -4,7 +4,7 @@ package loco.oauth.v1;
 
 import "buf/validate/validate.proto";
 
-option go_package = "github.com/team-loco/loco/proto/loco/oauth/v1;oauthv1";
+option go_package = "github.com/team-loco/loco/gen/go/loco/oauth/v1;oauthv1";
 
 // OAuthProvider represents supported OAuth identity providers.
 enum OAuthProvider {
