@@ -1,4 +1,4 @@
-FROM node:25-alpine AS builder
+FROM oven/bun:1.4.0-alpine AS builder
 
 ARG VITE_API_URL
 ARG VITE_APP_ENV
@@ -7,14 +7,14 @@ ENV VITE_APP_ENV=$VITE_APP_ENV
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
 
 COPY . .
 
 RUN apk add --no-cache brotli
 
-RUN npm run build
+RUN bun run build
 
 RUN find dist -type f -size +1k \( \
     -name '*.js' -o \

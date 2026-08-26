@@ -5,7 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc -b && vite build",
+		"build": "tsgo --build && vite build",
+		"typecheck": "tsgo --build",
+		"typecheck:tsc": "tsc --build",
 		"lint": "oxlint --ignore-pattern dist . && eslint --cache .",
 		"lint:fast": "oxlint --ignore-pattern dist .",
 		"lint:types": "eslint --cache .",
@@ -43,6 +45,7 @@
 		"@connectrpc/connect-web": "^2.1.2",
 		"@rolldown/plugin-babel": "^0.2.3",
 		"@tailwindcss/postcss": "^4.3.2",
+		"@typescript/native-preview": "^7.0.0-dev.20260707.2",
 		"@types/babel__core": "^7.20.5",
 		"@types/node": "^26.1.1",
 		"@types/react": "^19.2.17",

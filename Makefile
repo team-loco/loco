@@ -81,7 +81,7 @@ dev: fmt vet ## Start local services only (requires infrastructure already runni
 		$(MAKE) reload-api & \
 		$(MAKE) reload-agent & \
 		$(MAKE) reload-obs-proxy & \
-		(cd web && npm run dev) & \
+		(cd web && bun run dev) & \
 		wait || exit 1)
 
 helm-repos: ## Add/update helm repositories
@@ -124,7 +124,7 @@ upgrade-rpc: ## Upgrade protobuf/RPC toolchain
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go install github.com/bufbuild/buf/cmd/buf@latest
 	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
-	npm install -g @connectrpc/protoc-gen-connect-query @bufbuild/protoc-gen-es
+	bun add -g @connectrpc/protoc-gen-connect-query @bufbuild/protoc-gen-es
 
 lint: clean
 	@(golangci-lint run)

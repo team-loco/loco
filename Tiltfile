@@ -203,7 +203,7 @@ local_resource(
 
 local_resource(
     'ui',
-    serve_cmd='cd web && npm run dev',
+    serve_cmd='cd web && bun run dev',
     labels=['services'],
 )
 
