@@ -85,6 +85,12 @@ type RoutingSpec struct {
 	IdleTimeout int32  `json:"idleTimeout,omitempty"` // seconds
 }
 
+// DefaultFailoverPeerPort is the port a peer region's gateway is assumed to listen on.
+// Cross-region hops traverse the public internet, so this is the TLS port.
+//
+// Mirrored by the +kubebuilder:default marker on FailoverPeer.Port; change both together.
+const DefaultFailoverPeerPort int32 = 443
+
 // FailoverPeer identifies another region's public gateway, used as a lower-priority
 // backend when the local one is unhealthy.
 type FailoverPeer struct {
@@ -98,7 +104,7 @@ type FailoverPeer struct {
 	// round-robin split across regions.
 	Gateway string `json:"gateway"`
 
-	// Port on the peer gateway. Defaults to 443.
+	// Port on the peer gateway. Defaults to DefaultFailoverPeerPort.
 	// +kubebuilder:default=443
 	Port int32 `json:"port,omitempty"`
 }
@@ -129,13 +135,13 @@ type ApplicationSpec struct {
 
 	// Type indicates the resource type (SERVICE, DATABASE, CACHE, QUEUE, BLOB)
 	// Only the corresponding TypeSpec field should be populated
-	Type            string `json:"type"`                         // SERVICE, DATABASE, CACHE, QUEUE, BLOB
-	ResourceId      string `json:"resourceId,omitempty"`         // UUIDv7 as string
-	WorkspaceId     string `json:"workspaceId,omitempty"`        // UUIDv7 as string
+	Type            string `json:"type"`                  // SERVICE, DATABASE, CACHE, QUEUE, BLOB
+	ResourceId      string `json:"resourceId,omitempty"`  // UUIDv7 as string
+	WorkspaceId     string `json:"workspaceId,omitempty"` // UUIDv7 as string
 	Region          string `json:"region,omitempty"`
-	EnvironmentId   string `json:"environmentId,omitempty"`      // UUIDv7 as string
-	EnvironmentName string `json:"environmentName,omitempty"`    // e.g. "production", "staging"
-	DeploymentId    string `json:"deploymentId,omitempty"`       // UUIDv7 as string
+	EnvironmentId   string `json:"environmentId,omitempty"`   // UUIDv7 as string
+	EnvironmentName string `json:"environmentName,omitempty"` // e.g. "production", "staging"
+	DeploymentId    string `json:"deploymentId,omitempty"`    // UUIDv7 as string
 
 	// Type-specific specs (only one populated based on Type)
 	ServiceSpec  *ServiceSpec  `json:"serviceSpec,omitempty"`

@@ -25,9 +25,6 @@ import (
 // carries the signal the peer needs.
 const forwardedByHeader = "x-loco-forwarded-by"
 
-// defaultPeerPort is used when a FailoverPeer omits Port.
-const defaultPeerPort int32 = 443
-
 // failoverEnabled reports whether this Application should get cross-region failover
 // wiring. Enabled with no peers is a valid, common state — a single-region deployment
 // of a resource whose config allows failover — and must behave exactly like failover
@@ -48,7 +45,7 @@ func peerPort(p locov1alpha1.FailoverPeer) int32 {
 	if p.Port > 0 {
 		return p.Port
 	}
-	return defaultPeerPort
+	return locov1alpha1.DefaultFailoverPeerPort
 }
 
 // ensureFailover creates or removes the Envoy Gateway resources backing cross-region

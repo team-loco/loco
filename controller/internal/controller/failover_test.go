@@ -169,8 +169,8 @@ func TestForwardedByFilterIsRuleLevel(t *testing.T) {
 }
 
 func TestPeerPortDefaultsToTLS(t *testing.T) {
-	if got := peerPort(locov1alpha1.FailoverPeer{}); got != 443 {
-		t.Fatalf("default peer port = %d, want 443", got)
+	if got := peerPort(locov1alpha1.FailoverPeer{}); got != locov1alpha1.DefaultFailoverPeerPort {
+		t.Fatalf("default peer port = %d, want %d", got, locov1alpha1.DefaultFailoverPeerPort)
 	}
 	if got := peerPort(locov1alpha1.FailoverPeer{Port: 8443}); got != 8443 {
 		t.Fatalf("explicit peer port = %d, want 8443", got)

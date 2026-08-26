@@ -39,7 +39,7 @@ func TestEmitManifests(t *testing.T) {
 		Failover: &locov1alpha1.FailoverSpec{
 			Enabled: true,
 			Peers: []locov1alpha1.FailoverPeer{
-				{Region: "us-east-1", Gateway: "us-east-1.deploy-app.com", Port: 443},
+				{Region: "us-east-1", Gateway: "us-east-1.deploy-app.com", Port: locov1alpha1.DefaultFailoverPeerPort},
 			},
 		},
 	}

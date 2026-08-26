@@ -608,18 +608,16 @@ func failoverPeers(rows []genDb.GetFailoverPeersForResourceRow) []locoController
 		if row.GatewayHostname == nil || *row.GatewayHostname == "" {
 			continue
 		}
+		// Port is deliberately left unset. The control plane has no opinion about which
+		// port a region's gateway listens on; the CRD default and the controller's
+		// peerPort fallback both resolve it to DefaultFailoverPeerPort.
 		peers = append(peers, locoControllerV1.FailoverPeer{
 			Region:  row.Region,
 			Gateway: *row.GatewayHostname,
-			Port:    defaultGatewayPort,
 		})
 	}
 	return peers
 }
-
-// defaultGatewayPort is the port a peer region's public gateway listens on. Cross-region
-// hops traverse the public internet, so this is always the TLS port.
-const defaultGatewayPort int32 = 443
 
 func buildApplicationSpec(
 	resource genDb.Resource,
