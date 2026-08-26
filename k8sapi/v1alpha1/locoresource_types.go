@@ -104,7 +104,7 @@ type FailoverPeer struct {
 	// round-robin split across regions.
 	Gateway string `json:"gateway"`
 
-	// Port on the peer gateway. Defaults to DefaultFailoverPeerPort.
+	// Port on the peer gateway.
 	// +kubebuilder:default=443
 	Port int32 `json:"port,omitempty"`
 }

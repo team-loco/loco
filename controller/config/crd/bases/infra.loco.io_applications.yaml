@@ -151,7 +151,7 @@ spec:
                               type: string
                             port:
                               default: 443
-                              description: Port on the peer gateway. Defaults to DefaultFailoverPeerPort.
+                              description: Port on the peer gateway.
                               format: int32
                               type: integer
                             region:
