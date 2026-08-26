@@ -62,7 +62,10 @@ func TestBackendUsesFQDNEndpoint(t *testing.T) {
 	if !ok || len(endpoints) != 1 {
 		t.Fatalf("want 1 endpoint, got %v", spec["endpoints"])
 	}
-	ep := endpoints[0].(map[string]any)
+	ep, ok := endpoints[0].(map[string]any)
+	if !ok {
+		t.Fatalf("endpoint is not a map: %v", endpoints[0])
+	}
 	if _, isIP := ep["ip"]; isIP {
 		t.Fatal("endpoint uses ip; Envoy Gateway will silently degrade failover to a weighted split")
 	}
@@ -82,7 +85,10 @@ func TestPeerBackendIsMarkedFallback(t *testing.T) {
 	b := envoygw.NewBackend("app-peers", "ns")
 	envoygw.SetFQDNBackendSpec(b, "us-east-1.deploy-app.com", 443, true)
 
-	spec := b.Object["spec"].(map[string]any)
+	spec, ok := b.Object["spec"].(map[string]any)
+	if !ok {
+		t.Fatal("spec is not a map")
+	}
 	if spec["fallback"] != true {
 		t.Fatal("peer Backend must set fallback: true, or it becomes an equal-weight peer")
 	}
@@ -177,18 +183,31 @@ func TestBackendTrafficPolicyEnablesPassiveHealthAndRetry(t *testing.T) {
 	p := envoygw.NewBackendTrafficPolicy("app-failover", "ns")
 	envoygw.SetBackendTrafficPolicySpec(p, "app-route", envoygw.DefaultHealthCheck())
 
-	spec := p.Object["spec"].(map[string]any)
+	spec, ok := p.Object["spec"].(map[string]any)
+	if !ok {
+		t.Fatal("spec is not a map")
+	}
 
-	targets := spec["targetRefs"].([]any)
+	targets, ok := spec["targetRefs"].([]any)
+	if !ok {
+		t.Fatal("targetRefs is not a list")
+	}
 	if len(targets) != 1 {
 		t.Fatalf("want 1 targetRef, got %d", len(targets))
 	}
-	tr := targets[0].(map[string]any)
+	tr, ok := targets[0].(map[string]any)
+	if !ok {
+		t.Fatal("targetRef is not a map")
+	}
 	if tr["kind"] != "HTTPRoute" || tr["name"] != "app-route" {
 		t.Fatalf("unexpected targetRef: %v", tr)
 	}
 
-	passive, ok := spec["healthCheck"].(map[string]any)["passive"].(map[string]any)
+	healthCheck, ok := spec["healthCheck"].(map[string]any)
+	if !ok {
+		t.Fatal("healthCheck is not a map")
+	}
+	passive, ok := healthCheck["passive"].(map[string]any)
 	if !ok {
 		t.Fatal("passive health check missing; the fallback would never be promoted")
 	}
@@ -205,7 +224,14 @@ func TestBackendTrafficPolicyEnablesPassiveHealthAndRetry(t *testing.T) {
 	if !ok {
 		t.Fatal("retry missing; the first request after failure would surface a 503 to the client")
 	}
-	triggers := retry["retryOn"].(map[string]any)["triggers"].([]any)
+	retryOn, ok := retry["retryOn"].(map[string]any)
+	if !ok {
+		t.Fatal("retryOn is not a map")
+	}
+	triggers, ok := retryOn["triggers"].([]any)
+	if !ok {
+		t.Fatal("triggers is not a list")
+	}
 	var hasConnectFailure bool
 	for _, tr := range triggers {
 		if tr == "connect-failure" {
