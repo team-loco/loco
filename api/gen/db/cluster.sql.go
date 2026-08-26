@@ -158,6 +158,56 @@ func (q *Queries) GetClustersByWorkspaceDeployments(ctx context.Context, workspa
 	return items, nil
 }
 
+const getFailoverPeersForResource = `-- name: GetFailoverPeersForResource :many
+SELECT DISTINCT ON (c.region)
+       c.region,
+       c.gateway_hostname
+FROM clusters c
+INNER JOIN deployments d ON d.cluster_id = c.id
+WHERE d.resource_id = $1
+  AND d.is_active = true
+  AND c.region <> $2::text
+  AND c.is_active = true
+  AND c.gateway_hostname IS NOT NULL
+  AND c.gateway_hostname <> ''
+  AND (c.health_status IS NULL OR c.health_status = 'healthy')
+ORDER BY c.region
+`
+
+type GetFailoverPeersForResourceParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	ExcludeRegion string    `json:"excludeRegion"`
+}
+
+type GetFailoverPeersForResourceRow struct {
+	Region          string  `json:"region"`
+	GatewayHostname *string `json:"gatewayHostname"`
+}
+
+// Regions other than the current one where this resource has an active deployment on a
+// healthy cluster that advertises a gateway hostname. These become Envoy priority-1
+// fallback backends. Clusters without a gateway_hostname are excluded: they cannot be
+// addressed by a peer region's Envoy.
+func (q *Queries) GetFailoverPeersForResource(ctx context.Context, arg GetFailoverPeersForResourceParams) ([]GetFailoverPeersForResourceRow, error) {
+	rows, err := q.db.Query(ctx, getFailoverPeersForResource, arg.ResourceID, arg.ExcludeRegion)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetFailoverPeersForResourceRow
+	for rows.Next() {
+		var i GetFailoverPeersForResourceRow
+		if err := rows.Scan(&i.Region, &i.GatewayHostname); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setClusterAgentToken = `-- name: SetClusterAgentToken :exec
 UPDATE clusters
 SET agent_token_hash = $2, updated_at = NOW()
@@ -171,6 +221,22 @@ type SetClusterAgentTokenParams struct {
 
 func (q *Queries) SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error {
 	_, err := q.db.Exec(ctx, setClusterAgentToken, arg.ID, arg.AgentTokenHash)
+	return err
+}
+
+const setClusterGatewayHostname = `-- name: SetClusterGatewayHostname :exec
+UPDATE clusters
+SET gateway_hostname = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type SetClusterGatewayHostnameParams struct {
+	ID              uuid.UUID `json:"id"`
+	GatewayHostname *string   `json:"gatewayHostname"`
+}
+
+func (q *Queries) SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error {
+	_, err := q.db.Exec(ctx, setClusterGatewayHostname, arg.ID, arg.GatewayHostname)
 	return err
 }
 

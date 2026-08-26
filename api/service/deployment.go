@@ -270,6 +270,7 @@ func (s *DeploymentServer) CreateDeployment(
 		environmentID,
 		env.Name,
 		deploymentID,
+		lookupFailoverPeers(ctx, s.queries, resource.ID, region),
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID)
@@ -581,6 +582,45 @@ func (s *DeploymentServer) sendDeploymentEvent(
 
 // buildApplicationSpec builds the ApplicationSpec for the loco controller.
 // This is used both for direct k8s calls and for agent command payloads.
+// lookupFailoverPeers resolves the peer regions a resource should fail over to.
+//
+// Failover is an availability enhancement, not a correctness requirement, so a lookup
+// failure degrades the deployment to single-region rather than failing it outright.
+func lookupFailoverPeers(ctx context.Context, q genDb.Querier, resourceID uuid.UUID, region string) []locoControllerV1.FailoverPeer {
+	rows, err := q.GetFailoverPeersForResource(ctx, genDb.GetFailoverPeersForResourceParams{
+		ResourceID:    resourceID,
+		ExcludeRegion: region,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "failed to look up failover peers; deploying without failover",
+			"error", err, "resourceId", resourceID, "region", region)
+		return nil
+	}
+	return failoverPeers(rows)
+}
+
+// failoverPeers converts peer rows into CRD peers. Rows with a NULL hostname are already
+// excluded by the query; the nil check here keeps the conversion total rather than
+// relying on that invariant holding forever.
+func failoverPeers(rows []genDb.GetFailoverPeersForResourceRow) []locoControllerV1.FailoverPeer {
+	peers := make([]locoControllerV1.FailoverPeer, 0, len(rows))
+	for _, row := range rows {
+		if row.GatewayHostname == nil || *row.GatewayHostname == "" {
+			continue
+		}
+		peers = append(peers, locoControllerV1.FailoverPeer{
+			Region:  row.Region,
+			Gateway: *row.GatewayHostname,
+			Port:    defaultGatewayPort,
+		})
+	}
+	return peers
+}
+
+// defaultGatewayPort is the port a peer region's public gateway listens on. Cross-region
+// hops traverse the public internet, so this is always the TLS port.
+const defaultGatewayPort int32 = 443
+
 func buildApplicationSpec(
 	resource genDb.Resource,
 	resourceSpec *resourcev1.ResourceSpec,
@@ -590,6 +630,7 @@ func buildApplicationSpec(
 	environmentId uuid.UUID,
 	environmentName string,
 	deploymentId uuid.UUID,
+	peers []locoControllerV1.FailoverPeer,
 ) (*locoControllerV1.ApplicationSpec, error) {
 	// convert proto to controller CRD types
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
@@ -618,6 +659,16 @@ func buildApplicationSpec(
 			Resources:  resourcesSpec,
 			Obs:        converter.ProtoToObsSpec(resourceSpec.GetService().GetObservability()),
 			Routing:    converter.ProtoToRoutingSpec(resourceSpec.GetService().GetRouting(), hostname),
+		}
+
+		// Failover is only meaningful with somewhere to fail over to. A single-region
+		// deployment produces no peers, and the controller treats that identically to
+		// failover being off.
+		if len(peers) > 0 {
+			appSpec.ServiceSpec.Failover = &locoControllerV1.FailoverSpec{
+				Enabled: true,
+				Peers:   peers,
+			}
 		}
 
 	case genDb.ResourceTypeDatabase:

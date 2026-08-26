@@ -315,6 +315,8 @@ type Cluster struct {
 	Tier                       string     `json:"tier"`
 	CreatedAt                  time.Time  `json:"createdAt"`
 	UpdatedAt                  time.Time  `json:"updatedAt"`
+	// Publicly resolvable FQDN of this cluster's Envoy Gateway, e.g. us-east-1.deploy-app.com. Required for cross-region failover; NULL means this cluster cannot act as a failover peer.
+	GatewayHostname *string `json:"gatewayHostname"`
 }
 
 type Deployment struct {

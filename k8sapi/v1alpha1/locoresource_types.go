@@ -85,6 +85,40 @@ type RoutingSpec struct {
 	IdleTimeout int32  `json:"idleTimeout,omitempty"` // seconds
 }
 
+// FailoverPeer identifies another region's public gateway, used as a lower-priority
+// backend when the local one is unhealthy.
+type FailoverPeer struct {
+	// Region is the peer region name, e.g. "us-east-1". Informational; used for the
+	// forwarded-by stamp and for status reporting.
+	Region string `json:"region"`
+
+	// Gateway is the peer region's publicly resolvable gateway hostname. It must be an
+	// FQDN: Envoy Gateway only compiles backendRefs into priority levels when every
+	// Backend uses an fqdn endpoint. An IP silently degrades failover into a weighted
+	// round-robin split across regions.
+	Gateway string `json:"gateway"`
+
+	// Port on the peer gateway. Defaults to 443.
+	// +kubebuilder:default=443
+	Port int32 `json:"port,omitempty"`
+}
+
+// FailoverSpec configures cross-region L7 failover. When enabled, the local gateway
+// carries each peer region's gateway as an Envoy priority-1 backend, so a regional
+// outage is absorbed at L7 without any pod-network connectivity between clusters.
+//
+// Only meaningful for stateless workloads: if the app depends on region-local state,
+// failing traffic over produces a fast error rather than a working request.
+type FailoverSpec struct {
+	// Enabled turns cross-region failover on. Defaults to false.
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Peers are the other regions this resource is deployed to. Empty means no failover
+	// is possible even when Enabled is true, which is the correct state for a
+	// single-region deployment.
+	Peers []FailoverPeer `json:"peers,omitempty"`
+}
+
 // ApplicationSpec defines the desired state of Application
 // Uses a type discriminator with type-specific specs to support multiple resource types
 type ApplicationSpec struct {
@@ -124,6 +158,9 @@ type ServiceSpec struct {
 
 	// Observability configuration (logging, metrics, tracing)
 	Obs *ObsSpec `json:"obs,omitempty"`
+
+	// Failover configures cross-region L7 failover for this service.
+	Failover *FailoverSpec `json:"failover,omitempty"`
 }
 
 // ServiceDeploymentSpec contains service deployment-specific configuration
