@@ -5,8 +5,16 @@ cilium:
   k8sServiceHost: "172.18.0.4"
   k8sServicePort: "6443"
   kubeProxyReplacement: true
-  hostServices:
-    enabled: true
+  # NOTE: `hostServices` was removed from the Cilium chart back in 1.11 and has
+  # been silently ignored ever since (confirmed absent from both 1.19.5 and
+  # 1.20.1 values). Its modern replacement is `socketLB.enabled`, which is
+  # currently OFF (rendered config shows bpf-lb-sock="false"). Enabling it is a
+  # real datapath change, so it is deliberately not flipped here — see the
+  # dependency-bump PR discussion.
+  #
+  # Because socketLB is disabled while kubeProxyReplacement is on, Cilium 1.20
+  # changes where in-cluster pod -> NodePort traffic is load-balanced: it now
+  # happens as traffic leaves the client pod rather than at the target node.
   externalIPs:
     enabled: true
   # --- Networking ---
@@ -37,6 +45,10 @@ cilium:
   # --- KubeProxy replacement ---
   bpf:
     masquerade: true
+    # WARNING (Cilium 1.20+): tproxy=true is incompatible with the netkit
+    # datapath. Do not set `bpf.datapathMode: auto` or netkit here — Cilium
+    # either fails to start or silently reverts to veth. We run veth today
+    # (rendered config shows datapath-mode="veth"), so this is safe as-is.
     tproxy: true
     hostRouting: true
   # --- NodePort / Services ---
