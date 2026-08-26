@@ -44,26 +44,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarMenuItem>
 						<SidebarMenuButton
 							size="lg"
-							asChild
-							className="hover:bg-transparent active:bg-transparent focus-visible:bg-transparent data-[state=open]:bg-transparent"
+							className="hover:bg-transparent active:bg-transparent focus-visible:bg-transparent data-[state=open]:bg-transparent cursor-default"
 						>
-							<a
-								href="/dashboard"
-								onClick={(e) => {
-									e.preventDefault();
-								}}
-								className="cursor-default"
-							>
-								<div className="flex aspect-square size-8 items-center justify-center rounded-md bg-white border">
-									<Zap className="size-4" fill="#000" />
-								</div>
-								<div className="flex flex-col gap-0.5 leading-none">
-									<span className="font-bold text-sm">LOCO</span>
-									<span className="text-[10px] font-medium opacity-70">
-										Deploy & Scale
-									</span>
-								</div>
-							</a>
+							<div className="flex aspect-square size-8 items-center justify-center rounded-md bg-white border">
+								<Zap className="size-4" fill="#000" />
+							</div>
+							<div className="flex flex-col gap-0.5 leading-none">
+								<span className="font-bold text-sm">LOCO</span>
+								<span className="text-[10px] font-medium opacity-70">
+									Deploy & Scale
+								</span>
+							</div>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>

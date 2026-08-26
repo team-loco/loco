@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Loader2 } from "lucide-react";
@@ -106,7 +106,7 @@ function SparklineCard({
 								<XAxis dataKey="time" hide />
 								<YAxis hide domain={["auto", "auto"]} />
 								<Tooltip
-									formatter={(v: number) => [fmt(v), title]}
+									formatter={(v) => [fmt(Number(v)), title]}
 									labelFormatter={(l) => new Date(l).toLocaleTimeString()}
 									contentStyle={{ fontSize: 11, borderRadius: 6 }}
 								/>

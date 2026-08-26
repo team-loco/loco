@@ -43,8 +43,6 @@ enum CommandType {
   COMMAND_TYPE_UNSPECIFIED = 0;
   COMMAND_TYPE_DEPLOY = 1;
   COMMAND_TYPE_DELETE = 2;
-  COMMAND_TYPE_SCALE = 3;
-  COMMAND_TYPE_UPDATE_ENV = 4;
 }
 
 // CommandStreamResponse represents a unit of work to be executed by an agent.

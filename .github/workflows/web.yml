@@ -1,0 +1,59 @@
+name: Web
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Web Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Matches the builder stage in web/Dockerfile.
+          bun-version: "1.4.0"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # This is the gate that matters: `bun run build` is `tsgo --build && vite
+      # build`, the exact command web/Dockerfile runs. If it fails here, the UI
+      # image cannot be built and a deploy would fail.
+      - name: Build
+        run: bun run build
+
+      # tsgo (the TypeScript native compiler) is still a dev preview, so we also
+      # run the reference tsc over the same sources. If these two ever disagree,
+      # this step is what surfaces it.
+      - name: Typecheck with reference tsc
+        run: bun run typecheck:tsc
+
+      - name: Lint (oxlint)
+        run: bun run lint:fast
+
+      # ESLint's type-aware rules currently report ~151 pre-existing errors,
+      # dominated by @typescript-eslint/no-unnecessary-condition. Reported but
+      # not gating until that backlog is cleared; flip to a hard failure then.
+      - name: Lint (eslint, non-blocking)
+        continue-on-error: true
+        run: bun run lint:types

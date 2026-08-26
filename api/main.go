@@ -27,6 +27,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/proto/loco/agent/v1/agentv1connect"
+	"github.com/team-loco/loco/proto/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/proto/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/proto/loco/domain/v1/domainv1connect"
 	environmentv1connect "github.com/team-loco/loco/proto/loco/environment/v1/environmentv1connect"
@@ -39,23 +40,23 @@ import (
 	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 type ApiConfig struct {
-	Env                string // Environment (e.g., dev, prod)
-	ProjectID          string // GitLab project ID
-	GitlabURL          string // Container registry URL
-	RegistryURL        string // Container registry URL
-	DeployTokenName    string // Deploy token name
-	GitlabPAT          string // GitLab Personal Access Token
-	DatabaseURL        string // PostgreSQL connection string
-	LogLevel           slog.Level
-	Port               string
-	RegistryTag        string
-	CacheType          string   // Cache backend type: "in-memory" or "valkey"
-	CacheAddr          string   // Valkey address (when CacheType is "valkey")
-	CORSAllowedOrigins []string // CORS allowed origins (e.g., http://localhost:5173)
+	Env                   string // Environment (e.g., dev, prod)
+	ProjectID             string // GitLab project ID
+	GitlabURL             string // Container registry URL
+	RegistryURL           string // Container registry URL
+	DeployTokenName       string // Deploy token name
+	GitlabPAT             string // GitLab Personal Access Token
+	DatabaseURL           string // PostgreSQL connection string
+	LogLevel              slog.Level
+	Port                  string
+	RegistryTag           string
+	CacheType             string   // Cache backend type: "in-memory" or "valkey"
+	CacheAddr             string   // Valkey address (when CacheType is "valkey")
+	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
+	DefaultPlatformDomain string   // Default platform domain returned by the config service
 }
 
 func newApiConfig() *ApiConfig {
@@ -82,19 +83,20 @@ func newApiConfig() *ApiConfig {
 	}
 
 	return &ApiConfig{
-		Env:                os.Getenv("APP_ENV"),
-		ProjectID:          os.Getenv("GITLAB_PROJECT_ID"),
-		GitlabURL:          os.Getenv("GITLAB_URL"),
-		RegistryURL:        os.Getenv("GITLAB_REGISTRY_URL"),
-		DeployTokenName:    os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
-		GitlabPAT:          os.Getenv("GITLAB_PAT"),
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		Port:               os.Getenv("APP_PORT"),
-		LogLevel:           logLevel,
-		RegistryTag:        os.Getenv("REGISTRY_TAG"),
-		CacheType:          cacheType,
-		CacheAddr:          os.Getenv("CACHE_ADDR"),
-		CORSAllowedOrigins: corsOrigins,
+		Env:                   os.Getenv("APP_ENV"),
+		ProjectID:             os.Getenv("GITLAB_PROJECT_ID"),
+		GitlabURL:             os.Getenv("GITLAB_URL"),
+		RegistryURL:           os.Getenv("GITLAB_REGISTRY_URL"),
+		DeployTokenName:       os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
+		GitlabPAT:             os.Getenv("GITLAB_PAT"),
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		Port:                  os.Getenv("APP_PORT"),
+		LogLevel:              logLevel,
+		RegistryTag:           os.Getenv("REGISTRY_TAG"),
+		CacheType:             cacheType,
+		CacheAddr:             os.Getenv("CACHE_ADDR"),
+		CORSAllowedOrigins:    corsOrigins,
+		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
 	}
 }
 
@@ -140,8 +142,8 @@ func main() {
 
 	machine := tvm.NewVendingMachine(pool, queries, tvm.Config{
 		MaxAPITokenDuration:         time.Hour * 24 * 365,
-		SessionAccessTokenDuration:  time.Hour * 24,
-		SessionRefreshTokenDuration: time.Hour * 24 * 30,
+		SessionAccessTokenDuration:  time.Hour,
+		SessionRefreshTokenDuration: time.Hour * 24 * 7,
 		LastUsedUpdateInterval:      time.Minute * 5,
 	})
 
@@ -212,7 +214,9 @@ func main() {
 	agentServiceHandler := service.NewAgentServer(pool, queries, cmdBus)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
+	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain)
 
+	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
@@ -227,6 +231,9 @@ func main() {
 	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(environmentServiceHandler, httpInterceptors)
 
 	reflector := grpcreflect.NewStaticReflector(
+		// config service
+		configv1connect.ConfigServiceGetDefaultServiceConfigProcedure,
+
 		// oauth service
 		oauthv1connect.OAuthServiceGetOAuthDetailsProcedure,
 		oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure,
@@ -293,6 +300,8 @@ func main() {
 		tokenv1connect.TokenServiceListTokensProcedure,
 		tokenv1connect.TokenServiceGetTokenProcedure,
 		tokenv1connect.TokenServiceRevokeTokenProcedure,
+		tokenv1connect.TokenServiceGetScopesProcedure,
+		tokenv1connect.TokenServiceCheckPermissionProcedure,
 
 		// registry service
 		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
@@ -305,7 +314,6 @@ func main() {
 
 		// observability access service
 		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,
-		observabilityv1connect.ObservabilityAccessServiceCheckPermissionProcedure,
 
 		// environment service
 		environmentv1connect.EnvironmentServiceCreateEnvironmentProcedure,
@@ -319,6 +327,7 @@ func main() {
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
+	mux.Handle(configPath, configHandler)
 	mux.Handle(oauthPath, oauthHandler)
 	mux.Handle(userPath, userHandler)
 	mux.Handle(orgPath, orgHandler)
@@ -334,9 +343,16 @@ func main() {
 
 	muxWCors := withCORS(ac.CORSAllowedOrigins)(mux)
 
+	// Serve HTTP/1.1 alongside unencrypted HTTP/2 (h2c) using the stdlib
+	// Protocols field; golang.org/x/net/http2/h2c is deprecated as of Go 1.26.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	server := &http.Server{
-		Addr:    ac.Port,
-		Handler: h2c.NewHandler(muxWCors, &http2.Server{}),
+		Addr:      ac.Port,
+		Handler:   muxWCors,
+		Protocols: protocols,
 	}
 
 	quit := make(chan error, 1)

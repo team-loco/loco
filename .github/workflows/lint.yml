@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - component: API
@@ -63,9 +64,9 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.10
+          version: v2.13
           working-directory: ${{ matrix.working-directory }}
-          args: --config=.golangci.yml --timeout=5m
+          args: --config=${{ github.workspace }}/.golangci.yml --timeout=5m
   buf:
     name: Buf Lint
     runs-on: ubuntu-latest

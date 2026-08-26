@@ -2,8 +2,8 @@
 ConfigVersion = "0.1"
 Description = "Default Loco app configuration"
 Name = "backend"
-Type = "SERVICE"
 Region = "us-east-1"
+Type = "SERVICE"
 
 [Build]
 DockerfilePath = "Dockerfile"
@@ -15,7 +15,7 @@ PathPrefix = "/api"
 Port = 8000
 
 [DomainConfig]
-Hostname = "backend.deploy-app.com"
+Hostname = "backend.onloco.app"
 Type = "platform"
 
 [RegionConfig]

@@ -1,13 +1,9 @@
-# Go parameters
 GOCMD=go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
-GOGET=$(GOCMD) get
 BINARY_NAME=loco
 BINARY_UNIX=$(BINARY_NAME)_unix
-
-include .env
 
 ifneq (,$(wildcard ./.env))
     include .env
@@ -31,7 +27,7 @@ test: clean ## Run tests
 test-cov: test ## Run tests with HTML coverage
 	@go tool cover -o coverage.html -html=c.out; sed -i '' 's/black/whitesmoke/g' coverage.html; open coverage.html
 
-clean: ## Clean up the project directory and tidy modules
+clean: ## Clean up build artifacts and tidy modules
 	@$(GOCLEAN)
 	@rm -f $(BINARY_NAME)
 	@rm -f $(BINARY_UNIX)
@@ -51,7 +47,6 @@ reload-api:
 		--build.bin "./api/bin/loco-api" \
 		--build.exclude_dir "bin,archive,assets,cmd,docs,internal,terraform,web")
 
-# Reload CLI with air
 reload-cli:
 	@echo "Starting CLI with live reload..."
 	@(air \
@@ -73,30 +68,20 @@ reload-obs-proxy:
 		--build.bin "./observability-proxy/bin/loco-obs-proxy" \
 		--build.exclude_dir "bin,web")
 
-cleanup: ## Kill all dev processes and close ports
-	@echo "Cleaning up dev processes..."
-	@pkill -f "go run" 2>/dev/null || true
-	@pkill -f "air" 2>/dev/null || true
-	@pkill -f "npm run dev" 2>/dev/null || true
-	@echo "Dev processes cleaned up"
-
 gen:
 	buf generate
 	cd api && sqlc generate
 
-ui:
-	@echo "Starting UI..."
-	@cd web && npm run dev
+tilt: ## Start full local dev environment (infra + services) via Tilt — recommended
+	tilt up
 
-dev: fmt vet ## Start all local components (UI, API, Agent, Controller, Obs Proxy)
-	@echo "Starting all local components..."
+dev: fmt vet ## Start local services only (requires infrastructure already running via tilt or manually)
+	@echo "Starting local services (API, Agent, Obs Proxy, UI)..."
 	@(trap 'kill $(jobs -p) 2>/dev/null' EXIT; \
 		$(MAKE) reload-api & \
-		$(MAKE) reload-cli & \
-		$(MAKE) run-agent & \
-		$(MAKE) run-obs-proxy & \
-		$(MAKE) ui & \
-		$(MAKE) run-controller & \
+		$(MAKE) reload-agent & \
+		$(MAKE) reload-obs-proxy & \
+		(cd web && bun run dev) & \
 		wait || exit 1)
 
 helm-repos: ## Add/update helm repositories
@@ -124,8 +109,7 @@ helm-u-net: helm-deps ## Sync networking release only
 
 helm-u-core: helm-deps ## Sync core releases (cert-manager, gateway, loco-core)
 	helmfile -e local sync cert-manager envoy-gateway loco-core
-install:
-	helmfile -e local sync
+
 helm-u-obs: helm-deps ## Sync observability release only
 	helmfile -e local sync loco-obs
 
@@ -135,13 +119,12 @@ helm-uninstall-all: ## Uninstall all releases
 helm-fix-clickhouse: ## Remove clickhouse finalizer if stuck
 	kubectl -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge
 
-upgrade-rpc:
+upgrade-rpc: ## Upgrade protobuf/RPC toolchain
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	go install github.com/bufbuild/buf/cmd/buf@latest
-	go install github.com/bufbuild/buf/cmd/buf@latest
 	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
-	npm install -g @connectrpc/protoc-gen-connect-query @bufbuild/protoc-gen-es
+	bun add -g @connectrpc/protoc-gen-connect-query @bufbuild/protoc-gen-es
 
 lint: clean
 	@(golangci-lint run)
@@ -154,6 +137,20 @@ e2e-no-teardown: ## Run e2e tests, keep infra running for debugging
 
 e2e-teardown: ## Tear down e2e infrastructure
 	./e2e/run.sh --teardown-only
+
+go-list-updates: ## Show available updates for all Go modules
+	@find . -name "go.mod" -not -path "*/vendor/*" | sort | while read modfile; do \
+		dir=$$(dirname $$modfile); \
+		echo "\n=== $$dir ==="; \
+		(cd $$dir && go list -m -u all 2>/dev/null | grep '\['); \
+	done
+
+go-update-all: ## Update all dependencies in each Go module, one at a time
+	@find . -name "go.mod" -not -path "*/vendor/*" | sort | while read modfile; do \
+		dir=$$(dirname $$modfile); \
+		echo "\n=== Updating $$dir ==="; \
+		(cd $$dir && go get -u ./... && go mod tidy); \
+	done
 
 help: ## show help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make <command>\ncommands:\033[36m\033[0m\n"} /^[$$()% a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)

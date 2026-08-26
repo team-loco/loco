@@ -1,7 +1,3 @@
-import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -12,9 +8,13 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import { type WorkspaceMemberWithUser } from "@/gen/loco/workspace/v1/workspace_pb";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
+import { useState } from "react";
 
 const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 	admin: {
@@ -31,7 +31,6 @@ const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 	},
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 function RoleBadge({ role }: { role: string }) {
 	const variant =
 		roleBadgeVariants[role.toLowerCase()] || roleBadgeVariants.member;
@@ -56,7 +55,6 @@ interface ActionsCellProps {
 	isRemoving: boolean;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 function ActionsCell({
 	member,
 	isAdmin,
@@ -70,23 +68,15 @@ function ActionsCell({
 	return (
 		<div className="flex justify-end">
 			<AlertDialog open={open} onOpenChange={setOpen}>
-				<AlertDialogTrigger asChild>
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						title="Remove user"
-						disabled={isRemoving}
-					>
-						<Trash2 className="h-4 w-4 text-destructive" />
-					</Button>
+				<AlertDialogTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" title="Remove user" disabled={isRemoving} />}>
+					<Trash2 className="h-4 w-4 text-destructive" />
 				</AlertDialogTrigger>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Remove member</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to remove {member.userName} from the workspace? This
-							action cannot be undone.
+							Are you sure you want to remove {member.userName} from the
+							workspace? This action cannot be undone.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="flex gap-2 justify-end">
@@ -110,7 +100,7 @@ function ActionsCell({
 export function getColumns(
 	isAdmin: boolean,
 	onRemoveMember: (userId: string) => void,
-	isRemoving: boolean
+	isRemoving: boolean,
 ): ColumnDef<WorkspaceMemberWithUser>[] {
 	return [
 		{
@@ -142,9 +132,13 @@ export function getColumns(
 			},
 		},
 		{
-			accessorKey: "role",
+			accessorKey: "scopes",
 			header: "Role",
-			cell: ({ row }) => <RoleBadge role={row.getValue("role")} />,
+			cell: ({ row }) => {
+				const scopes = row.getValue<string[]>("scopes");
+				const role = scopes[0] || "viewer";
+				return <RoleBadge role={role} />;
+			},
 		},
 		{
 			id: "actions",

@@ -1,7 +1,7 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
+import { Label } from "@/components/design/Label";
 import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -9,7 +9,7 @@ import {
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 import {
 	DeploymentPhase,
 	type Deployment,
@@ -22,6 +22,7 @@ import { formatShortId } from "@/lib/utils";
 import { useMutation } from "@connectrpc/connect-query";
 import { Cpu, HardDrive } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CPU_OPTIONS, MEMORY_OPTIONS } from "@/lib/resource-options";
 
 interface DeploymentStatusCardProps {
 	resourceId: string;
@@ -29,31 +30,14 @@ interface DeploymentStatusCardProps {
 	isLoading?: boolean;
 }
 
+const cpuOptions = CPU_OPTIONS;
+const memoryOptions = MEMORY_OPTIONS;
+
 export function DeploymentStatusCard({
 	resourceId,
 	deployment,
 	isLoading = false,
 }: DeploymentStatusCardProps) {
-	const cpuOptions = [
-		"100m",
-		"250m",
-		"500m",
-		"750m",
-		"1000m",
-		"1250m",
-		"1500m",
-		"1750m",
-		"2000m",
-	];
-	const memoryOptions = [
-		"256Mi",
-		"512Mi",
-		"768Mi",
-		"1Gi",
-		"1.25Gi",
-		"1.5Gi",
-		"2Gi",
-	];
 
 	const { cpuIndex: initialCpuIndex, memoryIndex: initialMemoryIndex } =
 		useMemo(() => {
@@ -197,7 +181,7 @@ export function DeploymentStatusCard({
 								Status
 							</span>
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<Badge
 										variant="default"
 										className={`text-xs font-semibold ${
@@ -216,7 +200,7 @@ export function DeploymentStatusCard({
 								Deployment ID
 							</span>
 							<Tooltip>
-								<TooltipTrigger asChild>
+								<TooltipTrigger>
 									<span className="text-sm font-mono text-foreground opacity-70 cursor-help">
 										{formatShortId(deployment.id)}
 									</span>

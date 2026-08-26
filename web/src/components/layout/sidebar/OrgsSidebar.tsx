@@ -73,7 +73,7 @@ function OrgItem({
 	// Update parent with the workspace name when active workspace changes
 	if (activeWorkspaceId) {
 		const activeWorkspace = workspaces.find((ws) => ws.id === activeWorkspaceId);
-		if (activeWorkspace && activeWorkspace.name) {
+		if (activeWorkspace?.name) {
 			onWorkspaceNameChange(activeWorkspace.name);
 		}
 	}

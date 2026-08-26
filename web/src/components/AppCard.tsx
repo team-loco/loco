@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Badge } from "@/components/design/Badge";
+import { TooltipProvider } from "@/components/design/Tooltip";
 import type { Resource } from "@/gen/loco/resource/v1/resource_pb";
 import type { ResourceDomain } from "@/gen/loco/domain/v1/domain_pb";
 import { getStatusLabel } from "@/lib/app-status";

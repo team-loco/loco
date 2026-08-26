@@ -13,6 +13,8 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+const DefaultAppDomain = "onloco.app"
+
 // AllowedSchemaVersions defines supported config versions
 var AllowedSchemaVersions = []string{
 	"0.1",
@@ -62,10 +64,6 @@ var Default = &LocoConfig{
 			SampleRate: 0.1,
 			Tags:       map[string]string{},
 		},
-	},
-	DomainConfig: DomainConfig{
-		Type:     "platform",
-		Hostname: "loco.deploy-app.com",
 	},
 }
 
@@ -119,16 +117,16 @@ func Validate(cfg *LocoConfig) error {
 		return fmt.Errorf("metadata.name must be set")
 	}
 
-	if cfg.DomainConfig.Hostname == "" {
-		return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.deploy-app.com')")
-	}
-
-	if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != "platform" && cfg.DomainConfig.Type != "custom" {
-		return fmt.Errorf("domainConfig.type must be 'platform' or 'custom', got %q", cfg.DomainConfig.Type)
-	}
-
-	if cfg.DomainConfig.Type == "" {
-		cfg.DomainConfig.Type = "platform"
+	if cfg.DomainConfig != nil {
+		if cfg.DomainConfig.Hostname == "" {
+			return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.onloco.app')")
+		}
+		if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != "platform" && cfg.DomainConfig.Type != "custom" {
+			return fmt.Errorf("domainConfig.type must be 'platform' or 'custom', got %q", cfg.DomainConfig.Type)
+		}
+		if cfg.DomainConfig.Type == "" {
+			cfg.DomainConfig.Type = "platform"
+		}
 	}
 
 	if cfg.Routing.Port <= 1023 || cfg.Routing.Port > 65535 {
@@ -276,7 +274,7 @@ func parseRetention(value string) (time.Duration, error) {
 }
 
 // ExtractSubdomainFromHostname extracts the leftmost label from a hostname
-// e.g., "myapp.deploy-app.com" -> "myapp"
+// e.g., "myapp.onloco.app" -> "myapp"
 func ExtractSubdomainFromHostname(hostname string) string {
 	if hostname == "" {
 		return ""
@@ -385,11 +383,14 @@ func Create(cfg *LocoConfig, outputPath string) error {
 
 // CreateDefault creates a new loco.toml file with sensible defaults
 // appName is used as the application name and hostname
-func CreateDefault(appName string) error {
+func CreateDefault(appName, appDomain string) error {
 	cfg := *Default // Copy the default config
 	cfg.Metadata.Name = appName
 	cfg.Metadata.Region = "us-east-1"
-	cfg.DomainConfig.Hostname = appName + ".deploy-app.com"
+	cfg.DomainConfig = &DomainConfig{
+		Type:     "platform",
+		Hostname: appName + "." + appDomain,
+	}
 	cfg.RegionConfig = map[string]Resources{
 		"us-east-1": {
 			CPU:         "100m",

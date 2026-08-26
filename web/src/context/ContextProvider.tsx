@@ -15,8 +15,6 @@ interface OrgWorkspaceContextType {
 	setActiveWorkspace: (workspaceId: string) => void;
 	setOrgs: (orgs: Organization[]) => void;
 	setWorkspaces: (workspaces: Workspace[]) => void;
-	addOrg: (org: Organization) => void;
-	addWorkspace: (workspace: Workspace) => void;
 	clearContext: () => void;
 }
 
@@ -131,26 +129,6 @@ export function ContextProvider({
 		setWorkspacesState(newWorkspaces);
 	};
 
-	const addOrg = (org: Organization) => {
-		setOrgsState((prev) => {
-			// Avoid duplicates
-			if (prev.some((o) => o.id === org.id)) {
-				return prev;
-			}
-			return [...prev, org];
-		});
-	};
-
-	const addWorkspace = (workspace: Workspace) => {
-		setWorkspacesState((prev) => {
-			// Avoid duplicates
-			if (prev.some((w) => w.id === workspace.id)) {
-				return prev;
-			}
-			return [...prev, workspace];
-		});
-	};
-
 	const clearContext = () => {
 		localStorage.removeItem(ORG_STORAGE_KEY);
 		localStorage.removeItem(WORKSPACE_STORAGE_KEY);
@@ -168,8 +146,6 @@ export function ContextProvider({
 				setActiveWorkspace,
 				setOrgs,
 				setWorkspaces,
-				addOrg,
-				addWorkspace,
 				clearContext,
 			}}
 		>
@@ -178,7 +154,6 @@ export function ContextProvider({
 	);
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useOrgWorkspace() {
 	const ctx = use(OrgWorkspaceContext);
 	if (!ctx) {
@@ -198,12 +173,6 @@ export function useOrgWorkspace() {
 				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
 			},
 			setWorkspaces: () => {
-				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
-			},
-			addOrg: () => {
-				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
-			},
-			addWorkspace: () => {
 				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
 			},
 			clearContext: () => {

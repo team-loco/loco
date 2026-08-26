@@ -1,14 +1,14 @@
 import Loader from "@/assets/loader.svg?react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
+import { Input } from "@/components/design/Input";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/components/design/Select";
 import { Slider } from "@/components/ui/slider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import {
@@ -184,7 +184,6 @@ export function ResourceSettings() {
 			});
 
 			if (!res.isAvailable) {
-				console.log("hit this piece");
 				toast.error("This domain is already in use");
 				return;
 			}
@@ -449,7 +448,11 @@ export function ResourceSettings() {
 								</label>
 								<Select
 									value={platformDomainId}
-									onValueChange={setPlatformDomainId}
+									onValueChange={(value) => {
+										// Base UI emits null when cleared; "" is this field's
+										// empty state and restores the placeholder.
+										setPlatformDomainId(value ?? "");
+									}}
 								>
 									<SelectTrigger>
 										<SelectValue placeholder="Choose a domain..." />
@@ -480,7 +483,9 @@ export function ResourceSettings() {
 									setNewDomain(e.target.value);
 								}}
 								placeholder={
-									domainSource === "platform" ? "myapp.loco.dev" : "example.com"
+									domainSource === "platform"
+										? "myapp.onloco.app"
+										: "example.com"
 								}
 								className="mt-1"
 							/>

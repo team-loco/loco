@@ -99,6 +99,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 
 	return cmd

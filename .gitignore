@@ -45,7 +45,11 @@ settings.json
 .archive/**
 scratch.txt
 secrets.md
-design/
+# Design/TDD docs. These must stay anchored: a bare `design/` matches at any
+# depth and silently swallowed web/src/components/design/, keeping the whole
+# UI design system out of the repo.
+/design/
+docs/design/
 
 # Mac
 .DS_Store
@@ -69,3 +73,14 @@ seed.sql
 # e2e test artifacts
 e2e/pids/
 e2e/logs/
+
+
+
+
+# temp ignores
+.sops.yaml
+v1-report.html
+CLAUDE.md
+clusters/
+.github/workflows/deploy-production.yml
+.github/workflows/deploy-staging.yml

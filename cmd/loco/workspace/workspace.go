@@ -27,8 +27,6 @@ func BuildWorkspaceCmd() *cobra.Command {
   loco workspace delete 456`,
 	}
 
-	cmd.PersistentFlags().String("host", "", "API host URL")
-
 	cmd.AddCommand(
 		buildListCmd(),
 		buildCreateCmd(),

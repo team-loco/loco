@@ -64,12 +64,12 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 
 	clusterAccess := make([]*observabilityv1.ClusterAccess, 0, len(clusters))
 	for _, c := range clusters {
-		if !c.ObservabilityProxyEndpoint.Valid || c.ObservabilityProxyEndpoint.String == "" {
+		if c.ObservabilityProxyEndpoint == nil || *c.ObservabilityProxyEndpoint == "" {
 			continue
 		}
 		clusterAccess = append(clusterAccess, &observabilityv1.ClusterAccess{
 			ClusterId: c.ID.String(),
-			ProxyUrl:  c.ObservabilityProxyEndpoint.String,
+			ProxyUrl:  *c.ObservabilityProxyEndpoint,
 			Region:    c.Region,
 		})
 	}
@@ -77,60 +77,4 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 	return connect.NewResponse(&observabilityv1.GetObservabilityAccessResponse{
 		Clusters: clusterAccess,
 	}), nil
-}
-
-// CheckPermission is called by the observability proxy to validate whether a token
-// has the requested permission on an entity.
-func (s *ObservabilityAccessServer) CheckPermission(
-	ctx context.Context,
-	req *connect.Request[observabilityv1.CheckPermissionRequest],
-) (*connect.Response[observabilityv1.CheckPermissionResponse], error) {
-	msg := req.Msg
-
-	if msg.GetToken() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("token is required"))
-	}
-	if msg.GetEntityId() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("entity_id is required"))
-	}
-
-	entityID, err := uuid.Parse(msg.GetEntityId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity_id: %w", err))
-	}
-
-	var entityType genDb.EntityType
-	switch msg.GetEntityType() {
-	case "workspace":
-		entityType = genDb.EntityTypeWorkspace
-	case "resource":
-		entityType = genDb.EntityTypeResource
-	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported entity_type: %s", msg.GetEntityType()))
-	}
-
-	var scope genDb.Scope
-	switch msg.GetScope() {
-	case "read":
-		scope = genDb.ScopeRead
-	case "write":
-		scope = genDb.ScopeWrite
-	case "admin":
-		scope = genDb.ScopeAdmin
-	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported scope: %s", msg.GetScope()))
-	}
-
-	_, scopes, err := s.tvm.GetToken(ctx, msg.GetToken())
-	if err != nil {
-		return connect.NewResponse(&observabilityv1.CheckPermissionResponse{Allowed: false}), nil
-	}
-
-	allowed := s.tvm.VerifyWithGivenEntityScopes(ctx, scopes, genDb.EntityScope{
-		EntityType: entityType,
-		EntityID:   entityID,
-		Scope:      scope,
-	}) == nil
-
-	return connect.NewResponse(&observabilityv1.CheckPermissionResponse{Allowed: allowed}), nil
 }

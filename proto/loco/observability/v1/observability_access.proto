@@ -2,24 +2,22 @@ syntax = "proto3";
 
 package loco.observability.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/team-loco/loco/proto/loco/observability/v1;observabilityv1";
 
 // ObservabilityAccessService runs on the control plane.
-// It returns regional proxy endpoints and validates token permissions for the proxy.
+// It returns regional proxy endpoints for the observability proxy.
 service ObservabilityAccessService {
   // GetObservabilityAccess returns the regional proxy endpoints the client should connect to.
   // The client's existing TVM token is used directly when talking to the proxy.
   rpc GetObservabilityAccess(GetObservabilityAccessRequest) returns (GetObservabilityAccessResponse);
-
-  // CheckPermission is called by the observability proxy to validate whether a token
-  // has the requested permission on an entity. Authenticated with a proxy auth token.
-  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
 }
 
 message GetObservabilityAccessRequest {
-  string workspace_id = 1;
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   // Optional: restrict to specific resources. Empty means all resources in workspace.
-  repeated string resource_ids = 2;
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
 }
 
 message GetObservabilityAccessResponse {
@@ -30,15 +28,4 @@ message ClusterAccess {
   string cluster_id = 1;
   string proxy_url = 2;
   string region = 3;
-}
-
-message CheckPermissionRequest {
-  string token = 1;
-  string entity_type = 2; // e.g. "workspace"
-  string entity_id = 3;
-  string scope = 4; // e.g. "read"
-}
-
-message CheckPermissionResponse {
-  bool allowed = 1;
 }

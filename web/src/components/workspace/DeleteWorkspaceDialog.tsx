@@ -1,5 +1,5 @@
 import Loader from "@/assets/loader.svg?react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import {
 	Dialog,
 	DialogContent,
@@ -7,9 +7,9 @@ import {
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/design/Dialog";
+import { Input } from "@/components/design/Input";
+import { Label } from "@/components/design/Label";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { deleteWorkspace } from "@/gen/loco/workspace/v1";
 import { getErrorMessage } from "@/lib/error-handler";

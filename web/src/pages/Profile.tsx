@@ -1,18 +1,17 @@
+import Loader from "@/assets/loader.svg?react";
 import { useAuth } from "@/auth/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { deleteUser, whoAmI } from "@/gen/loco/user/v1";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
 import { listTokens } from "@/gen/loco/token/v1";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
-import { listUserOrgs } from "@/gen/loco/org/v1";
+import { deleteUser, whoAmI } from "@/gen/loco/user/v1";
 import { toastConnectError } from "@/lib/error-handler";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { ArrowRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { ArrowRight } from "lucide-react";
-import Loader from "@/assets/loader.svg?react";
 
 export function Profile() {
 	const { logout } = useAuth();
@@ -20,19 +19,11 @@ export function Profile() {
 	const { data: whoAmIResponse, isLoading } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
 
-	// Fetch user's orgs to redirect to tokens
-	const { data: orgsRes } = useQuery(
-		listUserOrgs,
-		user?.id ? { userId: user.id } : undefined,
-		{ enabled: !!user?.id }
-	);
-	const firstOrgId = useMemo(() => orgsRes?.orgs?.[0]?.id, [orgsRes]);
-
 	// Fetch user's tokens
 	const { data: tokensRes, isLoading: isTokensLoading } = useQuery(
 		listTokens,
 		user?.id ? { entityType: EntityType.USER, entityId: user.id } : undefined,
-		{ enabled: !!user?.id }
+		{ enabled: !!user?.id },
 	);
 	const tokens = useMemo(() => tokensRes?.tokens ?? [], [tokensRes]);
 
@@ -67,8 +58,8 @@ export function Profile() {
 	};
 
 	return (
-		<div className="mx-auto py-8">
-			<Card>
+		<div className="py-8">
+			<Card className="w-[95%] mx-auto">
 				{/* Account Information */}
 				<CardHeader>
 					<CardTitle className="text-lg">Account Information</CardTitle>
@@ -99,14 +90,11 @@ export function Profile() {
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
 							<h3 className="font-semibold text-foreground">Tokens</h3>
-							<Button 
-								size="sm" 
+							<Button
+								size="sm"
 								onClick={() => {
-									if (firstOrgId) {
-										navigate(`/org/${firstOrgId}/tokens`);
-									}
+									navigate("/tokens");
 								}}
-								disabled={!firstOrgId}
 							>
 								Manage Tokens
 								<ArrowRight className="h-4 w-4 ml-2" />
@@ -136,13 +124,13 @@ export function Profile() {
 												{token.expiresAt
 													? new Date(
 															typeof token.expiresAt === "object" &&
-															"seconds" in token.expiresAt
+																"seconds" in token.expiresAt
 																? Number(
 																		(token.expiresAt as Record<string, unknown>)
-																			.seconds
-																  ) * 1000
-																: token.expiresAt
-													  ).toLocaleDateString()
+																			.seconds,
+																	) * 1000
+																: token.expiresAt,
+														).toLocaleDateString()
 													: "never"}
 											</p>
 										</div>
@@ -175,7 +163,9 @@ export function Profile() {
 								<Button
 									variant="destructive"
 									size="sm"
-									onClick={() => { setShowDeleteConfirm(true); }}
+									onClick={() => {
+										setShowDeleteConfirm(true);
+									}}
 									disabled={deleteUserMutation.isPending}
 								>
 									Delete Account
@@ -190,7 +180,9 @@ export function Profile() {
 											variant="secondary"
 											size="sm"
 											className="flex-1"
-											onClick={() => { setShowDeleteConfirm(false); }}
+											onClick={() => {
+												setShowDeleteConfirm(false);
+											}}
 											disabled={deleteUserMutation.isPending}
 										>
 											Cancel
@@ -203,7 +195,7 @@ export function Profile() {
 												void handleDeleteAccount();
 											}}
 											disabled={deleteUserMutation.isPending}
-											>
+										>
 											{deleteUserMutation.isPending ? "Deleting..." : "Delete"}
 										</Button>
 									</div>

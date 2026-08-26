@@ -155,6 +155,7 @@ Tokens can be scoped to different entity types:
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().StringSlice("scope", []string{"read"}, "Token scopes: read, write, admin")
 	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d, 30d)")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
@@ -193,8 +194,8 @@ func parseScope(s string) (tokenv1.Scope, error) {
 
 func parseDuration(s string) (int64, error) {
 	s = strings.TrimSpace(strings.ToLower(s))
-	if strings.HasSuffix(s, "d") {
-		days := strings.TrimSuffix(s, "d")
+	if before, ok := strings.CutSuffix(s, "d"); ok {
+		days := before
 		var d int
 		if _, err := fmt.Sscanf(days, "%d", &d); err != nil {
 			return 0, fmt.Errorf("invalid duration %q", s)

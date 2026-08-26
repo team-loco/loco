@@ -90,5 +90,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
+
 	return cmd
 }

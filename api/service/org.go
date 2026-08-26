@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -68,18 +67,18 @@ func (s *OrgServer) CreateOrg(
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	orgName := r.GetName()
 	if orgName == "" {
-		orgName = fmt.Sprintf("%s's Organization", user.Name.String)
+		orgName = fmt.Sprintf("%s's Organization", derefString(user.Name))
 	}
 
-	isUnique, err := s.queries.IsOrgNameUnique(ctx, orgName)
+	isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{Name: orgName})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if !isUnique {
@@ -93,16 +92,7 @@ func (s *OrgServer) CreateOrg(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create organization", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
-	}
-
-	err = s.queries.AddOrgMember(ctx, genDb.AddOrgMemberParams{
-		OrganizationID: org.ID,
-		UserID:         entity.ID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to add organization member", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
@@ -112,7 +102,7 @@ func (s *OrgServer) CreateOrg(
 	}, []genDb.EntityScope{})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", org.ID.String(), "userId", entity.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&orgv1.CreateOrgResponse{
@@ -151,8 +141,9 @@ func (s *OrgServer) GetOrg(
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetOrg, org.ID.String())); err != nil {
+		// Return NotFound (not PermissionDenied) to prevent org-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID.String())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
 	}
 
 	return connect.NewResponse(&orgv1.GetOrgResponse{
@@ -160,8 +151,8 @@ func (s *OrgServer) GetOrg(
 			Id:        org.ID.String(),
 			Name:      org.Name,
 			CreatedBy: org.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt),
+			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt),
 		},
 	}), nil
 }
@@ -186,16 +177,13 @@ func (s *OrgServer) ListUserOrgs(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	userId := uuid.MustParse(r.GetUserId())
@@ -207,7 +195,7 @@ func (s *OrgServer) ListUserOrgs(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list orgs", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var orgResponses []*orgv1.Organization
@@ -216,8 +204,8 @@ func (s *OrgServer) ListUserOrgs(
 			Id:        org.ID.String(),
 			Name:      org.Name,
 			CreatedBy: org.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt.Time),
-			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(org.CreatedAt),
+			UpdatedAt: timeutil.ParsePostgresTimestamp(org.UpdatedAt),
 		})
 	}
 
@@ -251,22 +239,24 @@ func (s *OrgServer) UpdateOrg(
 	}
 
 	if r.GetName() != "" {
-		isUnique, err := s.queries.IsOrgNameUnique(ctx, r.GetName())
+		orgID := uuid.MustParse(r.GetOrgId())
+
+		isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{
+			Name:      r.GetName(),
+			ExcludeID: &orgID,
+		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to check org name uniqueness", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 
 		if !isUnique {
-			existingOrg, getErr := s.queries.GetOrgByName(ctx, r.GetName())
-			if getErr != nil || existingOrg.ID.String() != r.GetOrgId() {
-				slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
-				return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-			}
+			slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 		}
 
 		_, err = s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-			ID:   uuid.MustParse(r.GetOrgId()),
+			ID:   orgID,
 			Name: r.GetName(),
 		})
 		if err != nil {
@@ -303,7 +293,7 @@ func (s *OrgServer) DeleteOrg(
 	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for resources in workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if hasResources {
@@ -314,7 +304,7 @@ func (s *OrgServer) DeleteOrg(
 	err = s.queries.DeleteOrg(ctx, orgId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete org", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&orgv1.DeleteOrgResponse{}), nil
@@ -325,9 +315,20 @@ func (s *OrgServer) ListOrgUsers(
 	ctx context.Context,
 	req *connect.Request[orgv1.ListOrgUsersRequest],
 ) (*connect.Response[orgv1.ListOrgUsersResponse], error) {
-	// TODO: Implement authorization check for listing org users
+	r := req.Msg
+
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+	}
+
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListOrgMembers, r.GetOrgId())); err != nil {
+		slog.WarnContext(ctx, "unauthorized to list org users", "orgId", r.GetOrgId())
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+
 	// TODO: Implement database query to get org users
-	// For now, return empty list
 	return connect.NewResponse(&orgv1.ListOrgUsersResponse{
 		Users:         []*orgv1.User{},
 		NextPageToken: "",
@@ -354,16 +355,13 @@ func (s *OrgServer) ListOrgWorkspaces(
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	// Get workspaces for org
@@ -374,7 +372,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	workspaceSummaries := make([]*orgv1.WorkspaceSummary, len(workspaces))
@@ -383,7 +381,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 			Id:        ws.ID.String(),
 			Name:      ws.Name,
 			CreatedBy: ws.CreatedBy.String(),
-			CreatedAt: timeutil.ParsePostgresTimestamp(ws.CreatedAt.Time),
+			CreatedAt: timeutil.ParsePostgresTimestamp(ws.CreatedAt),
 		}
 	}
 

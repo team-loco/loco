@@ -1,19 +1,29 @@
 package loco
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"charm.land/lipgloss/v2"
+	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/config"
+	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
+	configv1 "github.com/team-loco/loco/proto/loco/config/v1"
+	"github.com/team-loco/loco/proto/loco/config/v1/configv1connect"
 )
 
 func init() {
 	initCmd.Flags().BoolP("force", "f", false, "Force overwrite of existing loco.toml file")
 	initCmd.Flags().StringP("name", "n", "", "Application name (skips interactive prompt)")
+	initCmd.Flags().String("host", "", "API host URL")
 }
 
 var initCmd = &cobra.Command{
@@ -68,7 +78,9 @@ func initCmdFunc(cmd *cobra.Command) error {
 		appName = dirName
 	}
 
-	if err := config.CreateDefault(appName); err != nil {
+	appDomain := fetchPlatformDomain(cmd)
+
+	if err := config.CreateDefault(appName, appDomain); err != nil {
 		return fmt.Errorf("failed to create loco.toml: %w", err)
 	}
 
@@ -78,4 +90,35 @@ func initCmdFunc(cmd *cobra.Command) error {
 		style.Render("loco validate"))
 
 	return nil
+}
+
+// fetchPlatformDomain retrieves the default platform domain from the API.
+// Falls back to the session config value, then the built-in constant.
+func fetchPlatformDomain(cmd *cobra.Command) string {
+	// User's explicit session preference takes priority.
+	if cfg, err := session.Load(); err == nil && cfg.DefaultAppDomain != "" {
+		return cfg.DefaultAppDomain
+	}
+
+	host, err := cmdutil.GetHost(cmd)
+	if err != nil {
+		slog.Debug("could not resolve host for config lookup", "error", err)
+		return config.DefaultAppDomain
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	configClient := configv1connect.NewConfigServiceClient(httputil.NewHTTPClient(), host)
+	resp, err := configClient.GetDefaultServiceConfig(ctx, connect.NewRequest(&configv1.GetDefaultServiceConfigRequest{}))
+	if err != nil {
+		slog.Debug("could not fetch defaults from API, using built-in default", "error", err)
+		return config.DefaultAppDomain
+	}
+
+	if domain := resp.Msg.GetConfig().GetPlatformDomain(); domain != "" {
+		return domain
+	}
+
+	return config.DefaultAppDomain
 }

@@ -1,12 +1,12 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 import {
 	Table,
 	TableBody,
@@ -45,7 +45,7 @@ import {
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "@/components/ui/select";
+} from "@/components/design/Select";
 
 interface RecentDeploymentsProps {
 	deployments: Deployment[];
@@ -115,7 +115,7 @@ export function RecentDeployments({
 			cell: ({ row }) => (
 				<div className="flex items-center gap-1">
 					<Tooltip>
-						<TooltipTrigger asChild>
+						<TooltipTrigger>
 							<Dot
 								className={`shrink-0 ${
 									row.original.isActive
@@ -160,7 +160,7 @@ export function RecentDeployments({
 			cell: ({ row }) => (
 				<TooltipProvider>
 					<Tooltip>
-						<TooltipTrigger asChild>
+						<TooltipTrigger>
 							<span className="font-mono text-xs max-w-xs truncate cursor-help">
 								{formatShortId(row.original.id)}
 							</span>
@@ -187,7 +187,7 @@ export function RecentDeployments({
 			cell: ({ row }) => (
 				<TooltipProvider>
 					<Tooltip>
-						<TooltipTrigger asChild>
+						<TooltipTrigger>
 							<Badge
 								variant="default"
 								className={`text-xs ${getPhaseColor(row.original.status)}`}

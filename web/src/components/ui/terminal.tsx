@@ -19,7 +19,7 @@ export const AnimatedSpan = ({
 		className={cn("grid text-sm font-normal tracking-tight", className)}
 		initial={{ opacity: 0, y: -5 }}
 		transition={{ duration: 0.3, delay: delay / 1000 }}
-		{...(props as object)}
+		{...(props)}
 	>
 		{children}
 	</motion.div>
@@ -57,7 +57,7 @@ export const TypingAnimation = ({
 		const startTimeout = setTimeout(() => {
 			setStarted(true);
 		}, delay);
-		return () => clearTimeout(startTimeout);
+		return () => { clearTimeout(startTimeout); };
 	}, [delay]);
 
 	useEffect(() => {
@@ -73,14 +73,14 @@ export const TypingAnimation = ({
 			}
 		}, duration);
 
-		return () => clearInterval(typingEffect);
+		return () => { clearInterval(typingEffect); };
 	}, [children, duration, started]);
 
 	return (
 		<MotionComponent
 			className={cn("text-sm font-normal tracking-tight", className)}
 			ref={elementRef}
-			{...(props as object)}
+			{...(props)}
 		>
 			{displayedText}
 		</MotionComponent>

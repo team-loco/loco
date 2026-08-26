@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateTokenRequest, CreateTokenResponse, GetTokenRequest, GetTokenResponse, ListTokensRequest, ListTokensResponse, RevokeTokenRequest, RevokeTokenResponse } from "./token_pb";
+import { CheckPermissionRequest, CheckPermissionResponse, CreateTokenRequest, CreateTokenResponse, GetScopesRequest, GetScopesResponse, GetTokenRequest, GetTokenResponse, ListTokensRequest, ListTokensResponse, RevokeTokenRequest, RevokeTokenResponse } from "./token_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -56,6 +56,29 @@ export const TokenService = {
       name: "RevokeToken",
       I: RevokeTokenRequest,
       O: RevokeTokenResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * GetScopes returns the entity and all scopes the current token has access to.
+     *
+     * @generated from rpc loco.token.v1.TokenService.GetScopes
+     */
+    getScopes: {
+      name: "GetScopes",
+      I: GetScopesRequest,
+      O: GetScopesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * CheckPermission validates whether a given token has a specific permission on an entity.
+     * Intended for service-to-service calls (e.g. observability proxy → control plane).
+     *
+     * @generated from rpc loco.token.v1.TokenService.CheckPermission
+     */
+    checkPermission: {
+      name: "CheckPermission",
+      I: CheckPermissionRequest,
+      O: CheckPermissionResponse,
       kind: MethodKind.Unary,
     },
   }

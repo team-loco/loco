@@ -10,34 +10,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/internal/keychain"
 	oAuth "github.com/team-loco/loco/proto/loco/oauth/v1"
 	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
 )
-
-const LocoProdHost = "https://loco.deploy-app.com"
-
-// GetHost resolves the API host from flag > env > default.
-func GetHost(cmd *cobra.Command) (string, error) {
-	host, err := cmd.Flags().GetString("host")
-	if err != nil {
-		return "", fmt.Errorf("error reading host flag: %w", err)
-	}
-	if host != "" {
-		slog.Debug("using host from flag")
-		return host, nil
-	}
-
-	host = os.Getenv("LOCO__HOST")
-	if host != "" {
-		slog.Debug("using host from environment variable")
-		return host, nil
-	}
-
-	slog.Debug("defaulting to prod url")
-	return LocoProdHost, nil
-}
 
 // GetCurrentLocoToken retrieves the token for the current OS user.
 // If the access token is near expiry and a refresh token is stored, it
@@ -51,7 +27,7 @@ func GetCurrentLocoToken() (*keychain.UserToken, error) {
 	locoToken, err := keychain.GetLocoToken(usr.Name)
 	if err != nil {
 		slog.Debug("failed to get loco token", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("could not get token from secrets storage. Please login via `loco login`")
 	}
 
 	if locoToken.ExpiresAt.Before(time.Now().Add(5 * time.Minute)) {
@@ -74,9 +50,10 @@ func GetCurrentLocoToken() (*keychain.UserToken, error) {
 // refreshLocoToken calls the RefreshToken RPC using the stored refresh token,
 // stores the new token pair in the keychain, and returns the updated UserToken.
 func refreshLocoToken(refreshToken, userName string) (*keychain.UserToken, error) {
+	// todo: cleanup, we shouldnt be doing this inline here.
 	host := os.Getenv("LOCO__HOST")
 	if host == "" {
-		host = LocoProdHost
+		host = defaultLocoHost
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -100,10 +77,4 @@ func refreshLocoToken(refreshToken, userName string) (*keychain.UserToken, error
 	}
 	slog.Debug("token refreshed and stored in keychain")
 	return newToken, nil
-}
-
-// LogRequestID logs the request ID from an error response for debugging.
-func LogRequestID(err error) {
-	// TODO: Extract request ID from connect error metadata if available
-	slog.Debug("request failed", "error", err)
 }

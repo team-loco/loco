@@ -14,10 +14,11 @@ import (
 	"github.com/team-loco/loco/agent/pkg/applier"
 	agentv1 "github.com/team-loco/loco/proto/loco/agent/v1"
 	"github.com/team-loco/loco/proto/loco/agent/v1/agentv1connect"
+	"golang.org/x/net/http2"
 )
 
 type Config struct {
-	ControlPlaneURL string // e.g., "https://api.loco.dev"
+	ControlPlaneURL string // e.g., "https://api.loco.build"
 	AgentToken      string // Bearer token for authentication
 	Region          string // Region this agent is in
 	AgentVersion    string // Version of the agent
@@ -57,15 +58,13 @@ func main() {
 		"region", cfg.Region,
 		"version", cfg.AgentVersion,
 	)
-
-	// Create HTTP client
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			ForceAttemptHTTP2: true,
-		},
+	transport := &http.Transport{}
+	http2Err := http2.ConfigureTransport(&http.Transport{})
+	if http2Err != nil {
+		panic("failed to configure HTTP/2 transport: " + http2Err.Error())
 	}
+	httpClient := &http.Client{Transport: transport}
 
-	// Create the agent service client
 	client := agentv1connect.NewAgentServiceClient(
 		httpClient,
 		cfg.ControlPlaneURL,
@@ -191,10 +190,8 @@ func (a *Agent) commandStreamLoop(ctx context.Context) error {
 			"cluster_id", cmd.GetClusterId(),
 		)
 
-		// Process the command
 		ack := a.processCommand(ctx, cmd)
 
-		// Send ack back
 		if err := stream.Send(ack); err != nil {
 			return fmt.Errorf("send ack: %w", err)
 		}
@@ -210,10 +207,6 @@ func (a *Agent) processCommand(ctx context.Context, cmd *agentv1.CommandStreamRe
 		err = a.handleDeploy(ctx, cmd)
 	case agentv1.CommandType_COMMAND_TYPE_DELETE:
 		err = a.handleDelete(ctx, cmd)
-	case agentv1.CommandType_COMMAND_TYPE_SCALE:
-		err = a.handleScale(ctx, cmd)
-	case agentv1.CommandType_COMMAND_TYPE_UPDATE_ENV:
-		err = a.handleUpdateEnv(ctx, cmd)
 	default:
 		err = fmt.Errorf("unknown command type: %s", cmd.GetType())
 	}
@@ -253,18 +246,6 @@ func (a *Agent) handleDelete(ctx context.Context, cmd *agentv1.CommandStreamResp
 	}
 
 	return a.applier.DeleteFromJSON(ctx, del.GetResourceId(), del.GetNamespace())
-}
-
-// handleScale processes a scale command.
-func (a *Agent) handleScale(ctx context.Context, cmd *agentv1.CommandStreamResponse) error {
-	// TODO: implement scaling
-	return fmt.Errorf("scale command not yet implemented")
-}
-
-// handleUpdateEnv processes an update-env command.
-func (a *Agent) handleUpdateEnv(ctx context.Context, cmd *agentv1.CommandStreamResponse) error {
-	// TODO: implement env update
-	return fmt.Errorf("update-env command not yet implemented")
 }
 
 // runHeartbeat sends periodic heartbeats to the control plane.

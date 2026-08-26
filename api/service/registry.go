@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -90,7 +91,7 @@ func (s *RegistryServer) GetGitlabToken(
 	tokenResp, err := gitlabClient.CreateDeployToken(ctx, s.gitlabPAT, s.gitlabProjectID, payload)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create gitlab deploy token", slog.String("error", err.Error()))
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create deploy token: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create deploy token"))
 	}
 
 	res := connect.NewResponse(&registryv1.GetGitlabTokenResponse{

@@ -1,17 +1,19 @@
-import { useState, useMemo, useCallback } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
+import { Input } from "@/components/design/Input";
 import { Toggle } from "@/components/ui/toggle";
-import { AlertCircle, Loader2, Radio, Search } from "lucide-react";
-import { useObs } from "./ObsProvider";
-import { ObsLogRow } from "./ObsLogRow";
+import { LogOrder } from "@/gen/loco/observability/v1/observability_pb";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { parseObsQuery } from "@/lib/obs-query-parser";
-import { LogOrder } from "@/gen/loco/observability/v1/observability_pb";
+import { AlertCircle, Loader2, Radio, Search } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { ObsLogRow } from "./ObsLogRow";
+import { useObs } from "./ObsProvider";
 
-function levelBadgeVariant(level: string): "default" | "outline" | "destructive" | "secondary" {
+function levelBadgeVariant(
+	level: string,
+): "default" | "outline" | "destructive" | "secondary" {
 	switch (level) {
 		case "ERROR":
 		case "FATAL":
@@ -77,17 +79,19 @@ export function ObsLogs() {
 					<Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
 					<Input
 						value={queryText}
-						onChange={(e) => { setQueryText(e.target.value); }}
-						placeholder='e.g. level:error pod:api-xxx "search text"'
-						className="pl-8 h-8 text-sm font-mono"
+						onChange={(e) => {
+							setQueryText(e.target.value);
+						}}
+						placeholder='level:error pod:api-xxx "search text"'
+						className="pl-8 h-8 text-sm"
 					/>
 				</div>
 				<div className="flex items-center gap-2">
 					<Toggle
 						pressed={order === LogOrder.OLDEST_FIRST}
-						onPressedChange={(v) =>
-							{ setOrder(v ? LogOrder.OLDEST_FIRST : LogOrder.NEWEST_FIRST); }
-						}
+						onPressedChange={(v) => {
+							setOrder(v ? LogOrder.OLDEST_FIRST : LogOrder.NEWEST_FIRST);
+						}}
 						size="sm"
 						aria-label="Toggle order"
 						className="text-xs bg-accent"
@@ -148,8 +152,8 @@ export function ObsLogs() {
 
 				{errors.length > 0 && (
 					<div className="px-3 py-2 text-xs text-destructive border-b border-border/40">
-						{errors.map((e, i) => (
-							<div key={i}>{e.message}</div>
+						{errors.map((e) => (
+							<div key={e.name}>{e.message}</div>
 						))}
 					</div>
 				)}

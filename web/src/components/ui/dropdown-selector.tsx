@@ -28,12 +28,10 @@ export function DropdownSelector({
 }: DropdownSelectorProps) {
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
-				<Button variant="outline" size="sm" className="gap-1.5">
-					{Icon && <Icon className="h-3.5 w-3.5" />}
-					{label}
-					<ChevronDown className="h-3.5 w-3.5 opacity-60" />
-				</Button>
+			<DropdownMenuTrigger render={<Button variant="outline" size="sm" className="gap-1.5" />}>
+				{Icon && <Icon className="h-3.5 w-3.5" />}
+				{label}
+				<ChevronDown className="h-3.5 w-3.5 opacity-60" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className={contentWidth}>
 				{items.map((item) => (

@@ -1,9 +1,9 @@
 module github.com/team-loco/loco/proto
 
-go 1.26.0
+go 1.27.0
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260209202127-80ab13bee0bf.1
-	connectrpc.com/connect v1.19.1
-	google.golang.org/protobuf v1.36.11
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.1
+	connectrpc.com/connect v1.20.0
+	google.golang.org/protobuf v1.36.12
 )

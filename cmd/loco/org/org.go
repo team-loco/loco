@@ -23,8 +23,6 @@ func BuildOrgCmd() *cobra.Command {
   loco org delete my-org`,
 	}
 
-	cmd.PersistentFlags().String("host", "", "API host URL")
-
 	cmd.AddCommand(
 		buildListCmd(),
 		buildCreateCmd(),

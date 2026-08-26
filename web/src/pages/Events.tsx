@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent } from "@/components/design/Card";
 import { DropdownSelector } from "@/components/ui/dropdown-selector";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/design/Input";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { AlertCircle, Trash2, X } from "lucide-react";

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm/providers"
 )
@@ -51,20 +50,15 @@ func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailRe
 		}
 	}
 
-	var ua pgtype.Text
-	if userAgent != "" {
-		ua = pgtype.Text{String: userAgent, Valid: true}
-	}
-
 	if err := tvm.queries.CreateSessionToken(ctx, queries.CreateSessionTokenParams{
 		ID:               uuid.Must(uuid.NewV7()),
 		AccessTokenHash:  accessHash,
 		RefreshTokenHash: refreshHash,
 		UserID:           user.ID,
-		AccessExpiresAt:  pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionAccessTokenDuration), Valid: true},
-		RefreshExpiresAt: pgtype.Timestamptz{Time: now.Add(tvm.Cfg.SessionRefreshTokenDuration), Valid: true},
+		AccessExpiresAt:  now.Add(tvm.Cfg.SessionAccessTokenDuration),
+		RefreshExpiresAt: now.Add(tvm.Cfg.SessionRefreshTokenDuration),
 		IpAddress:        ipAddr,
-		UserAgent:        ua,
+		UserAgent:        &userAgent,
 	}); err != nil {
 		slog.ErrorContext(ctx, fmt.Sprintf("failed to create session token: %s", err.Error()))
 		return queries.User{}, "", "", ErrStoreToken

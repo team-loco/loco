@@ -1,7 +1,7 @@
 import Loader from "@/assets/loader.svg?react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/design/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
+import { Input } from "@/components/design/Input";
 import {
 	Table,
 	TableBody,

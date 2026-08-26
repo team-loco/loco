@@ -14,13 +14,17 @@ run:
   issues-exit-code: 1
   tests: true
   allow-parallel-runners: true
-  go: "1.25"
+  go: "1.27"
   relative-path-mode: wd
 linters:
   exclusions:
+    paths:
+      - "web/node_modules"
     rules:
       - { linters: [errcheck], source: "^\\s*defer\\s+" }
       - { linters: [govet], text: "fieldalignment" }
+      # ST1005 flags capitalized error strings; "Docker" is a proper noun here.
+      - { linters: [staticcheck], text: "ST1005", path: "internal/docker/" }
   default: standard
   settings:
     errcheck:
@@ -158,6 +162,7 @@ formatters:
   exclusions:
     generated: lax
     paths:
+      - "web/node_modules"
       - third_party$
       - builtin$
       - examples$

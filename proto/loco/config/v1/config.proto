@@ -7,7 +7,7 @@ import "loco/resource/v1/resource.proto";
 
 option go_package = "github.com/team-loco/loco/proto/loco/config/v1;configv1";
 
-// ConfigService provides static configuration values.
+// ConfigService provides static configuration values. Clients can query this to show safe defaults.
 service ConfigService {
   // GetDefaultServiceConfig retrieves the default configuration for service deployments.
   rpc GetDefaultServiceConfig(GetDefaultServiceConfigRequest) returns (GetDefaultServiceConfigResponse);
@@ -42,4 +42,7 @@ message DefaultServiceConfig {
 
   // Default observability configuration
   resource.v1.ObservabilityConfig observability = 9;
+
+  // Default platform domain (e.g., "onloco.app")
+  string platform_domain = 10;
 }

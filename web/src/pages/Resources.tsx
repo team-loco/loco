@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
 import { AlertCircle } from "lucide-react";
 
 export function Resources() {

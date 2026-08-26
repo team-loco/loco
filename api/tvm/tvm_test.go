@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -19,9 +18,9 @@ type sessionEntry struct {
 	userID           uuid.UUID
 	accessHash       string
 	refreshHash      string
-	accessExpiresAt  pgtype.Timestamptz
-	refreshExpiresAt pgtype.Timestamptz
-	lastUsedAt       pgtype.Timestamptz
+	accessExpiresAt  time.Time
+	refreshExpiresAt time.Time
+	lastUsedAt       time.Time
 }
 
 // TestingQueries is an in-memory implementation of queries.Querier for unit tests.
@@ -157,6 +156,10 @@ func (tq *TestingQueries) GetUserWithScopesByEmail(ctx context.Context, email st
 	}, nil
 }
 
+func (*TestingQueries) GetUserScopesOnWorkspace(_ context.Context, _ queries.GetUserScopesOnWorkspaceParams) ([]queries.EntityScope, error) {
+	return nil, nil
+}
+
 func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	if id == ws1UUID || id == ws2UUID {
 		return org1UUID, nil
@@ -199,7 +202,7 @@ func (tq *TestingQueries) CreateSessionToken(ctx context.Context, params queries
 		refreshHash:      params.RefreshTokenHash,
 		accessExpiresAt:  params.AccessExpiresAt,
 		refreshExpiresAt: params.RefreshExpiresAt,
-		lastUsedAt:       pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		lastUsedAt:       time.Now(),
 	}
 	tq.sessions[params.ID] = entry
 	tq.byAccess[params.AccessTokenHash] = params.ID

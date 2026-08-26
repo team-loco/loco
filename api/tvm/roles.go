@@ -68,15 +68,14 @@ func (tvm *VendingMachine) GetRolesByEntity(ctx context.Context, token string, u
 		}
 		return rows, nil
 	case queries.EntityTypeWorkspace:
-		// workspace: get all workspace, resource roles
+		// workspace: get all workspace + resource roles (recursive)
 		userId, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
-		rows, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
-			UserID:     userId,
-			EntityType: entity.Type,
-			EntityID:   entity.ID,
+		rows, err := tvm.queries.GetUserScopesOnWorkspace(ctx, queries.GetUserScopesOnWorkspaceParams{
+			ID:     entity.ID,
+			UserID: userId,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)

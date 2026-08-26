@@ -5,7 +5,7 @@ type LocoConfig struct {
 	Metadata     Metadata             `json:"metadata" toml:"Metadata"`
 	Build        Build                `json:"build" toml:"Build"`
 	Routing      Routing              `json:"routing" toml:"Routing"`
-	DomainConfig DomainConfig         `json:"domainConfig" toml:"DomainConfig"`
+	DomainConfig *DomainConfig        `json:"domainConfig,omitempty" toml:"DomainConfig"`
 	RegionConfig map[string]Resources `json:"regionConfig" toml:"RegionConfig"`
 	Health       Health               `json:"health" toml:"Health"`
 	Env          Env                  `json:"env,omitzero" toml:"Env"`
@@ -43,7 +43,7 @@ type Routing struct {
 
 type DomainConfig struct {
 	Type     string `json:"type,omitempty" toml:"Type"` // "platform" (default) or "custom"
-	Hostname string `json:"hostname" toml:"Hostname"`   // full resolvable hostname (e.g., "myapp.deploy-app.com")
+	Hostname string `json:"hostname" toml:"Hostname"`   // full resolvable hostname (e.g., "myapp.onloco.app")
 }
 
 type Health struct {

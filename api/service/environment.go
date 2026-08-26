@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -63,12 +62,11 @@ func (s *EnvironmentServer) CreateEnvironment(
 
 	envType := protoEnvTypeToString(r.GetType())
 
-	description := pgtype.Text{String: r.GetDescription(), Valid: r.GetDescription() != ""}
-
+	desc := r.GetDescription()
 	env, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 		WorkspaceID:     workspaceID,
 		Name:            r.GetName(),
-		Description:     description,
+		Description:     &desc,
 		EnvironmentType: envType,
 		CreatedBy:       entity.ID,
 	})
@@ -77,7 +75,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 		if isPgConstraintViolation(err) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
 		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&environmentv1.CreateEnvironmentResponse{
@@ -139,7 +137,7 @@ func (s *EnvironmentServer) ListEnvironments(
 	envs, err := s.queries.ListWorkspaceEnvironments(ctx, workspaceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list environments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var protoEnvs []*environmentv1.Environment
@@ -185,7 +183,8 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	}
 	description := existing.Description
 	if r.GetDescription() != "" {
-		description = pgtype.Text{String: r.GetDescription(), Valid: true}
+		d := r.GetDescription()
+		description = &d
 	}
 	envType := existing.EnvironmentType
 	if r.Type != nil {
@@ -203,7 +202,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		if isPgConstraintViolation(err) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
 		}
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&environmentv1.UpdateEnvironmentResponse{
@@ -240,7 +239,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 	count, err := s.queries.CountDeploymentsByEnvironment(ctx, envID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to count deployments for environment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 	if count > 0 {
 		slog.WarnContext(ctx, "cannot delete environment with deployments", "environmentId", r.GetEnvironmentId(), "count", count)
@@ -249,7 +248,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 
 	if err := s.queries.DeleteEnvironment(ctx, envID); err != nil {
 		slog.ErrorContext(ctx, "failed to delete environment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&environmentv1.DeleteEnvironmentResponse{}), nil
@@ -257,16 +256,15 @@ func (s *EnvironmentServer) DeleteEnvironment(
 
 // dbEnvToProto converts a db.Environment to its proto representation.
 func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
-	desc := env.Description.String
 	return &environmentv1.Environment{
 		Id:          env.ID.String(),
 		WorkspaceId: env.WorkspaceID.String(),
 		Name:        env.Name,
-		Description: &desc,
+		Description: env.Description,
 		Type:        stringToProtoEnvType(env.EnvironmentType),
 		CreatedBy:   env.CreatedBy.String(),
-		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt.Time),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(env.UpdatedAt.Time),
+		CreatedAt:   timeutil.ParsePostgresTimestamp(env.CreatedAt),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(env.UpdatedAt),
 	}
 }
 

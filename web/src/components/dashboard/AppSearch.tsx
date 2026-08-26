@@ -1,6 +1,6 @@
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/design/Input";
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 
 interface AppSearchProps {
 	searchTerm: string;

@@ -6,7 +6,7 @@ import {
 	InputGroupInput,
 } from "@/components/ui/input-group";
 import { Kbd } from "@/components/ui/kbd";
-import { Label } from "@/components/ui/label";
+import { Label } from "@/components/design/Label";
 
 export function SearchForm({ ...props }: React.ComponentProps<"form">) {
 	return (

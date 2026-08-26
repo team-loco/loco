@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/proto/loco/oauth/v1/oauthv1connect"
 
 	"github.com/team-loco/loco/api/tvm"
 )
@@ -53,11 +54,11 @@ func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryF
 		req connect.AnyRequest,
 	) (connect.AnyResponse, error) {
 		// todo: need to fix the service name
-		if req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthDetails" ||
-			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
-			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthCode" ||
-			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthToken" ||
-			req.Spec().Procedure == "/loco.oauth.v1.OAuthService/RefreshToken" {
+		if req.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthDetailsProcedure ||
+			req.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure ||
+			req.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure ||
+			req.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure ||
+			req.Spec().Procedure == oauthv1connect.OAuthServiceRefreshTokenProcedure {
 			return next(ctx, req)
 		}
 
@@ -102,11 +103,11 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 		ctx context.Context,
 		conn connect.StreamingHandlerConn,
 	) error {
-		if conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthDetails" ||
-			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/GetOAuthAuthorizationURL" ||
-			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthCode" ||
-			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/ExchangeOAuthToken" ||
-			conn.Spec().Procedure == "/loco.oauth.v1.OAuthService/RefreshToken" {
+		if conn.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthDetailsProcedure ||
+			conn.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure ||
+			conn.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure ||
+			conn.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure ||
+			conn.Spec().Procedure == oauthv1connect.OAuthServiceRefreshTokenProcedure {
 			return next(ctx, conn)
 		}
 

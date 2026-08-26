@@ -178,6 +178,7 @@ func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func
 }
 
 // resolveDomainInput creates the domain input for resource creation.
+// Returns nil if no DomainConfig is set (app will not receive internet traffic).
 // Only platform domains are supported.
 func resolveDomainInput(
 	ctx context.Context,
@@ -186,6 +187,10 @@ func resolveDomainInput(
 	authHeader string,
 	cfg *config.LocoConfig,
 ) (*domainv1.DomainInput, error) {
+	if cfg.DomainConfig == nil {
+		return nil, nil
+	}
+
 	if cfg.DomainConfig.Type == "custom" {
 		return nil, errors.New("custom domains are not supported - please use a platform domain")
 	}

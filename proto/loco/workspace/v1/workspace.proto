@@ -43,11 +43,11 @@ message Workspace {
   google.protobuf.Timestamp updated_at = 7;
 }
 
-// WorkspaceMember represents a user's membership and role assignment in a workspace.
+// WorkspaceMember represents a user's membership in a workspace and their granted scopes.
 message WorkspaceMember {
   string workspace_id = 1;
   string user_id = 2;
-  string role = 3;
+  repeated string scopes = 3;
   google.protobuf.Timestamp created_at = 4;
 }
 
@@ -55,7 +55,7 @@ message WorkspaceMember {
 message WorkspaceMemberWithUser {
   string workspace_id = 1;
   string user_id = 2;
-  string role = 3;
+  repeated string scopes = 3;
   google.protobuf.Timestamp created_at = 4;
   string user_name = 5;
   string user_email = 6;
@@ -89,7 +89,7 @@ message GetWorkspaceResponse {
 
 // ListUserWorkspacesRequest is the request to list workspaces for a user.
 message ListUserWorkspacesRequest {
-  string user_id = 1 [(buf.validate.field).string.uuid = true];
+  string user_id = 1;
   int32 page_size = 2 [(buf.validate.field).int32 = {
     gte: 0
     lte: 200
@@ -148,10 +148,17 @@ message DeleteWorkspaceResponse {}
 message CreateMemberRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string user_id = 2 [(buf.validate.field).string.uuid = true];
-  string role = 3 [(buf.validate.field).cel = {
-    id: "role.valid_values"
-    message: "role must be one of: admin, deploy, read"
-    expression: "this in ['admin', 'deploy', 'read']"
+  repeated string scopes = 3 [(buf.validate.field).repeated = {
+    min_items: 1
+    items: {
+      cel: [
+        {
+          id: "scope.valid_values"
+          message: "each scope must be one of: read, write, admin"
+          expression: "this in ['read', 'write', 'admin']"
+        }
+      ]
+    }
   }];
 }
 

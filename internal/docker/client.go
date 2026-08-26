@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -40,6 +42,10 @@ type DockerClient struct {
 }
 
 func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
+	if err := checkDockerAvailable(); err != nil {
+		return nil, err
+	}
+
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
@@ -47,7 +53,7 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 
 	v, err := cli.ServerVersion(context.Background())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Docker daemon is not responding — is Docker running?\n  Start Docker and try again, or skip the build step with: --image <your-image>")
 	}
 
 	if v.Version < MINIMUM_DOCKER_ENGINE_VERSION {
@@ -59,6 +65,31 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 		cfg:          cfg,
 		registryUrl:  GITLAB_REGISTRY_URL,
 	}, nil
+}
+
+// checkDockerAvailable checks whether the Docker socket exists before attempting
+// to connect, so we can give a clear error instead of a confusing dial failure.
+func checkDockerAvailable() error {
+	socketPaths := []string{"/var/run/docker.sock"}
+	if runtime.GOOS == "darwin" {
+		if home, homeErr := os.UserHomeDir(); homeErr == nil {
+			socketPaths = append(socketPaths,
+				home+"/.docker/run/docker.sock",
+				home+"/.docker/desktop/docker.sock",
+			)
+		}
+	}
+
+	for _, p := range socketPaths {
+		if _, err := os.Stat(p); err == nil {
+			return nil // socket exists
+		}
+	}
+
+	if runtime.GOOS == "darwin" {
+		return fmt.Errorf("Docker does not appear to be running — please start Docker Desktop\n  Alternatively, build your image separately and deploy with: --image <your-image>")
+	}
+	return fmt.Errorf("Docker socket not found — is the Docker daemon running?\n  Alternatively, build your image separately and deploy with: --image <your-image>")
 }
 
 func (c *DockerClient) Close() error {
@@ -175,9 +206,9 @@ func (c *DockerClient) PushImage(ctx context.Context, logf func(string), usernam
 }
 
 func (c *DockerClient) ValidateImage(ctx context.Context, imageID string, logf func(string)) error {
-	// placeholder implementation, i think we need to come back to this
 	logf(fmt.Sprintf("Validating image: %s", imageID))
-	_, err := c.dockerClient.ImageInspect(ctx, imageID)
+
+	inspect, err := c.dockerClient.ImageInspect(ctx, imageID)
 	if err != nil {
 		if cerrdefs.IsNotFound(err) {
 			return fmt.Errorf("image %q not found locally", imageID)
@@ -185,6 +216,26 @@ func (c *DockerClient) ValidateImage(ctx context.Context, imageID string, logf f
 		return fmt.Errorf("failed to inspect image %q: %w", imageID, err)
 	}
 	logf(fmt.Sprintf("Image %q found locally", imageID))
+
+	if err := c.validateImageSize(inspect.Size, logf); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *DockerClient) validateImageSize(sizeBytes int64, logf func(string)) error {
+	const maxSizeGB = 1
+	const bytesPerGB = 1024 * 1024 * 1024
+	maxSizeBytes := int64(maxSizeGB * bytesPerGB)
+
+	sizeGB := float64(sizeBytes) / float64(bytesPerGB)
+	logf(fmt.Sprintf("Image size: %.2f GB", sizeGB))
+
+	if sizeBytes > maxSizeBytes {
+		return fmt.Errorf("image size %.2f GB exceeds maximum allowed size of %d GB", sizeGB, maxSizeGB)
+	}
+
 	return nil
 }
 

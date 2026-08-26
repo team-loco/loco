@@ -126,6 +126,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
 	cmd.Flags().Int64("entity-id", 0, "Entity ID (defaults to current user for user type)")

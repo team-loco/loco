@@ -9,8 +9,9 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
@@ -98,9 +99,14 @@ func (s *TokenServer) CreateToken(
 
 	dbScopes := make([]genDb.EntityScope, len(r.GetScopes()))
 	for i, scope := range r.GetScopes() {
+		scopeEntityId, scopeErr := uuid.Parse(scope.GetEntityId())
+		if scopeErr != nil {
+			slog.ErrorContext(ctx, "invalid scope entity id format", "entityId", scope.GetEntityId(), "error", scopeErr)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid scope entity id: %w", scopeErr))
+		}
 		dbScopes[i] = genDb.EntityScope{
 			EntityType: protoEntityTypeToDb(scope.GetEntityType()),
-			EntityID:   entityId,
+			EntityID:   scopeEntityId,
 			Scope:      protoScopeToDb(scope.GetScope()),
 		}
 	}
@@ -113,7 +119,7 @@ func (s *TokenServer) CreateToken(
 			return nil, connect.NewError(connect.CodePermissionDenied, err)
 		}
 		slog.ErrorContext(ctx, "failed to issue token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to issue token: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to issue token"))
 	}
 
 	// fetch metadata using the token we just issued
@@ -121,14 +127,14 @@ func (s *TokenServer) CreateToken(
 	tokenData, err := s.queries.GetAPIToken(ctx, tokenHash)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to fetch created token metadata", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch token metadata: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to fetch token metadata"))
 	}
 
 	slog.InfoContext(ctx, "created token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID)
 
 	return connect.NewResponse(&tokenv1.CreateTokenResponse{
 		Token:         token,
-		TokenMetadata: apiTokenRowToProto(tokenData.Name, tokenData.EntityType, tokenData.EntityID, tokenData.Scopes, tokenData.ExpiresAt),
+		TokenMetadata: apiTokenRowToProto(tokenData.Name, tokenData.EntityType, tokenData.EntityID, tokenData.Scopes, tokenData.CreatedAt, tokenData.ExpiresAt, tokenData.LastUsedAt),
 	}), nil
 }
 
@@ -173,12 +179,12 @@ func (s *TokenServer) ListTokens(
 	tokens, err := s.tvm.ListAPITokensForEntity(ctx, targetEntity)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list tokens", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to list tokens: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to list tokens"))
 	}
 
 	protoTokens := make([]*tokenv1.Token, len(tokens))
 	for i, t := range tokens {
-		protoTokens[i] = apiTokenRowToProto(t.Name, t.EntityType, t.EntityID, t.Scopes, t.ExpiresAt)
+		protoTokens[i] = apiTokenRowToProto(t.Name, t.EntityType, t.EntityID, t.Scopes, t.CreatedAt, t.ExpiresAt, t.LastUsedAt)
 	}
 
 	return connect.NewResponse(&tokenv1.ListTokensResponse{
@@ -240,7 +246,7 @@ func (s *TokenServer) GetToken(
 	}
 
 	return connect.NewResponse(&tokenv1.GetTokenResponse{
-		Token: apiTokenRowToProto(token.Name, token.EntityType, token.EntityID, token.Scopes, token.ExpiresAt),
+		Token: apiTokenRowToProto(token.Name, token.EntityType, token.EntityID, token.Scopes, token.CreatedAt, token.ExpiresAt, token.LastUsedAt),
 	}), nil
 }
 
@@ -303,7 +309,7 @@ func (s *TokenServer) RevokeToken(
 		EntityID:   targetEntity.ID,
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to revoke token: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to revoke token"))
 	}
 
 	slog.InfoContext(ctx, "revoked token", "name", r.GetName(), "entityType", targetEntity.Type, "entityId", targetEntity.ID.String())
@@ -311,9 +317,69 @@ func (s *TokenServer) RevokeToken(
 	return connect.NewResponse(&tokenv1.RevokeTokenResponse{}), nil
 }
 
+// GetScopes returns the entity and all scopes the current token has access to.
+func (s *TokenServer) GetScopes(
+	ctx context.Context,
+	req *connect.Request[tokenv1.GetScopesRequest],
+) (*connect.Response[tokenv1.GetScopesResponse], error) {
+	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
+	if !ok {
+		slog.ErrorContext(ctx, "entity not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+	}
+
+	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+	}
+
+	protoScopes := make([]*tokenv1.EntityScope, len(entityScopes))
+	for i, es := range entityScopes {
+		protoScopes[i] = &tokenv1.EntityScope{
+			Scope:      dbScopeToProto(es.Scope),
+			EntityType: dbEntityTypeToProto(es.EntityType),
+			EntityId:   es.EntityID.String(),
+		}
+	}
+
+	return connect.NewResponse(&tokenv1.GetScopesResponse{
+		EntityType: dbEntityTypeToProto(entity.Type),
+		EntityId:   entity.ID.String(),
+		Scopes:     protoScopes,
+	}), nil
+}
+
+// CheckPermission validates whether a given token has a specific permission on an entity.
+// Intended for service-to-service calls (e.g. the observability proxy).
+func (s *TokenServer) CheckPermission(
+	ctx context.Context,
+	req *connect.Request[tokenv1.CheckPermissionRequest],
+) (*connect.Response[tokenv1.CheckPermissionResponse], error) {
+	r := req.Msg
+
+	entityID, err := uuid.Parse(r.GetEntityId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity_id: %w", err))
+	}
+
+	_, scopes, err := s.tvm.GetToken(ctx, r.GetToken())
+	if err != nil {
+		return connect.NewResponse(&tokenv1.CheckPermissionResponse{Allowed: false}), nil
+	}
+
+	allowed := s.tvm.VerifyWithGivenEntityScopes(ctx, scopes, genDb.EntityScope{
+		EntityType: protoEntityTypeToDb(r.GetEntityType()),
+		EntityID:   entityID,
+		Scope:      protoScopeToDb(r.GetScope()),
+	}) == nil
+
+	return connect.NewResponse(&tokenv1.CheckPermissionResponse{Allowed: allowed}), nil
+}
+
 // Helper functions
 
-func apiTokenRowToProto(name string, entityType genDb.EntityType, entityID uuid.UUID, dbScopes []genDb.EntityScope, expiresAt pgtype.Timestamptz) *tokenv1.Token {
+func apiTokenRowToProto(name string, entityType genDb.EntityType, entityID uuid.UUID, dbScopes []genDb.EntityScope, createdAt time.Time, expiresAt time.Time, lastUsedAt *time.Time) *tokenv1.Token {
 	scopes := make([]*tokenv1.EntityScope, len(dbScopes))
 	for i, scope := range dbScopes {
 		scopes[i] = &tokenv1.EntityScope{
@@ -323,12 +389,19 @@ func apiTokenRowToProto(name string, entityType genDb.EntityType, entityID uuid.
 		}
 	}
 
+	var lastUsedProto *timestamppb.Timestamp
+	if lastUsedAt != nil {
+		lastUsedProto = timeutil.ParsePostgresTimestamp(*lastUsedAt)
+	}
+
 	return &tokenv1.Token{
 		Name:       name,
 		EntityType: dbEntityTypeToProto(entityType),
 		EntityId:   entityID.String(),
 		Scopes:     scopes,
-		ExpiresAt:  timeutil.ParsePostgresTimestamp(expiresAt.Time),
+		CreatedAt:  timeutil.ParsePostgresTimestamp(createdAt),
+		ExpiresAt:  timeutil.ParsePostgresTimestamp(expiresAt),
+		LastUsedAt: lastUsedProto,
 	}
 }
 

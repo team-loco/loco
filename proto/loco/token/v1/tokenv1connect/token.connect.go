@@ -43,6 +43,11 @@ const (
 	// TokenServiceRevokeTokenProcedure is the fully-qualified name of the TokenService's RevokeToken
 	// RPC.
 	TokenServiceRevokeTokenProcedure = "/loco.token.v1.TokenService/RevokeToken"
+	// TokenServiceGetScopesProcedure is the fully-qualified name of the TokenService's GetScopes RPC.
+	TokenServiceGetScopesProcedure = "/loco.token.v1.TokenService/GetScopes"
+	// TokenServiceCheckPermissionProcedure is the fully-qualified name of the TokenService's
+	// CheckPermission RPC.
+	TokenServiceCheckPermissionProcedure = "/loco.token.v1.TokenService/CheckPermission"
 )
 
 // TokenServiceClient is a client for the loco.token.v1.TokenService service.
@@ -55,6 +60,11 @@ type TokenServiceClient interface {
 	GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error)
 	// RevokeToken revokes/deletes a token.
 	RevokeToken(context.Context, *connect.Request[v1.RevokeTokenRequest]) (*connect.Response[v1.RevokeTokenResponse], error)
+	// GetScopes returns the entity and all scopes the current token has access to.
+	GetScopes(context.Context, *connect.Request[v1.GetScopesRequest]) (*connect.Response[v1.GetScopesResponse], error)
+	// CheckPermission validates whether a given token has a specific permission on an entity.
+	// Intended for service-to-service calls (e.g. observability proxy → control plane).
+	CheckPermission(context.Context, *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error)
 }
 
 // NewTokenServiceClient constructs a client for the loco.token.v1.TokenService service. By default,
@@ -92,15 +102,29 @@ func NewTokenServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(tokenServiceMethods.ByName("RevokeToken")),
 			connect.WithClientOptions(opts...),
 		),
+		getScopes: connect.NewClient[v1.GetScopesRequest, v1.GetScopesResponse](
+			httpClient,
+			baseURL+TokenServiceGetScopesProcedure,
+			connect.WithSchema(tokenServiceMethods.ByName("GetScopes")),
+			connect.WithClientOptions(opts...),
+		),
+		checkPermission: connect.NewClient[v1.CheckPermissionRequest, v1.CheckPermissionResponse](
+			httpClient,
+			baseURL+TokenServiceCheckPermissionProcedure,
+			connect.WithSchema(tokenServiceMethods.ByName("CheckPermission")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // tokenServiceClient implements TokenServiceClient.
 type tokenServiceClient struct {
-	createToken *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
-	listTokens  *connect.Client[v1.ListTokensRequest, v1.ListTokensResponse]
-	getToken    *connect.Client[v1.GetTokenRequest, v1.GetTokenResponse]
-	revokeToken *connect.Client[v1.RevokeTokenRequest, v1.RevokeTokenResponse]
+	createToken     *connect.Client[v1.CreateTokenRequest, v1.CreateTokenResponse]
+	listTokens      *connect.Client[v1.ListTokensRequest, v1.ListTokensResponse]
+	getToken        *connect.Client[v1.GetTokenRequest, v1.GetTokenResponse]
+	revokeToken     *connect.Client[v1.RevokeTokenRequest, v1.RevokeTokenResponse]
+	getScopes       *connect.Client[v1.GetScopesRequest, v1.GetScopesResponse]
+	checkPermission *connect.Client[v1.CheckPermissionRequest, v1.CheckPermissionResponse]
 }
 
 // CreateToken calls loco.token.v1.TokenService.CreateToken.
@@ -123,6 +147,16 @@ func (c *tokenServiceClient) RevokeToken(ctx context.Context, req *connect.Reque
 	return c.revokeToken.CallUnary(ctx, req)
 }
 
+// GetScopes calls loco.token.v1.TokenService.GetScopes.
+func (c *tokenServiceClient) GetScopes(ctx context.Context, req *connect.Request[v1.GetScopesRequest]) (*connect.Response[v1.GetScopesResponse], error) {
+	return c.getScopes.CallUnary(ctx, req)
+}
+
+// CheckPermission calls loco.token.v1.TokenService.CheckPermission.
+func (c *tokenServiceClient) CheckPermission(ctx context.Context, req *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error) {
+	return c.checkPermission.CallUnary(ctx, req)
+}
+
 // TokenServiceHandler is an implementation of the loco.token.v1.TokenService service.
 type TokenServiceHandler interface {
 	// CreateToken issues a new token for a specific entity with defined scopes.
@@ -133,6 +167,11 @@ type TokenServiceHandler interface {
 	GetToken(context.Context, *connect.Request[v1.GetTokenRequest]) (*connect.Response[v1.GetTokenResponse], error)
 	// RevokeToken revokes/deletes a token.
 	RevokeToken(context.Context, *connect.Request[v1.RevokeTokenRequest]) (*connect.Response[v1.RevokeTokenResponse], error)
+	// GetScopes returns the entity and all scopes the current token has access to.
+	GetScopes(context.Context, *connect.Request[v1.GetScopesRequest]) (*connect.Response[v1.GetScopesResponse], error)
+	// CheckPermission validates whether a given token has a specific permission on an entity.
+	// Intended for service-to-service calls (e.g. observability proxy → control plane).
+	CheckPermission(context.Context, *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error)
 }
 
 // NewTokenServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -166,6 +205,18 @@ func NewTokenServiceHandler(svc TokenServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(tokenServiceMethods.ByName("RevokeToken")),
 		connect.WithHandlerOptions(opts...),
 	)
+	tokenServiceGetScopesHandler := connect.NewUnaryHandler(
+		TokenServiceGetScopesProcedure,
+		svc.GetScopes,
+		connect.WithSchema(tokenServiceMethods.ByName("GetScopes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	tokenServiceCheckPermissionHandler := connect.NewUnaryHandler(
+		TokenServiceCheckPermissionProcedure,
+		svc.CheckPermission,
+		connect.WithSchema(tokenServiceMethods.ByName("CheckPermission")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.token.v1.TokenService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TokenServiceCreateTokenProcedure:
@@ -176,6 +227,10 @@ func NewTokenServiceHandler(svc TokenServiceHandler, opts ...connect.HandlerOpti
 			tokenServiceGetTokenHandler.ServeHTTP(w, r)
 		case TokenServiceRevokeTokenProcedure:
 			tokenServiceRevokeTokenHandler.ServeHTTP(w, r)
+		case TokenServiceGetScopesProcedure:
+			tokenServiceGetScopesHandler.ServeHTTP(w, r)
+		case TokenServiceCheckPermissionProcedure:
+			tokenServiceCheckPermissionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -199,4 +254,12 @@ func (UnimplementedTokenServiceHandler) GetToken(context.Context, *connect.Reque
 
 func (UnimplementedTokenServiceHandler) RevokeToken(context.Context, *connect.Request[v1.RevokeTokenRequest]) (*connect.Response[v1.RevokeTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.token.v1.TokenService.RevokeToken is not implemented"))
+}
+
+func (UnimplementedTokenServiceHandler) GetScopes(context.Context, *connect.Request[v1.GetScopesRequest]) (*connect.Response[v1.GetScopesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.token.v1.TokenService.GetScopes is not implemented"))
+}
+
+func (UnimplementedTokenServiceHandler) CheckPermission(context.Context, *connect.Request[v1.CheckPermissionRequest]) (*connect.Response[v1.CheckPermissionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.token.v1.TokenService.CheckPermission is not implemented"))
 }

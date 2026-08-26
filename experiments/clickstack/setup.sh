@@ -24,12 +24,12 @@ helm upgrade --install metrics-server metrics-server/metrics-server \
   --set args="{--kubelet-insecure-tls}" \
   --kube-context "kind-$CLUSTER_NAME"
 
-echo "Installing kubernetes-dashboard..."
-helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/
+echo "Installing headlamp..."
+helm repo add headlamp https://headlamp-k8s.github.io/headlamp/
 helm repo update
-helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard \
+helm upgrade --install headlamp headlamp/headlamp \
   --create-namespace \
-  --namespace kubernetes-dashboard \
+  --namespace headlamp \
   --kube-context "kind-$CLUSTER_NAME"
 
 echo "Deploying OpenTelemetry Demo application..."
@@ -87,9 +87,9 @@ echo "To access OpenTelemetry Demo UI:"
 echo "  kubectl port-forward -n otel-demo svc/my-otel-demo-frontendproxy 8081:8080 --context kind-$CLUSTER_NAME"
 echo "  Then visit: http://localhost:8081"
 echo ""
-echo "To access Kubernetes Dashboard:"
-echo "  kubectl proxy --context kind-$CLUSTER_NAME"
-echo "  Then visit: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/"
+echo "To access Headlamp dashboard:"
+echo "  kubectl port-forward -n headlamp svc/headlamp 4466:4466 --context kind-$CLUSTER_NAME"
+echo "  Then visit: http://localhost:4466"
 echo ""
 echo "To check metrics:"
 echo "  kubectl top nodes --context kind-$CLUSTER_NAME"

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { type Token } from "@/gen/loco/token/v1/token_pb";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/design/Badge";
+import { Button } from "@/components/design/Button";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -17,7 +17,7 @@ import {
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/design/Tooltip";
 
 import { Trash2 } from "lucide-react";
 import { EntityType } from "@/gen/loco/token/v1/token_pb";
@@ -88,16 +88,8 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 	return (
 		<div className="flex justify-end">
 			<AlertDialog open={open} onOpenChange={setOpen}>
-				<AlertDialogTrigger asChild>
-					<Button
-						variant="ghost"
-						size="icon"
-						className="h-8 w-8"
-						title="Revoke token"
-						disabled={isRevoking}
-					>
-						<Trash2 className="h-4 w-4 text-destructive" />
-					</Button>
+				<AlertDialogTrigger render={<Button variant="ghost" size="icon" className="h-8 w-8" title="Revoke token" disabled={isRevoking} />}>
+					<Trash2 className="h-4 w-4 text-destructive" />
 				</AlertDialogTrigger>
 				<AlertDialogContent>
 					<AlertDialogHeader>
@@ -215,7 +207,7 @@ export function getTokenColumns(
 								return (
 									<TooltipProvider key={`${entityType}-${entityId}`}>
 										<Tooltip>
-											<TooltipTrigger asChild>
+											<TooltipTrigger>
 												<Badge
 													variant={entityInfo.variant}
 													className="h-5 text-[10px] px-1.5 py-0 cursor-help"

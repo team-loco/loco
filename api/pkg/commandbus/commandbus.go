@@ -10,10 +10,8 @@ import (
 type CommandType string
 
 const (
-	CommandTypeDeploy    CommandType = "deploy"
-	CommandTypeDelete    CommandType = "delete"
-	CommandTypeScale     CommandType = "scale"
-	CommandTypeUpdateEnv CommandType = "update_env"
+	CommandTypeDeploy CommandType = "deploy"
+	CommandTypeDelete CommandType = "delete"
 )
 
 // Command represents a unit of work to be executed by an agent.

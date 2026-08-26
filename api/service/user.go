@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -50,7 +49,7 @@ func (s *UserServer) CreateUser(
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 	defer tx.Rollback(ctx)
 
@@ -58,7 +57,7 @@ func (s *UserServer) CreateUser(
 	if err == nil {
 		if existingUserByEmail.ExternalID == r.GetExternalId() {
 			if commitErr := tx.Commit(ctx); commitErr != nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
+				return nil, connect.NewError(connect.CodeInternal, ErrDB)
 			}
 			return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByEmail.ID.String()}), nil
 		}
@@ -70,16 +69,29 @@ func (s *UserServer) CreateUser(
 	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.GetExternalId())
 	if err == nil {
 		if commitErr := tx.Commit(ctx); commitErr != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 		return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByExtID.ID.String()}), nil
 	}
 
 	// Create new user
-	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
-	name := pgtype.Text{String: r.GetName(), Valid: r.GetName() != ""}
+	var name *string
+	if n := r.GetName(); n != "" {
+		name = &n
+	}
+	var avatarURL *string
+	if a := r.GetAvatarUrl(); a != "" {
+		avatarURL = &a
+	}
 
-	user, err := s.queries.CreateUser(ctx, genDb.CreateUserParams{
+	qtx, ok := s.queries.(*genDb.Queries)
+	if !ok {
+		slog.ErrorContext(ctx, "failed to cast queries to *genDb.Queries")
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error"))
+	}
+	qtx = qtx.WithTx(tx)
+
+	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
 		ExternalID: r.GetExternalId(),
 		Email:      r.GetEmail(),
 		Name:       name,
@@ -87,22 +99,24 @@ func (s *UserServer) CreateUser(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	// Grant self-scopes in the same transaction so user+scopes are atomic.
+	for _, es := range []genDb.AddUserScopeParams{
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
+		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
+	} {
+		if err := qtx.AddUserScope(ctx, es); err != nil {
+			slog.ErrorContext(ctx, "failed to grant user scope", "error", err, "userId", user.ID)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		}
 	}
 
 	if commitErr := tx.Commit(ctx); commitErr != nil {
 		slog.ErrorContext(ctx, "failed to commit transaction", "error", commitErr)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", commitErr))
-	}
-
-	updateErr := s.tvm.UpdateRoles(ctx, user.ID.String(), []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
-		{EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
-	}, []genDb.EntityScope{})
-	if updateErr != nil {
-		slog.ErrorContext(ctx, "failed to update user roles", "error", updateErr, "userId", user.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", updateErr))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&userv1.CreateUserResponse{UserId: user.ID.String()}), nil
@@ -124,8 +138,9 @@ func (s *UserServer) GetUser(
 	case *userv1.GetUserRequest_Email:
 		dbUser, getErr := s.queries.GetUserByEmail(ctx, key.Email)
 		if getErr != nil {
-			slog.ErrorContext(ctx, "failed to query user by email", "error", getErr)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", getErr))
+			// Return NotFound regardless of reason to prevent user-existence probing by email.
+			slog.WarnContext(ctx, "user not found by email")
+			return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
 		}
 		targetUserID = dbUser.ID.String()
 	default:
@@ -140,8 +155,9 @@ func (s *UserServer) GetUser(
 	}
 
 	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetUser, targetUserID)); verifyErr != nil {
+		// Return NotFound (not PermissionDenied) to prevent user-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get user", "userId", targetUserID)
-		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
+		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
 	}
 
 	user, err := s.getUserByID(ctx, targetUserID)
@@ -208,15 +224,13 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	avatarURL := pgtype.Text{String: r.GetAvatarUrl(), Valid: r.GetAvatarUrl() != ""}
-
 	_, err := s.queries.UpdateUserAvatarURL(ctx, genDb.UpdateUserAvatarURLParams{
 		ID:        uuid.MustParse(r.GetUserId()),
-		AvatarUrl: avatarURL,
+		AvatarUrl: r.AvatarUrl,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&userv1.UpdateUserResponse{UserId: r.GetUserId()}), nil
@@ -235,23 +249,20 @@ func (s *UserServer) ListUsers(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.ListUsers, "")); err != nil {
+	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.NewSystem(actions.ListUsers)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list users")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	pageSize := normalizePageSize(r.GetPageSize())
 
-	var pageToken pgtype.Text
+	var pageToken *string
 	if r.GetPageToken() != "" {
 		cursorID, err := decodeCursor(r.GetPageToken())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
 		}
-		pageToken = pgtype.Text{
-			String: cursorID,
-			Valid:  true,
-		}
+		pageToken = &cursorID
 	}
 
 	dbUsers, err := s.queries.ListUsers(ctx, genDb.ListUsersParams{
@@ -260,7 +271,7 @@ func (s *UserServer) ListUsers(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list users", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	var users []*userv1.User
@@ -308,7 +319,7 @@ func (s *UserServer) DeleteUser(
 	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if hasWorkspaces {
@@ -319,7 +330,7 @@ func (s *UserServer) DeleteUser(
 	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if hasOrganizations {
@@ -330,7 +341,7 @@ func (s *UserServer) DeleteUser(
 	err = s.queries.DeleteUser(ctx, userId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&userv1.DeleteUserResponse{}), nil
@@ -377,9 +388,9 @@ func dbUserToProto(user genDb.User) *userv1.User {
 		Id:         user.ID.String(),
 		ExternalId: user.ExternalID,
 		Email:      user.Email,
-		Name:       user.Name.String,
-		AvatarUrl:  user.AvatarUrl.String,
-		CreatedAt:  timeutil.ParsePostgresTimestamp(user.CreatedAt.Time),
-		UpdatedAt:  timeutil.ParsePostgresTimestamp(user.UpdatedAt.Time),
+		Name:       derefString(user.Name),
+		AvatarUrl:  derefString(user.AvatarUrl),
+		CreatedAt:  timeutil.ParsePostgresTimestamp(user.CreatedAt),
+		UpdatedAt:  timeutil.ParsePostgresTimestamp(user.UpdatedAt),
 	}
 }

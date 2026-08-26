@@ -152,7 +152,6 @@ message Deployment {
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  string cluster_id = 2 [(buf.validate.field).string.uuid = true];
   string region = 3 [(buf.validate.field).string.min_len = 1];
   DeploymentSpec spec = 4 [(buf.validate.field).required = true];
   string environment_id = 5 [(buf.validate.field).string.uuid = true];

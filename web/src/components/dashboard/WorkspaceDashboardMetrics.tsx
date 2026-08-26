@@ -1,14 +1,14 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { useMemo } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/design/Badge";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "@/components/ui/card";
+} from "@/components/design/Card";
 import { listWorkspaceResources } from "@/gen/loco/resource/v1";
 import { listWorkspaceMembers } from "@/gen/loco/workspace/v1";
 import { TrendingUpIcon } from "lucide-react";
@@ -47,7 +47,8 @@ export function WorkspaceDashboardMetrics({
 	const membersByRole = useMemo(() => {
 		const grouped: Record<string, number> = {};
 		members.forEach((member) => {
-			grouped[member.role] = (grouped[member.role] || 0) + 1;
+			const role = member.scopes[0] ?? "member";
+			grouped[role] = (grouped[role] || 0) + 1;
 		});
 		return grouped;
 	}, [members]);
@@ -66,7 +67,7 @@ export function WorkspaceDashboardMetrics({
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 				{/* Total Apps (Active) */}
 				<Card className="hover:border-border-strong group">
-					<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-primary to-amber-500 opacity-80 transition-opacity duration-200 group-hover:opacity-100" />
+					<div className="absolute inset-x-0 top-0 h-1 bg-black dark:bg-accent opacity-80" />
 					<CardHeader className="relative pb-2">
 						<CardDescription>Active Apps</CardDescription>
 						<CardTitle className="text-3xl font-semibold tabular-nums">
@@ -92,7 +93,7 @@ export function WorkspaceDashboardMetrics({
 
 				{/* Recent Deployments (30d) */}
 				<Card className="hover:border-border-strong group">
-					<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-primary to-amber-500 opacity-80 transition-opacity duration-200 group-hover:opacity-100" />
+					<div className="absolute inset-x-0 top-0 h-1 bg-black dark:bg-accent opacity-80" />
 					<CardHeader className="pb-2">
 						<CardDescription>Deployments (30d)</CardDescription>
 						<CardTitle className="text-3xl font-semibold tabular-nums">
@@ -106,7 +107,7 @@ export function WorkspaceDashboardMetrics({
 
 				{/* Workspace Members by Role */}
 				<Card className="hover:border-border-strong group">
-					<div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-primary to-amber-500 opacity-80 transition-opacity duration-200 group-hover:opacity-100" />
+					<div className="absolute inset-x-0 top-0 h-1 bg-black dark:bg-accent opacity-80" />
 					<CardHeader className="pb-2">
 						<CardDescription>Team Members</CardDescription>
 						<CardTitle className="text-3xl font-semibold tabular-nums">

@@ -26,7 +26,7 @@ go install github.com/team-loco/loco@latest
 2. **Run `loco init` to create a `loco.toml` file.**
 3. **Deploy your app via `loco deploy`**
 
-Your app will be available at `https://myapp.deploy-app.com`
+Your app will be available at `https://myapp.onloco.app`
 
 See all loco cli commands via `loco help`.
 Loco also generates completions for shells such as bash and zshrc.

@@ -86,28 +86,28 @@ spec:
         app: standalone-otel-collector
     spec:
       containers:
-      - name: otelcol
-        image: otel/opentelemetry-collector-contrib:0.142.0
-        args:
-          - "--config=/etc/otelcol/config.yaml"
-        ports:
-        - containerPort: 4317
-          name: grpc
-          protocol: TCP
-        - containerPort: 4318
-          name: http
-          protocol: TCP
-        volumeMounts:
-        - name: config
-          mountPath: /etc/otelcol
-        resources:
-          limits:
-            cpu: "500m"
-            memory: "1Gi"
-          requests:
-            cpu: "200m"
-            memory: "512Mi"
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.147.0
+          args:
+            - "--config=/etc/otelcol/config.yaml"
+          ports:
+            - containerPort: 4317
+              name: grpc
+              protocol: TCP
+            - containerPort: 4318
+              name: http
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
       volumes:
-      - name: config
-        configMap:
-          name: standalone-otel-collector-config
+        - name: config
+          configMap:
+            name: standalone-otel-collector-config

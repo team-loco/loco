@@ -1,6 +1,6 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { LoginModal } from "@/components/LoginModal";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/ui/code-block";
 import {
 	AnimatedSpan,
@@ -255,7 +255,7 @@ export function Splash() {
 							✓ Deployment successful
 						</AnimatedSpan>
 						<AnimatedSpan delay={5100} className="text-[#94A8B0]">
-							{"  "}https://my-api.deploy-app.com
+							{"  "}https://my-api.onloco.app
 						</AnimatedSpan>
 					</Terminal>
 				</div>

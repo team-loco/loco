@@ -1,5 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
+import { Badge } from "@/components/design/Badge";
 import { useStreamEvents } from "@/hooks/useStreamEvents";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { getErrorMessage } from "@/lib/error-handler";

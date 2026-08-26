@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/guardrails"
 	observabilityv1 "github.com/team-loco/loco/proto/loco/observability/v1"
 	"github.com/team-loco/loco/proto/loco/observability/v1/observabilityv1connect"
+	tokenv1 "github.com/team-loco/loco/proto/loco/token/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -42,7 +43,7 @@ func (s *ObservabilityService) QueryLogs(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	if err := s.validator.CheckPermission(ctx, token, "workspace", msg.GetWorkspaceId(), "read"); err != nil {
+	if err := s.validator.CheckPermission(ctx, token, tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, msg.GetWorkspaceId(), tokenv1.Scope_SCOPE_READ); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -89,7 +90,7 @@ func (s *ObservabilityService) TailLogs(
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	if err := s.validator.CheckPermission(ctx, token, "workspace", msg.GetWorkspaceId(), "read"); err != nil {
+	if err := s.validator.CheckPermission(ctx, token, tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, msg.GetWorkspaceId(), tokenv1.Scope_SCOPE_READ); err != nil {
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -175,7 +176,7 @@ func (s *ObservabilityService) QueryMetrics(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	if err := s.validator.CheckPermission(ctx, token, "workspace", msg.GetWorkspaceId(), "read"); err != nil {
+	if err := s.validator.CheckPermission(ctx, token, tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, msg.GetWorkspaceId(), tokenv1.Scope_SCOPE_READ); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 

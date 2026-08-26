@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design/Button";
 import { useAuth } from "@/auth/AuthProvider";
 import { listUserOrgs } from "@/gen/loco/org/v1";
 import { useQuery } from "@connectrpc/connect-query";

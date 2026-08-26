@@ -6,6 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -23,7 +24,7 @@ See https://kubernetes.io/docs/concepts/configuration/manage-resources-container
 }
 
 func validateCmdFunc(cmd *cobra.Command) error {
-	configPath, err := getLocoTomlPath(cmd)
+	configPath, err := cmdutil.GetLocoTomlPath(cmd)
 	if err != nil {
 		return err
 	}

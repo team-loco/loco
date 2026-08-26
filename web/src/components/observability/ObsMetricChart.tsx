@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { Loader2, TrendingUp } from "lucide-react";
 import {
@@ -171,8 +171,8 @@ export function ObsMetricChart({
 									width={40}
 								/>
 								<Tooltip
-									formatter={(value: number) => [
-										formatValue(value, unit),
+									formatter={(value) => [
+										formatValue(Number(value), unit),
 										undefined,
 									]}
 									labelFormatter={(label) =>

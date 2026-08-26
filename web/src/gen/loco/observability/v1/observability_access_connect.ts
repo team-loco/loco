@@ -3,12 +3,12 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CheckPermissionRequest, CheckPermissionResponse, GetObservabilityAccessRequest, GetObservabilityAccessResponse } from "./observability_access_pb";
+import { GetObservabilityAccessRequest, GetObservabilityAccessResponse } from "./observability_access_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * ObservabilityAccessService runs on the control plane.
- * It returns regional proxy endpoints and validates token permissions for the proxy.
+ * It returns regional proxy endpoints for the observability proxy.
  *
  * @generated from service loco.observability.v1.ObservabilityAccessService
  */
@@ -25,18 +25,6 @@ export const ObservabilityAccessService = {
       name: "GetObservabilityAccess",
       I: GetObservabilityAccessRequest,
       O: GetObservabilityAccessResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * CheckPermission is called by the observability proxy to validate whether a token
-     * has the requested permission on an entity. Authenticated with a proxy auth token.
-     *
-     * @generated from rpc loco.observability.v1.ObservabilityAccessService.CheckPermission
-     */
-    checkPermission: {
-      name: "CheckPermission",
-      I: CheckPermissionRequest,
-      O: CheckPermissionResponse,
       kind: MethodKind.Unary,
     },
   }

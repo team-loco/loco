@@ -76,7 +76,6 @@ message ExchangeOAuthCodeRequest {
 message ExchangeOAuthCodeResponse {
   int64 expires_in = 1;
   string user_id = 2;
-  string name = 3;
 }
 
 // RefreshTokenRequest requests a new session token pair using a refresh token.

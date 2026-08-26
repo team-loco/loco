@@ -1,5 +1,3 @@
-import { useNavigate } from "react-router";
-import { useOrgWorkspace } from "@/context/ContextProvider";
 import {
 	NavigationMenu,
 	NavigationMenuContent,
@@ -9,7 +7,9 @@ import {
 	NavigationMenuTrigger,
 	navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router";
 
 const ListItem = ({
 	className,
@@ -19,20 +19,18 @@ const ListItem = ({
 	...props
 }: React.ComponentPropsWithoutRef<"a"> & { title: string }) => (
 	<li>
-		<NavigationMenuLink asChild>
-			<a
-				href={href}
-				className={cn(
-					"block select-none space-y-1 rounded-base p-3 leading-none no-underline outline-none transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50",
-					className
-				)}
-				{...props}
-			>
-				<div className="text-sm font-heading leading-none">{title}</div>
-				<p className="line-clamp-2 text-sm leading-snug text-foreground opacity-60">
-					{children}
-				</p>
-			</a>
+		<NavigationMenuLink
+			href={href}
+			className={cn(
+				"block select-none space-y-1 rounded-base p-3 leading-none no-underline outline-none transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring/50",
+				className,
+			)}
+			{...props}
+		>
+			<div className="text-sm font-heading leading-none">{title}</div>
+			<p className="line-clamp-2 text-sm leading-snug text-foreground opacity-60">
+				{children}
+			</p>
 		</NavigationMenuLink>
 	</li>
 );
@@ -40,12 +38,14 @@ const ListItem = ({
 export function NavMenu() {
 	const navigate = useNavigate();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const dashboardUrl = activeOrgId && activeWorkspaceId 
-		? `/org/${activeOrgId}/wks/${activeWorkspaceId}/dashboard`
-		: "/dashboard";
-	const createResourceUrl = activeOrgId && activeWorkspaceId
-		? `/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource`
-		: "/create-resource";
+	const dashboardUrl =
+		activeOrgId && activeWorkspaceId
+			? `/org/${activeOrgId}/wks/${activeWorkspaceId}/dashboard`
+			: "/dashboard";
+	const createResourceUrl =
+		activeOrgId && activeWorkspaceId
+			? `/org/${activeOrgId}/wks/${activeWorkspaceId}/create-resource`
+			: "/create-resource";
 
 	return (
 		<NavigationMenu className="hidden md:flex">
@@ -83,7 +83,7 @@ export function NavMenu() {
 								Manage your profile and settings
 							</ListItem>
 							<ListItem
-								href="https://docs.loco.dev"
+								href="https://docs.loco.build"
 								target="_blank"
 								rel="noopener noreferrer"
 								title="API Reference"

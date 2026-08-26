@@ -10,11 +10,12 @@ SELECT * FROM workspaces WHERE id = $1;
 SELECT org_id FROM workspaces WHERE id = $1;
 
 -- name: ListWorkspacesForUser :many
-SELECT DISTINCT w.*
+SELECT DISTINCT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
 FROM workspaces w
-JOIN workspace_members wm ON wm.workspace_id = w.id
-WHERE wm.user_id = $1
-  AND (sqlc.narg('page_token')::text IS NULL
+JOIN user_scopes us ON us.entity_id = w.id
+  AND us.entity_type = 'workspace'
+  AND us.user_id = $1
+WHERE (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
          (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::uuid),
          sqlc.narg('page_token')::uuid
@@ -37,7 +38,8 @@ LIMIT $2;
 SELECT COUNT(*) = 0 as is_unique
 FROM workspaces
 WHERE org_id = $1
-AND name = $2;
+AND name = $2
+AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id')::uuid);
 
 -- name: UpdateWorkspace :one
 UPDATE workspaces
@@ -50,46 +52,25 @@ RETURNING id;
 -- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1;
 
--- name: UpsertWorkspaceMember :one
-INSERT INTO workspace_members (workspace_id, user_id, role)
-VALUES ($1, $2, $3)
-ON CONFLICT (workspace_id, user_id)
-DO UPDATE SET role = EXCLUDED.role
-RETURNING user_id;
-
--- name: GetWorkspaceMemberRole :one
-SELECT role FROM workspace_members
-WHERE workspace_id = $1 AND user_id = $2;
-
--- name: IsWorkspaceMember :one
-SELECT EXISTS(
-  SELECT 1 FROM workspace_members
-  WHERE workspace_id = $1 AND user_id = $2
-) as is_member;
-
--- name: DeleteWorkspaceMember :exec
-DELETE FROM workspace_members
-WHERE workspace_id = $1 AND user_id = $2;
-
--- name: GetWorkspaceMembers :many
-SELECT workspace_id, user_id, role, created_at
-FROM workspace_members
-WHERE workspace_id = $1;
-
 -- name: ListWorkspaceMembersWithUserDetails :many
-SELECT wm.workspace_id, wm.user_id, wm.role, wm.created_at,
+WITH member_scopes AS (
+  SELECT
+    us.entity_id AS workspace_id,
+    us.user_id,
+    array_agg(us.scope ORDER BY us.scope)::text[] AS scopes,
+    MIN(us.created_at)::timestamptz AS joined_at
+  FROM user_scopes us
+  WHERE us.entity_id = $1 AND us.entity_type = 'workspace'
+  GROUP BY us.entity_id, us.user_id
+)
+SELECT ms.workspace_id, ms.user_id, ms.scopes, ms.joined_at,
        u.name, u.email, u.avatar_url
-FROM workspace_members wm
-JOIN users u ON wm.user_id = u.id
-WHERE wm.workspace_id = $1
-  AND (sqlc.narg('page_token')::text IS NULL
-       OR (wm.created_at, wm.user_id) < (
-         (SELECT created_at FROM workspace_members WHERE workspace_id = $1 AND user_id = sqlc.narg('page_token')::uuid),
-         sqlc.narg('page_token')::uuid
-       ))
-ORDER BY wm.created_at DESC, wm.user_id DESC
+FROM member_scopes ms
+JOIN users u ON u.id = ms.user_id
+WHERE (sqlc.narg('page_token')::text IS NULL
+       OR ms.user_id < sqlc.narg('page_token')::uuid)
+ORDER BY ms.user_id DESC
 LIMIT $2;
-
 
 -- name: GetWorkspaceOrgID :one
 SELECT org_id FROM workspaces WHERE id = $1;

@@ -1,49 +1,39 @@
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { HighlighterCore } from "shiki/core";
 
-// ─── Icon map (filename pattern → simple-icon) ───────────────────────────────
-// Lazily imported so the icons only load when this component is rendered.
+// ─── Singleton highlighter (only toml grammar + 2 themes) ────────────────────
 
-async function getIconForFilename(filename: string) {
-	const icons = await import("@icons-pack/react-simple-icons");
-	const map: Record<string, keyof typeof icons> = {
-		"*.toml": "SiToml",
-		"*.ts": "SiTypescript",
-		"*.tsx": "SiReact",
-		"*.js": "SiJavascript",
-		"*.jsx": "SiReact",
-		"*.json": "SiJson",
-		"*.go": "SiGo",
-		"*.py": "SiPython",
-		"*.yaml": "SiYaml",
-		"*.yml": "SiYaml",
-		"*.md": "SiMarkdown",
-		"*.sh": "SiGnubash",
-		"*.css": "SiCss",
-		"*.html": "SiHtml5",
-		"Dockerfile": "SiDocker",
-		".env": "SiDotenv",
-		"*.rs": "SiRust",
-	};
+let highlighterPromise: Promise<HighlighterCore> | null = null;
 
-	for (const [pattern, iconKey] of Object.entries(map)) {
-		const regex = new RegExp(
-			`^${pattern.replace(/\./g, "\\.").replace(/\*/g, ".*")}$`,
-		);
-		if (regex.test(filename)) {
-			const Icon = icons[iconKey] as React.ComponentType<{ className?: string }>;
-			return Icon ?? null;
-		}
-	}
-	return null;
+function getHighlighter(): Promise<HighlighterCore> {
+	highlighterPromise ??= Promise.all([
+		import("shiki/core"),
+		import("shiki/engine/javascript"),
+		import("shiki/langs/toml.mjs"),
+		import("shiki/themes/vitesse-light.mjs"),
+		import("shiki/themes/vitesse-dark.mjs"),
+	]).then(
+		([
+			{ createHighlighterCore },
+			{ createJavaScriptRegexEngine },
+			toml,
+			vitesseLight,
+			vitesseDark,
+		]) =>
+			createHighlighterCore({
+				themes: [vitesseLight.default, vitesseDark.default],
+				langs: [toml.default],
+				engine: createJavaScriptRegexEngine(),
+			}),
+	);
+	return highlighterPromise;
 }
 
-// ─── Syntax highlighting ──────────────────────────────────────────────────────
-
 async function highlight(code: string, lang: string): Promise<string> {
-	const { codeToHtml } = await import("shiki");
-	return codeToHtml(code, {
+	const h = await getHighlighter();
+	return h.codeToHtml(code, {
 		lang,
 		themes: { light: "vitesse-light", dark: "vitesse-dark" },
 	});
@@ -65,38 +55,28 @@ export function CodeBlock({
 	className,
 }: CodeBlockProps) {
 	const [html, setHtml] = useState<string>("");
-	const [FileIcon, setFileIcon] = useState<React.ComponentType<{
-		className?: string;
-	}> | null>(null);
 	const [copied, setCopied] = useState(false);
 
-	// Syntax highlight
 	useEffect(() => {
 		let cancelled = false;
 		highlight(children, language)
 			.then((result) => {
 				if (!cancelled) setHtml(result);
 			})
-			.catch(() => {
-				// highlight failed — raw code shown via fallback
+			.catch((e: unknown) => {
+				console.error(e);
 			});
 		return () => {
 			cancelled = true;
 		};
 	}, [children, language]);
 
-	// Icon for filename
-	useEffect(() => {
-		if (!filename) return;
-		getIconForFilename(filename)
-			.then((icon) => setFileIcon(() => icon))
-			.catch(() => {});
-	}, [filename]);
-
 	function copy() {
 		void navigator.clipboard.writeText(children).then(() => {
 			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
+			setTimeout(() => {
+				setCopied(false);
+			}, 2000);
 		});
 	}
 
@@ -109,13 +89,11 @@ export function CodeBlock({
 				className,
 			)}
 		>
-			{/* Header */}
 			{filename && (
 				<div className="flex items-center justify-between px-4 py-2.5 border-b border-[#E7E5E0] bg-[#F7F5F2]">
-					<div className="flex items-center gap-2 text-[#57534E]">
-						{FileIcon && <FileIcon className="h-4 w-4 shrink-0" />}
-						<span className="text-xs font-medium font-mono">{filename}</span>
-					</div>
+					<span className="text-xs font-medium font-mono text-[#57534E]">
+						{filename}
+					</span>
 					<button
 						onClick={copy}
 						className="text-[#78716C] hover:text-[#1C1917] transition-colors p-1 rounded"
@@ -126,22 +104,17 @@ export function CodeBlock({
 				</div>
 			)}
 
-			{/* Body */}
 			<div
 				className={cn(
 					"text-sm overflow-x-auto",
-					// shiki light/dark theme CSS vars
 					"[&_.shiki]:bg-transparent! [&_pre]:bg-transparent! [&_pre]:p-4 [&_pre]:m-0",
-					"dark:[&_.shiki_span]:text-[var(--shiki-dark)]!",
-					"dark:[&_.shiki]:text-[var(--shiki-dark)]!",
+					"dark:[&_.shiki_span]:text-(--shiki-dark)!",
+					"dark:[&_.shiki]:text-(--shiki-dark)!",
 				)}
 			>
 				{html ? (
-					<div
-						dangerouslySetInnerHTML={{ __html: html }}
-					/>
+					<div dangerouslySetInnerHTML={{ __html: html }} />
 				) : (
-					// Fallback while shiki loads
 					<pre className="p-4 m-0 font-mono text-[#1C1917] leading-relaxed">
 						<code>{children}</code>
 					</pre>
