@@ -1,0 +1,2 @@
+cilium clustermesh status
+cilium connectivity test --context kind-cluster1 --multi-cluster kind-cluster2
