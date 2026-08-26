@@ -99,10 +99,10 @@ func (s *TokenServer) CreateToken(
 
 	dbScopes := make([]genDb.EntityScope, len(r.GetScopes()))
 	for i, scope := range r.GetScopes() {
-		scopeEntityId, err := uuid.Parse(scope.GetEntityId())
-		if err != nil {
-			slog.ErrorContext(ctx, "invalid scope entity id format", "entityId", scope.GetEntityId(), "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid scope entity id: %w", err))
+		scopeEntityId, scopeErr := uuid.Parse(scope.GetEntityId())
+		if scopeErr != nil {
+			slog.ErrorContext(ctx, "invalid scope entity id format", "entityId", scope.GetEntityId(), "error", scopeErr)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid scope entity id: %w", scopeErr))
 		}
 		dbScopes[i] = genDb.EntityScope{
 			EntityType: protoEntityTypeToDb(scope.GetEntityType()),

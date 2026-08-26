@@ -72,11 +72,12 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 func checkDockerAvailable() error {
 	socketPaths := []string{"/var/run/docker.sock"}
 	if runtime.GOOS == "darwin" {
-		home, _ := os.UserHomeDir()
-		socketPaths = append(socketPaths,
-			home+"/.docker/run/docker.sock",
-			home+"/.docker/desktop/docker.sock",
-		)
+		if home, homeErr := os.UserHomeDir(); homeErr == nil {
+			socketPaths = append(socketPaths,
+				home+"/.docker/run/docker.sock",
+				home+"/.docker/desktop/docker.sock",
+			)
+		}
 	}
 
 	for _, p := range socketPaths {
