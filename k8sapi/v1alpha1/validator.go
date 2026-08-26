@@ -104,7 +104,7 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 
 	// Port validation (required)
 	if spec.Port < 1024 || spec.Port > 65535 {
-		return fmt.Errorf("port must be between 1 and 65535, got %d", spec.Port)
+		return fmt.Errorf("port must be between 1024 and 65535, got %d", spec.Port)
 	}
 
 	// HealthCheck validation (optional)
@@ -290,7 +290,7 @@ func validateObsSpec(spec *ObsSpec) error {
 			return fmt.Errorf("metrics.path must start with '/'")
 		}
 		if spec.Metrics.Port < 1024 || spec.Metrics.Port > 65535 {
-			return fmt.Errorf("metrics.port must be between 1 and 65535, got %d", spec.Metrics.Port)
+			return fmt.Errorf("metrics.port must be between 1024 and 65535, got %d", spec.Metrics.Port)
 		}
 	}
 
