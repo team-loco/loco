@@ -103,7 +103,7 @@ export function Organizations() {
 			/>
 			{deleteOrgId && (
 				<DeleteOrgDialog
-					open={deleteOrgId !== null}
+					open
 					onOpenChange={(open) => {
 						if (!open) {
 							setDeleteOrgId(null);

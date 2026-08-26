@@ -3,6 +3,7 @@ import type {
 	ServiceDeploymentSpec,
 } from "@gen/loco/deployment/v1/deployment_pb";
 import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+import type { ResourceStatusLabel } from "@/lib/app-status";
 
 export function getServiceSpec(
 	deployment: Deployment
@@ -41,17 +42,18 @@ export function getPhaseTooltip(deployment: Deployment): string {
 	return tooltips[deployment.status] || "Unknown status";
 }
 
-export function getResourceStatusTooltip(statusLabel: string): string {
-	const tooltips: Record<string, string> = {
+export function getResourceStatusTooltip(
+	statusLabel: ResourceStatusLabel,
+): string {
+	const tooltips: Record<ResourceStatusLabel, string> = {
 		running: "Your app is live and healthy. It's up and serving traffic.",
 		deploying:
 			"Your app is being deployed. We're pulling the image and creating pods.",
 		degraded:
 			"Your app has issues but is still partially operational. Check the logs for details.",
 		unavailable: "Your app is currently unavailable.",
-		stopped: "Your app is stopped and not running.",
+		suspended: "Your app is suspended and not running.",
 		pending: "Waiting to deploy. Your app is queued.",
-		failed: "Deployment failed. Check the logs for more information.",
 	};
-	return tooltips[statusLabel.toLowerCase()] || "Unknown status";
+	return tooltips[statusLabel];
 }

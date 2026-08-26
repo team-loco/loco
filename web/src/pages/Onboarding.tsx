@@ -35,7 +35,7 @@ export function Onboarding() {
 		autoCreate(user.email)
 			.then((result) => {
 				setTimeout(() => {
-					if (result?.orgId && result?.workspaceId) {
+					if (result.orgId && result.workspaceId) {
 						void navigate(`/org/${result.orgId}/wks/${result.workspaceId}`);
 					}
 				}, 500);
@@ -63,7 +63,9 @@ export function Onboarding() {
 				return 66;
 			case "done":
 				return 100;
-			default:
+			case "error":
+				return 0;
+			case "idle":
 				return 0;
 		}
 	};
@@ -78,7 +80,7 @@ export function Onboarding() {
 				return "Ready to go!";
 			case "error":
 				return "Something went wrong";
-			default:
+			case "idle":
 				return "Setting up your account...";
 		}
 	};

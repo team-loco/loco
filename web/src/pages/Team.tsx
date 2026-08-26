@@ -47,10 +47,7 @@ export function Team() {
 
 	const firstWorkspaceId = useMemo(() => {
 		if (workspaceFromUrl) return workspaceFromUrl;
-		if (workspaces.length > 0) {
-			return workspaces[0].id;
-		}
-		return null;
+		return workspaces[0]?.id ?? null;
 	}, [workspaceFromUrl, workspaces]);
 
 	const { data: membersRes, isLoading } = useQuery(
@@ -59,7 +56,9 @@ export function Team() {
 			? {
 					workspaceId: firstWorkspaceId,
 					pageSize: ITEMS_PER_PAGE,
-					pageToken: cursors[currentPage] ?? undefined,
+					...(cursors[currentPage]
+						? { pageToken: cursors[currentPage] }
+						: {}),
 			  }
 			: undefined,
 		{ enabled: !!firstWorkspaceId }

@@ -17,7 +17,7 @@ interface AppCardProps {
 
 function getPrimaryDomain(domains?: ResourceDomain[]): ResourceDomain | null {
 	if (!domains || domains.length === 0) return null;
-	return domains.find((d) => d.isPrimary) ?? domains[0];
+	return domains.find((d) => d.isPrimary) ?? domains[0] ?? null;
 }
 
 export function AppCard({ resource, onResourceDeleted, workspaceId }: AppCardProps) {

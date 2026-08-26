@@ -15,10 +15,10 @@
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.6.0",
-		"@bufbuild/buf": "^1.71.0",
-		"@bufbuild/protobuf": "^2.12.1",
+		"@bufbuild/buf": "^1.72.0",
+		"@bufbuild/protobuf": "^2.14.0",
 		"@connectrpc/connect": "^2.1.2",
-		"@connectrpc/connect-query": "^2.2.0",
+		"@connectrpc/connect-query": "^2.3.1",
 		"@fontsource-variable/geist": "^5.2.9",
 		"@tailwindcss/vite": "^4.3.2",
 		"@tanstack/query-async-storage-persister": "^5.101.2",
@@ -63,7 +63,7 @@
 		"vite-plugin-svgr": "^5.2.0"
 	},
 	"allowScripts": {
-		"@bufbuild/buf@1.71.0": true,
+		"@bufbuild/buf@1.72.0": true,
 		"@swc/core@1.15.41": true,
 		"fsevents@2.3.3": true
 	}

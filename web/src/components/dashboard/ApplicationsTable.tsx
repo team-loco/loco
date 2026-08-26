@@ -3,6 +3,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { getStatusLabel } from "@/lib/app-status";
 import { StatusBadge } from "@/components/StatusBadge";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import {
 	Table,
 	TableBody,
@@ -30,32 +31,18 @@ function getMockMetrics(resourceId: string) {
 	};
 }
 
-function getLastDeployedText(createdAt: any): string {
+function getLastDeployedText(createdAt: Timestamp | undefined): string {
 	if (!createdAt) return "never";
 
-	try {
-		let timestamp: number;
-		if (typeof createdAt === "object" && "seconds" in createdAt) {
-			timestamp = Number(createdAt.seconds) * 1000;
-		} else if (typeof createdAt === "number") {
-			timestamp = createdAt;
-		} else {
-			return "unknown";
-		}
+	const diff = Date.now() - Number(createdAt.seconds) * 1000;
+	const hours = Math.floor(diff / (1000 * 60 * 60));
+	const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-		const now = new Date().getTime();
-		const diff = now - timestamp;
-		const hours = Math.floor(diff / (1000 * 60 * 60));
-		const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-		if (hours === 0) return "just now";
-		if (hours === 1) return "1h ago";
-		if (hours < 24) return `${hours.toString()}h ago`;
-		if (days === 1) return "1d ago";
-		return `${days.toString()}d ago`;
-	} catch {
-		return "unknown";
-	}
+	if (hours === 0) return "just now";
+	if (hours === 1) return "1h ago";
+	if (hours < 24) return `${hours.toString()}h ago`;
+	if (days === 1) return "1d ago";
+	return `${days.toString()}d ago`;
 }
 
 export function ApplicationsTable({

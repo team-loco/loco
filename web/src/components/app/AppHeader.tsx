@@ -8,6 +8,7 @@ import { useNavigate } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { toast } from "sonner";
 import { getStatusLabel } from "@/lib/app-status";
+import { nonEmpty } from "@/lib/utils";
 
 interface AppHeaderProps {
 	resource: Resource | null;
@@ -31,11 +32,11 @@ export function AppHeader({ resource, isLoading = false }: AppHeaderProps) {
 		return null;
 	}
 
-	const primaryDomain = resource.domains?.[0]?.domain;
-	const resourceUrl = primaryDomain || "pending deployment";
+	const primaryDomain = resource.domains[0]?.domain;
+	const resourceUrl = nonEmpty(primaryDomain, "pending deployment");
 	const resourceTypeLabel = resource.type || "SERVICE";
 	const statusLabel = getStatusLabel(resource.status);
-	const regions = resource.regions || [];
+	const regions = resource.regions;
 
 	const handleCopyUrl = () => {
 		void navigator.clipboard.writeText(`https://${resourceUrl}`);

@@ -45,7 +45,7 @@ export function useQueryMetrics({
 	aggregation = "avg",
 	enabled = true,
 }: UseQueryMetricsOptions): MetricResult {
-	const now = useMemo(() => Date.now(), [timeRange]); // eslint-disable-line react-hooks/exhaustive-deps
+	const now = useMemo(() => Date.now(), [timeRange]); // oxlint-disable-line react-hooks/exhaustive-deps
 	const startTime = dateToTimestamp(new Date(now - timeRangeMs(timeRange)));
 	const endTime = dateToTimestamp(new Date(now));
 	const intervalSeconds = timeRangeIntervalSeconds(timeRange);

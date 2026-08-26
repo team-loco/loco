@@ -22,6 +22,10 @@ import { Cpu, HardDrive } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+import { nonEmpty } from "@/lib/utils";
+
+const DEFAULT_CPU_M = 500;
+const DEFAULT_MEMORY_MI = 512;
 
 export function ResourceSettings() {
 	const { resourceId } = useParams<{ resourceId: string }>();
@@ -52,8 +56,8 @@ export function ResourceSettings() {
 	const [platformDomainId, setPlatformDomainId] = useState<string>("");
 	const [editingDomainId, setEditingDomainId] = useState<string | null>(null);
 	const [editDomainValue, setEditDomainValue] = useState("");
-	const [cpuValue, setCpuValue] = useState<number[]>([500]);
-	const [memoryValue, setMemoryValue] = useState<number[]>([512]);
+	const [cpuValue, setCpuValue] = useState<number[]>([DEFAULT_CPU_M]);
+	const [memoryValue, setMemoryValue] = useState<number[]>([DEFAULT_MEMORY_MI]);
 
 	const { data: platformDomainsRes } = useQuery(listPlatformDomains, {});
 	const platformDomains = platformDomainsRes?.platformDomains ?? [];
@@ -74,7 +78,7 @@ export function ResourceSettings() {
 		try {
 			await updateResourceMutation.mutateAsync({
 				resourceId: resourceId,
-				name: name ?? resource?.name ?? "",
+				name: nonEmpty(name, resource?.name ?? ""),
 			});
 			toast.success("Resource updated successfully");
 		} catch (error) {
@@ -202,8 +206,8 @@ export function ResourceSettings() {
 		try {
 			await scaleResourceMutation.mutateAsync({
 				resourceId: resourceId,
-				cpu: `${cpuValue[0].toString()}m`,
-				memory: `${memoryValue[0].toString()}Mi`,
+				cpu: `${(cpuValue[0] ?? DEFAULT_CPU_M).toString()}m`,
+				memory: `${(memoryValue[0] ?? DEFAULT_MEMORY_MI).toString()}Mi`,
 			});
 			toast.success("Resource scaling initiated");
 			await refetch();
@@ -272,7 +276,7 @@ export function ResourceSettings() {
 						<Button
 							variant="outline"
 							onClick={() => {
-								setName(resource?.name || "");
+								setName(resource.name);
 							}}
 							className="border-2"
 							disabled={!hasChanges}
@@ -305,7 +309,7 @@ export function ResourceSettings() {
 				</CardHeader>
 				<CardContent className="space-y-4">
 					{/* Current Domains */}
-					{resource?.domains && resource.domains.length > 0 && (
+					{resource.domains.length > 0 && (
 						<div className="space-y-3 pb-4 border-b">
 							<div className="text-sm font-medium text-foreground">
 								Current Domains
@@ -505,7 +509,7 @@ export function ResourceSettings() {
 			{/* Scaling */}
 			<Card
 				className={`border-2 ${
-					resource?.status === ResourceStatus.UNAVAILABLE ? "opacity-50" : ""
+					resource.status === ResourceStatus.UNAVAILABLE ? "opacity-50" : ""
 				}`}
 			>
 				<CardHeader>
@@ -513,12 +517,12 @@ export function ResourceSettings() {
 				</CardHeader>
 				<CardContent
 					className={`space-y-6 ${
-						resource?.status === ResourceStatus.UNAVAILABLE
+						resource.status === ResourceStatus.UNAVAILABLE
 							? "pointer-events-none"
 							: ""
 					}`}
 				>
-					{resource?.status === ResourceStatus.UNAVAILABLE && (
+					{resource.status === ResourceStatus.UNAVAILABLE && (
 						<div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-lg p-3 mb-4">
 							<p className="text-sm text-yellow-700 dark:text-yellow-400">
 								Deploy your resource before scaling
@@ -543,7 +547,7 @@ export function ResourceSettings() {
 							max={4000}
 							step={100}
 							className="w-full"
-							disabled={resource?.status === ResourceStatus.UNAVAILABLE}
+							disabled={resource.status === ResourceStatus.UNAVAILABLE}
 						/>
 						<p className="text-xs text-foreground/50 mt-2">
 							Range: 100m - 4000m
@@ -568,7 +572,7 @@ export function ResourceSettings() {
 							max={8192}
 							step={128}
 							className="w-full"
-							disabled={resource?.status === ResourceStatus.UNAVAILABLE}
+							disabled={resource.status === ResourceStatus.UNAVAILABLE}
 						/>
 						<p className="text-xs text-foreground/50 mt-2">
 							Range: 128Mi - 8192Mi
@@ -581,7 +585,7 @@ export function ResourceSettings() {
 						}}
 						disabled={
 							scaleResourceMutation.isPending ||
-							resource?.status === ResourceStatus.UNAVAILABLE
+							resource.status === ResourceStatus.UNAVAILABLE
 						}
 						className="w-full"
 					>

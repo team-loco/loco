@@ -42,7 +42,7 @@ export function useAutoCreateOrgWorkspace() {
 						name: userEmail,
 					});
 
-					if (!org?.orgId) {
+					if (!org.orgId) {
 						throw new Error("Failed to create organization");
 					}
 
@@ -54,7 +54,7 @@ export function useAutoCreateOrgWorkspace() {
 						createErr.code === Code.AlreadyExists
 					) {
 						const orgsRes = await refetchOrgs();
-						const existingOrg = orgsRes.data?.orgs?.[0];
+						const existingOrg = orgsRes.data?.orgs[0];
 						if (!existingOrg?.id) {
 							throw new Error(
 								"Organization already exists but could not be retrieved"
@@ -78,7 +78,7 @@ export function useAutoCreateOrgWorkspace() {
 						name: "default",
 					});
 
-					if (!workspace?.workspaceId) {
+					if (!workspace.workspaceId) {
 						throw new Error("Failed to create workspace");
 					}
 
@@ -91,7 +91,7 @@ export function useAutoCreateOrgWorkspace() {
 					) {
 						setWsQueryOrgId(createdOrgId);
 						const wsRes = await refetchWorkspaces();
-						const existingWorkspace = wsRes.data?.workspaces?.[0];
+						const existingWorkspace = wsRes.data?.workspaces[0];
 						if (!existingWorkspace?.id) {
 							throw new Error(
 								"Workspace already exists but could not be retrieved"
@@ -132,7 +132,7 @@ export function useAutoCreateOrgWorkspace() {
 		isLoading: createOrgMutation.isPending || createWorkspaceMutation.isPending,
 		isLoadingOrgs,
 		hasOrgs,
-		existingOrgId: userOrgsData?.orgs?.[0]?.id ?? null,
+		existingOrgId: userOrgsData?.orgs[0]?.id ?? null,
 		shouldAutoCreate: !isLoadingOrgs && !hasOrgs && !!user,
 	};
 }

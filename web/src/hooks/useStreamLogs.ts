@@ -39,12 +39,10 @@ export function useStreamLogs(resourceId: string, tailLimit?: number) {
 				)) {
 					if (!isMounted) break;
 					logsList.unshift(logEntry);
-					if (isMounted) {
-						setLogs([...logsList]);
-						if (isFirstUpdate) {
-							setIsLoading(false);
-							isFirstUpdate = false;
-						}
+					setLogs([...logsList]);
+					if (isFirstUpdate) {
+						setIsLoading(false);
+						isFirstUpdate = false;
 					}
 				}
 			} catch (err) {

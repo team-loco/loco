@@ -25,15 +25,39 @@ import {
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { listTokens, revokeToken } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import type { Token } from "@gen/loco/token/v1/token_pb";
-import { EntityType } from "@gen/loco/token/v1/token_pb";
+import { EntityType, Scope } from "@gen/loco/token/v1/token_pb";
 import { toastConnectError } from "@/lib/error-handler";
-import { formatShortId } from "@/lib/utils";
+import { formatShortId, lookupEnum } from "@/lib/utils";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
 import { TokenDisplayDialog } from "./tokens/TokenDisplayDialog";
+
+type EntityDisplay = {
+	label: string;
+	variant: "default" | "secondary" | "destructive" | "outline";
+};
+
+const UNKNOWN_ENTITY: EntityDisplay = { label: "Unknown", variant: "default" };
+
+const entityTypeDisplay: Record<EntityType, EntityDisplay> = {
+	[EntityType.UNSPECIFIED]: UNKNOWN_ENTITY,
+	[EntityType.USER]: { label: "User", variant: "default" },
+	[EntityType.ORGANIZATION]: { label: "Organization", variant: "default" },
+	[EntityType.WORKSPACE]: { label: "Workspace", variant: "default" },
+	[EntityType.RESOURCE]: { label: "Resource", variant: "default" },
+	[EntityType.SYSTEM]: { label: "System", variant: "default" },
+};
+
+const SCOPE_SHORT: Record<Scope, string> = {
+	[Scope.UNSPECIFIED]: "?",
+	[Scope.READ]: "R",
+	[Scope.WRITE]: "W",
+	[Scope.ADMIN]: "A",
+};
+
 
 function formatRelativeTimeFuture(date: Date): string {
 	const now = new Date();
@@ -92,19 +116,6 @@ function TokenCard({
 		}
 	});
 
-	const entityTypeDisplay: Record<
-		number,
-		{
-			label: string;
-			variant: "default" | "secondary" | "destructive" | "outline";
-		}
-	> = {
-		[EntityType.USER]: { label: "User", variant: "default" },
-		[EntityType.ORGANIZATION]: { label: "Organization", variant: "default" },
-		[EntityType.WORKSPACE]: { label: "Workspace", variant: "default" },
-		[EntityType.RESOURCE]: { label: "Resource", variant: "default" },
-		[EntityType.SYSTEM]: { label: "System", variant: "default" },
-	};
 
 	return (
 		<div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
@@ -174,17 +185,14 @@ function TokenCard({
 							([entityType, entityMap]) => {
 								return Array.from(entityMap.entries()).map(
 									([entityId, scopes]) => {
-										const entityInfo = entityTypeDisplay[entityType];
-										const scopeList = Array.from(scopes);
-										const scopeShortMap: Record<number, string> = {
-											0: "?",
-											1: "R",
-											2: "W",
-											3: "A",
-										};
-										const scopeStr = Array.from(scopeList)
+										const entityInfo = lookupEnum(
+											entityTypeDisplay,
+											entityType,
+											UNKNOWN_ENTITY,
+										);
+										const scopeStr = Array.from(scopes)
 											.sort()
-											.map((s) => scopeShortMap[s] || "?")
+											.map((s) => lookupEnum(SCOPE_SHORT, s, "?"))
 											.join("");
 
 										return (

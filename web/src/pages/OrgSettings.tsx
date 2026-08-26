@@ -248,7 +248,7 @@ export function OrgSettings() {
 			</div>
 
 			{/* Dialogs */}
-			{orgId && org && (
+			{orgId && (
 				<>
 					<CreateWorkspaceDialog
 						open={createWorkspaceOpen}
@@ -260,7 +260,7 @@ export function OrgSettings() {
 					/>
 					{deleteWorkspaceId && (
 						<DeleteWorkspaceDialog
-							open={deleteWorkspaceId !== null}
+							open
 							onOpenChange={(open) => {
 								if (!open) {
 									setDeleteWorkspaceId(null);

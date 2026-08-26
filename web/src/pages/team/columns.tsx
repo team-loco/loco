@@ -15,8 +15,19 @@ import { type WorkspaceMemberWithUser } from "@gen/loco/workspace/v1/workspace_p
 import { type ColumnDef } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
+import { nonEmpty } from "@/lib/utils";
 
-const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
+interface RoleBadgeVariant {
+	bg: string;
+	text: string;
+}
+
+const DEFAULT_ROLE_BADGE: RoleBadgeVariant = {
+	bg: "bg-blue-100 dark:bg-blue-900",
+	text: "text-blue-800 dark:text-blue-200",
+};
+
+const roleBadgeVariants: Record<string, RoleBadgeVariant> = {
 	admin: {
 		bg: "bg-red-100 dark:bg-red-900",
 		text: "text-red-800 dark:text-red-200",
@@ -32,8 +43,7 @@ const roleBadgeVariants: Record<string, { bg: string; text: string }> = {
 };
 
 function RoleBadge({ role }: { role: string }) {
-	const variant =
-		roleBadgeVariants[role.toLowerCase()] || roleBadgeVariants.member;
+	const variant = roleBadgeVariants[role.toLowerCase()] ?? DEFAULT_ROLE_BADGE;
 	return (
 		<Badge className={`${variant.bg} ${variant.text} capitalize`}>{role}</Badge>
 	);
@@ -136,7 +146,7 @@ export function getColumns(
 			header: "Role",
 			cell: ({ row }) => {
 				const scopes = row.getValue<string[]>("scopes");
-				const role = scopes[0] || "viewer";
+				const role = nonEmpty(scopes[0], "viewer");
 				return <RoleBadge role={role} />;
 			},
 		},

@@ -35,7 +35,7 @@ export function Home() {
 
 	// Use org/workspace from context
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const currentOrgId = activeOrgId ?? (orgs.length > 0 ? orgs[0].id : null);
+	const currentOrgId = activeOrgId ?? orgs[0]?.id ?? null;
 
 	// Fetch workspaces for selected org
 	const { data: listWorkspacesRes } = useQuery(
@@ -50,7 +50,8 @@ export function Home() {
 	const currentWorkspaceId =
 		activeWorkspaceId ??
 		selectedWorkspaceId ??
-		(workspaces.length > 0 ? workspaces[0].id : null);
+		workspaces[0]?.id ??
+		null;
 
 	// Fetch resources in parallel after we have workspace ID
 	const {

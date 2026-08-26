@@ -31,22 +31,26 @@ export function parseObsQuery(query: string): ParsedQuery {
 	let remaining = query.trim();
 
 	// Extract quoted strings
-	remaining = remaining.replace(/"([^"]+)"/g, (_, phrase) => {
+	remaining = remaining.replace(/"([^"]+)"/g, (_, phrase: string) => {
 		searchParts.push(phrase.trim());
 		return "";
 	});
 
 	// Extract key:value tokens
-	remaining = remaining.replace(/(\w+):(\S+)/g, (_, key, value) => {
-		const lk = key.toLowerCase();
-		if (lk === "level" || lk === "severity") {
-			const lvl = LEVEL_ALIASES[value.toLowerCase()];
-			if (lvl && !levels.includes(lvl)) levels.push(lvl);
-		} else if (LABEL_KEYS[lk]) {
-			labels[LABEL_KEYS[lk]] = value;
-		}
-		return "";
-	});
+	remaining = remaining.replace(
+		/(\w+):(\S+)/g,
+		(_, key: string, value: string) => {
+			const lk = key.toLowerCase();
+			if (lk === "level" || lk === "severity") {
+				const lvl = LEVEL_ALIASES[value.toLowerCase()];
+				if (lvl && !levels.includes(lvl)) levels.push(lvl);
+			} else {
+				const labelKey = LABEL_KEYS[lk];
+				if (labelKey) labels[labelKey] = value;
+			}
+			return "";
+		},
+	);
 
 	// Remaining bare words go to search
 	const bare = remaining.trim();

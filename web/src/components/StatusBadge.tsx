@@ -6,11 +6,12 @@ import {
 	TooltipTrigger,
 } from "@/components/design/Tooltip";
 import { getResourceStatusTooltip } from "@/lib/deployment-utils";
+import type { ResourceStatusLabel } from "@/lib/app-status";
 
 type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 
 interface StatusBadgeProps {
-	status: string;
+	status: ResourceStatusLabel;
 	showTooltip?: boolean;
 }
 
@@ -19,7 +20,7 @@ interface StatusConfig {
 	dot: string;
 }
 
-const statusConfig: Record<string, StatusConfig | undefined> & { pending: StatusConfig } = {
+const statusConfig: Record<ResourceStatusLabel, StatusConfig> = {
 	running: {
 		variant: "success",
 		dot: "bg-success dark:bg-success",
@@ -28,13 +29,17 @@ const statusConfig: Record<string, StatusConfig | undefined> & { pending: Status
 		variant: "info",
 		dot: "bg-info dark:bg-info",
 	},
-	stopped: {
-		variant: "secondary",
-		dot: "bg-text-quaternary dark:bg-text-quaternary",
+	degraded: {
+		variant: "warning",
+		dot: "bg-warning dark:bg-warning",
 	},
-	failed: {
+	unavailable: {
 		variant: "error",
 		dot: "bg-error dark:bg-error",
+	},
+	suspended: {
+		variant: "secondary",
+		dot: "bg-text-quaternary dark:bg-text-quaternary",
 	},
 	pending: {
 		variant: "warning",
@@ -43,10 +48,8 @@ const statusConfig: Record<string, StatusConfig | undefined> & { pending: Status
 };
 
 export function StatusBadge({ status, showTooltip = true }: StatusBadgeProps) {
-	const normalizedStatus = status.toLowerCase();
-	const config = statusConfig[normalizedStatus] ?? statusConfig.pending;
-	const isPulsing =
-		normalizedStatus === "running" || normalizedStatus === "deploying";
+	const config = statusConfig[status];
+	const isPulsing = status === "running" || status === "deploying";
 
 	const badge = (
 		<Badge

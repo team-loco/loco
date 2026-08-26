@@ -16,6 +16,7 @@ function levelBadgeVariant(
 ): "default" | "outline" | "destructive" | "secondary" {
 	switch (level) {
 		case "ERROR":
+			return "destructive";
 		case "FATAL":
 			return "destructive";
 		default:

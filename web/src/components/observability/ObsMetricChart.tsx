@@ -14,6 +14,7 @@ import {
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { useObs } from "./ObsProvider";
 import { useQueryMetrics } from "@/hooks/useQueryMetrics";
+import { nonEmpty } from "@/lib/utils";
 
 interface ChartDataPoint {
 	time: number;
@@ -45,7 +46,10 @@ function buildChartData(series: MetricSeries[]): ChartDataPoint[] {
 	return timestamps.map((ts) => {
 		const pt: ChartDataPoint = { time: ts };
 		for (const s of series) {
-			const key = s.resourceId || s.labels["k8s.pod.name"] || "value";
+			const key = nonEmpty(
+			s.resourceId,
+			nonEmpty(s.labels["k8s.pod.name"], "value"),
+		);
 			const match = s.points.find(
 				(p) => p.timestamp && Number(p.timestamp.seconds) * 1000 === ts,
 			);
@@ -61,7 +65,10 @@ const CHART_COLORS = [
 	"hsl(var(--chart-3))",
 	"hsl(var(--chart-4))",
 	"hsl(var(--chart-5))",
-];
+] as const;
+
+const colorAt = (i: number): string =>
+	CHART_COLORS[i % CHART_COLORS.length] ?? CHART_COLORS[0];
 
 interface ObsMetricChartProps {
 	title: string;
@@ -96,7 +103,8 @@ export function ObsMetricChart({
 	const seriesKeys = useMemo(
 		() =>
 			series.map(
-				(s) => s.resourceId || s.labels["k8s.pod.name"] || "value",
+				(s) =>
+					nonEmpty(s.resourceId, nonEmpty(s.labels["k8s.pod.name"], "value")),
 			),
 		[series],
 	);
@@ -106,7 +114,7 @@ export function ObsMetricChart({
 		seriesKeys.forEach((key, i) => {
 			cfg[key] = {
 				label: key,
-				color: CHART_COLORS[i % CHART_COLORS.length],
+				color: colorAt(i),
 			};
 		});
 		return cfg;
@@ -150,7 +158,7 @@ export function ObsMetricChart({
 								/>
 								<XAxis
 									dataKey="time"
-									tickFormatter={(v) =>
+									tickFormatter={(v: string | number) =>
 										new Date(v).toLocaleTimeString("en-US", {
 											hour: "2-digit",
 											minute: "2-digit",
@@ -164,7 +172,7 @@ export function ObsMetricChart({
 								/>
 								<YAxis
 									domain={yDomain ?? ["auto", "auto"]}
-									tickFormatter={(v) => formatValue(v, unit)}
+									tickFormatter={(v: number) => formatValue(v, unit)}
 									tick={{ fontSize: 10 }}
 									tickLine={false}
 									axisLine={false}
@@ -177,10 +185,11 @@ export function ObsMetricChart({
 									]}
 									labelFormatter={(label) =>
 										// recharts types this as ReactNode; only string|number
-										// is a valid Date input.
+										// is a valid Date input, and anything else has no
+										// useful string form.
 										typeof label === "string" || typeof label === "number"
 											? new Date(label).toLocaleString()
-											: String(label)
+											: ""
 									}
 									contentStyle={{
 										fontSize: 11,
@@ -192,8 +201,8 @@ export function ObsMetricChart({
 										key={key}
 										type="monotone"
 										dataKey={key}
-										stroke={CHART_COLORS[i % CHART_COLORS.length]}
-										fill={CHART_COLORS[i % CHART_COLORS.length]}
+										stroke={colorAt(i)}
+										fill={colorAt(i)}
 										fillOpacity={0.15}
 										strokeWidth={1.5}
 										dot={false}

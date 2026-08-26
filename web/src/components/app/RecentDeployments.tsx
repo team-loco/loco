@@ -339,7 +339,7 @@ export function RecentDeployments({
 							))}
 						</TableHeader>
 						<TableBody>
-							{table.getRowModel().rows?.length ? (
+							{table.getRowModel().rows.length ? (
 								table.getRowModel().rows.map((row) => (
 									<React.Fragment key={row.id}>
 										<TableRow className="cursor-pointer hover:bg-background/50">
