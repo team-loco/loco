@@ -40,24 +40,23 @@ import (
 	"github.com/team-loco/loco/proto/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/proto/loco/workspace/v1/workspacev1connect"
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 type ApiConfig struct {
-	Env                string // Environment (e.g., dev, prod)
-	ProjectID          string // GitLab project ID
-	GitlabURL          string // Container registry URL
-	RegistryURL        string // Container registry URL
-	DeployTokenName    string // Deploy token name
-	GitlabPAT          string // GitLab Personal Access Token
-	DatabaseURL        string // PostgreSQL connection string
-	LogLevel           slog.Level
-	Port               string
-	RegistryTag        string
-	CacheType          string   // Cache backend type: "in-memory" or "valkey"
-	CacheAddr          string   // Valkey address (when CacheType is "valkey")
-	CORSAllowedOrigins     []string // CORS allowed origins (e.g., http://localhost:5173)
-	DefaultPlatformDomain  string   // Default platform domain returned by the config service
+	Env                   string // Environment (e.g., dev, prod)
+	ProjectID             string // GitLab project ID
+	GitlabURL             string // Container registry URL
+	RegistryURL           string // Container registry URL
+	DeployTokenName       string // Deploy token name
+	GitlabPAT             string // GitLab Personal Access Token
+	DatabaseURL           string // PostgreSQL connection string
+	LogLevel              slog.Level
+	Port                  string
+	RegistryTag           string
+	CacheType             string   // Cache backend type: "in-memory" or "valkey"
+	CacheAddr             string   // Valkey address (when CacheType is "valkey")
+	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
+	DefaultPlatformDomain string   // Default platform domain returned by the config service
 }
 
 func newApiConfig() *ApiConfig {
@@ -84,16 +83,16 @@ func newApiConfig() *ApiConfig {
 	}
 
 	return &ApiConfig{
-		Env:                os.Getenv("APP_ENV"),
-		ProjectID:          os.Getenv("GITLAB_PROJECT_ID"),
-		GitlabURL:          os.Getenv("GITLAB_URL"),
-		RegistryURL:        os.Getenv("GITLAB_REGISTRY_URL"),
-		DeployTokenName:    os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
-		GitlabPAT:          os.Getenv("GITLAB_PAT"),
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		Port:               os.Getenv("APP_PORT"),
-		LogLevel:           logLevel,
-		RegistryTag:        os.Getenv("REGISTRY_TAG"),
+		Env:                   os.Getenv("APP_ENV"),
+		ProjectID:             os.Getenv("GITLAB_PROJECT_ID"),
+		GitlabURL:             os.Getenv("GITLAB_URL"),
+		RegistryURL:           os.Getenv("GITLAB_REGISTRY_URL"),
+		DeployTokenName:       os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
+		GitlabPAT:             os.Getenv("GITLAB_PAT"),
+		DatabaseURL:           os.Getenv("DATABASE_URL"),
+		Port:                  os.Getenv("APP_PORT"),
+		LogLevel:              logLevel,
+		RegistryTag:           os.Getenv("REGISTRY_TAG"),
 		CacheType:             cacheType,
 		CacheAddr:             os.Getenv("CACHE_ADDR"),
 		CORSAllowedOrigins:    corsOrigins,
@@ -344,9 +343,16 @@ func main() {
 
 	muxWCors := withCORS(ac.CORSAllowedOrigins)(mux)
 
+	// Serve HTTP/1.1 alongside unencrypted HTTP/2 (h2c) using the stdlib
+	// Protocols field; golang.org/x/net/http2/h2c is deprecated as of Go 1.26.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	server := &http.Server{
-		Addr:    ac.Port,
-		Handler: h2c.NewHandler(muxWCors, &http2.Server{}),
+		Addr:      ac.Port,
+		Handler:   muxWCors,
+		Protocols: protocols,
 	}
 
 	quit := make(chan error, 1)

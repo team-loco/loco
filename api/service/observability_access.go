@@ -78,4 +78,3 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 		Clusters: clusterAccess,
 	}), nil
 }
-
