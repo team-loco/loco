@@ -49,3 +49,8 @@ WHERE r.workspace_id = $1
 UPDATE clusters
 SET observability_proxy_endpoint = $2, updated_at = NOW()
 WHERE id = $1;
+
+-- name: SetClusterGatewayHostname :exec
+UPDATE clusters
+SET gateway_hostname = $2, updated_at = NOW()
+WHERE id = $1;

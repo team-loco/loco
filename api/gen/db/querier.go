@@ -134,6 +134,7 @@ type Querier interface {
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) error
 	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
+	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error

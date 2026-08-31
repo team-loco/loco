@@ -174,6 +174,22 @@ func (q *Queries) SetClusterAgentToken(ctx context.Context, arg SetClusterAgentT
 	return err
 }
 
+const setClusterGatewayHostname = `-- name: SetClusterGatewayHostname :exec
+UPDATE clusters
+SET gateway_hostname = $2, updated_at = NOW()
+WHERE id = $1
+`
+
+type SetClusterGatewayHostnameParams struct {
+	ID              uuid.UUID `json:"id"`
+	GatewayHostname *string   `json:"gatewayHostname"`
+}
+
+func (q *Queries) SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error {
+	_, err := q.db.Exec(ctx, setClusterGatewayHostname, arg.ID, arg.GatewayHostname)
+	return err
+}
+
 const setClusterObservabilityEndpoint = `-- name: SetClusterObservabilityEndpoint :exec
 UPDATE clusters
 SET observability_proxy_endpoint = $2, updated_at = NOW()
