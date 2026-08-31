@@ -80,6 +80,8 @@ CREATE TABLE
         capacity_memory_bytes BIGINT,
         agent_version TEXT,
         observability_proxy_endpoint TEXT,
+        -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
+        gateway_hostname TEXT,
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
