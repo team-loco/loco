@@ -124,6 +124,47 @@ spec:
                             type: integer
                         type: object
                     type: object
+                  failover:
+                    description: Failover configures cross-region L7 failover for
+                      this service.
+                    properties:
+                      enabled:
+                        description: Enabled turns cross-region failover on. Defaults
+                          to false.
+                        type: boolean
+                      peers:
+                        description: |-
+                          Peers are the other regions this resource is deployed to. Empty means no failover
+                          is possible even when Enabled is true, which is the correct state for a
+                          single-region deployment.
+                        items:
+                          description: |-
+                            FailoverPeer identifies another region's public gateway, used as a lower-priority
+                            backend when the local one is unhealthy.
+                          properties:
+                            gateway:
+                              description: |-
+                                Gateway is the peer region's publicly resolvable gateway hostname. It must be an
+                                FQDN: Envoy Gateway only compiles backendRefs into priority levels when every
+                                Backend uses an fqdn endpoint. An IP silently degrades failover into a weighted
+                                round-robin split across regions.
+                              type: string
+                            port:
+                              default: 443
+                              description: Port on the peer gateway.
+                              format: int32
+                              type: integer
+                            region:
+                              description: |-
+                                Region is the peer region name, e.g. "us-east-1". Informational; used for the
+                                forwarded-by stamp and for status reporting.
+                              type: string
+                          required:
+                          - gateway
+                          - region
+                          type: object
+                        type: array
+                    type: object
                   obs:
                     description: Observability configuration (logging, metrics, tracing)
                     properties:

@@ -783,6 +783,7 @@ func (s *ResourceServer) ScaleResource(
 		currentDeployment.EnvironmentID,
 		scaleEnv.Name,
 		scaleDeploymentID,
+		lookupFailoverPeers(ctx, s.queries, resource.ID, regionToScale),
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID.String())
@@ -989,6 +990,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		currentDeployment.EnvironmentID,
 		updateEnv.Name,
 		deploymentId,
+		lookupFailoverPeers(ctx, s.queries, resource.ID, regionToUpdate),
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID.String())

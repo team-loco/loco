@@ -79,6 +79,7 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update
+// +kubebuilder:rbac:groups=gateway.envoyproxy.io,resources=backends;backendtrafficpolicies,verbs=get;create;list;watch;patch;update;delete
 
 // todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
@@ -199,6 +200,16 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		currentMessage = fmt.Sprintf("failed to ensure service: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after service error", "error", statusErr)
+		}
+		return ctrl.Result{}, err
+	}
+
+	if err := r.ensureFailover(ctx, &locoRes); err != nil {
+		slog.ErrorContext(ctx, "failed to ensure failover resources", "error", err)
+		currentPhase = phaseFailed
+		currentMessage = fmt.Sprintf("failed to ensure failover resources: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
+			slog.ErrorContext(ctx, "failed to update status after failover error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
@@ -794,29 +805,29 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 				Namespace: (*v1Gateway.Namespace)(&r.locoNamespace),
 			},
 		}
-		route.Spec.Rules = []v1Gateway.HTTPRouteRule{
-			{
-				Matches: []v1Gateway.HTTPRouteMatch{
-					{
-						Path: &v1Gateway.HTTPPathMatch{
-							Type:  &pathType,
-							Value: new(pathValue),
-						},
+		primary := v1Gateway.HTTPRouteRule{
+			Matches: []v1Gateway.HTTPRouteMatch{
+				{
+					Path: &v1Gateway.HTTPPathMatch{
+						Type:  &pathType,
+						Value: new(pathValue),
 					},
 				},
-				BackendRefs: []v1Gateway.HTTPBackendRef{
-					{
-						BackendRef: v1Gateway.BackendRef{
-							BackendObjectReference: v1Gateway.BackendObjectReference{
-								Name: v1Gateway.ObjectName(name),
-								Port: backendPort,
-								Kind: ptrToKind("Service"),
-							},
+			},
+			BackendRefs: []v1Gateway.HTTPBackendRef{
+				{
+					BackendRef: v1Gateway.BackendRef{
+						BackendObjectReference: v1Gateway.BackendObjectReference{
+							Name: v1Gateway.ObjectName(name),
+							Port: backendPort,
+							Kind: ptrToKind("Service"),
 						},
 					},
 				},
 			},
 		}
+
+		route.Spec.Rules = routeRules(locoRes, name, backendPort, primary)
 		return nil
 	})
 	if err != nil {
