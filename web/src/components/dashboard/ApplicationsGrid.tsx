@@ -10,39 +10,12 @@ import {
     Settings
 } from "lucide-react";
 import { useNavigate } from "react-router";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { hoursAgo } from "@/lib/format-time";
+import { getGridMetrics } from "@/lib/mock-metrics";
 
 interface ApplicationsGridProps {
 	resources: Resource[];
 	workspaceId?: string;
-}
-
-// Reuse mock metrics generator
-function getMockMetrics(resourceId: string) {
-	let seed = 0;
-	for (let i = 0; i < resourceId.length; i++) seed += resourceId.charCodeAt(i);
-	return {
-		cpu: Math.floor((Math.sin(seed) * 0.5 + 0.5) * 100),
-		memory: Math.floor((Math.cos(seed) * 0.5 + 0.5) * 1000) + 256,
-		requests: `${Math.floor((Math.sin(seed * 2) * 0.5 + 0.5) * 900).toString()}K`,
-		uptime: "99.9%",
-		commit: Math.random().toString(36).substring(2, 9),
-		branch: "main",
-	};
-}
-
-function getLastDeployedText(createdAt: Timestamp | undefined): string {
-	if (!createdAt) return "Never deployed";
-
-	const diff = Date.now() - Number(createdAt.seconds) * 1000;
-	const hours = Math.floor(diff / (1000 * 60 * 60));
-	const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-	if (hours === 0) return "Deployed just now";
-	if (hours === 1) return "Deployed 1h ago";
-	if (hours < 24) return `Deployed ${hours.toString()}h ago`;
-	if (days === 1) return "Deployed 1d ago";
-	return `Deployed ${days.toString()}d ago`;
 }
 
 export function ApplicationsGrid({
@@ -64,7 +37,7 @@ export function ApplicationsGrid({
 		<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 			{resources.length > 0 ? (
 				resources.map((resource) => {
-					const metrics = getMockMetrics(resource.id);
+					const metrics = getGridMetrics(resource);
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 					const isActive = resource.status !== 3; // Example check
 
@@ -171,7 +144,9 @@ export function ApplicationsGrid({
 											}`}
 										/>
 									</div>
-									<span>{getLastDeployedText(resource.createdAt)}</span>
+									<span>{resource.createdAt
+											? `Deployed ${hoursAgo(resource.createdAt)}`
+											: "Never deployed"}</span>
 								</div>
 								
 								<div className="flex items-center gap-1.5 bg-background border border-border px-2 py-0.5 rounded-md font-mono text-[10px]">

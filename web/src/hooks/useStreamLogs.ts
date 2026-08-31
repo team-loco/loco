@@ -18,10 +18,7 @@ export function useStreamLogs(resourceId: string, tailLimit?: number) {
 	}, []);
 
 	useEffect(() => {
-		if (!resourceId) {
-			setIsLoading(false);
-			return;
-		}
+		if (!resourceId) return;
 
 		let isMounted = true;
 		const abortController = new AbortController();
@@ -67,7 +64,8 @@ export function useStreamLogs(resourceId: string, tailLimit?: number) {
 
 	return {
 		logs,
-		isLoading,
+		// With no resource to stream there is nothing in flight to wait on.
+		isLoading: resourceId ? isLoading : false,
 		error,
 		refetch,
 	};

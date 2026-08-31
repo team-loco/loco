@@ -179,9 +179,15 @@ export function DeploymentWizard({
 	const [envFileContent, setEnvFileContent] = useState("");
 	const contentScrollRef = useRef<HTMLDivElement>(null);
 
-	// Reset all state when dialog opens
-	useEffect(() => {
-		if (!open) return;
+	// Reset all state when the dialog opens. Done during render rather than in an
+	// effect so the wizard never paints a frame of the previous session's values.
+	const [wasOpen, setWasOpen] = useState(open);
+	if (open !== wasOpen) {
+		setWasOpen(open);
+		if (open) resetWizard();
+	}
+
+	function resetWizard() {
 		setStep(1);
 		setImageUrl("");
 		setImageError("");
@@ -195,7 +201,7 @@ export function DeploymentWizard({
 		setEnvVars([]);
 		setRevealedVars(new Set());
 		setRevealCountdowns(new Map());
-	}, [open, initialSubdomain]);
+	}
 
 	// Subdomain availability check (debounced, only when showSubdomain=true)
 	useEffect(() => {

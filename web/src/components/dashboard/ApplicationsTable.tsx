@@ -3,7 +3,6 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { getStatusLabel } from "@/lib/app-status";
 import { StatusBadge } from "@/components/StatusBadge";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import {
 	Table,
 	TableBody,
@@ -12,37 +11,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { hoursAgo } from "@/lib/format-time";
+import { getTableMetrics } from "@/lib/mock-metrics";
 
 interface ApplicationsTableProps {
 	resources: Resource[];
 	workspaceId?: string;
-}
-
-// Mock data generator for resources we don't have metrics for
-function getMockMetrics(resourceId: string) {
-	let seed = 0;
-	for (let i = 0; i < resourceId.length; i++) seed += resourceId.charCodeAt(i);
-	return {
-		cpu: Math.floor((Math.sin(seed) * 0.5 + 0.5) * 100),
-		memory: Math.floor((Math.cos(seed) * 0.5 + 0.5) * 1000) + 256,
-		requests: `${Math.floor((Math.sin(seed * 2) * 0.5 + 0.5) * 900).toString()}K/day`,
-		uptime: "99.9%",
-		replicas: Math.floor((Math.cos(seed * 3) * 0.5 + 0.5) * 5) + 1,
-	};
-}
-
-function getLastDeployedText(createdAt: Timestamp | undefined): string {
-	if (!createdAt) return "never";
-
-	const diff = Date.now() - Number(createdAt.seconds) * 1000;
-	const hours = Math.floor(diff / (1000 * 60 * 60));
-	const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-	if (hours === 0) return "just now";
-	if (hours === 1) return "1h ago";
-	if (hours < 24) return `${hours.toString()}h ago`;
-	if (days === 1) return "1d ago";
-	return `${days.toString()}d ago`;
 }
 
 export function ApplicationsTable({
@@ -93,7 +67,7 @@ export function ApplicationsTable({
 					<TableBody>
 						{resources.length > 0 ? (
 							resources.map((resource) => {
-								const metrics = getMockMetrics(resource.id);
+								const metrics = getTableMetrics(resource);
 								const status = getStatusLabel(resource.status);
 								// eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
 								const isActive = resource.status !== 3;
@@ -170,7 +144,7 @@ export function ApplicationsTable({
 										</TableCell>
 										<TableCell className="px-6 py-4">
 											<div className="text-sm text-muted-foreground">
-												{getLastDeployedText(resource.createdAt)}
+												{resource.createdAt ? hoursAgo(resource.createdAt) : "never"}
 											</div>
 										</TableCell>
 									</TableRow>

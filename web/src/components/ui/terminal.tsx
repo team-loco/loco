@@ -25,6 +25,21 @@ export const AnimatedSpan = ({
 	</motion.div>
 );
 
+// motion.create() returns a new component type on every call, so calling it
+// during render remounts the whole subtree each time. Cache per element type at
+// module scope, which keeps the identity stable across renders and instances.
+const motionComponentCache = new Map<React.ElementType, React.ElementType>();
+
+function motionComponentFor(component: React.ElementType): React.ElementType {
+	const cached = motionComponentCache.get(component);
+	if (cached) return cached;
+	const created = motion.create(component, {
+		forwardMotionProps: true,
+	}) as React.ElementType;
+	motionComponentCache.set(component, created);
+	return created;
+}
+
 interface TypingAnimationProps extends MotionProps {
 	children: string;
 	className?: string;
@@ -45,9 +60,7 @@ export const TypingAnimation = ({
 		throw new Error("TypingAnimation: children must be a string.");
 	}
 
-	const MotionComponent = motion.create(Component, {
-		forwardMotionProps: true,
-	});
+	const MotionComponent = motionComponentFor(Component);
 
 	const [displayedText, setDisplayedText] = useState<string>("");
 	const [started, setStarted] = useState(false);
@@ -77,6 +90,9 @@ export const TypingAnimation = ({
 	}, [children, duration, started]);
 
 	return (
+		// Identity is stable via motionComponentCache; the rule can't see through
+		// the local binding.
+		// oxlint-disable-next-line react/static-components
 		<MotionComponent
 			className={cn("text-sm font-normal tracking-tight", className)}
 			ref={elementRef}

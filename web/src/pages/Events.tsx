@@ -5,7 +5,7 @@ import { Input } from "@/components/design/Input";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { AlertCircle, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {useMemo, useState} from "react";
 import { nonEmpty } from "@/lib/utils";
 
 const severityColors: Record<string, string> = {
@@ -29,13 +29,16 @@ export function Events() {
 		workspace?.id.toString() ?? "",
 	);
 	const [events, setEvents] = useState(backendEvents);
-	const [filteredEvents, setFilteredEvents] = useState(backendEvents);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [severityFilter, setSeverityFilter] = useState<string>("all");
 
-	useEffect(() => {
+	// Re-seed from the backend during render. Dismissals edit `events` locally,
+	// so this can't just be derived from `backendEvents`.
+	const [seededEvents, setSeededEvents] = useState(backendEvents);
+	if (seededEvents !== backendEvents) {
+		setSeededEvents(backendEvents);
 		setEvents(backendEvents);
-	}, [backendEvents]);
+	}
 
 	// useMemo ensures filtering is only recalculated when dependencies change
 	const filtered = useMemo(() => {
@@ -61,12 +64,7 @@ export function Events() {
 		return result;
 	}, [events, searchTerm, severityFilter]);
 
-	useEffect(() => {
-		setFilteredEvents(filtered);
-	}, [filtered]);
-
 	const handleDismiss = (eventId: string) => {
-		setFilteredEvents((prev) => prev.filter((e) => e.id !== eventId));
 		setEvents((prev) => prev.filter((e) => e.id !== eventId));
 	};
 
@@ -125,7 +123,7 @@ export function Events() {
 						{/* Event count and info */}
 						<div className="flex items-center justify-between mb-4">
 							<div className="text-xs text-foreground opacity-70">
-								Showing {filteredEvents.length} of {events.length} events
+								Showing {filtered.length} of {events.length} events
 							</div>
 							<div className="text-xs text-foreground opacity-60">
 								Most recent first
@@ -133,7 +131,7 @@ export function Events() {
 						</div>
 
 						{/* Events List */}
-						{filteredEvents.length === 0 ? (
+						{filtered.length === 0 ? (
 							<div className="py-12 text-center">
 								<AlertCircle className="h-12 w-12 mx-auto text-foreground opacity-30 mb-3" />
 								<p className="text-foreground opacity-60">
@@ -144,7 +142,7 @@ export function Events() {
 							</div>
 						) : (
 							<div className="space-y-3">
-								{filteredEvents.map((event) => {
+								{filtered.map((event) => {
 									const severity = nonEmpty(event.type.toLowerCase(), "info");
 									const timestamp = event.timestamp
 										? new Date(Number(event.timestamp.seconds) * 1000)
