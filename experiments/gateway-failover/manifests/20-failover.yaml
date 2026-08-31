@@ -1,0 +1,101 @@
+# Local app, expressed as an EG Backend so it participates in priority grouping.
+# EG only builds priority levels (rather than a weighted split) when the active
+# and fallback targets are both Backend resources.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: local-app
+  namespace: default
+spec:
+  endpoints:
+    - fqdn:
+        hostname: demo-app.default.svc.cluster.local
+        port: 80
+---
+# The peer region's public gateway. fallback: true demotes it to Envoy priority 1;
+# it receives traffic only once priority 0 health drops below ~72%
+# (Envoy's 1.4 overprovisioning factor).
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: peer-gateway
+  namespace: default
+spec:
+  fallback: true
+  endpoints:
+    - fqdn:
+        hostname: __PEER_HOST__
+        port: __PEER_PORT__
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: demo-app
+  namespace: default
+spec:
+  parentRefs:
+    - name: eg
+  hostnames: ["app.demo.local"]
+  rules:
+    # RULE 0 -- loop guard.
+    # A request already forwarded by a peer carries x-loco-forwarded-by, and is served
+    # locally or not at all. Without this, a global brownout ping-pongs between
+    # regions until something falls over.
+    - matches:
+        - headers:
+            - name: x-loco-forwarded-by
+              type: RegularExpression
+              value: ".+"
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: local-app
+    # RULE 1 -- normal path: local primary, peer as priority-1 fallback.
+    #
+    # The header is set at RULE level, not per-backendRef. Envoy cannot mutate headers
+    # per priority level, so a per-backendRef filter forces EG back into a weighted
+    # split and destroys the failover. Every request leaving this rule is stamped;
+    # locally-served requests carry a header their app ignores, and the peer uses it
+    # to refuse a second hop.
+    - matches:
+        - path: {type: PathPrefix, value: /}
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - name: x-loco-forwarded-by
+                value: "__REGION__"
+      backendRefs:
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: local-app
+          port: 80
+        - group: gateway.envoyproxy.io
+          kind: Backend
+          name: peer-gateway
+          port: __PEER_PORT__
+---
+# Failover is driven by health, so health has to be observable. A Service with zero
+# ready endpoints refuses connections -> consecutiveLocalOriginFailures. A crash-looping
+# or 5xx-ing app -> consecutive5XxErrors.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: demo-app-health
+  namespace: default
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: demo-app
+  healthCheck:
+    passive:
+      baseEjectionTime: 5s
+      interval: 2s
+      maxEjectionPercent: 100
+      consecutive5XxErrors: 1
+      consecutiveLocalOriginFailures: 1
+  retry:
+    numRetries: 2
+    retryOn:
+      triggers: ["connect-failure", "reset", "5xx"]
