@@ -45,9 +45,6 @@ export function useQueryMetrics({
 	aggregation = "avg",
 	enabled = true,
 }: UseQueryMetricsOptions): MetricResult {
-	const now = useMemo(() => Date.now(), [timeRange]); // oxlint-disable-line react-hooks/exhaustive-deps
-	const startTime = dateToTimestamp(new Date(now - timeRangeMs(timeRange)));
-	const endTime = dateToTimestamp(new Date(now));
 	const intervalSeconds = timeRangeIntervalSeconds(timeRange);
 
 	const queries = useQueries({
@@ -62,12 +59,15 @@ export function useQueryMetrics({
 				aggregation,
 			],
 			queryFn: async () => {
+				// Resolved per fetch, not per render: with refetchInterval set, a
+				// window pinned during render would poll the same frozen span.
+				const now = Date.now();
 				const client = createClient(ObservabilityProxyService, transport);
 				const resp = await client.queryMetrics({
 					workspaceId,
 					resourceIds,
-					startTime,
-					endTime,
+					startTime: dateToTimestamp(new Date(now - timeRangeMs(timeRange))),
+					endTime: dateToTimestamp(new Date(now)),
 					metricName,
 					intervalSeconds,
 					aggregation,

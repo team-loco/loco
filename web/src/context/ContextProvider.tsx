@@ -36,14 +36,20 @@ export function ContextProvider({
 	const [orgs, setOrgsState] = useState<Organization[]>(availableOrgs);
 	const [workspaces, setWorkspacesState] = useState<Workspace[]>(availableWorkspaces);
 
-	// Update state when props change
-	useEffect(() => {
+	// Re-seed from props when they change. Done during render rather than in an
+	// effect: React re-runs this component before committing, so the stale value
+	// is never painted and there's no second render pass.
+	const [seededOrgs, setSeededOrgs] = useState(availableOrgs);
+	if (seededOrgs !== availableOrgs) {
+		setSeededOrgs(availableOrgs);
 		setOrgsState(availableOrgs);
-	}, [availableOrgs]);
+	}
 
-	useEffect(() => {
+	const [seededWorkspaces, setSeededWorkspaces] = useState(availableWorkspaces);
+	if (seededWorkspaces !== availableWorkspaces) {
+		setSeededWorkspaces(availableWorkspaces);
 		setWorkspacesState(availableWorkspaces);
-	}, [availableWorkspaces]);
+	}
 
 	// Derive active org ID - URL is canonical source of truth
 	const activeOrgId = useMemo(() => {

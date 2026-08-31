@@ -2,7 +2,7 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface NumberInputProps {
 	label?: string;
@@ -24,10 +24,11 @@ export function NumberInput({
 	className = "",
 }: NumberInputProps) {
 	const [inputValue, setInputValue] = useState(String(value));
-
-	useEffect(() => {
+	const [seededValue, setSeededValue] = useState(value);
+	if (seededValue !== value) {
+		setSeededValue(value);
 		setInputValue(String(value));
-	}, [value]);
+	}
 
 	const handleDecrement = () => {
 		const newValue = Math.max(min, value - 1);

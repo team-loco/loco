@@ -53,10 +53,6 @@ export function useQueryLogs({
 	order = LogOrder.NEWEST_FIRST,
 	enabled = true,
 }: UseQueryLogsOptions) {
-	const now = useMemo(() => Date.now(), [timeRange]); // oxlint-disable-line react-hooks/exhaustive-deps
-	const startTime = dateToTimestamp(new Date(now - timeRangeMs(timeRange)));
-	const endTime = dateToTimestamp(new Date(now));
-
 	const queries = useQueries({
 		queries: clusterTransports.map(({ cluster, transport }) => ({
 			queryKey: [
@@ -71,12 +67,15 @@ export function useQueryLogs({
 				order,
 			],
 			queryFn: async () => {
+				// Resolved per fetch, not per render: a window pinned during render
+				// would freeze and every refetch would re-query the same stale span.
+				const now = Date.now();
 				const client = createClient(ObservabilityProxyService, transport);
 				const resp = await client.queryLogs({
 					workspaceId,
 					resourceIds,
-					startTime,
-					endTime,
+					startTime: dateToTimestamp(new Date(now - timeRangeMs(timeRange))),
+					endTime: dateToTimestamp(new Date(now)),
 					search: parsedQuery.search,
 					levels: parsedQuery.levels,
 					labels: parsedQuery.labels,
