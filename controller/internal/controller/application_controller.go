@@ -94,8 +94,9 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// validate spec early to prevent nil panics
-	if err := r.validateLocoResource(&locoRes); err != nil {
+	// validate early to prevent nil panics. Same validator the API runs before dispatching
+	// a deploy, so this only fires for Applications written directly against the cluster.
+	if err := locoRes.Spec.Validate(); err != nil {
 		slog.ErrorContext(ctx, "invalid Application spec", "error", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("validation failed: %v", err)); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
@@ -304,16 +305,6 @@ func getImageSecretName(locoRes *locov1alpha1.Application) string {
 
 func getInternalDomain(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local", getName(locoRes), getNamespace(locoRes))
-}
-
-// getContainerPort extracts the container port from routing or deployment config
-// Prefers routing port, falls back to deployment port, defaults to 8000
-func getContainerPort(locoRes *locov1alpha1.Application) int32 {
-	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
-		return locoRes.Spec.ServiceSpec.Deployment.Port
-	}
-	slog.Warn("defaulting port to 8000")
-	return 8000
 }
 
 // ensureNamespace ensures the application namespace exists and is configured
@@ -571,7 +562,7 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-	containerPort := getContainerPort(locoRes)
+	containerPort := locoRes.Spec.ServiceSpec.Deployment.Port
 
 	slog.InfoContext(ctx, "ensuring service", "namespace", namespace, "name", name, "containerPort", containerPort)
 
@@ -1036,26 +1027,6 @@ func buildDockerConfig(registryURL, username, token string) ([]byte, error) {
 	}
 
 	return configJSON, nil
-}
-
-// validateLocoResource validates that required fields exist in the spec
-func (r *LocoResourceReconciler) validateLocoResource(locoRes *locov1alpha1.Application) error {
-	if locoRes.Spec.ServiceSpec == nil {
-		return fmt.Errorf("serviceSpec is required")
-	}
-	if locoRes.Spec.ServiceSpec.Deployment == nil {
-		return fmt.Errorf("serviceSpec.Deployment is required")
-	}
-	if locoRes.Spec.ServiceSpec.Deployment.Image == "" {
-		return fmt.Errorf("image is required")
-	}
-	if locoRes.Spec.ResourceId == "" {
-		return fmt.Errorf("resourceId is required")
-	}
-	if locoRes.Spec.WorkspaceId == "" {
-		return fmt.Errorf("workspaceID is required")
-	}
-	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
