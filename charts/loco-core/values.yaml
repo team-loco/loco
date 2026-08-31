@@ -71,3 +71,8 @@ gateway-helm:
     envoyGateway:
       logging:
         default: info
+      extensionApis:
+        # required for cross-region failover: the loco-controller builds Backend and
+        # BackendTrafficPolicy resources, and without this any HTTPRoute referencing a
+        # Backend fails with "Backend is disabled in Envoy Gateway configuration".
+        enableBackend: true

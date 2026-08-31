@@ -54,3 +54,22 @@ WHERE id = $1;
 UPDATE clusters
 SET gateway_hostname = $2, updated_at = NOW()
 WHERE id = $1;
+
+-- name: GetFailoverPeersForResource :many
+-- Regions other than the current one where this resource has an active deployment on a
+-- healthy cluster that advertises a gateway hostname. These become Envoy priority-1
+-- fallback backends. Clusters without a gateway_hostname are excluded: they cannot be
+-- addressed by a peer region's Envoy.
+SELECT DISTINCT ON (c.region)
+       c.region,
+       c.gateway_hostname
+FROM clusters c
+INNER JOIN deployments d ON d.cluster_id = c.id
+WHERE d.resource_id = $1
+  AND d.is_active = true
+  AND c.region <> sqlc.arg(exclude_region)::text
+  AND c.is_active = true
+  AND c.gateway_hostname IS NOT NULL
+  AND c.gateway_hostname <> ''
+  AND (c.health_status IS NULL OR c.health_status = 'healthy')
+ORDER BY c.region;

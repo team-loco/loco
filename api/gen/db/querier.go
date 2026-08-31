@@ -69,6 +69,11 @@ type Querier interface {
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDomainByResourceId(ctx context.Context, resourceID uuid.UUID) (GetDomainByResourceIdRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
+	// Regions other than the current one where this resource has an active deployment on a
+	// healthy cluster that advertises a gateway hostname. These become Envoy priority-1
+	// fallback backends. Clusters without a gateway_hostname are excluded: they cannot be
+	// addressed by a peer region's Envoy.
+	GetFailoverPeersForResource(ctx context.Context, arg GetFailoverPeersForResourceParams) ([]GetFailoverPeersForResourceRow, error)
 	// todo: eventually remove
 	GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
