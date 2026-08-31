@@ -16,7 +16,50 @@ on:
       - "go.mod"
       - "go.sum"
 
+# Both jobs execute code from the PR under review (Makefiles, Go tooling, helm
+# charts), so neither may hold anything an attacker would want.
+permissions:
+  contents: read
+
 jobs:
+  codegen:
+    name: Verify Generated Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # pinned: yq's formatting is part of the committed output, so a different
+      # version would fail this check for no real reason. Kept in RUNNER_TEMP rather
+      # than installed system-wide, and deliberately not the workspace -- putting the
+      # checkout on PATH would let a PR shadow go, git or make for later steps.
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl --fail --location --silent --show-error \
+            -o "$RUNNER_TEMP/bin/yq" \
+            https://github.com/mikefarah/yq/releases/download/v4.49.2/yq_linux_amd64
+          echo "be2c0ddcf426b6a231648610ec5d1666ae50e9f6473e82f6486f9f4cb6e3e2f7  $RUNNER_TEMP/bin/yq" \
+            | sha256sum --check -
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/yq" --version
+
+      - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD copy
+        run: make controller-gen
+
+      - name: Fail if anything is out of date
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Generated files are out of date. Run 'make controller-gen' and commit the result."
+            exit 1
+          fi
+
   helm-chart:
     name: Test Helm Chart
     runs-on: ubuntu-latest
