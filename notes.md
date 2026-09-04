@@ -251,6 +251,19 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - **Envoy Gateway scaling** — default Envoy deployment has no HPA attached.
   Need a full load test on loco and its services.
 
+- **Cross-region failover** — approach decided, implementation separate. Gateway-to-gateway
+  L7 failover: each region's Envoy carries peer regions' public gateways as Envoy
+  priority-1 backends, so a regional outage is absorbed over HTTPS between two public
+  endpoints, with no pod-network connectivity between clusters.
+  - Cilium Cluster Mesh was evaluated and rejected: it re-couples failure domains,
+    contradicts the "no cross-cluster traffic" and "workspace apps stay in one cluster"
+    rules above, and does not improve latency. `experiments/mcs` kept for reference.
+  - Mechanism proven end to end in `experiments/gateway-failover/`; rationale and the
+    sharp edges in `docs/tdd/cross-region-failover.md`.
+  - Open before it is production-viable: TLS between gateways (peers default to 443 and
+    nothing configures client TLS yet), distinguishing a region outage from a bad deploy,
+    and capacity headroom in the surviving region.
+
 - **Evaluate ArgoCD** and others for better CD of Kubernetes resources.
 
 - **Cilium** — evaluate whether `cilium-envoy` can be trimmed. Potentially use vtprotobuf

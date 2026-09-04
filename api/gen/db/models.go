@@ -312,6 +312,7 @@ type Cluster struct {
 	CapacityMemoryBytes        *int64     `json:"capacityMemoryBytes"`
 	AgentVersion               *string    `json:"agentVersion"`
 	ObservabilityProxyEndpoint *string    `json:"observabilityProxyEndpoint"`
+	GatewayHostname            *string    `json:"gatewayHostname"`
 	Tier                       string     `json:"tier"`
 	CreatedAt                  time.Time  `json:"createdAt"`
 	UpdatedAt                  time.Time  `json:"updatedAt"`

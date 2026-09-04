@@ -98,8 +98,19 @@ helm-deps: ## Build helm chart dependencies
 	helm dependency build ./charts/loco-core
 	helm dependency build ./charts/loco-controller
 
-controller-gen: ## Generate controller manifests and code
+CHART_CRD=charts/loco-controller/templates/crd/applications.infra.loco.io.yaml
+GENERATED_CRD=controller/config/crd/bases/infra.loco.io_applications.yaml
+
+controller-gen: ## Generate controller manifests and code, and sync the chart's CRD copy
 	cd controller && make manifests && make generate
+	$(MAKE) sync-chart-crd
+
+sync-chart-crd: ## Re-wrap the generated CRD as the loco-controller chart template
+	@command -v yq >/dev/null || { echo "yq is required: brew install yq"; exit 1; }
+	@printf '{{- if .Values.crd.enable }}\n' > $(CHART_CRD)
+	@yq -P -I 4 '.' $(GENERATED_CRD) | sed '1{/^---$$/d;}' >> $(CHART_CRD)
+	@printf '{{- end }}\n' >> $(CHART_CRD)
+	@echo "synced $(CHART_CRD)"
 
 helm-u-all: helm-deps ## Sync all releases (local environment)
 	helmfile -e local sync

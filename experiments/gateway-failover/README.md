@@ -42,6 +42,34 @@ Scenario 3 is the important one. Without the loop guard, a global brownout has E
 forwarding to US, US forwarding back to EU, and the two gateways amplifying a
 failure into a traffic storm between regions.
 
+## Verifying the controller's output
+
+The scenarios above run against hand-written manifests. To re-run them against the
+manifests `loco-controller` actually generates:
+
+```bash
+cd ../../controller
+EMIT_MANIFESTS=1 go test ./internal/controller -run TestEmitManifests
+# testdata/generated-failover.yaml now holds the controller's output
+```
+
+Point the peer port at the live US gateway, drop the empty status block, replace this
+experiment's route, and apply:
+
+```bash
+US_NP=$(kubectl --context kind-fo-us get svc -n envoy-gateway-system \
+  -l gateway.envoyproxy.io/owning-gateway-name=eg \
+  -o jsonpath='{.items[0].spec.ports[?(@.port==80)].nodePort}')
+sed -e "s/us-east-1.deploy-app.com/us-east-1.gw.demo.local/" -e "s/port: 443/port: $US_NP/" -e '/^status:/,/^  parents: null$/d' \
+  ../../controller/internal/controller/testdata/generated-failover.yaml > /tmp/gen.yaml
+kubectl --context kind-fo-eu delete httproute demo-app backendtrafficpolicy demo-app-health --ignore-not-found
+kubectl --context kind-fo-eu apply -f /tmp/gen.yaml
+./inspect.sh eu   # expect priority=0 / priority=1, not two CLUSTER lines
+./demo.sh
+```
+
+All four scenarios pass against controller-generated config.
+
 ## Findings
 
 ### 1. `Backend.spec.fallback` silently degrades to a weighted split
