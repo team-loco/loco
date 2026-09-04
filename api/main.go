@@ -17,7 +17,7 @@ import (
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
 	"connectrpc.com/validate"
-	charmLog "github.com/charmbracelet/log"
+	charmLog "charm.land/log/v2"
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
