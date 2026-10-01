@@ -24,7 +24,7 @@ jobs:
       agent: ${{ steps.filter.outputs.agent }}
       cli: ${{ steps.filter.outputs.cli }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -117,10 +117,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
@@ -134,7 +134,7 @@ jobs:
         run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o bin/loco-darwin-arm64 -v
 
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: loco-binaries
           path: bin/loco-*
@@ -175,10 +175,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
 
       - name: Terraform Init
         run: cd terraform/do && terraform init
@@ -204,7 +204,7 @@ jobs:
         run: kubectl wait --for=condition=Ready node --all --timeout=180s
 
       - name: Setup Helm
-        uses: azure/setup-helm@v4.3.0
+        uses: azure/setup-helm@v5.0.1
 
       - name: Add Helm repositories
         run: |
@@ -223,12 +223,12 @@ jobs:
           helm dependency build ./charts/loco-networking
 
       - name: Helm dry-run
-        uses: helmfile/helmfile-action@v2.0.4
+        uses: helmfile/helmfile-action@v2.4.8
         with:
           helmfile-args: diff --environment prod
 
       - name: Deploy to Production
-        uses: helmfile/helmfile-action@v2.0.4
+        uses: helmfile/helmfile-action@v2.4.8
         with:
           helmfile-args: sync --environment prod
 
@@ -254,12 +254,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Download CLI binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: loco-binaries
           path: bin
