@@ -119,6 +119,8 @@ export interface DeploymentWizardProps {
 	showSubdomain?: boolean;
 	platformDomain?: { id: string; domain: string } | undefined;
 	initialSubdomain?: string;
+	/** Seeds the form each time the wizard opens. */
+	initialValues?: Partial<DeploymentWizardValues>;
 	onSubmit: (values: DeploymentWizardValues) => Promise<void>;
 	isSubmitting: boolean;
 }
@@ -131,6 +133,7 @@ export function DeploymentWizard({
 	showSubdomain = false,
 	platformDomain,
 	initialSubdomain = "",
+	initialValues = {},
 	onSubmit,
 	isSubmitting,
 }: DeploymentWizardProps) {
@@ -188,17 +191,29 @@ export function DeploymentWizard({
 	}
 
 	function resetWizard() {
+		const cpuIdx = CPU_OPTIONS.indexOf(
+			(initialValues.cpu ?? "") as (typeof CPU_OPTIONS)[number],
+		);
+		const memIdx = MEMORY_OPTIONS.indexOf(
+			(initialValues.memory ?? "") as (typeof MEMORY_OPTIONS)[number],
+		);
 		setStep(1);
-		setImageUrl("");
+		setImageUrl(initialValues.imageUrl ?? "");
 		setImageError("");
-		setNetworkEnabled(true);
-		setSubdomain(initialSubdomain);
-		setPort("3000");
+		setNetworkEnabled(initialValues.networkEnabled ?? true);
+		setSubdomain(initialValues.subdomain ?? initialSubdomain);
+		setPort(String(initialValues.port ?? 3000));
 		setSubdomainAvailability(null);
-		setRegion("us-east-1");
-		setCpuIndex(1);
-		setMemIndex(1);
-		setEnvVars([]);
+		setRegion(initialValues.region ?? "us-east-1");
+		setCpuIndex(cpuIdx === -1 ? 1 : cpuIdx);
+		setMemIndex(memIdx === -1 ? 1 : memIdx);
+		setEnvVars(
+			Object.entries(initialValues.envVars ?? {}).map(([key, value]) => ({
+				id: crypto.randomUUID(),
+				key,
+				value,
+			})),
+		);
 		setRevealedVars(new Set());
 		setRevealCountdowns(new Map());
 	}
