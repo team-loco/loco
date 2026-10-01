@@ -1,0 +1,90 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+  timezone: "America/Los_Angeles",
+  dependencyDashboard: true,
+  dependencyDashboardTitle: "Dependency Dashboard",
+  labels: ["dependencies"],
+  prConcurrentLimit: 8,
+  prHourlyLimit: 0,
+  rebaseWhen: "conflicted",
+  ignorePaths: ["examples/**", "**/node_modules/**", "gen/ts/node_modules/**"],
+  postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
+  osvVulnerabilityAlerts: true,
+  vulnerabilityAlerts: {
+    labels: ["dependencies", "security"],
+  },
+  packageRules: [
+    {
+      matchDepNames: ["github.com/team-loco/loco/gen/go", "github.com/team-loco/loco/k8sapi"],
+      enabled: false,
+    },
+    {
+      groupName: "kubernetes",
+      matchDatasources: ["go"],
+      matchPackageNames: ["k8s.io/**", "sigs.k8s.io/**"],
+    },
+    {
+      groupName: "connectrpc",
+      matchDatasources: ["go"],
+      matchPackageNames: ["connectrpc.com/**"],
+    },
+    {
+      groupName: "golang.org/x",
+      matchDatasources: ["go"],
+      matchPackageNames: ["golang.org/x/**"],
+    },
+    {
+      groupName: "charmbracelet",
+      matchDatasources: ["go"],
+      matchPackageNames: ["charm.land/**"],
+    },
+    {
+      groupName: "opentelemetry charts",
+      matchManagers: ["helmv3"],
+      matchPackageNames: ["opentelemetry-**"],
+    },
+    {
+      matchManagers: ["dockerfile"],
+      pinDigests: true,
+    },
+    {
+      groupName: "github actions",
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
+    },
+    {
+      matchUpdateTypes: ["major"],
+      dependencyDashboardApproval: true,
+    },
+  ],
+  customManagers: [
+    {
+      customType: "regex",
+      description: "golangci-lint version pinned in the lint workflow",
+      managerFilePatterns: ["/^\\.github/workflows/lint\\.yml$/"],
+      matchStrings: ["version:\\s*(?<currentValue>v[\\d.]+)\\s"],
+      depNameTemplate: "golangci/golangci-lint",
+      datasourceTemplate: "github-releases",
+      extractVersionTemplate: "^v(?<version>.*)$",
+      versioningTemplate: "semver",
+    },
+    {
+      customType: "regex",
+      description: "DOKS control plane version pinned in terraform",
+      managerFilePatterns: ["/^terraform/do/kube\\.tf$/"],
+      matchStrings: ["version\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+-do\\.\\d+)\""],
+      depNameTemplate: "digitalocean/doks",
+      datasourceTemplate: "custom.doks",
+    },
+  ],
+  customDatasources: {
+    doks: {
+      defaultRegistryUrlTemplate: "https://api.digitalocean.com/v2/kubernetes/options",
+      format: "json",
+      transformTemplates: [
+        '{"releases": [{"version": $.options.versions[0].slug}], "sourceUrl": "https://docs.digitalocean.com/products/kubernetes/details/changelog/"}',
+      ],
+    },
+  },
+}
