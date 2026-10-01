@@ -1,4 +1,5 @@
 import { listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { useNow } from "./useNow";
 import { useQuery } from "@connectrpc/connect-query";
 
 export interface KubernetesEvent {
@@ -20,12 +21,14 @@ export function useStreamEvents(resourceId: string) {
 		{ enabled: !!resourceId }
 	);
 
+	const now = useNow();
+
 	const events: KubernetesEvent[] = (eventsRes?.events ?? []).map((event) => ({
 		timestamp: event.timestamp
 			? new Date(
 					Number((event.timestamp as Record<string, unknown>).seconds) * 1000
 			  ).toISOString()
-			: new Date().toISOString(),
+			: now.toISOString(),
 		severity: (event.type === "Warning" ? "Warning" : "Normal"),
 		eventType: event.reason || event.type || "Event",
 		pod: event.podName,
