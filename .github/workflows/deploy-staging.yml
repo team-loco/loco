@@ -57,6 +57,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-controller
@@ -70,6 +72,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-api
@@ -83,6 +87,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-ui
@@ -99,6 +105,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-agent
