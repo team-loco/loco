@@ -34,8 +34,8 @@ func New() (*Applier, error) {
 	}
 
 	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
+	if addErr := locoControllerV1.AddToScheme(scheme); addErr != nil {
+		return nil, fmt.Errorf("failed to add loco types to scheme: %w", addErr)
 	}
 
 	c, err := client.New(cfg, client.Options{Scheme: scheme})
@@ -95,14 +95,14 @@ func (a *Applier) ApplyFromJSON(ctx context.Context, specJSON []byte) error {
 	if err == nil {
 		// Update existing
 		existing.Spec = app.Spec
-		if err := a.client.Update(ctx, existing); err != nil {
-			return fmt.Errorf("failed to update Application: %w", err)
+		if updateErr := a.client.Update(ctx, existing); updateErr != nil {
+			return fmt.Errorf("failed to update Application: %w", updateErr)
 		}
 		slog.Info("updated Application", "name", app.Name, "namespace", app.Namespace)
 	} else if client.IgnoreNotFound(err) == nil {
 		// Create new
-		if err := a.client.Create(ctx, app); err != nil {
-			return fmt.Errorf("failed to create Application: %w", err)
+		if createErr := a.client.Create(ctx, app); createErr != nil {
+			return fmt.Errorf("failed to create Application: %w", createErr)
 		}
 		slog.Info("created Application", "name", app.Name, "namespace", app.Namespace)
 	} else {

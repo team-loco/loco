@@ -279,11 +279,6 @@ func validateObsSpec(spec *ObsSpec) error {
 		return nil
 	}
 
-	// Logging validation (optional)
-	if !spec.Logging.Enabled {
-		// no additional validation needed when disabled
-	}
-
 	// Metrics validation (optional)
 	if spec.Metrics.Enabled {
 		if spec.Metrics.Path != "" && !strings.HasPrefix(spec.Metrics.Path, "/") {
@@ -292,11 +287,6 @@ func validateObsSpec(spec *ObsSpec) error {
 		if spec.Metrics.Port < 1024 || spec.Metrics.Port > 65535 {
 			return fmt.Errorf("metrics.port must be between 1024 and 65535, got %d", spec.Metrics.Port)
 		}
-	}
-
-	// Tracing validation (optional)
-	if spec.Tracing.Enabled {
-		// sample rate validation could be added if needed
 	}
 
 	return nil

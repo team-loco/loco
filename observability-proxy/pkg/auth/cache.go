@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
@@ -16,7 +17,9 @@ func setPermission(ctx context.Context, c cache.Cache, key string, allowed bool)
 	if allowed {
 		val = permissionCacheAllowed
 	}
-	_ = c.Set(ctx, key, val, 0)
+	if err := c.Set(ctx, key, val, 0); err != nil {
+		slog.WarnContext(ctx, "failed to cache permission result", "key", key, "error", err)
+	}
 }
 
 // getPermission retrieves a cached permission result.

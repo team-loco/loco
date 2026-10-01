@@ -19,6 +19,9 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/service"
 	"golang.org/x/net/http2"
+	// nolint:staticcheck // SA1019: the http.Server.Protocols replacement only
+	// speaks prior-knowledge h2c, dropping the HTTP/1.1 Upgrade path this
+	// serves today; migrated separately.
 	"golang.org/x/net/http2/h2c"
 )
 
@@ -43,8 +46,8 @@ func main() {
 	}
 	defer ch.Close()
 
-	if err := ch.Ping(context.Background()); err != nil {
-		slog.Warn("clickhouse ping failed on startup (may not be ready yet)", "error", err)
+	if pingErr := ch.Ping(context.Background()); pingErr != nil {
+		slog.Warn("clickhouse ping failed on startup (may not be ready yet)", "error", pingErr)
 	}
 
 	// Initialize permission cache and token validator
@@ -85,7 +88,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
-		Handler: h2c.NewHandler(mux, &http2.Server{}),
+		Handler: h2c.NewHandler(mux, &http2.Server{}), // nolint:staticcheck // SA1019: see import
 	}
 
 	// Graceful shutdown
