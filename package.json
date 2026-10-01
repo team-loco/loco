@@ -4,5 +4,8 @@
 	"workspaces": [
 		"web",
 		"gen/ts"
-	]
+	],
+	"devDependencies": {
+		"@bufbuild/buf": "^1.73.0"
+	}
 }
