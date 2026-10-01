@@ -30,11 +30,15 @@ None of these block anything today; they are the things we knowingly deferred.
   - `design/Badge.tsx` carries a status palette (`success`/`warning`/`error`/`running`/
     `pending`/`stopped`) in **hardcoded hex**, not theme tokens. It predates the change and
     was preserved verbatim rather than retinted. Worth moving into `index.css` variables.
-- **`Home.tsx` empty states are untested in the wild.** `{true ? … : …}` had been
-  short-circuiting since Feb 2026 (commit 27c2d69), so the "No Results" search state
-  and the "Create Your First Resource" onboarding CTA never rendered. The original
-  `filteredResources.length > 0` guard is restored, but those two states have had no
-  real-world exercise — worth clicking through with an empty workspace.
+- **`Home.tsx` had a second dead empty state, and it was dead for a different reason.**
+  The `{true ? … : …}` short-circuit (commit 27c2d69) was fixed earlier, but restoring the
+  `filteredResources.length > 0` guard only exposed that `searchTerm` was declared
+  `const [searchTerm] = useState("")` — destructured with no setter, so it could never be
+  anything but `""`. `filteredResources` was therefore always `allResources` and the
+  "No Results" branch was unreachable. It was also redundant: `BentoDashboard` owns the
+  resource search now and has its own empty states. The dead state, filter and branch are
+  gone. The surviving "Create Your First Resource" CTA is confirmed rendering against a
+  real empty workspace.
 - **A stale `node_modules` produces ~140 phantom type errors.** `bun add`/`bun remove`
   do not always prune `node_modules/.bun`, so a second copy of `@tanstack/query-core` can
   linger after an update even though `bun.lock` references only one. Two copies means two

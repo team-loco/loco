@@ -11,7 +11,7 @@ import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceS
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { subscribeToEvents } from "@/lib/events";
 import { useQuery } from "@connectrpc/connect-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 export function Home() {
@@ -21,7 +21,6 @@ export function Home() {
 	const [searchParams] = useSearchParams();
 	const workspaceFromUrl = searchParams.get("workspace");
 	const selectedWorkspaceId = workspaceFromUrl ?? null;
-	const [searchTerm] = useState("");
 
 	// Fetch all organizations
 	const {
@@ -69,16 +68,6 @@ export function Home() {
 		() => listResourcesRes?.resources ?? [],
 		[listResourcesRes?.resources],
 	);
-
-	// Filter resources by search term
-	const filteredResources = useMemo(() => {
-		if (!searchTerm.trim()) {
-			return allResources;
-		}
-		return allResources.filter((resource) =>
-			resource.name.toLowerCase().includes(searchTerm.toLowerCase()),
-		);
-	}, [allResources, searchTerm]);
 
 	// Set header content
 	useEffect(() => {
@@ -151,18 +140,13 @@ export function Home() {
 			)}
 
 			{/* Applications and Deployments */}
-			{filteredResources.length > 0 ? (
+			{allResources.length > 0 ? (
 				<div className="mt-8">
 					<BentoDashboard
-						resources={filteredResources}
+						resources={allResources}
 						workspaceId={currentWorkspaceId ?? undefined}
 					/>
 				</div>
-			) : allResources.length > 0 ? (
-				<EmptyState
-					title="No Results"
-					description={`No resources match "${searchTerm}"`}
-				/>
 			) : (
 				<EmptyState
 					title="No Resources Yet"
