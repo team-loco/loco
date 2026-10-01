@@ -19,10 +19,7 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/service"
 	"golang.org/x/net/http2"
-	// nolint:staticcheck // SA1019: the http.Server.Protocols replacement only
-	// speaks prior-knowledge h2c, dropping the HTTP/1.1 Upgrade path this
-	// serves today; migrated separately.
-	"golang.org/x/net/http2/h2c"
+	"golang.org/x/net/http2/h2c" // nolint:staticcheck // SA1019: see the server setup in main
 )
 
 func main() {
@@ -87,8 +84,12 @@ func main() {
 	mux.Handle(path, handler)
 
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Port),
-		Handler: h2c.NewHandler(mux, &http2.Server{}), // nolint:staticcheck // SA1019: see import
+		Addr: fmt.Sprintf(":%d", cfg.Port),
+		// nolint:staticcheck // SA1019: h2c is deprecated in favour of
+		// http.Server.Protocols, but that replacement speaks only
+		// prior-knowledge h2c and drops the HTTP/1.1 Upgrade path served here;
+		// migrated separately.
+		Handler: h2c.NewHandler(mux, &http2.Server{}),
 	}
 
 	// Graceful shutdown
