@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -59,8 +60,12 @@ func main() {
 	)
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
-	transport.Protocols.SetHTTP1(true)
-	transport.Protocols.SetHTTP2(true)
+	if strings.HasPrefix(cfg.ControlPlaneURL, "http://") {
+		transport.Protocols.SetUnencryptedHTTP2(true)
+	} else {
+		transport.Protocols.SetHTTP1(true)
+		transport.Protocols.SetHTTP2(true)
+	}
 	httpClient := &http.Client{Transport: transport}
 
 	client := agentv1connect.NewAgentServiceClient(
