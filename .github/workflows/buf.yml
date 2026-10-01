@@ -1,0 +1,45 @@
+name: Buf
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "**.proto"
+      - "**/buf.yaml"
+      - "**/buf.lock"
+      - "**/buf.gen.yaml"
+      - ".github/workflows/buf.yml"
+  pull_request:
+    # `labeled`/`unlabeled` are required on top of the defaults so that adding or
+    # removing the `break-buf` label re-runs this workflow. Without them the
+    # label can only take effect on the next push.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - "**.proto"
+      - "**/buf.yaml"
+      - "**/buf.lock"
+      - "**/buf.gen.yaml"
+      - ".github/workflows/buf.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  buf:
+    name: Buf Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: bufbuild/buf-action@v1
+        with:
+          token: ${{ secrets.BUF_TOKEN }}
+          # Skip the breaking-change check on PRs labelled `break-buf`.
+          # NOTE: this must key off the pull_request payload. The previous
+          # `github.event.head_commit.message` only exists on push events, so on
+          # a PR it was always null and the bypass could never fire.
+          breaking: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'break-buf') }}
+          breaking_against_registry: true
