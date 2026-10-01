@@ -12,15 +12,21 @@ None of these block anything today; they are the things we knowingly deferred.
 - **`components/ui/*` is vendored, `components/design/*` is ours.** `ui/` is whatever the
   shadcn CLI generates and must stay overwritable; project styling lives in `design/`,
   which wraps the `ui/` component and layers overrides through `cn()`. App code imports the
-  wrapper. This is now enforced: `eslint.config.js` has a `no-restricted-imports` rule
-  listing the ten `ui/` modules that have a wrapper. **Add the path to that list whenever
-  you add a wrapper**, or the boundary silently stops applying to it. Components inside
-  `ui/` are exempt — shadcn components compose each other and have to.
+  wrapper, never the vendored component. This is enforced: `eslint.config.js` restricts the
+  whole `@/components/ui/*` pattern, exempting only `components/ui/**` (shadcn components
+  legitimately compose each other) and `components/design/**`. There is no allowlist to
+  maintain — **every** `ui/` module needs a `design/` wrapper before app code can import it,
+  so adding a shadcn component forces a deliberate choice about whether it needs styling.
+  Most wrappers are a one-line `export *`; that is the correct "no override yet" state.
+  - The wrappers are deliberately **not** all re-exported from `design/index.ts`.
+    `web/package.json` sets no `sideEffects`, so an `export *` barrel spanning `Chart`
+    (recharts, 293 KB) and `CodeBlock` (shiki, lazy-loaded) risks pulling them into every
+    chunk that imports anything from `design/`. Import the module directly
+    (`@/components/design/Table`); the barrel stays limited to the lightweight primitives.
   - Before Sept 2026 this did not hold: `Button`, `Badge`, `Input` and `Card` imported
     `@base-ui/react` directly and re-declared the whole `cva` from scratch, so a shadcn
     update to `ui/button.tsx` had no effect on `design/Button.tsx`. They are real wrappers
-    now. The remaining seven are bare re-exports, which is fine — that is the "no override
-    yet" state, and the import rule still points app code at the right place.
+    now.
   - `design/Badge.tsx` carries a status palette (`success`/`warning`/`error`/`running`/
     `pending`/`stopped`) in **hardcoded hex**, not theme tokens. It predates the change and
     was preserved verbatim rather than retinted. Worth moving into `index.css` variables.

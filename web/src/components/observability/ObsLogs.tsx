@@ -1,7 +1,7 @@
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Input } from "@/components/design/Input";
-import { Toggle } from "@/components/ui/toggle";
+import { Toggle } from "@/components/design/Toggle";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";

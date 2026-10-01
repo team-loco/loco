@@ -5,7 +5,7 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/design/DropdownMenu";
 import { useNavigate } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";

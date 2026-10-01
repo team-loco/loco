@@ -1,5 +1,5 @@
 import { Input } from "@/components/design/Input";
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "@/components/design/Slider";
 import { updateResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import type { ResourceDomain } from "@gen/loco/domain/v1/domain_pb";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";

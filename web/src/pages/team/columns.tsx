@@ -7,8 +7,8 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+} from "@/components/design/AlertDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { type WorkspaceMemberWithUser } from "@gen/loco/workspace/v1/workspace_pb";

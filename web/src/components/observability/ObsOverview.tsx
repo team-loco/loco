@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/design/Chart";
 import { ErrorCard } from "@/components/ErrorCard";
 import { Loader2 } from "lucide-react";
 import {

@@ -1,4 +1,4 @@
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription } from "@/components/design/Alert";
 import { Button } from "@/components/design/Button";
 import {
 	Dialog,

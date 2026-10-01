@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/design/Card";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@/components/design/Progress";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
 import { useQuery } from "@connectrpc/connect-query";

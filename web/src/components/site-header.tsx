@@ -1,5 +1,5 @@
 import { useAuth } from "@/auth/AuthProvider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { Button } from "@/components/design/Button";
 import {
     Dialog,
@@ -15,7 +15,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/design/DropdownMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { createOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";

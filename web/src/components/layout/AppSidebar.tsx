@@ -9,7 +9,7 @@ import {
 	SidebarMenuItem,
 	SidebarRail,
 	useSidebar,
-} from "@/components/ui/sidebar";
+} from "@/components/design/Sidebar";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { toggleSidebar } = useSidebar();

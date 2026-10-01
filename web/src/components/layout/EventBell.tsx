@@ -3,7 +3,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/design/DropdownMenu";
 import {
 	getRecentEvents,
 	subscribeToEvents,

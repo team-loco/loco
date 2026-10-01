@@ -11,7 +11,7 @@ import {
 } from "@/components/design/Dialog";
 import { Input } from "@/components/design/Input";
 import { Label } from "@/components/design/Label";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/design/Textarea";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useMutation } from "@connectrpc/connect-query";
 import { toast } from "sonner";

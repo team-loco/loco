@@ -1,6 +1,6 @@
 import { AuthProvider } from "@/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/design/Sonner";
 import { HeaderProvider } from "@/context/HeaderContext";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Login } from "@/pages/Login";

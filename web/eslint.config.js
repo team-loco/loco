@@ -3,6 +3,24 @@ import tseslint from "typescript-eslint";
 // Only type-aware rules — oxlint handles everything else.
 export default [
 	{
+		files: ["src/**/*.{ts,tsx}"],
+		ignores: ["src/components/ui/**", "src/components/design/**"],
+		rules: {
+			"no-restricted-imports": [
+				"error",
+				{
+					patterns: [
+						{
+							group: ["@/components/ui/*"],
+							message:
+								'Import from "@/components/design/<Component>" instead. components/ui/* is vendored from shadcn and is overwritten by the CLI; add a wrapper in components/design/ if one does not exist yet.',
+						},
+					],
+				},
+			],
+		},
+	},
+	{
 	files: ["**/*.{ts,tsx}"],
 	ignores: ["dist"],
 	languageOptions: {
