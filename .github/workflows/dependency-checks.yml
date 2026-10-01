@@ -40,7 +40,7 @@ jobs:
         run: chartbump -charts ./charts
 
       - name: Open pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: "chore(charts): bump helm chart dependencies"
           branch: automation/chartbump

@@ -6,8 +6,8 @@ import (
 	"os"
 	runtimeDebug "runtime/debug"
 
+	"charm.land/fang/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/fang"
 	"github.com/team-loco/loco/internal/ui"
 )
 
