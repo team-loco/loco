@@ -42,7 +42,8 @@ func NewStore(user string) (TokenStore, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get user home directory: %w", err)
 		}
-		return &FileStore{Path: filepath.Join(home, ".loco", credentialsFileName)}, nil
+		credentialsPath := filepath.Join(home, ".loco", credentialsFileName)
+		return &FileStore{Path: credentialsPath}, nil
 	default:
 		return nil, fmt.Errorf("unknown %s %q: expected \"keyring\" or \"file\"", StoreEnvVar, backend)
 	}
@@ -100,10 +101,11 @@ func (s *FileStore) Set(t UserToken) error {
 	if err != nil {
 		return err
 	}
-	if err = os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
-		return fmt.Errorf("failed to create %s: %w", filepath.Dir(s.Path), err)
+	dir := filepath.Dir(s.Path)
+	if err = os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("failed to create %s: %w", dir, err)
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(s.Path), credentialsFileName+".*")
+	tmp, err := os.CreateTemp(dir, credentialsFileName+".*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp credentials file: %w", err)
 	}

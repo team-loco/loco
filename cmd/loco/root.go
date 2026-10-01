@@ -78,8 +78,10 @@ func initLogger(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to get user home directory: %w", err)
 	}
 
+	logsPath := filepath.Join(home, ".loco", "loco.log")
+
 	output := &lumberjack.Logger{
-		Filename:   filepath.Join(home, ".loco", "loco.log"),
+		Filename:   logsPath,
 		MaxSize:    2, // megabytes
 		MaxBackups: 0,
 		MaxAge:     30, // days

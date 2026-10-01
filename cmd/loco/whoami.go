@@ -35,7 +35,8 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
-			usr, err := client.NewClient(host, t.Token).GetCurrentUser(ctx)
+			apiClient := client.NewClient(host, t.Token)
+			usr, err := apiClient.GetCurrentUser(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
@@ -48,7 +49,9 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				}
 			}
 
-			_, err = lipgloss.Fprintln(cmd.OutOrStdout(), renderCardString(usr, currentOrg, currentWorkspace))
+			card := renderCardString(usr, currentOrg, currentWorkspace)
+			out := cmd.OutOrStdout()
+			_, err = lipgloss.Fprintln(out, card)
 			return err
 		},
 	}
