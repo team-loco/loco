@@ -78,13 +78,15 @@ You must first reach out to me, nikumar1206, if you would like to deploy on this
 
 ## Contributing
 
-The linters CI gates on also run as git pre-commit hooks, at the same versions CI uses. Install [pre-commit](https://pre-commit.com), then enable the hooks once per clone:
+Linting is defined once, as make targets that both CI and the git pre-commit hooks call: `make lint-go`, `make lint-proto`, `make lint-web` and `make lint-actions`, or `make lint` for all of them. Tool versions are pinned in the Makefile.
+
+To run the hooks on every commit, install [pre-commit](https://pre-commit.com) and enable them once per clone:
 
 ```bash
 pre-commit install
 ```
 
-Each commit then runs only the hooks relevant to the staged files: `gofmt` and `golangci-lint` (per Go module), `buf lint`, the web oxlint/eslint/typecheck, and `actionlint`. The web hooks need `bun install` to have been run from the repository root. Run every hook against the whole tree with `pre-commit run --all-files`.
+Each commit then runs only the targets relevant to the staged files, and `make lint-go` only in the Go modules those files belong to. `make lint-web` needs `bun install` to have been run from the repository root.
 
 ---
 

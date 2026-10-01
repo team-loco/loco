@@ -3,53 +3,31 @@ default_install_hook_types: [pre-commit]
 repos:
   - repo: local
     hooks:
-      - id: gofmt
-        name: gofmt
+      - id: lint-go
+        name: make lint-go
         language: system
-        entry: gofmt -l -w
-        types: [go]
-        exclude: ^gen/
-
-      - id: golangci-lint
-        name: golangci-lint
-        language: golang
-        additional_dependencies:
-          - github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
         entry: scripts/golangci-lint-modules.sh
         files: (\.go|(^|/)go\.(mod|sum))$
         exclude: ^gen/
         require_serial: true
 
-      - id: buf-lint
-        name: buf lint
+      - id: lint-proto
+        name: make lint-proto
         language: system
-        entry: buf lint
+        entry: make lint-proto
         files: (\.proto|(^|/)buf\.(yaml|lock))$
         pass_filenames: false
 
-      - id: web-oxlint
-        name: web oxlint
+      - id: lint-web
+        name: make lint-web
         language: system
-        entry: bun run --cwd web lint:fast
-        files: ^web/
-        pass_filenames: false
-
-      - id: web-eslint
-        name: web eslint
-        language: system
-        entry: bun run --cwd web lint:types
+        entry: make lint-web
         files: ^(web/|gen/ts/)
         pass_filenames: false
 
-      - id: web-typecheck
-        name: web typecheck
+      - id: lint-actions
+        name: make lint-actions
         language: system
-        entry: bun run --cwd web typecheck
-        files: ^(web/|gen/ts/)
+        entry: make lint-actions
+        files: ^\.github/workflows/
         pass_filenames: false
-
-  - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.12
-    hooks:
-      - id: actionlint
-        args: [-shellcheck=]

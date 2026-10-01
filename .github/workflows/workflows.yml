@@ -7,9 +7,11 @@ on:
       - staging
     paths:
       - ".github/workflows/**"
+      - "Makefile"
   pull_request:
     paths:
       - ".github/workflows/**"
+      - "Makefile"
 
 permissions:
   contents: read
@@ -21,7 +23,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
       - name: actionlint
-        run: |
-          docker run --rm -v "$PWD":/repo -w /repo \
-            rhysd/actionlint:1.7.12 -color -shellcheck=
+        run: make lint-actions

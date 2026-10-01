@@ -12,6 +12,7 @@ on:
       - "package.json"
       - "bun.lock"
       - ".github/workflows/web.yml"
+      - "Makefile"
   pull_request:
     paths:
       - "web/**"
@@ -19,6 +20,7 @@ on:
       - "package.json"
       - "bun.lock"
       - ".github/workflows/web.yml"
+      - "Makefile"
 
 permissions:
   contents: read
@@ -55,10 +57,5 @@ jobs:
         working-directory: web
         run: bun run typecheck:tsc
 
-      - name: Lint (oxlint)
-        working-directory: web
-        run: bun run lint:fast
-
-      - name: Lint (eslint)
-        working-directory: web
-        run: bun run lint:types
+      - name: Lint
+        run: make lint-web

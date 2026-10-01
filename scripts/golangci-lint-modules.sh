@@ -1,29 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root=$(git rev-parse --show-toplevel)
-modules=(api controller agent k8sapi observability-proxy)
-
-selected=""
+modules=""
 for file in "$@"; do
-	case $file in
+	dir=$(dirname "$file")
+	while [[ $dir != . && ! -f $dir/go.mod ]]; do
+		dir=$(dirname "$dir")
+	done
+	case $dir in
 	gen/*) continue ;;
 	esac
-	module=.
-	for candidate in "${modules[@]}"; do
-		if [[ $file == "$candidate/"* ]]; then
-			module=$candidate
-			break
-		fi
-	done
-	if [[ " $selected " != *" $module "* ]]; then
-		selected="$selected $module"
+	if [[ " $modules " != *" $dir "* ]]; then
+		modules="$modules $dir"
 	fi
 done
 
-status=0
-for module in $selected; do
-	echo "golangci-lint: $module"
-	(cd "$root/$module" && golangci-lint run --config="$root/.golangci.yml" --timeout=5m) || status=1
-done
-exit $status
+if [[ -n $modules ]]; then
+	exec make lint-go GO_MODULES="${modules# }"
+fi
