@@ -301,6 +301,31 @@ url = "https://get.helm.sh/helm-v4.3.0-darwin-arm64.tar.gz"
 checksum = "sha256:347a784877e0e20eac865e8d1c36a80f6bb0861d6f29abd34defb6570ef95d92"
 url = "https://get.helm.sh/helm-v4.3.0-darwin-amd64.tar.gz"
 
+[[tools.helm-diff]]
+version = "3.15.15"
+backend = "github:databus23/helm-diff"
+specifiers = ["3.15.15"]
+
+[tools.helm-diff."platforms.linux-arm64"]
+checksum = "sha256:fc046bf3c3f63a435741fe8c37a9d740dfa17ea7f5f0c2a9da2c0222bb4384e6"
+url = "https://github.com/databus23/helm-diff/releases/download/v3.15.15/helm-diff-linux-arm64.tgz"
+url_api = "https://api.github.com/repos/databus23/helm-diff/releases/assets/589788393"
+
+[tools.helm-diff."platforms.linux-x64"]
+checksum = "sha256:504e99410611daa70702362e1b10dc74929df8a912cb3f6b5d21d1ee9d0cb7d9"
+url = "https://github.com/databus23/helm-diff/releases/download/v3.15.15/helm-diff-linux-amd64.tgz"
+url_api = "https://api.github.com/repos/databus23/helm-diff/releases/assets/589788383"
+
+[tools.helm-diff."platforms.macos-arm64"]
+checksum = "sha256:af2834052ba32fe8006a44a31db16cad30baf1c46f6b59160b092974578d7798"
+url = "https://github.com/databus23/helm-diff/releases/download/v3.15.15/helm-diff-macos-arm64.tgz"
+url_api = "https://api.github.com/repos/databus23/helm-diff/releases/assets/589788384"
+
+[tools.helm-diff."platforms.macos-x64"]
+checksum = "sha256:214d890745b45679400442552ad4554fb4df622b92d031931536eff85bdb46c2"
+url = "https://github.com/databus23/helm-diff/releases/download/v3.15.15/helm-diff-macos-amd64.tgz"
+url_api = "https://api.github.com/repos/databus23/helm-diff/releases/assets/589788344"
+
 [[tools.helmfile]]
 version = "1.8.1"
 backend = "aqua:helmfile/helmfile"

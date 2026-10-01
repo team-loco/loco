@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Run helmfile sync against an environment from helmfile.yaml.gotmpl, with the helm-diff plugin pinned in mise.toml"
+#USAGE arg "<environment>" help="helmfile environment, such as prod"
+set -euo pipefail
+
+HELM_PLUGINS=$(mise where helm-diff)
+export HELM_PLUGINS
+helmfile -e "$1" sync
