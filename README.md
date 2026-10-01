@@ -86,15 +86,7 @@ mise run setup
 
 That installs the pinned tools, the web dependencies and the git hooks. With [`mise activate`](https://mise.jdx.dev/getting-started.html#activate-mise) in your shell, the pinned tools are on `PATH` whenever you are inside the repository.
 
-Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them; the ones you will use most:
-
-| Task | Does |
-| --- | --- |
-| `mise run tilt` | the full local environment: kind cluster, infrastructure and live-reloading services |
-| `mise run gen` | regenerate code after changing `proto/`, `api/queries/` or `api/migrations/` |
-| `mise run controller:gen` | regenerate the controller CRDs and the chart's CRD copy |
-| `mise run test` | every test suite |
-| `mise run lint` | every linter CI runs |
+Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
 
 ---
 
