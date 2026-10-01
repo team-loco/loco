@@ -1,0 +1,55 @@
+default_install_hook_types: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        language: system
+        entry: gofmt -l -w
+        types: [go]
+        exclude: ^gen/
+
+      - id: golangci-lint
+        name: golangci-lint
+        language: golang
+        additional_dependencies:
+          - github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+        entry: scripts/golangci-lint-modules.sh
+        files: (\.go|(^|/)go\.(mod|sum))$
+        exclude: ^gen/
+        require_serial: true
+
+      - id: buf-lint
+        name: buf lint
+        language: system
+        entry: buf lint
+        files: (\.proto|(^|/)buf\.(yaml|lock))$
+        pass_filenames: false
+
+      - id: web-oxlint
+        name: web oxlint
+        language: system
+        entry: bun run --cwd web lint:fast
+        files: ^web/
+        pass_filenames: false
+
+      - id: web-eslint
+        name: web eslint
+        language: system
+        entry: bun run --cwd web lint:types
+        files: ^(web/|gen/ts/)
+        pass_filenames: false
+
+      - id: web-typecheck
+        name: web typecheck
+        language: system
+        entry: bun run --cwd web typecheck
+        files: ^(web/|gen/ts/)
+        pass_filenames: false
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+        args: [-shellcheck=]

@@ -78,7 +78,13 @@ You must first reach out to me, nikumar1206, if you would like to deploy on this
 
 ## Contributing
 
-To be added later.
+The linters CI gates on also run as git pre-commit hooks, at the same versions CI uses. Install [pre-commit](https://pre-commit.com), then enable the hooks once per clone:
+
+```bash
+pre-commit install
+```
+
+Each commit then runs only the hooks relevant to the staged files: `gofmt` and `golangci-lint` (per Go module), `buf lint`, the web oxlint/eslint/typecheck, and `actionlint`. The web hooks need `bun install` to have been run from the repository root. Run every hook against the whole tree with `pre-commit run --all-files`.
 
 ---
 
