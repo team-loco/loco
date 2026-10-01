@@ -13,11 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	charmLog "charm.land/log/v2"
 	"connectrpc.com/connect"
 	connectcors "connectrpc.com/cors"
 	"connectrpc.com/grpcreflect"
 	"connectrpc.com/validate"
-	charmLog "charm.land/log/v2"
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
