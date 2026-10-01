@@ -1,0 +1,3 @@
+! exec loco whoami
+stderr 'Login required'
+! fakeapi called WhoAmI

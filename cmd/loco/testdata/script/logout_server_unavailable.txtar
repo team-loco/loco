@@ -1,0 +1,9 @@
+# the local token is still removed when the server cannot revoke it, but the user is told.
+fakeapi fail Logout unavailable
+exec loco logout
+stdout 'Logged out successfully!'
+stderr 'could not revoke the session on the server'
+! exists $HOME/.loco/credentials.json
+
+-- home/.loco/credentials.json --
+{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
