@@ -1,0 +1,7 @@
+*
+!agent
+!gen/go
+!k8sapi
+**/node_modules
+**/dist
+**/*_test.go

@@ -16,6 +16,9 @@ on:
       - "main.go"
       - "go.mod"
       - "go.sum"
+      - ".golangci.yml"
+      - "Makefile"
+      - ".github/workflows/lint.yml"
   pull_request:
     paths:
       - "api/**"
@@ -27,6 +30,9 @@ on:
       - "main.go"
       - "go.mod"
       - "go.sum"
+      - ".golangci.yml"
+      - "Makefile"
+      - ".github/workflows/lint.yml"
 
 permissions:
   contents: read
@@ -66,8 +72,6 @@ jobs:
           go-version-file: go.mod
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.13
-          working-directory: ${{ matrix.working-directory }}
-          args: --config=${{ github.workspace }}/.golangci.yml --timeout=5m
+        env:
+          GO_MODULES: ${{ matrix.working-directory }}
+        run: make lint-go GO_MODULES="$GO_MODULES"

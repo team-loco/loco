@@ -8,9 +8,9 @@
 		"build": "tsgo --build && vite build",
 		"typecheck": "tsgo --build",
 		"typecheck:tsc": "tsc --build",
-		"lint": "oxlint --ignore-pattern dist . && eslint --cache .",
-		"lint:fast": "oxlint --ignore-pattern dist .",
-		"lint:types": "eslint --cache .",
+		"lint": "oxlint --ignore-pattern dist --deny-warnings . && eslint --cache --max-warnings 0 .",
+		"lint:fast": "oxlint --ignore-pattern dist --deny-warnings .",
+		"lint:types": "eslint --cache --max-warnings 0 .",
 		"preview": "vite preview"
 	},
 	"dependencies": {

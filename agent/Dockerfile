@@ -7,9 +7,8 @@ ENV CGO_ENABLED=0 \
 WORKDIR /app
 
 COPY agent ./agent
-COPY proto ./proto
+COPY gen/go ./gen/go
 COPY k8sapi ./k8sapi
-COPY controller ./controller
 
 WORKDIR /app/agent
 

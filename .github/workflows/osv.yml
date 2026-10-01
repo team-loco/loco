@@ -96,9 +96,9 @@ jobs:
 
           # an image is rescanned when its own tree, its Dockerfile, or a module
           # graph it compiles against moves
-          add '{"name":"controller","context":"./controller","dockerfile":"./controller/Dockerfile"}' '^(controller/|shared/|go\.(mod|sum)$)'
+          add '{"name":"controller","context":".","dockerfile":"./controller/Dockerfile"}' '^(controller/|shared/|go\.(mod|sum)$)'
           add '{"name":"api","context":".","dockerfile":"./api/Dockerfile"}' '^(api/|shared/|proto/|gen/go/|go\.(mod|sum)$)'
-          add '{"name":"agent","context":"./agent","dockerfile":"./agent/Dockerfile"}' '^(agent/|k8sapi/|go\.(mod|sum)$)'
+          add '{"name":"agent","context":".","dockerfile":"./agent/Dockerfile"}' '^(agent/|k8sapi/|go\.(mod|sum)$)'
           add '{"name":"observability-proxy","context":".","dockerfile":"./observability-proxy/Dockerfile"}' '^(observability-proxy/|gen/go/|go\.(mod|sum)$)'
           add '{"name":"ui","context":".","dockerfile":"./web/Dockerfile"}' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
 
