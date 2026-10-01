@@ -1,0 +1,109 @@
+name: OSV
+
+on:
+  pull_request:
+    paths:
+      - "**/Dockerfile"
+      - "**/go.mod"
+      - "**/go.sum"
+      - "**/package.json"
+      - "bun.lock"
+      - ".github/workflows/osv.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    name: Source
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.6.0
+    with:
+      scan-args: |-
+        --recursive
+        --experimental-exclude=examples
+        ./
+
+  changes:
+    name: Detect Changed Images
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.filter.outputs.images }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Filter
+        id: filter
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          FILES=$(git diff --name-only "$BASE" "$HEAD")
+          echo "changed files:"
+          echo "$FILES"
+
+          sel=()
+          add() { grep -qE "$2" <<<"$FILES" && sel+=("$1") || true; }
+
+          # an image is rescanned when its own tree, its Dockerfile, or a module
+          # graph it compiles against moves
+          add '{"name":"controller","context":"./controller","dockerfile":"./controller/Dockerfile"}' '^(controller/|shared/|go\.(mod|sum)$)'
+          add '{"name":"api","context":".","dockerfile":"./api/Dockerfile"}' '^(api/|shared/|proto/|gen/go/|go\.(mod|sum)$)'
+          add '{"name":"agent","context":"./agent","dockerfile":"./agent/Dockerfile"}' '^(agent/|k8sapi/|go\.(mod|sum)$)'
+          add '{"name":"observability-proxy","context":".","dockerfile":"./observability-proxy/Dockerfile"}' '^(observability-proxy/|gen/go/|go\.(mod|sum)$)'
+          add '{"name":"ui","context":".","dockerfile":"./web/Dockerfile"}' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
+
+          printf 'images=[%s]\n' "$(IFS=,; echo "${sel[*]-}")" >> "$GITHUB_OUTPUT"
+
+  image:
+    name: Image (${{ matrix.image.name }})
+    needs: changes
+    if: needs.changes.outputs.images != '[]'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.changes.outputs.images) }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: false
+          load: true
+          tags: loco-${{ matrix.image.name }}:osv
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # scanning the exported archive keeps osv-scanner out of the docker socket
+      - name: Scan image
+        run: |
+          set -euo pipefail
+          docker save "loco-${{ matrix.image.name }}:osv" -o /tmp/image.tar
+          docker run --rm -v /tmp:/out ghcr.io/google/osv-scanner:v2.6.0 \
+            scan image --archive /out/image.tar \
+            --format sarif --output-file /out/osv-image.sarif
+
+      - name: Upload results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: /tmp/osv-image.sarif
+          category: osv-image-${{ matrix.image.name }}
