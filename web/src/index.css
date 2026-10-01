@@ -94,7 +94,7 @@
 	/* Fonts */
 	--font-serif: "Raleway", "Georgia", serif;
 	--font-sans: "Geist Variable", sans-serif;
-	--font-mono: "DM Mono", "JetBrains Mono", "Menlo", "Monaco", monospace;
+	--font-mono: "JetBrains Mono", "Menlo", "Monaco", monospace;
 
 	/* Border radius */
 	--radius: 8px;

@@ -9,13 +9,16 @@ import {
 	DialogTitle,
 } from "@/components/design/Dialog";
 import { Label } from "@/components/design/Label";
+import { nonEmpty } from "@/lib/utils";
 import { AlertTriangle, Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
  
-const BASE_URL: string =
-	import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const BASE_URL: string = nonEmpty(
+	import.meta.env.VITE_API_URL,
+	"http://localhost:8000",
+);
 
 interface TokenDisplayDialogProps {
 	open: boolean;

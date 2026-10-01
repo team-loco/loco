@@ -9,18 +9,53 @@ None of these block anything today; they are the things we knowingly deferred.
 
 ### Frontend
 
+- **`components/ui/*` is vendored, `components/design/*` is ours.** `ui/` is whatever the
+  shadcn CLI generates and must stay overwritable; project styling lives in `design/`,
+  which wraps the `ui/` component and layers overrides through `cn()`. App code imports the
+  wrapper. This is now enforced: `eslint.config.js` has a `no-restricted-imports` rule
+  listing the ten `ui/` modules that have a wrapper. **Add the path to that list whenever
+  you add a wrapper**, or the boundary silently stops applying to it. Components inside
+  `ui/` are exempt — shadcn components compose each other and have to.
+  - Before Sept 2026 this did not hold: `Button`, `Badge`, `Input` and `Card` imported
+    `@base-ui/react` directly and re-declared the whole `cva` from scratch, so a shadcn
+    update to `ui/button.tsx` had no effect on `design/Button.tsx`. They are real wrappers
+    now. The remaining seven are bare re-exports, which is fine — that is the "no override
+    yet" state, and the import rule still points app code at the right place.
+  - `design/Badge.tsx` carries a status palette (`success`/`warning`/`error`/`running`/
+    `pending`/`stopped`) in **hardcoded hex**, not theme tokens. It predates the change and
+    was preserved verbatim rather than retinted. Worth moving into `index.css` variables.
 - **`Home.tsx` empty states are untested in the wild.** `{true ? … : …}` had been
   short-circuiting since Feb 2026 (commit 27c2d69), so the "No Results" search state
   and the "Create Your First Resource" onboarding CTA never rendered. The original
   `filteredResources.length > 0` guard is restored, but those two states have had no
   real-world exercise — worth clicking through with an empty workspace.
+- **A stale `node_modules` produces ~140 phantom type errors.** `bun add`/`bun remove`
+  do not always prune `node_modules/.bun`, so a second copy of `@tanstack/query-core` can
+  linger after an update even though `bun.lock` references only one. Two copies means two
+  structurally incompatible `QueryClient` types and every `connect-query` hook fails to
+  typecheck. If you see `Property '#private' in type 'QueryClient' refers to a different
+  member`, the fix is `rm -rf node_modules */node_modules && bun install` — not a code
+  change. `eslint --cache` holds onto the bad results afterwards; delete `.eslintcache` too.
 - **tsgo is a dev preview.** `build`/`typecheck` use `tsgo` (`@typescript/native-preview`,
   7.0.0-dev), which is ~7x faster than tsc. `typecheck:tsc` runs the reference compiler
   in CI as a cross-check. If the two ever disagree, that step is the tripwire. Drop the
-  extra step once tsgo ships stable.
-- **Bundle sizes shifted slightly** when we moved npm → bun, because bun resolved some
-  transitive deps differently. No `package.json` dependency changed. Only matters if we
-  start tracking bundle budgets.
+  extra step once tsgo ships stable. (Note: `typescript` itself is now at 7.0.2 stable,
+  but `@typescript/native-preview` is still on a `7.0.0-dev` build — not the same thing.)
+- **Three major upgrades are deliberately deferred**: `@tanstack/react-table` 8 → 9,
+  `motion` 12 → 13, `typescript` 6 → 7. Everything else is current as of Sept 2026. These
+  are breaking-change upgrades and want their own PR each.
+- **Mock data still ships in a live page.** `pages/resource-details/mock-usage.ts` feeds the
+  per-region CPU/memory bars on `ResourceDetails`; the numbers are deterministic noise
+  seeded off status, not telemetry. `pages/Usage.tsx` and `pages/Resources.tsx` are
+  "Coming soon" cards. All three are waiting on the obs pipeline.
+- **Four font stacks load at once**, which is deliberate but worth knowing: Satoshi
+  (self-hosted `.woff`, set on `body`), Geist Variable (`@fontsource-variable/geist`, the
+  `--font-sans`/`font-sans` token), and Google-hosted JetBrains Mono (`--font-mono`) and
+  Raleway (`--font-serif`). The Google ones are render-blocking `<link>`s in `index.html`.
+  Satoshi is `.woff`, not `.woff2` — converting would save roughly 30%.
+- **`public/` is served verbatim and is not tree-shaken.** Anything dropped in there ships
+  in the nginx image whether or not a component references it. `gradient3.svg` (1.3 MB) and
+  `logo.png` (825 KB) are both referenced and both unoptimised.
 
 ### Infrastructure
 
@@ -53,11 +88,65 @@ None of these block anything today; they are the things we knowingly deferred.
   so `go get -u` correctly refuses. It reaches us transitively via protovalidate and will
   move once upstream migrates.
 - **No workflow watches `.github/workflows/**`.** Changes to CI config merge without any
-  check running against them — #119 merged with zero checks. Worth adding a lint/validate
-  job for workflow files.
+  check running against them — #119 merged with zero checks. This is not theoretical: it
+  let every image-build job in both deploy workflows sit broken (see "Recently fixed"), and
+  let a fully commented-out `controller-e2e.yml` fail on every single push for months.
+  `actionlint` catches all three classes in under a second; it should be a job.
 
 ### Recently fixed (context, not TODO)
 
+- **Toasts never followed the theme.** `ui/sonner.tsx` read `useTheme` from `next-themes`,
+  but the app has always used its own `ThemeProvider` (`lib/theme-provider.tsx`). With no
+  next-themes provider mounted, `useTheme()` returned its default and the Toaster was
+  pinned to `theme="system"` — so toggling the app to dark on a light-mode OS gave light
+  toasts over a dark UI. Now reads `@/lib/use-theme`; `next-themes` is gone. (This is the
+  "fix sonner nonsense" line in `web/notes.md`.)
+- **Both animation plugins were loaded.** `index.css` had `@import "tw-animate-css"` *and*
+  `@plugin "tailwindcss-animate"` — the Tailwind v4 package and the deprecated v3 one it
+  replaces, defining the same utilities twice. Dropping the v3 plugin removed 8 KB of
+  duplicate CSS with every `animate-*`/`fade-*`/`slide-*` utility verified still present.
+- **The postcss toolchain was inert.** `postcss`, `autoprefixer` and `@tailwindcss/postcss`
+  were installed with no `postcss.config.*` anywhere; Tailwind v4 runs through
+  `@tailwindcss/vite`. Removing all three produced a byte-identical CSS bundle.
+- **`cn` now comes from the `cn` package** rather than `twMerge(clsx(...))`. `lib/utils.ts`
+  re-exports it, so every call site still imports from `@/lib/utils` and nothing was
+  rewritten. `clsx` and `tailwind-merge` are gone. Checked before adopting: the npm name
+  was a 2013 Chuck Norris CLI transferred to the `shadcn` account, the current package has
+  npm provenance attestations from `shadcn-ui/cn`, zero runtime deps, MIT. It is 0.4.0 and
+  moving fast — worth re-checking if class merging ever behaves oddly.
+- **~1,430 lines of dead components deleted** — `nav-user`, `section-cards`, `search-form`,
+  `AppCard`, `Layout`, `dashboard/{ApplicationsGrid,ApplicationsTable,RecentDeployments,
+  OrgFilter,AppSearch}` and `lib/mock-metrics`, none of which had an importer.
+- **~11 MB of unreferenced assets deleted** from `public/` — chiefly a 9.6 MB
+  `landscape.jpg` that nothing pointed at (`landscape.webp`, 76 KB, is what renders), plus
+  `landscape1.jpg` and an unused `space-grotesk` font family. `dist` went 16 MB → 5.6 MB.
+  The favicon was a hotlink to `openmoji.org`; it now serves the local `train.svg`.
+- **Every image-build job in both deploy workflows was invalid.** All four called the
+  reusable `build-push.yml` from inside `steps:` (`uses:` at step level only resolves
+  actions, not workflows), so controller/api/ui/agent images could never build. Moved to
+  job-level `uses:`. The same jobs gated on
+  `contains(github.event.head_commit.modified, 'web/')` — `modified` is an array of exact
+  paths, so `contains` does element equality and never matched, and it only covers the last
+  commit of a push. Replaced with a `changes` job that diffs the push range.
+- **The UI image was built with development config.** `web/Dockerfile` declares
+  `ARG VITE_API_URL`/`VITE_APP_ENV`, but nothing ever passed them and `build-push.yml` had
+  no input for them, so production images baked in `http://localhost:8000` and
+  `APP_ENV=DEVELOPMENT` (which also forces the JSON wire format instead of binary).
+  `build-push.yml` now takes `build_args`; the deploy workflows pass
+  `vars.VITE_API_URL_{STAGING,PRODUCTION}` with a fallback to `https://api.deploy-app.com`.
+  **Set those two repository variables** if the hosts ever diverge — today both
+  `clusters/*/infrastructure/values/loco-core-values.yaml` point at the same API host.
+- **`controller-e2e.yml` was entirely commented out**, so GitHub parsed a workflow with no
+  `on:`/`jobs:` and recorded a failed 0s run on every push. Deleted.
+- **The SPA shell was cacheable.** nginx set `immutable` 1y on hashed assets but no
+  `Cache-Control` at all on `index.html`, so a heuristically-cached shell could outlive the
+  chunks it references and 404 them after a deploy. Now `no-cache`.
+- **Dead config references removed**: `tsconfig.node.json` included a `tailwind.config.ts`
+  that does not exist (Tailwind v4 is CSS-first) and `components.json` pointed at it too;
+  `tsconfig.app.json` targeted `es2024` with `lib: ES2022`. `@bufbuild/buf` and `shadcn`
+  were runtime `dependencies` of the web app — buf moved to root devDependencies (it is a
+  repo-level codegen tool; note `make gen` actually calls a PATH `buf`, not this one),
+  shadcn to web devDependencies.
 - `.gitignore` had a bare `design/` that matched `web/src/components/design/`, keeping the
   entire UI design system (11 components, 50 importers) out of the repo. The frontend could
   not build from a clean checkout or in Docker. Fixed by anchoring the pattern.
