@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/team-loco/loco/internal/session"
 	"github.com/zalando/go-keyring"
 )
 
@@ -38,11 +39,11 @@ func NewStore(user string) (TokenStore, error) {
 	case "keyring":
 		return &KeyringStore{User: user}, nil
 	case "file":
-		home, err := os.UserHomeDir()
+		locoDir, err := session.Dir()
 		if err != nil {
-			return nil, fmt.Errorf("failed to get user home directory: %w", err)
+			return nil, err
 		}
-		credentialsPath := filepath.Join(home, ".loco", credentialsFileName)
+		credentialsPath := filepath.Join(locoDir, credentialsFileName)
 		return &FileStore{Path: credentialsPath}, nil
 	default:
 		return nil, fmt.Errorf("unknown %s %q: expected \"keyring\" or \"file\"", StoreEnvVar, backend)

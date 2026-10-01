@@ -40,14 +40,22 @@ type SimpleWorkspace struct {
 	ID   string `toml:"id"`
 }
 
-func GetConfigPath() (string, error) {
+func Dir() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
-
 	locoDir := filepath.Join(home, ".loco")
-	if err := os.MkdirAll(locoDir, 0o755); err != nil {
+	return locoDir, nil
+}
+
+func GetConfigPath() (string, error) {
+	locoDir, err := Dir()
+	if err != nil {
+		return "", err
+	}
+
+	if err = os.MkdirAll(locoDir, 0o755); err != nil {
 		return "", fmt.Errorf("failed to create .loco directory: %w", err)
 	}
 

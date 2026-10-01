@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/cmd/loco/token"
 	"github.com/team-loco/loco/cmd/loco/workspace"
 	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/internal/session"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -73,12 +74,11 @@ func NewRootCmd(env Env) *cobra.Command {
 }
 
 func initLogger(cmd *cobra.Command) error {
-	home, err := os.UserHomeDir()
+	logsDir, err := session.Dir()
 	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+		return err
 	}
-
-	logsPath := filepath.Join(home, ".loco", "loco.log")
+	logsPath := filepath.Join(logsDir, "loco.log")
 
 	output := &lumberjack.Logger{
 		Filename:   logsPath,
