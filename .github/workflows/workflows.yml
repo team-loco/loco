@@ -1,0 +1,40 @@
+name: Workflows
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - ".github/workflows/**"
+      - "scripts/check-workflow-permissions.py"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "scripts/check-workflow-permissions.py"
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: actionlint
+        run: |
+          docker run --rm -v "$PWD":/repo -w /repo \
+            rhysd/actionlint:1.7.12 -color -shellcheck=
+
+  reusable-permissions:
+    name: Reusable Workflow Permissions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check call-site permissions
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check pyyaml
+          python3 scripts/check-workflow-permissions.py
