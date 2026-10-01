@@ -6,6 +6,8 @@
 		"gen/ts"
 	],
 	"devDependencies": {
-		"@bufbuild/buf": "^1.73.0"
+		"@bufbuild/protoc-gen-es": "2.16.0",
+		"@connectrpc/protoc-gen-connect-es": "1.7.0",
+		"@connectrpc/protoc-gen-connect-query": "2.3.1"
 	}
 }
