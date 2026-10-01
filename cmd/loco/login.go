@@ -61,362 +61,362 @@ type TokenDetails struct {
 	TokenTTL float64 `json:"tokenTTL"`
 }
 
-func init() {
-	loginCmd.Flags().String("host", "", "Set the host URL")
-}
+func newLoginCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "login",
+		Short: "Login to loco via Github OAuth",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			host, err := cmdutil.GetHost(cmd)
+			if err != nil {
+				return err
+			}
+			user, err := osUser.Current()
+			if err != nil {
+				slog.Debug("failed to get current user", "error", err)
+				return err
+			}
 
-var loginCmd = &cobra.Command{
-	Use:   "login",
-	Short: "Login to loco via Github OAuth",
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		host, err := cmdutil.GetHost(cmd)
-		if err != nil {
-			return err
-		}
-		user, err := osUser.Current()
-		if err != nil {
-			slog.Debug("failed to get current user", "error", err)
-			return err
-		}
+			t, err := keychain.GetLocoToken(user.Name)
+			if err != nil {
+				slog.Error("failed keychain token grab", "error", err)
+			}
 
-		t, err := keychain.GetLocoToken(user.Name)
-		if err != nil {
-			slog.Error("failed keychain token grab", "error", err)
-		}
+			if err == nil {
+				if !t.ExpiresAt.Before(time.Now().Add(1 * time.Hour)) {
+					checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
+					message := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Already logged in!")
+					subtext := lipgloss.NewStyle().
+						Foreground(ui.LocoLightGray).
+						Render("You can continue using loco")
 
-		if err == nil {
-			if !t.ExpiresAt.Before(time.Now().Add(1 * time.Hour)) {
-				checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
-				message := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Already logged in!")
-				subtext := lipgloss.NewStyle().
-					Foreground(ui.LocoLightGray).
-					Render("You can continue using loco")
+					fmt.Printf("%s %s\n%s\n", checkmark, message, subtext)
+					return nil
+				}
+				slog.Debug("token is expired or will expire soon", "expires_at", t.ExpiresAt)
+			} else {
+				slog.Debug("no token found in keychain", "error", err)
+			}
+			c := api.NewClient("https://github.com")
 
-				fmt.Printf("%s %s\n%s\n", checkmark, message, subtext)
+			httpClient := httputil.NewHTTPClient()
+			oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
+			resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
+				Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
+			}))
+			if err != nil {
+				cmdutil.LogRequestID(cmd.Context(), err, "failed to get oAuth details")
+				return err
+			}
+			slog.Debug("retrieved oauth details", "client_id", resp.Msg.ClientId)
+
+			payload := DeviceCodeRequest{
+				ClientID: resp.Msg.ClientId,
+				Scope:    "read:user user:email",
+			}
+
+			req, err := c.Post("/login/device/code", payload, map[string]string{
+				"Accept":       contentTypeJSON,
+				"Content-Type": contentTypeJSON,
+			})
+			if err != nil {
+				slog.Debug("failed to get device code", "error", err)
+				return err
+			}
+
+			deviceTokenResponse := new(DeviceCodeResponse)
+			err = json.Unmarshal(req, deviceTokenResponse)
+			if err != nil {
+				slog.Debug("failed to unmarshal device code response", "error", err)
+				return err
+			}
+
+			tokenChan := make(chan AuthTokenResponse, 1)
+			errorChan := make(chan error, 1)
+
+			go func() {
+				pollErr := pollAuthToken(
+					c,
+					payload.ClientID,
+					deviceTokenResponse.DeviceCode,
+					deviceTokenResponse.Interval,
+					tokenChan,
+				)
+				if pollErr != nil {
+					fmt.Println(pollErr.Error())
+					errorChan <- pollErr
+				}
+			}()
+
+			m := initialModel(deviceTokenResponse.UserCode, deviceTokenResponse.VerificationURI, tokenChan, errorChan)
+			p := tea.NewProgram(m)
+
+			fm, err := p.Run()
+			if err != nil {
+				return err
+			}
+
+			finalM, ok := fm.(model)
+			if !ok {
+				return fmt.Errorf("%w: unexpected model type", ErrCommandFailed)
+			}
+
+			if finalM.err != nil {
+				return finalM.err
+			}
+
+			if finalM.tokenResp != nil {
+				slog.Debug("received auth token from github oauth")
+			}
+
+			if finalM.tokenResp == nil {
 				return nil
 			}
-			slog.Debug("token is expired or will expire soon", "expires_at", t.ExpiresAt)
-		} else {
-			slog.Debug("no token found in keychain", "error", err)
-		}
-		c := api.NewClient("https://github.com")
 
-		httpClient := httputil.NewHTTPClient()
-		oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
-		resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
-			Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
-		}))
-		if err != nil {
-			cmdutil.LogRequestID(cmd.Context(), err, "failed to get oAuth details")
-			return err
-		}
-		slog.Debug("retrieved oauth details", "client_id", resp.Msg.ClientId)
-
-		payload := DeviceCodeRequest{
-			ClientID: resp.Msg.ClientId,
-			Scope:    "read:user user:email",
-		}
-
-		req, err := c.Post("/login/device/code", payload, map[string]string{
-			"Accept":       contentTypeJSON,
-			"Content-Type": contentTypeJSON,
-		})
-		if err != nil {
-			slog.Debug("failed to get device code", "error", err)
-			return err
-		}
-
-		deviceTokenResponse := new(DeviceCodeResponse)
-		err = json.Unmarshal(req, deviceTokenResponse)
-		if err != nil {
-			slog.Debug("failed to unmarshal device code response", "error", err)
-			return err
-		}
-
-		tokenChan := make(chan AuthTokenResponse, 1)
-		errorChan := make(chan error, 1)
-
-		go func() {
-			pollErr := pollAuthToken(
-				c,
-				payload.ClientID,
-				deviceTokenResponse.DeviceCode,
-				deviceTokenResponse.Interval,
-				tokenChan,
+			locoResp, err := oAuthClient.ExchangeOAuthToken(
+				cmd.Context(),
+				connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
+					Provider:              oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
+					Token:                 finalM.tokenResp.AccessToken,
+					CreateUserIfNotExists: true,
+				}),
 			)
-			if pollErr != nil {
-				fmt.Println(pollErr.Error())
-				errorChan <- pollErr
+			if err != nil {
+				return err
 			}
-		}()
 
-		m := initialModel(deviceTokenResponse.UserCode, deviceTokenResponse.VerificationURI, tokenChan, errorChan)
-		p := tea.NewProgram(m)
+			orgClient := orgv1connect.NewOrgServiceClient(httpClient, host)
+			wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 
-		fm, err := p.Run()
-		if err != nil {
-			return err
-		}
+			existingCfg, err := session.Load()
+			if err != nil {
+				slog.Debug("failed to load existing config", "error", err)
+			}
 
-		finalM, ok := fm.(model)
-		if !ok {
-			return fmt.Errorf("%w: unexpected model type", ErrCommandFailed)
-		}
+			// use existing scope if it exists.
+			if existingCfg != nil {
+				scope, scopeErr := existingCfg.GetScope()
+				if scopeErr == nil {
+					keychain.SetLocoToken(user.Name, keychain.UserToken{
+						Token: locoResp.Msg.LocoToken,
+						// sub 10 mins
+						ExpiresAt: time.Now().Add(time.Duration(locoResp.Msg.ExpiresIn)*time.Second - (10 * time.Minute)),
+					})
 
-		if finalM.err != nil {
-			return finalM.err
-		}
+					checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
+					title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Logged in!")
+					orgLine := lipgloss.NewStyle().
+						Foreground(ui.LocoLightGray).
+						Render(fmt.Sprintf("  Organization: %s", scope.Organization.Name))
+					wsLine := lipgloss.NewStyle().
+						Foreground(ui.LocoLightGray).
+						Render(fmt.Sprintf("  Workspace: %s", scope.Workspace.Name))
+					fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
+					return nil
+				}
+			}
 
-		if finalM.tokenResp != nil {
-			slog.Debug("received auth token from github oauth")
-		}
+			var selectedOrg *orgv1.Organization
+			var selectedWorkspace *workspacev1.Workspace
 
-		if finalM.tokenResp == nil {
-			return nil
-		}
+			userClient := userv1connect.NewUserServiceClient(httpClient, host)
 
-		locoResp, err := oAuthClient.ExchangeOAuthToken(
-			cmd.Context(),
-			connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
-				Provider:              oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
-				Token:                 finalM.tokenResp.AccessToken,
-				CreateUserIfNotExists: true,
-			}),
-		)
-		if err != nil {
-			return err
-		}
+			currentUserReq := connect.NewRequest(&userv1.WhoAmIRequest{})
+			currentUserReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-		orgClient := orgv1connect.NewOrgServiceClient(httpClient, host)
-		wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
+			currentUserResp, err := userClient.WhoAmI(context.Background(), currentUserReq)
+			if err != nil {
+				slog.Debug("failed to get current user", "error", err)
+				return fmt.Errorf("failed to get current user: %w", err)
+			}
 
-		existingCfg, err := session.Load()
-		if err != nil {
-			slog.Debug("failed to load existing config", "error", err)
-		}
+			orgRequest := connect.NewRequest(&orgv1.ListUserOrgsRequest{
+				UserId:   currentUserResp.Msg.User.Id,
+				PageSize: 100,
+			})
+			orgRequest.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-		// use existing scope if it exists.
-		if existingCfg != nil {
-			scope, scopeErr := existingCfg.GetScope()
-			if scopeErr == nil {
-				keychain.SetLocoToken(user.Name, keychain.UserToken{
-					Token: locoResp.Msg.LocoToken,
+			orgResp, err := orgClient.ListUserOrgs(context.Background(), orgRequest)
+			if err != nil {
+				slog.Debug("failed to get user orgs details", "error", err)
+				return err
+			}
+
+			email := currentUserResp.Msg.User.GetEmail()
+			cleanEmailFunc := func(email string) string {
+				s := strings.ToLower(email)
+				s = strings.ReplaceAll(s, "@", "-")
+				s = strings.ReplaceAll(s, ".", "-")
+				s = strings.ReplaceAll(s, "+", "-")
+				return s
+			}
+			cleanedEmail := cleanEmailFunc(email)
+
+			orgs := orgResp.Msg.GetOrgs()
+			if len(orgs) == 0 {
+				orgName := fmt.Sprintf("%s-org", cleanedEmail)
+				createOrgReq := connect.NewRequest(&orgv1.CreateOrgRequest{
+					Name: &orgName,
+				})
+				createOrgReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+
+				createOrgResp, err := orgClient.CreateOrg(context.Background(), createOrgReq)
+				if err != nil {
+					slog.Debug("failed to create organization", "error", err)
+					return fmt.Errorf("failed to create organization: %w", err)
+				}
+
+				createdOrg := createOrgResp.Msg
+				if createdOrg == nil {
+					return fmt.Errorf("organization creation returned empty response")
+				}
+
+				// Fetch the created org to get its name
+				getOrgReq := connect.NewRequest(&orgv1.GetOrgRequest{
+					Key: &orgv1.GetOrgRequest_OrgId{
+						OrgId: createdOrg.OrgId,
+					},
+				})
+				getOrgReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+
+				getOrgResp, err := orgClient.GetOrg(context.Background(), getOrgReq)
+				if err != nil {
+					slog.Debug("failed to get created organization", "error", err)
+					return fmt.Errorf("failed to get created organization: %w", err)
+				}
+
+				workspaceName := "default"
+				wsClientNew := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
+				createWSReq := connect.NewRequest(&workspacev1.CreateWorkspaceRequest{
+					OrgId: createdOrg.OrgId,
+					Name:  workspaceName,
+				})
+				createWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+
+				createWSResp, err := wsClientNew.CreateWorkspace(context.Background(), createWSReq)
+				if err != nil {
+					slog.Debug("failed to create workspace", "error", err)
+					return fmt.Errorf("failed to create workspace: %w", err)
+				}
+
+				// Fetch the created workspace to get its name
+				getWSReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
+					WorkspaceId: createWSResp.Msg.WorkspaceId,
+				})
+				getWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+
+				getWSResp, err := wsClientNew.GetWorkspace(context.Background(), getWSReq)
+				if err != nil {
+					slog.Debug("failed to get created workspace", "error", err)
+					return fmt.Errorf("failed to get created workspace: %w", err)
+				}
+
+				cfg := session.NewSessionConfig()
+				if err := cfg.SetDefaultScope(
+					session.SimpleOrg{ID: getOrgResp.Msg.Organization.Id, Name: getOrgResp.Msg.Organization.Name},
+					session.SimpleWorkspace{ID: getWSResp.Msg.Workspace.Id, Name: getWSResp.Msg.Workspace.Name},
+				); err != nil {
+					slog.Error(err.Error())
+					return err
+				}
+
+				keychainErr := keychain.SetLocoToken(user.Name, keychain.UserToken{
+					Token:        locoResp.Msg.LocoToken,
+					RefreshToken: locoResp.Msg.RefreshToken,
 					// sub 10 mins
 					ExpiresAt: time.Now().Add(time.Duration(locoResp.Msg.ExpiresIn)*time.Second - (10 * time.Minute)),
 				})
+				if keychainErr != nil {
+					slog.Debug("failed to store token in keychain", "error", keychainErr)
+					return fmt.Errorf("failed to store token: %w", keychainErr)
+				}
 
 				checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
-				title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Logged in!")
+				title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
 				orgLine := lipgloss.NewStyle().
 					Foreground(ui.LocoLightGray).
-					Render(fmt.Sprintf("  Organization: %s", scope.Organization.Name))
+					Render(fmt.Sprintf("  Organization: %s", getOrgResp.Msg.Organization.Name))
 				wsLine := lipgloss.NewStyle().
 					Foreground(ui.LocoLightGray).
-					Render(fmt.Sprintf("  Workspace: %s", scope.Workspace.Name))
+					Render(fmt.Sprintf("  Workspace: %s", getWSResp.Msg.Workspace.Name))
 				fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
+
 				return nil
 			}
-		}
 
-		var selectedOrg *orgv1.Organization
-		var selectedWorkspace *workspacev1.Workspace
+			if len(orgs) == 1 {
+				selectedOrg = orgs[0]
 
-		userClient := userv1connect.NewUserServiceClient(httpClient, host)
+				wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
+					OrgId:    selectedOrg.Id,
+					PageSize: 100,
+				})
+				wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-		currentUserReq := connect.NewRequest(&userv1.WhoAmIRequest{})
-		currentUserReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+				wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
+				if err != nil {
+					slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
+					return fmt.Errorf("failed to list workspaces: %w", err)
+				}
 
-		currentUserResp, err := userClient.WhoAmI(context.Background(), currentUserReq)
-		if err != nil {
-			slog.Debug("failed to get current user", "error", err)
-			return fmt.Errorf("failed to get current user: %w", err)
-		}
+				workspaces := wsResp.Msg.Workspaces
+				if len(workspaces) == 0 {
+					return fmt.Errorf("organization has no workspaces")
+				}
 
-		orgRequest := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-			UserId:   currentUserResp.Msg.User.Id,
-			PageSize: 100,
-		})
-		orgRequest.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+				selectedWorkspace = workspaces[0]
+			} else {
+				selectedOrg = orgs[0]
 
-		orgResp, err := orgClient.ListUserOrgs(context.Background(), orgRequest)
-		if err != nil {
-			slog.Debug("failed to get user orgs details", "error", err)
-			return err
-		}
+				wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
+					OrgId:    selectedOrg.Id,
+					PageSize: 100,
+				})
+				wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
 
-		email := currentUserResp.Msg.User.GetEmail()
-		cleanEmailFunc := func(email string) string {
-			s := strings.ToLower(email)
-			s = strings.ReplaceAll(s, "@", "-")
-			s = strings.ReplaceAll(s, ".", "-")
-			s = strings.ReplaceAll(s, "+", "-")
-			return s
-		}
-		cleanedEmail := cleanEmailFunc(email)
+				wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
+				if err != nil {
+					slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
+					return fmt.Errorf("failed to list workspaces: %w", err)
+				}
 
-		orgs := orgResp.Msg.GetOrgs()
-		if len(orgs) == 0 {
-			orgName := fmt.Sprintf("%s-org", cleanedEmail)
-			createOrgReq := connect.NewRequest(&orgv1.CreateOrgRequest{
-				Name: &orgName,
-			})
-			createOrgReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
+				workspaces := wsResp.Msg.Workspaces
+				if len(workspaces) == 0 {
+					return fmt.Errorf("organization has no workspaces")
+				}
 
-			createOrgResp, err := orgClient.CreateOrg(context.Background(), createOrgReq)
-			if err != nil {
-				slog.Debug("failed to create organization", "error", err)
-				return fmt.Errorf("failed to create organization: %w", err)
-			}
-
-			createdOrg := createOrgResp.Msg
-			if createdOrg == nil {
-				return fmt.Errorf("organization creation returned empty response")
-			}
-
-			// Fetch the created org to get its name
-			getOrgReq := connect.NewRequest(&orgv1.GetOrgRequest{
-				Key: &orgv1.GetOrgRequest_OrgId{
-					OrgId: createdOrg.OrgId,
-				},
-			})
-			getOrgReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
-
-			getOrgResp, err := orgClient.GetOrg(context.Background(), getOrgReq)
-			if err != nil {
-				slog.Debug("failed to get created organization", "error", err)
-				return fmt.Errorf("failed to get created organization: %w", err)
-			}
-
-			workspaceName := "default"
-			wsClientNew := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
-			createWSReq := connect.NewRequest(&workspacev1.CreateWorkspaceRequest{
-				OrgId: createdOrg.OrgId,
-				Name:  workspaceName,
-			})
-			createWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
-
-			createWSResp, err := wsClientNew.CreateWorkspace(context.Background(), createWSReq)
-			if err != nil {
-				slog.Debug("failed to create workspace", "error", err)
-				return fmt.Errorf("failed to create workspace: %w", err)
-			}
-
-			// Fetch the created workspace to get its name
-			getWSReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
-				WorkspaceId: createWSResp.Msg.WorkspaceId,
-			})
-			getWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
-
-			getWSResp, err := wsClientNew.GetWorkspace(context.Background(), getWSReq)
-			if err != nil {
-				slog.Debug("failed to get created workspace", "error", err)
-				return fmt.Errorf("failed to get created workspace: %w", err)
+				selectedWorkspace = workspaces[0]
 			}
 
 			cfg := session.NewSessionConfig()
 			if err := cfg.SetDefaultScope(
-				session.SimpleOrg{ID: getOrgResp.Msg.Organization.Id, Name: getOrgResp.Msg.Organization.Name},
-				session.SimpleWorkspace{ID: getWSResp.Msg.Workspace.Id, Name: getWSResp.Msg.Workspace.Name},
+				session.SimpleOrg{ID: selectedOrg.Id, Name: selectedOrg.Name},
+				session.SimpleWorkspace{ID: selectedWorkspace.Id, Name: selectedWorkspace.Name},
 			); err != nil {
 				slog.Error(err.Error())
 				return err
 			}
 
-			keychainErr := keychain.SetLocoToken(user.Name, keychain.UserToken{
-				Token:        locoResp.Msg.LocoToken,
-				RefreshToken: locoResp.Msg.RefreshToken,
+			keychain.SetLocoToken(user.Name, keychain.UserToken{
+				Token: locoResp.Msg.LocoToken,
 				// sub 10 mins
 				ExpiresAt: time.Now().Add(time.Duration(locoResp.Msg.ExpiresIn)*time.Second - (10 * time.Minute)),
 			})
-			if keychainErr != nil {
-				slog.Debug("failed to store token in keychain", "error", keychainErr)
-				return fmt.Errorf("failed to store token: %w", keychainErr)
-			}
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
 			orgLine := lipgloss.NewStyle().
 				Foreground(ui.LocoLightGray).
-				Render(fmt.Sprintf("  Organization: %s", getOrgResp.Msg.Organization.Name))
+				Render(fmt.Sprintf("  Organization: %s", selectedOrg.Name))
 			wsLine := lipgloss.NewStyle().
 				Foreground(ui.LocoLightGray).
-				Render(fmt.Sprintf("  Workspace: %s", getWSResp.Msg.Workspace.Name))
+				Render(fmt.Sprintf("  Workspace: %s", selectedWorkspace.Name))
 			fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 			return nil
-		}
-
-		if len(orgs) == 1 {
-			selectedOrg = orgs[0]
-
-			wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
-				OrgId:    selectedOrg.Id,
-				PageSize: 100,
-			})
-			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
-
-			wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
-			if err != nil {
-				slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
-				return fmt.Errorf("failed to list workspaces: %w", err)
-			}
-
-			workspaces := wsResp.Msg.Workspaces
-			if len(workspaces) == 0 {
-				return fmt.Errorf("organization has no workspaces")
-			}
-
-			selectedWorkspace = workspaces[0]
-		} else {
-			selectedOrg = orgs[0]
-
-			wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
-				OrgId:    selectedOrg.Id,
-				PageSize: 100,
-			})
-			wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", locoResp.Msg.LocoToken))
-
-			wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
-			if err != nil {
-				slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
-				return fmt.Errorf("failed to list workspaces: %w", err)
-			}
-
-			workspaces := wsResp.Msg.Workspaces
-			if len(workspaces) == 0 {
-				return fmt.Errorf("organization has no workspaces")
-			}
-
-			selectedWorkspace = workspaces[0]
-		}
-
-		cfg := session.NewSessionConfig()
-		if err := cfg.SetDefaultScope(
-			session.SimpleOrg{ID: selectedOrg.Id, Name: selectedOrg.Name},
-			session.SimpleWorkspace{ID: selectedWorkspace.Id, Name: selectedWorkspace.Name},
-		); err != nil {
-			slog.Error(err.Error())
-			return err
-		}
-
-		keychain.SetLocoToken(user.Name, keychain.UserToken{
-			Token: locoResp.Msg.LocoToken,
-			// sub 10 mins
-			ExpiresAt: time.Now().Add(time.Duration(locoResp.Msg.ExpiresIn)*time.Second - (10 * time.Minute)),
-		})
-
-		checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
-		title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
-		orgLine := lipgloss.NewStyle().
-			Foreground(ui.LocoLightGray).
-			Render(fmt.Sprintf("  Organization: %s", selectedOrg.Name))
-		wsLine := lipgloss.NewStyle().
-			Foreground(ui.LocoLightGray).
-			Render(fmt.Sprintf("  Workspace: %s", selectedWorkspace.Name))
-		fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
-
-		return nil
-	},
+		},
+	}
+	cmd.Flags().String("host", "", "Set the host URL")
+	return cmd
 }
 
 func pollAuthToken(

@@ -2,11 +2,9 @@ package loco
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
-	"log/slog"
-	"os"
-	"os/user"
+	"net/http"
 
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
@@ -19,38 +17,11 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
-type logoutDeps struct {
-	Logout          func(ctx context.Context, host, token string) error
-	GetLocoToken    func(username string) (*keychain.UserToken, error)
-	DeleteLocoToken func(username string) error
-	Output          io.Writer
-}
-
-func buildLogoutCmd() *cobra.Command {
-	deps := logoutDeps{
-		Logout: func(ctx context.Context, host, token string) error {
-			httpClient := httputil.NewHTTPClient()
-			userClient := userv1connect.NewUserServiceClient(httpClient, host)
-			req := connect.NewRequest(&userv1.LogoutRequest{})
-			req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
-			_, err := userClient.Logout(ctx, req)
-			return err
-		},
-		GetLocoToken: func(username string) (*keychain.UserToken, error) {
-			return keychain.GetLocoToken(username)
-		},
-		DeleteLocoToken: func(username string) error {
-			return keychain.DeleteLocoToken(username)
-		},
-		Output: os.Stdout,
-	}
-	return newLogoutCmd(deps)
-}
-
-func newLogoutCmd(deps logoutDeps) *cobra.Command {
-	cmd := cobra.Command{
+func newLogoutCmd(env Env) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "logout",
 		Short: "Log out of loco and revoke the current session token",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
@@ -59,40 +30,41 @@ func newLogoutCmd(deps logoutDeps) *cobra.Command {
 				return err
 			}
 
-			currentUser, err := user.Current()
-			if err != nil {
-				return fmt.Errorf("failed to get current user: %w", err)
-			}
-
-			t, err := deps.GetLocoToken(currentUser.Name)
-			if err != nil {
-				slog.Debug("no token found in keychain", "error", err)
-				fmt.Fprintln(
-					deps.Output,
-					lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in."),
-				)
+			t, err := env.Tokens.Get()
+			if errors.Is(err, keychain.ErrNotFound) {
+				lipgloss.Fprintln(cmd.OutOrStdout(), lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in."))
 				return nil
 			}
-
-			// Revoke the token on the server
-			if err := deps.Logout(ctx, host, t.Token); err != nil {
-				slog.Debug("failed to revoke token on server", "error", err)
-				// Continue to delete local token even if server revocation fails
+			if err != nil {
+				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
-			// Delete the token from keychain
-			if err := deps.DeleteLocoToken(currentUser.Name); err != nil {
-				slog.Debug("failed to delete token from keychain", "error", err)
+			if err := revokeToken(ctx, httputil.NewHTTPClient(), host, t.Token); err != nil {
+				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
+				if connect.CodeOf(err) != connect.CodeUnauthenticated {
+					warning := lipgloss.NewStyle().Foreground(ui.LocoOrange).Render("Warning: could not revoke the session on the server; the token stays valid until it expires.")
+					lipgloss.Fprintln(cmd.ErrOrStderr(), warning)
+				}
+			}
+
+			if err := env.Tokens.Delete(); err != nil {
 				return fmt.Errorf("failed to delete token from keychain: %w", err)
 			}
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			message := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Logged out successfully!")
-			fmt.Fprintf(deps.Output, "%s %s\n", checkmark, message)
-
+			lipgloss.Fprintf(cmd.OutOrStdout(), "%s %s\n", checkmark, message)
 			return nil
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
-	return &cmd
+	return cmd
+}
+
+func revokeToken(ctx context.Context, httpClient *http.Client, host, token string) error {
+	userClient := userv1connect.NewUserServiceClient(httpClient, host)
+	req := connect.NewRequest(&userv1.LogoutRequest{})
+	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	_, err := userClient.Logout(ctx, req)
+	return err
 }

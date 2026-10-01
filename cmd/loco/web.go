@@ -13,14 +13,18 @@ import (
 	"github.com/team-loco/loco/internal/session"
 )
 
-var webCmd = &cobra.Command{
-	Use: "web [dashboard|resources|create-resource|events|observability|usage|settings|" +
-		"org-settings|profile|tokens|organizations|team]",
-	Short: "Open loco pages in your browser",
-	Long:  "Open loco pages in your browser. Defaults to dashboard if no argument provided.",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return webCmdFunc(cmd, args)
-	},
+func newWebCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "web [dashboard|resources|create-resource|events|observability|usage|settings|" +
+			"org-settings|profile|tokens|organizations|team]",
+		Short: "Open loco pages in your browser",
+		Long:  "Open loco pages in your browser. Defaults to dashboard if no argument provided.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return webCmdFunc(cmd, args)
+		},
+	}
+	cmd.Flags().String("host", "", "Set the host URL")
+	return cmd
 }
 
 func webCmdFunc(cmd *cobra.Command, args []string) error {
@@ -118,10 +122,6 @@ func openBrowser(url string) error {
 	}
 
 	return nil
-}
-
-func init() {
-	webCmd.Flags().String("host", "", "Set the host URL")
 }
 
 func buildWorkspacePath(orgID, workspaceID string, subpath string) string {

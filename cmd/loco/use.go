@@ -16,24 +16,24 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
-func init() {
-	useCmd.Flags().String("host", "", "API host URL")
-}
-
-var useCmd = &cobra.Command{
-	Use:   "use [org-name/workspace-name]",
-	Short: "Switch to a different organization and workspace",
-	Long: `Switch your current context to a different organization and workspace.
+func newUseCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "use [org-name/workspace-name]",
+		Short: "Switch to a different organization and workspace",
+		Long: `Switch your current context to a different organization and workspace.
 
 Run without arguments to interactively select from your available scopes.
 
 Examples:
   loco use                        # interactive picker
   loco use my-org/my-workspace    # switch directly`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		return useCmdFunc(cmd, args)
-	},
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return useCmdFunc(cmd, args)
+		},
+	}
+	cmd.Flags().String("host", "", "API host URL")
+	return cmd
 }
 
 func useCmdFunc(cmd *cobra.Command, args []string) error {
