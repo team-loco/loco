@@ -82,6 +82,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/raleway";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -92,9 +94,9 @@
 
 @theme inline {
 	/* Fonts */
-	--font-serif: "Raleway", "Georgia", serif;
+	--font-serif: "Raleway Variable", "Georgia", serif;
 	--font-sans: "Geist Variable", sans-serif;
-	--font-mono: "JetBrains Mono", "Menlo", "Monaco", monospace;
+	--font-mono: "JetBrains Mono Variable", "Menlo", "Monaco", monospace;
 
 	/* Border radius */
 	--radius: 8px;
@@ -404,7 +406,7 @@
 	code,
 	pre,
 	.font-mono {
-		font-family: "JetBrains Mono", "Courier New", monospace;
+		font-family: var(--font-mono);
 	}
 
 	/* Dotted grid background pattern */
