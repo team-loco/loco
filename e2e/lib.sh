@@ -94,10 +94,15 @@ assert_fails() {
     fi
 }
 
-# Query the e2e Postgres database.
+# Run docker compose against the e2e project of the repository's compose.yaml.
+e2e_compose() {
+    docker compose -f "$E2E_ROOT_DIR/compose.yaml" -p "$E2E_COMPOSE_PROJECT" "$@"
+}
+
+# Query the e2e Postgres database, with psql inside the Postgres container.
 # Usage: e2e_psql "SELECT ..."
 e2e_psql() {
-    psql "$E2E_DATABASE_URL" -t -A -c "$1"
+    e2e_compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A -c "$1"
 }
 
 # Print test summary.

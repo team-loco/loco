@@ -84,7 +84,7 @@ Every tool the repository uses (Go, bun, the linters, code generators, helm, kin
 mise run setup
 ```
 
-That installs the pinned tools, the web dependencies and the git hooks. With [`mise activate`](https://mise.jdx.dev/getting-started.html#activate-mise) in your shell, the pinned tools are on `PATH` whenever you are inside the repository.
+That installs the pinned tools, the web dependencies and the git hooks, then runs `mise run doctor`, which checks that Docker (OrbStack or Docker Desktop) and Docker Compose are running and recent enough. Docker and mise are the only tools you install yourself. With [`mise activate`](https://mise.jdx.dev/getting-started.html#activate-mise) in your shell, the pinned tools are on `PATH` whenever you are inside the repository.
 
 Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
 

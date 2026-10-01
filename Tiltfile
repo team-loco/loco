@@ -1,8 +1,8 @@
 # Loco local development environment
-# Prerequisites: docker (OrbStack or Docker Desktop), mise, psql. Every other tool is
+# Prerequisites: docker (OrbStack or Docker Desktop) and mise. Every other tool is
 # pinned in mise.toml, and every resource below runs a mise task.
 # Run:  mise run tilt
-# Stop: tilt down  (tears down helm releases; kind cluster + Docker containers persist)
+# Stop: tilt down  (tears down helm releases and the compose services; the kind cluster and the database volume persist)
 #
 # First-time setup:
 #   1. mise run setup
@@ -21,12 +21,23 @@ if os.environ.get('DOCKER_HOST', '') == '' and os.path.exists(orbstack_sock):
 allow_k8s_contexts('kind-loco-cluster-local')
 
 # ---------------------------------------------------------------------------
+# Setup: Docker and the pinned tools
+# ---------------------------------------------------------------------------
+
+local_resource(
+    'doctor',
+    cmd='mise run doctor',
+    labels=['setup'],
+)
+
+# ---------------------------------------------------------------------------
 # Setup: kind cluster
 # ---------------------------------------------------------------------------
 
 local_resource(
     'kind-cluster',
     cmd='mise run cluster:up',
+    resource_deps=['doctor'],
     labels=['setup'],
 )
 
@@ -58,67 +69,21 @@ local_resource(
 )
 
 # ---------------------------------------------------------------------------
-# Infrastructure: Postgres
+# Infrastructure: Postgres and Valkey from compose.yaml
 # ---------------------------------------------------------------------------
 
-local_resource(
-    'postgres',
-    cmd="""
-        if docker ps --format '{{.Names}}' | grep -q '^loco-dev-postgres$'; then
-            echo "postgres already running"
-        elif docker ps -a --format '{{.Names}}' | grep -q '^loco-dev-postgres$'; then
-            docker start loco-dev-postgres
-        else
-            docker run -d \
-                --name loco-dev-postgres \
-                -e POSTGRES_USER=loco_user \
-                -e POSTGRES_PASSWORD=loco_password \
-                -e POSTGRES_DB=loco \
-                -p 5432:5432 \
-                postgres:16-alpine
-        fi
-        until pg_isready -h localhost -p 5432 -U loco_user >/dev/null 2>&1; do sleep 1; done
-    """,
-    labels=['infrastructure'],
-)
+docker_compose('compose.yaml', project_name='loco-dev')
+
+dc_resource('postgres', resource_deps=['doctor'], labels=['infrastructure'])
+dc_resource('valkey', resource_deps=['doctor'], labels=['infrastructure'])
 
 # ---------------------------------------------------------------------------
-# Infrastructure: Valkey (Redis-compatible cache)
-# ---------------------------------------------------------------------------
-
-local_resource(
-    'valkey',
-    cmd="""
-        if docker ps --format '{{.Names}}' | grep -q '^loco-dev-valkey$'; then
-            echo "valkey already running"
-        elif docker ps -a --format '{{.Names}}' | grep -q '^loco-dev-valkey$'; then
-            docker start loco-dev-valkey
-        else
-            docker run -d \
-                --name loco-dev-valkey \
-                -p 6379:6379 \
-                valkey/valkey:8-alpine
-        fi
-    """,
-    labels=['infrastructure'],
-)
-
-# ---------------------------------------------------------------------------
-# Infrastructure: DB migrations + seed data
-# Runs all migration SQL files in order, then seeds dev data.
-# Errors are suppressed so re-runs are idempotent (tables already exist, etc.)
+# Infrastructure: DB migrations + seed data, applied from a container
 # ---------------------------------------------------------------------------
 
 local_resource(
     'db-migrate',
-    cmd="""
-        DB_URL="postgres://loco_user:loco_password@localhost:5432/loco?sslmode=disable"
-        for f in $(ls api/migrations/*.sql | sort); do
-            psql "$DB_URL" -f "$f" 2>/dev/null || true
-        done
-        psql "$DB_URL" -f seed.sql 2>/dev/null || true
-        echo "migrations applied"
-    """,
+    cmd='mise run db:migrate',
     resource_deps=['postgres'],
     deps=['api/migrations/', 'seed.sql'],
     labels=['infrastructure'],

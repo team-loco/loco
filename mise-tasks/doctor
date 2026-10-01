@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#MISE description="Check that Docker (OrbStack or Docker Desktop) and Docker Compose are running and recent enough"
+set -euo pipefail
+
+min_engine=27.0.0
+min_compose=2.29.0
+
+version_ge() {
+	[[ $(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1) == "$2" ]]
+}
+
+status=0
+fail() {
+	echo "✗ $*"
+	status=1
+}
+
+if ! command -v docker >/dev/null 2>&1; then
+	fail "docker is not on PATH; install OrbStack (https://orbstack.dev) or Docker Desktop"
+	exit 1
+fi
+
+if ! engine=$(docker version --format '{{.Server.Version}}' 2>/dev/null); then
+	fail "the Docker daemon is not reachable; start OrbStack or Docker Desktop"
+	exit 1
+fi
+runtime=$(docker info --format '{{.OperatingSystem}}' 2>/dev/null || echo unknown)
+if version_ge "$engine" "$min_engine"; then
+	echo "✓ Docker Engine $engine ($runtime)"
+else
+	fail "Docker Engine $engine ($runtime) is older than $min_engine; update OrbStack or Docker Desktop"
+fi
+
+if compose=$(docker compose version --short 2>/dev/null); then
+	compose=${compose#v}
+	if version_ge "$compose" "$min_compose"; then
+		echo "✓ Docker Compose $compose"
+	else
+		fail "Docker Compose $compose is older than $min_compose; update OrbStack or Docker Desktop"
+	fi
+else
+	fail "the docker compose plugin is missing; update OrbStack or Docker Desktop"
+fi
+
+if missing=$(mise ls --missing --no-header 2>/dev/null) && [[ -n $missing ]]; then
+	fail "tools from mise.toml are not installed; run: mise install"
+	echo "$missing"
+else
+	echo "✓ every tool in mise.toml is installed"
+fi
+
+exit $status
