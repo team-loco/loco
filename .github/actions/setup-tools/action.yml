@@ -1,0 +1,26 @@
+name: Setup tools
+description: Install every tool pinned in mise.toml at the versions and checksums recorded in mise.lock.
+
+inputs:
+  go-cache:
+    description: Cache key suffix for the Go module, build and golangci-lint caches. Caching is skipped when empty.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: jdx/mise-action@v5.0.1
+      with:
+        version: 2026.9.15
+
+    - if: inputs.go-cache != ''
+      uses: actions/cache@v6
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+          ~/.cache/golangci-lint
+        key: go-${{ runner.os }}-${{ inputs.go-cache }}-${{ hashFiles('mise.lock', '**/go.sum') }}
+        restore-keys: |
+          go-${{ runner.os }}-${{ inputs.go-cache }}-

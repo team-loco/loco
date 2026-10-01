@@ -13,6 +13,9 @@ on:
       - "bun.lock"
       - ".github/workflows/web.yml"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
   pull_request:
     paths:
       - "web/**"
@@ -21,6 +24,9 @@ on:
       - "bun.lock"
       - ".github/workflows/web.yml"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
 
 permissions:
   contents: read
@@ -37,10 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          # Matches the builder stage in web/Dockerfile.
-          bun-version: "1.4.0"
+      - uses: ./.github/actions/setup-tools
 
       # Install from the repository root: web and gen/ts are bun workspaces, and
       # the UI imports generated TypeScript from gen/ts.

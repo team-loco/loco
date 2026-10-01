@@ -11,6 +11,11 @@ on:
       - "charts/**"
       - "go.mod"
       - "go.sum"
+      - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/controller-helm-chart.yml"
   pull_request:
     paths:
       - "controller/**"
@@ -18,6 +23,11 @@ on:
       - "charts/**"
       - "go.mod"
       - "go.sum"
+      - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - ".github/workflows/controller-helm-chart.yml"
 
 # Both jobs execute code from the PR under review (Makefiles, Go tooling, helm
 # charts), so neither may hold anything an attacker would want.
@@ -35,27 +45,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
+      - uses: ./.github/actions/setup-tools
         with:
-          go-version-file: go.mod
-          cache: true
-
-      # pinned: yq's formatting is part of the committed output, so a different
-      # version would fail this check for no real reason. Kept in RUNNER_TEMP rather
-      # than installed system-wide, and deliberately not the workspace -- putting the
-      # checkout on PATH would let a PR shadow go, git or make for later steps.
-      - name: Install yq
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/bin"
-          curl --fail --location --silent --show-error \
-            -o "$RUNNER_TEMP/bin/yq" \
-            https://github.com/mikefarah/yq/releases/download/v4.49.2/yq_linux_amd64
-          echo "be2c0ddcf426b6a231648610ec5d1666ae50e9f6473e82f6486f9f4cb6e3e2f7  $RUNNER_TEMP/bin/yq" \
-            | sha256sum --check -
-          chmod +x "$RUNNER_TEMP/bin/yq"
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/bin/yq" --version
+          go-cache: controller-codegen
 
       - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD copy
         run: make controller-gen
@@ -73,19 +65,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
+      - uses: ./.github/actions/setup-tools
         with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Install kind
-        run: |
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)
-          chmod +x ./kind
-          sudo mv ./kind /usr/local/bin/kind
-
-      - name: Verify kind installation
-        run: kind version
+          go-cache: controller-helm-chart
 
       - name: Create kind cluster
         run: kind create cluster
@@ -95,13 +77,6 @@ jobs:
           go mod tidy -C controller
           make -C controller docker-build IMG=controller:v0.1.0
           kind load docker-image controller:v0.1.0
-
-      - name: Install Helm
-        run: |
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-      - name: Verify Helm installation
-        run: helm version
 
       - name: Lint Helm Chart
         run: |

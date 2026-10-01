@@ -12,6 +12,9 @@ on:
       - "**/buf.gen.yaml"
       - ".github/workflows/buf.yml"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
   pull_request:
     # `labeled`/`unlabeled` are required on top of the defaults so that adding or
     # removing the `break-buf` label re-runs this workflow. Without them the
@@ -24,6 +27,9 @@ on:
       - "**/buf.gen.yaml"
       - ".github/workflows/buf.yml"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
 
 permissions:
   contents: read
@@ -39,9 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/setup-tools
 
       - name: buf lint
         run: make lint-proto
@@ -54,6 +58,8 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-tools
 
       - uses: bufbuild/buf-action@v1
         with:

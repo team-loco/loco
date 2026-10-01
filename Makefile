@@ -1,3 +1,5 @@
+export PATH := $(shell mise bin-paths 2>/dev/null | tr '\n' ':')$(PATH)
+
 GOCMD=go
 GOBUILD=$(GOCMD) build
 GOCLEAN=$(GOCMD) clean
@@ -137,21 +139,18 @@ upgrade-rpc: ## Upgrade protobuf/RPC toolchain
 	go install connectrpc.com/connect/cmd/protoc-gen-connect-go@latest
 	bun add -g @connectrpc/protoc-gen-connect-query @bufbuild/protoc-gen-es
 
-GOLANGCI_LINT_VERSION=v2.13.2
-ACTIONLINT_VERSION=v1.7.12
-BUF_VERSION=v1.73.0
 GO_MODULES=. api controller agent k8sapi observability-proxy
 
-lint: lint-go lint-proto lint-web lint-actions ## Run every linter CI runs
+lint: lint-go lint-proto lint-web lint-actions lint-docker ## Run every linter CI runs
 
 lint-go: ## Run golangci-lint in each module of GO_MODULES
 	@set -e; for module in $(GO_MODULES); do \
 		echo "golangci-lint: $$module"; \
-		(cd $$module && $(GOCMD) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION) run --config=$(CURDIR)/.golangci.yml --timeout=5m); \
+		(cd $$module && golangci-lint run --config=$(CURDIR)/.golangci.yml --timeout=5m); \
 	done
 
 lint-proto: ## Run buf lint on the protobuf definitions
-	$(GOCMD) run github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION) lint
+	buf lint
 
 lint-web: ## Run oxlint, eslint and the typecheck on the web UI
 	bun run --cwd web lint:fast
@@ -159,7 +158,12 @@ lint-web: ## Run oxlint, eslint and the typecheck on the web UI
 	bun run --cwd web typecheck
 
 lint-actions: ## Run actionlint on the GitHub workflows
-	$(GOCMD) run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION) -shellcheck=
+	actionlint -shellcheck=
+
+LINT_DOCKER_FORMAT ?= tty
+
+lint-docker: ## Run hadolint on every Dockerfile
+	@git ls-files '*Dockerfile' | grep -v '^examples/' | xargs hadolint --no-color -f $(LINT_DOCKER_FORMAT) --failure-threshold error
 
 e2e: ## Run end-to-end tests (full setup + teardown)
 	./e2e/run.sh

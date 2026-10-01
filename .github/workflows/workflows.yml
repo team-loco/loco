@@ -8,10 +8,16 @@ on:
     paths:
       - ".github/workflows/**"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
   pull_request:
     paths:
       - ".github/workflows/**"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
 
 permissions:
   contents: read
@@ -27,9 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/setup-tools
 
       - name: actionlint
         run: make lint-actions

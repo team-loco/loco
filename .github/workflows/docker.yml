@@ -9,11 +9,19 @@ on:
       - "**/Dockerfile"
       - "**/.dockerignore"
       - ".github/workflows/docker.yml"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - "Makefile"
   pull_request:
     paths:
       - "**/Dockerfile"
       - "**/.dockerignore"
       - ".github/workflows/docker.yml"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
+      - "Makefile"
   workflow_call:
 
 permissions:
@@ -80,13 +88,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - uses: ./.github/actions/setup-tools
+
       - name: Lint Dockerfiles
-        run: |
-          set -euo pipefail
-          mapfile -t files < <(git ls-files '*Dockerfile' | grep -v '^examples/')
-          printf 'linting: %s\n' "${files[@]}"
-          docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:v2.15.1-alpine \
-            hadolint --no-color -f sarif --failure-threshold error "${files[@]}" > hadolint.sarif
+        run: make lint-docker LINT_DOCKER_FORMAT=sarif > hadolint.sarif
 
       - name: Upload results
         if: always()
