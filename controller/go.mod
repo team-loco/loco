@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/onsi/ginkgo/v2 v2.33.0
-	github.com/onsi/gomega v1.40.0
+	github.com/onsi/gomega v1.44.0
 	github.com/team-loco/loco/k8sapi v0.0.0-00010101000000-000000000000
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
