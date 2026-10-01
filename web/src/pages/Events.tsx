@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/design/Card";
 import { DropdownSelector } from "@/components/design/DropdownSelector";
 import { Input } from "@/components/design/Input";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { AlertCircle, Trash2, X } from "lucide-react";
 import {useMemo, useState} from "react";
@@ -24,6 +25,7 @@ const severityBadgeColors: Record<string, string> = {
 };
 
 export function Events() {
+	const now = useNow();
 	const { workspace } = useWorkspace();
 	const { events: backendEvents } = useWorkspaceEvents(
 		workspace?.id.toString() ?? "",
@@ -146,7 +148,7 @@ export function Events() {
 									const severity = nonEmpty(event.type.toLowerCase(), "info");
 									const timestamp = event.timestamp
 										? new Date(Number(event.timestamp.seconds) * 1000)
-										: new Date();
+										: now;
 
 									return (
 										<div

@@ -146,6 +146,20 @@ export function ResourceDetails() {
 	const primaryDomain = resource.domains[0]?.domain;
 	const activeSvc = activeDep ? getServiceSpec(activeDep) : undefined;
 
+	const deployInitialValues: Partial<DeploymentWizardValues> = activeSvc
+		? {
+				imageUrl: activeSvc.build?.image ?? "",
+				port: activeSvc.port,
+				envVars: activeSvc.env,
+				...(activeDep?.region === undefined ? {} : { region: activeDep.region }),
+				...(activeSvc.cpu === undefined ? {} : { cpu: activeSvc.cpu }),
+				...(activeSvc.memory === undefined ? {} : { memory: activeSvc.memory }),
+				...(activeSvc.minReplicas === undefined
+					? {}
+					: { replicas: activeSvc.minReplicas }),
+			}
+		: {};
+
 	const handleRedeploy = async () => {
 		if (!activeDep?.spec) {
 			toast.error("No active deployment to redeploy");
@@ -911,6 +925,7 @@ export function ResourceDetails() {
 				}}
 				title="Deploy"
 				submitLabel="Deploy"
+				initialValues={deployInitialValues}
 				onSubmit={handleDeploy}
 				isSubmitting={deployMutation.isPending}
 			/>

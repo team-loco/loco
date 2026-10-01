@@ -21,6 +21,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
+const COPYRIGHT_YEAR = new Date().getFullYear();
+
 // ─── Data ────────────────────────────────────────────────────────────────────
 
 const LOCO_TOML_EXAMPLE = `\
@@ -557,7 +559,7 @@ export function Splash() {
 				</div>
 
 				<div className="max-w-7xl mx-auto pt-6 border-t border-[#E7E5E0] flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-[#78716C]">
-					<span>© {new Date().getFullYear()} Loco. All rights reserved.</span>
+					<span>© {COPYRIGHT_YEAR} Loco. All rights reserved.</span>
 					<span>Built with ❤️ for developers by developers</span>
 				</div>
 			</footer>
