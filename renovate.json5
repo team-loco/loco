@@ -71,11 +71,9 @@
       dependencyDashboardApproval: true,
     },
     {
-      description: "kubectl must stay within one minor version of the DOKS control plane in terraform/do/kube.tf",
-      matchManagers: ["mise"],
-      matchDepNames: ["kubectl"],
-      matchUpdateTypes: ["major", "minor"],
-      dependencyDashboardApproval: true,
+      description: "kind's default node image sets the local Kubernetes version, and kubectl must stay within one minor version of it",
+      groupName: "kind and kubectl",
+      matchDepNames: ["kind", "kubectl"],
     },
   ],
   customManagers: [
