@@ -20,14 +20,27 @@ import {
 	type Deployment,
 } from "@gen/loco/deployment/v1/deployment_pb";
 import {
+	columnSizingFeature,
+	columnVisibilityFeature,
+	createPaginatedRowModel,
+	createSortedRowModel,
 	flexRender,
-	getCoreRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
+	rowPaginationFeature,
+	rowSortingFeature,
+	tableFeatures,
+	useTable,
 	type ColumnDef,
 	type SortingState,
 } from "@tanstack/react-table";
+
+const features = tableFeatures({
+	columnSizingFeature,
+	columnVisibilityFeature,
+	rowSortingFeature,
+	rowPaginationFeature,
+	sortedRowModel: createSortedRowModel(),
+	paginatedRowModel: createPaginatedRowModel(),
+});
 import {
 	ChevronDown,
 	ChevronUp,
@@ -108,7 +121,7 @@ export function RecentDeployments({
 		};
 	};
 
-	const columns: ColumnDef<Deployment>[] = [
+	const columns: ColumnDef<typeof features, Deployment>[] = [
 		{
 			id: "expand",
 			header: () => null,
@@ -268,7 +281,8 @@ export function RecentDeployments({
 		},
 	];
 
-	const table = useReactTable({
+	const table = useTable({
+		features,
 		data: deployments,
 		columns,
 		state: {
@@ -277,9 +291,6 @@ export function RecentDeployments({
 		},
 		onSortingChange: setSorting,
 		onPaginationChange: setPagination,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
 		getRowId: (row) => row.id,
 	});
 
@@ -425,7 +436,7 @@ export function RecentDeployments({
 				{/* Pagination */}
 				<div className="flex items-center justify-between">
 					<div className="text-sm text-foreground opacity-70">
-						Page {table.getState().pagination.pageIndex + 1} of{" "}
+						Page {table.state.pagination.pageIndex + 1} of{" "}
 						{table.getPageCount()}
 					</div>
 					<div className="flex items-center gap-2">
@@ -434,7 +445,7 @@ export function RecentDeployments({
 								Rows per page
 							</span>
 							<Select
-								value={table.getState().pagination.pageSize.toString()}
+								value={table.state.pagination.pageSize.toString()}
 								onValueChange={(value) => {
 									table.setPageSize(Number(value));
 								}}

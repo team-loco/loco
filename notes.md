@@ -42,14 +42,24 @@ None of these block anything today; they are the things we knowingly deferred.
   typecheck. If you see `Property '#private' in type 'QueryClient' refers to a different
   member`, the fix is `rm -rf node_modules */node_modules && bun install` — not a code
   change. `eslint --cache` holds onto the bad results afterwards; delete `.eslintcache` too.
-- **tsgo is a dev preview.** `build`/`typecheck` use `tsgo` (`@typescript/native-preview`,
-  7.0.0-dev), which is ~7x faster than tsc. `typecheck:tsc` runs the reference compiler
-  in CI as a cross-check. If the two ever disagree, that step is the tripwire. Drop the
-  extra step once tsgo ships stable. (Note: `typescript` itself is now at 7.0.2 stable,
-  but `@typescript/native-preview` is still on a `7.0.0-dev` build — not the same thing.)
-- **Three major upgrades are deliberately deferred**: `@tanstack/react-table` 8 → 9,
-  `motion` 12 → 13, `typescript` 6 → 7. Everything else is current as of Sept 2026. These
-  are breaking-change upgrades and want their own PR each.
+- **tsgo is a dev preview, and TypeScript 7 is blocked by typescript-eslint.**
+  `build`/`typecheck` use `tsgo` (`@typescript/native-preview`, 7.0.0-dev), ~7x faster than
+  tsc; `typecheck:tsc` runs the reference compiler in CI as a cross-check.
+  - `typescript@7` is now stable **and is itself the native compiler** — it ships
+    platform binaries (`@typescript/typescript-darwin-arm64` and friends) and exposes them
+    as `tsc`. So the real TS 7 migration is a consolidation: drop
+    `@typescript/native-preview`, drop the `typecheck:tsc` cross-check, point `build` at
+    native `tsc`, and the dev-preview caveat disappears.
+  - It cannot be done yet. `typescript-eslint@8.71.0` declares
+    `typescript: ">=4.8.4 <6.1.0"` and hard-errors on TS 7 — *"typescript-eslint does not
+    support TS 7.0"* — which would kill the entire type-aware rule set in
+    `eslint.config.js`. Support is tracked for TS >= 7.1 in
+    typescript-eslint#10940. **Recheck that issue before attempting the upgrade**; keep
+    `typescript` pinned to `~6.0.x` until it closes.
+- **Dependencies are otherwise current as of Oct 2026.** The two remaining major upgrades
+  deferred earlier now have PRs of their own: `motion` 12 → 13 and
+  `@tanstack/react-table` 8 → 9. Note that react-table v9 ships an official
+  `migrate-v8-to-v9` skill inside the package — read it before touching table code.
 - **Mock data still ships in a live page.** `pages/resource-details/mock-usage.ts` feeds the
   per-region CPU/memory bars on `ResourceDetails`; the numbers are deterministic noise
   seeded off status, not telemetry. `pages/Usage.tsx` and `pages/Resources.tsx` are

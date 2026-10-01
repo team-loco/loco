@@ -30,15 +30,35 @@ import {
 	TableRow,
 } from "@/components/design/Table";
 import {
+	columnFilteringFeature,
+	columnResizingFeature,
+	columnSizingFeature,
+	columnVisibilityFeature,
+	createFilteredRowModel,
+	createPaginatedRowModel,
+	createSortedRowModel,
 	flexRender,
-	getCoreRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	getFilteredRowModel,
-	useReactTable,
+	globalFilteringFeature,
+	rowPaginationFeature,
+	rowSortingFeature,
+	tableFeatures,
+	useTable,
 	type ColumnDef,
 	type SortingState,
 } from "@tanstack/react-table";
+
+const features = tableFeatures({
+	columnSizingFeature,
+	columnResizingFeature,
+	columnVisibilityFeature,
+	columnFilteringFeature,
+	globalFilteringFeature,
+	rowSortingFeature,
+	rowPaginationFeature,
+	filteredRowModel: createFilteredRowModel(),
+	sortedRowModel: createSortedRowModel(),
+	paginatedRowModel: createPaginatedRowModel(),
+});
 import {
 	Select,
 	SelectContent,
@@ -156,7 +176,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 		document.body.removeChild(element);
 	};
 
-	const columns: ColumnDef<WatchLogsResponse>[] = [
+	const columns: ColumnDef<typeof features, WatchLogsResponse>[] = [
 		{
 			accessorKey: "timestamp",
 			header: ({ column }) => (
@@ -218,7 +238,8 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 		},
 	];
 
-	const table = useReactTable({
+	const table = useTable({
+		features,
 		data: logs,
 		columns,
 		state: {
@@ -230,10 +251,6 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 		onSortingChange: setSorting,
 		onPaginationChange: setPagination,
 		onColumnSizingChange: setColumnSizing,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
 		columnResizeMode: "onChange",
 		globalFilterFn: (row, _columnId, filterValue: string) => {
 			return row.original.log.toLowerCase().includes(filterValue.toLowerCase());
@@ -440,7 +457,7 @@ export function LogsViewer({ resourceId, isLoading = false }: LogsViewerProps) {
 						<div className="hidden sm:flex items-center gap-2">
 							<span className="text-foreground opacity-70">Rows per page</span>
 							<Select
-								value={table.getState().pagination.pageSize.toString()}
+								value={table.state.pagination.pageSize.toString()}
 								onValueChange={(value) => {
 									table.setPageSize(Number(value));
 								}}

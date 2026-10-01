@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
+import { type features } from "./data-table";
 import { type Token } from "@gen/loco/token/v1/token_pb";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
@@ -144,7 +145,7 @@ function ActionsCell({ token, onRevokeToken, isRevoking }: ActionsCellProps) {
 export function getTokenColumns(
 	onRevokeToken: (tokenName: string, tokenEntityType: EntityType, tokenEntityId: string) => void,
 	isRevoking: boolean
-): ColumnDef<Token>[] {
+): ColumnDef<typeof features, Token>[] {
 	return [
 		{
 			accessorKey: "name",
