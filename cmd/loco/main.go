@@ -39,10 +39,6 @@ func LocoColorScheme() fang.ColorSchemeFunc {
 }
 
 func Cli() {
-	os.Exit(Main())
-}
-
-func Main() int {
 	i, ok := runtimeDebug.ReadBuildInfo()
 	if !ok {
 		i = &runtimeDebug.BuildInfo{
@@ -56,14 +52,13 @@ func Main() int {
 	env, err := NewEnv()
 	if err != nil {
 		lipgloss.Fprintln(os.Stderr, lipgloss.NewStyle().Foreground(ui.LocoRed).Render(err.Error()))
-		return 1
+		os.Exit(1)
 	}
 
-	if err := fang.Execute(context.Background(),
+	if err = fang.Execute(context.Background(),
 		NewRootCmd(env),
 		fang.WithVersion(i.Main.Version),
 		fang.WithColorSchemeFunc(LocoColorScheme())); err != nil {
-		return 1
+		os.Exit(1)
 	}
-	return 0
 }
