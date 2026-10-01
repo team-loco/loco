@@ -73,6 +73,7 @@ references/
 
 lint.html
 seed.sql
+!e2e/seed.sql
 
 # e2e test artifacts
 e2e/pids/

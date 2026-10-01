@@ -14,7 +14,7 @@ test_api_health() {
 
 test_agent_registered() {
     local version
-    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = 1")
+    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
     assert "Agent registered with correct version" \
         test "$version" = "e2e-test"
 }
@@ -24,24 +24,24 @@ test_agent_heartbeat() {
     sleep 5
 
     local heartbeat
-    heartbeat=$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = 1")
+    heartbeat=$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
     assert "Agent sent at least one heartbeat" \
         test "$heartbeat" = "t"
 
     local health
-    health=$(e2e_psql "SELECT health_status FROM clusters WHERE id = 1")
+    health=$(e2e_psql "SELECT health_status FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
     assert "Cluster health status is 'healthy'" \
         test "$health" = "healthy"
 }
 
 test_agent_capacity_reported() {
     local cpu
-    cpu=$(e2e_psql "SELECT capacity_cpu_millicores FROM clusters WHERE id = 1")
+    cpu=$(e2e_psql "SELECT capacity_cpu_millicores FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
     assert "Agent reported CPU capacity" \
         test "$cpu" -gt 0
 
     local mem
-    mem=$(e2e_psql "SELECT capacity_memory_bytes FROM clusters WHERE id = 1")
+    mem=$(e2e_psql "SELECT capacity_memory_bytes FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")
     assert "Agent reported memory capacity" \
         test "$mem" -gt 0
 }
@@ -89,19 +89,21 @@ test_report_status_rpc() {
 
     # Create a deployment
     e2e_psql "
-        INSERT INTO deployments (id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version)
+        INSERT INTO deployments (id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, started_at)
         VALUES (
             '00000000-0000-7000-8000-000000000012',
             '00000000-0000-7000-8000-000000000010',
             '00000000-0000-7000-8000-000000000011',
-            1,
+            '00000000-0000-7000-8000-000000000005',
             'us-east-1',
             1,
             'deploying',
             true,
             'E2E test deployment',
+            '00000000-0000-7000-8000-000000000004',
             '{\"image\": \"nginx:latest\"}',
-            1
+            1,
+            NOW()
         ) ON CONFLICT DO NOTHING;
     " >/dev/null
 
@@ -113,7 +115,7 @@ test_report_status_rpc() {
         -H "Authorization: Bearer ${E2E_AGENT_TOKEN}" \
         "${E2E_API_URL}/loco.agent.v1.AgentService/ReportStatus" \
         -d '{
-            "cluster_id": 1,
+            "cluster_id": "00000000-0000-7000-8000-000000000005",
             "deployment_id": "00000000-0000-7000-8000-000000000012",
             "resource_id": "00000000-0000-7000-8000-000000000010",
             "phase": "DEPLOYMENT_PHASE_RUNNING",
@@ -131,7 +133,7 @@ test_agent_logs_no_errors() {
     local log_file="${SCRIPT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}/logs/agent.log"
     if [ -f "$log_file" ]; then
         local error_count
-        error_count=$(grep -c '"level":"ERROR"' "$log_file" 2>/dev/null || echo "0")
+        error_count=$(grep -c '"level":"ERROR"' "$log_file" 2>/dev/null || true)
         assert "Agent has no ERROR-level log entries" \
             test "$error_count" -eq 0
     else
