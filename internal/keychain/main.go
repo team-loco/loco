@@ -100,7 +100,7 @@ func (s *FileStore) Set(t UserToken) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
+	if err = os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
 		return fmt.Errorf("failed to create %s: %w", filepath.Dir(s.Path), err)
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(s.Path), credentialsFileName+".*")
@@ -109,10 +109,10 @@ func (s *FileStore) Set(t UserToken) error {
 	}
 	defer os.Remove(tmp.Name())
 	_, writeErr := tmp.Write(bytes)
-	if err := errors.Join(writeErr, tmp.Close()); err != nil {
+	if err = errors.Join(writeErr, tmp.Close()); err != nil {
 		return fmt.Errorf("failed to write credentials: %w", err)
 	}
-	if err := os.Rename(tmp.Name(), s.Path); err != nil {
+	if err = os.Rename(tmp.Name(), s.Path); err != nil {
 		return fmt.Errorf("failed to write credentials: %w", err)
 	}
 	return nil
