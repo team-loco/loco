@@ -45,10 +45,10 @@ jobs:
           match() { echo "$FILES" | grep -qE "$1" && echo true || echo false; }
 
           {
-            echo "controller=$(match '^(controller/|shared/|go\.(mod|sum)$)')"
-            echo "api=$(match '^(api/|shared/|proto/|go\.(mod|sum)$)')"
+            echo "controller=$(match '^(controller/|k8sapi/)')"
+            echo "api=$(match '^(api/|gen/go/|k8sapi/)')"
             echo "web=$(match '^(web/|gen/ts/|package\.json$|bun\.lock$)')"
-            echo "agent=$(match '^(agent/|k8sapi/|go\.(mod|sum)$)')"
+            echo "agent=$(match '^(agent/|gen/go/|k8sapi/)')"
             echo "cli=$(match '^(cmd/|main\.go$|go\.(mod|sum)$)')"
           } >> "$GITHUB_OUTPUT"
 
