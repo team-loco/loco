@@ -86,8 +86,6 @@ To run the hooks on every commit, install [pre-commit](https://pre-commit.com) a
 pre-commit install
 ```
 
-Each commit then runs only the targets relevant to the staged files, and `make lint-go` only in the Go modules those files belong to. `make lint-web` needs `bun install` to have been run from the repository root.
-
 ---
 
 **Note:** This project is primarily educational, created so I can learn more about Kubernetes, networking, and security.
