@@ -15,69 +15,27 @@ import {
 	type AsyncStorage,
 } from "@tanstack/react-query-persist-client";
 import { lazy, Suspense } from "react";
+import { RouteFallback } from "@/components/RouteFallback";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
-// Heavy pages — loaded only when the route is visited
-const ResourceDetails = lazy(async () => {
-	const m = await import("@/pages/ResourceDetails");
-	return { default: m.ResourceDetails };
-});
-const ResourceSettings = lazy(async () => {
-	const m = await import("@/pages/ResourceSettings");
-	return { default: m.ResourceSettings };
-});
-const CreateResource = lazy(async () => {
-	const m = await import("@/pages/CreateResource");
-	return { default: m.CreateResource };
-});
-const Events = lazy(async () => {
-	const m = await import("@/pages/Events");
-	return { default: m.Events };
-});
-const Home = lazy(async () => {
-	const m = await import("@/pages/Home");
-	return { default: m.Home };
-});
-const Organizations = lazy(async () => {
-	const m = await import("@/pages/Organizations");
-	return { default: m.Organizations };
-});
-const OrgSettings = lazy(async () => {
-	const m = await import("@/pages/OrgSettings");
-	return { default: m.OrgSettings };
-});
-const Profile = lazy(async () => {
-	const m = await import("@/pages/Profile");
-	return { default: m.Profile };
-});
-const Team = lazy(async () => {
-	const m = await import("@/pages/Team");
-	return { default: m.Team };
-});
-const Tokens = lazy(async () => {
-	const m = await import("@/pages/Tokens");
-	return { default: m.Tokens };
-});
-const WorkspaceSettings = lazy(async () => {
-	const m = await import("@/pages/WorkspaceSettings");
-	return { default: m.WorkspaceSettings };
-});
-const Observability = lazy(async () => {
-	const m = await import("@/pages/Observability");
-	return { default: m.Observability };
-});
-const Resources = lazy(async () => {
-	const m = await import("@/pages/Resources");
-	return { default: m.Resources };
-});
-const Usage = lazy(async () => {
-	const m = await import("@/pages/Usage");
-	return { default: m.Usage };
-});
-const DashboardRedirect = lazy(async () => {
-	const m = await import("@/pages/DashboardRedirect");
-	return { default: m.DashboardRedirect };
-});
+import { pageImporters } from "@/lib/lazy-pages";
+
+const ResourceDetails = lazy(async () => ({ default: (await pageImporters.ResourceDetails()).ResourceDetails }));
+const ResourceSettings = lazy(async () => ({ default: (await pageImporters.ResourceSettings()).ResourceSettings }));
+const CreateResource = lazy(async () => ({ default: (await pageImporters.CreateResource()).CreateResource }));
+const Events = lazy(async () => ({ default: (await pageImporters.Events()).Events }));
+const Home = lazy(async () => ({ default: (await pageImporters.Home()).Home }));
+const Organizations = lazy(async () => ({ default: (await pageImporters.Organizations()).Organizations }));
+const OrgSettings = lazy(async () => ({ default: (await pageImporters.OrgSettings()).OrgSettings }));
+const Profile = lazy(async () => ({ default: (await pageImporters.Profile()).Profile }));
+const Team = lazy(async () => ({ default: (await pageImporters.Team()).Team }));
+const Tokens = lazy(async () => ({ default: (await pageImporters.Tokens()).Tokens }));
+const WorkspaceSettings = lazy(async () => ({ default: (await pageImporters.WorkspaceSettings()).WorkspaceSettings }));
+const Observability = lazy(async () => ({ default: (await pageImporters.Observability()).Observability }));
+const Resources = lazy(async () => ({ default: (await pageImporters.Resources()).Resources }));
+const Usage = lazy(async () => ({ default: (await pageImporters.Usage()).Usage }));
+const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.DashboardRedirect()).DashboardRedirect }));
+
 import { createTransport } from "./auth/connect-transport";
 
 const queryClient = new QueryClient({
@@ -114,7 +72,7 @@ const persister = createAsyncStoragePersister({
 
 function AppRoutes() {
 	return (
-		<Suspense>
+		<Suspense fallback={<RouteFallback />}>
 			<Routes>
 				{/* Public routes */}
 				<Route path="/" element={<Splash />} />

@@ -21,6 +21,7 @@ import { createOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connect
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { createWorkspace, listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { prefetchRoute } from "@/lib/lazy-pages";
 import { useTheme } from "@/lib/use-theme";
 import {
     createConnectQueryKey,
@@ -322,6 +323,12 @@ export function SiteHeader() {
                                     size="sm"
                                     onClick={() => {
                                         void navigate(item.url);
+                                    }}
+                                    onMouseEnter={() => {
+                                        prefetchRoute(item.url);
+                                    }}
+                                    onFocus={() => {
+                                        prefetchRoute(item.url);
                                     }}
                                     className={`h-8 px-3 text-sm rounded-none relative z-10 hover:bg-transparent font-mono text-muted-foreground hover:text-muted-foreground ${
                                         isActive(item.url)
