@@ -81,8 +81,6 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-tools
-        with:
-          tools: yq
 
       - name: Check Dockerfile base images against mise.toml
         run: mise run lint:versions

@@ -14,9 +14,6 @@ runs:
       with:
         version: 2026.9.15
 
-    - shell: bash
-      run: echo "MISE_TASK_RUN_AUTO_INSTALL=false" >> "$GITHUB_ENV"
-
     - if: inputs.go-cache != ''
       uses: actions/cache@v6
       with:
