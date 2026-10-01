@@ -64,7 +64,7 @@ jobs:
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-controller
-      context: ./controller
+      context: .
       dockerfile: ./controller/Dockerfile
 
   push-api-image:
@@ -112,7 +112,7 @@ jobs:
     uses: ./.github/workflows/build-push.yml
     with:
       image_name: ${{ github.repository }}-agent
-      context: ./agent
+      context: .
       dockerfile: ./agent/Dockerfile
 
   build-cli:
