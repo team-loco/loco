@@ -78,7 +78,7 @@ jobs:
           set -euo pipefail
           case "$EVENT" in
             pull_request)
-              FILES=$(git diff --name-only "$BASE" "$HEAD") ;;
+              FILES=$(git diff --name-only "$BASE...$HEAD") ;;
             push)
               if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
                 FILES=$(git ls-files)
