@@ -7,14 +7,12 @@ on:
       - staging
     paths:
       - ".github/workflows/**"
-      - "Makefile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
   pull_request:
     paths:
       - ".github/workflows/**"
-      - "Makefile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -32,4 +30,4 @@ jobs:
       - uses: ./.github/actions/setup-tools
 
       - name: actionlint
-        run: make lint-actions
+        run: mise run lint:actions

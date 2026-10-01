@@ -81,16 +81,20 @@ You must first reach out to me, nikumar1206, if you would like to deploy on this
 Every tool the repository uses (Go, bun, the linters, code generators, helm, kind, terraform and so on) is pinned in [`mise.toml`](./mise.toml), with exact versions and checksums for each platform in `mise.lock`. CI installs from the same files. Install [mise](https://mise.jdx.dev/getting-started.html), then from the repository root:
 
 ```bash
-mise install
+mise run setup
 ```
 
-Linting is defined once, as make targets that both CI and the git pre-commit hooks call: `make lint-go`, `make lint-proto`, `make lint-web`, `make lint-actions` and `make lint-docker`, or `make lint` for all of them.
+That installs the pinned tools, the web dependencies and the git hooks. With [`mise activate`](https://mise.jdx.dev/getting-started.html#activate-mise) in your shell, the pinned tools are on `PATH` whenever you are inside the repository.
 
-To run the hooks on every commit, install [pre-commit](https://pre-commit.com) and enable them once per clone:
+Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them; the ones you will use most:
 
-```bash
-pre-commit install
-```
+| Task | Does |
+| --- | --- |
+| `mise run tilt` | the full local environment: kind cluster, infrastructure and live-reloading services |
+| `mise run gen` | regenerate code after changing `proto/`, `api/queries/` or `api/migrations/` |
+| `mise run controller:gen` | regenerate the controller CRDs and the chart's CRD copy |
+| `mise run test` | every test suite |
+| `mise run lint` | every linter CI runs |
 
 ---
 

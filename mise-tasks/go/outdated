@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="List available dependency updates for every Go module"
+set -euo pipefail
+
+for modfile in $(git ls-files -- '*go.mod'); do
+	dir=$(dirname "$modfile")
+	printf '\n=== %s ===\n' "$dir"
+	(cd "$dir" && go list -m -u all 2>/dev/null | grep '\[' || true)
+done

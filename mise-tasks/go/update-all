@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Update every dependency in each Go module, one module at a time"
+set -euo pipefail
+
+for modfile in $(git ls-files -- '*go.mod'); do
+	dir=$(dirname "$modfile")
+	printf '\n=== Updating %s ===\n' "$dir"
+	(cd "$dir" && go get -u ./... && go mod tidy)
+done

@@ -13,6 +13,7 @@ kustomize = "5.7.1"
 golangci-lint = "2.13.2"
 actionlint = "1.7.12"
 hadolint = "2.15.1"
+lefthook = "2.1.15"
 
 helm = "4.3.0"
 helmfile = "1.8.1"
@@ -30,3 +31,205 @@ locked = true
 
 [env]
 GOTOOLCHAIN = "local"
+
+[tasks.setup]
+description = "Install the pinned tools, the web dependencies and the git hooks"
+run = ["mise install", "bun install --frozen-lockfile", "lefthook install"]
+
+[tasks.build]
+description = "Build the loco CLI into bin/loco"
+run = "go build -o bin/loco ."
+
+[tasks."build:linux"]
+description = "Build the loco CLI for linux/amd64"
+env = { CGO_ENABLED = "0", GOOS = "linux", GOARCH = "amd64" }
+run = "go build -o bin/loco_unix ."
+
+[tasks."build:api"]
+description = "Build the API server into api/bin"
+dir = "api"
+run = "go build -o ./bin/loco-api ."
+
+[tasks."build:agent"]
+description = "Build the agent into agent/bin"
+dir = "agent"
+run = "go build -o ./bin/loco-agent ."
+
+[tasks."build:obs-proxy"]
+description = "Build the observability proxy into observability-proxy/bin"
+dir = "observability-proxy"
+run = "go build -o ./bin/loco-obs-proxy ."
+
+[tasks.fmt]
+description = "Run go fmt in every Go module"
+run = "for m in $(git ls-files -- '*go.mod' ':!:gen/**' | xargs -n1 dirname); do (cd \"$m\" && go fmt ./...); done"
+
+[tasks.vet]
+description = "Run go vet in every Go module"
+run = "for m in $(git ls-files -- '*go.mod' ':!:gen/**' | xargs -n1 dirname); do (cd \"$m\" && go vet ./...); done"
+
+[tasks.gen]
+description = "Generate Go and TypeScript from the protos, and Go from the SQL queries"
+run = ["buf generate", "cd api && sqlc generate"]
+
+[tasks."controller:gen"]
+description = "Generate the controller's CRDs, RBAC and deepcopy code, and sync the chart's CRD copy"
+run = ["make -C controller manifests generate", "mise run chart:sync-crd"]
+
+[tasks.test]
+description = "Run every test suite"
+depends = ["test:*"]
+
+[tasks."test:cli"]
+description = "Test the CLI"
+run = "go test -v -coverprofile=coverage.out ./cmd/..."
+
+[tasks."test:api"]
+description = "Test the API server"
+dir = "api"
+run = "go test -v -coverprofile=coverage.out ./..."
+
+[tasks."test:agent"]
+description = "Test the agent"
+dir = "agent"
+run = "go test -v -coverprofile=coverage.out ./..."
+
+[tasks."test:controller"]
+description = "Test the controller against envtest"
+run = "make -C controller test"
+
+[tasks.coverage]
+description = "Open an HTML coverage report for the CLI tests"
+depends = ["test:cli"]
+run = "go tool cover -o coverage.html -html=coverage.out && open coverage.html"
+
+[tasks.lint]
+description = "Run every linter CI runs"
+depends = ["lint:*"]
+
+[tasks."lint:proto"]
+description = "Run buf lint on the protobuf definitions"
+run = "buf lint"
+
+[tasks."lint:web"]
+description = "Run oxlint, eslint and the typecheck on the web UI"
+dir = "web"
+run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
+
+[tasks."lint:actions"]
+description = "Run actionlint on the GitHub workflows"
+run = "actionlint -shellcheck="
+
+[tasks."lint:docker"]
+description = "Run hadolint on every Dockerfile; LINT_DOCKER_FORMAT selects the output format"
+run = "git ls-files '*Dockerfile' | grep -v '^examples/' | xargs hadolint --no-color -f \"${LINT_DOCKER_FORMAT:-tty}\" --failure-threshold error"
+
+[tasks.dev]
+description = "Run the API, agent, observability proxy and UI with live reload, against infrastructure that is already running"
+depends = ["fmt", "vet"]
+run = "mise run reload:api ::: reload:agent ::: reload:obs-proxy ::: ui"
+
+[tasks."reload:api"]
+description = "Run the API server with live reload"
+env = { _.file = ".env" }
+run = [
+  "lsof -ti:8000 | xargs -r kill -15 2>/dev/null || true",
+  "air --build.cmd 'cd api && go build -o ./bin/loco-api .' --build.bin ./api/bin/loco-api --build.exclude_dir bin,archive,assets,cmd,docs,internal,terraform,web",
+]
+
+[tasks."reload:cli"]
+description = "Rebuild the CLI on every change"
+env = { _.file = ".env" }
+run = "air --build.cmd 'mkdir -p ./bin && go build -o ./bin/loco .' --build.bin ./bin/loco --build.exclude_dir bin,api,archive,assets,dashboards,docs,kube,terraform,web"
+
+[tasks."reload:agent"]
+description = "Run the agent with live reload"
+env = { _.file = ".env" }
+run = "air --build.cmd 'cd agent && go build -o ./bin/loco-agent .' --build.bin ./agent/bin/loco-agent --build.exclude_dir bin,web"
+
+[tasks."reload:obs-proxy"]
+description = "Run the observability proxy with live reload"
+env = { _.file = ".env" }
+run = "air --build.cmd 'cd observability-proxy && go build -o ./bin/loco-obs-proxy .' --build.bin ./observability-proxy/bin/loco-obs-proxy --build.exclude_dir bin,web"
+
+[tasks.ui]
+description = "Run the web UI dev server"
+dir = "web"
+run = "bun run dev"
+
+[tasks.tilt]
+description = "Start the full local environment (cluster, infrastructure and services) with Tilt"
+env = { _.file = ".env" }
+run = "tilt up"
+
+[tasks."cluster:down"]
+description = "Delete the local kind cluster"
+run = "kind delete cluster --name loco-cluster-local"
+
+[tasks."controller:image"]
+description = "Build the controller image and load it into the local kind cluster"
+run = [
+  "docker build -t loco-controller:latest -f controller/Dockerfile .",
+  "kind load docker-image loco-controller:latest --name loco-cluster-local",
+]
+
+[tasks."helm:repos"]
+description = "Add and update the helm repositories the charts depend on"
+run = [
+  "helm repo add jetstack https://charts.jetstack.io",
+  "helm repo add cilium https://helm.cilium.io",
+  "helm repo add altinity https://helm.altinity.com",
+  "helm repo add grafana https://grafana.github.io/helm-charts",
+  "helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts",
+  "helm repo update",
+]
+
+[tasks."helm:deps"]
+description = "Build the helm chart dependencies"
+depends = ["helm:repos"]
+run = [
+  "helm dependency build ./charts/loco-networking",
+  "helm dependency build ./charts/loco-obs",
+  "helm dependency build ./charts/loco-core",
+  "helm dependency build ./charts/loco-controller",
+]
+
+[tasks."helm:sync"]
+description = "Sync every release to the local cluster"
+depends = ["helm:deps"]
+env = { _.file = ".env" }
+run = "helmfile -e local sync"
+
+[tasks."helm:sync:core"]
+description = "Sync the core phase (cert-manager, Envoy Gateway, loco-core, loco-controller) to the local cluster"
+env = { _.file = ".env" }
+run = "helmfile -e local -l phase=2-core sync"
+
+[tasks."helm:sync:obs"]
+description = "Sync the observability phase (ClickHouse, OpenTelemetry, Grafana) to the local cluster"
+env = { _.file = ".env" }
+run = "helmfile -e local -l phase=3-observability sync"
+
+[tasks."helm:destroy"]
+description = "Uninstall every release from the local cluster"
+env = { _.file = ".env" }
+run = "helmfile -e local destroy"
+
+[tasks."helm:fix-clickhouse"]
+description = "Remove the ClickHouse finalizer when it is stuck"
+run = """kubectl -n observability patch clickhouseinstallations.clickhouse.altinity.com/clickhouse -p '{"metadata":{"finalizers":[]}}' --type=merge"""
+
+[tasks.e2e]
+description = "Run the end-to-end tests (full setup and teardown)"
+env = { _.file = ".env" }
+run = "./e2e/run.sh"
+
+[tasks."e2e:no-teardown"]
+description = "Run the end-to-end tests and keep the infrastructure running"
+env = { _.file = ".env" }
+run = "./e2e/run.sh --no-teardown"
+
+[tasks."e2e:teardown"]
+description = "Tear down the end-to-end infrastructure"
+env = { _.file = ".env" }
+run = "./e2e/run.sh --teardown-only"

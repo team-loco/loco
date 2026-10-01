@@ -52,6 +52,16 @@
       pinDigests: true,
     },
     {
+      groupName: "go toolchain",
+      matchManagers: ["mise", "dockerfile"],
+      matchDepNames: ["go", "golang"],
+    },
+    {
+      groupName: "bun",
+      matchManagers: ["mise", "dockerfile"],
+      matchDepNames: ["bun", "oven/bun"],
+    },
+    {
       groupName: "github actions",
       matchManagers: ["github-actions"],
       matchUpdateTypes: ["minor", "patch", "digest"],

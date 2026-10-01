@@ -8,7 +8,7 @@ on:
       - "charts/**"
       - "go.mod"
       - "go.sum"
-      - "Makefile"
+      - "mise-tasks/chart/sync-crd"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -20,7 +20,7 @@ on:
       - "charts/**"
       - "go.mod"
       - "go.sum"
-      - "Makefile"
+      - "mise-tasks/chart/sync-crd"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -43,12 +43,12 @@ jobs:
           go-cache: controller-codegen
 
       - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD copy
-        run: make controller-gen
+        run: mise run controller:gen
 
       - name: Fail if anything is out of date
         run: |
           if ! git diff --exit-code; then
-            echo "::error::Generated files are out of date. Run 'make controller-gen' and commit the result."
+            echo "::error::Generated files are out of date. Run 'mise run controller:gen' and commit the result."
             exit 1
           fi
 

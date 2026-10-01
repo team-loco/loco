@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#MISE description="Check that the Dockerfile base images use the Go and bun versions pinned in mise.toml"
+set -euo pipefail
+
+status=0
+check() {
+	local image=$1 want=$2 file line tag
+	while IFS= read -r file; do
+		while IFS= read -r line; do
+			tag=${line#*"$image:"}
+			tag=${tag%%[ @-]*}
+			if [[ $tag != "$want" ]]; then
+				echo "$file: $image:$tag, but mise.toml pins $want"
+				status=1
+			fi
+		done < <(grep -E "^FROM[[:space:]]+$image:" "$file" || true)
+	done < <(git ls-files '*Dockerfile' | grep -v '^examples/')
+}
+
+check golang "$(yq -p toml -oy '.tools.go' mise.toml)"
+check oven/bun "$(yq -p toml -oy '.tools.bun' mise.toml)"
+if [[ $status -eq 0 ]]; then
+	echo "Dockerfile base images match mise.toml"
+fi
+exit $status
