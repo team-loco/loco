@@ -34,14 +34,13 @@ RUN find web/dist -type f -size +1k \( \
     \) -exec brotli -f -k -q 11 {} \;
 
 
-FROM georgjung/nginx-brotli:trixie
+FROM ghcr.io/static-web-server/static-web-server:2.44.0
 
-COPY web/nginx.conf /etc/nginx/nginx.conf
-COPY --from=builder /app/web/dist /usr/share/nginx/html
+COPY web/sws.toml /etc/sws.toml
+COPY --from=builder /app/web/dist /public
 
 EXPOSE 8080
 
-USER 101:101
+USER 65532:65532
 
-ENTRYPOINT []
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["--config-file", "/etc/sws.toml"]

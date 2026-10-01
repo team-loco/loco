@@ -1,0 +1,36 @@
+[general]
+host = "::"
+port = 8080
+root = "/public"
+page-fallback = "/public/index.html"
+log-level = "info"
+
+compression = true
+compression-level = "default"
+compression-static = true
+
+cache-control-headers = false
+security-headers = false
+directory-listing = false
+
+[advanced]
+
+[[advanced.headers]]
+source = "**"
+[advanced.headers.headers]
+X-Content-Type-Options = "nosniff"
+X-Frame-Options = "SAMEORIGIN"
+Referrer-Policy = "strict-origin-when-cross-origin"
+X-XSS-Protection = "1; mode=block"
+Vary = "Accept-Encoding"
+Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https:; manifest-src 'self'"
+
+[[advanced.headers]]
+source = "**/*.{js,css,png,jpg,jpeg,gif,ico,svg,woff,woff2,ttf,eot}"
+[advanced.headers.headers]
+Cache-Control = "public, max-age=31536000, immutable"
+
+[[advanced.headers]]
+source = "/index.html"
+[advanced.headers.headers]
+Cache-Control = "no-cache"
