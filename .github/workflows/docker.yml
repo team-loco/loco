@@ -85,8 +85,6 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-tools
-        with:
-          tools: hadolint
 
       - name: Lint Dockerfiles
         run: make lint-docker LINT_DOCKER_FORMAT=sarif > hadolint.sarif

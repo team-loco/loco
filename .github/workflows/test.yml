@@ -65,7 +65,6 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
         with:
-          tools: go github:kubernetes-sigs/controller-tools
           go-cache: test-${{ matrix.working-directory }}
 
       - name: Tidy dependencies

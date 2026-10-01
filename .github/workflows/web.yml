@@ -40,8 +40,6 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-tools
-        with:
-          tools: bun
 
       # Install from the repository root: web and gen/ts are bun workspaces, and
       # the UI imports generated TypeScript from gen/ts.

@@ -30,8 +30,6 @@ jobs:
       - uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-tools
-        with:
-          tools: actionlint
 
       - name: actionlint
         run: make lint-actions

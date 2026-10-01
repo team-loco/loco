@@ -40,7 +40,6 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
         with:
-          tools: go yq github:kubernetes-sigs/controller-tools
           go-cache: controller-codegen
 
       - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD copy
@@ -61,7 +60,6 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
         with:
-          tools: go kind helm
           go-cache: controller-helm-chart
 
       - name: Create kind cluster
