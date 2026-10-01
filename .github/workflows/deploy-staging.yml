@@ -14,114 +14,96 @@ jobs:
     name: Run Tests
     uses: ./.github/workflows/test.yml
 
+  changes:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    outputs:
+      controller: ${{ steps.filter.outputs.controller }}
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+      agent: ${{ steps.filter.outputs.agent }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Filter
+        id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            FILES=$(git ls-files)
+          else
+            FILES=$(git diff --name-only "$BEFORE" "$AFTER")
+          fi
+          echo "changed files:"
+          echo "$FILES"
+
+          match() { echo "$FILES" | grep -qE "$1" && echo true || echo false; }
+
+          {
+            echo "controller=$(match '^(controller/|shared/|go\.(mod|sum)$)')"
+            echo "api=$(match '^(api/|shared/|proto/|go\.(mod|sum)$)')"
+            echo "web=$(match '^(web/|gen/ts/|package\.json$|bun\.lock$)')"
+            echo "agent=$(match '^(agent/|k8sapi/|go\.(mod|sum)$)')"
+          } >> "$GITHUB_OUTPUT"
+
   push-controller-image:
     name: Build and Push Controller Image (RC)
-    needs: test
-    if: |
-      contains(github.event.head_commit.modified, 'controller/') ||
-      contains(github.event.head_commit.modified, 'shared/') ||
-      contains(github.event.head_commit.modified, 'go.mod') ||
-      contains(github.event.head_commit.modified, 'go.sum')
-    runs-on: ubuntu-latest
+    needs: [test, changes]
+    if: needs.changes.outputs.controller == 'true'
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.build.outputs.image }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Build and push controller image
-        id: build
-        uses: ./.github/workflows/build-push.yml
-        with:
-          image_name: ${{ github.repository }}-controller
-          context: ./controller
-          dockerfile: ./controller/Dockerfile
+    uses: ./.github/workflows/build-push.yml
+    with:
+      image_name: ${{ github.repository }}-controller
+      context: ./controller
+      dockerfile: ./controller/Dockerfile
 
   push-api-image:
     name: Build and Push API Image (RC)
-    needs: test
-    if: |
-      contains(github.event.head_commit.modified, 'api/') ||
-      contains(github.event.head_commit.modified, 'shared/') ||
-      contains(github.event.head_commit.modified, 'go.mod') ||
-      contains(github.event.head_commit.modified, 'go.sum')
-    runs-on: ubuntu-latest
+    needs: [test, changes]
+    if: needs.changes.outputs.api == 'true'
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.build.outputs.image }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Build and push API image
-        id: build
-        uses: ./.github/workflows/build-push.yml
-        with:
-          image_name: ${{ github.repository }}-api
-          context: .
-          dockerfile: ./api/Dockerfile
+    uses: ./.github/workflows/build-push.yml
+    with:
+      image_name: ${{ github.repository }}-api
+      context: .
+      dockerfile: ./api/Dockerfile
 
   push-ui-image:
     name: Build and Push UI Image (RC)
-    needs: test
-    if: |
-      contains(github.event.head_commit.modified, 'web/') ||
-      contains(github.event.head_commit.modified, 'go.mod') ||
-      contains(github.event.head_commit.modified, 'go.sum')
-    runs-on: ubuntu-latest
+    needs: [test, changes]
+    if: needs.changes.outputs.web == 'true'
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.build.outputs.image }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Build and push UI image
-        id: build
-        uses: ./.github/workflows/build-push.yml
-        with:
-          image_name: ${{ github.repository }}-ui
-          # Repo root: the UI imports generated TS from gen/ts, which lives
-          # outside web/. web/Dockerfile.dockerignore trims the context.
-          context: .
-          dockerfile: ./web/Dockerfile
+    uses: ./.github/workflows/build-push.yml
+    with:
+      image_name: ${{ github.repository }}-ui
+      context: .
+      dockerfile: ./web/Dockerfile
+      build_args: |
+        VITE_API_URL=${{ vars.VITE_API_URL_STAGING || 'https://api.deploy-app.com' }}
+        VITE_APP_ENV=STAGING
 
   push-agent-image:
     name: Build and Push Agent Image (RC)
-    needs: test
-    if: |
-      contains(github.event.head_commit.modified, 'agent/') ||
-      contains(github.event.head_commit.modified, 'k8sapi/') ||
-      contains(github.event.head_commit.modified, 'go.mod') ||
-      contains(github.event.head_commit.modified, 'go.sum')
-    runs-on: ubuntu-latest
+    needs: [test, changes]
+    if: needs.changes.outputs.agent == 'true'
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.build.outputs.image }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Build and push agent image
-        id: build
-        uses: ./.github/workflows/build-push.yml
-        with:
-          image_name: ${{ github.repository }}-agent
-          context: ./agent
-          dockerfile: ./agent/Dockerfile
+    uses: ./.github/workflows/build-push.yml
+    with:
+      image_name: ${{ github.repository }}-agent
+      context: ./agent
+      dockerfile: ./agent/Dockerfile
 
   deploy-staging:
     name: Deploy to Staging
