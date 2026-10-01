@@ -11,7 +11,6 @@ on:
       - "**/buf.lock"
       - "**/buf.gen.yaml"
       - ".github/workflows/buf.yml"
-      - "Makefile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -26,7 +25,6 @@ on:
       - "**/buf.lock"
       - "**/buf.gen.yaml"
       - ".github/workflows/buf.yml"
-      - "Makefile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -48,7 +46,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
 
       - name: buf lint
-        run: make lint-proto
+        run: mise run lint:proto
 
   buf:
     name: Buf Breaking

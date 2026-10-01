@@ -1,0 +1,29 @@
+lefthook: mise exec -- lefthook
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint:go
+      glob: ["*.go", "go.mod", "go.sum", "**/go.mod", "**/go.sum"]
+      exclude: ["gen/**"]
+      run: mise run lint:go {staged_files}
+
+    - name: lint:proto
+      glob: ["*.proto", "buf.yaml", "buf.lock"]
+      run: mise run lint:proto
+
+    - name: lint:web
+      glob: ["web/**", "gen/ts/**"]
+      run: mise run lint:web
+
+    - name: lint:actions
+      glob: [".github/workflows/*"]
+      run: mise run lint:actions
+
+    - name: lint:docker
+      glob: ["Dockerfile", "**/Dockerfile"]
+      run: mise run lint:docker
+
+    - name: lint:versions
+      glob: ["**/Dockerfile", "mise.toml"]
+      run: mise run lint:versions

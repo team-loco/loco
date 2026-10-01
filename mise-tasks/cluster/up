@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#MISE description="Create the local kind cluster, or recreate it if it is unreachable, and export its kubeconfig"
+set -euo pipefail
+
+name=loco-cluster-local
+if kind get clusters 2>/dev/null | grep -qx "$name"; then
+	if ! kubectl cluster-info --context "kind-$name" >/dev/null 2>&1; then
+		echo "cluster exists but is unreachable, recreating..."
+		kind delete cluster --name "$name"
+		kind create cluster --config local-cluster.yml
+	fi
+else
+	kind create cluster --config local-cluster.yml
+fi
+kind export kubeconfig --name "$name" --kubeconfig "$HOME/.kube/config"

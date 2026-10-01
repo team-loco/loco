@@ -12,7 +12,6 @@ on:
       - "package.json"
       - "bun.lock"
       - ".github/workflows/web.yml"
-      - "Makefile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -23,7 +22,6 @@ on:
       - "package.json"
       - "bun.lock"
       - ".github/workflows/web.yml"
-      - "Makefile"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -65,4 +63,4 @@ jobs:
         run: bun run typecheck:tsc
 
       - name: Lint
-        run: make lint-web
+        run: mise run lint:web

@@ -338,7 +338,7 @@ main() {
         trap teardown EXIT
     else
         log_warn "--no-teardown: infrastructure will persist after tests"
-        trap 'log_info "Leaving infrastructure running. Clean up with: make e2e-teardown"' EXIT
+        trap 'log_info "Leaving infrastructure running. Clean up with: mise run e2e:teardown"' EXIT
     fi
 
     check_prerequisites

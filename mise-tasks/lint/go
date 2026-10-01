@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#MISE description="Run golangci-lint in every Go module, or only in the modules containing the given paths"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+if [[ $# -eq 0 ]]; then
+	while IFS= read -r modfile; do
+		set -- "$@" "$modfile"
+	done < <(git ls-files -- '*go.mod' ':!:gen/**')
+fi
+
+modules=""
+for path in "$@"; do
+	dir=$path
+	[[ -d $dir ]] || dir=$(dirname "$dir")
+	while [[ $dir != . && ! -f $dir/go.mod ]]; do
+		dir=$(dirname "$dir")
+	done
+	case $dir in
+	gen/*) continue ;;
+	esac
+	if [[ " $modules " != *" $dir "* ]]; then
+		modules="$modules $dir"
+	fi
+done
+
+status=0
+for module in $modules; do
+	echo "golangci-lint: $module"
+	(cd "$root/$module" && golangci-lint run --config="$root/.golangci.yml" --timeout=5m) || status=1
+done
+exit $status

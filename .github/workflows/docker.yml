@@ -9,19 +9,19 @@ on:
       - "**/Dockerfile"
       - "**/.dockerignore"
       - ".github/workflows/docker.yml"
+      - "mise-tasks/lint/versions"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
-      - "Makefile"
   pull_request:
     paths:
       - "**/Dockerfile"
       - "**/.dockerignore"
       - ".github/workflows/docker.yml"
+      - "mise-tasks/lint/versions"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
-      - "Makefile"
   workflow_call:
 
 permissions:
@@ -77,6 +77,18 @@ jobs:
           build-args: |
             BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all
 
+  base-image-versions:
+    name: Base Image Versions
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Check Dockerfile base images against mise.toml
+        run: mise run lint:versions
+
   hadolint:
     name: Hadolint
     runs-on: ubuntu-latest
@@ -91,7 +103,9 @@ jobs:
       - uses: ./.github/actions/setup-tools
 
       - name: Lint Dockerfiles
-        run: make lint-docker LINT_DOCKER_FORMAT=sarif > hadolint.sarif
+        env:
+          LINT_DOCKER_FORMAT: sarif
+        run: mise run lint:docker > hadolint.sarif
 
       - name: Upload results
         if: always()

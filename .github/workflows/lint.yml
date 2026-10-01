@@ -17,7 +17,7 @@ on:
       - "go.mod"
       - "go.sum"
       - ".golangci.yml"
-      - "Makefile"
+      - "mise-tasks/lint/go"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -34,7 +34,7 @@ on:
       - "go.mod"
       - "go.sum"
       - ".golangci.yml"
-      - "Makefile"
+      - "mise-tasks/lint/go"
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
@@ -83,5 +83,5 @@ jobs:
 
       - name: golangci-lint
         env:
-          GO_MODULES: ${{ matrix.working-directory }}
-        run: make lint-go GO_MODULES="$GO_MODULES"
+          GO_MODULE: ${{ matrix.working-directory }}
+        run: mise run lint:go "$GO_MODULE"

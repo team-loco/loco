@@ -46,22 +46,22 @@ jobs:
         include:
           - component: API
             working-directory: api
-            test-command: go test -v -coverprofile=coverage.out ./...
+            test-command: mise run test:api
             timeout: 10
 
           - component: CLI
             working-directory: "."
-            test-command: go test -v -coverprofile=coverage.out ./cmd/...
+            test-command: mise run test:cli
             timeout: 10
 
           - component: Controller
             working-directory: controller
-            test-command: make test
+            test-command: mise run test:controller
             timeout: 10
 
           - component: Agent
             working-directory: agent
-            test-command: go test -v -coverprofile=coverage.out ./...
+            test-command: mise run test:agent
             timeout: 10
 
     steps:
@@ -76,7 +76,7 @@ jobs:
         run: cd ${{ matrix.working-directory }} && go mod tidy
 
       - name: Run tests
-        run: cd ${{ matrix.working-directory }} && ${{ matrix.test-command }}
+        run: ${{ matrix.test-command }}
         timeout-minutes: ${{ matrix.timeout }}
 
       - name: Display coverage
