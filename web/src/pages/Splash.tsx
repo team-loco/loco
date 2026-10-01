@@ -113,7 +113,7 @@ export function Splash() {
 			{/* ── Nav ─────────────────────────────────────────────────────── */}
 			<nav className="fixed top-0 left-0 right-0 z-50 bg-white/30 backdrop-blur-xl border-b border-white/20">
 				<div className="max-w-7xl mx-auto px-6 lg:px-12 py-2 flex items-center justify-between">
-					<img src="/logo.png" alt="Loco" className="h-8 w-8 rounded-lg" />
+					<img src="/logo.webp" alt="Loco" className="h-8 w-8 rounded-lg" />
 
 					<div className="hidden lg:flex items-center gap-8">
 						<a
@@ -462,7 +462,7 @@ export function Splash() {
 				<div className="max-w-7xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-8">
 					<div className="sm:col-span-2 lg:col-span-1">
 						<div className="flex items-center gap-2.5 mb-3">
-							<img src="/logo.png" alt="Loco" className="h-7 w-7 rounded-lg" />
+							<img src="/logo.webp" alt="Loco" className="h-7 w-7 rounded-lg" />
 							<span className="text-lg font-bold tracking-tight">LOCO</span>
 						</div>
 						<p className="text-sm text-[#57534E] leading-relaxed">
