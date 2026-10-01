@@ -6,13 +6,17 @@ ENV CGO_ENABLED=0 \
 
 WORKDIR /app
 
+COPY observability-proxy/go.mod observability-proxy/go.sum ./observability-proxy/
+COPY gen/go/go.mod gen/go/go.sum ./gen/go/
+
+WORKDIR /app/observability-proxy
+RUN go mod download
+
+WORKDIR /app
 COPY observability-proxy ./observability-proxy
 COPY gen/go ./gen/go
 
 WORKDIR /app/observability-proxy
-
-RUN go mod download
-
 RUN go build -o loco-obs-proxy .
 
 FROM gcr.io/distroless/static:nonroot
