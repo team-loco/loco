@@ -87,3 +87,8 @@ require (
 
 // these replace directives seem to work better than go.work
 replace github.com/team-loco/loco/gen/go => ./gen/go
+
+tool (
+	connectrpc.com/connect/cmd/protoc-gen-connect-go
+	google.golang.org/protobuf/cmd/protoc-gen-go
+)

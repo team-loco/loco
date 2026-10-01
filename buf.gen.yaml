@@ -3,26 +3,26 @@ managed:
   enabled: false
 plugins:
   # Go — all generated Go lands under gen/go/, out of the way of the .proto sources.
-  - local: protoc-gen-go
+  - local: ["go", "tool", "protoc-gen-go"]
     out: ./gen/go
     opt: paths=source_relative
-  - local: protoc-gen-connect-go
+  - local: ["go", "tool", "protoc-gen-connect-go"]
     out: ./gen/go
     opt: paths=source_relative
 
   # TypeScript — gen/ts/ mirrors gen/go/ instead of being buried in web/src/gen.
-  - local: protoc-gen-es
+  - local: ./node_modules/.bin/protoc-gen-es
     out: ./gen/ts
     include_imports: true
     opt:
       - target=ts
       - json_types=true
-  - local: protoc-gen-connect-es
+  - local: ./node_modules/.bin/protoc-gen-connect-es
     out: ./gen/ts
     opt:
       - target=ts
       - import_extension=none
-  - local: protoc-gen-connect-query
+  - local: ./node_modules/.bin/protoc-gen-connect-query
     out: ./gen/ts
     opt:
       - target=ts
