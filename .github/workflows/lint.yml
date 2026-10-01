@@ -10,6 +10,9 @@ on:
       - "api/**"
       - "cmd/**"
       - "controller/**"
+      - "agent/**"
+      - "k8sapi/**"
+      - "observability-proxy/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -25,6 +28,9 @@ on:
       - "api/**"
       - "cmd/**"
       - "controller/**"
+      - "agent/**"
+      - "k8sapi/**"
+      - "observability-proxy/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -53,6 +59,15 @@ jobs:
 
           - component: Controller
             working-directory: controller
+
+          - component: Agent
+            working-directory: agent
+
+          - component: K8s API
+            working-directory: k8sapi
+
+          - component: Observability Proxy
+            working-directory: observability-proxy
 
     steps:
       - uses: actions/checkout@v6

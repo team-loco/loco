@@ -18,8 +18,6 @@ import (
 	chClient "github.com/team-loco/loco/observability-proxy/pkg/clickhouse"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/service"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -43,8 +41,8 @@ func main() {
 	}
 	defer ch.Close()
 
-	if err := ch.Ping(context.Background()); err != nil {
-		slog.Warn("clickhouse ping failed on startup (may not be ready yet)", "error", err)
+	if pingErr := ch.Ping(context.Background()); pingErr != nil {
+		slog.Warn("clickhouse ping failed on startup (may not be ready yet)", "error", pingErr)
 	}
 
 	// Initialize permission cache and token validator
@@ -83,9 +81,14 @@ func main() {
 	path, handler := observabilityv1connect.NewObservabilityProxyServiceHandler(svc, interceptors)
 	mux.Handle(path, handler)
 
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	server := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Port),
-		Handler: h2c.NewHandler(mux, &http2.Server{}),
+		Addr:      fmt.Sprintf(":%d", cfg.Port),
+		Handler:   mux,
+		Protocols: protocols,
 	}
 
 	// Graceful shutdown
