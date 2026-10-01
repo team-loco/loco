@@ -140,6 +140,20 @@
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-destructive: var(--destructive);
+
+	/* Status palette (badges, deployment/resource state) */
+	--color-status-success: var(--status-success);
+	--color-status-success-foreground: var(--status-success-foreground);
+	--color-status-success-border: var(--status-success-border);
+	--color-status-warning: var(--status-warning);
+	--color-status-warning-foreground: var(--status-warning-foreground);
+	--color-status-warning-border: var(--status-warning-border);
+	--color-status-error: var(--status-error);
+	--color-status-error-foreground: var(--status-error-foreground);
+	--color-status-error-border: var(--status-error-border);
+	--color-status-info: var(--status-info);
+	--color-status-info-foreground: var(--status-info-foreground);
+	--color-status-info-border: var(--status-info-border);
 	--color-border: var(--border);
 	--color-input: var(--input);
 	--color-ring: var(--ring);
@@ -249,6 +263,20 @@
 	--border: #d9d2c2;
 	--input: #c9bfa8;
 
+	/* Status palette */
+	--status-success: #eef3f1;
+	--status-success-foreground: #3a7a4a;
+	--status-success-border: #b8d4bf;
+	--status-warning: #f9f6f0;
+	--status-warning-foreground: #b07a10;
+	--status-warning-border: #e5dccf;
+	--status-error: #fdecea;
+	--status-error-foreground: #d92818;
+	--status-error-border: #f5b8b2;
+	--status-info: #f0f4f7;
+	--status-info-foreground: #6b8aaa;
+	--status-info-border: #c9d6e2;
+
 	/* Focus ring */
 	--ring: rgba(217, 40, 24, 0.3);
 
@@ -277,6 +305,20 @@
    Warm dark adaptation
 ---------------------------- */
 .dark {
+	/* Status palette */
+	--status-success: #1a2e20;
+	--status-success-foreground: #6abf7a;
+	--status-success-border: #2d4d35;
+	--status-warning: #2a2210;
+	--status-warning-foreground: #d4a030;
+	--status-warning-border: #4a3d20;
+	--status-error: #2a1010;
+	--status-error-foreground: #e8391d;
+	--status-error-border: #5c2020;
+	--status-info: #151e28;
+	--status-info-foreground: #8aaac8;
+	--status-info-border: #253545;
+
 	/* Warm dark backgrounds */
 	--background: #1c1917;
 	--foreground: #e7e5e0;
