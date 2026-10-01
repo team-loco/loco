@@ -2,6 +2,9 @@ name: Controller Helm Chart Tests
 
 on:
   push:
+    branches:
+      - main
+      - staging
     paths:
       - "controller/**"
       - "k8sapi/**"
@@ -20,6 +23,10 @@ on:
 # charts), so neither may hold anything an attacker would want.
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   codegen:
