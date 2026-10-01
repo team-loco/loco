@@ -31,6 +31,7 @@ import { formatShortId, lookupEnum } from "@/lib/utils";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
+import { useNow } from "@/hooks/useNow";
 import { toast } from "sonner";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
 import { TokenDisplayDialog } from "./tokens/TokenDisplayDialog";
@@ -92,6 +93,7 @@ function TokenCard({
 	isRevoking: boolean;
 }) {
 	const [revokeOpen, setRevokeOpen] = useState(false);
+	const now = useNow(30_000);
 	const createdDate = token.createdAt
 		? new Date(Number(token.createdAt.seconds) * 1000)
 		: null;
@@ -257,10 +259,10 @@ function TokenCard({
 						) : (
 							<span
 								className={
-									expiresDate < new Date() ? "text-red-600" : "text-gray-900"
+									expiresDate < now ? "text-red-600" : "text-gray-900"
 								}
 							>
-								{expiresDate < new Date()
+								{expiresDate < now
 									? "Expired"
 									: formatRelativeTimeFuture(expiresDate)}
 							</span>
