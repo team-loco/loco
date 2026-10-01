@@ -33,8 +33,8 @@ locked = true
 GOTOOLCHAIN = "local"
 
 [tasks.setup]
-description = "Install the pinned tools, the web dependencies and the git hooks"
-run = ["mise install", "bun install --frozen-lockfile", "lefthook install"]
+description = "Install the pinned tools, the web dependencies and the git hooks, then check Docker"
+run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mise run doctor"]
 
 [tasks.build]
 description = "Build the loco CLI into bin/loco"
@@ -161,6 +161,23 @@ run = "bun run dev"
 description = "Start the full local environment (cluster, infrastructure and services) with Tilt"
 env = { _.file = ".env" }
 run = "tilt up"
+
+[tasks."infra:up"]
+description = "Start Postgres and Valkey from compose.yaml and wait until both are healthy"
+run = "docker compose up -d --wait postgres valkey"
+
+[tasks."infra:down"]
+description = "Stop Postgres and Valkey; the database is kept in the postgres-data volume"
+run = "docker compose down"
+
+[tasks."db:migrate"]
+description = "Apply api/migrations and seed.sql to the local database, from a container"
+run = "docker compose run --rm migrate"
+
+[tasks."db:psql"]
+description = "Open psql against the local database, inside the Postgres container"
+raw = true
+run = "docker compose exec postgres sh -c 'exec psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
 
 [tasks."cluster:down"]
 description = "Delete the local kind cluster"

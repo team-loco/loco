@@ -12,7 +12,6 @@ PID_DIR="$SCRIPT_DIR/pids"
 
 # Config
 KIND_CLUSTER_NAME="loco-e2e"
-PG_CONTAINER_NAME="loco-e2e-postgres"
 PG_PORT=5433
 PG_USER="loco_e2e"
 PG_PASS="loco_e2e_pass"
@@ -22,6 +21,9 @@ OBS_PROXY_PORT=8878
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 
+export E2E_ROOT_DIR="$ROOT_DIR"
+export E2E_COMPOSE_PROJECT="loco-e2e"
+export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB" POSTGRES_PORT="$PG_PORT"
 export E2E_DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB}?sslmode=disable"
 export E2E_API_URL="http://localhost:${API_PORT}"
 export E2E_AGENT_TOKEN="$AGENT_TOKEN"
@@ -63,11 +65,9 @@ teardown() {
         kind delete cluster --name "$KIND_CLUSTER_NAME"
     fi
 
-    # Remove Postgres container
-    if docker ps -a --format '{{.Names}}' | grep -q "^${PG_CONTAINER_NAME}$"; then
-        log_info "Removing Postgres container..."
-        docker rm -f "$PG_CONTAINER_NAME" >/dev/null 2>&1 || true
-    fi
+    # Remove Postgres and its volume
+    log_info "Removing Postgres..."
+    e2e_compose down -v >/dev/null 2>&1 || true
 
     # Clean up dirs
     rm -rf "$BIN_DIR" "$LOG_DIR" "$PID_DIR"
@@ -86,7 +86,7 @@ check_prerequisites() {
     log_step "Checking prerequisites..."
     local missing=()
 
-    for cmd in kind docker kubectl psql go; do
+    for cmd in kind docker kubectl go; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing+=("$cmd")
         fi
@@ -96,6 +96,8 @@ check_prerequisites() {
         log_error "Missing required tools: ${missing[*]}"
         exit 1
     fi
+
+    mise run doctor
 
     log_ok "All prerequisites found"
 }
@@ -124,39 +126,14 @@ setup_kind() {
 
 setup_postgres() {
     log_step "Setting up Postgres..."
-    if docker ps --format '{{.Names}}' | grep -q "^${PG_CONTAINER_NAME}$"; then
-        log_info "Postgres container already running, reusing"
-        return 0
-    fi
-
-    # Remove stale container if exists
-    docker rm -f "$PG_CONTAINER_NAME" >/dev/null 2>&1 || true
-
-    docker run -d \
-        --name "$PG_CONTAINER_NAME" \
-        -e POSTGRES_USER="$PG_USER" \
-        -e POSTGRES_PASSWORD="$PG_PASS" \
-        -e POSTGRES_DB="$PG_DB" \
-        -p "${PG_PORT}:5432" \
-        postgres:18-alpine \
-        >/dev/null
-
-    wait_for "Postgres" 30 pg_isready -h localhost -p "$PG_PORT" -U "$PG_USER"
+    e2e_compose up -d --wait postgres
+    log_ok "Postgres ready"
 }
 
 run_migrations() {
-    log_step "Running migrations..."
-    for migration in "$ROOT_DIR"/api/migrations/*.sql; do
-        log_info "Applying $(basename "$migration")..."
-        psql "$E2E_DATABASE_URL" -f "$migration" >/dev/null 2>&1
-    done
-    log_ok "Migrations applied"
-}
-
-seed_data() {
-    log_step "Seeding test data..."
-    psql "$E2E_DATABASE_URL" -f "$SCRIPT_DIR/seed.sql" >/dev/null 2>&1
-    log_ok "Test data seeded"
+    log_step "Running migrations and seeding test data..."
+    SEED_FILE=e2e/seed.sql e2e_compose run --rm migrate >/dev/null
+    log_ok "Migrations applied and test data seeded"
 }
 
 install_crds() {
@@ -232,7 +209,7 @@ start_agent() {
 
     # Verify agent registered by checking DB
     local heartbeat
-    heartbeat=$(psql "$E2E_DATABASE_URL" -t -A -c "SELECT agent_version FROM clusters WHERE id = 1" 2>/dev/null || echo "")
+    heartbeat=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = 1" 2>/dev/null || echo "")
     if [ "$heartbeat" = "e2e-test" ]; then
         log_ok "Agent registered successfully"
     else
@@ -346,7 +323,6 @@ main() {
     setup_kind
     setup_postgres
     run_migrations
-    seed_data
     install_crds
     build_binaries
     start_api

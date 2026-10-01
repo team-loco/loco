@@ -48,7 +48,7 @@
       matchPackageNames: ["opentelemetry-**"],
     },
     {
-      matchManagers: ["dockerfile"],
+      matchManagers: ["dockerfile", "docker-compose"],
       pinDigests: true,
     },
     {
