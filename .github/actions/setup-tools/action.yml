@@ -12,7 +12,7 @@ runs:
   steps:
     - uses: jdx/mise-action@v5.0.1
       with:
-        version: 2026.9.15
+        version: 2026.9.18
 
     - if: inputs.go-cache != ''
       uses: actions/cache@v6

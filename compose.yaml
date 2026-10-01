@@ -20,7 +20,7 @@ services:
       retries: 30
 
   valkey:
-    image: valkey/valkey:8.1.8-alpine
+    image: valkey/valkey:8.1.10-alpine
     ports:
       - "${VALKEY_PORT:-6379}:6379"
     healthcheck:
