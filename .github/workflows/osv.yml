@@ -137,6 +137,7 @@ jobs:
 
       # scanning the exported archive keeps osv-scanner out of the docker socket
       - name: Scan image
+        id: scan
         run: |
           set -euo pipefail
           docker save "loco-${{ matrix.image.name }}:osv" -o /tmp/image.tar
@@ -146,12 +147,18 @@ jobs:
             --format sarif --output-file /out/osv-image.sarif
           code=$?
           set -e
+          if [ "$code" -eq 128 ]; then
+            echo "no package sources in this image; nothing to upload"
+            echo "sarif=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "$code" -gt 1 ]; then
             exit "$code"
           fi
+          echo "sarif=true" >> "$GITHUB_OUTPUT"
 
       - name: Upload results
-        if: always()
+        if: always() && steps.scan.outputs.sarif == 'true'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: /tmp/osv-image.sarif
