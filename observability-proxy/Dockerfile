@@ -7,6 +7,7 @@ ENV CGO_ENABLED=0 \
 WORKDIR /app
 
 COPY observability-proxy ./observability-proxy
+COPY gen/go ./gen/go
 COPY proto ./proto
 
 WORKDIR /app/observability-proxy

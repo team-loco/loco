@@ -29,7 +29,7 @@ jobs:
       matrix:
         include:
           - name: Controller
-            context: ./controller
+            context: .
             dockerfile: ./controller/Dockerfile
 
           - name: API
@@ -41,7 +41,7 @@ jobs:
             dockerfile: ./web/Dockerfile
 
           - name: Agent
-            context: ./agent
+            context: .
             dockerfile: ./agent/Dockerfile
 
           - name: Observability Proxy
