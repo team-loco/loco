@@ -47,7 +47,8 @@ export function ResourceSettings() {
 	);
 	const resource = resourceResponse?.resource;
 
-	const [name, setName] = useState(resource?.name ?? "");
+	const [draftName, setDraftName] = useState<string | null>(null);
+	const name = draftName ?? resource?.name ?? "";
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [newDomain, setNewDomain] = useState("");
 	const [domainSource, setDomainSource] = useState<"platform" | "user">(
@@ -71,7 +72,7 @@ export function ResourceSettings() {
 	const updateDomainMutation = useMutation(updateResourceDomain);
 	const scaleResourceMutation = useMutation(scaleResource);
 
-	const hasChanges = name !== resource?.name;
+	const hasChanges = draftName !== null && draftName !== resource?.name;
 
 	const handleSave = async () => {
 		if (!resourceId) return;
@@ -266,7 +267,7 @@ export function ResourceSettings() {
 						<Input
 							value={name}
 							onChange={(e) => {
-								setName(e.target.value);
+								setDraftName(e.target.value);
 							}}
 							className="mt-1"
 						/>
@@ -276,7 +277,7 @@ export function ResourceSettings() {
 						<Button
 							variant="outline"
 							onClick={() => {
-								setName(resource.name);
+								setDraftName(null);
 							}}
 							className="border-2"
 							disabled={!hasChanges}
