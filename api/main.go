@@ -39,7 +39,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"golang.org/x/net/http2"
 )
 
 type ApiConfig struct {
@@ -174,10 +173,9 @@ func main() {
 	defer appCache.Close()
 
 	transport := &http.Transport{}
-	http2Err := http2.ConfigureTransport(&http.Transport{})
-	if http2Err != nil {
-		panic("failed to configure HTTP/2 transport: " + http2Err.Error())
-	}
+	transport.Protocols = new(http.Protocols)
+	transport.Protocols.SetHTTP1(true)
+	transport.Protocols.SetHTTP2(true)
 	httpClient := &http.Client{Transport: transport}
 
 	// Initialize command bus for agent communication

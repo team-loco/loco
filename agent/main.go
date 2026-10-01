@@ -14,7 +14,6 @@ import (
 	"github.com/team-loco/loco/agent/pkg/applier"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
-	"golang.org/x/net/http2"
 )
 
 type Config struct {
@@ -59,10 +58,9 @@ func main() {
 		"version", cfg.AgentVersion,
 	)
 	transport := &http.Transport{}
-	http2Err := http2.ConfigureTransport(&http.Transport{})
-	if http2Err != nil {
-		panic("failed to configure HTTP/2 transport: " + http2Err.Error())
-	}
+	transport.Protocols = new(http.Protocols)
+	transport.Protocols.SetHTTP1(true)
+	transport.Protocols.SetHTTP2(true)
 	httpClient := &http.Client{Transport: transport}
 
 	client := agentv1connect.NewAgentServiceClient(
