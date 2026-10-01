@@ -49,11 +49,21 @@ func (i *contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 		dur := time.Since(start)
 		durMilli := float64(dur.Milliseconds())
 
-		slog.InfoContext(
-			ctx,
-			"handled request",
-			slog.String("duration", dur.String()),
-		)
+		if err != nil {
+			slog.WarnContext(
+				ctx,
+				"request failed",
+				slog.String("duration", dur.String()),
+				slog.String("code", connect.CodeOf(err).String()),
+				slog.String("error", err.Error()),
+			)
+		} else {
+			slog.InfoContext(
+				ctx,
+				"handled request",
+				slog.String("duration", dur.String()),
+			)
+		}
 
 		if err == nil && resp != nil {
 			resp.Header().Set("X-Loco-Request-Id", rid)
@@ -95,11 +105,21 @@ func (i *contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerF
 		duration := time.Since(start)
 		durMilli := float64(duration.Microseconds())
 
-		slog.InfoContext(
-			ctx,
-			"handled request",
-			slog.String("duration", duration.String()),
-		)
+		if err != nil {
+			slog.WarnContext(
+				ctx,
+				"request failed",
+				slog.String("duration", duration.String()),
+				slog.String("code", connect.CodeOf(err).String()),
+				slog.String("error", err.Error()),
+			)
+		} else {
+			slog.InfoContext(
+				ctx,
+				"handled request",
+				slog.String("duration", duration.String()),
+			)
+		}
 
 		conn.ResponseTrailer().Set("Server-Timing", fmt.Sprintf(`rid;desc="%s";dur=%.2f`, rid, durMilli))
 
