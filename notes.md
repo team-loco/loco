@@ -512,6 +512,12 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
   for users who want to self-host or graduate off Loco.
 - **Graduating services** — a formal path for users to graduate from Loco to self-managed infra.
     - perhaps just a way to download their YAMLs
+- **Kubernetes compatibility matrix** — Loco runs on clusters we do not upgrade in lockstep,
+  so the controller and agent must work across several Kubernetes minors at once. Decide the
+  supported range (e.g. the three newest minors), run the controller and agent e2e suites
+  against a kind node image for each minor in CI (`kind create cluster --image`), and publish
+  the matrix. kind's default node image and kubectl in `mise.toml` are the version we develop
+  against, not the only one we support.
 
 ---
 
