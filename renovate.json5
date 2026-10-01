@@ -11,7 +11,7 @@
   ignorePaths: ["examples/**", "**/node_modules/**", "gen/ts/node_modules/**"],
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   constraints: {
-    mise: "2026.9.15",
+    mise: "2026.9.18",
   },
   osvVulnerabilityAlerts: true,
   vulnerabilityAlerts: {
@@ -79,9 +79,9 @@
   customManagers: [
     {
       customType: "regex",
-      description: "mise: the CI pin, the minimum version in mise.toml and the mise Renovate runs move together",
-      managerFilePatterns: ["/^mise\\.toml$/", "/^\\.github/actions/setup-tools/action\\.yml$/", "/^renovate\\.json5$/"],
-      matchStrings: ["min_version = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"", "version: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n", "mise: \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      description: "mise: the version CI and Renovate run move together. min_version in mise.toml is the oldest mise that reads mise.lock and moves by hand.",
+      managerFilePatterns: ["/^\\.github/actions/setup-tools/action\\.yml$/", "/^renovate\\.json5$/"],
+      matchStrings: ["version: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n", "mise: \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
       depNameTemplate: "jdx/mise",
       datasourceTemplate: "github-releases",
       extractVersionTemplate: "^v(?<version>.*)$",

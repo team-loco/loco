@@ -1,30 +1,30 @@
 min_version = "2026.9.15"
 
 [tools]
-go = "1.27.0"
-bun = "1.4.0"
+go = "1.27.1"
+bun = "1.4.2"
 
 buf = "1.73.0"
 "github:sqlc-dev/sqlc" = "1.31.1"
-yq = "4.49.2"
-"github:kubernetes-sigs/controller-tools" = { version = "0.19.0", bin = "controller-gen" }
-kustomize = "5.7.1"
+yq = "4.54.1"
+"github:kubernetes-sigs/controller-tools" = { version = "0.22.0", bin = "controller-gen" }
+kustomize = "5.8.2"
 
-golangci-lint = "2.13.2"
+golangci-lint = "2.14.0"
 actionlint = "1.7.12"
 hadolint = "2.15.1"
-lefthook = "2.1.15"
+lefthook = "2.1.16"
 
 helm = "4.3.0"
 helmfile = "1.8.1"
 helm-diff = { version = "3.15.15", rename_exe = "diff" }
 kubectl = "1.37.1"
 kind = "0.33.0"
-tilt = "0.37.7"
-air = "1.61.5"
+tilt = "0.37.8"
+air = "1.67.4"
 
 terraform = "1.16.4"
-doctl = "1.175.0"
+doctl = "1.177.0"
 
 [settings]
 lockfile = true
@@ -135,23 +135,23 @@ description = "Run the API server with live reload"
 env = { _.file = ".env" }
 run = [
   "lsof -ti:8000 | xargs -r kill -15 2>/dev/null || true",
-  "air --build.cmd 'cd api && go build -o ./bin/loco-api .' --build.bin ./api/bin/loco-api --build.exclude_dir bin,archive,assets,cmd,docs,internal,terraform,web",
+  "air --build.cmd 'cd api && go build -o ./bin/loco-api .' --build.entrypoint ./api/bin/loco-api --build.exclude_dir bin,archive,assets,cmd,docs,internal,terraform,web",
 ]
 
 [tasks."reload:cli"]
 description = "Rebuild the CLI on every change"
 env = { _.file = ".env" }
-run = "air --build.cmd 'mkdir -p ./bin && go build -o ./bin/loco .' --build.bin ./bin/loco --build.exclude_dir bin,api,archive,assets,dashboards,docs,kube,terraform,web"
+run = "air --build.cmd 'mkdir -p ./bin && go build -o ./bin/loco .' --build.entrypoint ./bin/loco --build.exclude_dir bin,api,archive,assets,dashboards,docs,kube,terraform,web"
 
 [tasks."reload:agent"]
 description = "Run the agent with live reload"
 env = { _.file = ".env" }
-run = "air --build.cmd 'cd agent && go build -o ./bin/loco-agent .' --build.bin ./agent/bin/loco-agent --build.exclude_dir bin,web"
+run = "air --build.cmd 'cd agent && go build -o ./bin/loco-agent .' --build.entrypoint ./agent/bin/loco-agent --build.exclude_dir bin,web"
 
 [tasks."reload:obs-proxy"]
 description = "Run the observability proxy with live reload"
 env = { _.file = ".env" }
-run = "air --build.cmd 'cd observability-proxy && go build -o ./bin/loco-obs-proxy .' --build.bin ./observability-proxy/bin/loco-obs-proxy --build.exclude_dir bin,web"
+run = "air --build.cmd 'cd observability-proxy && go build -o ./bin/loco-obs-proxy .' --build.entrypoint ./observability-proxy/bin/loco-obs-proxy --build.exclude_dir bin,web"
 
 [tasks.ui]
 description = "Run the web UI dev server"
