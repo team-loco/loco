@@ -5,6 +5,8 @@ import path from "path";
 import { defineConfig } from "vite";
 import svgr from "vite-plugin-svgr";
 
+const dirname = import.meta.dirname;
+
 // https://vite.dev/config/
 export default defineConfig({
 	plugins: [
@@ -16,15 +18,15 @@ export default defineConfig({
 	server: {
 		fs: {
 			// gen/ts is outside the vite root; allow the dev server to read it.
-			allow: [path.resolve(__dirname, ".."), path.resolve(__dirname)],
+			allow: [path.resolve(dirname, ".."), path.resolve(dirname)],
 		},
 	},
 	resolve: {
 		alias: {
 			// Generated protobuf/connect code lives at <repo>/gen/ts, outside web/,
 			// so it is aliased separately from "@" (which means web/src).
-			"@gen": path.resolve(__dirname, "../gen/ts"),
-			"@": path.resolve(__dirname, "./src"),
+			"@gen": path.resolve(dirname, "../gen/ts"),
+			"@": path.resolve(dirname, "./src"),
 		},
 	},
 	build: {
