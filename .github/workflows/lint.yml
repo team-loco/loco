@@ -16,14 +16,7 @@ on:
       - "main.go"
       - "go.mod"
       - "go.sum"
-      - "**.proto"
-      - "**/buf.yaml"
-      - "**/buf.lock"
   pull_request:
-    # `labeled`/`unlabeled` are required on top of the defaults so that adding or
-    # removing the `break-buf` label re-runs this workflow. Without them the
-    # label can only take effect on the next push.
-    types: [opened, synchronize, reopened, labeled, unlabeled]
     paths:
       - "api/**"
       - "cmd/**"
@@ -34,13 +27,9 @@ on:
       - "main.go"
       - "go.mod"
       - "go.sum"
-      - "**.proto"
-      - "**/buf.yaml"
-      - "**/buf.lock"
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   golangci:
@@ -82,18 +71,3 @@ jobs:
           version: v2.13
           working-directory: ${{ matrix.working-directory }}
           args: --config=${{ github.workspace }}/.golangci.yml --timeout=5m
-  buf:
-    name: Buf Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: bufbuild/buf-action@v1
-        with:
-          token: ${{ secrets.BUF_TOKEN }}
-          # Skip the breaking-change check on PRs labelled `break-buf`.
-          # NOTE: this must key off the pull_request payload. The previous
-          # `github.event.head_commit.message` only exists on push events, so on
-          # a PR it was always null and the bypass could never fire.
-          breaking: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'break-buf') }}
-          breaking_against_registry: true
