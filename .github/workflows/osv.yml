@@ -9,6 +9,19 @@ on:
       - "**/package.json"
       - "bun.lock"
       - ".github/workflows/osv.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "**/Dockerfile"
+      - "**/go.mod"
+      - "**/go.sum"
+      - "**/package.json"
+      - "bun.lock"
+      - ".github/workflows/osv.yml"
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,6 +29,7 @@ permissions:
 jobs:
   source:
     name: Source
+    if: github.event_name == 'pull_request'
     permissions:
       actions: read
       contents: read
@@ -26,6 +40,21 @@ jobs:
         --recursive
         --experimental-exclude=examples
         ./
+
+  source-baseline:
+    name: Source Baseline
+    if: github.event_name != 'pull_request'
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.6.0
+    with:
+      scan-args: |-
+        --recursive
+        --experimental-exclude=examples
+        ./
+      fail-on-vuln: false
 
   changes:
     name: Detect Changed Images
@@ -40,11 +69,25 @@ jobs:
       - name: Filter
         id: filter
         env:
+          EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
           set -euo pipefail
-          FILES=$(git diff --name-only "$BASE" "$HEAD")
+          case "$EVENT" in
+            pull_request)
+              FILES=$(git diff --name-only "$BASE" "$HEAD") ;;
+            push)
+              if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+                FILES=$(git ls-files)
+              else
+                FILES=$(git diff --name-only "$BEFORE" "$AFTER")
+              fi ;;
+            *)
+              FILES=$(git ls-files) ;;
+          esac
           echo "changed files:"
           echo "$FILES"
 
@@ -97,9 +140,15 @@ jobs:
         run: |
           set -euo pipefail
           docker save "loco-${{ matrix.image.name }}:osv" -o /tmp/image.tar
+          set +e
           docker run --rm -v /tmp:/out ghcr.io/google/osv-scanner:v2.6.0 \
             scan image --archive /out/image.tar \
             --format sarif --output-file /out/osv-image.sarif
+          code=$?
+          set -e
+          if [ "$code" -gt 1 ]; then
+            exit "$code"
+          fi
 
       - name: Upload results
         if: always()
