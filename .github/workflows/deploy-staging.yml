@@ -150,8 +150,6 @@ jobs:
         uses: actions/checkout@v7
 
       - uses: ./.github/actions/setup-tools
-        with:
-          tools: doctl kubectl helm helmfile helm-diff
 
       - name: Get kubeconfig
         env:
