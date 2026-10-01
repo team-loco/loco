@@ -10,7 +10,6 @@ import (
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
-	"golang.org/x/net/http2"
 )
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
@@ -22,10 +21,9 @@ type Validator struct {
 
 func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Validator {
 	transport := &http.Transport{}
-	err := http2.ConfigureTransport(transport)
-	if err != nil {
-		panic("failed to configure HTTP/2 transport: " + err.Error())
-	}
+	transport.Protocols = new(http.Protocols)
+	transport.Protocols.SetHTTP1(true)
+	transport.Protocols.SetHTTP2(true)
 	httpClient := &http.Client{Transport: transport}
 
 	client := tokenv1connect.NewTokenServiceClient(
