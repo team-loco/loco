@@ -78,7 +78,13 @@ You must first reach out to me, nikumar1206, if you would like to deploy on this
 
 ## Contributing
 
-To be added later.
+Linting is defined once, as make targets that both CI and the git pre-commit hooks call: `make lint-go`, `make lint-proto`, `make lint-web` and `make lint-actions`, or `make lint` for all of them. Tool versions are pinned in the Makefile.
+
+To run the hooks on every commit, install [pre-commit](https://pre-commit.com) and enable them once per clone:
+
+```bash
+pre-commit install
+```
 
 ---
 
