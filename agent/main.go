@@ -160,8 +160,6 @@ func (a *Agent) register(ctx context.Context) error {
 // runCommandStream handles the bidirectional command stream.
 func (a *Agent) runCommandStream(ctx context.Context) error {
 	for {
-		// commandStreamLoop never returns nil -- it blocks until the stream breaks,
-		// so there is nothing to test here
 		err := a.commandStreamLoop(ctx)
 		slog.Error("command stream error, reconnecting...", "error", err)
 

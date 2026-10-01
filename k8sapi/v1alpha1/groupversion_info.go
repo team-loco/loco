@@ -29,8 +29,7 @@ var (
 	GroupVersion = schema.GroupVersion{Group: "infra.loco.io", Version: "v1alpha1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme.
-	// nolint:staticcheck // SA1019: dropping scheme.Builder means hand-rolling
-	// runtime.NewSchemeBuilder here; tracked separately.
+	// nolint:staticcheck // SA1019
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}
 
 	// AddToScheme adds the types in this group-version to the given scheme.

@@ -81,8 +81,6 @@ func main() {
 	path, handler := observabilityv1connect.NewObservabilityProxyServiceHandler(svc, interceptors)
 	mux.Handle(path, handler)
 
-	// Serve HTTP/1.1 alongside unencrypted HTTP/2 (h2c) using the stdlib
-	// Protocols field; golang.org/x/net/http2/h2c is deprecated as of Go 1.26.
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
