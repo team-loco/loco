@@ -18,9 +18,11 @@ RUN bun install --frozen-lockfile
 COPY gen/ts ./gen/ts
 COPY web ./web
 
-RUN apk add --no-cache brotli
+RUN apk add --no-cache brotli=1.1.0-r2
 
-RUN cd web && bun run build
+WORKDIR /app/web
+RUN bun run build
+WORKDIR /app
 
 RUN find web/dist -type f -size +1k \( \
     -name '*.js' -o \
