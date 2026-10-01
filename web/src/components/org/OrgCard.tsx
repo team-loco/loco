@@ -12,17 +12,11 @@ import type { Organization } from "@gen/loco/org/v1/org_pb";
 
 interface OrgCardProps {
 	org: Organization;
-	workspaceCount?: number;
 	onDelete?: (org: Organization) => void;
 	onSwitch?: (orgId: string) => void;
 }
 
-export function OrgCard({
-	org,
-	workspaceCount = 0,
-	onDelete,
-	onSwitch,
-}: OrgCardProps) {
+export function OrgCard({ org, onDelete, onSwitch }: OrgCardProps) {
 	const navigate = useNavigate();
 
 	const createdDate = org.createdAt?.seconds
@@ -47,9 +41,7 @@ export function OrgCard({
 						<div>
 							<CardTitle className="text-xl">{org.name}</CardTitle>
 							<CardDescription className="mt-1">
-								{workspaceCount}{" "}
-								{workspaceCount === 1 ? "workspace" : "workspaces"} · Created{" "}
-								{createdDate}
+								Created {createdDate}
 							</CardDescription>
 						</div>
 					</div>
