@@ -1,8 +1,10 @@
 import {
 	type ColumnDef,
+	type RowData,
+	columnVisibilityFeature,
 	flexRender,
-	getCoreRowModel,
-	useReactTable,
+	tableFeatures,
+	useTable,
 } from "@tanstack/react-table";
 
 import {
@@ -15,21 +17,23 @@ import {
 } from "@/components/design/Table";
 import Loader from "@/assets/loader.svg?react";
 
-interface DataTableProps<TData, TValue> {
-	columns: ColumnDef<TData, TValue>[];
+export const features = tableFeatures({ columnVisibilityFeature });
+
+interface DataTableProps<TData extends RowData> {
+	columns: ColumnDef<typeof features, TData>[];
 	data: TData[];
 	isLoading?: boolean;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
 	columns,
 	data,
 	isLoading,
-}: DataTableProps<TData, TValue>) {
-	const table = useReactTable({
+}: DataTableProps<TData>) {
+	const table = useTable({
+		features,
 		data,
 		columns,
-		getCoreRowModel: getCoreRowModel(),
 	});
 
 	if (isLoading) {
@@ -69,10 +73,7 @@ export function DataTable<TData, TValue>({
 				<TableBody>
 					{table.getRowModel().rows.length ? (
 						table.getRowModel().rows.map((row) => (
-							<TableRow
-								key={row.id}
-								data-state={row.getIsSelected() && "selected"}
-							>
+							<TableRow key={row.id}>
 								{row.getVisibleCells().map((cell) => (
 									<TableCell key={cell.id}>
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}

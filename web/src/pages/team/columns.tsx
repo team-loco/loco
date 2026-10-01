@@ -13,6 +13,7 @@ import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { type WorkspaceMemberWithUser } from "@gen/loco/workspace/v1/workspace_pb";
 import { type ColumnDef } from "@tanstack/react-table";
+import { type features } from "./data-table";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { nonEmpty } from "@/lib/utils";
@@ -111,7 +112,7 @@ export function getColumns(
 	isAdmin: boolean,
 	onRemoveMember: (userId: string) => void,
 	isRemoving: boolean,
-): ColumnDef<WorkspaceMemberWithUser>[] {
+): ColumnDef<typeof features, WorkspaceMemberWithUser>[] {
 	return [
 		{
 			accessorKey: "userName",
