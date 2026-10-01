@@ -13,6 +13,8 @@
 # ClickHouse is NOT available in e2e (no loco-obs helm chart),
 # so we test auth/validation paths and expect ClickHouse errors for query tests.
 
+E2E_SKIP_REASON="mints tokens through the removed tvm_tokens table (#186)"
+
 OBS_PROXY_PORT="${E2E_OBS_PROXY_PORT:-8878}"
 OBS_PROXY_URL="http://localhost:${OBS_PROXY_PORT}"
 

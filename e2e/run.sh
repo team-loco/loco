@@ -159,16 +159,16 @@ build_binaries() {
     log_step "Building binaries..."
 
     log_info "Building API..."
-    (cd "$ROOT_DIR" && go build -o "$BIN_DIR/loco-api" ./api)
+    (cd "$ROOT_DIR/api" && go build -o "$BIN_DIR/loco-api" .)
 
     log_info "Building Agent..."
-    (cd "$ROOT_DIR" && go build -o "$BIN_DIR/loco-agent" ./agent)
+    (cd "$ROOT_DIR/agent" && go build -o "$BIN_DIR/loco-agent" .)
 
     log_info "Building Controller..."
     (cd "$ROOT_DIR/controller" && go build -o "$BIN_DIR/loco-controller" ./cmd)
 
     log_info "Building Observability Proxy..."
-    (cd "$ROOT_DIR" && go build -o "$BIN_DIR/loco-obs-proxy" ./observability-proxy)
+    (cd "$ROOT_DIR/observability-proxy" && go build -o "$BIN_DIR/loco-obs-proxy" .)
 
     log_ok "All binaries built"
 }
@@ -177,9 +177,9 @@ start_api() {
     log_step "Starting API server..."
 
     DATABASE_URL="$E2E_DATABASE_URL" \
-    PORT="$API_PORT" \
+    APP_PORT=":$API_PORT" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
-    LOCO_DOMAIN_BASE="e2e.test.local" \
+    DEFAULT_PLATFORM_DOMAIN="e2e.test.local" \
     APP_ENV="test" \
     LOG_LEVEL="-4" \
         "$BIN_DIR/loco-api" \
@@ -209,7 +209,7 @@ start_agent() {
 
     # Verify agent registered by checking DB
     local heartbeat
-    heartbeat=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = 1" 2>/dev/null || echo "")
+    heartbeat=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'" 2>/dev/null || echo "")
     if [ "$heartbeat" = "e2e-test" ]; then
         log_ok "Agent registered successfully"
     else
@@ -262,6 +262,7 @@ run_tests() {
     echo ""
 
     local test_files=("$SCRIPT_DIR"/tests/*.sh)
+    local counts_file="$LOG_DIR/counts"
     if [ ${#test_files[@]} -eq 0 ]; then
         log_warn "No test files found in e2e/tests/"
         return 0
@@ -286,16 +287,24 @@ run_tests() {
         (
             source "$test_file"
 
-            # Find and run all test_ functions
-            local funcs
-            funcs=$(declare -F | awk '{print $3}' | grep '^test_' || true)
-            for func in $funcs; do
-                log_info "  ${func}..."
-                if ! "$func"; then
-                    log_error "  ${func} had failures"
-                fi
-            done
+            if [ -n "${E2E_SKIP_REASON:-}" ]; then
+                log_warn "Skipping ${test_name}: ${E2E_SKIP_REASON}"
+                E2E_SKIP=$((E2E_SKIP + 1))
+            else
+                # Find and run all test_ functions
+                local funcs
+                funcs=$(declare -F | awk '{print $3}' | grep '^test_' || true)
+                for func in $funcs; do
+                    log_info "  ${func}..."
+                    if ! "$func"; then
+                        log_error "  ${func} had failures"
+                    fi
+                done
+            fi
+
+            echo "$E2E_PASS $E2E_FAIL $E2E_SKIP" > "$counts_file"
         )
+        read -r E2E_PASS E2E_FAIL E2E_SKIP < "$counts_file"
 
         echo ""
     done

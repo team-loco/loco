@@ -2,11 +2,11 @@
 
 ui:
   image:
-    tag: sha-{{ .Env.GH_SHA }}
+    tag: sha-{{ requiredEnv "GH_SHA" }}
 
 agent:
   image:
-    tag: sha-{{ .Env.GH_SHA }}
+    tag: sha-{{ requiredEnv "GH_SHA" }}
 
 # Cert-manager configuration for production
 certManager:
