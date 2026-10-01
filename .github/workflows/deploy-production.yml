@@ -127,10 +127,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
+      - uses: ./.github/actions/setup-tools
 
       - name: Build Linux binary
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/loco-linux-amd64 -v
@@ -185,8 +182,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
+      - uses: ./.github/actions/setup-tools
 
       - name: Terraform Init
         run: cd terraform/do && terraform init
@@ -197,12 +193,9 @@ jobs:
       - name: Terraform Apply
         run: cd terraform/do && terraform apply -auto-approve "tfplan"
 
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_PAT }}
-
       - name: Get kubeconfig
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_PAT }}
         run: doctl kubernetes cluster kubeconfig save loco-cluster
 
       - name: Verify cluster access
@@ -211,34 +204,14 @@ jobs:
       - name: Wait for nodes to be ready
         run: kubectl wait --for=condition=Ready node --all --timeout=180s
 
-      - name: Setup Helm
-        uses: azure/setup-helm@v5.0.1
-
-      - name: Add Helm repositories
-        run: |
-          helm repo add jetstack https://charts.jetstack.io
-          helm repo add cilium https://helm.cilium.io
-          helm repo add altinity https://helm.altinity.com
-          helm repo add grafana https://grafana.github.io/helm-charts
-          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-          helm repo update
-
       - name: Build Helm dependencies
-        run: |
-          helm dependency build ./charts/loco-core
-          helm dependency build ./charts/loco-controller
-          helm dependency build ./charts/loco-obs
-          helm dependency build ./charts/loco-networking
+        run: mise run helm:deps
 
       - name: Helm dry-run
-        uses: helmfile/helmfile-action@v2.4.8
-        with:
-          helmfile-args: diff --environment prod
+        run: mise run deploy:diff prod
 
       - name: Deploy to Production
-        uses: helmfile/helmfile-action@v2.4.8
-        with:
-          helmfile-args: sync --environment prod
+        run: mise run deploy:sync prod
 
       - name: Wait for rollout
         run: |

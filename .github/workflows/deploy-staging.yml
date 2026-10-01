@@ -149,41 +149,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DIGITALOCEAN_PAT }}
+      - uses: ./.github/actions/setup-tools
 
       - name: Get kubeconfig
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_PAT }}
         run: doctl kubernetes cluster kubeconfig save loco-cluster
 
       - name: Verify cluster access
         run: kubectl get nodes
 
-      - name: Setup Helm
-        uses: azure/setup-helm@v5.0.1
-
-      - name: Add Helm repositories
-        run: |
-          helm repo add jetstack https://charts.jetstack.io
-          helm repo add cilium https://helm.cilium.io
-          helm repo add altinity https://helm.altinity.com
-          helm repo add grafana https://grafana.github.io/helm-charts
-          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-          helm repo update
-
       - name: Build Helm dependencies
-        run: |
-          helm dependency build ./charts/loco-core
-          helm dependency build ./charts/loco-controller
-          helm dependency build ./charts/loco-obs
-          helm dependency build ./charts/loco-networking
+        run: mise run helm:deps
 
       - name: Helm dry-run
-        run: helmfile -e staging diff
+        run: mise run deploy:diff staging
 
       - name: Deploy to Staging
-        run: helmfile -e staging sync
+        run: mise run deploy:sync staging
 
       - name: Wait for rollout
         run: |
