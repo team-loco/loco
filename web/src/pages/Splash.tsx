@@ -1,12 +1,12 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { LoginModal } from "@/components/LoginModal";
 import { Button } from "@/components/design/Button";
-import { CodeBlock } from "@/components/ui/code-block";
+import { CodeBlock } from "@/components/design/CodeBlock";
 import {
 	AnimatedSpan,
 	Terminal,
 	TypingAnimation,
-} from "@/components/ui/terminal";
+} from "@/components/design/Terminal";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import {
 	BarChart3,

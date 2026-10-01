@@ -6,7 +6,7 @@ import {
 	NavigationMenuList,
 	NavigationMenuTrigger,
 	navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
+} from "@/components/design/NavigationMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router";

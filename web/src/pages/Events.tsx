@@ -1,6 +1,6 @@
 import { Button } from "@/components/design/Button";
 import { Card, CardContent } from "@/components/design/Card";
-import { DropdownSelector } from "@/components/ui/dropdown-selector";
+import { DropdownSelector } from "@/components/design/DropdownSelector";
 import { Input } from "@/components/design/Input";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";

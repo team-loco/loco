@@ -9,7 +9,7 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/design/DropdownMenu";
 import { Clock, ChevronDown, Layers } from "lucide-react";
 import { useObs, type TimeRange } from "./ObsProvider";
 

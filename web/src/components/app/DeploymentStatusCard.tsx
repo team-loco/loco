@@ -2,8 +2,8 @@ import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
 import { Label } from "@/components/design/Label";
-import { NumberInput } from "@/components/ui/number-input";
-import { Slider } from "@/components/ui/slider";
+import { NumberInput } from "@/components/design/NumberInput";
+import { Slider } from "@/components/design/Slider";
 import {
 	Tooltip,
 	TooltipContent,

@@ -16,9 +16,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/design/Select";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/design/Slider";
+import { Switch } from "@/components/design/Switch";
+import { Textarea } from "@/components/design/Textarea";
 import { checkDomainAvailability } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@connectrpc/connect-query";

@@ -1,40 +1,33 @@
-# name: Controller E2E Tests
+name: Controller E2E Tests
 
-# on:
-#   push:
-#     paths:
-#       - "controller/**"
-#       - "k8sapi/**"
-#       - "go.mod"
-#       - "go.sum"
-#   pull_request:
-#     paths:
-#       - "controller/**"
-#       - "k8sapi/**"
-#       - "go.mod"
-#       - "go.sum"
+on:
+  workflow_dispatch:
 
-# jobs:
-#   e2e:
-#     name: E2E Tests
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v6
+permissions:
+  contents: read
 
-#       - uses: actions/setup-go@v6
-#         with:
-#           go-version-file: go.mod
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
 
-#       - name: Install kind
-#         run: |
-#           curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)
-#           chmod +x ./kind
-#           sudo mv ./kind /usr/local/bin/kind
+    steps:
+      - uses: actions/checkout@v6
 
-#       - name: Verify kind installation
-#         run: kind version
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
 
-#       - name: Run E2E tests
-#         run: |
-#           go mod tidy -C controller
-#           cd controller && make test-e2e
+      - name: Install kind
+        run: |
+          curl -Lo ./kind "https://kind.sigs.k8s.io/dl/latest/kind-linux-$(go env GOARCH)"
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Verify kind installation
+        run: kind version
+
+      - name: Run E2E tests
+        run: |
+          go mod tidy -C controller
+          cd controller && make test-e2e

@@ -11,7 +11,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/design/AlertDialog";
 import {
 	Tooltip,
 	TooltipContent,

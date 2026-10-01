@@ -1,6 +1,6 @@
 import Loader from "@/assets/loader.svg?react";
 import { useAuth } from "@/auth/AuthProvider";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { Button } from "@/components/design/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
 import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";

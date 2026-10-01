@@ -12,7 +12,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table";
+} from "@/components/design/Table";
 import Loader from "@/assets/loader.svg?react";
 
 interface DataTableProps<TData, TValue> {

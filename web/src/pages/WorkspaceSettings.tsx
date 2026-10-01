@@ -8,7 +8,7 @@ import {
 } from "@/components/design/Card";
 import { Input } from "@/components/design/Input";
 import { Label } from "@/components/design/Label";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/design/Textarea";
 import { getWorkspace, updateWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { useState } from "react";

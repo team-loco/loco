@@ -28,7 +28,7 @@ import {
 	TableHead,
 	TableHeader,
 	TableRow,
-} from "@/components/ui/table";
+} from "@/components/design/Table";
 import {
 	flexRender,
 	getCoreRowModel,

@@ -5,7 +5,7 @@ import {
 	Collapsible,
 	CollapsibleContent,
 	CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/design/Collapsible";
 import {
 	Dialog,
 	DialogContent,

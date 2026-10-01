@@ -8,7 +8,7 @@ import {
 } from "@/components/design/Card";
 import { Input } from "@/components/design/Input";
 import { Label } from "@/components/design/Label";
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "@/components/design/Slider";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { scaleResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getServiceSpec } from "@/lib/deployment-utils";

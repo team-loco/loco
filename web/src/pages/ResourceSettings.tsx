@@ -9,7 +9,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/design/Select";
-import { Slider } from "@/components/ui/slider";
+import { Slider } from "@/components/design/Slider";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { checkDomainAvailability, createResourceDomain, deleteResourceDomain, listPlatformDomains, setPrimaryResourceDomain, updateResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import type { ResourceDomain } from "@gen/loco/domain/v1/domain_pb";

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
-import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, type ChartConfig } from "@/components/design/Chart";
 import { Loader2, TrendingUp } from "lucide-react";
 import {
 	AreaChart,
