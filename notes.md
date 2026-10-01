@@ -248,6 +248,12 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 
 ### Deploy & Builders
 
+- **Brotli compression** — Railway does not appear to serve brotli today; responses come back
+  gzip at best. The dashboard image serves it already (`brotli_static` over assets
+  precompressed at build time, dynamic `brotli` for everything else), so offering it to user
+  apps through Envoy Gateway would be a genuine differentiator. Confirm against Railway
+  directly before leaning on it in any comparison.
+
 - **Non-interactive deploy** — `loco deploy --non-interactive --token {TOKEN}`. Needed for CI.
   Dependent on TVM being stable.
 

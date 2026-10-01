@@ -34,14 +34,19 @@ RUN find web/dist -type f -size +1k \( \
     \) -exec brotli -f -k -q 11 {} \;
 
 
-FROM georgjung/nginx-brotli:trixie
+FROM alpine:3.22.5
+
+RUN apk --no-cache upgrade \
+    && apk add --no-cache nginx=1.28.3-r7 nginx-mod-http-brotli=1.28.3-r7 \
+    && mkdir -p /run/nginx /usr/share/nginx/html \
+    && chown -R nginx:nginx /run/nginx /var/lib/nginx /var/log/nginx
 
 COPY web/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/web/dist /usr/share/nginx/html
 
 EXPOSE 8080
 
-USER 101:101
+USER 100:101
 
 ENTRYPOINT []
 CMD ["nginx", "-g", "daemon off;"]
