@@ -8,9 +8,7 @@ WORKDIR /app
 
 COPY agent ./agent
 COPY gen/go ./gen/go
-COPY proto ./proto
 COPY k8sapi ./k8sapi
-COPY controller ./controller
 
 WORKDIR /app/agent
 

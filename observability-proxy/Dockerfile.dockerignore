@@ -1,0 +1,6 @@
+*
+!observability-proxy
+!gen/go
+**/node_modules
+**/dist
+**/*_test.go
