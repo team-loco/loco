@@ -1,0 +1,92 @@
+name: Docker
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+    paths:
+      - "**/Dockerfile"
+      - "**/.dockerignore"
+      - ".github/workflows/docker.yml"
+  pull_request:
+    paths:
+      - "**/Dockerfile"
+      - "**/.dockerignore"
+      - ".github/workflows/docker.yml"
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  buildkit-check:
+    name: ${{ matrix.name }} Dockerfile Check
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Controller
+            context: ./controller
+            dockerfile: ./controller/Dockerfile
+
+          - name: API
+            context: .
+            dockerfile: ./api/Dockerfile
+
+          - name: UI
+            context: .
+            dockerfile: ./web/Dockerfile
+
+          - name: Agent
+            context: ./agent
+            dockerfile: ./agent/Dockerfile
+
+          - name: Observability Proxy
+            context: .
+            dockerfile: ./observability-proxy/Dockerfile
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      # contexts must match deploy-{staging,production}.yml -- CopyIgnoredFile
+      # and friends are only correct against the context the image really builds
+      # with.
+      - name: Build check
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          call: check
+          build-args: |
+            BUILDKIT_DOCKERFILE_CHECK=skip=InvalidDefinitionDescription,experimental=all
+
+  hadolint:
+    name: Hadolint
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint Dockerfiles
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git ls-files '*Dockerfile' | grep -v '^examples/')
+          printf 'linting: %s\n' "${files[@]}"
+          docker run --rm -v "$PWD":/work -w /work hadolint/hadolint:v2.15.1-alpine \
+            hadolint --no-color -f sarif --failure-threshold error "${files[@]}" > hadolint.sarif
+
+      - name: Upload results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: hadolint.sarif
+          category: hadolint
