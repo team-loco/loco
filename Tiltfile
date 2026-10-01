@@ -2,7 +2,7 @@
 # Prerequisites: docker (OrbStack or Docker Desktop) and mise. Every other tool is
 # pinned in mise.toml, and every resource below runs a mise task.
 # Run:  mise run tilt
-# Stop: tilt down  (tears down helm releases; the kind cluster and compose services persist)
+# Stop: tilt down  (tears down helm releases and the compose services; the kind cluster and the database volume persist)
 #
 # First-time setup:
 #   1. mise run setup
@@ -72,13 +72,10 @@ local_resource(
 # Infrastructure: Postgres and Valkey from compose.yaml
 # ---------------------------------------------------------------------------
 
-local_resource(
-    'infra',
-    cmd='mise run infra:up',
-    resource_deps=['doctor'],
-    deps=['compose.yaml'],
-    labels=['infrastructure'],
-)
+docker_compose('compose.yaml', project_name='loco-dev')
+
+dc_resource('postgres', resource_deps=['doctor'], labels=['infrastructure'])
+dc_resource('valkey', resource_deps=['doctor'], labels=['infrastructure'])
 
 # ---------------------------------------------------------------------------
 # Infrastructure: DB migrations + seed data, applied from a container
@@ -87,7 +84,7 @@ local_resource(
 local_resource(
     'db-migrate',
     cmd='mise run db:migrate',
-    resource_deps=['infra'],
+    resource_deps=['postgres'],
     deps=['api/migrations/', 'seed.sql'],
     labels=['infrastructure'],
 )
@@ -146,7 +143,7 @@ local_resource(
 local_resource(
     'api',
     serve_cmd='mise run reload:api',
-    resource_deps=['helm-core', 'db-migrate'],
+    resource_deps=['helm-core', 'db-migrate', 'valkey'],
     labels=['services'],
 )
 
