@@ -61,13 +61,13 @@
   customManagers: [
     {
       customType: "regex",
-      description: "golangci-lint version pinned in the lint workflow",
-      managerFilePatterns: ["/^\\.github/workflows/lint\\.yml$/"],
-      matchStrings: ["version:\\s*(?<currentValue>v[\\d.]+)\\s"],
-      depNameTemplate: "golangci/golangci-lint",
+      description: "mise: the CI pin and the minimum version in mise.toml move together",
+      managerFilePatterns: ["/^mise\\.toml$/", "/^\\.github/actions/setup-tools/action\\.yml$/"],
+      matchStrings: ["min_version = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"", "version: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n"],
+      depNameTemplate: "jdx/mise",
       datasourceTemplate: "github-releases",
       extractVersionTemplate: "^v(?<version>.*)$",
-      versioningTemplate: "semver",
+      versioningTemplate: "loose",
     },
     {
       customType: "regex",

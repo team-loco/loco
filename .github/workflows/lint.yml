@@ -18,6 +18,9 @@ on:
       - "go.sum"
       - ".golangci.yml"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
       - ".github/workflows/lint.yml"
   pull_request:
     paths:
@@ -32,6 +35,9 @@ on:
       - "go.sum"
       - ".golangci.yml"
       - "Makefile"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/actions/setup-tools/**"
       - ".github/workflows/lint.yml"
 
 permissions:
@@ -67,9 +73,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v7
+      - uses: ./.github/actions/setup-tools
         with:
-          go-version-file: go.mod
+          tools: go golangci-lint
+          go-cache: lint-${{ matrix.working-directory }}
 
       - name: golangci-lint
         env:

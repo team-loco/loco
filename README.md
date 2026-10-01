@@ -78,7 +78,13 @@ You must first reach out to me, nikumar1206, if you would like to deploy on this
 
 ## Contributing
 
-Linting is defined once, as make targets that both CI and the git pre-commit hooks call: `make lint-go`, `make lint-proto`, `make lint-web` and `make lint-actions`, or `make lint` for all of them. Tool versions are pinned in the Makefile.
+Every tool the repository uses (Go, bun, the linters, code generators, helm, kind, terraform and so on) is pinned in [`mise.toml`](./mise.toml), with exact versions and checksums for each platform in `mise.lock`. CI installs from the same files. Install [mise](https://mise.jdx.dev/getting-started.html), then from the repository root:
+
+```bash
+mise install
+```
+
+Linting is defined once, as make targets that both CI and the git pre-commit hooks call: `make lint-go`, `make lint-proto`, `make lint-web`, `make lint-actions` and `make lint-docker`, or `make lint` for all of them.
 
 To run the hooks on every commit, install [pre-commit](https://pre-commit.com) and enable them once per clone:
 
