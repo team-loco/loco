@@ -87,7 +87,7 @@ func (i *githubAuthInterceptor) authenticate(
 	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
 	c = context.WithValue(c, contextkeys.TokenKey, token)
 
-	slog.InfoContext(
+	slog.DebugContext(
 		c,
 		"claims validated; populating ctx",
 		"entityId",
