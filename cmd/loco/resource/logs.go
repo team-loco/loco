@@ -103,7 +103,7 @@ func streamLogsJSON(cmd *cobra.Command, deps logsDeps, name string) error {
 
 	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 	if err != nil {
-		return fmt.Errorf("login required - please run 'loco login'")
+		return err
 	}
 
 	// Resolve workspace ID
@@ -197,7 +197,7 @@ func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error
 
 	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 	if err != nil {
-		return fmt.Errorf("login required - please run 'loco login'")
+		return err
 	}
 
 	// Resolve workspace ID
