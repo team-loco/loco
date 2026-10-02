@@ -13,38 +13,38 @@ import (
 	"github.com/team-loco/loco/api/tvm/providers"
 )
 
-// Exchange authenticates a user via their OAuth-provided email and issues a new
+// Exchange authenticates a user via their OAuth provider identity and issues a new
 // session token pair (access + refresh). ip and userAgent are stored for session
 // display; either may be empty.
 func (tvm *VendingMachine) Exchange(
 	ctx context.Context,
-	email providers.EmailResponse,
+	identity providers.EmailResponse,
 	ip string,
 	userAgent string,
 ) (queries.User, string, string, error) {
-	address, err := email.Address()
-	if err != nil {
+	externalID, err := identity.ExternalID()
+	if err != nil || externalID == "" {
+		slog.ErrorContext(ctx, "failed to read account id from external provider", "error", err)
+		return queries.User{}, "", "", ErrExchange
+	}
+	address, err := identity.Address()
+	if err != nil || address == "" {
 		slog.ErrorContext(ctx, "failed to read email from external provider", "error", err)
 		return queries.User{}, "", "", ErrExchange
 	}
 
-	userWithScopes, err := tvm.queries.GetUserWithScopesByEmail(ctx, address)
+	user, err := tvm.queries.GetUserByExternalID(ctx, externalID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		slog.DebugContext(ctx, "no user for email", "email", address)
+		slog.DebugContext(ctx, "no user for external id", "externalId", externalID)
 		return queries.User{}, "", "", ErrUserNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to look up user by email", "error", err)
+		slog.ErrorContext(ctx, "failed to look up user by external id", "error", err)
 		return queries.User{}, "", "", ErrUserLookup
 	}
 
-	user := queries.User{
-		ID:        userWithScopes.ID,
-		Email:     userWithScopes.Email,
-		Name:      userWithScopes.Name,
-		AvatarUrl: userWithScopes.AvatarUrl,
-		CreatedAt: userWithScopes.CreatedAt,
-		UpdatedAt: userWithScopes.UpdatedAt,
+	if user.Email != address {
+		user = tvm.syncUserEmail(ctx, user, address)
 	}
 
 	accessToken, accessHash := generateToken(prefixSession)
@@ -75,4 +75,16 @@ func (tvm *VendingMachine) Exchange(
 	}
 
 	return user, accessToken, refreshToken, nil
+}
+
+func (tvm *VendingMachine) syncUserEmail(ctx context.Context, user queries.User, address string) queries.User {
+	updated, err := tvm.queries.UpdateUserEmail(ctx, queries.UpdateUserEmailParams{
+		ID:    user.ID,
+		Email: address,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "failed to update user email from provider", "userId", user.ID, "error", err)
+		return user
+	}
+	return updated
 }

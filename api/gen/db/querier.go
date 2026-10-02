@@ -94,7 +94,6 @@ type Querier interface {
 	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]GetUserScopesOnEntityRow, error)
 	GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]GetUserScopesOnOrganizationRow, error)
 	GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]GetUserScopesOnWorkspaceRow, error)
-	GetUserWithScopesByEmail(ctx context.Context, email string) (UserWithScopesView, error)
 	// what users have scope z on entity y?
 	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]uuid.UUID, error)
 	GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (Workspace, error)
@@ -152,6 +151,7 @@ type Querier interface {
 	UpdateResourceDomainPrimary(ctx context.Context, resourceID uuid.UUID) error
 	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
+	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
 }
 

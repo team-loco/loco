@@ -515,26 +515,6 @@ func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScope
 	return items, nil
 }
 
-const getUserWithScopesByEmail = `-- name: GetUserWithScopesByEmail :one
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at, scopes FROM user_with_scopes_view WHERE email = $1
-`
-
-func (q *Queries) GetUserWithScopesByEmail(ctx context.Context, email string) (UserWithScopesView, error) {
-	row := q.db.QueryRow(ctx, getUserWithScopesByEmail, email)
-	var i UserWithScopesView
-	err := row.Scan(
-		&i.ID,
-		&i.ExternalID,
-		&i.Email,
-		&i.Name,
-		&i.AvatarUrl,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.Scopes,
-	)
-	return i, err
-}
-
 const getUsersWithScopeOnEntity = `-- name: GetUsersWithScopeOnEntity :many
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3
 `

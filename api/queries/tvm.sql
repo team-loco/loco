@@ -3,9 +3,6 @@ SELECT entity_type, entity_id, scope
 FROM user_scopes
 WHERE user_id = $1;
 
--- name: GetUserWithScopesByEmail :one
-SELECT * FROM user_with_scopes_view WHERE email = $1;
-
 -- what scopes does user x have on entity y?
 -- name: GetUserScopesOnEntity :many
 SELECT entity_type, entity_id, scope
