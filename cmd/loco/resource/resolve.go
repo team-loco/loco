@@ -158,8 +158,13 @@ func resolveWorkspaceID(
 		return "", err
 	}
 
+	orgName, err := resolveOrg(cmd, loadConfig)
+	if err != nil {
+		return "", err
+	}
+
 	scope, err := cfg.GetScope()
-	if err == nil && workspaceName == scope.Workspace.Name {
+	if err == nil && orgName == scope.Organization.Name && workspaceName == scope.Workspace.Name {
 		return scope.Workspace.ID, nil
 	}
 
