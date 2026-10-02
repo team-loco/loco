@@ -21,7 +21,7 @@ import (
 var (
 	ErrWorkspaceNotFound      = errors.New("workspace not found")
 	ErrWorkspaceNameNotUnique = errors.New("workspace name already exists in this organization")
-	ErrWorkspaceHasResources  = errors.New("workspace has resources - must confirm deletion")
+	ErrWorkspaceHasResources  = errors.New("workspace has resources, delete them first")
 )
 
 // WorkspaceServer implements the WorkspaceService gRPC server
@@ -424,13 +424,31 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	err := s.queries.RemoveWorkspace(ctx, uuid.MustParse(r.GetWorkspaceId()))
-	if err != nil {
+	wsID := uuid.MustParse(r.GetWorkspaceId())
+
+	if err := s.ensureWorkspaceHasNoResources(ctx, wsID); err != nil {
+		return nil, err
+	}
+
+	if err := s.queries.RemoveWorkspace(ctx, wsID); err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
+}
+
+func (s *WorkspaceServer) ensureWorkspaceHasNoResources(ctx context.Context, wsID uuid.UUID) error {
+	hasResources, err := s.queries.WorkspaceHasResources(ctx, wsID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check workspace for resources", "error", err)
+		return connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	if hasResources {
+		slog.WarnContext(ctx, "workspace has resources", "workspaceId", wsID)
+		return connect.NewError(connect.CodeFailedPrecondition, ErrWorkspaceHasResources)
+	}
+	return nil
 }
 
 // CreateMember adds a member to a workspace with the given scopes

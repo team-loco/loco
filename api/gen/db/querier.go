@@ -154,6 +154,7 @@ type Querier interface {
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
 	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
+	WorkspaceHasResources(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 }
 
 var _ Querier = (*Queries)(nil)
