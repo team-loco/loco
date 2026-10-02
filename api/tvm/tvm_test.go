@@ -2,6 +2,7 @@ package tvm_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -207,21 +208,32 @@ func (tq *TestingQueries) CreateSessionToken(_ context.Context, params queries.C
 	return nil
 }
 
-func (tq *TestingQueries) GetSessionByAccessToken(
-	_ context.Context,
+func (tq *TestingQueries) GetSessionWithScopesByAccessToken(
+	ctx context.Context,
 	accessTokenHash string,
-) (queries.GetSessionByAccessTokenRow, error) {
+) (queries.GetSessionWithScopesByAccessTokenRow, error) {
 	id, ok := tq.byAccess[accessTokenHash]
 	if !ok {
-		return queries.GetSessionByAccessTokenRow{}, tvm.ErrTokenNotFound
+		return queries.GetSessionWithScopesByAccessTokenRow{}, tvm.ErrTokenNotFound
 	}
 	e := tq.sessions[id]
-	return queries.GetSessionByAccessTokenRow{
-		ID:               e.id,
-		UserID:           e.userID,
-		AccessExpiresAt:  e.accessExpiresAt,
-		RefreshExpiresAt: e.refreshExpiresAt,
-		LastUsedAt:       e.lastUsedAt,
+	rows, err := tq.GetUserScopes(ctx, e.userID)
+	if err != nil {
+		return queries.GetSessionWithScopesByAccessTokenRow{}, err
+	}
+	scopes := make([]queries.EntityScope, len(rows))
+	for i, row := range rows {
+		scopes[i] = queries.EntityScope(row)
+	}
+	encoded, err := json.Marshal(scopes)
+	if err != nil {
+		return queries.GetSessionWithScopesByAccessTokenRow{}, err
+	}
+	return queries.GetSessionWithScopesByAccessTokenRow{
+		ID:         e.id,
+		UserID:     e.userID,
+		LastUsedAt: e.lastUsedAt,
+		Scopes:     encoded,
 	}, nil
 }
 

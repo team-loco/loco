@@ -260,39 +260,6 @@ func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPIToke
 	return i, err
 }
 
-const getSessionByAccessToken = `-- name: GetSessionByAccessToken :one
-SELECT id, user_id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
-FROM session_tokens
-WHERE access_token_hash = $1 AND access_expires_at > NOW()
-`
-
-type GetSessionByAccessTokenRow struct {
-	ID               uuid.UUID   `json:"id"`
-	UserID           uuid.UUID   `json:"userId"`
-	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
-	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
-	LastUsedAt       time.Time   `json:"lastUsedAt"`
-	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        *string     `json:"userAgent"`
-	CreatedAt        time.Time   `json:"createdAt"`
-}
-
-func (q *Queries) GetSessionByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionByAccessTokenRow, error) {
-	row := q.db.QueryRow(ctx, getSessionByAccessToken, accessTokenHash)
-	var i GetSessionByAccessTokenRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.AccessExpiresAt,
-		&i.RefreshExpiresAt,
-		&i.LastUsedAt,
-		&i.IpAddress,
-		&i.UserAgent,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const getSessionByRefreshToken = `-- name: GetSessionByRefreshToken :one
 SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
 FROM session_tokens
@@ -324,6 +291,48 @@ func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash
 		&i.IpAddress,
 		&i.UserAgent,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSessionWithScopesByAccessToken = `-- name: GetSessionWithScopesByAccessToken :one
+SELECT
+    st.id,
+    st.user_id,
+    st.last_used_at,
+    COALESCE(
+        (
+            SELECT JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'scope', us.scope,
+                    'entity_type', us.entity_type,
+                    'entity_id', us.entity_id
+                )
+            )
+            FROM user_scopes us
+            WHERE us.user_id = st.user_id
+        ),
+        '[]'::json
+    )::json AS scopes
+FROM session_tokens st
+WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW()
+`
+
+type GetSessionWithScopesByAccessTokenRow struct {
+	ID         uuid.UUID `json:"id"`
+	UserID     uuid.UUID `json:"userId"`
+	LastUsedAt time.Time `json:"lastUsedAt"`
+	Scopes     []byte    `json:"scopes"`
+}
+
+func (q *Queries) GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error) {
+	row := q.db.QueryRow(ctx, getSessionWithScopesByAccessToken, accessTokenHash)
+	var i GetSessionWithScopesByAccessTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.LastUsedAt,
+		&i.Scopes,
 	)
 	return i, err
 }
