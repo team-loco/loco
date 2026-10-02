@@ -15,8 +15,6 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 )
 
-// TODO: repeated code !!
-
 type githubAuthInterceptor struct {
 	machine *tvm.VendingMachine
 }
@@ -48,41 +46,68 @@ func extractToken(header http.Header) (string, error) {
 	return "", errors.New("no token provided")
 }
 
+var publicProcedures = map[string]struct{}{
+	oauthv1connect.OAuthServiceGetOAuthDetailsProcedure:          {},
+	oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure: {},
+	oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure:        {},
+	oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure:       {},
+	oauthv1connect.OAuthServiceRefreshTokenProcedure:             {},
+}
+
+func isPublicProcedure(procedure string) bool {
+	_, ok := publicProcedures[procedure]
+	return ok
+}
+
+func (i *githubAuthInterceptor) authenticate(
+	ctx context.Context,
+	procedure string,
+	header http.Header,
+) (context.Context, error) {
+	if isPublicProcedure(procedure) {
+		return ctx, nil
+	}
+
+	token, err := extractToken(header)
+	if err != nil {
+		slog.WarnContext(ctx, "request without a usable token", "procedure", procedure, "error", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	entity, scopes, err := i.machine.GetToken(ctx, token)
+	if err != nil {
+		slog.WarnContext(ctx, "token rejected", "procedure", procedure, "error", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+
+	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
+		Type: entity.Type,
+		ID:   entity.ID,
+	})
+	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
+	c = context.WithValue(c, contextkeys.TokenKey, token)
+
+	slog.InfoContext(
+		c,
+		"claims validated; populating ctx",
+		"entityId",
+		entity.ID.String(),
+		"entityType",
+		entity.Type,
+	)
+
+	return c, nil
+}
+
 func (i *githubAuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return connect.UnaryFunc(func(
 		ctx context.Context,
 		req connect.AnyRequest,
 	) (connect.AnyResponse, error) {
-		// todo: need to fix the service name
-		if req.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthDetailsProcedure ||
-			req.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure ||
-			req.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure ||
-			req.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure ||
-			req.Spec().Procedure == oauthv1connect.OAuthServiceRefreshTokenProcedure {
-			return next(ctx, req)
-		}
-
-		token, err := extractToken(req.Header())
+		c, err := i.authenticate(ctx, req.Spec().Procedure, req.Header())
 		if err != nil {
-			slog.Error(err.Error())
-			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+			return nil, err
 		}
-
-		entity, scopes, err := i.machine.GetToken(ctx, token)
-		if err != nil {
-			slog.Error(err.Error())
-			return nil, connect.NewError(connect.CodeUnauthenticated, err)
-		}
-
-		c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
-			Type: entity.Type,
-			ID:   entity.ID,
-		})
-		c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
-		c = context.WithValue(c, contextkeys.TokenKey, token)
-
-		slog.InfoContext(c, "claims validated; populating ctx", "userId", entity.ID.String())
-
 		return next(c, req)
 	})
 }
@@ -97,48 +122,15 @@ func (*githubAuthInterceptor) WrapStreamingClient(next connect.StreamingClientFu
 	})
 }
 
-// todo: logic is very similar to unary; should refactor this
 func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
 	return connect.StreamingHandlerFunc(func(
 		ctx context.Context,
 		conn connect.StreamingHandlerConn,
 	) error {
-		if conn.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthDetailsProcedure ||
-			conn.Spec().Procedure == oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure ||
-			conn.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure ||
-			conn.Spec().Procedure == oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure ||
-			conn.Spec().Procedure == oauthv1connect.OAuthServiceRefreshTokenProcedure {
-			return next(ctx, conn)
-		}
-
-		token, err := extractToken(conn.RequestHeader())
+		c, err := i.authenticate(ctx, conn.Spec().Procedure, conn.RequestHeader())
 		if err != nil {
-			slog.Error(err.Error())
-			return connect.NewError(connect.CodeUnauthenticated, err)
+			return err
 		}
-
-		entity, scopes, err := i.machine.GetToken(ctx, token)
-		if err != nil {
-			slog.Error(err.Error())
-			return connect.NewError(connect.CodeUnauthenticated, err)
-		}
-
-		slog.InfoContext(
-			ctx,
-			"claims validated; populating ctx",
-			"entityId",
-			entity.ID.String(),
-			"entityType",
-			entity.Type,
-		)
-
-		c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
-			Type: entity.Type,
-			ID:   entity.ID,
-		})
-		c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
-		c = context.WithValue(c, contextkeys.TokenKey, token)
-
 		return next(c, conn)
 	})
 }
