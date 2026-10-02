@@ -1,7 +1,3 @@
--- E2E test seed data
--- Agent token (plaintext): e2e-test-token-do-not-use-in-production
--- SHA256 hash: 10d6b414152472e01721a565b37abd033775e58a1f95b553c2be7935cf4c16ec
-
 -- Test user
 INSERT INTO users (id, external_id, email, name)
 VALUES (
@@ -48,7 +44,7 @@ VALUES (
     'kind',
     true,
     true,
-    '10d6b414152472e01721a565b37abd033775e58a1f95b553c2be7935cf4c16ec',
+    encode(sha256(convert_to(:'agent_token', 'UTF8')), 'hex'),
     'production'
 ) ON CONFLICT DO NOTHING;
 

@@ -7,7 +7,6 @@
 # First-time setup:
 #   1. mise run setup
 #   2. Copy .env.example to .env and fill in secrets (or ensure .env is populated)
-#   3. AGENT_TOKEN in .env must match the token seeded into the database via seed.sql
 
 # ---------------------------------------------------------------------------
 # Docker socket — auto-detect OrbStack, fall back to Docker Desktop default
@@ -85,7 +84,7 @@ local_resource(
     'db-migrate',
     cmd='mise run db:migrate',
     resource_deps=['postgres'],
-    deps=['api/migrations/', 'seed.sql'],
+    deps=['api/migrations/', 'api/seed/'],
     labels=['infrastructure'],
 )
 

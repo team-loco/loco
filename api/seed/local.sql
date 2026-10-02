@@ -1,7 +1,3 @@
--- Seed data for local development
--- Agent token (plaintext): loco-dev-agent-token
--- Agent token SHA256:      118e49a9b48a163fe352bc6c443569a1fc65e5889fec798058771b36d7a12579
---
 -- tier must match the environment_type a deployment targets. CreateWorkspace
 -- always creates a "production" environment (environment_type 'production'), and
 -- GetActiveClusterForRegion filters on `tier = $2 AND health_status = 'healthy'`,
@@ -19,8 +15,8 @@ VALUES (
     true,
     'production',
     'healthy',
-    '118e49a9b48a163fe352bc6c443569a1fc65e5889fec798058771b36d7a12579'
-) ON CONFLICT DO NOTHING;
+    encode(sha256(convert_to(:'agent_token', 'UTF8')), 'hex')
+) ON CONFLICT (name) DO UPDATE SET agent_token_hash = EXCLUDED.agent_token_hash;
 
 INSERT INTO platform_domains (domain, is_active)
 VALUES ('onloco.app', true)
