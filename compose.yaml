@@ -46,10 +46,28 @@ services:
     entrypoint: ["sh", "-c"]
     command:
       - |
+        set -eu
         export PGUSER="$$POSTGRES_USER" PGPASSWORD="$$POSTGRES_PASSWORD" PGDATABASE="$$POSTGRES_DB"
-        for f in $$(ls api/migrations/*.sql | sort); do
-          echo "applying $$f"
-          psql -q -f "$$f" 2>/dev/null
+        export PGOPTIONS="-c client_min_messages=warning"
+        sql() { psql -X -q -v ON_ERROR_STOP=1 "$$@"; }
+        has_tracking=$$(sql -tAc "SELECT to_regclass('public.schema_migrations') IS NOT NULL")
+        has_schema=$$(sql -tAc "SELECT to_regclass('public.users') IS NOT NULL")
+        sql -c "CREATE TABLE IF NOT EXISTS schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())"
+        for f in api/migrations/*.sql; do
+          name=$$(basename "$$f")
+          case "$$name" in
+            *[!A-Za-z0-9_.-]*) echo "unsupported migration file name: $$name" >&2; exit 1 ;;
+          esac
+          if [ "$$has_tracking" = f ] && [ "$$has_schema" = t ]; then
+            echo "recording $$name as applied: the schema predates schema_migrations"
+            sql -c "INSERT INTO schema_migrations (filename) VALUES ('$$name') ON CONFLICT DO NOTHING"
+            continue
+          fi
+          if [ -n "$$(sql -tAc "SELECT 1 FROM schema_migrations WHERE filename = '$$name'")" ]; then
+            continue
+          fi
+          echo "applying $$name"
+          sql --single-transaction -f "$$f" -c "INSERT INTO schema_migrations (filename) VALUES ('$$name')"
         done
         if [ -z "$$AGENT_TOKEN" ]; then
           echo "AGENT_TOKEN is not set; the seeded cluster's agent authenticates with it" >&2
