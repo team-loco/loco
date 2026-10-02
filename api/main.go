@@ -41,6 +41,8 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
 
+const envProduction = "PRODUCTION"
+
 type APIConfig struct {
 	Env                   string // Environment (e.g., dev, prod)
 	ProjectID             string // GitLab project ID
@@ -187,8 +189,9 @@ func main() {
 	defer cmdBus.Close()
 
 	oauthStateCache := service.NewOAuthStateCache(appCache)
-	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache)
-	userServiceHandler := service.NewUserServer(pool, queries, machine)
+	secureCookies := ac.Env == envProduction
+	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache, secureCookies)
+	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, cmdBus)
@@ -405,7 +408,7 @@ func main() {
 }
 
 func getLoggerHandler(ac *APIConfig) slog.Handler {
-	if ac.Env == "PRODUCTION" {
+	if ac.Env == envProduction {
 		return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level:     ac.LogLevel,
 			AddSource: true,

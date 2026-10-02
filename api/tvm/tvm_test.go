@@ -2,10 +2,12 @@ package tvm_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -68,8 +70,10 @@ func (*TestingQueries) GetUserByEmail(_ context.Context, email string) (queries.
 		return queries.User{ID: user4UUID, Email: email}, nil
 	case "user5@loco-testing.com":
 		return queries.User{ID: user5UUID, Email: email}, nil
+	case dbErrorEmail:
+		return queries.User{}, errDBUnavailable
 	default:
-		return queries.User{}, tvm.ErrUserNotFound
+		return queries.User{}, pgx.ErrNoRows
 	}
 }
 
@@ -359,6 +363,10 @@ func TestingGithubProvider(_ context.Context, token string) providers.EmailRespo
 		return providers.NewEmailResponse("user4@loco-testing.com", nil)
 	case "github-token-user5":
 		return providers.NewEmailResponse("user5@loco-testing.com", nil)
+	case "github-token-unknown":
+		return providers.NewEmailResponse("unknown@loco-testing.com", nil)
+	case "github-token-db-error":
+		return providers.NewEmailResponse(dbErrorEmail, nil)
 	}
 	return providers.NewEmailResponse("", tvm.ErrUserNotFound)
 }
@@ -856,4 +864,27 @@ func TestUser5Permissions(t *testing.T) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
+}
+
+const dbErrorEmail = "db-error@loco-testing.com"
+
+var errDBUnavailable = errors.New("connection reset by peer")
+
+func TestExchangeUnknownUser(t *testing.T) {
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, _, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-unknown"), "", "")
+	if !errors.Is(err, tvm.ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound, got %v", err)
+	}
+}
+
+func TestExchangeUserLookupFailure(t *testing.T) {
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, _, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-db-error"), "", "")
+	if !errors.Is(err, tvm.ErrUserLookup) {
+		t.Fatalf("expected ErrUserLookup, got %v", err)
+	}
+	if errors.Is(err, tvm.ErrUserNotFound) {
+		t.Fatalf("a failed lookup must not read as a missing user")
+	}
 }

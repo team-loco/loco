@@ -29,14 +29,20 @@ var (
 
 // UserServer implements the UserService gRPC server
 type UserServer struct {
-	db      *pgxpool.Pool
-	queries genDb.Querier
-	tvm     *tvm.VendingMachine
+	db            *pgxpool.Pool
+	queries       genDb.Querier
+	tvm           *tvm.VendingMachine
+	secureCookies bool
 }
 
 // NewUserServer creates a new UserServer instance
-func NewUserServer(db *pgxpool.Pool, queries genDb.Querier, vendingMachine *tvm.VendingMachine) *UserServer {
-	return &UserServer{db: db, queries: queries, tvm: vendingMachine}
+func NewUserServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	vendingMachine *tvm.VendingMachine,
+	secureCookies bool,
+) *UserServer {
+	return &UserServer{db: db, queries: queries, tvm: vendingMachine, secureCookies: secureCookies}
 }
 
 // CreateUser handles user creation with auto-org and workspace setup
@@ -372,8 +378,9 @@ func (s *UserServer) Logout(
 	_ *connect.Request[userv1.LogoutRequest],
 ) (*connect.Response[userv1.LogoutResponse], error) {
 	res := connect.NewResponse(&userv1.LogoutResponse{})
-	res.Header().Add("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag())
-	res.Header().Add("Set-Cookie", "loco_refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag())
+	res.Header().Add("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag(s.secureCookies))
+	res.Header().
+		Add("Set-Cookie", "loco_refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag(s.secureCookies))
 
 	token, ok := ctx.Value(contextkeys.TokenKey).(string)
 	if !ok {

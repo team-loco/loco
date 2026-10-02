@@ -2,12 +2,13 @@ package tvm
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm/providers"
 )
@@ -23,14 +24,18 @@ func (tvm *VendingMachine) Exchange(
 ) (queries.User, string, string, error) {
 	address, err := email.Address()
 	if err != nil {
-		slog.Error(err.Error())
+		slog.ErrorContext(ctx, "failed to read email from external provider", "error", err)
 		return queries.User{}, "", "", ErrExchange
 	}
 
 	userWithScopes, err := tvm.queries.GetUserWithScopesByEmail(ctx, address)
-	if err != nil {
-		slog.Error(err.Error())
+	if errors.Is(err, pgx.ErrNoRows) {
+		slog.DebugContext(ctx, "no user for email", "email", address)
 		return queries.User{}, "", "", ErrUserNotFound
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to look up user by email", "error", err)
+		return queries.User{}, "", "", ErrUserLookup
 	}
 
 	user := queries.User{
@@ -65,7 +70,7 @@ func (tvm *VendingMachine) Exchange(
 		IpAddress:        ipAddr,
 		UserAgent:        &userAgent,
 	}); err != nil {
-		slog.ErrorContext(ctx, fmt.Sprintf("failed to create session token: %s", err.Error()))
+		slog.ErrorContext(ctx, "failed to create session token", "error", err)
 		return queries.User{}, "", "", ErrStoreToken
 	}
 
