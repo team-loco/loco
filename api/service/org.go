@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -171,9 +172,12 @@ func (s *OrgServer) GetOrg(
 		)
 	}
 
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to query org", "error", err)
-		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -313,9 +317,15 @@ func (s *OrgServer) UpdateOrg(
 			ID:   orgID,
 			Name: r.GetName(),
 		})
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+		}
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update org", "error", err)
-			return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 	}
 

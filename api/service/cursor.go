@@ -3,6 +3,8 @@ package service
 import (
 	"encoding/base64"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // encodeCursor encodes an ID as a base64 cursor token
@@ -19,7 +21,11 @@ func decodeCursor(token string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid cursor token: %w", err)
 	}
-	return string(decoded), nil
+	id, err := uuid.ParseBytes(decoded)
+	if err != nil {
+		return "", fmt.Errorf("invalid cursor token: %w", err)
+	}
+	return id.String(), nil
 }
 
 // normalizePageSize ensures page_size is within bounds (default: 50, max: 200)
