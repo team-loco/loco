@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Create the local kind cluster, or recreate it if it is unreachable, and export its kubeconfig"
+#MISE description="Create the local kind cluster, or recreate it if it is unreachable, export its kubeconfig, and point CoreDNS at resolvers pods can reach"
 set -euo pipefail
 
 name=loco-cluster-local
@@ -13,3 +13,11 @@ else
 	kind create cluster --config local-cluster.yml
 fi
 kind export kubeconfig --name "$name" --kubeconfig "$HOME/.kube/config"
+
+corefile=$(kubectl --context "kind-$name" -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')
+patched=${corefile//forward . \/etc\/resolv.conf/forward . 1.1.1.1 1.0.0.1}
+if [[ $patched != "$corefile" ]]; then
+	kubectl --context "kind-$name" -n kube-system create configmap coredns --from-literal=Corefile="$patched" --dry-run=client -o yaml |
+		kubectl --context "kind-$name" -n kube-system replace -f -
+	kubectl --context "kind-$name" -n kube-system rollout restart deployment/coredns
+fi
