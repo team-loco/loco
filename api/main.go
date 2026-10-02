@@ -318,6 +318,7 @@ func main() {
 
 		// registry service
 		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
+		registryv1connect.RegistryServiceGetImageRepositoryProcedure,
 
 		// agent service
 		agentv1connect.AgentServiceRegisterProcedure,

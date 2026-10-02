@@ -13,8 +13,18 @@ message GetGitlabTokenResponse {
   string token = 2;
 }
 
+// GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
+message GetImageRepositoryRequest {}
+
+// GetImageRepositoryResponse names the repository deployment images are pushed to.
+message GetImageRepositoryResponse {
+  string repository = 1;
+}
+
 // RegistryService manages container registry access.
 service RegistryService {
   // GetGitlabToken retrieves GitLab registry credentials.
   rpc GetGitlabToken(GetGitlabTokenRequest) returns (GetGitlabTokenResponse) {}
+  // GetImageRepository returns the repository the CLI pushes deployment images to.
+  rpc GetImageRepository(GetImageRepositoryRequest) returns (GetImageRepositoryResponse) {}
 }

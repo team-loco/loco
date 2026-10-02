@@ -30,7 +30,13 @@ func buildAndPushImage(
 	}
 	defer dockerClient.Close()
 
-	imageBase := "registry.gitlab.com/locomotive-group/loco-ecr"
+	repoReq := connect.NewRequest(&registryv1.GetImageRepositoryRequest{})
+	repoReq.Header().Set("Authorization", authHeader)
+	repoResp, err := registryClient.GetImageRepository(ctx, repoReq)
+	if err != nil {
+		return "", fmt.Errorf("failed to get the image repository: %w", err)
+	}
+	imageBase := repoResp.Msg.GetRepository()
 	imageName := dockerClient.GenerateImageTag(imageBase, orgID, workspaceID, resourceID)
 	slog.Debug("generated image name", "imageBase", imageBase, "imageName", imageName)
 
