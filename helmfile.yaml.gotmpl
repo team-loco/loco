@@ -97,8 +97,9 @@ releases:
   - name: loco-obs
     chart: ./charts/loco-obs
     namespace: observability
-    createNamespace: true
+    createNamespace: false
     needs:
+      - kube-system/loco-namespaces
       - loco-system/loco-core
     labels:
       phase: "3-observability"
