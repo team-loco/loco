@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"time"
 
@@ -32,12 +33,21 @@ type TokenStore interface {
 	Delete() error
 }
 
-func NewStore(user string) (TokenStore, error) {
+func ForCurrentUser() (TokenStore, error) {
+	currentUser, err := user.Current()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current user: %w", err)
+	}
+	return NewStore(currentUser)
+}
+
+func NewStore(u *user.User) (TokenStore, error) {
+	keyringStore := &KeyringStore{User: u.Username}
 	switch backend := os.Getenv(StoreEnvVar); backend {
 	case "":
-		return &KeyringStore{User: user}, nil
+		return keyringStore, nil
 	case "keyring":
-		return &KeyringStore{User: user}, nil
+		return keyringStore, nil
 	case "file":
 		locoDir, err := session.Dir()
 		if err != nil {
@@ -60,7 +70,7 @@ func (s *KeyringStore) Get() (*UserToken, error) {
 		return nil, err
 	}
 	t := new(UserToken)
-	if err := json.Unmarshal([]byte(pass), t); err != nil {
+	if err = json.Unmarshal([]byte(pass), t); err != nil {
 		return nil, fmt.Errorf("failed to decode token: %w", err)
 	}
 	return t, nil
@@ -91,7 +101,7 @@ func (s *FileStore) Get() (*UserToken, error) {
 		return nil, fmt.Errorf("failed to read %s: %w", s.Path, err)
 	}
 	t := new(UserToken)
-	if err := json.Unmarshal(bytes, t); err != nil {
+	if err = json.Unmarshal(bytes, t); err != nil {
 		return nil, fmt.Errorf("failed to decode %s: %w", s.Path, err)
 	}
 	return t, nil
@@ -127,28 +137,4 @@ func (s *FileStore) Delete() error {
 		return ErrNotFound
 	}
 	return err
-}
-
-func SetLocoToken(user string, t UserToken) error {
-	s, err := NewStore(user)
-	if err != nil {
-		return err
-	}
-	return s.Set(t)
-}
-
-func GetLocoToken(user string) (*UserToken, error) {
-	s, err := NewStore(user)
-	if err != nil {
-		return nil, err
-	}
-	return s.Get()
-}
-
-func DeleteLocoToken(user string) error {
-	s, err := NewStore(user)
-	if err != nil {
-		return err
-	}
-	return s.Delete()
 }

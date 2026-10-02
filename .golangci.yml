@@ -59,7 +59,6 @@ linters:
         - "charm.land/lipgloss/v2.Fprint"
         - "charm.land/lipgloss/v2.Fprintln"
         - "charm.land/lipgloss/v2.Fprintf"
-        - "github.com/team-loco/loco/internal/keychain.SetLocoToken"
 
     errchkjson:
       report-no-exported: true

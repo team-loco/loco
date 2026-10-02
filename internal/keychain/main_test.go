@@ -3,9 +3,12 @@ package keychain
 import (
 	"errors"
 	"os"
+	"os/user"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/zalando/go-keyring"
 )
 
 func TestFileStoreRoundTrip(t *testing.T) {
@@ -46,7 +49,36 @@ func TestFileStoreRoundTrip(t *testing.T) {
 
 func TestNewStoreRejectsUnknownBackend(t *testing.T) {
 	t.Setenv(StoreEnvVar, "plaintext")
-	if _, err := NewStore("someone"); err == nil {
+	someone := &user.User{Username: "someone", Name: "Some One"}
+	if _, err := NewStore(someone); err == nil {
 		t.Fatal("expected an error for an unknown backend")
+	}
+}
+
+func TestKeyringStoreRoundTrip(t *testing.T) {
+	keyring.MockInit()
+	store := &KeyringStore{User: "someone"}
+
+	if _, err := store.Get(); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("Get on empty store: got %v, want ErrNotFound", err)
+	}
+
+	want := UserToken{Token: "tok", RefreshToken: "refresh", ExpiresAt: time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)}
+	if err := store.Set(want); err != nil {
+		t.Fatalf("Set: %v", err)
+	}
+	got, err := store.Get()
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if *got != want {
+		t.Fatalf("Get = %+v, want %+v", *got, want)
+	}
+
+	if err = store.Delete(); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+	if err = store.Delete(); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("second Delete: got %v, want ErrNotFound", err)
 	}
 }

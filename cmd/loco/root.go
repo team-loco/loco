@@ -31,7 +31,7 @@ func NewEnv() Env {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get current user: %w", err)
 		}
-		return keychain.NewStore(currentUser.Name)
+		return keychain.NewStore(currentUser)
 	}
 	return env
 }
@@ -57,7 +57,7 @@ func NewRootCmd(env Env) *cobra.Command {
 		},
 	}
 
-	root.AddCommand(newLoginCmd(),
+	root.AddCommand(newLoginCmd(env),
 		newLogoutCmd(env),
 		newUseCmd(),
 		newWhoAmICmd(env),

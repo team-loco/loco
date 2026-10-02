@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	osUser "os/user"
 	"strings"
 	"time"
 
@@ -62,7 +61,7 @@ type TokenDetails struct {
 	TokenTTL float64 `json:"tokenTTL"`
 }
 
-func newLoginCmd() *cobra.Command {
+func newLoginCmd(env Env) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Login to loco via Github OAuth",
@@ -71,13 +70,12 @@ func newLoginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			user, err := osUser.Current()
+			store, err := env.Tokens()
 			if err != nil {
-				slog.Debug("failed to get current user", "error", err)
 				return err
 			}
 
-			t, err := keychain.GetLocoToken(user.Name)
+			t, err := store.Get()
 			if err != nil {
 				slog.Error("failed keychain token grab", "error", err)
 			}
@@ -185,7 +183,7 @@ func newLoginCmd() *cobra.Command {
 				return err
 			}
 
-			return setupLoginScope(httpClient, host, user.Name, locoResp.Msg)
+			return setupLoginScope(httpClient, host, store, locoResp.Msg)
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
@@ -195,9 +193,10 @@ func newLoginCmd() *cobra.Command {
 func setupLoginScope(
 	httpClient *http.Client,
 	host string,
-	osUserName string,
+	store keychain.TokenStore,
 	exchange *oAuth.ExchangeOAuthTokenResponse,
 ) error {
+	newToken := tokenFromExchange(exchange)
 	orgClient := orgv1connect.NewOrgServiceClient(httpClient, host)
 	wsClient := workspacev1connect.NewWorkspaceServiceClient(httpClient, host)
 
@@ -210,11 +209,9 @@ func setupLoginScope(
 	if existingCfg != nil {
 		scope, scopeErr := existingCfg.GetScope()
 		if scopeErr == nil {
-			keychain.SetLocoToken(osUserName, keychain.UserToken{
-				Token: exchange.LocoToken,
-				// sub 10 mins
-				ExpiresAt: time.Now().Add(time.Duration(exchange.ExpiresIn)*time.Second - (10 * time.Minute)),
-			})
+			if storeErr := store.Set(newToken); storeErr != nil {
+				return fmt.Errorf("failed to store token: %w", storeErr)
+			}
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Logged in!")
@@ -333,15 +330,8 @@ func setupLoginScope(
 			return err
 		}
 
-		keychainErr := keychain.SetLocoToken(osUserName, keychain.UserToken{
-			Token:        exchange.LocoToken,
-			RefreshToken: exchange.RefreshToken,
-			// sub 10 mins
-			ExpiresAt: time.Now().Add(time.Duration(exchange.ExpiresIn)*time.Second - (10 * time.Minute)),
-		})
-		if keychainErr != nil {
-			slog.Debug("failed to store token in keychain", "error", keychainErr)
-			return fmt.Errorf("failed to store token: %w", keychainErr)
+		if storeErr := store.Set(newToken); storeErr != nil {
+			return fmt.Errorf("failed to store token: %w", storeErr)
 		}
 
 		checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
@@ -410,11 +400,9 @@ func setupLoginScope(
 		return err
 	}
 
-	keychain.SetLocoToken(osUserName, keychain.UserToken{
-		Token: exchange.LocoToken,
-		// sub 10 mins
-		ExpiresAt: time.Now().Add(time.Duration(exchange.ExpiresIn)*time.Second - (10 * time.Minute)),
-	})
+	if storeErr := store.Set(newToken); storeErr != nil {
+		return fmt.Errorf("failed to store token: %w", storeErr)
+	}
 
 	checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 	title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
@@ -427,6 +415,16 @@ func setupLoginScope(
 	fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 	return nil
+}
+
+func tokenFromExchange(resp *oAuth.ExchangeOAuthTokenResponse) keychain.UserToken {
+	lifetime := time.Duration(resp.GetExpiresIn())*time.Second - 10*time.Minute
+	expiresAt := time.Now().Add(lifetime)
+	return keychain.UserToken{
+		Token:        resp.GetLocoToken(),
+		RefreshToken: resp.GetRefreshToken(),
+		ExpiresAt:    expiresAt,
+	}
 }
 
 func pollAuthToken(

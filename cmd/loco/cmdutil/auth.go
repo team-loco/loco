@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/user"
 	"time"
 
 	"connectrpc.com/connect"
@@ -19,12 +18,11 @@ import (
 // If the access token is near expiry and a refresh token is stored, it
 // attempts a silent refresh before returning.
 func GetCurrentLocoToken() (*keychain.UserToken, error) {
-	usr, err := user.Current()
+	store, err := keychain.ForCurrentUser()
 	if err != nil {
-		slog.Debug("failed to get current user", "error", err)
 		return nil, err
 	}
-	locoToken, err := keychain.GetLocoToken(usr.Name)
+	locoToken, err := store.Get()
 	if err != nil {
 		slog.Debug("failed to get loco token", "error", err)
 		return nil, fmt.Errorf("could not get token from secrets storage. Please login via `loco login`")
@@ -36,7 +34,7 @@ func GetCurrentLocoToken() (*keychain.UserToken, error) {
 			return nil, fmt.Errorf("token is expired. Please re-login via `loco login`")
 		}
 		slog.Debug("attempting silent token refresh")
-		refreshed, refreshErr := refreshLocoToken(locoToken.RefreshToken, usr.Name)
+		refreshed, refreshErr := refreshLocoToken(locoToken.RefreshToken, store)
 		if refreshErr != nil {
 			slog.Debug("token refresh failed", "error", refreshErr)
 			return nil, fmt.Errorf("token expired and refresh failed. Please re-login via `loco login`")
@@ -49,7 +47,7 @@ func GetCurrentLocoToken() (*keychain.UserToken, error) {
 
 // refreshLocoToken calls the RefreshToken RPC using the stored refresh token,
 // stores the new token pair in the keychain, and returns the updated UserToken.
-func refreshLocoToken(refreshToken, userName string) (*keychain.UserToken, error) {
+func refreshLocoToken(refreshToken string, store keychain.TokenStore) (*keychain.UserToken, error) {
 	// todo: cleanup, we shouldnt be doing this inline here.
 	host := os.Getenv("LOCO__HOST")
 	if host == "" {
@@ -72,7 +70,7 @@ func refreshLocoToken(refreshToken, userName string) (*keychain.UserToken, error
 		RefreshToken: resp.Msg.RefreshToken,
 		ExpiresAt:    time.Now().Add(time.Duration(resp.Msg.ExpiresIn)*time.Second - 10*time.Minute),
 	}
-	if err := keychain.SetLocoToken(userName, *newToken); err != nil {
+	if err = store.Set(*newToken); err != nil {
 		return nil, err
 	}
 	slog.Debug("token refreshed and stored in keychain")

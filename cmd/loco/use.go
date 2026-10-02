@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os/user"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -44,12 +43,12 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	osUser, err := user.Current()
+	store, err := keychain.ForCurrentUser()
 	if err != nil {
-		return fmt.Errorf("failed to get current user: %w", err)
+		return err
 	}
 
-	t, err := keychain.GetLocoToken(osUser.Name)
+	t, err := store.Get()
 	if err != nil {
 		slog.Error("failed keychain token grab", "error", err)
 		return ErrLoginRequired

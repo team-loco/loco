@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/user"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,18 +12,16 @@ import (
 )
 
 type revokeDeps struct {
-	GetLocoToken func(username string) (*keychain.UserToken, error)
-	SetLocoToken func(username string, token keychain.UserToken) error
-	AskYesNo     func(prompt string) (bool, error)
-	Output       io.Writer
+	Tokens   func() (keychain.TokenStore, error)
+	AskYesNo func(prompt string) (bool, error)
+	Output   io.Writer
 }
 
 func buildRevokeCmd() *cobra.Command {
 	deps := revokeDeps{
-		GetLocoToken: keychain.GetLocoToken,
-		SetLocoToken: keychain.SetLocoToken,
-		AskYesNo:     ui.AskYesNo,
-		Output:       os.Stdout,
+		Tokens:   keychain.ForCurrentUser,
+		AskYesNo: ui.AskYesNo,
+		Output:   os.Stdout,
 	}
 	return newRevokeCmd(deps)
 }
@@ -41,12 +38,12 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
   # Revoke without confirmation
   loco token revoke --yes`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			currentUser, err := user.Current()
+			store, err := deps.Tokens()
 			if err != nil {
-				return fmt.Errorf("failed to get current user: %w", err)
+				return err
 			}
 
-			_, err = deps.GetLocoToken(currentUser.Name)
+			_, err = store.Get()
 			if err != nil {
 				return fmt.Errorf("not logged in - nothing to revoke")
 			}
@@ -68,7 +65,7 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				}
 			}
 
-			err = deps.SetLocoToken(currentUser.Name, keychain.UserToken{
+			err = store.Set(keychain.UserToken{
 				Token:     "",
 				ExpiresAt: time.Now().Add(-time.Hour),
 			})
