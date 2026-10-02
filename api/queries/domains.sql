@@ -82,6 +82,21 @@ FROM resource_domains rd
 WHERE rd.resource_id = $1
 ORDER BY rd.is_primary DESC, rd.created_at ASC;
 
+-- name: ListResourceDomainsForResources :many
+SELECT
+    rd.id,
+    rd.resource_id,
+    rd.domain,
+    rd.domain_source,
+    rd.subdomain_label,
+    rd.platform_domain_id,
+    rd.is_primary,
+    rd.created_at,
+    rd.updated_at
+FROM resource_domains rd
+WHERE rd.resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+ORDER BY rd.resource_id, rd.is_primary DESC, rd.created_at ASC;
+
 -- name: ListAllLocoOwnedDomains :many
 SELECT 
     rd.id,

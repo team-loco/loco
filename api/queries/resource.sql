@@ -48,6 +48,12 @@ FROM resource_regions
 WHERE resource_id = $1
 ORDER BY is_primary DESC, region ASC;
 
+-- name: ListResourceRegionsForResources :many
+SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+FROM resource_regions
+WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+ORDER BY resource_id, is_primary DESC, region ASC;
+
 -- name: GetResourceRegionByResourceAndRegion :one
 SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
 FROM resource_regions

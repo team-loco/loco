@@ -460,6 +460,42 @@ func (q *Queries) ListResourceRegions(ctx context.Context, resourceID uuid.UUID)
 	return items, nil
 }
 
+const listResourceRegionsForResources = `-- name: ListResourceRegionsForResources :many
+SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+FROM resource_regions
+WHERE resource_id = ANY($1::uuid[])
+ORDER BY resource_id, is_primary DESC, region ASC
+`
+
+func (q *Queries) ListResourceRegionsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceRegion, error) {
+	rows, err := q.db.Query(ctx, listResourceRegionsForResources, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ResourceRegion
+	for rows.Next() {
+		var i ResourceRegion
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.Region,
+			&i.IsPrimary,
+			&i.Status,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
 SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
 FROM resources r
