@@ -37,7 +37,14 @@ func QueryLogs(
 	var queryParts []string
 	var args []any
 
-	queryParts = append(queryParts, fmt.Sprintf("SELECT Timestamp, SeverityText, Body, %s AS resource_id, TraceId, SpanId, ResourceAttributes, LogAttributes FROM otel_logs", resourceAttr))
+	queryParts = append(
+		queryParts,
+		fmt.Sprintf(
+			"SELECT Timestamp, SeverityText, Body, %s AS resource_id, TraceId, SpanId, "+
+				"ResourceAttributes, LogAttributes FROM otel_logs",
+			resourceAttr,
+		),
+	)
 
 	// Mandatory WHERE clauses - these are NEVER user-controlled
 	whereParts := []string{
@@ -134,7 +141,16 @@ func QueryLogs(
 			logAttrs      map[string]string
 		)
 
-		if err := rows.Scan(&ts, &severity, &body, &resourceID, &traceID, &spanID, &resourceAttrs, &logAttrs); err != nil {
+		if err := rows.Scan(
+			&ts,
+			&severity,
+			&body,
+			&resourceID,
+			&traceID,
+			&spanID,
+			&resourceAttrs,
+			&logAttrs,
+		); err != nil {
 			return nil, "", fmt.Errorf("scan row: %w", err)
 		}
 

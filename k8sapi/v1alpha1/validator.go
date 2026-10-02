@@ -120,7 +120,11 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 	}
 	for name, value := range spec.Env {
 		if !envVarNamePattern.MatchString(name) {
-			return fmt.Errorf("invalid environment variable name %q (must start with letter or underscore, contain only alphanumeric and underscore)", name)
+			return fmt.Errorf(
+				"invalid environment variable name %q "+
+					"(must start with letter or underscore, contain only alphanumeric and underscore)",
+				name,
+			)
 		}
 		if value == "" {
 			return fmt.Errorf("environment variable %q has empty value", name)
@@ -188,7 +192,10 @@ func validateHealthCheckSpec(spec *HealthCheckSpec) error {
 
 	// Startup grace period (max 3 minutes = 180 seconds)
 	if spec.StartupGracePeriod > 180 {
-		return fmt.Errorf("healthCheck.startupGracePeriod cannot exceed 180 seconds (3 minutes), got %d", spec.StartupGracePeriod)
+		return fmt.Errorf(
+			"healthCheck.startupGracePeriod cannot exceed 180 seconds (3 minutes), got %d",
+			spec.StartupGracePeriod,
+		)
 	}
 
 	// Interval (min 5 seconds)

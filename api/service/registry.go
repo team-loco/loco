@@ -75,7 +75,11 @@ func (s *RegistryServer) GetGitlabToken(
 	}
 
 	entityIDStr := entity.ID.String()
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetGitlabToken, entityIDStr)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		entityScopes,
+		actions.New(actions.GetGitlabToken, entityIDStr),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get gitlab token", "entityId", entityIDStr)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -99,6 +103,11 @@ func (s *RegistryServer) GetGitlabToken(
 		Token:    tokenResp.Token,
 	})
 
-	slog.DebugContext(ctx, "generated gitlab deploy token successfully", slog.String("username", tokenResp.Username), slog.String("entityId", entityIDStr))
+	slog.DebugContext(
+		ctx,
+		"generated gitlab deploy token successfully",
+		slog.String("username", tokenResp.Username),
+		slog.String("entityId", entityIDStr),
+	)
 	return res, nil
 }

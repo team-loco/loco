@@ -84,36 +84,71 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 		spec := &deploymentv1.DeploymentSpec{}
 
 		switch resourceType {
-		case "service":
+		case string(genDb.ResourceTypeService):
 			serviceSpec := &deploymentv1.ServiceDeploymentSpec{}
 			if err := protojson.Unmarshal(d.Spec, serviceSpec); err != nil {
-				slog.WarnContext(context.Background(), "failed to unmarshal service deployment spec", "error", err, "deployment_id", d.ID)
+				slog.WarnContext(
+					context.Background(),
+					"failed to unmarshal service deployment spec",
+					"error",
+					err,
+					"deployment_id",
+					d.ID,
+				)
 			} else {
 				spec.Spec = &deploymentv1.DeploymentSpec_Service{Service: serviceSpec}
 			}
-		case "database":
+		case string(genDb.ResourceTypeDatabase):
 			databaseSpec := &deploymentv1.DatabaseDeploymentSpec{}
 			if err := protojson.Unmarshal(d.Spec, databaseSpec); err != nil {
-				slog.WarnContext(context.Background(), "failed to unmarshal database deployment spec", "error", err, "deployment_id", d.ID)
+				slog.WarnContext(
+					context.Background(),
+					"failed to unmarshal database deployment spec",
+					"error",
+					err,
+					"deployment_id",
+					d.ID,
+				)
 			} else {
 				spec.Spec = &deploymentv1.DeploymentSpec_Database{Database: databaseSpec}
 			}
-		case "cache":
+		case string(genDb.ResourceTypeCache):
 			cacheSpec := &deploymentv1.CacheDeploymentSpec{}
 			if err := protojson.Unmarshal(d.Spec, cacheSpec); err != nil {
-				slog.WarnContext(context.Background(), "failed to unmarshal cache deployment spec", "error", err, "deployment_id", d.ID)
+				slog.WarnContext(
+					context.Background(),
+					"failed to unmarshal cache deployment spec",
+					"error",
+					err,
+					"deployment_id",
+					d.ID,
+				)
 			} else {
 				spec.Spec = &deploymentv1.DeploymentSpec_Cache{Cache: cacheSpec}
 			}
-		case "queue":
+		case string(genDb.ResourceTypeQueue):
 			queueSpec := &deploymentv1.QueueDeploymentSpec{}
 			if err := protojson.Unmarshal(d.Spec, queueSpec); err != nil {
-				slog.WarnContext(context.Background(), "failed to unmarshal queue deployment spec", "error", err, "deployment_id", d.ID)
+				slog.WarnContext(
+					context.Background(),
+					"failed to unmarshal queue deployment spec",
+					"error",
+					err,
+					"deployment_id",
+					d.ID,
+				)
 			} else {
 				spec.Spec = &deploymentv1.DeploymentSpec_Queue{Queue: queueSpec}
 			}
 		default:
-			slog.WarnContext(context.Background(), "unknown resource type", "resource_type", resourceType, "deployment_id", d.ID)
+			slog.WarnContext(
+				context.Background(),
+				"unknown resource type",
+				"resource_type",
+				resourceType,
+				"deployment_id",
+				d.ID,
+			)
 		}
 
 		deployment.Spec = spec
@@ -136,7 +171,12 @@ type DeploymentServer struct {
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
-func NewDeploymentServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, cmdBus commandbus.CommandBus) *DeploymentServer {
+func NewDeploymentServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	machine *tvm.VendingMachine,
+	cmdBus commandbus.CommandBus,
+) *DeploymentServer {
 	return &DeploymentServer{
 		db:      db,
 		queries: queries,
@@ -166,14 +206,21 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateDeployment, r.GetResourceId())); verifyErr != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.CreateDeployment, r.GetResourceId()),
+	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to create deployment", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
 	// validate that request spec contains a service deployment (for now, only services are supported)
 	if r.GetSpec().GetService() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service deployments are currently supported"))
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("only service deployments are currently supported"),
+		)
 	}
 
 	serviceSpec := r.GetSpec().GetService()
@@ -200,8 +247,20 @@ func (s *DeploymentServer) CreateDeployment(
 		Tier:   env.EnvironmentType,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", region, "tier", env.EnvironmentType, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s tier %s", region, env.EnvironmentType))
+		slog.ErrorContext(
+			ctx,
+			"failed to get active cluster for region",
+			"region",
+			region,
+			"tier",
+			env.EnvironmentType,
+			"error",
+			err,
+		)
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("no active cluster available for region %s tier %s", region, env.EnvironmentType),
+		)
 	}
 
 	// deserialize resource spec and merge with request spec
@@ -232,10 +291,13 @@ func (s *DeploymentServer) CreateDeployment(
 	}
 
 	// Get resource region for deployment record
-	resourceRegion, err := s.queries.GetResourceRegionByResourceAndRegion(ctx, genDb.GetResourceRegionByResourceAndRegionParams{
-		ResourceID: resourceId,
-		Region:     region,
-	})
+	resourceRegion, err := s.queries.GetResourceRegionByResourceAndRegion(
+		ctx,
+		genDb.GetResourceRegionByResourceAndRegionParams{
+			ResourceID: resourceId,
+			Region:     region,
+		},
+	)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource region", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("resource region not found"))
@@ -308,7 +370,16 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
 	}
 
-	slog.InfoContext(ctx, "deploy command dispatched", "command_id", cmd.ID, "cluster_id", cluster.ID, "deployment_id", deploymentID.String())
+	slog.InfoContext(
+		ctx,
+		"deploy command dispatched",
+		"command_id",
+		cmd.ID,
+		"cluster_id",
+		cluster.ID,
+		"deployment_id",
+		deploymentID.String(),
+	)
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deploymentID.String()}), nil
 }
@@ -341,7 +412,11 @@ func (s *DeploymentServer) GetDeployment(
 	}
 
 	// check if user has permission to get deployment (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetDeployment, resource.ID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.GetDeployment, resource.ID.String()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get deployment", "resourceId", resource.ID.String())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -365,7 +440,11 @@ func (s *DeploymentServer) ListDeployments(
 	}
 
 	// check if requester has permission to list deployments (resource:read)
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListDeployments, r.GetResourceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ListDeployments, r.GetResourceId()),
+	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -441,7 +520,11 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteDeployment, resource.ID.String())); verifyErr != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.DeleteDeployment, resource.ID.String()),
+	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to delete deployment", "resourceId", resource.ID.String())
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
@@ -457,7 +540,10 @@ func (s *DeploymentServer) DeleteDeployment(
 		payloadJSON, marshalErr := json.Marshal(cmdPayload)
 		if marshalErr != nil {
 			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", marshalErr)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", marshalErr))
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("failed to marshal command payload: %w", marshalErr),
+			)
 		}
 
 		// Dispatch delete command to the agent via CommandBus
@@ -470,11 +556,30 @@ func (s *DeploymentServer) DeleteDeployment(
 		}
 
 		if sendErr := s.cmdBus.Send(ctx, cmd); sendErr != nil {
-			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", sendErr)
-			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", sendErr))
+			slog.ErrorContext(
+				ctx,
+				"failed to dispatch delete command",
+				"cluster_id",
+				deployment.ClusterID,
+				"error",
+				sendErr,
+			)
+			return nil, connect.NewError(
+				connect.CodeUnavailable,
+				fmt.Errorf("no agent connected for cluster: %w", sendErr),
+			)
 		}
 
-		slog.InfoContext(ctx, "delete command dispatched", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "deployment_id", deployment.ID.String())
+		slog.InfoContext(
+			ctx,
+			"delete command dispatched",
+			"command_id",
+			cmd.ID,
+			"cluster_id",
+			deployment.ClusterID,
+			"deployment_id",
+			deployment.ID.String(),
+		)
 	}
 
 	// mark deployment as inactive
@@ -515,7 +620,11 @@ func (s *DeploymentServer) WatchDeployment(
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.StreamDeployment, resource.ID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.StreamDeployment, resource.ID.String()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resource.ID.String())
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}

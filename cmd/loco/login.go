@@ -29,6 +29,8 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
+const contentTypeJSON = "application/json"
+
 type DeviceCodeRequest struct {
 	ClientId string `json:"client_id"`
 	Scope    string `json:"scope"`
@@ -116,8 +118,8 @@ var loginCmd = &cobra.Command{
 		}
 
 		req, err := c.Post("/login/device/code", payload, map[string]string{
-			"Accept":       "application/json",
-			"Content-Type": "application/json",
+			"Accept":       contentTypeJSON,
+			"Content-Type": contentTypeJSON,
 		})
 		if err != nil {
 			slog.Debug("failed to get device code", "error", err)
@@ -135,7 +137,13 @@ var loginCmd = &cobra.Command{
 		errorChan := make(chan error, 1)
 
 		go func() {
-			pollErr := pollAuthToken(c, payload.ClientId, deviceTokenResponse.DeviceCode, deviceTokenResponse.Interval, tokenChan)
+			pollErr := pollAuthToken(
+				c,
+				payload.ClientId,
+				deviceTokenResponse.DeviceCode,
+				deviceTokenResponse.Interval,
+				tokenChan,
+			)
 			if pollErr != nil {
 				fmt.Println(pollErr.Error())
 				errorChan <- pollErr
@@ -167,11 +175,14 @@ var loginCmd = &cobra.Command{
 			return nil
 		}
 
-		locoResp, err := oAuthClient.ExchangeOAuthToken(cmd.Context(), connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
-			Provider:              oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
-			Token:                 finalM.tokenResp.AccessToken,
-			CreateUserIfNotExists: true,
-		}))
+		locoResp, err := oAuthClient.ExchangeOAuthToken(
+			cmd.Context(),
+			connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
+				Provider:              oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
+				Token:                 finalM.tokenResp.AccessToken,
+				CreateUserIfNotExists: true,
+			}),
+		)
 		if err != nil {
 			return err
 		}
@@ -196,8 +207,12 @@ var loginCmd = &cobra.Command{
 
 				checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 				title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Logged in!")
-				orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", scope.Organization.Name))
-				wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", scope.Workspace.Name))
+				orgLine := lipgloss.NewStyle().
+					Foreground(ui.LocoLightGray).
+					Render(fmt.Sprintf("  Organization: %s", scope.Organization.Name))
+				wsLine := lipgloss.NewStyle().
+					Foreground(ui.LocoLightGray).
+					Render(fmt.Sprintf("  Workspace: %s", scope.Workspace.Name))
 				fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 				return nil
 			}
@@ -320,8 +335,12 @@ var loginCmd = &cobra.Command{
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
-			orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", getOrgResp.Msg.Organization.Name))
-			wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", getWSResp.Msg.Workspace.Name))
+			orgLine := lipgloss.NewStyle().
+				Foreground(ui.LocoLightGray).
+				Render(fmt.Sprintf("  Organization: %s", getOrgResp.Msg.Organization.Name))
+			wsLine := lipgloss.NewStyle().
+				Foreground(ui.LocoLightGray).
+				Render(fmt.Sprintf("  Workspace: %s", getWSResp.Msg.Workspace.Name))
 			fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 			return nil
@@ -388,15 +407,25 @@ var loginCmd = &cobra.Command{
 
 		checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 		title := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Authentication successful!")
-		orgLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Organization: %s", selectedOrg.Name))
-		wsLine := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render(fmt.Sprintf("  Workspace: %s", selectedWorkspace.Name))
+		orgLine := lipgloss.NewStyle().
+			Foreground(ui.LocoLightGray).
+			Render(fmt.Sprintf("  Organization: %s", selectedOrg.Name))
+		wsLine := lipgloss.NewStyle().
+			Foreground(ui.LocoLightGray).
+			Render(fmt.Sprintf("  Workspace: %s", selectedWorkspace.Name))
 		fmt.Printf("%s %s\n%s\n%s\n", checkmark, title, orgLine, wsLine)
 
 		return nil
 	},
 }
 
-func pollAuthToken(c *api.Client, clientId string, deviceCode string, interval int, tokenChan chan AuthTokenResponse) error {
+func pollAuthToken(
+	c *api.Client,
+	clientId string,
+	deviceCode string,
+	interval int,
+	tokenChan chan AuthTokenResponse,
+) error {
 	authTokenRequest := AuthTokenRequest{
 		ClientId:   clientId,
 		DeviceCode: deviceCode,
@@ -405,8 +434,8 @@ func pollAuthToken(c *api.Client, clientId string, deviceCode string, interval i
 
 	for {
 		resp, err := c.Post("/login/oauth/access_token", authTokenRequest, map[string]string{
-			"Accept":       "application/json",
-			"Content-Type": "application/json",
+			"Accept":       contentTypeJSON,
+			"Content-Type": contentTypeJSON,
 		})
 		if err != nil {
 			if apiError, ok := err.(*api.APIError); ok {
@@ -483,7 +512,12 @@ type model struct {
 	done            bool
 }
 
-func initialModel(userCode string, verificationUri string, tokenChan <-chan AuthTokenResponse, errorChan <-chan error) model {
+func initialModel(
+	userCode string,
+	verificationUri string,
+	tokenChan <-chan AuthTokenResponse,
+	errorChan <-chan error,
+) model {
 	return model{
 		userCode:        userCode,
 		verificationURI: verificationUri,
@@ -545,7 +579,9 @@ func (m model) View() tea.View {
 				errorStyle.Render("Authentication failed:"),
 				lipgloss.NewStyle().Foreground(ui.LocoDarkGray).Render(m.err.Error())))
 		}
-		return tea.NewView(lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("Setting up organization and workspace...") + "\n")
+		return tea.NewView(
+			lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("Setting up organization and workspace...") + "\n",
+		)
 	}
 
 	codeStyle := lipgloss.NewStyle().Foreground(ui.LocoOrange).Bold(true).Padding(0, 0)

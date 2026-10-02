@@ -94,7 +94,7 @@ func (m *model) Init() tea.Cmd {
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if msg.String() == "ctrl+c" {
+		if msg.String() == keyCtrlC {
 			m.quitting = true
 			return m, tea.Quit
 		}
@@ -229,7 +229,7 @@ func RunSteps(steps []Step) error {
 	}
 
 	if m.quitting {
-		return fmt.Errorf("deployment was cancelled")
+		return fmt.Errorf("deployment was canceled")
 	}
 
 	return err

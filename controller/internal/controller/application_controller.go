@@ -47,6 +47,10 @@ import (
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
 	finalizerSecretRefresher = "loco.io/secret-refresher"
+	labelApp                 = "app"
+	labelWorkspaceID         = "loco.io/workspace-id"
+	labelResourceID          = "loco.io/resource-id"
+	labelEnvironmentID       = "loco.io/environment-id"
 	phaseDeploying           = "Deploying"
 	phaseFailed              = "Failed"
 	phaseReady               = "Ready"
@@ -98,7 +102,12 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// a deploy, so this only fires for Applications written directly against the cluster.
 	if err := locoRes.Spec.Validate(); err != nil {
 		slog.ErrorContext(ctx, "invalid Application spec", "error", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, "Failed", fmt.Sprintf("validation failed: %v", err)); statusErr != nil {
+		if statusErr := r.updatePhase(
+			ctx,
+			&locoRes,
+			"Failed",
+			fmt.Sprintf("validation failed: %v", err),
+		); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
@@ -243,7 +252,11 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 }
 
 // updatePhase updates the Application status with phase and message, then flushes to K8s API
-func (r *LocoResourceReconciler) updatePhase(ctx context.Context, locoRes *locov1alpha1.Application, phase, message string) error {
+func (r *LocoResourceReconciler) updatePhase(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+	phase, message string,
+) error {
 	locoRes.Status.Phase = phase
 	locoRes.Status.Message = message
 	now := &metav1.Time{Time: time.Now()}
@@ -255,7 +268,10 @@ func (r *LocoResourceReconciler) updatePhase(ctx context.Context, locoRes *locov
 }
 
 // handleDeletion cancels the secret refresher goroutine, deletes the namespace, and removes the finalizer
-func (r *LocoResourceReconciler) handleDeletion(ctx context.Context, locoRes *locov1alpha1.Application) (ctrl.Result, error) {
+func (r *LocoResourceReconciler) handleDeletion(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+) (ctrl.Result, error) {
 	namespace := getNamespace(locoRes)
 	resourceKey := fmt.Sprintf("%s/%s", namespace, getName(locoRes))
 
@@ -322,10 +338,10 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namespace,
 			Labels: map[string]string{
-				"loco.io/app":            "true",
-				"loco.io/workspace-id":   locoRes.Spec.WorkspaceId,
-				"loco.io/resource-id":    locoRes.Spec.ResourceId,
-				"loco.io/environment-id": locoRes.Spec.EnvironmentId,
+				"loco.io/app":      "true",
+				labelWorkspaceID:   locoRes.Spec.WorkspaceId,
+				labelResourceID:    locoRes.Spec.ResourceId,
+				labelEnvironmentID: locoRes.Spec.EnvironmentId,
 			},
 		},
 	}
@@ -362,7 +378,7 @@ func ensureEnvSecret(ctx context.Context, kubeClient client.Client, locoRes *loc
 				Name:      envSecretName,
 				Namespace: namespace,
 				Labels: map[string]string{
-					"app": name,
+					labelApp: name,
 				},
 			},
 			Type: corev1.SecretTypeOpaque,
@@ -370,7 +386,16 @@ func ensureEnvSecret(ctx context.Context, kubeClient client.Client, locoRes *loc
 		}
 
 		if err := kubeClient.Create(ctx, envSecret); err != nil {
-			slog.ErrorContext(ctx, "failed to create env secret", "name", envSecretName, "namespace", namespace, "error", err)
+			slog.ErrorContext(
+				ctx,
+				"failed to create env secret",
+				"name",
+				envSecretName,
+				"namespace",
+				namespace,
+				"error",
+				err,
+			)
 			return err
 		}
 
@@ -398,10 +423,28 @@ func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, loco
 			if err == nil {
 				timeUntilExpiry := time.Until(expiryTime)
 				if timeUntilExpiry > 5*time.Minute {
-					slog.DebugContext(ctx, "image pull secret token still valid", "namespace", namespace, "name", secretName, "timeUntilExpiry", timeUntilExpiry)
+					slog.DebugContext(
+						ctx,
+						"image pull secret token still valid",
+						"namespace",
+						namespace,
+						"name",
+						secretName,
+						"timeUntilExpiry",
+						timeUntilExpiry,
+					)
 					return nil
 				}
-				slog.InfoContext(ctx, "image pull secret token expiring soon, refreshing", "namespace", namespace, "name", secretName, "timeUntilExpiry", timeUntilExpiry)
+				slog.InfoContext(
+					ctx,
+					"image pull secret token expiring soon, refreshing",
+					"namespace",
+					namespace,
+					"name",
+					secretName,
+					"timeUntilExpiry",
+					timeUntilExpiry,
+				)
 			}
 		}
 	}
@@ -429,7 +472,7 @@ func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, loco
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, secret, func() error {
 		secret.Type = corev1.SecretTypeDockerConfigJson
 		secret.Labels = map[string]string{
-			"app": name,
+			labelApp: name,
 		}
 		secret.Annotations = map[string]string{
 			"tokenExpiry": expiryTime,
@@ -440,7 +483,16 @@ func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, loco
 		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure image pull secret", "name", secretName, "namespace", namespace, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"failed to ensure image pull secret",
+			"name",
+			secretName,
+			"namespace",
+			namespace,
+			"error",
+			err,
+		)
 		return err
 	}
 
@@ -505,7 +557,7 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, role, func() error {
 		role.Labels = map[string]string{
-			"app": name,
+			labelApp: name,
 		}
 		role.Rules = []rbacv1.PolicyRule{
 			{
@@ -533,7 +585,7 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 
 	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
 		binding.Labels = map[string]string{
-			"app": name,
+			labelApp: name,
 		}
 		binding.Subjects = []rbacv1.Subject{
 			{
@@ -550,7 +602,16 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure role binding", "name", roleBindingName, "namespace", namespace, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"failed to ensure role binding",
+			"name",
+			roleBindingName,
+			"namespace",
+			namespace,
+			"error",
+			err,
+		)
 		return err
 	}
 
@@ -575,11 +636,11 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
 		svc.Labels = map[string]string{
-			"app": name,
+			labelApp: name,
 		}
 		svc.Spec.Type = corev1.ServiceTypeClusterIP
 		svc.Spec.Selector = map[string]string{
-			"app": name,
+			labelApp: name,
 		}
 		svc.Spec.Ports = []corev1.ServicePort{
 			{
@@ -602,7 +663,10 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 
 // ensureDeployment ensures the Kubernetes deployment exists and is configured with the spec
 // Returns the deployment if it exists or was created, or nil if skipped
-func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *locov1alpha1.Application) (*appsv1.Deployment, error) {
+func (r *LocoResourceReconciler) ensureDeployment(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+) (*appsv1.Deployment, error) {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	image := ""
@@ -665,7 +729,18 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 	memoryLimit = locoRes.Spec.ServiceSpec.Resources.Memory
 	replicas = locoRes.Spec.ServiceSpec.Resources.Replicas.Min
 
-	slog.InfoContext(ctx, "ensuring deployment", "namespace", namespace, "name", name, "replicas", replicas, "image", image)
+	slog.InfoContext(
+		ctx,
+		"ensuring deployment",
+		"namespace",
+		namespace,
+		"name",
+		name,
+		"replicas",
+		replicas,
+		"image",
+		image,
+	)
 
 	dep := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -676,10 +751,10 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
 		dep.Labels = map[string]string{
-			"app":                    name,
-			"loco.io/workspace-id":   locoRes.Spec.WorkspaceId,
-			"loco.io/resource-id":    locoRes.Spec.ResourceId,
-			"loco.io/environment-id": locoRes.Spec.EnvironmentId,
+			labelApp:           name,
+			labelWorkspaceID:   locoRes.Spec.WorkspaceId,
+			labelResourceID:    locoRes.Spec.ResourceId,
+			labelEnvironmentID: locoRes.Spec.EnvironmentId,
 		}
 
 		container := corev1.Container{
@@ -713,7 +788,7 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 		dep.Spec.Replicas = &replicas
 		dep.Spec.Selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				"app": name,
+				labelApp: name,
 			},
 		}
 		dep.Spec.Strategy = appsv1.DeploymentStrategy{
@@ -726,10 +801,10 @@ func (r *LocoResourceReconciler) ensureDeployment(ctx context.Context, locoRes *
 		dep.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					"app":                    name,
-					"loco.io/workspace-id":   locoRes.Spec.WorkspaceId,
-					"loco.io/resource-id":    locoRes.Spec.ResourceId,
-					"loco.io/environment-id": locoRes.Spec.EnvironmentId,
+					labelApp:           name,
+					labelWorkspaceID:   locoRes.Spec.WorkspaceId,
+					labelResourceID:    locoRes.Spec.ResourceId,
+					labelEnvironmentID: locoRes.Spec.EnvironmentId,
 				},
 			},
 			Spec: corev1.PodSpec{
@@ -782,7 +857,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
 		route.Labels = map[string]string{
-			"app": name,
+			labelApp: name,
 		}
 		route.Spec.Hostnames = []v1Gateway.Hostname{
 			v1Gateway.Hostname(locoRes.Spec.ServiceSpec.Routing.HostName),
@@ -872,7 +947,11 @@ func (r *LocoResourceReconciler) startSecretRefresherGoroutine(ctx context.Conte
 }
 
 // secretRefresher periodically refreshes the image pull secret token
-func (r *LocoResourceReconciler) secretRefresher(ctx context.Context, locoRes *locov1alpha1.Application, resourceKey string) {
+func (r *LocoResourceReconciler) secretRefresher(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+	resourceKey string,
+) {
 	defer func() {
 		r.secretRefreshersMux.Lock()
 		delete(r.secretRefreshers, resourceKey)
@@ -900,25 +979,59 @@ func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, loc
 
 	secret := &corev1.Secret{}
 	if err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: secretName}, secret); err != nil {
-		slog.ErrorContext(ctx, "failed to fetch image pull secret for refresh", "namespace", namespace, "name", secretName, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"failed to fetch image pull secret for refresh",
+			"namespace",
+			namespace,
+			"name",
+			secretName,
+			"error",
+			err,
+		)
 		return
 	}
 
 	expiryStr, ok := secret.Annotations["tokenExpiry"]
 	if !ok {
-		slog.WarnContext(ctx, "image pull secret missing tokenExpiry annotation", "namespace", namespace, "name", secretName)
+		slog.WarnContext(
+			ctx,
+			"image pull secret missing tokenExpiry annotation",
+			"namespace",
+			namespace,
+			"name",
+			secretName,
+		)
 		return
 	}
 
 	expiryTime, err := time.Parse(time.RFC3339, expiryStr)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to parse tokenExpiry annotation", "namespace", namespace, "name", secretName, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"failed to parse tokenExpiry annotation",
+			"namespace",
+			namespace,
+			"name",
+			secretName,
+			"error",
+			err,
+		)
 		return
 	}
 
 	timeUntilExpiry := time.Until(expiryTime)
 	if timeUntilExpiry > 10*time.Minute {
-		slog.DebugContext(ctx, "token not yet expired, skipping refresh", "namespace", namespace, "name", secretName, "timeUntilExpiry", timeUntilExpiry)
+		slog.DebugContext(
+			ctx,
+			"token not yet expired, skipping refresh",
+			"namespace",
+			namespace,
+			"name",
+			secretName,
+			"timeUntilExpiry",
+			timeUntilExpiry,
+		)
 		return
 	}
 
@@ -926,13 +1039,31 @@ func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, loc
 
 	token, err := r.getGitlabRegistryToken(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get new gitlab deploy token", "namespace", namespace, "name", secretName, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"failed to get new gitlab deploy token",
+			"namespace",
+			namespace,
+			"name",
+			secretName,
+			"error",
+			err,
+		)
 		return
 	}
 
 	dockerConfig, err := buildDockerConfig(r.gitlabRegistryURL, token.Username, token.Token)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to build docker config", "namespace", namespace, "name", secretName, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"failed to build docker config",
+			"namespace",
+			namespace,
+			"name",
+			secretName,
+			"error",
+			err,
+		)
 		return
 	}
 	newExpiryTime := time.Now().Add(55 * time.Minute).UTC().Format(time.RFC3339)
@@ -942,7 +1073,16 @@ func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, loc
 
 	err = r.Update(ctx, secret)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update image pull secret", "namespace", namespace, "name", secretName, "error", err)
+		slog.ErrorContext(
+			ctx,
+			"failed to update image pull secret",
+			"namespace",
+			namespace,
+			"name",
+			secretName,
+			"error",
+			err,
+		)
 		return
 	}
 

@@ -48,7 +48,11 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateWorkspace, r.GetOrgId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.CreateWorkspace, r.GetOrgId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create workspace", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -95,17 +99,33 @@ func (s *WorkspaceServer) CreateWorkspace(
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update user roles for new workspace", "error", err, "workspaceId", wsID, "userId", entity.ID)
+		slog.ErrorContext(
+			ctx,
+			"failed to update user roles for new workspace",
+			"error",
+			err,
+			"workspaceId",
+			wsID,
+			"userId",
+			entity.ID,
+		)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 		WorkspaceID:     wsID,
-		Name:            "production",
-		EnvironmentType: "production",
+		Name:            environmentTypeProduction,
+		EnvironmentType: environmentTypeProduction,
 		CreatedBy:       entity.ID,
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create production environment for new workspace", "error", err, "workspaceId", wsID.String())
+		slog.ErrorContext(
+			ctx,
+			"failed to create production environment for new workspace",
+			"error",
+			err,
+			"workspaceId",
+			wsID.String(),
+		)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -127,7 +147,11 @@ func (s *WorkspaceServer) GetWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetWorkspace, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.GetWorkspace, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get workspace", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -172,7 +196,11 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetCurrentUserWorkspaces, entity.ID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.GetCurrentUserWorkspaces, entity.ID.String()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get user workspaces", "userId", entity.ID)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -307,7 +335,11 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateWorkspace, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.UpdateWorkspace, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update workspace", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -365,7 +397,11 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteWorkspace, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.DeleteWorkspace, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete workspace", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -392,7 +428,11 @@ func (s *WorkspaceServer) CreateMember(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.AddWorkspaceMember, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		entityScopes,
+		actions.New(actions.AddWorkspaceMember, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to add workspace member", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -400,7 +440,7 @@ func (s *WorkspaceServer) CreateMember(
 	wsID := uuid.MustParse(r.GetWorkspaceId())
 	var addScopes []genDb.EntityScope
 	for _, sc := range r.GetScopes() {
-		switch genDb.Scope(sc) {
+		switch sc {
 		case genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin:
 		default:
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid scope: %s", sc))
@@ -408,7 +448,7 @@ func (s *WorkspaceServer) CreateMember(
 		addScopes = append(addScopes, genDb.EntityScope{
 			EntityType: genDb.EntityTypeWorkspace,
 			EntityID:   wsID,
-			Scope:      genDb.Scope(sc),
+			Scope:      sc,
 		})
 	}
 
@@ -436,7 +476,11 @@ func (s *WorkspaceServer) DeleteMember(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.RemoveWorkspaceMember, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		entityScopes,
+		actions.New(actions.RemoveWorkspaceMember, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to remove workspace member", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -469,7 +513,11 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListWorkspaceMembers, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ListWorkspaceMembers, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list workspace members", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -485,11 +533,14 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 		pageToken = &cursorID
 	}
 
-	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(ctx, genDb.ListWorkspaceMembersWithUserDetailsParams{
-		EntityID:  uuid.MustParse(r.GetWorkspaceId()),
-		Limit:     pageSize,
-		PageToken: pageToken,
-	})
+	memberList, err := s.queries.ListWorkspaceMembersWithUserDetails(
+		ctx,
+		genDb.ListWorkspaceMembersWithUserDetailsParams{
+			EntityID:  uuid.MustParse(r.GetWorkspaceId()),
+			Limit:     pageSize,
+			PageToken: pageToken,
+		},
+	)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list members", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

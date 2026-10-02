@@ -38,7 +38,9 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load default config", "error", err)
-		return "", fmt.Errorf("org not specified and no default found. Use --org flag or set LOCO__ORG environment variable")
+		return "", fmt.Errorf(
+			"org not specified and no default found. Use --org flag or set LOCO__ORG environment variable",
+		)
 	}
 
 	scope, err := cfg.GetScope()
@@ -47,7 +49,9 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 		return scope.Organization.Name, nil
 	}
 
-	return "", fmt.Errorf("org not specified and no default found. Use --org flag or set LOCO__ORG environment variable")
+	return "", fmt.Errorf(
+		"org not specified and no default found. Use --org flag or set LOCO__ORG environment variable",
+	)
 }
 
 // resolveWorkspace resolves workspace name from flag > env > config.
@@ -70,7 +74,9 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load default config", "error", err)
-		return "", fmt.Errorf("workspace not specified and no default found. Use --workspace flag or set LOCO__WORKSPACE environment variable")
+		return "", fmt.Errorf(
+			"workspace not specified and no default found. Use --workspace flag or set LOCO__WORKSPACE environment variable",
+		)
 	}
 
 	scope, err := cfg.GetScope()
@@ -79,11 +85,18 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 		return scope.Workspace.Name, nil
 	}
 
-	return "", fmt.Errorf("workspace not specified and no default found. Use --workspace flag or set LOCO__WORKSPACE environment variable")
+	return "", fmt.Errorf(
+		"workspace not specified and no default found. Use --workspace flag or set LOCO__WORKSPACE environment variable",
+	)
 }
 
 // resolveOrgID resolves organization ID, first checking config cache then API.
-func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (string, error) {
+func resolveOrgID(
+	ctx context.Context,
+	cmd *cobra.Command,
+	loadConfig func() (*session.SessionConfig, error),
+	apiClient *client.Client,
+) (string, error) {
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load config", "error", err)
@@ -128,7 +141,12 @@ func resolveOrgID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*s
 }
 
 // resolveWorkspaceID resolves workspace ID, first checking config cache then API.
-func resolveWorkspaceID(ctx context.Context, cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error), apiClient *client.Client) (string, error) {
+func resolveWorkspaceID(
+	ctx context.Context,
+	cmd *cobra.Command,
+	loadConfig func() (*session.SessionConfig, error),
+	apiClient *client.Client,
+) (string, error) {
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load config", "error", err)
@@ -216,7 +234,15 @@ func resolveDomainInput(
 	for _, pd := range resp.Msg.PlatformDomains {
 		if strings.HasSuffix(cfg.DomainConfig.Hostname, pd.Domain) {
 			foundDomainID = pd.Id
-			slog.Info("matched platform domain", "hostname", cfg.DomainConfig.Hostname, "platform_domain", pd.Domain, "id", pd.Id)
+			slog.Info(
+				"matched platform domain",
+				"hostname",
+				cfg.DomainConfig.Hostname,
+				"platform_domain",
+				pd.Domain,
+				"id",
+				pd.Id,
+			)
 			break
 		}
 	}
@@ -234,7 +260,7 @@ func resolveDomainInput(
 
 		selected, selErr := selectFromList("Select platform domain for your service", options)
 		if selErr != nil {
-			return nil, fmt.Errorf("domain selection cancelled: %w", selErr)
+			return nil, fmt.Errorf("domain selection canceled: %w", selErr)
 		}
 
 		domainID, ok := selected.(string)

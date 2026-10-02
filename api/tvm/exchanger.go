@@ -15,7 +15,12 @@ import (
 // Exchange authenticates a user via their OAuth-provided email and issues a new
 // session token pair (access + refresh). ip and userAgent are stored for session
 // display; either may be empty.
-func (tvm *VendingMachine) Exchange(ctx context.Context, email providers.EmailResponse, ip string, userAgent string) (queries.User, string, string, error) {
+func (tvm *VendingMachine) Exchange(
+	ctx context.Context,
+	email providers.EmailResponse,
+	ip string,
+	userAgent string,
+) (queries.User, string, string, error) {
 	address, err := email.Address()
 	if err != nil {
 		slog.Error(err.Error())

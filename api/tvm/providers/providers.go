@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-var ErrGithubExchange = errors.New("an issue occured while exchanging the github token")
+var ErrGithubExchange = errors.New("an issue occurred while exchanging the github token")
 
 func fetchGithubPrimaryEmail(token string) (string, error) {
 	req, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)

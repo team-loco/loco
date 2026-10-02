@@ -72,7 +72,7 @@ func (m selectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selected = i.value
 			}
 			return m, tea.Quit
-		case "ctrl+c", "esc":
+		case keyCtrlC, "esc":
 			return m, tea.Quit
 		}
 	}

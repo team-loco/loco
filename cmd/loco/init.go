@@ -110,7 +110,10 @@ func fetchPlatformDomain(cmd *cobra.Command) string {
 	defer cancel()
 
 	configClient := configv1connect.NewConfigServiceClient(httputil.NewHTTPClient(), host)
-	resp, err := configClient.GetDefaultServiceConfig(ctx, connect.NewRequest(&configv1.GetDefaultServiceConfigRequest{}))
+	resp, err := configClient.GetDefaultServiceConfig(
+		ctx,
+		connect.NewRequest(&configv1.GetDefaultServiceConfigRequest{}),
+	)
 	if err != nil {
 		slog.Debug("could not fetch defaults from API, using built-in default", "error", err)
 		return config.DefaultAppDomain

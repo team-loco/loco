@@ -22,13 +22,13 @@ func buildGetCmd() *cobra.Command {
 			}
 
 			switch key {
-			case "locoHost":
+			case keyLocoHost:
 				if cfg.LocoHost != "" {
 					fmt.Println(cfg.LocoHost)
 				} else {
 					fmt.Println("(not set, default: https://loco.build)")
 				}
-			case "defaultAppDomain":
+			case keyDefaultAppDomain:
 				if cfg.DefaultAppDomain != "" {
 					fmt.Println(cfg.DefaultAppDomain)
 				} else {

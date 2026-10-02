@@ -111,8 +111,15 @@ func main() {
 	}
 
 	if len(webhookCertPath) > 0 {
-		setupLog.Info("Initializing webhook certificate watcher using provided certificates",
-			"webhook-cert-path", webhookCertPath, "webhook-cert-name", webhookCertName, "webhook-cert-key", webhookCertKey)
+		setupLog.Info(
+			"Initializing webhook certificate watcher using provided certificates",
+			"webhook-cert-path",
+			webhookCertPath,
+			"webhook-cert-name",
+			webhookCertName,
+			"webhook-cert-key",
+			webhookCertKey,
+		)
 
 		webhookServerOptions.CertDir = webhookCertPath
 		webhookServerOptions.CertName = webhookCertName
@@ -148,8 +155,15 @@ func main() {
 	// managed by cert-manager for the metrics server.
 	// - [PROMETHEUS-WITH-CERTS] at config/prometheus/kustomization.yaml for TLS certification.
 	if len(metricsCertPath) > 0 {
-		setupLog.Info("Initializing metrics certificate watcher using provided certificates",
-			"metrics-cert-path", metricsCertPath, "metrics-cert-name", metricsCertName, "metrics-cert-key", metricsCertKey)
+		setupLog.Info(
+			"Initializing metrics certificate watcher using provided certificates",
+			"metrics-cert-path",
+			metricsCertPath,
+			"metrics-cert-name",
+			metricsCertName,
+			"metrics-cert-key",
+			metricsCertKey,
+		)
 
 		metricsServerOptions.CertDir = metricsCertPath
 		metricsServerOptions.CertName = metricsCertName

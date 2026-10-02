@@ -123,7 +123,14 @@ func (i *githubAuthInterceptor) WrapStreamingHandler(next connect.StreamingHandl
 			return connect.NewError(connect.CodeUnauthenticated, err)
 		}
 
-		slog.InfoContext(ctx, "claims validated; populating ctx", "entityId", entity.ID.String(), "entityType", entity.Type)
+		slog.InfoContext(
+			ctx,
+			"claims validated; populating ctx",
+			"entityId",
+			entity.ID.String(),
+			"entityType",
+			entity.Type,
+		)
 
 		c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
 			Type: entity.Type,

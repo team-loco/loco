@@ -17,6 +17,8 @@ import (
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
 
+const environmentTypeProduction = "production"
+
 var (
 	ErrEnvironmentNotFound      = errors.New("environment not found")
 	ErrEnvironmentNameNotUnique = errors.New("environment name already exists in this workspace")
@@ -48,7 +50,11 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateEnvironment, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.CreateEnvironment, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create environment", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -104,7 +110,11 @@ func (s *EnvironmentServer) GetEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetEnvironment, env.WorkspaceID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.GetEnvironment, env.WorkspaceID.String()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -127,7 +137,11 @@ func (s *EnvironmentServer) ListEnvironments(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListEnvironments, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ListEnvironments, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list environments", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -171,7 +185,11 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String())); verifyErr != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String()),
+	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to update environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
@@ -231,7 +249,11 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String())); verifyErr != nil {
+	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String()),
+	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to delete environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
@@ -242,7 +264,14 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 	if count > 0 {
-		slog.WarnContext(ctx, "cannot delete environment with deployments", "environmentId", r.GetEnvironmentId(), "count", count)
+		slog.WarnContext(
+			ctx,
+			"cannot delete environment with deployments",
+			"environmentId",
+			r.GetEnvironmentId(),
+			"count",
+			count,
+		)
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
 	}
 
@@ -275,7 +304,7 @@ func protoEnvTypeToString(t environmentv1.EnvironmentType) string {
 	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING:
 		return "staging"
 	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION:
-		return "production"
+		return environmentTypeProduction
 	default:
 		return ""
 	}
@@ -287,7 +316,7 @@ func stringToProtoEnvType(s string) environmentv1.EnvironmentType {
 		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_DEV
 	case "staging":
 		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING
-	case "production":
+	case environmentTypeProduction:
 		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION
 	default:
 		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED

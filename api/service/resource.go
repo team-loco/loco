@@ -67,7 +67,12 @@ type ResourceServer struct {
 }
 
 // NewResourceServer creates a new ResourceServer instance
-func NewResourceServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine, cmdBus commandbus.CommandBus) *ResourceServer {
+func NewResourceServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	machine *tvm.VendingMachine,
+	cmdBus commandbus.CommandBus,
+) *ResourceServer {
 	return &ResourceServer{
 		db:      db,
 		queries: queries,
@@ -89,14 +94,21 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateResource, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.CreateResource, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to create resource", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	// validate that spec contains a service spec (for now, only services are supported)
 	if r.GetSpec().GetService() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are currently supported"))
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("only service resources are currently supported"),
+		)
 	}
 
 	serviceSpec := r.GetSpec().GetService()
@@ -198,7 +210,10 @@ func (s *ResourceServer) CreateResource(
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
 		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("a resource with this name already exists in this workspace"))
+			return nil, connect.NewError(
+				connect.CodeAlreadyExists,
+				errors.New("a resource with this name already exists in this workspace"),
+			)
 		}
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create resource"))
 	}
@@ -261,7 +276,11 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetResource, resourceIdStr)); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.GetResource, resourceIdStr),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource", "resourceId", resourceIdStr)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -272,26 +291,26 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid resource id: %w", err))
 	}
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceId)
+	res, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "id", resourceIdStr)
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
+	resourceDomains, err := s.queries.ListResourceDomains(ctx, res.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, res.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
-		Resource: dbResourceToProto(resource, resourceDomains, resourceRegions),
+		Resource: dbResourceToProto(res, resourceDomains, resourceRegions),
 	}), nil
 }
 
@@ -310,7 +329,11 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListResources, r.GetWorkspaceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ListResources, r.GetWorkspaceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list resources", "workspaceId", r.GetWorkspaceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -377,7 +400,11 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateResource, r.GetResourceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.UpdateResource, r.GetResourceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update resource", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -415,14 +442,18 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteResource, r.GetResourceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.DeleteResource, r.GetResourceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete resource", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resourceId := uuid.MustParse(r.GetResourceId())
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceId)
+	res, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -439,13 +470,16 @@ func (s *ResourceServer) DeleteResource(
 	for _, deployment := range activeDeployments {
 		cmdPayload := DeleteCommandPayload{
 			DeploymentID: deployment.ID.String(),
-			ResourceID:   resource.ID.String(),
+			ResourceID:   res.ID.String(),
 		}
 
 		payloadJSON, marshalErr := json.Marshal(cmdPayload)
 		if marshalErr != nil {
 			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", marshalErr)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", marshalErr))
+			return nil, connect.NewError(
+				connect.CodeInternal,
+				fmt.Errorf("failed to marshal command payload: %w", marshalErr),
+			)
 		}
 
 		// Dispatch delete command to the agent via CommandBus
@@ -458,11 +492,30 @@ func (s *ResourceServer) DeleteResource(
 		}
 
 		if sendErr := s.cmdBus.Send(ctx, cmd); sendErr != nil {
-			slog.ErrorContext(ctx, "failed to dispatch delete command", "cluster_id", deployment.ClusterID, "error", sendErr)
-			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", sendErr))
+			slog.ErrorContext(
+				ctx,
+				"failed to dispatch delete command",
+				"cluster_id",
+				deployment.ClusterID,
+				"error",
+				sendErr,
+			)
+			return nil, connect.NewError(
+				connect.CodeUnavailable,
+				fmt.Errorf("no agent connected for cluster: %w", sendErr),
+			)
 		}
 
-		slog.InfoContext(ctx, "delete command dispatched", "command_id", cmd.ID, "cluster_id", deployment.ClusterID, "resource_id", resource.ID)
+		slog.InfoContext(
+			ctx,
+			"delete command dispatched",
+			"command_id",
+			cmd.ID,
+			"cluster_id",
+			deployment.ClusterID,
+			"resource_id",
+			res.ID,
+		)
 	}
 
 	err = s.queries.DeleteResource(ctx, resourceId)
@@ -487,14 +540,18 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetResourceStatus, r.GetResourceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.GetResourceStatus, r.GetResourceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to get resource status", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	resourceId := uuid.MustParse(r.GetResourceId())
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceId)
+	res, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
@@ -521,20 +578,20 @@ func (s *ResourceServer) GetResourceStatus(
 		}
 	}
 
-	resourceDomains, err := s.queries.ListResourceDomains(ctx, resource.ID)
+	resourceDomains, err := s.queries.ListResourceDomains(ctx, res.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resource.ID)
+	resourceRegions, err := s.queries.ListResourceRegions(ctx, res.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.GetResourceStatusResponse{
-		Resource:          dbResourceToProto(resource, resourceDomains, resourceRegions),
+		Resource:          dbResourceToProto(res, resourceDomains, resourceRegions),
 		CurrentDeployment: deploymentStatus,
 	}), nil
 }
@@ -584,31 +641,21 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ScaleResource, r.GetResourceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ScaleResource, r.GetResourceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to scale resource", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if r.Replicas == nil && r.Cpu == nil && r.Memory == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one of replicas, cpu, or memory must be provided"))
-	}
-
-	if r.Cpu != nil && r.GetCpu() != "" {
-		if _, err := resource.ParseQuantity(r.GetCpu()); err != nil {
-			slog.WarnContext(ctx, "invalid cpu format", "cpu", r.GetCpu(), "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: %s", ErrInvalidCPU, r.GetCpu()))
-		}
-	}
-
-	if r.Memory != nil && r.GetMemory() != "" {
-		if _, err := resource.ParseQuantity(r.GetMemory()); err != nil {
-			slog.WarnContext(ctx, "invalid memory format", "memory", r.GetMemory(), "error", err)
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: %s", ErrInvalidMemory, r.GetMemory()))
-		}
+	if err := validateScaleRequest(ctx, r); err != nil {
+		return nil, err
 	}
 	resourceId := uuid.MustParse(r.GetResourceId())
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceId)
+	res, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
@@ -620,27 +667,9 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	var regionsToScale []string
-	if r.GetRegion() != "" {
-		regionFound := false
-		for _, rr := range resourceRegions {
-			if rr.Region == r.GetRegion() {
-				regionFound = true
-				break
-			}
-		}
-		if !regionFound {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("region '%s' not found for this resource", r.GetRegion()))
-		}
-		regionsToScale = []string{r.GetRegion()}
-	} else {
-		for _, rr := range resourceRegions {
-			regionsToScale = append(regionsToScale, rr.Region)
-		}
-	}
-
-	if len(regionsToScale) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("no regions found for resource"))
+	regionsToScale, err := selectRegionsToScale(r.GetRegion(), resourceRegions)
+	if err != nil {
+		return nil, err
 	}
 
 	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceId)
@@ -658,7 +687,7 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("previous deployment has no spec"))
 	}
 
-	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(resource.Type))
+	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(res.Type))
 	if deserializeErr != nil {
 		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", deserializeErr)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", deserializeErr))
@@ -666,30 +695,17 @@ func (s *ResourceServer) ScaleResource(
 
 	serviceDeploymentSpec := deploymentSpec.GetService()
 	if serviceDeploymentSpec == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are supported for scaling"))
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("only service resources are supported for scaling"),
+		)
 	}
 
-	// Check if any values are actually changing
-	hasChanges := false
-
-	if r.Cpu != nil {
-		if serviceDeploymentSpec.Cpu == nil || r.GetCpu() != *serviceDeploymentSpec.Cpu {
-			hasChanges = true
-		}
-	}
-
-	if r.Memory != nil {
-		if serviceDeploymentSpec.Memory == nil || r.GetMemory() != *serviceDeploymentSpec.Memory {
-			hasChanges = true
-		}
-	}
-
-	if r.Replicas != nil && r.GetReplicas() != currentDeployment.Replicas {
-		hasChanges = true
-	}
-
-	if !hasChanges {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scaling values must be different from current deployment"))
+	if !scaleChangesDeployment(r, serviceDeploymentSpec, currentDeployment.Replicas) {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("scaling values must be different from current deployment"),
+		)
 	}
 
 	if r.Cpu != nil {
@@ -728,7 +744,10 @@ func (s *ResourceServer) ScaleResource(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToScale, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s", regionToScale))
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("no active cluster available for region %s", regionToScale),
+		)
 	}
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
@@ -755,7 +774,7 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
-	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(resource.Spec, string(resource.Type))
+	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
 	if deserializeErr != nil {
 		slog.ErrorContext(ctx, deserializeErr.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
@@ -763,7 +782,14 @@ func (s *ResourceServer) ScaleResource(
 
 	scaleEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", currentDeployment.EnvironmentID)
+		slog.ErrorContext(
+			ctx,
+			"failed to get environment",
+			"error",
+			err,
+			"environmentId",
+			currentDeployment.EnvironmentID,
+		)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -775,7 +801,7 @@ func (s *ResourceServer) ScaleResource(
 
 	// Build the Application spec for the agent
 	appSpec, err := buildApplicationSpec(
-		resource,
+		res,
 		resourceSpec,
 		domain.Domain,
 		updatedDeploymentSpec,
@@ -785,17 +811,17 @@ func (s *ResourceServer) ScaleResource(
 		scaleDeploymentID,
 	)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID.String())
+		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", res.ID.String())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
 	}
 
 	// Create command payload with all info the agent needs
 	cmdPayload := DeployCommandPayload{
 		DeploymentID: scaleDeploymentID.String(),
-		ResourceID:   resource.ID.String(),
-		WorkspaceID:  resource.WorkspaceID.String(),
-		ResourceName: resource.Name,
-		ResourceType: string(resource.Type),
+		ResourceID:   res.ID.String(),
+		WorkspaceID:  res.WorkspaceID.String(),
+		ResourceName: res.Name,
+		ResourceType: string(res.Type),
 		Region:       regionToScale,
 		Hostname:     domain.Domain,
 		AppSpec:      appSpec,
@@ -807,7 +833,16 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
 	}
 
-	slog.InfoContext(ctx, "scale command payload created", "cluster_id", cluster.ID, "resource_id", resource.ID, "regions", regionsToScale)
+	slog.InfoContext(
+		ctx,
+		"scale command payload created",
+		"cluster_id",
+		cluster.ID,
+		"resource_id",
+		res.ID,
+		"regions",
+		regionsToScale,
+	)
 
 	cmd := &commandbus.Command{
 		ID:        uuid.NewString(),
@@ -837,18 +872,25 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateResourceEnv, r.GetResourceId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.UpdateResourceEnv, r.GetResourceId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update resource env", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
 	if len(r.Env) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one environment variable must be provided"))
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("at least one environment variable must be provided"),
+		)
 	}
 
 	resourceId := uuid.MustParse(r.GetResourceId())
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceId)
+	res, err := s.queries.GetResourceByID(ctx, resourceId)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
@@ -870,7 +912,10 @@ func (s *ResourceServer) UpdateResourceEnv(
 			}
 		}
 		if !regionFound {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("region '%s' not found for this resource", r.GetRegion()))
+			return nil, connect.NewError(
+				connect.CodeInvalidArgument,
+				fmt.Errorf("region '%s' not found for this resource", r.GetRegion()),
+			)
 		}
 		regionsToUpdate = []string{r.GetRegion()}
 	} else {
@@ -898,7 +943,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("previous deployment has no spec"))
 	}
 
-	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(resource.Type))
+	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(res.Type))
 	if deserializeErr != nil {
 		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", deserializeErr)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", deserializeErr))
@@ -906,7 +951,10 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	serviceDeploymentSpec := deploymentSpec.GetService()
 	if serviceDeploymentSpec == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("only service resources are supported for env updates"))
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("only service resources are supported for env updates"),
+		)
 	}
 
 	serviceDeploymentSpec.Env = r.GetEnv()
@@ -934,7 +982,10 @@ func (s *ResourceServer) UpdateResourceEnv(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToUpdate, "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("no active cluster available for region %s", regionToUpdate))
+		return nil, connect.NewError(
+			connect.CodeInternal,
+			fmt.Errorf("no active cluster available for region %s", regionToUpdate),
+		)
 	}
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
@@ -961,7 +1012,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
-	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(resource.Spec, string(resource.Type))
+	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
 	if deserializeErr != nil {
 		slog.ErrorContext(ctx, deserializeErr.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
@@ -969,7 +1020,14 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	updateEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", currentDeployment.EnvironmentID)
+		slog.ErrorContext(
+			ctx,
+			"failed to get environment",
+			"error",
+			err,
+			"environmentId",
+			currentDeployment.EnvironmentID,
+		)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -981,7 +1039,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 
 	// Build the Application spec for the agent
 	appSpec, err := buildApplicationSpec(
-		resource,
+		res,
 		resourceSpec,
 		domain.Domain,
 		updatedDeploymentSpec,
@@ -991,17 +1049,17 @@ func (s *ResourceServer) UpdateResourceEnv(
 		deploymentId,
 	)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID.String())
+		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", res.ID.String())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
 	}
 
 	// Create command payload with all info the agent needs
 	cmdPayload := DeployCommandPayload{
 		DeploymentID: deploymentId.String(),
-		ResourceID:   resource.ID.String(),
-		WorkspaceID:  resource.WorkspaceID.String(),
-		ResourceName: resource.Name,
-		ResourceType: string(resource.Type),
+		ResourceID:   res.ID.String(),
+		WorkspaceID:  res.WorkspaceID.String(),
+		ResourceName: res.Name,
+		ResourceType: string(res.Type),
 		Region:       regionToUpdate,
 		Hostname:     domain.Domain,
 		AppSpec:      appSpec,
@@ -1013,7 +1071,18 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
 	}
 
-	slog.InfoContext(ctx, "env update command payload created", "cluster_id", cluster.ID, "resource_id", resource.ID, "regions", regionsToUpdate, "deployment_id", deploymentId)
+	slog.InfoContext(
+		ctx,
+		"env update command payload created",
+		"cluster_id",
+		cluster.ID,
+		"resource_id",
+		res.ID,
+		"regions",
+		regionsToUpdate,
+		"deployment_id",
+		deploymentId,
+	)
 
 	cmd := &commandbus.Command{
 		ID:        uuid.NewString(),
@@ -1068,9 +1137,87 @@ func deploymentStatusToProto(status genDb.DeploymentStatus) deploymentv1.Deploym
 	}
 }
 
+func validateScaleRequest(ctx context.Context, r *resourcev1.ScaleResourceRequest) error {
+	if r.Replicas == nil && r.Cpu == nil && r.Memory == nil {
+		return connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("at least one of replicas, cpu, or memory must be provided"),
+		)
+	}
+
+	if r.Cpu != nil && r.GetCpu() != "" {
+		if _, err := resource.ParseQuantity(r.GetCpu()); err != nil {
+			slog.WarnContext(ctx, "invalid cpu format", "cpu", r.GetCpu(), "error", err)
+			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%w: %s", ErrInvalidCPU, r.GetCpu()))
+		}
+	}
+
+	if r.Memory != nil && r.GetMemory() != "" {
+		if _, err := resource.ParseQuantity(r.GetMemory()); err != nil {
+			slog.WarnContext(ctx, "invalid memory format", "memory", r.GetMemory(), "error", err)
+			return connect.NewError(
+				connect.CodeInvalidArgument,
+				fmt.Errorf("%w: %s", ErrInvalidMemory, r.GetMemory()),
+			)
+		}
+	}
+
+	return nil
+}
+
+func selectRegionsToScale(requested string, resourceRegions []genDb.ResourceRegion) ([]string, error) {
+	var regionsToScale []string
+	if requested != "" {
+		regionFound := false
+		for _, rr := range resourceRegions {
+			if rr.Region == requested {
+				regionFound = true
+				break
+			}
+		}
+		if !regionFound {
+			return nil, connect.NewError(
+				connect.CodeInvalidArgument,
+				fmt.Errorf("region '%s' not found for this resource", requested),
+			)
+		}
+		regionsToScale = []string{requested}
+	} else {
+		for _, rr := range resourceRegions {
+			regionsToScale = append(regionsToScale, rr.Region)
+		}
+	}
+
+	if len(regionsToScale) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("no regions found for resource"))
+	}
+
+	return regionsToScale, nil
+}
+
+func scaleChangesDeployment(
+	r *resourcev1.ScaleResourceRequest,
+	spec *deploymentv1.ServiceDeploymentSpec,
+	currentReplicas int32,
+) bool {
+	if r.Cpu != nil {
+		if spec.Cpu == nil || r.GetCpu() != *spec.Cpu {
+			return true
+		}
+	}
+
+	if r.Memory != nil {
+		if spec.Memory == nil || r.GetMemory() != *spec.Memory {
+			return true
+		}
+	}
+
+	return r.Replicas != nil && r.GetReplicas() != currentReplicas
+}
+
 // resourceDomainToListProto converts a slice of ResourceDomain to proto ResourceDomain list
 func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.ResourceDomain {
-	var protoDomains []*domainv1.ResourceDomain
+	protoDomains := make([]*domainv1.ResourceDomain, 0, len(domains))
 	for _, d := range domains {
 		domainSource := domainv1.DomainType_DOMAIN_TYPE_USER_PROVIDED
 		if d.DomainSource == genDb.DomainSourcePlatformProvided {
@@ -1102,27 +1249,31 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 
 // dbResourceToProto converts a database Resource to the proto Resource
 // to be returned to client. Note: caller is responsible for fetching domains and regions separately.
-func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, regions []genDb.ResourceRegion) *resourcev1.Resource {
+func dbResourceToProto(
+	res genDb.Resource,
+	domains []genDb.ResourceDomain,
+	regions []genDb.ResourceRegion,
+) *resourcev1.Resource {
 	// convert db.ResourceType (string) to proto ResourceType (int32)
 	var resourceType resourcev1.ResourceType
-	switch resource.Type {
-	case "service":
+	switch res.Type {
+	case genDb.ResourceTypeService:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
-	case "database":
+	case genDb.ResourceTypeDatabase:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_DATABASE
 	case "function":
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_FUNCTION
-	case "cache":
+	case genDb.ResourceTypeCache:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_CACHE
-	case "queue":
+	case genDb.ResourceTypeQueue:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_QUEUE
-	case "blob":
+	case genDb.ResourceTypeBlob:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_BLOB
 	default:
 		resourceType = resourcev1.ResourceType_RESOURCE_TYPE_SERVICE
 	}
 
-	resourceStatus := resourceStatusToProto(resource.Status)
+	resourceStatus := resourceStatusToProto(res.Status)
 
 	protoRegions := make([]*resourcev1.RegionConfig, len(regions))
 	for i, r := range regions {
@@ -1134,22 +1285,22 @@ func dbResourceToProto(resource genDb.Resource, domains []genDb.ResourceDomain, 
 
 	// reconstruct oneof spec from stored spec bytes
 	var spec *resourcev1.ResourceSpec
-	if len(resource.Spec) > 0 {
-		spec = reconstructResourceSpec(resource.Type, resource.Spec)
+	if len(res.Spec) > 0 {
+		spec = reconstructResourceSpec(res.Type, res.Spec)
 	}
 
 	result := &resourcev1.Resource{
-		Id:          resource.ID.String(),
-		WorkspaceId: resource.WorkspaceID.String(),
-		Name:        resource.Name,
+		Id:          res.ID.String(),
+		WorkspaceId: res.WorkspaceID.String(),
+		Name:        res.Name,
 		Type:        resourceType,
 		Spec:        spec,
 		Domains:     resourceDomainToListProto(domains),
 		Regions:     protoRegions,
-		CreatedAt:   timeutil.ParsePostgresTimestamp(resource.CreatedAt),
-		UpdatedAt:   timeutil.ParsePostgresTimestamp(resource.UpdatedAt),
+		CreatedAt:   timeutil.ParsePostgresTimestamp(res.CreatedAt),
+		UpdatedAt:   timeutil.ParsePostgresTimestamp(res.UpdatedAt),
 		Status:      resourceStatus,
-		Description: &resource.Description,
+		Description: &res.Description,
 	}
 
 	return result
@@ -1227,10 +1378,13 @@ func createDeploymentWithCleanup(
 		"replicas", params.Replicas)
 
 	// Get resource_region_id first (outside transaction since it's a read)
-	resourceRegion, err := queries.GetResourceRegionByResourceAndRegion(ctx, genDb.GetResourceRegionByResourceAndRegionParams{
-		ResourceID: params.ResourceID,
-		Region:     params.Region,
-	})
+	resourceRegion, err := queries.GetResourceRegionByResourceAndRegion(
+		ctx,
+		genDb.GetResourceRegionByResourceAndRegionParams{
+			ResourceID: params.ResourceID,
+			Region:     params.Region,
+		},
+	)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get resource region",
 			"resourceId", params.ResourceID,
@@ -1250,10 +1404,13 @@ func createDeploymentWithCleanup(
 	qtx := genDb.New(tx)
 
 	// Find active deployment in the same region for this resource (should only be one)
-	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(ctx, genDb.GetActiveDeploymentForResourceAndRegionParams{
-		ResourceID: params.ResourceID,
-		Region:     params.Region,
-	})
+	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
+		ctx,
+		genDb.GetActiveDeploymentForResourceAndRegionParams{
+			ResourceID: params.ResourceID,
+			Region:     params.Region,
+		},
+	)
 
 	hadPreviousDeployment := false
 	// todo: rely on psql errors or something better. this is not good.
