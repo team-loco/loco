@@ -74,6 +74,12 @@ DELETE FROM user_scopes WHERE user_id = $1 AND scope = $2 AND entity_type = $3 A
 -- name: RemoveAllScopesForUserOnEntity :exec
 DELETE FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3;
 
+-- name: RemoveResourceScopesForUserInWorkspace :exec
+DELETE FROM user_scopes
+WHERE user_id = $1
+  AND entity_type = 'resource'
+  AND entity_id IN (SELECT id FROM resources WHERE workspace_id = $2);
+
 -- name: RemoveAllScopesForEntity :exec
 DELETE FROM user_scopes WHERE entity_type = $1 AND entity_id = $2;
 

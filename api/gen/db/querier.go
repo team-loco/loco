@@ -129,6 +129,7 @@ type Querier interface {
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
+	RemoveResourceScopesForUserInWorkspace(ctx context.Context, arg RemoveResourceScopesForUserInWorkspaceParams) error
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)

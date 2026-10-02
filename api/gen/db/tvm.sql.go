@@ -681,6 +681,23 @@ func (q *Queries) RemoveAllScopesForUserOnEntity(ctx context.Context, arg Remove
 	return err
 }
 
+const removeResourceScopesForUserInWorkspace = `-- name: RemoveResourceScopesForUserInWorkspace :exec
+DELETE FROM user_scopes
+WHERE user_id = $1
+  AND entity_type = 'resource'
+  AND entity_id IN (SELECT id FROM resources WHERE workspace_id = $2)
+`
+
+type RemoveResourceScopesForUserInWorkspaceParams struct {
+	UserID      uuid.UUID `json:"userId"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+}
+
+func (q *Queries) RemoveResourceScopesForUserInWorkspace(ctx context.Context, arg RemoveResourceScopesForUserInWorkspaceParams) error {
+	_, err := q.db.Exec(ctx, removeResourceScopesForUserInWorkspace, arg.UserID, arg.WorkspaceID)
+	return err
+}
+
 const removeUserScope = `-- name: RemoveUserScope :exec
 DELETE FROM user_scopes WHERE user_id = $1 AND scope = $2 AND entity_type = $3 AND entity_id = $4
 `
