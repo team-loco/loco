@@ -49,8 +49,10 @@ func validateCmdFunc(cmd *cobra.Command) error {
 
 	fmt.Printf("Configuration loaded from: %s\n", loadedCfg.ProjectPath)
 	fmt.Printf("Application name: %s\n", loadedCfg.Config.Metadata.Name)
-	fmt.Printf("Hostname: %s\n", loadedCfg.Config.DomainConfig.Hostname)
-	fmt.Printf("Domain type: %s\n", loadedCfg.Config.DomainConfig.Type)
+	if domain := loadedCfg.Config.DomainConfig; domain != nil {
+		fmt.Printf("Hostname: %s\n", domain.Hostname)
+		fmt.Printf("Domain type: %s\n", domain.Type)
+	}
 	fmt.Printf("Port: %d\n", loadedCfg.Config.Routing.Port)
 
 	return nil
