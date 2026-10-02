@@ -45,8 +45,8 @@ func newStatusCmd(deps statusDeps) *cobra.Command {
 		Long: `Display the current status of a service.
 
 Examples:
-  loco service status myapp
-  loco service status myapp --output json`,
+  loco resource status myapp
+  loco resource status myapp --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

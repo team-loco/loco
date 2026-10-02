@@ -48,9 +48,9 @@ func newEventsCmd(deps eventsDeps) *cobra.Command {
 		Long: `Display Kubernetes events for a service's deployment.
 
 Examples:
-  loco service events myapp
-  loco service events myapp --limit 20
-  loco service events myapp --output json`,
+  loco resource events myapp
+  loco resource events myapp --limit 20
+  loco resource events myapp --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

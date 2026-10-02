@@ -44,9 +44,9 @@ func newScaleCmd(deps scaleDeps) *cobra.Command {
 		Long: `Scale a service's replicas, CPU, or memory.
 
 Examples:
-  loco service scale myapp --replicas 3
-  loco service scale myapp --cpu 0.5 --memory 512Mi
-  loco service scale myapp --replicas 2 --cpu 0.25`,
+  loco resource scale myapp --replicas 3
+  loco resource scale myapp --cpu 0.5 --memory 512Mi
+  loco resource scale myapp --replicas 2 --cpu 0.25`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

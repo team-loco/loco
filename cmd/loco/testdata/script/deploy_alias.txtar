@@ -1,0 +1,8 @@
+exec loco deploy --help
+stdout 'loco deploy myapp'
+
+exec loco resource deploy --help
+stdout 'loco deploy myapp'
+
+! exec loco deploy
+stderr 'Accepts 1 arg'
