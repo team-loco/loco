@@ -38,15 +38,19 @@ func LocoColorScheme() fang.ColorSchemeFunc {
 	}
 }
 
-func Cli() {
+var version string
+
+func moduleVersion() string {
 	i, ok := runtimeDebug.ReadBuildInfo()
 	if !ok {
-		i = &runtimeDebug.BuildInfo{
-			Main: runtimeDebug.Module{
-				Path:    "github.com/team-loco/loco",
-				Version: "v0.0.1",
-			},
-		}
+		return "(devel)"
+	}
+	return i.Main.Version
+}
+
+func Cli() {
+	if version == "" {
+		version = moduleVersion()
 	}
 
 	env := NewEnv()
@@ -54,7 +58,7 @@ func Cli() {
 	root := NewRootCmd(env)
 	if err := fang.Execute(ctx,
 		root,
-		fang.WithVersion(i.Main.Version),
+		fang.WithVersion(version),
 		fang.WithColorSchemeFunc(LocoColorScheme())); err != nil {
 		os.Exit(1)
 	}
