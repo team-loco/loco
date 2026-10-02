@@ -98,9 +98,9 @@ Ports may differ freely between the two backendRefs; the `ip` endpoint type is w
 
 ## Data model
 
-`clusters.gateway_hostname` (added to `00002_apps_and_deployments.sql`, in the `clusters` table itself rather than as a follow-on migration — there are no deployments to migrate) holds each cluster's publicly resolvable gateway FQDN, e.g. `us-east-1.deploy-app.com`. NULL means the cluster cannot act as a failover peer.
+`clusters.gateway_hostname` (added to `00002_apps_and_deployments.sql`, in the `clusters` table itself rather than as a follow-on migration — there are no deployments to migrate) holds each cluster's publicly resolvable gateway FQDN, e.g. `us-east-1.onloco.app`. NULL means the cluster cannot act as a failover peer.
 
-The wildcard certificate in `loco-core` already provisions per-region names (`*.us-east-1.deploy-app.com`, `*.prod.us-east-1.deploy-app.com`), so the naming scheme this depends on predates the feature.
+The wildcard certificate in `loco-core` already provisions per-region names (`*.us-east-1.onloco.app`, `*.prod.us-east-1.onloco.app`), so the naming scheme this depends on predates the feature.
 
 On deploy, `GetFailoverPeersForResource` returns the regions — other than the one being deployed to — where the resource has an active deployment on an active, healthy cluster that advertises a gateway hostname. Those become `ServiceSpec.Failover.Peers`.
 

@@ -22,26 +22,68 @@ spec:
       name: envoy-proxy
   gatewayClassName: eg
   listeners:
-    - name: https
-      hostname: {{ .Values.global.domain.wildcard | quote }}
+    {{- range $index, $domain := .Values.global.domain.apps }}
+    - name: https-apps-{{ $index }}
+      hostname: {{ printf "*.%s" $domain | quote }}
       protocol: HTTPS
       port: 443
       allowedRoutes:
         namespaces:
-          from: All
+          from: Selector
+          selector:
+            matchLabels:
+              loco.io/app: "true"
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: {{ $.Release.Name }}-tls
+            kind: Secret
+            group: ""
+    - name: http-apps-{{ $index }}
+      hostname: {{ printf "*.%s" $domain | quote }}
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              loco.io/app: "true"
+    {{- end }}
+    - name: https-platform
+      hostname: {{ printf "*.%s" .Values.global.domain.platform | quote }}
+      protocol: HTTPS
+      port: 443
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - {{ .Release.Namespace }}
+                  - {{ .Values.global.observability.namespace }}
       tls:
         mode: Terminate
         certificateRefs:
           - name: {{ .Release.Name }}-tls
             kind: Secret
             group: ""
-    - name: http
-      hostname: {{ .Values.global.domain.wildcard | quote }}
+    - name: http-platform
+      hostname: {{ printf "*.%s" .Values.global.domain.platform | quote }}
       protocol: HTTP
       port: 80
       allowedRoutes:
         namespaces:
-          from: All
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - {{ .Release.Namespace }}
+                  - {{ .Values.global.observability.namespace }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy

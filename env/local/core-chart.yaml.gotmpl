@@ -4,9 +4,10 @@ certManager:
 
 global:
   domain:
-    base: deploy-app.com
-    wildcard: "*.deploy-app.com"
-    ui: deploy-app.com
+    apps:
+      - onloco.app
+      - onloco.build
+    platform: loco.build
 
   cloudProvider:
     type: local

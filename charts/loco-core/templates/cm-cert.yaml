@@ -8,12 +8,16 @@ spec:
     issuerRef:
         name: {{ .Values.certManager.issuer.name }}
         kind: ClusterIssuer
-    commonName: {{ .Values.global.domain.wildcard | quote }}
+    {{- $primary := index .Values.global.domain.apps 0 }}
+    commonName: {{ printf "*.%s" $primary | quote }}
     dnsNames:
-        - {{ .Values.global.domain.wildcard | quote }}
-        - "*.us-east-1.{{ .Values.global.domain.base }}"
-        - "*.eu-west-1.{{ .Values.global.domain.base }}"
-        - "*.staging.us-east-1.{{ .Values.global.domain.base }}"
-        - "*.prod.us-east-1.{{ .Values.global.domain.base }}"
-        - "*.staging.eu-west-1.{{ .Values.global.domain.base }}"
-        - "*.prod.eu-west-1.{{ .Values.global.domain.base }}"
+        {{- range .Values.global.domain.apps }}
+        - {{ printf "*.%s" . | quote }}
+        {{- end }}
+        - {{ printf "*.%s" .Values.global.domain.platform | quote }}
+        - "*.us-east-1.{{ $primary }}"
+        - "*.eu-west-1.{{ $primary }}"
+        - "*.staging.us-east-1.{{ $primary }}"
+        - "*.prod.us-east-1.{{ $primary }}"
+        - "*.staging.eu-west-1.{{ $primary }}"
+        - "*.prod.eu-west-1.{{ $primary }}"

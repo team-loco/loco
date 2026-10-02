@@ -1,8 +1,10 @@
 # Global configuration (can be overridden by environment-specific values)
 global:
   domain:
-    base: deploy-app.com
-    wildcard: "*.deploy-app.com"
+    apps:
+      - onloco.app
+      - onloco.build
+    platform: loco.build
 
   cloudProvider:
     type: ""
@@ -10,13 +12,6 @@ global:
     loadBalancerIPPool: {}
 
   resources:
-    ui:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 250m
-        memory: 256Mi
     agent:
       requests:
         cpu: 200m
@@ -31,13 +26,11 @@ global:
 
   # Replica counts
   replicas:
-    ui: 1
     agent: 1
 
   # Container ports
   ports:
     agent: 8000
-    ui: 8080
 
 # Cert-manager configuration
 certManager:
@@ -49,12 +42,6 @@ certManager:
 agent:
   image:
     repository: ghcr.io/team-loco/loco-agent
-    tag: latest
-  imagePullPolicy: Always
-
-ui:
-  image:
-    repository: ghcr.io/team-loco/loco-ui
     tag: latest
   imagePullPolicy: Always
 

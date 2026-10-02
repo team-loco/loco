@@ -1,7 +1,7 @@
 global:
   domain:
-    dashboards: dashboards.deploy-app.com
-    observability: observability.deploy-app.com
+    dashboards: dashboards.loco.build
+    observability: observability.loco.build
 
 # Gateway namespace where the Envoy Gateway is deployed
 gatewayNamespace: envoy-gateway-system

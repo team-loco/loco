@@ -6,7 +6,7 @@ const output = document.getElementById("output");
 const API_URL = "/api/echo";
 const SERVICE_BASE_URL =
 	"http://backend.backend-nikumar1206.svc.cluster.local:8000";
-const BALANCER_BASE_URL = "http://test-api.deploy-app.com";
+const BALANCER_BASE_URL = "http://test-api.onloco.app";
 
 getBtnService.addEventListener("click", async () => {
 	try {

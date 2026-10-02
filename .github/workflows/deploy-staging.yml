@@ -95,7 +95,7 @@ jobs:
       context: .
       dockerfile: ./web/Dockerfile
       build_args: |
-        VITE_API_URL=${{ vars.VITE_API_URL_STAGING || 'https://api.deploy-app.com' }}
+        VITE_API_URL=${{ vars.VITE_API_URL_STAGING || 'https://api.loco.build' }}
         VITE_APP_ENV=STAGING
 
   push-agent-image:
