@@ -75,6 +75,9 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				}
 			}
 
+			if t.Host != "" {
+				host = t.Host
+			}
 			err = cmdutil.RevokeToken(ctx, host, t.Token)
 			if err != nil && connect.CodeOf(err) != connect.CodeUnauthenticated {
 				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")

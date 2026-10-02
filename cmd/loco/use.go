@@ -2,14 +2,12 @@ package loco
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -42,15 +40,9 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	store, err := keychain.ForCurrentUser()
+	t, err := cmdutil.GetCurrentLocoToken(cmd)
 	if err != nil {
 		return err
-	}
-
-	t, err := store.Get()
-	if err != nil {
-		slog.Error("failed keychain token grab", "error", err)
-		return ErrLoginRequired
 	}
 
 	apiClient := client.NewClient(host, t.Token)

@@ -1,0 +1,8 @@
+# logout revokes the token on the host that issued it, not on the current host.
+exec loco logout
+stdout 'Logged out successfully!'
+! fakeapi called Logout
+! exists $HOME/.loco/credentials.json
+
+-- home/.loco/credentials.json --
+{"Host":"http://127.0.0.1:1","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

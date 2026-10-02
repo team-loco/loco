@@ -1,9 +1,11 @@
 package loco
 
 import (
+	"errors"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -43,7 +45,19 @@ func setupScript(env *testscript.Env) error {
 	env.Defer(srv.Close)
 	env.Setenv("LOCO_HOST", srv.URL)
 	env.Values[fakeAPIKey{}] = api
-	return nil
+	return fillCredentialsHost(filepath.Join(home, ".loco", "credentials.json"), srv.URL)
+}
+
+func fillCredentialsHost(path, host string) error {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	filled := strings.ReplaceAll(string(data), "${LOCO_HOST}", host)
+	return os.WriteFile(path, []byte(filled), 0o600)
 }
 
 func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {

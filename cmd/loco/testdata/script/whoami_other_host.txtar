@@ -1,0 +1,7 @@
+# a token issued by another host is never sent to the current one.
+! exec loco whoami
+stderr 'Logged in to https://elsewhere\.invalid, not http://127\.0\.0\.1:\d+'
+! fakeapi called WhoAmI
+
+-- home/.loco/credentials.json --
+{"Host":"https://elsewhere.invalid","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
