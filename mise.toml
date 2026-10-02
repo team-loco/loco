@@ -12,6 +12,7 @@ kustomize = "5.8.2"
 
 golangci-lint = "2.14.0"
 actionlint = "1.7.12"
+pinact = "5.0.0"
 hadolint = "2.15.1"
 lefthook = "2.1.16"
 
@@ -118,8 +119,8 @@ dir = "web"
 run = ["bun run lint:fast", "bun run lint:types", "bun run typecheck"]
 
 [tasks."lint:actions"]
-description = "Run actionlint on the GitHub workflows"
-run = "actionlint -shellcheck="
+description = "Run actionlint on the GitHub workflows, and check that every action is pinned to a commit SHA"
+run = ["actionlint -shellcheck=", "pinact run --check"]
 
 [tasks."lint:docker"]
 description = "Run hadolint on every Dockerfile; LINT_DOCKER_FORMAT selects the output format"

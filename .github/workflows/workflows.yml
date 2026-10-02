@@ -9,13 +9,13 @@ on:
       - ".github/workflows/**"
       - "mise.toml"
       - "mise.lock"
-      - ".github/actions/setup-tools/**"
+      - ".github/actions/**"
   pull_request:
     paths:
       - ".github/workflows/**"
       - "mise.toml"
       - "mise.lock"
-      - ".github/actions/setup-tools/**"
+      - ".github/actions/**"
 
 permissions:
   contents: read
@@ -29,9 +29,11 @@ jobs:
     name: Actionlint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: ./.github/actions/setup-tools
 
-      - name: actionlint
+      - name: actionlint and pinned actions
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: mise run lint:actions
