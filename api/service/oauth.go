@@ -76,11 +76,12 @@ func (c *OAuthStateCache) VerifyAndDeleteState(ctx context.Context, state string
 }
 
 type OAuthServer struct {
-	db         *pgxpool.Pool
-	queries    genDb.Querier
-	httpClient *http.Client
-	stateCache *OAuthStateCache
-	machine    *tvm.VendingMachine
+	db            *pgxpool.Pool
+	queries       genDb.Querier
+	httpClient    *http.Client
+	stateCache    *OAuthStateCache
+	machine       *tvm.VendingMachine
+	secureCookies bool
 }
 
 // GithubUser is the response structure from GitHub's user endpoint
@@ -101,10 +102,10 @@ var OAuthConf = &oauth2.Config{
 
 var OAuthStateTTL = 10 * time.Minute
 
-// secureFlag returns "; Secure" when running in production so cookies are
-// only sent over HTTPS. In other environments it returns an empty string.
-func secureFlag() string {
-	if os.Getenv("APP_ENV") == "PRODUCTION" {
+// secureFlag returns "; Secure" when secure is set, so cookies are only sent
+// over HTTPS. Otherwise it returns an empty string.
+func secureFlag(secure bool) string {
+	if secure {
 		return "; Secure"
 	}
 	return ""
@@ -124,13 +125,15 @@ func NewOAuthServer(
 	httpClient *http.Client,
 	machine *tvm.VendingMachine,
 	stateCache *OAuthStateCache,
+	secureCookies bool,
 ) *OAuthServer {
 	return &OAuthServer{
-		db:         db,
-		queries:    queries,
-		httpClient: httpClient,
-		stateCache: stateCache,
-		machine:    machine,
+		db:            db,
+		queries:       queries,
+		httpClient:    httpClient,
+		stateCache:    stateCache,
+		machine:       machine,
+		secureCookies: secureCookies,
 	}
 }
 
@@ -371,11 +374,11 @@ func (s *OAuthServer) RefreshToken(
 	})
 	res.Header().Add("Set-Cookie", fmt.Sprintf(
 		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
-		newAccess, int(s.machine.Cfg.SessionAccessTokenDuration.Seconds()), secureFlag(),
+		newAccess, int(s.machine.Cfg.SessionAccessTokenDuration.Seconds()), secureFlag(s.secureCookies),
 	))
 	res.Header().Add("Set-Cookie", fmt.Sprintf(
 		"loco_refresh_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
-		newRefresh, int(s.machine.Cfg.SessionRefreshTokenDuration.Seconds()), secureFlag(),
+		newRefresh, int(s.machine.Cfg.SessionRefreshTokenDuration.Seconds()), secureFlag(s.secureCookies),
 	))
 
 	slog.InfoContext(ctx, "session token refreshed successfully")
@@ -482,13 +485,13 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		"loco_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
 		accessToken,
 		int(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
-		secureFlag(),
+		secureFlag(s.secureCookies),
 	))
 	res.Header().Add("Set-Cookie", fmt.Sprintf(
 		"loco_refresh_token=%s; Path=/; Max-Age=%d; HttpOnly; SameSite=Lax%s",
 		refreshToken,
 		int(s.machine.Cfg.SessionRefreshTokenDuration.Seconds()),
-		secureFlag(),
+		secureFlag(s.secureCookies),
 	))
 
 	slog.InfoContext(
