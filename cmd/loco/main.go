@@ -2,12 +2,16 @@ package loco
 
 import (
 	"context"
+	"errors"
 	"image/color"
+	"io"
 	"os"
 	runtimeDebug "runtime/debug"
+	"strings"
 
 	"charm.land/fang/v2"
 	"charm.land/lipgloss/v2"
+	"connectrpc.com/connect"
 	"github.com/team-loco/loco/internal/ui"
 )
 
@@ -59,7 +63,28 @@ func Cli() {
 	if err := fang.Execute(ctx,
 		root,
 		fang.WithVersion(version),
-		fang.WithColorSchemeFunc(LocoColorScheme())); err != nil {
+		fang.WithColorSchemeFunc(LocoColorScheme()),
+		fang.WithErrorHandler(handleError)); err != nil {
 		os.Exit(1)
 	}
+}
+
+func handleError(w io.Writer, styles fang.Styles, err error) {
+	fang.DefaultErrorHandler(w, styles, displayError(err))
+}
+
+func displayError(err error) error {
+	connectErr, ok := errors.AsType[*connect.Error](err)
+	if !ok {
+		return err
+	}
+	message := connectErr.Message()
+	if message == "" {
+		message = connectErr.Code().String()
+	}
+	if connectErr.Code() == connect.CodeUnavailable {
+		message = "could not reach the Loco API: " + message
+	}
+	text := strings.Replace(err.Error(), connectErr.Error(), message, 1)
+	return errors.New(text)
 }

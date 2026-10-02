@@ -108,7 +108,7 @@ func newLoginCmd(env Env) *cobra.Command {
 			}))
 			if err != nil {
 				cmdutil.LogRequestID(ctx, err, "failed to get oAuth details")
-				return err
+				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
 			slog.Debug("retrieved oauth details", "client_id", resp.Msg.ClientId)
 
@@ -189,10 +189,14 @@ func newLoginCmd(env Env) *cobra.Command {
 				}),
 			)
 			if err != nil {
-				return err
+				cmdutil.LogRequestID(ctx, err, "failed to exchange oauth token")
+				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
 
-			return setupLoginScope(ctx, httpClient, host, store, locoResp.Msg)
+			if err := setupLoginScope(ctx, httpClient, host, store, locoResp.Msg); err != nil {
+				return fmt.Errorf("login to %s failed: %w", host, err)
+			}
+			return nil
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")

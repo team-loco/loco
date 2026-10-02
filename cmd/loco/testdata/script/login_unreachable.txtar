@@ -1,0 +1,4 @@
+env LOCO_HOST=http://127.0.0.1:1
+! exec loco login
+stderr 'Login to http://127\.0\.0\.1:1 failed: could not reach the Loco API: '
+! stderr '(?i)unavailable:'
