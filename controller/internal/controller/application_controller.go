@@ -17,29 +17,38 @@ limitations under the License.
 package controller
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
+	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
+	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
+	rbacv1ac "k8s.io/client-go/applyconfigurations/rbac/v1"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
+	gatewayac "sigs.k8s.io/gateway-api/applyconfiguration/apis/v1"
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -51,9 +60,24 @@ const (
 	labelWorkspaceID         = "loco.io/workspace-id"
 	labelResourceID          = "loco.io/resource-id"
 	labelEnvironmentID       = "loco.io/environment-id"
+	labelManagedBy           = "app.kubernetes.io/managed-by"
+	managedByValue           = "loco-controller"
+	annotationAppNamespace   = "loco.io/application-namespace"
+	annotationAppName        = "loco.io/application-name"
+	annotationEnvSecretRV    = "loco.io/env-secret-version"
+	fieldOwner               = "loco-controller"
 	phaseDeploying           = "Deploying"
 	phaseFailed              = "Failed"
 	phaseReady               = "Ready"
+	servicePort              = int32(80)
+	defaultContainerPort     = int32(8080)
+	defaultCPURequest        = "100m"
+	defaultCPULimit          = "500m"
+	defaultMemoryRequest     = "128Mi"
+	defaultMemoryLimit       = "512Mi"
+	deployingRequeue         = 15 * time.Second
+	minRequeue               = time.Second
+	maxConcurrentReconciles  = 4
 )
 
 // LocoResourceReconciler reconciles a Application object
@@ -67,240 +91,218 @@ type LocoResourceReconciler struct {
 	gitlabProjectID   string
 	gitlabRegistryURL string
 	locoNamespace     string
-	secretRefreshers  map[string]context.CancelFunc
-
-	// reconcile can be called concurrently, so protect map access.
-	secretRefreshersMux sync.Mutex
+	httpClient        *http.Client
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/finalizers,verbs=update
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;delete
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update
-// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update
-// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
 
 // todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	slog.InfoContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
+	slog.DebugContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
 
 	// fetch the Application
-	var locoRes locov1alpha1.Application
-	if err := r.Get(ctx, req.NamespacedName, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "unable to fetch Application", "error", err)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+	locoRes := &locov1alpha1.Application{}
+	if err := r.Get(ctx, req.NamespacedName, locoRes); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("fetch application: %w", err)
+	}
+
+	// deletion timestamp means we need to clean up
+	if !locoRes.DeletionTimestamp.IsZero() {
+		return r.handleDeletion(ctx, locoRes)
 	}
 
 	// validate early to prevent nil panics. Same validator the API runs before dispatching
 	// a deploy, so this only fires for Applications written directly against the cluster.
 	if err := locoRes.Spec.Validate(); err != nil {
 		slog.ErrorContext(ctx, "invalid Application spec", "error", err)
-		if statusErr := r.updatePhase(
-			ctx,
-			&locoRes,
-			"Failed",
-			fmt.Sprintf("validation failed: %v", err),
-		); statusErr != nil {
+		original := locoRes.DeepCopy()
+		message := fmt.Sprintf("validation failed: %v", err)
+		setPhase(locoRes, phaseFailed, message)
+		if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
 		}
-		return ctrl.Result{}, err
-	}
-
-	// deletion timestamp means we need to clean up
-	if locoRes.DeletionTimestamp != nil {
-		return r.handleDeletion(ctx, &locoRes)
+		wrapped := fmt.Errorf("invalid application spec: %w", err)
+		return ctrl.Result{}, reconcile.TerminalError(wrapped)
 	}
 
 	// ensure finalizer
-	if !controllerutil.ContainsFinalizer(&locoRes, finalizerSecretRefresher) {
-		controllerutil.AddFinalizer(&locoRes, finalizerSecretRefresher)
-		if err := r.Update(ctx, &locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to add finalizer", "error", err)
-			return ctrl.Result{}, err
-		}
-		slog.InfoContext(ctx, "added finalizer", "finalizer", finalizerSecretRefresher)
-	}
-
-	// initialize status
-	if locoRes.Status.Phase == "" {
-		locoRes.Status.Phase = phaseDeploying
-		now := metav1.Now()
-		locoRes.Status.StartedAt = &now
-	}
-	slog.InfoContext(ctx, "initializing status", "phase", locoRes.Status.Phase)
-
-	// Track status locally - only update at the end
-	currentPhase := phaseDeploying
-	currentMessage := "Reconciling resources..."
-
-	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
-	if err := ensureNamespace(ctx, r.Client, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to ensure namespace", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure namespace: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after namespace error", "error", statusErr)
-		}
+	if err := r.ensureFinalizer(ctx, locoRes); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if err := ensureEnvSecret(ctx, r.Client, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to ensure secrets", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure secrets: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after secrets error", "error", statusErr)
-		}
-		return ctrl.Result{}, err
-	}
-
-	if err := r.ensureImagePullSecret(ctx, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to ensure image pull secret", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure image pull secret: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after image pull secret error", "error", statusErr)
-		}
-		return ctrl.Result{}, err
-	}
-
-	if err := r.ensureServiceAccount(ctx, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to ensure service account", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure service account: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after service account error", "error", statusErr)
-		}
-		return ctrl.Result{}, err
-	}
-
-	if err := r.ensureRoleAndBinding(ctx, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to ensure role & binding", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure role & binding: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after role & binding error", "error", statusErr)
-		}
-		return ctrl.Result{}, err
-	}
-
-	dep, err := r.ensureDeployment(ctx, &locoRes)
+	original := locoRes.DeepCopy()
+	result, err := r.reconcileResources(ctx, locoRes)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure deployment", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure deployment: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after deployment error", "error", statusErr)
-		}
-		return ctrl.Result{}, err
+		slog.ErrorContext(ctx, "failed to reconcile application", "error", err)
+		message := fmt.Sprintf("failed to %v", err)
+		setPhase(locoRes, phaseFailed, message)
 	}
 
-	if err := r.ensureService(ctx, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to ensure service", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure service: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after service error", "error", statusErr)
+	if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
+		slog.ErrorContext(ctx, "failed to update status", "error", statusErr)
+		if err == nil {
+			return ctrl.Result{}, statusErr
 		}
-		return ctrl.Result{}, err
 	}
 
-	if err := r.ensureHTTPRoute(ctx, &locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to ensure HTTP route", "error", err)
-		currentPhase = phaseFailed
-		currentMessage = fmt.Sprintf("failed to ensure HTTP route: %v", err)
-		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
-			slog.ErrorContext(ctx, "failed to update status after HTTP route error", "error", statusErr)
-		}
-		return ctrl.Result{}, err
+	slog.DebugContext(ctx, "reconcile complete", "phase", locoRes.Status.Phase, "resource", locoRes.Name)
+	return result, err
+}
+
+func (r *LocoResourceReconciler) reconcileResources(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+) (ctrl.Result, error) {
+	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
+	if err := ensureNamespace(ctx, r.Client, locoRes); err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
+	}
+
+	envSecretVersion, err := ensureEnvSecret(ctx, r.Client, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure secrets: %w", err)
+	}
+
+	refreshAt, err := r.ensureImagePullSecret(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure image pull secret: %w", err)
+	}
+
+	err = r.ensureServiceAccount(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure service account: %w", err)
+	}
+
+	err = r.ensureRoleAndBinding(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure role & binding: %w", err)
+	}
+
+	dep, err := r.ensureDeployment(ctx, locoRes, envSecretVersion)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
+	}
+
+	err = r.ensureService(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure service: %w", err)
+	}
+
+	err = r.ensureHTTPRoute(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}
 
 	// aggregate deployment status into our status
-	if dep != nil {
-		replicas := int32(1)
-		if dep.Status.ReadyReplicas < replicas {
-			currentPhase = phaseDeploying
-			currentMessage = "Waiting for pods to be ready..."
-		} else {
-			currentPhase = phaseReady
-			currentMessage = "Deployment ready"
-		}
+	replicas := desiredReplicas(locoRes.Spec.ServiceSpec)
+	if !deploymentReady(dep, replicas) {
+		setPhase(locoRes, phaseDeploying, "Waiting for pods to be ready...")
+		requeue := requeueAfter(refreshAt, deployingRequeue)
+		return ctrl.Result{RequeueAfter: requeue}, nil
 	}
 
-	// Single status update at the end
-	if err := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); err != nil {
-		slog.ErrorContext(ctx, "failed to update status", "error", err)
-		// Don't return error - reconciliation work succeeded, status update can retry next reconcile
-	}
-
-	r.startSecretRefresherGoroutine(ctx, &locoRes)
-
-	slog.InfoContext(ctx, "reconcile complete", "phase", locoRes.Status.Phase, "resource", locoRes.Name)
-	if locoRes.Status.Phase == phaseDeploying {
-		// requeue faster while deployment is rolling out
-		return ctrl.Result{RequeueAfter: 1 * time.Second}, nil
-	}
-	// Otherwise, rely on watch events
-	return ctrl.Result{}, nil
+	locoRes.Status.DeployedGeneration = locoRes.Generation
+	setPhase(locoRes, phaseReady, "Deployment ready")
+	requeue := requeueAfter(refreshAt, 0)
+	return ctrl.Result{RequeueAfter: requeue}, nil
 }
 
-// updatePhase updates the Application status with phase and message, then flushes to K8s API
-func (r *LocoResourceReconciler) updatePhase(
-	ctx context.Context,
-	locoRes *locov1alpha1.Application,
-	phase, message string,
-) error {
+func requeueAfter(refreshAt time.Time, ceiling time.Duration) time.Duration {
+	wait := time.Until(refreshAt)
+	if ceiling > 0 && wait > ceiling {
+		wait = ceiling
+	}
+	if wait < minRequeue {
+		wait = minRequeue
+	}
+	return wait
+}
+
+func setPhase(locoRes *locov1alpha1.Application, phase, message string) {
+	if locoRes.Status.Phase == phase && locoRes.Status.Message == message {
+		return
+	}
+	now := metav1.Now()
+	if locoRes.Status.StartedAt == nil {
+		locoRes.Status.StartedAt = &now
+	}
+	if phase == phaseReady && locoRes.Status.Phase != phaseReady {
+		locoRes.Status.CompletedAt = &now
+	}
 	locoRes.Status.Phase = phase
 	locoRes.Status.Message = message
-	now := &metav1.Time{Time: time.Now()}
-	locoRes.Status.UpdatedAt = now
-	if phase == phaseReady {
-		locoRes.Status.CompletedAt = now
-	}
-	return r.updateLRStatus(ctx, locoRes, &locoRes.Status)
+	locoRes.Status.UpdatedAt = &now
 }
 
-// handleDeletion cancels the secret refresher goroutine, deletes the namespace, and removes the finalizer
+func (r *LocoResourceReconciler) patchStatus(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+	original *locov1alpha1.Application,
+) error {
+	if equality.Semantic.DeepEqual(original.Status, locoRes.Status) {
+		return nil
+	}
+	patch := client.MergeFrom(original)
+	if err := r.Status().Patch(ctx, locoRes, patch); err != nil {
+		return fmt.Errorf("patch application status: %w", err)
+	}
+	return nil
+}
+
+func (r *LocoResourceReconciler) ensureFinalizer(ctx context.Context, locoRes *locov1alpha1.Application) error {
+	if controllerutil.ContainsFinalizer(locoRes, finalizerSecretRefresher) {
+		return nil
+	}
+	original := locoRes.DeepCopy()
+	controllerutil.AddFinalizer(locoRes, finalizerSecretRefresher)
+	patch := client.MergeFrom(original)
+	if err := r.Patch(ctx, locoRes, patch); err != nil {
+		return fmt.Errorf("add finalizer: %w", err)
+	}
+	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerSecretRefresher)
+	return nil
+}
+
+// handleDeletion revokes the registry token, deletes the namespace, and removes the finalizer
 func (r *LocoResourceReconciler) handleDeletion(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
+	if !controllerutil.ContainsFinalizer(locoRes, finalizerSecretRefresher) {
+		return ctrl.Result{}, nil
+	}
+
 	namespace := getNamespace(locoRes)
-	resourceKey := fmt.Sprintf("%s/%s", namespace, getName(locoRes))
+	r.revokeCurrentRegistryToken(ctx, locoRes)
 
-	r.secretRefreshersMux.Lock()
-	if cancel, exists := r.secretRefreshers[resourceKey]; exists {
-		cancel()
-		delete(r.secretRefreshers, resourceKey)
-		slog.InfoContext(ctx, "canceled secret refresher goroutine", "resource", resourceKey)
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	if err := r.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
+		return ctrl.Result{}, fmt.Errorf("delete namespace %s: %w", namespace, err)
 	}
-	r.secretRefreshersMux.Unlock()
+	slog.InfoContext(ctx, "namespace deleted", "namespace", namespace)
 
-	ns := &corev1.Namespace{}
-	if err := r.Get(ctx, client.ObjectKey{Name: namespace}, ns); err == nil {
-		slog.InfoContext(ctx, "deleting namespace", "namespace", namespace)
-		if err := r.Delete(ctx, ns); err != nil {
-			slog.ErrorContext(ctx, "failed to delete namespace", "namespace", namespace, "error", err)
-			return ctrl.Result{}, err
-		}
-		slog.InfoContext(ctx, "namespace deleted", "namespace", namespace)
+	original := locoRes.DeepCopy()
+	controllerutil.RemoveFinalizer(locoRes, finalizerSecretRefresher)
+	patch := client.MergeFrom(original)
+	if err := r.Patch(ctx, locoRes, patch); err != nil {
+		return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 	}
-
-	if controllerutil.ContainsFinalizer(locoRes, finalizerSecretRefresher) {
-		controllerutil.RemoveFinalizer(locoRes, finalizerSecretRefresher)
-		if err := r.Update(ctx, locoRes); err != nil {
-			slog.ErrorContext(ctx, "failed to remove finalizer", "error", err)
-			return ctrl.Result{}, err
-		}
-		slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerSecretRefresher)
-	}
+	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerSecretRefresher)
 
 	return ctrl.Result{}, nil
 }
@@ -319,185 +321,85 @@ func getImageSecretName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-image-pull", getName(locoRes))
 }
 
+func getEnvSecretName(locoRes *locov1alpha1.Application) string {
+	return fmt.Sprintf("%s-env", getName(locoRes))
+}
+
 func getInternalDomain(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local", getName(locoRes), getNamespace(locoRes))
+}
+
+func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
+	name := getName(locoRes)
+	return map[string]string{
+		labelApp:       name,
+		labelManagedBy: managedByValue,
+	}
+}
+
+func ownerAnnotations(locoRes *locov1alpha1.Application) map[string]string {
+	return map[string]string{
+		annotationAppNamespace: locoRes.Namespace,
+		annotationAppName:      locoRes.Name,
+	}
+}
+
+func applyOptions() []client.ApplyOption {
+	return []client.ApplyOption{client.FieldOwner(fieldOwner), client.ForceOwnership}
 }
 
 // ensureNamespace ensures the application namespace exists and is configured
 func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.Application) error {
 	namespace := getNamespace(locoRes)
-	slog.InfoContext(ctx, "ensuring namespace", "namespace", namespace)
+	slog.DebugContext(ctx, "ensuring namespace", "namespace", namespace)
 
-	ns := &corev1.Namespace{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Name: namespace}, ns); err == nil {
-		slog.InfoContext(ctx, "namespace already exists", "namespace", namespace)
-		return nil
+	labels := map[string]string{
+		"loco.io/app":      "true",
+		labelManagedBy:     managedByValue,
+		labelWorkspaceID:   locoRes.Spec.WorkspaceID,
+		labelResourceID:    locoRes.Spec.ResourceID,
+		labelEnvironmentID: locoRes.Spec.EnvironmentID,
 	}
+	annotations := ownerAnnotations(locoRes)
+	ns := corev1ac.Namespace(namespace).WithLabels(labels).WithAnnotations(annotations)
 
-	ns = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
-			Labels: map[string]string{
-				"loco.io/app":      "true",
-				labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-				labelResourceID:    locoRes.Spec.ResourceID,
-				labelEnvironmentID: locoRes.Spec.EnvironmentID,
-			},
-		},
+	opts := applyOptions()
+	if err := kubeClient.Apply(ctx, ns, opts...); err != nil {
+		return fmt.Errorf("apply namespace %s: %w", namespace, err)
 	}
-
-	if err := kubeClient.Create(ctx, ns); err != nil {
-		slog.ErrorContext(ctx, "failed to create namespace", "namespace", namespace, "error", err)
-		return err
-	}
-
-	slog.InfoContext(ctx, "namespace created", "namespace", namespace)
 	return nil
 }
 
 // ensureEnvSecret ensures all required secrets exist in the app namespace
-func ensureEnvSecret(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.Application) error {
-	name := getName(locoRes)
+func ensureEnvSecret(
+	ctx context.Context,
+	kubeClient client.Client,
+	locoRes *locov1alpha1.Application,
+) (string, error) {
 	namespace := getNamespace(locoRes)
-	slog.InfoContext(ctx, "ensuring secrets", "namespace", namespace, "name", name)
+	envSecretName := getEnvSecretName(locoRes)
+	slog.DebugContext(ctx, "ensuring env secret", "namespace", namespace, "name", envSecretName)
 
-	// check if env secret already exists
-	envSecret := &corev1.Secret{}
-	envSecretName := fmt.Sprintf("%s-env", name)
-	if err := kubeClient.Get(ctx, client.ObjectKey{Namespace: namespace, Name: envSecretName}, envSecret); err == nil {
-		slog.InfoContext(ctx, "env secret already exists", "name", envSecretName, "namespace", namespace)
-	} else {
-		// create env secret from deployment env map
-		secretData := make(map[string][]byte)
-		for k, v := range locoRes.Spec.ServiceSpec.Deployment.Env {
-			secretData[k] = []byte(v)
-		}
-
-		envSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      envSecretName,
-				Namespace: namespace,
-				Labels: map[string]string{
-					labelApp: name,
-				},
-			},
-			Type: corev1.SecretTypeOpaque,
-			Data: secretData,
-		}
-
-		if err := kubeClient.Create(ctx, envSecret); err != nil {
-			slog.ErrorContext(
-				ctx,
-				"failed to create env secret",
-				"name",
-				envSecretName,
-				"namespace",
-				namespace,
-				"error",
-				err,
-			)
-			return err
-		}
-
-		slog.InfoContext(ctx, "env secret created", "name", envSecretName, "namespace", namespace)
+	env := locoRes.Spec.ServiceSpec.Deployment.Env
+	secretData := make(map[string][]byte, len(env))
+	for k, v := range env {
+		secretData[k] = []byte(v)
 	}
 
-	return nil
-}
+	labels := managedLabels(locoRes)
+	annotations := ownerAnnotations(locoRes)
+	envSecret := corev1ac.Secret(envSecretName, namespace).
+		WithLabels(labels).
+		WithAnnotations(annotations).
+		WithType(corev1.SecretTypeOpaque).
+		WithData(secretData)
 
-// ensureImagePullSecret creates or updates the image pull secret for GitLab registry
-func (r *LocoResourceReconciler) ensureImagePullSecret(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
-	secretName := getImageSecretName(locoRes)
-
-	slog.InfoContext(ctx, "ensuring image pull secret", "namespace", namespace, "name", secretName)
-
-	secret := &corev1.Secret{}
-	secretExists := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: secretName}, secret) == nil
-
-	if secretExists {
-		expiryStr, ok := secret.Annotations["tokenExpiry"]
-		if ok {
-			expiryTime, err := time.Parse(time.RFC3339, expiryStr)
-			if err == nil {
-				timeUntilExpiry := time.Until(expiryTime)
-				if timeUntilExpiry > 5*time.Minute {
-					slog.DebugContext(
-						ctx,
-						"image pull secret token still valid",
-						"namespace",
-						namespace,
-						"name",
-						secretName,
-						"timeUntilExpiry",
-						timeUntilExpiry,
-					)
-					return nil
-				}
-				slog.InfoContext(
-					ctx,
-					"image pull secret token expiring soon, refreshing",
-					"namespace",
-					namespace,
-					"name",
-					secretName,
-					"timeUntilExpiry",
-					timeUntilExpiry,
-				)
-			}
-		}
+	opts := applyOptions()
+	if err := kubeClient.Apply(ctx, envSecret, opts...); err != nil {
+		return "", fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
 	}
 
-	token, err := r.getGitlabRegistryToken(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get gitlab deploy token", "error", err)
-		return err
-	}
-
-	dockerConfig, err := buildDockerConfig(r.gitlabRegistryURL, token.Username, token.Token)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build docker config", "error", err)
-		return err
-	}
-	expiryTime := time.Now().Add(55 * time.Minute).UTC().Format(time.RFC3339)
-
-	secret = &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: namespace,
-		},
-	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, secret, func() error {
-		secret.Type = corev1.SecretTypeDockerConfigJson
-		secret.Labels = map[string]string{
-			labelApp: name,
-		}
-		secret.Annotations = map[string]string{
-			"tokenExpiry": expiryTime,
-		}
-		secret.Data = map[string][]byte{
-			".dockerconfigjson": dockerConfig,
-		}
-		return nil
-	})
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to ensure image pull secret",
-			"name",
-			secretName,
-			"namespace",
-			namespace,
-			"error",
-			err,
-		)
-		return err
-	}
-
-	slog.InfoContext(ctx, "image pull secret ensured", "name", secretName, "namespace", namespace, "op", op)
-	return nil
+	return ptr.Deref(envSecret.ResourceVersion, ""), nil
 }
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
@@ -506,35 +408,20 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 	namespace := getNamespace(locoRes)
 	secretName := getImageSecretName(locoRes)
 
-	slog.InfoContext(ctx, "ensuring service account", "namespace", namespace, "name", name)
+	slog.DebugContext(ctx, "ensuring service account", "namespace", namespace, "name", name)
 
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+	labels := managedLabels(locoRes)
+	annotations := ownerAnnotations(locoRes)
+	pullSecret := corev1ac.LocalObjectReference().WithName(secretName)
+	sa := corev1ac.ServiceAccount(name, namespace).
+		WithLabels(labels).
+		WithAnnotations(annotations).
+		WithImagePullSecrets(pullSecret)
+
+	opts := applyOptions()
+	if err := r.Apply(ctx, sa, opts...); err != nil {
+		return fmt.Errorf("apply service account %s/%s: %w", namespace, name, err)
 	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, sa, func() error {
-		hasImagePullSecret := false
-		for _, ips := range sa.ImagePullSecrets {
-			if ips.Name == secretName {
-				hasImagePullSecret = true
-				break
-			}
-		}
-
-		if !hasImagePullSecret {
-			sa.ImagePullSecrets = append(sa.ImagePullSecrets, corev1.LocalObjectReference{Name: secretName})
-		}
-		return nil
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure service account", "name", name, "namespace", namespace, "error", err)
-		return err
-	}
-
-	slog.InfoContext(ctx, "service account ensured", "name", name, "namespace", namespace, "op", op)
 	return nil
 }
 
@@ -542,80 +429,45 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-	slog.InfoContext(ctx, "ensuring role and role binding", "namespace", namespace, "name", name)
+	slog.DebugContext(ctx, "ensuring role and role binding", "namespace", namespace, "name", name)
 
-	envSecretName := fmt.Sprintf("%s-env", name)
+	envSecretName := getEnvSecretName(locoRes)
 	roleName := fmt.Sprintf("%s-role", name)
 	roleBindingName := fmt.Sprintf("%s-binding", name)
+	labels := managedLabels(locoRes)
+	annotations := ownerAnnotations(locoRes)
+	opts := applyOptions()
 
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      roleName,
-			Namespace: namespace,
-		},
+	rule := rbacv1ac.PolicyRule().
+		WithAPIGroups("").
+		WithResources("secrets").
+		WithVerbs("get", "list", "watch").
+		WithResourceNames(envSecretName)
+	role := rbacv1ac.Role(roleName, namespace).
+		WithLabels(labels).
+		WithAnnotations(annotations).
+		WithRules(rule)
+	if err := r.Apply(ctx, role, opts...); err != nil {
+		return fmt.Errorf("apply role %s/%s: %w", namespace, roleName, err)
 	}
 
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, role, func() error {
-		role.Labels = map[string]string{
-			labelApp: name,
-		}
-		role.Rules = []rbacv1.PolicyRule{
-			{
-				APIGroups:     []string{""},
-				Resources:     []string{"secrets"},
-				Verbs:         []string{"get", "list", "watch"},
-				ResourceNames: []string{envSecretName},
-			},
-		}
-		return nil
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure role", "name", roleName, "namespace", namespace, "error", err)
-		return err
+	subject := rbacv1ac.Subject().
+		WithKind(rbacv1.ServiceAccountKind).
+		WithName(name).
+		WithNamespace(namespace)
+	roleRef := rbacv1ac.RoleRef().
+		WithKind("Role").
+		WithName(roleName).
+		WithAPIGroup(rbacv1.GroupName)
+	binding := rbacv1ac.RoleBinding(roleBindingName, namespace).
+		WithLabels(labels).
+		WithAnnotations(annotations).
+		WithSubjects(subject).
+		WithRoleRef(roleRef)
+	if err := r.Apply(ctx, binding, opts...); err != nil {
+		return fmt.Errorf("apply role binding %s/%s: %w", namespace, roleBindingName, err)
 	}
 
-	slog.InfoContext(ctx, "role ensured", "name", roleName, "namespace", namespace, "op", op)
-
-	binding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      roleBindingName,
-			Namespace: namespace,
-		},
-	}
-
-	op, err = controllerutil.CreateOrUpdate(ctx, r.Client, binding, func() error {
-		binding.Labels = map[string]string{
-			labelApp: name,
-		}
-		binding.Subjects = []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      name,
-				Namespace: namespace,
-			},
-		}
-		binding.RoleRef = rbacv1.RoleRef{
-			Kind:     "Role",
-			Name:     roleName,
-			APIGroup: "rbac.authorization.k8s.io",
-		}
-		return nil
-	})
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to ensure role binding",
-			"name",
-			roleBindingName,
-			"namespace",
-			namespace,
-			"error",
-			err,
-		)
-		return err
-	}
-
-	slog.InfoContext(ctx, "role binding ensured", "name", roleBindingName, "namespace", namespace, "op", op)
 	return nil
 }
 
@@ -623,568 +475,329 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-	containerPort := locoRes.Spec.ServiceSpec.Deployment.Port
+	containerPort := appPort(locoRes)
 
-	slog.InfoContext(ctx, "ensuring service", "namespace", namespace, "name", name, "containerPort", containerPort)
+	slog.DebugContext(ctx, "ensuring service", "namespace", namespace, "name", name, "containerPort", containerPort)
 
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+	labels := managedLabels(locoRes)
+	annotations := ownerAnnotations(locoRes)
+	selector := map[string]string{labelApp: name}
+	targetPort := intstr.FromInt32(containerPort)
+	port := corev1ac.ServicePort().
+		WithName("http").
+		WithProtocol(corev1.ProtocolTCP).
+		WithPort(servicePort).
+		WithTargetPort(targetPort)
+	spec := corev1ac.ServiceSpec().
+		WithType(corev1.ServiceTypeClusterIP).
+		WithSelector(selector).
+		WithPorts(port)
+	svc := corev1ac.Service(name, namespace).
+		WithLabels(labels).
+		WithAnnotations(annotations).
+		WithSpec(spec)
+
+	opts := applyOptions()
+	if err := r.Apply(ctx, svc, opts...); err != nil {
+		return fmt.Errorf("apply service %s/%s: %w", namespace, name, err)
 	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, svc, func() error {
-		svc.Labels = map[string]string{
-			labelApp: name,
-		}
-		svc.Spec.Type = corev1.ServiceTypeClusterIP
-		svc.Spec.Selector = map[string]string{
-			labelApp: name,
-		}
-		svc.Spec.Ports = []corev1.ServicePort{
-			{
-				Name:       "http",
-				Protocol:   corev1.ProtocolTCP,
-				Port:       80,
-				TargetPort: intstr.FromInt32(containerPort),
-			},
-		}
-		return nil
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure service", "name", name, "namespace", namespace, "error", err)
-		return err
-	}
-
-	slog.InfoContext(ctx, "service ensured", "name", name, "namespace", namespace, "op", op)
 	return nil
 }
 
+func appPort(locoRes *locov1alpha1.Application) int32 {
+	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
+		return locoRes.Spec.ServiceSpec.Deployment.Port
+	}
+	return defaultContainerPort
+}
+
+func desiredReplicas(spec *locov1alpha1.ServiceSpec) int32 {
+	if spec.Resources != nil && spec.Resources.Replicas.Min > 0 {
+		return spec.Resources.Replicas.Min
+	}
+	if spec.Deployment != nil && spec.Deployment.MinReplicas > 0 {
+		return spec.Deployment.MinReplicas
+	}
+	return 1
+}
+
+func containerResources(spec *locov1alpha1.ServiceSpec) (*corev1ac.ResourceRequirementsApplyConfiguration, error) {
+	cpuRequest := defaultCPURequest
+	cpuLimit := defaultCPULimit
+	memoryRequest := defaultMemoryRequest
+	memoryLimit := defaultMemoryLimit
+	if spec.Resources != nil && spec.Resources.CPU != "" {
+		cpuRequest = spec.Resources.CPU
+		cpuLimit = spec.Resources.CPU
+	}
+	if spec.Resources != nil && spec.Resources.Memory != "" {
+		memoryRequest = spec.Resources.Memory
+		memoryLimit = spec.Resources.Memory
+	}
+
+	requests, err := parseResourceList(cpuRequest, memoryRequest)
+	if err != nil {
+		return nil, fmt.Errorf("requests: %w", err)
+	}
+	limits, err := parseResourceList(cpuLimit, memoryLimit)
+	if err != nil {
+		return nil, fmt.Errorf("limits: %w", err)
+	}
+	return corev1ac.ResourceRequirements().WithRequests(requests).WithLimits(limits), nil
+}
+
+func parseResourceList(cpu, memory string) (corev1.ResourceList, error) {
+	cpuQuantity, err := resource.ParseQuantity(cpu)
+	if err != nil {
+		return nil, fmt.Errorf("parse cpu %q: %w", cpu, err)
+	}
+	memoryQuantity, err := resource.ParseQuantity(memory)
+	if err != nil {
+		return nil, fmt.Errorf("parse memory %q: %w", memory, err)
+	}
+	return corev1.ResourceList{
+		corev1.ResourceCPU:    cpuQuantity,
+		corev1.ResourceMemory: memoryQuantity,
+	}, nil
+}
+
+func systemEnvVars(locoRes *locov1alpha1.Application) []*corev1ac.EnvVarApplyConfiguration {
+	publicDomain := ""
+	if locoRes.Spec.ServiceSpec.Routing != nil {
+		publicDomain = locoRes.Spec.ServiceSpec.Routing.HostName
+	}
+	internalDomain := getInternalDomain(locoRes)
+
+	vars := []corev1.EnvVar{
+		{Name: "LOCO_APP_NAME", Value: locoRes.Name},
+		{Name: "LOCO_RESOURCE_ID", Value: locoRes.Spec.ResourceID},
+		{Name: "LOCO_WORKSPACE_ID", Value: locoRes.Spec.WorkspaceID},
+		{Name: "LOCO_DEPLOYMENT_ID", Value: locoRes.Spec.DeploymentID},
+		{Name: "LOCO_REGION", Value: locoRes.Spec.Region},
+		{Name: "LOCO_ENVIRONMENT", Value: locoRes.Spec.EnvironmentName},
+		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},
+		{Name: "LOCO_PUBLIC_DOMAIN", Value: publicDomain},
+	}
+
+	envVars := make([]*corev1ac.EnvVarApplyConfiguration, 0, len(vars))
+	for _, v := range vars {
+		envVar := corev1ac.EnvVar().WithName(v.Name).WithValue(v.Value)
+		envVars = append(envVars, envVar)
+	}
+	return envVars
+}
+
+func healthProbe(hc *locov1alpha1.HealthCheckSpec, port int32) *corev1ac.ProbeApplyConfiguration {
+	probePort := intstr.FromInt32(port)
+	httpGet := corev1ac.HTTPGetAction().WithPath(hc.Path).WithPort(probePort)
+	probe := corev1ac.Probe().WithHTTPGet(httpGet)
+	if hc.StartupGracePeriod > 0 {
+		probe.WithInitialDelaySeconds(hc.StartupGracePeriod)
+	}
+	if hc.Timeout > 0 {
+		probe.WithTimeoutSeconds(hc.Timeout)
+	}
+	if hc.Interval > 0 {
+		probe.WithPeriodSeconds(hc.Interval)
+	}
+	if hc.FailThreshold > 0 {
+		probe.WithFailureThreshold(hc.FailThreshold)
+	}
+	return probe
+}
+
+func desiredDeployment(
+	locoRes *locov1alpha1.Application,
+	envSecretVersion string,
+) (*appsv1ac.DeploymentApplyConfiguration, error) {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	spec := locoRes.Spec.ServiceSpec
+	containerPort := appPort(locoRes)
+	replicas := desiredReplicas(spec)
+
+	resources, err := containerResources(spec)
+	if err != nil {
+		return nil, fmt.Errorf("resources: %w", err)
+	}
+
+	envSecretName := getEnvSecretName(locoRes)
+	secretRef := corev1ac.SecretEnvSource().WithName(envSecretName)
+	envFrom := corev1ac.EnvFromSource().WithSecretRef(secretRef)
+	envVars := systemEnvVars(locoRes)
+	port := corev1ac.ContainerPort().
+		WithName("http").
+		WithContainerPort(containerPort).
+		WithProtocol(corev1.ProtocolTCP)
+	container := corev1ac.Container().
+		WithName(name).
+		WithImage(spec.Deployment.Image).
+		WithEnvFrom(envFrom).
+		WithEnv(envVars...).
+		WithPorts(port).
+		WithResources(resources)
+
+	if hc := spec.Deployment.HealthCheck; hc != nil {
+		livenessProbe := healthProbe(hc, containerPort)
+		readinessProbe := healthProbe(hc, containerPort)
+		container.WithLivenessProbe(livenessProbe).WithReadinessProbe(readinessProbe)
+	}
+
+	podLabels := map[string]string{
+		labelApp:           name,
+		labelWorkspaceID:   locoRes.Spec.WorkspaceID,
+		labelResourceID:    locoRes.Spec.ResourceID,
+		labelEnvironmentID: locoRes.Spec.EnvironmentID,
+	}
+	podAnnotations := map[string]string{annotationEnvSecretRV: envSecretVersion}
+	podSpec := corev1ac.PodSpec().
+		WithServiceAccountName(name).
+		WithRestartPolicy(corev1.RestartPolicyAlways).
+		WithContainers(container)
+	template := corev1ac.PodTemplateSpec().
+		WithLabels(podLabels).
+		WithAnnotations(podAnnotations).
+		WithSpec(podSpec)
+
+	selectorLabels := map[string]string{labelApp: name}
+	selector := metav1ac.LabelSelector().WithMatchLabels(selectorLabels)
+	surge := intstr.FromString("25%")
+	rollingUpdate := appsv1ac.RollingUpdateDeployment().WithMaxSurge(surge).WithMaxUnavailable(surge)
+	strategy := appsv1ac.DeploymentStrategy().
+		WithType(appsv1.RollingUpdateDeploymentStrategyType).
+		WithRollingUpdate(rollingUpdate)
+	deploymentSpec := appsv1ac.DeploymentSpec().
+		WithReplicas(replicas).
+		WithSelector(selector).
+		WithStrategy(strategy).
+		WithTemplate(template)
+
+	depLabels := managedLabels(locoRes)
+	depLabels[labelWorkspaceID] = locoRes.Spec.WorkspaceID
+	depLabels[labelResourceID] = locoRes.Spec.ResourceID
+	depLabels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
+	annotations := ownerAnnotations(locoRes)
+
+	return appsv1ac.Deployment(name, namespace).
+		WithLabels(depLabels).
+		WithAnnotations(annotations).
+		WithSpec(deploymentSpec), nil
+}
+
 // ensureDeployment ensures the Kubernetes deployment exists and is configured with the spec
-// Returns the deployment if it exists or was created, or nil if skipped
+// Returns the applied deployment as reported by the API server
 func (r *LocoResourceReconciler) ensureDeployment(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
-) (*appsv1.Deployment, error) {
-	name := getName(locoRes)
-	namespace := getNamespace(locoRes)
-	image := ""
-	replicas := int32(1)
-	envVars := make([]corev1.EnvVar, 0, len(locoRes.Spec.ServiceSpec.Deployment.Env))
-	var livenessProbe *corev1.Probe
-	var readinessProbe *corev1.Probe
-	var containerPort int32 = 8080
-	cpuRequest := "100m"
-	cpuLimit := "500m"
-	memoryRequest := "128Mi"
-	memoryLimit := "512Mi"
-
-	image = locoRes.Spec.ServiceSpec.Deployment.Image
-	for k, v := range locoRes.Spec.ServiceSpec.Deployment.Env {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  k,
-			Value: v,
-		})
-	}
-
-	// Inject LOCO_* system env vars so apps are aware of their deployment context.
-	envVars = append(envVars,
-		corev1.EnvVar{Name: "LOCO_APP_NAME", Value: locoRes.Name},
-		corev1.EnvVar{Name: "LOCO_RESOURCE_ID", Value: locoRes.Spec.ResourceID},
-		corev1.EnvVar{Name: "LOCO_WORKSPACE_ID", Value: locoRes.Spec.WorkspaceID},
-		corev1.EnvVar{Name: "LOCO_DEPLOYMENT_ID", Value: locoRes.Spec.DeploymentID},
-		corev1.EnvVar{Name: "LOCO_REGION", Value: locoRes.Spec.Region},
-		corev1.EnvVar{Name: "LOCO_ENVIRONMENT", Value: locoRes.Spec.EnvironmentName},
-		corev1.EnvVar{Name: "LOCO_INTERNAL_DOMAIN", Value: getInternalDomain(locoRes)},
-		corev1.EnvVar{Name: "LOCO_PUBLIC_DOMAIN", Value: locoRes.Spec.ServiceSpec.Routing.HostName},
-	)
-
-	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
-		containerPort = locoRes.Spec.ServiceSpec.Deployment.Port
-	}
-
-	if locoRes.Spec.ServiceSpec.Deployment.HealthCheck != nil {
-		hc := locoRes.Spec.ServiceSpec.Deployment.HealthCheck
-		probe := &corev1.Probe{
-			ProbeHandler: corev1.ProbeHandler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: hc.Path,
-					Port: intstr.FromInt(int(containerPort)),
-				},
-			},
-			InitialDelaySeconds: hc.StartupGracePeriod,
-			TimeoutSeconds:      hc.Timeout,
-			PeriodSeconds:       hc.Interval,
-			FailureThreshold:    hc.FailThreshold,
-		}
-
-		livenessProbe = probe
-		readinessProbe = probe
-	}
-
-	cpuRequest = locoRes.Spec.ServiceSpec.Resources.CPU
-	cpuLimit = locoRes.Spec.ServiceSpec.Resources.CPU
-	memoryRequest = locoRes.Spec.ServiceSpec.Resources.Memory
-	memoryLimit = locoRes.Spec.ServiceSpec.Resources.Memory
-	replicas = locoRes.Spec.ServiceSpec.Resources.Replicas.Min
-
-	slog.InfoContext(
-		ctx,
-		"ensuring deployment",
-		"namespace",
-		namespace,
-		"name",
-		name,
-		"replicas",
-		replicas,
-		"image",
-		image,
-	)
-
-	dep := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
-		dep.Labels = map[string]string{
-			labelApp:           name,
-			labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-			labelResourceID:    locoRes.Spec.ResourceID,
-			labelEnvironmentID: locoRes.Spec.EnvironmentID,
-		}
-
-		container := corev1.Container{
-			Name:  name,
-			Image: image,
-			Env:   envVars,
-			Ports: []corev1.ContainerPort{
-				{
-					Name:          "http",
-					ContainerPort: containerPort,
-					Protocol:      corev1.ProtocolTCP,
-				},
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(cpuRequest),
-					corev1.ResourceMemory: resource.MustParse(memoryRequest),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse(cpuLimit),
-					corev1.ResourceMemory: resource.MustParse(memoryLimit),
-				},
-			},
-		}
-
-		if livenessProbe != nil {
-			container.LivenessProbe = livenessProbe
-			container.ReadinessProbe = readinessProbe
-		}
-
-		dep.Spec.Replicas = &replicas
-		dep.Spec.Selector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				labelApp: name,
-			},
-		}
-		dep.Spec.Strategy = appsv1.DeploymentStrategy{
-			Type: appsv1.RollingUpdateDeploymentStrategyType,
-			RollingUpdate: &appsv1.RollingUpdateDeployment{
-				MaxSurge:       &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
-				MaxUnavailable: &intstr.IntOrString{Type: intstr.String, StrVal: "25%"},
-			},
-		}
-		dep.Spec.Template = corev1.PodTemplateSpec{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{
-					labelApp:           name,
-					labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-					labelResourceID:    locoRes.Spec.ResourceID,
-					labelEnvironmentID: locoRes.Spec.EnvironmentID,
-				},
-			},
-			Spec: corev1.PodSpec{
-				ServiceAccountName: name,
-				RestartPolicy:      corev1.RestartPolicyAlways,
-				Containers: []corev1.Container{
-					container,
-				},
-			},
-		}
-
-		return nil
-	})
+	envSecretVersion string,
+) (*appsv1ac.DeploymentApplyConfiguration, error) {
+	dep, err := desiredDeployment(locoRes, envSecretVersion)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure deployment", "name", name, "namespace", namespace, "error", err)
 		return nil, err
 	}
 
-	slog.InfoContext(ctx, "deployment ensured", "name", name, "namespace", namespace, "replicas", replicas, "op", op)
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
+
+	opts := applyOptions()
+	if err := r.Apply(ctx, dep, opts...); err != nil {
+		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, err)
+	}
 	return dep, nil
+}
+
+func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32) bool {
+	if dep == nil || dep.ObjectMetaApplyConfiguration == nil || dep.Status == nil {
+		return false
+	}
+	generation := ptr.Deref(dep.Generation, 0)
+	observed := ptr.Deref(dep.Status.ObservedGeneration, 0)
+	updated := ptr.Deref(dep.Status.UpdatedReplicas, 0)
+	available := ptr.Deref(dep.Status.AvailableReplicas, 0)
+	return generation > 0 && observed == generation && updated == replicas && available == replicas
 }
 
 // ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)
 func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-
-	slog.InfoContext(ctx, "ensuring HTTPRoute", "namespace", namespace, "name", name)
-
 	routeName := fmt.Sprintf("%s-route", name)
-	pathType := v1Gateway.PathMatchPathPrefix
-	pathValue := "/"
-	var backendPort *v1Gateway.PortNumber
+	routing := locoRes.Spec.ServiceSpec.Routing
 
-	if locoRes.Spec.ServiceSpec.Routing != nil {
-		if locoRes.Spec.ServiceSpec.Routing.PathPrefix != "" {
-			pathValue = locoRes.Spec.ServiceSpec.Routing.PathPrefix
-		}
-		if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
-			backendPort = ptrToPortNumber(int(locoRes.Spec.ServiceSpec.Deployment.Port))
-		}
-	}
-
-	route := &v1Gateway.HTTPRoute{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      routeName,
-			Namespace: namespace,
-		},
-	}
-
-	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, route, func() error {
-		route.Labels = map[string]string{
-			labelApp: name,
-		}
-		route.Spec.Hostnames = []v1Gateway.Hostname{
-			v1Gateway.Hostname(locoRes.Spec.ServiceSpec.Routing.HostName),
-		}
-		route.Spec.ParentRefs = []v1Gateway.ParentReference{
-			// todo: remove the hardooded gateway name and namespace.
-			{
-				Name:      v1Gateway.ObjectName("eg"),
-				Namespace: (*v1Gateway.Namespace)(&r.locoNamespace),
-			},
-		}
-		route.Spec.Rules = []v1Gateway.HTTPRouteRule{
-			{
-				Matches: []v1Gateway.HTTPRouteMatch{
-					{
-						Path: &v1Gateway.HTTPPathMatch{
-							Type:  &pathType,
-							Value: new(pathValue),
-						},
-					},
-				},
-				BackendRefs: []v1Gateway.HTTPBackendRef{
-					{
-						BackendRef: v1Gateway.BackendRef{
-							BackendObjectReference: v1Gateway.BackendObjectReference{
-								Name: v1Gateway.ObjectName(name),
-								Port: backendPort,
-								Kind: ptrToKind("Service"),
-							},
-						},
-					},
-				},
-			},
+	if routing == nil {
+		route := &v1Gateway.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}}
+		err := r.Delete(ctx, route)
+		if err != nil && !apierrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
+			return fmt.Errorf("delete HTTPRoute %s/%s: %w", namespace, routeName, err)
 		}
 		return nil
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to ensure HTTPRoute", "name", routeName, "namespace", namespace, "error", err)
-		return err
 	}
 
-	slog.InfoContext(ctx, "HTTPRoute ensured", "name", routeName, "namespace", namespace, "op", op)
+	slog.DebugContext(ctx, "ensuring HTTPRoute", "namespace", namespace, "name", routeName)
+
+	pathValue := "/"
+	if routing.PathPrefix != "" {
+		pathValue = routing.PathPrefix
+	}
+
+	// todo: remove the hardooded gateway name and namespace.
+	gatewayNamespace := v1Gateway.Namespace(r.locoNamespace)
+	parentRef := gatewayac.ParentReference().
+		WithName("eg").
+		WithNamespace(gatewayNamespace)
+	pathMatch := gatewayac.HTTPPathMatch().
+		WithType(v1Gateway.PathMatchPathPrefix).
+		WithValue(pathValue)
+	match := gatewayac.HTTPRouteMatch().WithPath(pathMatch)
+	backendRef := gatewayac.HTTPBackendRef().
+		WithKind("Service").
+		WithName(v1Gateway.ObjectName(name)).
+		WithPort(servicePort)
+	rule := gatewayac.HTTPRouteRule().
+		WithMatches(match).
+		WithBackendRefs(backendRef)
+	spec := gatewayac.HTTPRouteSpec().
+		WithHostnames(v1Gateway.Hostname(routing.HostName)).
+		WithParentRefs(parentRef).
+		WithRules(rule)
+
+	labels := managedLabels(locoRes)
+	annotations := ownerAnnotations(locoRes)
+	route := gatewayac.HTTPRoute(routeName, namespace).
+		WithLabels(labels).
+		WithAnnotations(annotations).
+		WithSpec(spec)
+
+	opts := applyOptions()
+	if err := r.Apply(ctx, route, opts...); err != nil {
+		return fmt.Errorf("apply HTTPRoute %s/%s: %w", namespace, routeName, err)
+	}
 	return nil
-}
-
-// updateLRStatus writes the observed status back to the Application status subresource
-func (r *LocoResourceReconciler) updateLRStatus(
-	ctx context.Context,
-	locoRes *locov1alpha1.Application,
-	status *locov1alpha1.ApplicationStatus,
-) error {
-	locoRes.Status = *status
-	if err := r.Status().Update(ctx, locoRes); err != nil {
-		slog.ErrorContext(ctx, "failed to update Application status", "error", err)
-		return err
-	}
-	return nil
-}
-
-// ptrToPortNumber returns a pointer to a PortNumber
-func ptrToPortNumber(p int) *v1Gateway.PortNumber {
-	n := v1Gateway.PortNumber(p)
-	return &n
-}
-
-// ptrToKind returns a pointer to a Kind
-func ptrToKind(k string) *v1Gateway.Kind {
-	t := v1Gateway.Kind(k)
-	return &t
-}
-
-// startSecretRefresherGoroutine starts a goroutine to refresh the image pull secret token
-func (r *LocoResourceReconciler) startSecretRefresherGoroutine(ctx context.Context, locoRes *locov1alpha1.Application) {
-	resourceKey := fmt.Sprintf("%s/%s", getNamespace(locoRes), getName(locoRes))
-
-	r.secretRefreshersMux.Lock()
-	defer r.secretRefreshersMux.Unlock()
-
-	if _, exists := r.secretRefreshers[resourceKey]; exists {
-		return
-	}
-
-	refreshCtx, cancel := context.WithCancel(ctx)
-	r.secretRefreshers[resourceKey] = cancel
-
-	go r.secretRefresher(refreshCtx, locoRes, resourceKey)
-}
-
-// secretRefresher periodically refreshes the image pull secret token
-func (r *LocoResourceReconciler) secretRefresher(
-	ctx context.Context,
-	locoRes *locov1alpha1.Application,
-	resourceKey string,
-) {
-	defer func() {
-		r.secretRefreshersMux.Lock()
-		delete(r.secretRefreshers, resourceKey)
-		r.secretRefreshersMux.Unlock()
-	}()
-
-	ticker := time.NewTicker(10 * time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			slog.InfoContext(ctx, "secret refresher goroutine stopped", "resource", resourceKey)
-			return
-		case <-ticker.C:
-			r.refreshImagePullSecret(ctx, locoRes)
-		}
-	}
-}
-
-// refreshImagePullSecret refreshes the image pull secret token if it's about to expire
-func (r *LocoResourceReconciler) refreshImagePullSecret(ctx context.Context, locoRes *locov1alpha1.Application) {
-	namespace := getNamespace(locoRes)
-	secretName := getImageSecretName(locoRes)
-
-	secret := &corev1.Secret{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: namespace, Name: secretName}, secret); err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to fetch image pull secret for refresh",
-			"namespace",
-			namespace,
-			"name",
-			secretName,
-			"error",
-			err,
-		)
-		return
-	}
-
-	expiryStr, ok := secret.Annotations["tokenExpiry"]
-	if !ok {
-		slog.WarnContext(
-			ctx,
-			"image pull secret missing tokenExpiry annotation",
-			"namespace",
-			namespace,
-			"name",
-			secretName,
-		)
-		return
-	}
-
-	expiryTime, err := time.Parse(time.RFC3339, expiryStr)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to parse tokenExpiry annotation",
-			"namespace",
-			namespace,
-			"name",
-			secretName,
-			"error",
-			err,
-		)
-		return
-	}
-
-	timeUntilExpiry := time.Until(expiryTime)
-	if timeUntilExpiry > 10*time.Minute {
-		slog.DebugContext(
-			ctx,
-			"token not yet expired, skipping refresh",
-			"namespace",
-			namespace,
-			"name",
-			secretName,
-			"timeUntilExpiry",
-			timeUntilExpiry,
-		)
-		return
-	}
-
-	slog.InfoContext(ctx, "refreshing image pull secret token", "namespace", namespace, "name", secretName)
-
-	token, err := r.getGitlabRegistryToken(ctx)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to get new gitlab deploy token",
-			"namespace",
-			namespace,
-			"name",
-			secretName,
-			"error",
-			err,
-		)
-		return
-	}
-
-	dockerConfig, err := buildDockerConfig(r.gitlabRegistryURL, token.Username, token.Token)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to build docker config",
-			"namespace",
-			namespace,
-			"name",
-			secretName,
-			"error",
-			err,
-		)
-		return
-	}
-	newExpiryTime := time.Now().Add(55 * time.Minute).UTC().Format(time.RFC3339)
-
-	secret.Data[".dockerconfigjson"] = dockerConfig
-	secret.Annotations["tokenExpiry"] = newExpiryTime
-
-	err = r.Update(ctx, secret)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to update image pull secret",
-			"namespace",
-			namespace,
-			"name",
-			secretName,
-			"error",
-			err,
-		)
-		return
-	}
-
-	slog.InfoContext(ctx, "image pull secret token refreshed successfully", "namespace", namespace, "name", secretName)
-}
-
-// getGitlabRegistryToken fetches a new read token from GitLab
-func (r *LocoResourceReconciler) getGitlabRegistryToken(ctx context.Context) (*gitlabDeployTokenResponse, error) {
-	expiresAt := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
-	payload := map[string]any{
-		"name":       "loco-read-token",
-		"scopes":     []string{"read_registry"},
-		"expires_at": expiresAt,
-	}
-
-	payloadJSON, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	deployTokenPath := fmt.Sprintf("%s/api/v4/projects/%s/deploy_tokens", r.gitlabURL, r.gitlabProjectID)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, deployTokenPath, bytes.NewReader(payloadJSON))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create http request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("PRIVATE-TOKEN", r.gitlabPAT)
-
-	httpClient := &http.Client{Timeout: 10 * time.Second}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to execute gitlab api request", "error", err)
-		return nil, fmt.Errorf("failed to create deploy token: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to read response body", "error", err)
-			return nil, err
-		}
-
-		slog.ErrorContext(ctx, "unexpected status from gitlab api",
-			"status_code", resp.StatusCode,
-			"response", string(respBody),
-		)
-		return nil, fmt.Errorf("gitlab api returned status %d", resp.StatusCode)
-	}
-
-	var tokenResp gitlabDeployTokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	return &tokenResp, nil
-}
-
-// gitlabDeployTokenResponse represents a GitLab deploy token response
-type gitlabDeployTokenResponse struct {
-	Username  string `json:"username"`
-	Token     string `json:"token"`
-	ExpiresAt string `json:"expires_at"`
-}
-
-// buildDockerConfig builds a .dockerconfigjson byte array for registry authentication
-func buildDockerConfig(registryURL, username, token string) ([]byte, error) {
-	authStr := base64.StdEncoding.EncodeToString([]byte(username + ":" + token))
-
-	config := map[string]any{
-		"auths": map[string]any{
-			registryURL: map[string]string{
-				"auth": authStr,
-			},
-		},
-	}
-
-	configJSON, err := json.Marshal(config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal docker config: %w", err)
-	}
-
-	return configJSON, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.secretRefreshers = make(map[string]context.CancelFunc)
 	r.gitlabURL = os.Getenv("GITLAB_URL")
 	r.gitlabPAT = os.Getenv("GITLAB_PAT")
 	r.gitlabProjectID = os.Getenv("GITLAB_PROJECT_ID")
 	r.gitlabRegistryURL = os.Getenv("GITLAB_REGISTRY_URL")
 	r.locoNamespace = os.Getenv("LOCO_NAMESPACE")
+	r.httpClient = &http.Client{Timeout: 10 * time.Second}
 
 	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {
 		slog.Error("missing required gitlab environment variables")
 		return fmt.Errorf("missing required gitlab environment variables")
 	}
 
+	applicationPredicates := builder.WithPredicates(predicate.GenerationChangedPredicate{})
+	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
+	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&locov1alpha1.Application{}).
+		For(&locov1alpha1.Application{}, applicationPredicates).
+		Watches(&appsv1.Deployment{}, deploymentHandler).
+		WithOptions(options).
 		Named("application").
 		Complete(r)
 }
