@@ -89,5 +89,4 @@ DROP VIEW IF EXISTS user_with_scopes_view;
 DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS session_tokens;
 DROP TABLE IF EXISTS user_scopes;
-DROP TYPE IF EXISTS entity_scope;
 DROP TYPE IF EXISTS entity_type;
