@@ -49,7 +49,7 @@ func setupScript(env *testscript.Env) error {
 func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 	api, ok := ts.Value(fakeAPIKey{}).(*fakeAPI)
 	if !ok {
-		ts.Fatalf("fakeapi: not initialised by setup")
+		ts.Fatalf("fakeapi: not initialized by setup")
 	}
 	if len(args) == 0 {
 		ts.Fatalf("usage: fakeapi called <method> [authorization] | fakeapi fail <method> <code>")

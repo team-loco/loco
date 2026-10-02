@@ -83,7 +83,10 @@ func (f *fakeAPI) authenticate(spec connect.Spec, header http.Header) (string, *
 	return token, usr, nil
 }
 
-func (f *fakeAPI) WhoAmI(_ context.Context, req *connect.Request[userv1.WhoAmIRequest]) (*connect.Response[userv1.WhoAmIResponse], error) {
+func (f *fakeAPI) WhoAmI(
+	_ context.Context,
+	req *connect.Request[userv1.WhoAmIRequest],
+) (*connect.Response[userv1.WhoAmIResponse], error) {
 	_, usr, err := f.authenticate(req.Spec(), req.Header())
 	if err != nil {
 		return nil, err
@@ -91,7 +94,10 @@ func (f *fakeAPI) WhoAmI(_ context.Context, req *connect.Request[userv1.WhoAmIRe
 	return connect.NewResponse(&userv1.WhoAmIResponse{User: usr}), nil
 }
 
-func (f *fakeAPI) Logout(_ context.Context, req *connect.Request[userv1.LogoutRequest]) (*connect.Response[userv1.LogoutResponse], error) {
+func (f *fakeAPI) Logout(
+	_ context.Context,
+	req *connect.Request[userv1.LogoutRequest],
+) (*connect.Response[userv1.LogoutResponse], error) {
 	token, _, err := f.authenticate(req.Spec(), req.Header())
 	if err != nil {
 		return nil, err

@@ -45,7 +45,9 @@ func newLogoutCmd(env Env) *cobra.Command {
 			if err = revokeToken(ctx, httpClient, host, t.Token); err != nil {
 				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
 				if connect.CodeOf(err) != connect.CodeUnauthenticated {
-					warning := lipgloss.NewStyle().Foreground(ui.LocoOrange).Render("Warning: could not revoke the session on the server; the token stays valid until it expires.")
+					warning := lipgloss.NewStyle().
+						Foreground(ui.LocoOrange).
+						Render("Warning: could not revoke the session on the server; the token stays valid until it expires.")
 					errOut := cmd.ErrOrStderr()
 					lipgloss.Fprintln(errOut, warning)
 				}
