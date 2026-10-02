@@ -1,0 +1,55 @@
+! exec loco validate
+stderr 'unknown keys in loco.toml: Routing.Subdomian'
+
+-- loco.toml --
+[Metadata]
+ConfigVersion = "0.1"
+Description = "Default Loco app configuration"
+Name = "internal-worker"
+Type = "SERVICE"
+Region = "us-east-1"
+
+[Build]
+DockerfilePath = "Dockerfile"
+Type = "docker"
+
+[Routing]
+Port = 8000
+Subdomian = "typo"
+PathPrefix = "/"
+IdleTimeout = 60
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+Memory = "256Mi"
+ReplicasMin = 1
+ReplicasMax = 1
+EnableAutoScaling = false
+CPUTarget = 0
+MemoryTarget = 0
+
+[Health]
+Path = "/health"
+Interval = 30
+Timeout = 5
+StartupGracePeriod = 0
+FailThreshold = 3
+
+[Env]
+File = ""
+[Env.Variables]
+
+[Obs]
+[Obs.Logging]
+Enabled = true
+RetentionPeriod = "7d"
+Structured = false
+[Obs.Metrics]
+Enabled = false
+Path = "/metrics"
+Port = 9090
+[Obs.Tracing]
+Enabled = false
+SampleRate = 0.1
+[Obs.Tracing.Tags]

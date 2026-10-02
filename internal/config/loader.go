@@ -420,8 +420,12 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 
 	var cfg LocoConfig
 	decoder := toml.NewDecoder(file)
-	if _, err := decoder.Decode(&cfg); err != nil {
+	meta, err := decoder.Decode(&cfg)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse loco.toml: %w", err)
+	}
+	if err := checkUndecodedKeys(meta); err != nil {
+		return nil, err
 	}
 
 	if err := ResolveConfigPaths(&cfg, cfgPathAbs); err != nil {
@@ -432,6 +436,34 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 		Config:      &cfg,
 		ProjectPath: filepath.Dir(cfgPathAbs),
 	}, nil
+}
+
+func checkUndecodedKeys(meta toml.MetaData) error {
+	undecoded := meta.Undecoded()
+	if len(undecoded) == 0 {
+		return nil
+	}
+	unknown := make(map[string]bool, len(undecoded))
+	for _, key := range undecoded {
+		unknown[key.String()] = true
+	}
+	keys := make([]string, 0, len(undecoded))
+	for _, key := range undecoded {
+		if !hasUnknownParent(key, unknown) {
+			keys = append(keys, key.String())
+		}
+	}
+	slices.Sort(keys)
+	return fmt.Errorf("unknown keys in loco.toml: %s", strings.Join(keys, ", "))
+}
+
+func hasUnknownParent(key toml.Key, unknown map[string]bool) bool {
+	for i := 1; i < len(key); i++ {
+		if unknown[key[:i].String()] {
+			return true
+		}
+	}
+	return false
 }
 
 // Create writes a LocoConfig to a loco.toml file at the specified path
