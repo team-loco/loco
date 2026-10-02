@@ -38,7 +38,7 @@ func (c *OAuthStateCache) StoreState(ctx context.Context, state string) error {
 		slog.ErrorContext(ctx, "failed to store oauth state", "error", err)
 		return fmt.Errorf("failed to store state: %w", err)
 	}
-	slog.InfoContext(ctx, "stored oauth state", "state", state)
+	slog.DebugContext(ctx, "stored oauth state")
 	return nil
 }
 
@@ -53,7 +53,6 @@ func (c *OAuthStateCache) MarkTokenExchanged(ctx context.Context, githubToken st
 }
 
 func (c *OAuthStateCache) VerifyAndDeleteState(ctx context.Context, state string) error {
-	slog.InfoContext(ctx, "looking for state", "state", state)
 	key := "loco_api:oauth:state:" + state
 	_, err := c.cache.Get(ctx, key)
 	if errors.Is(err, cache.ErrNotFound) {
