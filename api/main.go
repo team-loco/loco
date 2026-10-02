@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -171,8 +172,15 @@ func main() {
 		LastUsedUpdateInterval:      time.Minute * 5,
 	})
 
+	shutdownCtx, beginShutdown := context.WithCancel(context.Background())
+	defer beginShutdown()
+
+	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
+	baseInterceptors := connect.WithInterceptors(deadlineInterceptor)
+
 	mux := http.NewServeMux()
 	httpInterceptors := connect.WithInterceptors(
+		deadlineInterceptor,
 		interceptor.NewContextInterceptor(),
 		interceptor.NewGithubAuthInterceptor(machine),
 		validate.NewInterceptor(),
@@ -232,7 +240,7 @@ func main() {
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain)
 
-	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler)
+	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
@@ -254,7 +262,7 @@ func main() {
 		registryServiceHandler,
 		httpInterceptors,
 	)
-	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler)
+	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler, baseInterceptors)
 	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(
 		observabilityAccessHandler,
 		httpInterceptors,
@@ -385,9 +393,11 @@ func main() {
 	protocols.SetUnencryptedHTTP2(true)
 
 	server := &http.Server{
-		Addr:      ac.Port,
-		Handler:   muxWCors,
-		Protocols: protocols,
+		Addr:              ac.Port,
+		Handler:           muxWCors,
+		Protocols:         protocols,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	quit := make(chan error, 1)
@@ -401,22 +411,29 @@ func main() {
 		sig := <-sigChan
 		slog.InfoContext(ctx, "shutdown signal received", "signal", sig.String())
 
-		shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		beginShutdown()
+
+		drainCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		machine.Close()
 
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			quit <- err
+		if err := server.Shutdown(drainCtx); err != nil {
+			slog.WarnContext(ctx, "graceful shutdown did not finish, closing remaining connections", "error", err)
+			if closeErr := server.Close(); closeErr != nil {
+				quit <- closeErr
+				return
+			}
+			quit <- nil
 			return
 		}
 
-		slog.InfoContext(shutdownCtx, "server shutdown completed gracefully")
+		slog.InfoContext(ctx, "server shutdown completed gracefully")
 		quit <- nil
 	}()
 
 	slog.Info("starting server", "addr", server.Addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server error", "error", err)
 		return
 	}
