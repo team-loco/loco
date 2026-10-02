@@ -400,10 +400,46 @@ func (s *OrgServer) ListOrgUsers(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	// TODO: Implement database query to get org users
+	pageSize := normalizePageSize(r.GetPageSize())
+
+	var pageToken *string
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = &cursorID
+	}
+
+	rows, err := s.queries.ListOrgUsersWithDetails(ctx, genDb.ListOrgUsersWithDetailsParams{
+		EntityID:  uuid.MustParse(r.GetOrgId()),
+		Limit:     pageSize,
+		PageToken: pageToken,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list org users", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	users := make([]*orgv1.User, len(rows))
+	for i, row := range rows {
+		users[i] = &orgv1.User{
+			Id:        row.ID.String(),
+			Email:     row.Email,
+			Name:      derefString(row.Name),
+			AvatarUrl: derefString(row.AvatarUrl),
+		}
+	}
+
+	var nextPageToken string
+	if len(rows) == int(pageSize) {
+		lastID := rows[len(rows)-1].ID.String()
+		nextPageToken = encodeCursor(lastID)
+	}
+
 	return connect.NewResponse(&orgv1.ListOrgUsersResponse{
-		Users:         []*orgv1.User{},
-		NextPageToken: "",
+		Users:         users,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 

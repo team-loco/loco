@@ -111,6 +111,7 @@ type Querier interface {
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
+	ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPlatformDomains(ctx context.Context, activeOnly *bool) ([]PlatformDomain, error)
 	ListResourceDomains(ctx context.Context, resourceID uuid.UUID) ([]ResourceDomain, error)

@@ -65,3 +65,15 @@ SELECT COUNT(*) = 0 as is_unique
 FROM organizations
 WHERE name = $1
 AND (sqlc.narg('exclude_id')::uuid IS NULL OR id != sqlc.narg('exclude_id')::uuid);
+
+-- name: ListOrgUsersWithDetails :many
+SELECT u.id, u.email, u.name, u.avatar_url
+FROM users u
+WHERE u.id IN (
+  SELECT us.user_id FROM user_scopes us
+  WHERE us.entity_type = 'organization' AND us.entity_id = $1
+)
+  AND (sqlc.narg('page_token')::text IS NULL
+       OR u.id < sqlc.narg('page_token')::uuid)
+ORDER BY u.id DESC
+LIMIT $2;
