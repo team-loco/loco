@@ -1,3 +1,4 @@
+-- +goose Up
 -- Users table
 CREATE TABLE
     IF NOT EXISTS users (
@@ -52,3 +53,8 @@ CREATE INDEX IF NOT EXISTS idx_workspaces_created_by ON workspaces (created_by);
 CREATE INDEX IF NOT EXISTS idx_workspaces_org_id_created_at ON workspaces (org_id, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_workspaces_created_at_id_desc ON workspaces (created_at DESC, id DESC);
+
+-- +goose Down
+DROP TABLE IF EXISTS workspaces;
+DROP TABLE IF EXISTS organizations;
+DROP TABLE IF EXISTS users;

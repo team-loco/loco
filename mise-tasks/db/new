@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Create the next sequentially numbered goose migration in api/migrations"
+#USAGE arg "<name>" help="migration name, such as add_resource_labels"
+set -euo pipefail
+
+goose -dir api/migrations -s create "$1" sql

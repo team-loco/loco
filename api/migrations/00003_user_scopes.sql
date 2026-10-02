@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'resource', 'user');
 
 CREATE TABLE user_scopes (
@@ -82,3 +83,11 @@ SELECT
 FROM users u
 LEFT JOIN user_scopes us ON u.id = us.user_id
 GROUP BY u.id, u.external_id, u.email, u.name, u.avatar_url, u.created_at, u.updated_at;
+
+-- +goose Down
+DROP VIEW IF EXISTS user_with_scopes_view;
+DROP TABLE IF EXISTS api_tokens;
+DROP TABLE IF EXISTS session_tokens;
+DROP TABLE IF EXISTS user_scopes;
+DROP TYPE IF EXISTS entity_scope;
+DROP TYPE IF EXISTS entity_type;
