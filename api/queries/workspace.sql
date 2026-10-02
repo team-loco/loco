@@ -10,12 +10,15 @@ SELECT * FROM workspaces WHERE id = $1;
 SELECT org_id FROM workspaces WHERE id = $1;
 
 -- name: ListWorkspacesForUser :many
-SELECT DISTINCT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
 FROM workspaces w
-JOIN user_scopes us ON us.entity_id = w.id
-  AND us.entity_type = 'workspace'
-  AND us.user_id = $1
-WHERE (sqlc.narg('page_token')::text IS NULL
+WHERE EXISTS (
+    SELECT 1 FROM user_scopes us
+    WHERE us.user_id = $1
+      AND us.entity_type = 'workspace'
+      AND us.entity_id = w.id
+  )
+  AND (sqlc.narg('page_token')::text IS NULL
        OR (w.created_at, w.id) < (
          (SELECT created_at FROM workspaces WHERE id = sqlc.narg('page_token')::uuid),
          sqlc.narg('page_token')::uuid

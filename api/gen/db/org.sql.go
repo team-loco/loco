@@ -163,12 +163,15 @@ func (q *Queries) ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersW
 }
 
 const listOrgsForUser = `-- name: ListOrgsForUser :many
-SELECT DISTINCT o.id, o.name, o.created_by, o.created_at, o.updated_at
+SELECT o.id, o.name, o.created_by, o.created_at, o.updated_at
 FROM organizations o
-JOIN user_scopes us ON us.entity_id = o.id
-  AND us.entity_type = 'organization'
-  AND us.user_id = $1
-WHERE ($3::text IS NULL
+WHERE EXISTS (
+    SELECT 1 FROM user_scopes us
+    WHERE us.user_id = $1
+      AND us.entity_type = 'organization'
+      AND us.entity_id = o.id
+  )
+  AND ($3::text IS NULL
        OR (o.created_at, o.id) < (
          (SELECT created_at FROM organizations WHERE id = $3::uuid),
          $3::uuid
