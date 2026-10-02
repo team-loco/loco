@@ -1,7 +1,6 @@
 package loco
 
 import (
-	"errors"
 	"fmt"
 
 	"charm.land/lipgloss/v2"
@@ -9,7 +8,6 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -32,12 +30,9 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				return err
 			}
 
-			t, err := store.Get()
-			if errors.Is(err, keychain.ErrNotFound) {
-				return ErrLoginRequired
-			}
+			t, err := cmdutil.FreshToken(ctx, host, store)
 			if err != nil {
-				return fmt.Errorf("failed to read token from keychain: %w", err)
+				return err
 			}
 
 			apiClient := client.NewClient(host, t.Token)

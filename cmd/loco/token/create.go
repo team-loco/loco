@@ -67,7 +67,7 @@ Tokens can be scoped to different entity types:
 			if err != nil {
 				return err
 			}
-			locoToken, err := cmdutil.GetCurrentLocoToken()
+			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 			if err != nil {
 				return err
 			}
