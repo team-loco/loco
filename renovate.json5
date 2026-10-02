@@ -1,6 +1,6 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: ["config:recommended"],
+  extends: ["config:recommended", "helpers:pinGitHubActionDigests"],
   timezone: "America/Los_Angeles",
   dependencyDashboard: true,
   dependencyDashboardTitle: "Dependency Dashboard",
@@ -18,6 +18,12 @@
     labels: ["dependencies", "security"],
   },
   packageRules: [
+    {
+      description: "The mise version is bumped by the jdx/mise regex rule below, which moves every copy together",
+      matchManagers: ["github-actions"],
+      matchDepNames: ["jdx/mise"],
+      enabled: false,
+    },
     {
       matchDepNames: ["github.com/team-loco/loco/gen/go", "github.com/team-loco/loco/k8sapi"],
       enabled: false,
