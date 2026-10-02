@@ -113,6 +113,48 @@ jobs:
       context: .
       dockerfile: ./agent/Dockerfile
 
+  deploy-railway-api:
+    name: Deploy API to Railway
+    needs: push-api-image
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: railway-staging-api
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Deploy image
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          SERVICE_ID: ${{ vars.RAILWAY_API_SERVICE_ID }}
+          IMAGE: ${{ needs.push-api-image.outputs.image }}
+        run: mise run deploy:railway "$SERVICE_ID" "$IMAGE"
+
+  deploy-railway-ui:
+    name: Deploy UI to Railway
+    needs: push-ui-image
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: railway-staging-ui
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Deploy image
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          SERVICE_ID: ${{ vars.RAILWAY_UI_SERVICE_ID }}
+          IMAGE: ${{ needs.push-ui-image.outputs.image }}
+        run: mise run deploy:railway "$SERVICE_ID" "$IMAGE"
+
   deploy-staging:
     name: Deploy to Staging
     needs:

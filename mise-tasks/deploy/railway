@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#MISE description="Point a Railway service at a container image and deploy it, in the environment RAILWAY_TOKEN is scoped to"
+#USAGE arg "<service_id>" help="Railway service ID"
+#USAGE arg "<image>" help="full image reference, such as ghcr.io/team-loco/loco-api:sha-<commit>"
+set -euo pipefail
+
+: "${RAILWAY_TOKEN:?RAILWAY_TOKEN must be set to a Railway project token}"
+
+SERVICE_ID=$1
+IMAGE=$2
+TIMEOUT_SECONDS=${RAILWAY_DEPLOY_TIMEOUT_SECONDS:-600}
+
+gql() {
+	local body response
+	body=$(jq -n --arg query "$1" --argjson variables "$2" '{query: $query, variables: $variables}')
+	response=$(curl -fsS https://backboard.railway.com/graphql/v2 \
+		-H "Project-Access-Token: $RAILWAY_TOKEN" \
+		-H "Content-Type: application/json" \
+		--data "$body")
+	if jq -e '.errors' <<<"$response" >/dev/null; then
+		jq -r '.errors[].message' <<<"$response" >&2
+		return 1
+	fi
+	jq '.data' <<<"$response"
+}
+
+ENVIRONMENT_ID=$(gql 'query { projectToken { environmentId } }' '{}' | jq -r '.projectToken.environmentId')
+
+VARS=$(jq -n --arg s "$SERVICE_ID" --arg e "$ENVIRONMENT_ID" --arg i "$IMAGE" \
+	'{serviceId: $s, environmentId: $e, input: {source: {image: $i}}}')
+gql 'mutation($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) {
+  serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input)
+}' "$VARS" >/dev/null
+echo "set service $SERVICE_ID to $IMAGE"
+
+VARS=$(jq -n --arg s "$SERVICE_ID" --arg e "$ENVIRONMENT_ID" '{serviceId: $s, environmentId: $e}')
+DEPLOYMENT_ID=$(gql 'mutation($serviceId: String!, $environmentId: String!) {
+  serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+}' "$VARS" | jq -r '.serviceInstanceDeployV2')
+echo "started deployment $DEPLOYMENT_ID"
+
+VARS=$(jq -n --arg d "$DEPLOYMENT_ID" '{id: $d}')
+DEADLINE=$((SECONDS + TIMEOUT_SECONDS))
+while ((SECONDS < DEADLINE)); do
+	STATUS=$(gql 'query($id: String!) { deployment(id: $id) { status } }' "$VARS" | jq -r '.deployment.status')
+	echo "deployment $DEPLOYMENT_ID: $STATUS"
+	case $STATUS in
+	SUCCESS)
+		exit 0
+		;;
+	FAILED)
+		exit 1
+		;;
+	CRASHED)
+		exit 1
+		;;
+	REMOVED)
+		exit 1
+		;;
+	SKIPPED)
+		exit 1
+		;;
+	NEEDS_APPROVAL)
+		exit 1
+		;;
+	esac
+	sleep 10
+done
+
+echo "deployment $DEPLOYMENT_ID did not finish within ${TIMEOUT_SECONDS}s" >&2
+exit 1
