@@ -69,6 +69,7 @@ func newLoginCmd(env Env) *cobra.Command {
 		Use:   "login",
 		Short: "Login to loco via Github OAuth",
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
 			host, err := cmdutil.GetHost(cmd)
 			if err != nil {
 				return err
@@ -102,11 +103,11 @@ func newLoginCmd(env Env) *cobra.Command {
 
 			httpClient := httputil.NewHTTPClient()
 			oAuthClient := oauthv1connect.NewOAuthServiceClient(httpClient, host)
-			resp, err := oAuthClient.GetOAuthDetails(cmd.Context(), connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
+			resp, err := oAuthClient.GetOAuthDetails(ctx, connect.NewRequest(&oAuth.GetOAuthDetailsRequest{
 				Provider: oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
 			}))
 			if err != nil {
-				cmdutil.LogRequestID(cmd.Context(), err, "failed to get oAuth details")
+				cmdutil.LogRequestID(ctx, err, "failed to get oAuth details")
 				return err
 			}
 			slog.Debug("retrieved oauth details", "client_id", resp.Msg.ClientId)
@@ -135,7 +136,7 @@ func newLoginCmd(env Env) *cobra.Command {
 			tokenChan := make(chan AuthTokenResponse, 1)
 			errorChan := make(chan error, 1)
 
-			pollCtx, cancelPoll := context.WithCancel(cmd.Context())
+			pollCtx, cancelPoll := context.WithCancel(ctx)
 			defer cancelPoll()
 			pollInterval := time.Duration(deviceTokenResponse.Interval) * time.Second
 
@@ -180,7 +181,7 @@ func newLoginCmd(env Env) *cobra.Command {
 			}
 
 			locoResp, err := oAuthClient.ExchangeOAuthToken(
-				cmd.Context(),
+				ctx,
 				connect.NewRequest(&oAuth.ExchangeOAuthTokenRequest{
 					Provider:              oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB,
 					Token:                 finalM.tokenResp.AccessToken,
@@ -191,7 +192,7 @@ func newLoginCmd(env Env) *cobra.Command {
 				return err
 			}
 
-			return setupLoginScope(httpClient, host, store, locoResp.Msg)
+			return setupLoginScope(ctx, httpClient, host, store, locoResp.Msg)
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
@@ -199,6 +200,7 @@ func newLoginCmd(env Env) *cobra.Command {
 }
 
 func setupLoginScope(
+	ctx context.Context,
 	httpClient *http.Client,
 	host string,
 	store keychain.TokenStore,
@@ -242,7 +244,7 @@ func setupLoginScope(
 	currentUserReq := connect.NewRequest(&userv1.WhoAmIRequest{})
 	currentUserReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-	currentUserResp, err := userClient.WhoAmI(context.Background(), currentUserReq)
+	currentUserResp, err := userClient.WhoAmI(ctx, currentUserReq)
 	if err != nil {
 		slog.Debug("failed to get current user", "error", err)
 		return fmt.Errorf("failed to get current user: %w", err)
@@ -254,7 +256,7 @@ func setupLoginScope(
 	})
 	orgRequest.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-	orgResp, err := orgClient.ListUserOrgs(context.Background(), orgRequest)
+	orgResp, err := orgClient.ListUserOrgs(ctx, orgRequest)
 	if err != nil {
 		slog.Debug("failed to get user orgs details", "error", err)
 		return err
@@ -278,7 +280,7 @@ func setupLoginScope(
 		})
 		createOrgReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-		createOrgResp, err := orgClient.CreateOrg(context.Background(), createOrgReq)
+		createOrgResp, err := orgClient.CreateOrg(ctx, createOrgReq)
 		if err != nil {
 			slog.Debug("failed to create organization", "error", err)
 			return fmt.Errorf("failed to create organization: %w", err)
@@ -297,7 +299,7 @@ func setupLoginScope(
 		})
 		getOrgReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-		getOrgResp, err := orgClient.GetOrg(context.Background(), getOrgReq)
+		getOrgResp, err := orgClient.GetOrg(ctx, getOrgReq)
 		if err != nil {
 			slog.Debug("failed to get created organization", "error", err)
 			return fmt.Errorf("failed to get created organization: %w", err)
@@ -311,7 +313,7 @@ func setupLoginScope(
 		})
 		createWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-		createWSResp, err := wsClientNew.CreateWorkspace(context.Background(), createWSReq)
+		createWSResp, err := wsClientNew.CreateWorkspace(ctx, createWSReq)
 		if err != nil {
 			slog.Debug("failed to create workspace", "error", err)
 			return fmt.Errorf("failed to create workspace: %w", err)
@@ -323,7 +325,7 @@ func setupLoginScope(
 		})
 		getWSReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-		getWSResp, err := wsClientNew.GetWorkspace(context.Background(), getWSReq)
+		getWSResp, err := wsClientNew.GetWorkspace(ctx, getWSReq)
 		if err != nil {
 			slog.Debug("failed to get created workspace", "error", err)
 			return fmt.Errorf("failed to get created workspace: %w", err)
@@ -364,7 +366,7 @@ func setupLoginScope(
 		})
 		wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-		wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
+		wsResp, err := wsClient.ListOrgWorkspaces(ctx, wsReq)
 		if err != nil {
 			slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
 			return fmt.Errorf("failed to list workspaces: %w", err)
@@ -385,7 +387,7 @@ func setupLoginScope(
 		})
 		wsReq.Header().Add("Authorization", fmt.Sprintf("Bearer %s", exchange.LocoToken))
 
-		wsResp, err := wsClient.ListOrgWorkspaces(context.Background(), wsReq)
+		wsResp, err := wsClient.ListOrgWorkspaces(ctx, wsReq)
 		if err != nil {
 			slog.Debug("failed to get workspaces for org", "orgId", selectedOrg.Id, "error", err)
 			return fmt.Errorf("failed to list workspaces: %w", err)

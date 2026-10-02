@@ -13,12 +13,34 @@ import (
 	"github.com/team-loco/loco/internal/session"
 )
 
+const (
+	pageDashboard     = "dashboard"
+	organizationsPath = "/organizations"
+)
+
 func newWebCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "web [dashboard|resources|create-resource|events|observability|usage|settings|" +
-			"org-settings|profile|tokens|organizations|team]",
+		Use:   "web [page]",
 		Short: "Open loco pages in your browser",
-		Long:  "Open loco pages in your browser. Defaults to dashboard if no argument provided.",
+		Long: `Open loco pages in your browser. Defaults to dashboard if no page is given.
+
+Pages: dashboard, resources, create-resource, events, observability, usage,
+settings, org-settings, profile, tokens, organizations, team`,
+		Args: cobra.MaximumNArgs(1),
+		ValidArgs: []string{
+			pageDashboard,
+			"resources",
+			"create-resource",
+			"events",
+			"observability",
+			"usage",
+			"settings",
+			"org-settings",
+			"profile",
+			"tokens",
+			"organizations",
+			"team",
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return webCmdFunc(cmd, args)
 		},
@@ -50,7 +72,9 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 
 	var path string
 	switch page {
-	case "dashboard", "":
+	case "":
+		path = buildWorkspacePath(orgID, workspaceID, "/dashboard")
+	case pageDashboard:
 		path = buildWorkspacePath(orgID, workspaceID, "/dashboard")
 	case "resources":
 		path = buildWorkspacePath(orgID, workspaceID, "/resources")
@@ -66,12 +90,16 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 		path = buildOrgPath(orgID, "/settings")
 	case "create-resource":
 		path = buildWorkspacePath(orgID, workspaceID, "/create-resource")
-	case "profile", "account":
+	case "profile":
+		path = "/profile"
+	case "account":
 		path = "/profile"
 	case "tokens":
 		path = "/tokens"
-	case "organizations", "orgs":
-		path = "/organizations"
+	case "organizations":
+		path = organizationsPath
+	case "orgs":
+		path = organizationsPath
 	case "team":
 		path = "/team"
 	default:
@@ -86,12 +114,13 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 
 	displayPage := page
 	if displayPage == "" {
-		displayPage = "dashboard"
+		displayPage = pageDashboard
 	}
 
 	slog.Debug("opening url in browser", "url", url, "page", displayPage)
 
-	if err := openBrowser(url); err != nil {
+	ctx := cmd.Context()
+	if err = openBrowser(ctx, url); err != nil {
 		return fmt.Errorf("failed to open browser: %w", err)
 	}
 
@@ -100,8 +129,8 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func openBrowser(url string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func openBrowser(ctx context.Context, url string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -133,7 +162,7 @@ func buildWorkspacePath(orgID, workspaceID string, subpath string) string {
 
 func buildOrgPath(orgID string, subpath string) string {
 	if orgID == "" {
-		return "/organizations"
+		return organizationsPath
 	}
 	return fmt.Sprintf("/org/%s%s", orgID, subpath)
 }

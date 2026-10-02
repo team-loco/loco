@@ -1,7 +1,6 @@
 package loco
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -36,7 +35,7 @@ Examples:
 }
 
 func useCmdFunc(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
+	ctx := cmd.Context()
 
 	host, err := cmdutil.GetHost(cmd)
 	if err != nil {
