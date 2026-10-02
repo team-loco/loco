@@ -1,5 +1,5 @@
 -- name: GetUserScopes :many
-SELECT ROW(scope, entity_type, entity_id)::entity_scope
+SELECT entity_type, entity_id, scope
 FROM user_scopes
 WHERE user_id = $1;
 
@@ -8,41 +8,30 @@ SELECT * FROM user_with_scopes_view WHERE email = $1;
 
 -- what scopes does user x have on entity y?
 -- name: GetUserScopesOnEntity :many
-SELECT ROW(scope, entity_type, entity_id)::entity_scope
+SELECT entity_type, entity_id, scope
 FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3;
 
 -- name: GetUserScopesOnOrganization :many
-WITH RECURSIVE entity_hierarchy AS (
-     -- Base case: the organization itself
-     SELECT
-         'organization'::entity_type as entity_type,
-         o.id as entity_id,
-         o.name as entity_name
+WITH entity_hierarchy AS (
+     SELECT 'organization'::entity_type AS entity_type, o.id AS entity_id
      FROM organizations o
      WHERE o.id = $1
 
      UNION ALL
 
-     -- Workspaces in the organization
-     SELECT
-         'workspace'::entity_type,
-         w.id,
-         w.name
+     SELECT 'workspace'::entity_type, w.id
      FROM workspaces w
-     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'organization' AND eh.entity_id = w.org_id
+     WHERE w.org_id = $1
 
      UNION ALL
 
-     -- Resources in the workspaces
-     SELECT
-         'resource'::entity_type,
-         r.id,
-         r.name
+     SELECT 'resource'::entity_type, r.id
      FROM resources r
-     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
+     INNER JOIN workspaces w ON w.id = r.workspace_id
+     WHERE w.org_id = $1
  )
  SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+     us.entity_type, us.entity_id, us.scope
  FROM user_scopes us
  INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
  WHERE us.user_id = $2
@@ -69,7 +58,7 @@ WITH RECURSIVE entity_hierarchy AS (
      INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
  )
  SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+     us.entity_type, us.entity_id, us.scope
  FROM user_scopes us
  INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
  WHERE us.user_id = $2

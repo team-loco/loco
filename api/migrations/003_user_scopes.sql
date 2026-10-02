@@ -1,9 +1,4 @@
 CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'resource', 'user');
-CREATE TYPE entity_scope AS (
-    scope TEXT,
-    entity_type entity_type,
-    entity_id UUID
-);
 
 CREATE TABLE user_scopes (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

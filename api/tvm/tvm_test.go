@@ -77,16 +77,16 @@ func (*TestingQueries) GetUserByEmail(_ context.Context, email string) (queries.
 	}
 }
 
-func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
+func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]queries.GetUserScopesRow, error) {
 	switch userID {
 	case user1UUID:
-		return []queries.EntityScope{
+		return []queries.GetUserScopesRow{
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
 		}, nil
 	case user2UUID:
-		return []queries.EntityScope{
+		return []queries.GetUserScopesRow{
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
@@ -95,7 +95,7 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
 		}, nil
 	case user3UUID:
-		return []queries.EntityScope{
+		return []queries.GetUserScopesRow{
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
@@ -103,14 +103,14 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
 		}, nil
 	case user4UUID:
-		return []queries.EntityScope{
+		return []queries.GetUserScopesRow{
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID},
 		}, nil
 	case user5UUID:
-		return []queries.EntityScope{
+		return []queries.GetUserScopesRow{
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
@@ -123,7 +123,7 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 	}
 }
 
-func (tq *TestingQueries) getUserScopesByEmail(ctx context.Context, email string) ([]queries.EntityScope, error) {
+func (tq *TestingQueries) getUserScopesByEmail(ctx context.Context, email string) ([]queries.GetUserScopesRow, error) {
 	switch email {
 	case "user1@loco-testing.com":
 		return tq.GetUserScopes(ctx, user1UUID)
@@ -148,9 +148,13 @@ func (tq *TestingQueries) GetUserWithScopesByEmail(
 	if err != nil {
 		return queries.UserWithScopesView{}, err
 	}
-	scopes, err := tq.getUserScopesByEmail(ctx, email)
+	rows, err := tq.getUserScopesByEmail(ctx, email)
 	if err != nil {
 		return queries.UserWithScopesView{}, err
+	}
+	scopes := make([]queries.EntityScope, len(rows))
+	for i, row := range rows {
+		scopes[i] = queries.EntityScope(row)
 	}
 	return queries.UserWithScopesView{
 		ID:        user.ID,
@@ -166,7 +170,7 @@ func (tq *TestingQueries) GetUserWithScopesByEmail(
 func (*TestingQueries) GetUserScopesOnWorkspace(
 	_ context.Context,
 	_ queries.GetUserScopesOnWorkspaceParams,
-) ([]queries.EntityScope, error) {
+) ([]queries.GetUserScopesOnWorkspaceRow, error) {
 	return nil, nil
 }
 
