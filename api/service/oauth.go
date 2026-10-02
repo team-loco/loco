@@ -104,7 +104,7 @@ var OAuthStateTTL = 10 * time.Minute
 // secureFlag returns "; Secure" when running in production so cookies are
 // only sent over HTTPS. In other environments it returns an empty string.
 func secureFlag() string {
-	if os.Getenv("LOCO_ENV") == "production" {
+	if os.Getenv("APP_ENV") == "PRODUCTION" {
 		return "; Secure"
 	}
 	return ""
