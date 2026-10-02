@@ -70,16 +70,23 @@ func ui(env environment) railway.Service {
 			"branch":      env.branch,
 			"checkSuites": false,
 		}),
-		"build":      dockerBuild("/web/Dockerfile"),
-		"replicas":   map[string]any{region: 2},
-		"deploy":     limits(0.5, 1000000000),
-		"domains":    []any{env.domainPrefix + "loco.build"},
-		"networking": map[string]any{"privateNetworkEndpoint": "captivating-wisdom"},
-		"env":        preserved("VITE_API_URL", "VITE_APP_ENV"),
+		"build":    dockerBuild("/web/Dockerfile"),
+		"replicas": map[string]any{region: 2},
+		"deploy":   limits(0.5, 1000000000),
+		"networking": map[string]any{
+			"privateNetworkEndpoint": "captivating-wisdom",
+			"customDomains": map[string]any{
+				env.domainPrefix + "loco.build": map[string]any{"port": 8080},
+			},
+		},
+		"env": preserved("VITE_API_URL", "VITE_APP_ENV"),
 	})
 }
 
 func api(env environment) railway.Service {
+	deploy := limits(1, 2000000000)
+	deploy["healthcheckPath"] = "/health"
+	deploy["healthcheckTimeout"] = 300
 	return railway.ServiceNamed("loco::cp-api", railway.ServiceConfig{
 		"source": railway.Github(repo, map[string]any{
 			"branch":      env.branch,
@@ -87,11 +94,13 @@ func api(env environment) railway.Service {
 		}),
 		"build":    dockerBuild("/api/Dockerfile"),
 		"replicas": map[string]any{region: 2},
-		"deploy":   limits(1, 2000000000),
-		"domains": []any{
-			map[string]any{"domain": "api." + env.domainPrefix + "loco.build", "port": 8000},
+		"deploy":   deploy,
+		"networking": map[string]any{
+			"privateNetworkEndpoint": "loco",
+			"customDomains": map[string]any{
+				"api." + env.domainPrefix + "loco.build": map[string]any{"port": 8000},
+			},
 		},
-		"networking": map[string]any{"privateNetworkEndpoint": "loco"},
 		"env": preserved(
 			"APP_ENV",
 			"APP_PORT",
