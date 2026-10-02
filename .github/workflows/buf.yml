@@ -10,6 +10,11 @@ on:
       - "**/buf.yaml"
       - "**/buf.lock"
       - "**/buf.gen.yaml"
+      - "gen/**"
+      - "go.mod"
+      - "go.sum"
+      - "package.json"
+      - "bun.lock"
       - ".github/workflows/buf.yml"
       - "mise.toml"
       - "mise.lock"
@@ -24,6 +29,11 @@ on:
       - "**/buf.yaml"
       - "**/buf.lock"
       - "**/buf.gen.yaml"
+      - "gen/**"
+      - "go.mod"
+      - "go.sum"
+      - "package.json"
+      - "bun.lock"
       - ".github/workflows/buf.yml"
       - "mise.toml"
       - "mise.lock"
@@ -47,7 +57,32 @@ jobs:
       - uses: ./.github/actions/setup-tools
 
       - name: buf lint
-        run: mise run lint:proto
+        run: mise run lint:proto -- --error-format github-actions
+
+  generate:
+    name: Verify Generated Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: buf-generate
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Regenerate Go and TypeScript from the protos
+        run: buf generate
+
+      - name: Fail if anything is out of date
+        run: |
+          if [ -n "$(git status --porcelain -- gen)" ]; then
+            git status --short -- gen
+            git diff -- gen
+            echo "::error::Generated code is out of date. Run 'mise run gen' and commit the result."
+            exit 1
+          fi
 
   buf:
     name: Buf Breaking
