@@ -101,9 +101,9 @@ jobs:
           # an image is rescanned when its own tree, its Dockerfile, or a module
           # graph it compiles against moves
           add '"controller"' '^(controller/|k8sapi/)'
-          add '"api"' '^(api/|gen/go/|k8sapi/)'
-          add '"agent"' '^(agent/|gen/go/|k8sapi/)'
-          add '"observability-proxy"' '^(observability-proxy/|gen/go/)'
+          add '"api"' '^(api/|gen/go/|go\.mod$|go\.sum$|k8sapi/)'
+          add '"agent"' '^(agent/|gen/go/|go\.mod$|go\.sum$|k8sapi/)'
+          add '"observability-proxy"' '^(observability-proxy/|gen/go/|go\.mod$|go\.sum$)'
           add '"ui"' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
 
           printf 'images=[%s]\n' "$(IFS=,; echo "${sel[*]-}")" >> "$GITHUB_OUTPUT"
