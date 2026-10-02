@@ -9,6 +9,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BIN_DIR="$SCRIPT_DIR/bin"
 LOG_DIR="$SCRIPT_DIR/logs"
 PID_DIR="$SCRIPT_DIR/pids"
+KUBECONFIG_FILE="$SCRIPT_DIR/kubeconfig"
 
 # Config
 KIND_CLUSTER_NAME="loco-e2e"
@@ -64,6 +65,7 @@ teardown() {
         log_info "Deleting Kind cluster ${KIND_CLUSTER_NAME}..."
         kind delete cluster --name "$KIND_CLUSTER_NAME"
     fi
+    rm -f "$KUBECONFIG_FILE"
 
     # Remove Postgres and its volume
     log_info "Removing Postgres..."
@@ -118,8 +120,8 @@ setup_kind() {
     fi
 
     # Point kubectl at the e2e cluster
-    export KUBECONFIG="$(kind get kubeconfig-path --name "$KIND_CLUSTER_NAME" 2>/dev/null || echo "$HOME/.kube/config")"
-    kubectl config use-context "kind-${KIND_CLUSTER_NAME}" >/dev/null 2>&1
+    kind get kubeconfig --name "$KIND_CLUSTER_NAME" >"$KUBECONFIG_FILE"
+    export KUBECONFIG="$KUBECONFIG_FILE"
     kubectl cluster-info --context "kind-${KIND_CLUSTER_NAME}" >/dev/null 2>&1
     log_ok "kubectl context set to kind-${KIND_CLUSTER_NAME}"
 }
@@ -178,7 +180,6 @@ start_api() {
 
     DATABASE_URL="$E2E_DATABASE_URL" \
     APP_PORT=":$API_PORT" \
-    LOCO_NAMESPACE="$LOCO_NAMESPACE" \
     DEFAULT_PLATFORM_DOMAIN="e2e.test.local" \
     APP_ENV="test" \
     LOG_LEVEL="-4" \
@@ -198,7 +199,8 @@ start_agent() {
     AGENT_TOKEN="$AGENT_TOKEN" \
     REGION="us-east-1" \
     AGENT_VERSION="e2e-test" \
-    KUBECONFIG="$(kind get kubeconfig-path --name "$KIND_CLUSTER_NAME" 2>/dev/null || echo "$HOME/.kube/config")" \
+    LOCO_NAMESPACE="$LOCO_NAMESPACE" \
+    KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
         >"$LOG_DIR/agent.log" 2>&1 &
 
@@ -220,7 +222,7 @@ start_agent() {
 start_controller() {
     log_step "Starting Controller..."
 
-    KUBECONFIG="$(kind get kubeconfig-path --name "$KIND_CLUSTER_NAME" 2>/dev/null || echo "$HOME/.kube/config")" \
+    KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-controller" \
         >"$LOG_DIR/controller.log" 2>&1 &
 

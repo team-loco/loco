@@ -22,6 +22,7 @@ type Config struct {
 	AgentToken      string // Bearer token for authentication
 	Region          string // Region this agent is in
 	AgentVersion    string // Version of the agent
+	Namespace       string
 }
 
 func newConfig() *Config {
@@ -30,6 +31,7 @@ func newConfig() *Config {
 		AgentToken:      os.Getenv("AGENT_TOKEN"),
 		Region:          getEnvOrDefault("REGION", "us-east-1"),
 		AgentVersion:    getEnvOrDefault("AGENT_VERSION", "0.1.0"),
+		Namespace:       os.Getenv("LOCO_NAMESPACE"),
 	}
 }
 
@@ -48,6 +50,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cfg.Namespace == "" {
+		slog.Error("LOCO_NAMESPACE environment variable is required")
+		os.Exit(1)
+	}
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
@@ -57,6 +64,7 @@ func main() {
 		"control_plane", cfg.ControlPlaneURL,
 		"region", cfg.Region,
 		"version", cfg.AgentVersion,
+		"namespace", cfg.Namespace,
 	)
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
@@ -74,7 +82,7 @@ func main() {
 	)
 
 	// Create the Kubernetes applier
-	kubeApplier, err := applier.New()
+	kubeApplier, err := applier.New(cfg.Namespace)
 	if err != nil {
 		slog.Error("failed to create kubernetes applier", "error", err)
 		os.Exit(1)
@@ -247,7 +255,7 @@ func (a *Agent) handleDelete(ctx context.Context, cmd *agentv1.CommandStreamResp
 		return fmt.Errorf("delete payload is nil")
 	}
 
-	return a.applier.DeleteFromJSON(ctx, del.GetResourceId(), del.GetNamespace())
+	return a.applier.DeleteFromJSON(ctx, del.GetResourceId())
 }
 
 // runHeartbeat sends periodic heartbeats to the control plane.

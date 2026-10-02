@@ -18,11 +18,12 @@ import (
 
 // Applier handles applying Kubernetes resources.
 type Applier struct {
-	client client.Client
+	client    client.Client
+	namespace string
 }
 
 // New creates a new Applier using in-cluster config.
-func New() (*Applier, error) {
+func New(namespace string) (*Applier, error) {
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		// Fall back to default kubeconfig for local development
@@ -43,7 +44,7 @@ func New() (*Applier, error) {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	return &Applier{client: c}, nil
+	return &Applier{client: c, namespace: namespace}, nil
 }
 
 // getOutOfClusterConfig loads kubeconfig from the default location.
@@ -72,14 +73,14 @@ func (a *Applier) ApplyFromJSON(ctx context.Context, specJSON []byte) error {
 	slog.Info("applying application",
 		"resource_id", payload.ResourceID,
 		"resource_name", payload.ResourceName,
-		"namespace", payload.LocoNamespace,
+		"namespace", a.namespace,
 	)
 
 	// Build the Application CR
 	app := &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%s", payload.ResourceID),
-			Namespace: payload.LocoNamespace,
+			Namespace: a.namespace,
 			Labels:    map[string]string{},
 		},
 		Spec: *payload.AppSpec,
@@ -113,13 +114,13 @@ func (a *Applier) ApplyFromJSON(ctx context.Context, specJSON []byte) error {
 }
 
 // DeleteFromJSON deletes an Application by resource ID.
-func (a *Applier) DeleteFromJSON(ctx context.Context, resourceID string, namespace string) error {
-	slog.Info("deleting application", "resource_id", resourceID, "namespace", namespace)
+func (a *Applier) DeleteFromJSON(ctx context.Context, resourceID string) error {
+	slog.Info("deleting application", "resource_id", resourceID, "namespace", a.namespace)
 
 	app := &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("resource-%v", resourceID),
-			Namespace: namespace,
+			Namespace: a.namespace,
 		},
 	}
 
@@ -130,26 +131,18 @@ func (a *Applier) DeleteFromJSON(ctx context.Context, resourceID string, namespa
 		slog.Warn("Application not found for deletion", "name", app.Name)
 	}
 
-	slog.Info("deleted Application", "name", app.Name, "namespace", namespace)
+	slog.Info("deleted Application", "name", app.Name, "namespace", a.namespace)
 	return nil
 }
 
 // DeployPayload matches the structure sent by the API's DeployCommandPayload.
 type DeployPayload struct {
-	DeploymentID  string                            `json:"deployment_id"`
-	ResourceID    string                            `json:"resource_id"`
-	WorkspaceID   string                            `json:"workspace_id"`
-	ResourceName  string                            `json:"resource_name"`
-	ResourceType  string                            `json:"resource_type"`
-	Region        string                            `json:"region"`
-	Hostname      string                            `json:"hostname"`
-	LocoNamespace string                            `json:"loco_namespace"`
-	AppSpec       *locoControllerV1.ApplicationSpec `json:"app_spec"`
-}
-
-// DeletePayload matches the structure sent by the API's DeleteCommandPayload.
-type DeletePayload struct {
-	DeploymentID  string `json:"deployment_id"`
-	ResourceID    string `json:"resource_id"`
-	LocoNamespace string `json:"loco_namespace"`
+	DeploymentID string                            `json:"deployment_id"`
+	ResourceID   string                            `json:"resource_id"`
+	WorkspaceID  string                            `json:"workspace_id"`
+	ResourceName string                            `json:"resource_name"`
+	ResourceType string                            `json:"resource_type"`
+	Region       string                            `json:"region"`
+	Hostname     string                            `json:"hostname"`
+	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
 }
