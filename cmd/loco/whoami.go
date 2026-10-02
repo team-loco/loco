@@ -1,51 +1,22 @@
 package loco
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"log/slog"
-	"os"
-	"os/user"
 
 	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/internal/client"
-	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
 
-type whoamiDeps struct {
-	GetCurrentUser func(ctx context.Context, host, token string) (*userv1.User, error) // Pass context
-	GetLocoToken   func(username string) (*keychain.UserToken, error)
-	LoadConfig     func() (*session.SessionConfig, error)
-	Output         io.Writer
-}
-
-func buildWhoAmICmd() *cobra.Command {
-	deps := whoamiDeps{
-		GetCurrentUser: func(ctx context.Context, host, token string) (*userv1.User, error) {
-			apiClient := client.NewClient(host, token)
-			return apiClient.GetCurrentUser(ctx)
-		},
-		GetLocoToken: func(username string) (*keychain.UserToken, error) {
-			return keychain.GetLocoToken(username)
-		},
-		LoadConfig: func() (*session.SessionConfig, error) {
-			return session.Load()
-		},
-		Output: os.Stdout,
-	}
-	return newWhoAmICmd(deps)
-}
-
-func newWhoAmICmd(deps whoamiDeps) *cobra.Command {
-	cmd := cobra.Command{
+func newWhoAmICmd(env Env) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "whoami",
 		Short: "displays information on the logged in user",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
@@ -54,39 +25,38 @@ func newWhoAmICmd(deps whoamiDeps) *cobra.Command {
 				return err
 			}
 
-			currentUser, err := user.Current()
+			store, err := env.Tokens()
 			if err != nil {
-				return fmt.Errorf("failed to get current user: %w", err)
+				return err
 			}
 
-			t, err := deps.GetLocoToken(currentUser.Name)
+			t, err := cmdutil.FreshToken(ctx, host, store)
 			if err != nil {
-				slog.Error("failed keychain token grab", "error", err)
-				return ErrLoginRequired
+				return err
 			}
 
-			usr, err := deps.GetCurrentUser(ctx, host, t.Token)
+			apiClient := client.NewClient(host, t.Token)
+			usr, err := apiClient.GetCurrentUser(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
 
-			cfg, cfgErr := deps.LoadConfig()
 			var currentOrg, currentWorkspace string
-			if cfgErr == nil {
-				scope, scopeErr := cfg.GetScope()
-				if scopeErr == nil {
+			if cfg, cfgErr := session.Load(); cfgErr == nil {
+				if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
 					currentOrg = scope.Organization.Name
 					currentWorkspace = scope.Workspace.Name
 				}
 			}
 
-			content := renderCardString(usr, currentOrg, currentWorkspace)
-			_, err = fmt.Fprintln(deps.Output, content)
+			card := renderCardString(usr, currentOrg, currentWorkspace)
+			out := cmd.OutOrStdout()
+			_, err = lipgloss.Fprintln(out, card)
 			return err
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
-	return &cmd
+	return cmd
 }
 
 func renderCardString(usr *userv1.User, currentOrg, currentWorkspace string) string {

@@ -27,12 +27,12 @@ produce wrong results against other runtimes.
 ### Env var (consistent with other loco env vars)
 
 ```
-LOCO__DOCKER_SOCKET=unix:///path/to/socket
+LOCO_DOCKER_SOCKET=unix:///path/to/socket
 ```
 
 ### Resolution order
 
-`--docker-socket` flag → `LOCO__DOCKER_SOCKET` env var → auto-detect
+`--docker-socket` flag → `LOCO_DOCKER_SOCKET` env var → auto-detect
 
 ### Auto-detection order
 
@@ -86,7 +86,7 @@ pattern as `GetHost`:
 ```go
 func GetDockerSocket(cmd *cobra.Command) (string, error) {
     // 1. --docker-socket flag
-    // 2. LOCO__DOCKER_SOCKET env var
+    // 2. LOCO_DOCKER_SOCKET env var
     // 3. return "" (triggers auto-detect in NewClient)
 }
 ```

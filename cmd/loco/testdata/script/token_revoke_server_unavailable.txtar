@@ -1,0 +1,9 @@
+# when the server cannot revoke the token, the token is kept so the user can retry.
+fakeapi fail Logout unavailable
+! exec loco token revoke --yes
+stderr 'Failed to revoke token on the server'
+! stdout 'Token revoked'
+exists $HOME/.loco/credentials.json
+
+-- home/.loco/credentials.json --
+{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

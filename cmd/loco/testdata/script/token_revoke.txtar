@@ -1,0 +1,11 @@
+# revoke invalidates the session on the server, then forgets it locally.
+exec loco token revoke --yes
+stdout 'Token revoked'
+fakeapi called Logout 'Bearer test-token'
+! exists $HOME/.loco/credentials.json
+
+! exec loco whoami
+stderr 'Login required'
+
+-- home/.loco/credentials.json --
+{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

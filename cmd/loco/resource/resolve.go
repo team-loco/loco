@@ -29,7 +29,7 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 		return org, nil
 	}
 
-	org = os.Getenv("LOCO__ORG")
+	org = os.Getenv("LOCO_ORG")
 	if org != "" {
 		slog.Debug("using org from environment variable")
 		return org, nil
@@ -39,7 +39,7 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 	if err != nil {
 		slog.Debug("failed to load default config", "error", err)
 		return "", fmt.Errorf(
-			"org not specified and no default found. Use --org flag or set LOCO__ORG environment variable",
+			"org not specified and no default found. Use --org flag or set LOCO_ORG environment variable",
 		)
 	}
 
@@ -50,7 +50,7 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 	}
 
 	return "", fmt.Errorf(
-		"org not specified and no default found. Use --org flag or set LOCO__ORG environment variable",
+		"org not specified and no default found. Use --org flag or set LOCO_ORG environment variable",
 	)
 }
 
@@ -65,7 +65,7 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 		return workspace, nil
 	}
 
-	workspace = os.Getenv("LOCO__WORKSPACE")
+	workspace = os.Getenv("LOCO_WORKSPACE")
 	if workspace != "" {
 		slog.Debug("using workspace from environment variable")
 		return workspace, nil
@@ -75,7 +75,7 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 	if err != nil {
 		slog.Debug("failed to load default config", "error", err)
 		return "", fmt.Errorf(
-			"workspace not specified and no default found. Use --workspace flag or set LOCO__WORKSPACE environment variable",
+			"workspace not specified and no default found. Use --workspace flag or set LOCO_WORKSPACE environment variable",
 		)
 	}
 
@@ -86,7 +86,7 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 	}
 
 	return "", fmt.Errorf(
-		"workspace not specified and no default found. Use --workspace flag or set LOCO__WORKSPACE environment variable",
+		"workspace not specified and no default found. Use --workspace flag or set LOCO_WORKSPACE environment variable",
 	)
 }
 

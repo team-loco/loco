@@ -1,98 +1,67 @@
 package loco
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"io"
-	"log/slog"
-	"os"
-	"os/user"
 
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
 )
 
-type logoutDeps struct {
-	Logout          func(ctx context.Context, host, token string) error
-	GetLocoToken    func(username string) (*keychain.UserToken, error)
-	DeleteLocoToken func(username string) error
-	Output          io.Writer
-}
-
-func buildLogoutCmd() *cobra.Command {
-	deps := logoutDeps{
-		Logout: func(ctx context.Context, host, token string) error {
-			httpClient := httputil.NewHTTPClient()
-			userClient := userv1connect.NewUserServiceClient(httpClient, host)
-			req := connect.NewRequest(&userv1.LogoutRequest{})
-			req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
-			_, err := userClient.Logout(ctx, req)
-			return err
-		},
-		GetLocoToken: func(username string) (*keychain.UserToken, error) {
-			return keychain.GetLocoToken(username)
-		},
-		DeleteLocoToken: func(username string) error {
-			return keychain.DeleteLocoToken(username)
-		},
-		Output: os.Stdout,
-	}
-	return newLogoutCmd(deps)
-}
-
-func newLogoutCmd(deps logoutDeps) *cobra.Command {
-	cmd := cobra.Command{
+func newLogoutCmd(env Env) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "logout",
 		Short: "Log out of loco and revoke the current session token",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
+			out := cmd.OutOrStdout()
 
 			host, err := cmdutil.GetHost(cmd)
 			if err != nil {
 				return err
 			}
 
-			currentUser, err := user.Current()
+			store, err := env.Tokens()
 			if err != nil {
-				return fmt.Errorf("failed to get current user: %w", err)
+				return err
 			}
 
-			t, err := deps.GetLocoToken(currentUser.Name)
-			if err != nil {
-				slog.Debug("no token found in keychain", "error", err)
-				fmt.Fprintln(
-					deps.Output,
-					lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in."),
-				)
+			t, err := store.Get()
+			if errors.Is(err, keychain.ErrNotFound) {
+				notLoggedIn := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in.")
+				lipgloss.Fprintln(out, notLoggedIn)
 				return nil
 			}
-
-			// Revoke the token on the server
-			if err := deps.Logout(ctx, host, t.Token); err != nil {
-				slog.Debug("failed to revoke token on server", "error", err)
-				// Continue to delete local token even if server revocation fails
+			if err != nil {
+				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
-			// Delete the token from keychain
-			if err := deps.DeleteLocoToken(currentUser.Name); err != nil {
-				slog.Debug("failed to delete token from keychain", "error", err)
+			if err = cmdutil.RevokeToken(ctx, host, t.Token); err != nil {
+				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
+				if connect.CodeOf(err) != connect.CodeUnauthenticated {
+					warning := lipgloss.NewStyle().
+						Foreground(ui.LocoOrange).
+						Render("Warning: could not revoke the session on the server; the token stays valid until it expires.")
+					errOut := cmd.ErrOrStderr()
+					lipgloss.Fprintln(errOut, warning)
+				}
+			}
+
+			if err = store.Delete(); err != nil {
 				return fmt.Errorf("failed to delete token from keychain: %w", err)
 			}
 
 			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
 			message := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Logged out successfully!")
-			fmt.Fprintf(deps.Output, "%s %s\n", checkmark, message)
-
+			lipgloss.Fprintf(out, "%s %s\n", checkmark, message)
 			return nil
 		},
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
-	return &cmd
+	return cmd
 }

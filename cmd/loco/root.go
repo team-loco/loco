@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/user"
 	"path/filepath"
 	"time"
 
@@ -13,44 +14,75 @@ import (
 	"github.com/team-loco/loco/cmd/loco/resource"
 	"github.com/team-loco/loco/cmd/loco/token"
 	"github.com/team-loco/loco/cmd/loco/workspace"
+	"github.com/team-loco/loco/internal/keychain"
+	"github.com/team-loco/loco/internal/session"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var (
-	logPath   string
-	startTime time.Time
-)
+type Env struct {
+	CurrentUser func() (*user.User, error)
+	Tokens      func() (keychain.TokenStore, error)
+}
 
-var RootCmd = &cobra.Command{
-	Use:   "loco",
-	Short: "The CLI for managing loco deployments",
-	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-		startTime = time.Now()
-		if err := initLogger(cmd); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
-			os.Exit(1)
+func NewEnv() Env {
+	env := Env{CurrentUser: user.Current}
+	env.Tokens = func() (keychain.TokenStore, error) {
+		currentUser, err := env.CurrentUser()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current user: %w", err)
 		}
-	},
-	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
-		slog.Info(
-			"command finished",
-			"command", cmd.Name(),
-			"duration", time.Since(startTime),
-		)
-	},
+		return keychain.NewStore(currentUser)
+	}
+	return env
+}
+
+func NewRootCmd(env Env) *cobra.Command {
+	var startTime time.Time
+	root := &cobra.Command{
+		Use:   "loco",
+		Short: "The CLI for managing loco deployments",
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			startTime = time.Now()
+			if err := initLogger(cmd); err != nil {
+				return fmt.Errorf("failed to initialize logger: %w", err)
+			}
+			return nil
+		},
+		PersistentPostRun: func(cmd *cobra.Command, _ []string) {
+			slog.Info(
+				"command finished",
+				"command", cmd.Name(),
+				"duration", time.Since(startTime),
+			)
+		},
+	}
+
+	root.AddCommand(newLoginCmd(env),
+		newLogoutCmd(env),
+		newUseCmd(),
+		newWhoAmICmd(env),
+		newInitCmd(),
+		newValidateCmd(),
+		newWebCmd(),
+		config.BuildConfigCmd(),
+	)
+
+	root.AddCommand(resource.BuildResourceCmd())
+	root.AddCommand(org.BuildOrgCmd())
+	root.AddCommand(workspace.BuildWorkspaceCmd())
+	root.AddCommand(token.BuildTokenCmd())
+	return root
 }
 
 func initLogger(cmd *cobra.Command) error {
-	home, err := os.UserHomeDir()
+	logsDir, err := session.Dir()
 	if err != nil {
-		return fmt.Errorf("failed to get user home directory: %w", err)
+		return err
 	}
-
-	logsDir := filepath.Join(home, ".loco")
-	logPath = filepath.Join(logsDir, "loco.log")
+	logsPath := filepath.Join(logsDir, "loco.log")
 
 	output := &lumberjack.Logger{
-		Filename:   logPath,
+		Filename:   logsPath,
 		MaxSize:    2, // megabytes
 		MaxBackups: 0,
 		MaxAge:     30, // days
@@ -67,23 +99,4 @@ func initLogger(cmd *cobra.Command) error {
 		"args", os.Args,
 	)
 	return nil
-}
-
-func init() {
-	// Root-level commands
-	RootCmd.AddCommand(loginCmd,
-		buildLogoutCmd(),
-		useCmd,
-		buildWhoAmICmd(),
-		initCmd,
-		validateCmd,
-		webCmd,
-		config.BuildConfigCmd(),
-	)
-
-	// Resource-based commands
-	RootCmd.AddCommand(resource.BuildResourceCmd())
-	RootCmd.AddCommand(org.BuildOrgCmd())
-	RootCmd.AddCommand(workspace.BuildWorkspaceCmd())
-	RootCmd.AddCommand(token.BuildTokenCmd())
 }

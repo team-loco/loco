@@ -57,7 +57,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			locoToken, err := cmdutil.GetCurrentLocoToken()
+			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 			if err != nil {
 				return err
 			}

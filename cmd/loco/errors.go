@@ -1,6 +1,10 @@
 package loco
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
+)
 
 var (
 	// Flag parsing errors
@@ -14,7 +18,7 @@ var (
 	// Authentication errors
 	ErrTokenExpired  = errors.New("authentication token has expired")
 	ErrTokenInvalid  = errors.New("invalid authentication token")
-	ErrLoginRequired = errors.New("login required - please run 'loco login'")
+	ErrLoginRequired = cmdutil.ErrLoginRequired
 	ErrAuthFailed    = errors.New("authentication failed")
 
 	// Docker errors

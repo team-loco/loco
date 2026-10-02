@@ -1,0 +1,14 @@
+# logout revokes the session on the server and removes the local token.
+exec loco logout
+stdout '^✔ Logged out successfully!$'
+! stdout '\x1b\['
+! stderr .
+fakeapi called Logout 'Bearer test-token'
+! exists $HOME/.loco/credentials.json
+
+# a second logout has nothing left to do.
+exec loco logout
+stdout '^You are not logged in\.$'
+
+-- home/.loco/credentials.json --
+{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

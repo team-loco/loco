@@ -251,7 +251,7 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - **Non-interactive deploy** — `loco deploy --non-interactive --token {TOKEN}`. Needed for CI.
   Dependent on TVM being stable.
 
-- **Image builders** — TDD written. Accept `--docker-socket` / `LOCO__DOCKER_SOCKET` to support
+- **Image builders** — TDD written. Accept `--docker-socket` / `LOCO_DOCKER_SOCKET` to support
   any OCI-compatible runtime (Podman, nerdctl, etc.) via Docker-compatible socket API. Version
   check branches on `Platform.Name` — only enforced for Docker Engine. Auto-detect socket if
   not provided.

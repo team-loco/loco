@@ -101,7 +101,7 @@ func streamLogsJSON(cmd *cobra.Command, deps logsDeps, name string) error {
 		return err
 	}
 
-	locoToken, err := cmdutil.GetCurrentLocoToken()
+	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 	if err != nil {
 		return fmt.Errorf("login required - please run 'loco login'")
 	}
@@ -195,7 +195,7 @@ func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error
 		return err
 	}
 
-	locoToken, err := cmdutil.GetCurrentLocoToken()
+	locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 	if err != nil {
 		return fmt.Errorf("login required - please run 'loco login'")
 	}

@@ -1,0 +1,4 @@
+exec loco logout
+stdout '^You are not logged in\.$'
+! stderr .
+! fakeapi called Logout

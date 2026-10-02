@@ -11,16 +11,20 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
-var validateCmd = &cobra.Command{
-	Use:   "validate",
-	Short: "Validate a loco.toml configuration file",
-	Long: `Validate a loco.toml file and catch most configuration errors before deployment.
+func newValidateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "validate",
+		Short: "Validate a loco.toml configuration file",
+		Long: `Validate a loco.toml file and catch most configuration errors before deployment.
 
 Note: CPU and memory limits are validated against the Kubernetes resource format.
 See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ for details.`,
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		return validateCmdFunc(cmd)
-	},
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return validateCmdFunc(cmd)
+		},
+	}
+	cmd.Flags().StringP("config", "c", "", "path to loco.toml config file (defaults to ./loco.toml)")
+	return cmd
 }
 
 func validateCmdFunc(cmd *cobra.Command) error {
@@ -50,8 +54,4 @@ func validateCmdFunc(cmd *cobra.Command) error {
 	fmt.Printf("Port: %d\n", loadedCfg.Config.Routing.Port)
 
 	return nil
-}
-
-func init() {
-	validateCmd.Flags().StringP("config", "c", "", "path to loco.toml config file (defaults to ./loco.toml)")
 }

@@ -1,0 +1,3 @@
+! exec loco token revoke --yes
+stderr 'Not logged in'
+! fakeapi called Logout

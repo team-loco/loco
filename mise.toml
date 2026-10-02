@@ -84,7 +84,7 @@ depends = ["test:*"]
 
 [tasks."test:cli"]
 description = "Test the CLI"
-run = "go test -v -coverprofile=coverage.out ./cmd/..."
+run = "go test -v -coverprofile=coverage.out ./cmd/... ./internal/..."
 
 [tasks."test:api"]
 description = "Test the API server"
