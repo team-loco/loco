@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -63,7 +63,6 @@ type ResourceServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	machine *tvm.VendingMachine
-	cmdBus  commandbus.CommandBus
 }
 
 // NewResourceServer creates a new ResourceServer instance
@@ -71,13 +70,11 @@ func NewResourceServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
-	cmdBus commandbus.CommandBus,
 ) *ResourceServer {
 	return &ResourceServer{
 		db:      db,
 		queries: queries,
 		machine: machine,
-		cmdBus:  cmdBus,
 	}
 }
 
@@ -492,66 +489,55 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	// Get active deployments to determine which clusters need delete commands
-	activeDeployments, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	// Dispatch delete commands to all clusters with active deployments
-	for _, deployment := range activeDeployments {
-		cmdPayload := DeleteCommandPayload{
-			DeploymentID: deployment.ID.String(),
-			ResourceID:   res.ID.String(),
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		activeDeployments, listErr := qtx.ListActiveDeploymentsForResource(ctx, resourceID)
+		if listErr != nil {
+			return fmt.Errorf("list active deployments: %w", listErr)
 		}
 
-		payloadJSON, marshalErr := json.Marshal(cmdPayload)
-		if marshalErr != nil {
-			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", marshalErr)
-			return nil, connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("failed to marshal command payload: %w", marshalErr),
-			)
-		}
+		enqueued := make(map[uuid.UUID]bool, len(activeDeployments))
+		for _, deployment := range activeDeployments {
+			if enqueued[deployment.ClusterID] {
+				continue
+			}
+			enqueued[deployment.ClusterID] = true
 
-		// Dispatch delete command to the agent via CommandBus
-		cmd := &commandbus.Command{
-			ID:        uuid.NewString(),
-			ClusterID: deployment.ClusterID.String(),
-			Type:      commandbus.CommandTypeDelete,
-			Payload:   payloadJSON,
-			CreatedAt: time.Now(),
-		}
+			payloadJSON, marshalErr := json.Marshal(DeleteCommandPayload{
+				DeploymentID: deployment.ID.String(),
+				ResourceID:   res.ID.String(),
+			})
+			if marshalErr != nil {
+				return fmt.Errorf("marshal delete command payload: %w", marshalErr)
+			}
 
-		if sendErr := s.cmdBus.Send(ctx, cmd); sendErr != nil {
-			slog.ErrorContext(
+			commandID, enqueueErr := commandbus.Enqueue(ctx, qtx, commandbus.NewCommand{
+				ClusterID:    deployment.ClusterID,
+				ResourceID:   res.ID,
+				DeploymentID: &deployment.ID,
+				Type:         commandbus.CommandTypeDelete,
+				Payload:      payloadJSON,
+			})
+			if enqueueErr != nil {
+				return fmt.Errorf("enqueue delete command: %w", enqueueErr)
+			}
+
+			slog.InfoContext(
 				ctx,
-				"failed to dispatch delete command",
+				"delete command enqueued",
+				"command_id",
+				commandID,
 				"cluster_id",
 				deployment.ClusterID,
-				"error",
-				sendErr,
-			)
-			return nil, connect.NewError(
-				connect.CodeUnavailable,
-				fmt.Errorf("no agent connected for cluster: %w", sendErr),
+				"resource_id",
+				res.ID,
 			)
 		}
 
-		slog.InfoContext(
-			ctx,
-			"delete command dispatched",
-			"command_id",
-			cmd.ID,
-			"cluster_id",
-			deployment.ClusterID,
-			"resource_id",
-			res.ID,
-		)
-	}
-
-	err = s.queries.DeleteResource(ctx, resourceID)
+		if deleteErr := qtx.DeleteResource(ctx, resourceID); deleteErr != nil {
+			return fmt.Errorf("delete resource: %w", deleteErr)
+		}
+		return nil
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -694,199 +680,50 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
-	resourceRegions, err := s.queries.ListResourceRegions(ctx, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	regionsToScale, err := selectRegionsToScale(r.GetRegion(), resourceRegions)
+	currentByRegion, err := s.activeDeploymentsForRegions(ctx, resourceID, r.GetRegion())
 	if err != nil {
 		return nil, err
 	}
 
-	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list active deployments", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	plans := make([]regionRedeploy, 0, len(currentByRegion))
+	for _, current := range currentByRegion {
+		serviceDeploymentSpec, specErr := currentServiceSpec(ctx, current, res.Type)
+		if specErr != nil {
+			return nil, specErr
+		}
+
+		if !scaleChangesDeployment(r, serviceDeploymentSpec, current.Replicas) {
+			continue
+		}
+
+		if r.Cpu != nil {
+			serviceDeploymentSpec.Cpu = r.Cpu
+		}
+		if r.Memory != nil {
+			serviceDeploymentSpec.Memory = r.Memory
+		}
+
+		replicas := current.Replicas
+		if r.Replicas != nil {
+			replicas = r.GetReplicas()
+		}
+
+		plan, planErr := s.planRegionRedeploy(ctx, current, serviceDeploymentSpec, replicas, "Scheduled scaling event.")
+		if planErr != nil {
+			return nil, planErr
+		}
+		plans = append(plans, plan)
 	}
 
-	if len(deploymentList) == 0 {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active deployment found for resource"))
-	}
-
-	currentDeployment := deploymentList[0]
-	if len(currentDeployment.Spec) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("previous deployment has no spec"))
-	}
-
-	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(res.Type))
-	if deserializeErr != nil {
-		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", deserializeErr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", deserializeErr))
-	}
-
-	serviceDeploymentSpec := deploymentSpec.GetService()
-	if serviceDeploymentSpec == nil {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			errors.New("only service resources are supported for scaling"),
-		)
-	}
-
-	if !scaleChangesDeployment(r, serviceDeploymentSpec, currentDeployment.Replicas) {
+	if len(plans) == 0 {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("scaling values must be different from current deployment"),
 		)
 	}
 
-	if r.Cpu != nil {
-		serviceDeploymentSpec.Cpu = r.Cpu
-	}
-
-	if r.Memory != nil {
-		serviceDeploymentSpec.Memory = r.Memory
-	}
-
-	specJSON, err := protojson.Marshal(serviceDeploymentSpec)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
-	}
-
-	replicas := currentDeployment.Replicas
-	if r.Replicas != nil {
-		replicas = r.GetReplicas()
-	}
-
-	// Get the region to scale (use current deployment's region)
-	regionToScale := currentDeployment.Region
-
-	// Get the environment tier (inherited from current deployment)
-	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	// Get the cluster for the region and tier
-	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
-		Region: regionToScale,
-		Tier:   deploymentEnv.EnvironmentType,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToScale, "error", err)
-		return nil, connect.NewError(
-			connect.CodeInternal,
-			fmt.Errorf("no active cluster available for region %s", regionToScale),
-		)
-	}
-
-	// Create deployment transactionally, finalizing previous deployments in the same region
-	scaleDeploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID:    resourceID,
-		ClusterID:     cluster.ID,
-		Region:        regionToScale,
-		Replicas:      replicas,
-		Status:        genDb.DeploymentStatusPending,
-		IsActive:      true,
-		Message:       "Scheduled scaling event.",
-		Spec:          specJSON,
-		SpecVersion:   int32(1),
-		EnvironmentID: currentDeployment.EnvironmentID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	domain, err := s.queries.GetDomainByResourceId(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
-	}
-
-	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
-	if deserializeErr != nil {
-		slog.ErrorContext(ctx, deserializeErr.Error())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
-	}
-
-	scaleEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to get environment",
-			"error",
-			err,
-			"environmentId",
-			currentDeployment.EnvironmentID,
-		)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	updatedDeploymentSpec := &deploymentv1.DeploymentSpec{
-		Spec: &deploymentv1.DeploymentSpec_Service{
-			Service: serviceDeploymentSpec,
-		},
-	}
-
-	// Build the Application spec for the agent
-	appSpec, err := buildApplicationSpec(
-		res,
-		resourceSpec,
-		domain.Domain,
-		updatedDeploymentSpec,
-		regionToScale,
-		currentDeployment.EnvironmentID,
-		scaleEnv.Name,
-		scaleDeploymentID,
-	)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", res.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
-	}
-
-	// Create command payload with all info the agent needs
-	cmdPayload := DeployCommandPayload{
-		DeploymentID: scaleDeploymentID.String(),
-		ResourceID:   res.ID.String(),
-		WorkspaceID:  res.WorkspaceID.String(),
-		ResourceName: res.Name,
-		ResourceType: string(res.Type),
-		Region:       regionToScale,
-		Hostname:     domain.Domain,
-		AppSpec:      appSpec,
-	}
-
-	payloadJSON, err := json.Marshal(cmdPayload)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal command payload", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
-	}
-
-	slog.InfoContext(
-		ctx,
-		"scale command payload created",
-		"cluster_id",
-		cluster.ID,
-		"resource_id",
-		res.ID,
-		"regions",
-		regionsToScale,
-	)
-
-	cmd := &commandbus.Command{
-		ID:        uuid.NewString(),
-		ClusterID: cluster.ID.String(),
-		Type:      commandbus.CommandTypeDeploy,
-		Payload:   payloadJSON,
-		CreatedAt: time.Now(),
-	}
-	if err := s.cmdBus.Send(ctx, cmd); err != nil {
-		slog.ErrorContext(ctx, "failed to dispatch scale command", "cluster_id", cluster.ID, "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
+	if err := s.redeployRegions(ctx, res, plans); err != nil {
+		return nil, err
 	}
 
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
@@ -929,36 +766,60 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
 	}
 
+	currentByRegion, err := s.activeDeploymentsForRegions(ctx, resourceID, r.GetRegion())
+	if err != nil {
+		return nil, err
+	}
+
+	plans := make([]regionRedeploy, 0, len(currentByRegion))
+	for _, current := range currentByRegion {
+		serviceDeploymentSpec, specErr := currentServiceSpec(ctx, current, res.Type)
+		if specErr != nil {
+			return nil, specErr
+		}
+
+		serviceDeploymentSpec.Env = r.GetEnv()
+
+		plan, planErr := s.planRegionRedeploy(
+			ctx,
+			current,
+			serviceDeploymentSpec,
+			current.Replicas,
+			"Scheduled environment update",
+		)
+		if planErr != nil {
+			return nil, planErr
+		}
+		plans = append(plans, plan)
+	}
+
+	if err := s.redeployRegions(ctx, res, plans); err != nil {
+		return nil, err
+	}
+
+	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
+}
+
+type regionRedeploy struct {
+	params          genDb.CreateDeploymentParams
+	deploymentSpec  *deploymentv1.DeploymentSpec
+	environmentName string
+}
+
+func (s *ResourceServer) activeDeploymentsForRegions(
+	ctx context.Context,
+	resourceID uuid.UUID,
+	requestedRegion string,
+) ([]genDb.Deployment, error) {
 	resourceRegions, err := s.queries.ListResourceRegions(ctx, resourceID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	var regionsToUpdate []string
-	if r.GetRegion() != "" {
-		regionFound := false
-		for _, rr := range resourceRegions {
-			if rr.Region == r.GetRegion() {
-				regionFound = true
-				break
-			}
-		}
-		if !regionFound {
-			return nil, connect.NewError(
-				connect.CodeInvalidArgument,
-				fmt.Errorf("region '%s' not found for this resource", r.GetRegion()),
-			)
-		}
-		regionsToUpdate = []string{r.GetRegion()}
-	} else {
-		for _, rr := range resourceRegions {
-			regionsToUpdate = append(regionsToUpdate, rr.Region)
-		}
-	}
-
-	if len(regionsToUpdate) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("no regions found for resource"))
+	regions, err := selectRegionsToScale(requestedRegion, resourceRegions)
+	if err != nil {
+		return nil, err
 	}
 
 	deploymentList, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
@@ -967,169 +828,142 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	if len(deploymentList) == 0 {
+	activeByRegion := make(map[string]genDb.Deployment, len(deploymentList))
+	for _, d := range deploymentList {
+		if _, seen := activeByRegion[d.Region]; !seen {
+			activeByRegion[d.Region] = d
+		}
+	}
+
+	current := make([]genDb.Deployment, 0, len(regions))
+	for _, region := range regions {
+		d, found := activeByRegion[region]
+		if !found {
+			continue
+		}
+		current = append(current, d)
+	}
+
+	if len(current) == 0 {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("no active deployment found for resource"))
 	}
 
-	currentDeployment := deploymentList[0]
-	if len(currentDeployment.Spec) == 0 {
+	return current, nil
+}
+
+func currentServiceSpec(
+	ctx context.Context,
+	current genDb.Deployment,
+	resourceType genDb.ResourceType,
+) (*deploymentv1.ServiceDeploymentSpec, error) {
+	if len(current.Spec) == 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("previous deployment has no spec"))
 	}
 
-	deploymentSpec, deserializeErr := converter.DeserializeDeploymentSpec(currentDeployment.Spec, string(res.Type))
-	if deserializeErr != nil {
-		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", deserializeErr)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", deserializeErr))
+	deploymentSpec, err := converter.DeserializeDeploymentSpec(current.Spec, string(resourceType))
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to deserialize deployment spec", "error", err)
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
 	serviceDeploymentSpec := deploymentSpec.GetService()
 	if serviceDeploymentSpec == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			errors.New("only service resources are supported for env updates"),
+			errors.New("only service resources are supported"),
 		)
 	}
 
-	serviceDeploymentSpec.Env = r.GetEnv()
+	return serviceDeploymentSpec, nil
+}
 
+func (s *ResourceServer) planRegionRedeploy(
+	ctx context.Context,
+	current genDb.Deployment,
+	serviceDeploymentSpec *deploymentv1.ServiceDeploymentSpec,
+	replicas int32,
+	message string,
+) (regionRedeploy, error) {
 	specJSON, err := protojson.Marshal(serviceDeploymentSpec)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
+		return regionRedeploy{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
 	}
 
-	// Get the region to update (use current deployment's region)
-	regionToUpdate := currentDeployment.Region
-
-	// Get the environment tier (inherited from current deployment)
-	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
+	deploymentEnv, err := s.queries.GetEnvironmentByID(ctx, current.EnvironmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment for deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return regionRedeploy{}, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	// Get the cluster for the region and tier
 	cluster, err := s.queries.GetActiveClusterByRegionAndTier(ctx, genDb.GetActiveClusterByRegionAndTierParams{
-		Region: regionToUpdate,
+		Region: current.Region,
 		Tier:   deploymentEnv.EnvironmentType,
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", regionToUpdate, "error", err)
-		return nil, connect.NewError(
+		slog.ErrorContext(ctx, "failed to get active cluster for region", "region", current.Region, "error", err)
+		return regionRedeploy{}, connect.NewError(
 			connect.CodeInternal,
-			fmt.Errorf("no active cluster available for region %s", regionToUpdate),
+			fmt.Errorf("no active cluster available for region %s", current.Region),
 		)
 	}
 
-	// Create deployment transactionally, finalizing previous deployments in the same region
-	deploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID:    resourceID,
-		ClusterID:     cluster.ID,
-		Region:        regionToUpdate,
-		Replicas:      currentDeployment.Replicas,
-		Status:        genDb.DeploymentStatusPending,
-		IsActive:      true,
-		Message:       "Scheduled environment update",
-		Spec:          specJSON,
-		SpecVersion:   int32(1),
-		EnvironmentID: currentDeployment.EnvironmentID,
+	return regionRedeploy{
+		params: genDb.CreateDeploymentParams{
+			ResourceID:    current.ResourceID,
+			ClusterID:     cluster.ID,
+			Region:        current.Region,
+			Replicas:      replicas,
+			Status:        genDb.DeploymentStatusPending,
+			IsActive:      true,
+			Message:       message,
+			Spec:          specJSON,
+			SpecVersion:   int32(1),
+			EnvironmentID: current.EnvironmentID,
+		},
+		deploymentSpec: &deploymentv1.DeploymentSpec{
+			Spec: &deploymentv1.DeploymentSpec_Service{
+				Service: serviceDeploymentSpec,
+			},
+		},
+		environmentName: deploymentEnv.Name,
+	}, nil
+}
+
+func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource, plans []regionRedeploy) error {
+	domain, err := s.queries.GetDomainByResourceId(ctx, res.ID)
+	if err != nil {
+		slog.WarnContext(ctx, "domain not found", "resourceId", res.ID)
+		return connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+	}
+
+	resourceSpec, err := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to deserialize resource spec", "error", err)
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", err))
+	}
+
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		for _, plan := range plans {
+			buildPayload := deployCommandPayload(
+				res,
+				resourceSpec,
+				domain.Domain,
+				plan.deploymentSpec,
+				plan.params.Region,
+				plan.params.EnvironmentID,
+				plan.environmentName,
+			)
+			if _, deployErr := createDeploymentWithCleanup(ctx, qtx, plan.params, buildPayload); deployErr != nil {
+				return deployErr
+			}
+		}
+		return nil
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return deploymentTxError(ctx, err)
 	}
-
-	domain, err := s.queries.GetDomainByResourceId(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
-	}
-
-	resourceSpec, deserializeErr := converter.DeserializeResourceSpecByType(res.Spec, string(res.Type))
-	if deserializeErr != nil {
-		slog.ErrorContext(ctx, deserializeErr.Error())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
-	}
-
-	updateEnv, err := s.queries.GetEnvironmentByID(ctx, currentDeployment.EnvironmentID)
-	if err != nil {
-		slog.ErrorContext(
-			ctx,
-			"failed to get environment",
-			"error",
-			err,
-			"environmentId",
-			currentDeployment.EnvironmentID,
-		)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	updatedDeploymentSpec := &deploymentv1.DeploymentSpec{
-		Spec: &deploymentv1.DeploymentSpec_Service{
-			Service: serviceDeploymentSpec,
-		},
-	}
-
-	// Build the Application spec for the agent
-	appSpec, err := buildApplicationSpec(
-		res,
-		resourceSpec,
-		domain.Domain,
-		updatedDeploymentSpec,
-		regionToUpdate,
-		currentDeployment.EnvironmentID,
-		updateEnv.Name,
-		deploymentID,
-	)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", res.ID.String())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
-	}
-
-	// Create command payload with all info the agent needs
-	cmdPayload := DeployCommandPayload{
-		DeploymentID: deploymentID.String(),
-		ResourceID:   res.ID.String(),
-		WorkspaceID:  res.WorkspaceID.String(),
-		ResourceName: res.Name,
-		ResourceType: string(res.Type),
-		Region:       regionToUpdate,
-		Hostname:     domain.Domain,
-		AppSpec:      appSpec,
-	}
-
-	payloadJSON, err := json.Marshal(cmdPayload)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal command payload", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
-	}
-
-	slog.InfoContext(
-		ctx,
-		"env update command payload created",
-		"cluster_id",
-		cluster.ID,
-		"resource_id",
-		res.ID,
-		"regions",
-		regionsToUpdate,
-		"deployment_id",
-		deploymentID,
-	)
-
-	cmd := &commandbus.Command{
-		ID:        uuid.NewString(),
-		ClusterID: cluster.ID.String(),
-		Type:      commandbus.CommandTypeDeploy,
-		Payload:   payloadJSON,
-		CreatedAt: time.Now(),
-	}
-	if err := s.cmdBus.Send(ctx, cmd); err != nil {
-		slog.ErrorContext(ctx, "failed to dispatch env update command", "cluster_id", cluster.ID, "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
-	}
-
-	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
+	return nil
 }
 
 // resourceStatusToProto converts database resource status to proto enum
@@ -1397,46 +1231,102 @@ func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) 
 	}
 }
 
-// createDeploymentWithCleanup creates a new deployment and finalizes previous active deployments in the same region
-// within a transaction to ensure consistency.
+var errCommandPayload = errors.New("build command payload")
+
+type deployPayloadFunc func(deploymentID uuid.UUID) ([]byte, error)
+
+func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
+	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		qtx := genDb.New(tx)
+		return fn(qtx)
+	})
+}
+
+func deployCommandPayload(
+	res genDb.Resource,
+	resourceSpec *resourcev1.ResourceSpec,
+	hostname string,
+	deploymentSpec *deploymentv1.DeploymentSpec,
+	region string,
+	environmentID uuid.UUID,
+	environmentName string,
+) deployPayloadFunc {
+	return func(deploymentID uuid.UUID) ([]byte, error) {
+		appSpec, err := buildApplicationSpec(
+			res,
+			resourceSpec,
+			hostname,
+			deploymentSpec,
+			region,
+			environmentID,
+			environmentName,
+			deploymentID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build application spec: %w", err)
+		}
+
+		payload, err := json.Marshal(DeployCommandPayload{
+			DeploymentID: deploymentID.String(),
+			ResourceID:   res.ID.String(),
+			WorkspaceID:  res.WorkspaceID.String(),
+			ResourceName: res.Name,
+			ResourceType: string(res.Type),
+			Region:       region,
+			Hostname:     hostname,
+			AppSpec:      appSpec,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal command payload: %w", err)
+		}
+		return payload, nil
+	}
+}
+
+func deploymentTxError(ctx context.Context, err error) error {
+	if errors.Is(err, errCommandPayload) {
+		slog.ErrorContext(ctx, "failed to build deploy command", "error", err)
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	if isPgConstraintViolation(err) {
+		slog.WarnContext(ctx, "concurrent deployment rejected", "error", err)
+		return connect.NewError(
+			connect.CodeAborted,
+			errors.New("another deployment for this resource and region is in progress"),
+		)
+	}
+	slog.ErrorContext(ctx, "failed to create deployment", "error", err)
+	return connect.NewError(connect.CodeInternal, ErrDB)
+}
+
+func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentStatus {
+	switch status {
+	case genDb.DeploymentStatusPending:
+		return genDb.DeploymentStatusCanceled
+	case genDb.DeploymentStatusDeploying:
+		return genDb.DeploymentStatusCanceled
+	case genDb.DeploymentStatusRunning:
+		return genDb.DeploymentStatusSucceeded
+	default:
+		return status
+	}
+}
+
 func createDeploymentWithCleanup(
 	ctx context.Context,
-	pool *pgxpool.Pool,
-	queries genDb.Querier,
+	qtx *genDb.Queries,
 	params genDb.CreateDeploymentParams,
+	buildPayload deployPayloadFunc,
 ) (uuid.UUID, error) {
-	slog.InfoContext(ctx, "starting deployment creation with cleanup",
-		"resourceId", params.ResourceID,
-		"region", params.Region,
-		"replicas", params.Replicas)
-
-	// Get resource_region_id first (outside transaction since it's a read)
-	resourceRegion, err := queries.GetResourceRegionByResourceAndRegion(
-		ctx,
-		genDb.GetResourceRegionByResourceAndRegionParams{
-			ResourceID: params.ResourceID,
-			Region:     params.Region,
-		},
-	)
+	resourceRegion, err := qtx.LockResourceRegion(ctx, genDb.LockResourceRegionParams{
+		ResourceID: params.ResourceID,
+		Region:     params.Region,
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource region",
-			"resourceId", params.ResourceID,
-			"region", params.Region,
-			"error", err)
-		return uuid.UUID{}, fmt.Errorf("failed to get resource region: %w", err)
+		return uuid.UUID{}, fmt.Errorf("failed to lock resource region: %w", err)
 	}
 	params.ResourceRegionID = resourceRegion.ID
 
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return uuid.UUID{}, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback(ctx)
-
-	qtx := genDb.New(tx)
-
-	// Find active deployment in the same region for this resource (should only be one)
 	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
 		ctx,
 		genDb.GetActiveDeploymentForResourceAndRegionParams{
@@ -1444,33 +1334,13 @@ func createDeploymentWithCleanup(
 			Region:     params.Region,
 		},
 	)
-
-	hadPreviousDeployment := false
-	// todo: rely on psql errors or something better. this is not good.
-	if err != nil && err.Error() != "no rows in result set" {
-		slog.ErrorContext(ctx, "failed to get active deployment",
-			"resourceId", params.ResourceID,
-			"region", params.Region,
-			"error", err)
+	hadPreviousDeployment := err == nil
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return uuid.UUID{}, fmt.Errorf("failed to get active deployment: %w", err)
 	}
 
-	// Finalize the previous deployment if it exists
-	if err == nil {
-		hadPreviousDeployment = true
-
-		// Determine new status based on current status
-		var newStatus genDb.DeploymentStatus
-		switch activeDeployment.Status {
-		case genDb.DeploymentStatusPending, genDb.DeploymentStatusDeploying:
-			newStatus = genDb.DeploymentStatusCanceled
-		case genDb.DeploymentStatusRunning:
-			newStatus = genDb.DeploymentStatusSucceeded
-		default:
-			// Keep existing status for terminal states
-			newStatus = activeDeployment.Status
-		}
-
+	if hadPreviousDeployment {
+		newStatus := finalizedDeploymentStatus(activeDeployment.Status)
 		slog.InfoContext(ctx, "finalizing previous deployment",
 			"deploymentId", activeDeployment.ID,
 			"oldStatus", activeDeployment.Status,
@@ -1481,32 +1351,35 @@ func createDeploymentWithCleanup(
 			Status:   newStatus,
 			IsActive: false,
 		}); updateErr != nil {
-			slog.ErrorContext(ctx, "failed to finalize deployment",
-				"deploymentId", activeDeployment.ID,
-				"error", updateErr)
 			return uuid.UUID{}, fmt.Errorf("failed to finalize deployment %v: %w", activeDeployment.ID, updateErr)
 		}
 	}
 
-	// Create the new deployment
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create deployment",
-			"resourceId", params.ResourceID,
-			"region", params.Region,
-			"error", err)
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		slog.ErrorContext(ctx, "failed to commit transaction",
-			"deploymentId", deploymentID,
-			"error", err)
-		return uuid.UUID{}, fmt.Errorf("failed to commit transaction: %w", err)
+	payload, err := buildPayload(deploymentID)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("%w: %w", errCommandPayload, err)
 	}
 
-	slog.InfoContext(ctx, "successfully created deployment with cleanup",
+	commandID, err := commandbus.Enqueue(ctx, qtx, commandbus.NewCommand{
+		ClusterID:    params.ClusterID,
+		ResourceID:   params.ResourceID,
+		DeploymentID: &deploymentID,
+		Type:         commandbus.CommandTypeDeploy,
+		Payload:      payload,
+	})
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("failed to enqueue deploy command: %w", err)
+	}
+
+	slog.InfoContext(ctx, "deployment created and deploy command enqueued",
 		"deployment_id", deploymentID,
+		"command_id", commandID,
+		"cluster_id", params.ClusterID,
 		"resourceId", params.ResourceID,
 		"region", params.Region,
 		"hadPreviousDeployment", hadPreviousDeployment)

@@ -105,3 +105,9 @@ WHERE id = $1;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
+
+-- name: LockResourceRegion :one
+SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+FROM resource_regions
+WHERE resource_id = $1 AND region = $2
+FOR UPDATE;

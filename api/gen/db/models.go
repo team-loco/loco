@@ -13,6 +13,93 @@ import (
 	"github.com/google/uuid"
 )
 
+type AgentCommandStatus string
+
+const (
+	AgentCommandStatusPending    AgentCommandStatus = "pending"
+	AgentCommandStatusDelivered  AgentCommandStatus = "delivered"
+	AgentCommandStatusSucceeded  AgentCommandStatus = "succeeded"
+	AgentCommandStatusFailed     AgentCommandStatus = "failed"
+	AgentCommandStatusSuperseded AgentCommandStatus = "superseded"
+)
+
+func (e *AgentCommandStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AgentCommandStatus(s)
+	case string:
+		*e = AgentCommandStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AgentCommandStatus: %T", src)
+	}
+	return nil
+}
+
+type NullAgentCommandStatus struct {
+	AgentCommandStatus AgentCommandStatus `json:"agentCommandStatus"`
+	Valid              bool               `json:"valid"` // Valid is true if AgentCommandStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAgentCommandStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.AgentCommandStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AgentCommandStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAgentCommandStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AgentCommandStatus), nil
+}
+
+type AgentCommandType string
+
+const (
+	AgentCommandTypeDeploy AgentCommandType = "deploy"
+	AgentCommandTypeDelete AgentCommandType = "delete"
+)
+
+func (e *AgentCommandType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AgentCommandType(s)
+	case string:
+		*e = AgentCommandType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AgentCommandType: %T", src)
+	}
+	return nil
+}
+
+type NullAgentCommandType struct {
+	AgentCommandType AgentCommandType `json:"agentCommandType"`
+	Valid            bool             `json:"valid"` // Valid is true if AgentCommandType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAgentCommandType) Scan(value interface{}) error {
+	if value == nil {
+		ns.AgentCommandType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AgentCommandType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAgentCommandType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AgentCommandType), nil
+}
+
 type DeploymentStatus string
 
 const (
@@ -281,6 +368,23 @@ func (ns NullResourceType) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.ResourceType), nil
+}
+
+type AgentCommand struct {
+	ID           uuid.UUID          `json:"id"`
+	ClusterID    uuid.UUID          `json:"clusterId"`
+	ResourceID   uuid.UUID          `json:"resourceId"`
+	DeploymentID *uuid.UUID         `json:"deploymentId"`
+	Type         AgentCommandType   `json:"type"`
+	Payload      []byte             `json:"payload"`
+	Status       AgentCommandStatus `json:"status"`
+	Attempts     int32              `json:"attempts"`
+	MaxAttempts  int32              `json:"maxAttempts"`
+	LastError    *string            `json:"lastError"`
+	VisibleAt    time.Time          `json:"visibleAt"`
+	CreatedAt    time.Time          `json:"createdAt"`
+	UpdatedAt    time.Time          `json:"updatedAt"`
+	AckedAt      *time.Time         `json:"ackedAt"`
 }
 
 type ApiToken struct {

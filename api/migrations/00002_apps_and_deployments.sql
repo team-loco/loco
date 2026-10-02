@@ -210,7 +210,7 @@ CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
 
 CREATE INDEX idx_deployments_region ON deployments (region);
 
-CREATE INDEX idx_deployments_resource_region_active ON deployments (resource_id, region, is_active)
+CREATE UNIQUE INDEX uniq_deployments_resource_region_active ON deployments (resource_id, region)
 WHERE
     is_active = true;
 
@@ -220,7 +220,46 @@ CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deploymen
 
 CREATE INDEX idx_deployments_environment_id ON deployments (environment_id);
 
+CREATE TYPE agent_command_type AS ENUM ('deploy', 'delete');
+
+CREATE TYPE agent_command_status AS ENUM (
+    'pending',
+    'delivered',
+    'succeeded',
+    'failed',
+    'superseded'
+);
+
+CREATE TABLE
+    agent_commands (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        resource_id UUID NOT NULL,
+        deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
+        type agent_command_type NOT NULL,
+        payload JSONB,
+        status agent_command_status NOT NULL DEFAULT 'pending',
+        attempts INT NOT NULL DEFAULT 0,
+        max_attempts INT NOT NULL CHECK (max_attempts > 0),
+        last_error TEXT,
+        visible_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        acked_at TIMESTAMPTZ
+    );
+
+CREATE INDEX idx_agent_commands_claim ON agent_commands (cluster_id, visible_at, created_at)
+WHERE
+    status IN ('pending', 'delivered');
+
+CREATE INDEX idx_agent_commands_resource_cluster_live ON agent_commands (resource_id, cluster_id)
+WHERE
+    status IN ('pending', 'delivered');
+
+CREATE INDEX idx_agent_commands_deployment_id ON agent_commands (deployment_id);
+
 -- +goose Down
+DROP TABLE IF EXISTS agent_commands;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS resource_regions;
@@ -228,6 +267,8 @@ DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS platform_domains;
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environments;
+DROP TYPE IF EXISTS agent_command_status;
+DROP TYPE IF EXISTS agent_command_type;
 DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;
 DROP TYPE IF EXISTS resource_type;

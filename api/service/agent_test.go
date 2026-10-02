@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/pkg/commandbus"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
@@ -15,7 +16,7 @@ func TestCommandToProtoDeleteCarriesResourceID(t *testing.T) {
 	}
 
 	got, err := commandToProto(&commandbus.Command{
-		ID:      "c1",
+		ID:      uuid.New(),
 		Type:    commandbus.CommandTypeDelete,
 		Payload: payload,
 	})
@@ -33,7 +34,7 @@ func TestCommandToProtoDeleteCarriesResourceID(t *testing.T) {
 
 func TestCommandToProtoDeleteRejectsMalformedPayload(t *testing.T) {
 	_, err := commandToProto(&commandbus.Command{
-		ID:      "c1",
+		ID:      uuid.New(),
 		Type:    commandbus.CommandTypeDelete,
 		Payload: []byte("not json"),
 	})
