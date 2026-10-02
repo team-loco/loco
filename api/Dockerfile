@@ -20,7 +20,7 @@ COPY gen/go ./gen/go
 COPY k8sapi ./k8sapi
 
 WORKDIR /app/api
-RUN --mount=type=cache,target=/root/.cache/go-build go build -o loco-api .
+RUN go build -o loco-api .
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
