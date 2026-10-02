@@ -96,7 +96,7 @@ Examples:
 
 			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 			if err != nil {
-				return fmt.Errorf("login required - please run 'loco login'")
+				return err
 			}
 			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
 

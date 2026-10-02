@@ -65,7 +65,7 @@ Examples:
 
 			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
 			if err != nil {
-				return fmt.Errorf("login required - please run 'loco login'")
+				return err
 			}
 
 			// Resolve workspace ID
