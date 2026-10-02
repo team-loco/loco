@@ -177,26 +177,10 @@ run = [
   "helm dependency build ./charts/loco-controller",
 ]
 
-[tasks."helm:sync"]
-description = "Sync every release to the local cluster"
-depends = ["helm:deps"]
-env = { _.file = ".env" }
-run = "helmfile -e local sync"
-
-[tasks."helm:sync:core"]
-description = "Sync the core phase (cert-manager, Envoy Gateway, loco-core, loco-controller) to the local cluster"
-env = { _.file = ".env" }
-run = "helmfile -e local -l phase=2-core sync"
-
 [tasks."helm:sync:cert-manager"]
 description = "Sync cert-manager to the local cluster"
 env = { _.file = ".env" }
 run = "helmfile -e local -l name=cert-manager sync"
-
-[tasks."helm:sync:obs"]
-description = "Sync the observability phase (ClickHouse, OpenTelemetry, Grafana) to the local cluster"
-env = { _.file = ".env" }
-run = "helmfile -e local -l phase=3-observability sync"
 
 [tasks."helm:destroy"]
 description = "Uninstall every release from the local cluster"
