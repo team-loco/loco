@@ -10,12 +10,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: jdx/mise-action@v5.0.1
+    - uses: jdx/mise-action@7a4e45a543138629540c9a1616d08632b893e492 # v5.0.1
       with:
         version: 2026.9.18
 
     - if: inputs.go-cache != ''
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: |
           ~/go/pkg/mod
