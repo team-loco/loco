@@ -9,7 +9,10 @@ import (
 	"github.com/team-loco/loco/internal/session"
 )
 
-const defaultLocoHost = "https://loco.build"
+const (
+	DefaultLocoHost = "https://api.loco.build"
+	DefaultWebHost  = "https://loco.build"
+)
 
 // GetHost resolves the API host from flag > env > config file > default.
 func GetHost(cmd *cobra.Command) (string, error) {
@@ -35,7 +38,30 @@ func GetHost(cmd *cobra.Command) (string, error) {
 	}
 
 	slog.Debug("defaulting to prod url")
-	return defaultLocoHost, nil
+	return DefaultLocoHost, nil
+}
+
+// GetWebHost resolves the web UI host from flag > env > config file > default.
+func GetWebHost(cmd *cobra.Command) (string, error) {
+	host, err := cmd.Flags().GetString("web-host")
+	if err != nil {
+		return "", fmt.Errorf("error reading web-host flag: %w", err)
+	}
+	if host != "" {
+		return host, nil
+	}
+
+	host = os.Getenv("LOCO_WEB_HOST")
+	if host != "" {
+		return host, nil
+	}
+
+	cfg, err := session.Load()
+	if err == nil && cfg.WebHost != "" {
+		return cfg.WebHost, nil
+	}
+
+	return DefaultWebHost, nil
 }
 
 // GetLocoTomlPath resolves the loco.toml path from flag or default.

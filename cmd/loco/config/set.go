@@ -25,6 +25,8 @@ func buildSetCmd() *cobra.Command {
 			switch key {
 			case keyLocoHost:
 				cfg.LocoHost = value
+			case keyWebHost:
+				cfg.WebHost = value
 			case keyDefaultAppDomain:
 				cfg.DefaultAppDomain = value
 			default:

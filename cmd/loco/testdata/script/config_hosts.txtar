@@ -1,0 +1,14 @@
+exec loco config get locoHost
+stdout '^\(not set, default: https://api\.loco\.build\)$'
+
+exec loco config get webHost
+stdout '^\(not set, default: https://loco\.build\)$'
+
+exec loco config set webHost http://localhost:5173
+exec loco config list
+stdout '^locoHost += https://api\.loco\.build \(default\)$'
+stdout '^webHost += http://localhost:5173$'
+
+exec loco config unset webHost
+exec loco config get webHost
+stdout 'default: https://loco\.build'

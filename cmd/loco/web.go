@@ -45,12 +45,12 @@ settings, org-settings, profile, tokens, organizations, team`,
 			return webCmdFunc(cmd, args)
 		},
 	}
-	cmd.Flags().String("host", "", "Set the host URL")
+	cmd.Flags().String("web-host", "", "Web UI URL")
 	return cmd
 }
 
 func webCmdFunc(cmd *cobra.Command, args []string) error {
-	host, err := cmdutil.GetHost(cmd)
+	host, err := cmdutil.GetWebHost(cmd)
 	if err != nil {
 		return err
 	}

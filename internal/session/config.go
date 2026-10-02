@@ -17,6 +17,7 @@ const (
 // It is persisted to ~/.loco/config.toml.
 type SessionConfig struct {
 	LocoHost         string            `toml:"locoHost,omitempty"`
+	WebHost          string            `toml:"webHost,omitempty"`
 	DefaultAppDomain string            `toml:"defaultAppDomain,omitempty"`
 	Scopes           map[string]*Scope `toml:"scopes"`
 	CurrentScope     string            `toml:"currentScope"`
