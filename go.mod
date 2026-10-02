@@ -3,6 +3,7 @@ module github.com/team-loco/loco
 go 1.27.0
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.10
 	charm.land/fang/v2 v2.0.1
@@ -16,14 +17,12 @@ require (
 	github.com/moby/go-archive v0.3.3
 	github.com/rogpeppe/go-internal v1.14.1
 	github.com/spf13/cobra v1.10.2
-	github.com/team-loco/loco/gen/go v0.0.0
 	github.com/zalando/go-keyring v0.2.8
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -86,9 +85,6 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect
 )
-
-// these replace directives seem to work better than go.work
-replace github.com/team-loco/loco/gen/go => ./gen/go
 
 tool (
 	connectrpc.com/connect/cmd/protoc-gen-connect-go

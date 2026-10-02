@@ -1,5 +1,7 @@
 *
 !agent
+!go.mod
+!go.sum
 !gen/go
 !k8sapi
 **/node_modules
