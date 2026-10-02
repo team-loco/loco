@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -22,6 +23,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -236,9 +238,24 @@ func (s *DeploymentServer) CreateDeployment(
 	environmentID := uuid.MustParse(r.GetEnvironmentId())
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		slog.WarnContext(ctx, "environment not found", "environmentId", environmentID)
+		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	if env.WorkspaceID != resource.WorkspaceID {
+		slog.WarnContext(
+			ctx,
+			"environment does not belong to the resource's workspace",
+			"environmentId",
+			environmentID,
+			"resourceId",
+			resourceID,
+		)
+		return nil, connect.NewError(connect.CodeNotFound, ErrEnvironmentNotFound)
 	}
 
 	// Get active cluster for the specified region and environment tier
@@ -279,9 +296,13 @@ func (s *DeploymentServer) CreateDeployment(
 	// create spec copy without env for DB persistence (no plaintext secrets in DB)
 	mergedServiceSpec := mergedSpec.GetService()
 
-	// create shallow copy excluding env as it can have sensitive info.
 	// todo: consider using dedicated secrets management solution.
-	specForDBService := mergedServiceSpec
+	clonedServiceSpec := proto.Clone(mergedServiceSpec)
+	specForDBService, ok := clonedServiceSpec.(*deploymentv1.ServiceDeploymentSpec)
+	if !ok {
+		slog.ErrorContext(ctx, "failed to clone service spec")
+		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to clone service spec"))
+	}
 	specForDBService.Env = nil
 
 	specJSON, err := json.Marshal(specForDBService)
