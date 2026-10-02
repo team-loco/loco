@@ -30,7 +30,7 @@ Phase I
 [ ] Add support for non-interactive deploy.
     Dependant on tvm
 
-[ ] OCI image builder socket support — accept --docker-socket / LOCO__DOCKER_SOCKET,
+[ ] OCI image builder socket support — accept --docker-socket / LOCO_DOCKER_SOCKET,
     branch version check on Platform.Name (Docker only).
 
 [ ] Container registry lifecycle policy — last 2 images per resource, random hash prefix,

@@ -12,14 +12,14 @@ import (
 )
 
 type showDeps struct {
-	GetLocoToken func(username string) (*keychain.UserToken, error)
-	Output       io.Writer
+	Tokens func() (keychain.TokenStore, error)
+	Output io.Writer
 }
 
 func buildShowCmd() *cobra.Command {
 	deps := showDeps{
-		GetLocoToken: keychain.GetLocoToken,
-		Output:       os.Stdout,
+		Tokens: keychain.ForCurrentUser,
+		Output: os.Stdout,
 	}
 	return newShowCmd(deps)
 }
@@ -41,7 +41,12 @@ func newShowCmd(deps showDeps) *cobra.Command {
 				return fmt.Errorf("failed to get current user: %w", err)
 			}
 
-			token, err := deps.GetLocoToken(currentUser.Name)
+			store, err := deps.Tokens()
+			if err != nil {
+				return err
+			}
+
+			token, err := store.Get()
 			if err != nil {
 				return fmt.Errorf("not logged in - please run 'loco login'")
 			}
@@ -56,7 +61,7 @@ func newShowCmd(deps showDeps) *cobra.Command {
 				return nil
 			}
 
-			fmt.Fprintf(deps.Output, "User: %s\n", currentUser.Name)
+			fmt.Fprintf(deps.Output, "User: %s\n", currentUser.Username)
 
 			if token.ExpiresAt.IsZero() {
 				fmt.Fprintln(deps.Output, "Expires: never")

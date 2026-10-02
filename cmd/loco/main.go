@@ -49,8 +49,11 @@ func Cli() {
 		}
 	}
 
-	if err := fang.Execute(context.Background(),
-		RootCmd,
+	env := NewEnv()
+	ctx := context.Background()
+	root := NewRootCmd(env)
+	if err := fang.Execute(ctx,
+		root,
 		fang.WithVersion(i.Main.Version),
 		fang.WithColorSchemeFunc(LocoColorScheme())); err != nil {
 		os.Exit(1)

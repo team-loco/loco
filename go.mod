@@ -14,6 +14,7 @@ require (
 	github.com/goccy/go-json v0.11.1
 	github.com/joho/godotenv v1.5.1
 	github.com/moby/go-archive v0.3.3
+	github.com/rogpeppe/go-internal v1.14.1
 	github.com/spf13/cobra v1.10.2
 	github.com/team-loco/loco/gen/go v0.0.0
 	github.com/zalando/go-keyring v0.2.8
@@ -83,6 +84,7 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
 )
 
 // these replace directives seem to work better than go.work

@@ -1,0 +1,9 @@
+# a token the server no longer accepts is already revoked, so there is nothing to warn about.
+exec loco logout
+stdout 'Logged out successfully!'
+! stderr .
+fakeapi called Logout 'Bearer stale-token'
+! exists $HOME/.loco/credentials.json
+
+-- home/.loco/credentials.json --
+{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"stale-token","RefreshToken":""}

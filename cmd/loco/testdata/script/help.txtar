@@ -1,0 +1,7 @@
+# the command list stays in two tight columns; a long Use string widens every row.
+exec loco --help
+stdout '^\s+web \[page\]'
+! stdout '\S {40,}\S'
+
+exec loco web --help
+stdout 'org-settings'

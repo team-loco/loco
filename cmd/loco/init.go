@@ -20,19 +20,19 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
-func init() {
-	initCmd.Flags().BoolP("force", "f", false, "Force overwrite of existing loco.toml file")
-	initCmd.Flags().StringP("name", "n", "", "Application name (skips interactive prompt)")
-	initCmd.Flags().String("host", "", "API host URL")
-}
-
-var initCmd = &cobra.Command{
-	Use:   "init",
-	Short: "Initialize a new Loco project",
-	Long:  "Create a new loco.toml configuration file in the current directory.",
-	RunE: func(cmd *cobra.Command, _ []string) error {
-		return initCmdFunc(cmd)
-	},
+func newInitCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "init",
+		Short: "Initialize a new Loco project",
+		Long:  "Create a new loco.toml configuration file in the current directory.",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return initCmdFunc(cmd)
+		},
+	}
+	cmd.Flags().BoolP("force", "f", false, "Force overwrite of existing loco.toml file")
+	cmd.Flags().StringP("name", "n", "", "Application name (skips interactive prompt)")
+	cmd.Flags().String("host", "", "API host URL")
+	return cmd
 }
 
 func initCmdFunc(cmd *cobra.Command) error {
@@ -105,7 +105,7 @@ func fetchPlatformDomain(cmd *cobra.Command) string {
 		return config.DefaultAppDomain
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
 	defer cancel()
 
 	configClient := configv1connect.NewConfigServiceClient(httputil.NewHTTPClient(), host)

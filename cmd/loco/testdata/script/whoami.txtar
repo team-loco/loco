@@ -1,0 +1,20 @@
+exec loco whoami
+stdout 'Hi, Test User!'
+stdout 'Email: test@loco.build'
+stdout 'External ID: gh-1'
+stdout 'Context: acme/production'
+! stdout '\x1b\['
+fakeapi called WhoAmI 'Bearer test-token'
+
+-- home/.loco/credentials.json --
+{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
