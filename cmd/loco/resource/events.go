@@ -124,7 +124,7 @@ Examples:
 				return fmt.Errorf("failed to fetch events: %w", err)
 			}
 
-			if output == "json" {
+			if output == outputJSON {
 				encoder := json.NewEncoder(deps.Stdout)
 				encoder.SetIndent("", "  ")
 				return encoder.Encode(resp.Msg.Events)

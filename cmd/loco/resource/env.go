@@ -103,7 +103,9 @@ Examples:
 			}
 
 			if len(envVars) == 0 {
-				return fmt.Errorf("no environment variables to sync. Use positional args (KEY=VALUE), --set, or --env-file")
+				return fmt.Errorf(
+					"no environment variables to sync. Use positional args (KEY=VALUE), --set, or --env-file",
+				)
 			}
 
 			// Get host and token

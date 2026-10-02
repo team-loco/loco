@@ -25,7 +25,22 @@ linters:
       - { linters: [govet], text: "fieldalignment" }
       # ST1005 flags capitalized error strings; "Docker" is a proper noun here.
       - { linters: [staticcheck], text: "ST1005", path: "internal/docker/" }
+      - { linters: [lll], source: "^\\s*// \\+kubebuilder:" }
+      - { linters: [lll], source: "^\\s*// https?://\\S+$" }
   default: standard
+  enable:
+    - copyloopvar
+    - dupl
+    - ginkgolinter
+    - goconst
+    - gocyclo
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - revive
+    - unconvert
+    - unparam
   settings:
     errcheck:
       check-type-assertions: true
@@ -51,8 +66,6 @@ linters:
 
     forbidigo:
       analyze-types: true
-    goconst:
-      numbers: true
     gocritic:
       # TODO: Uncomment the following lines
       enabled-tags:
@@ -115,7 +128,9 @@ linters:
     # - '.*'
 
     revive:
-      enable-all-rules: true
+      rules:
+        - name: comment-spacings
+        - name: import-shadowing
 
     tagalign:
       strict: true
@@ -159,6 +174,10 @@ formatters:
   enable:
     - gofmt
     - goimports
+    - golines
+  settings:
+    golines:
+      max-len: 120
   exclusions:
     generated: lax
     paths:

@@ -85,7 +85,10 @@ func (tvm *VendingMachine) RevokeSession(ctx context.Context, sessionID uuid.UUI
 // Refresh validates a refresh token and issues a new access + refresh token pair,
 // rotating the old refresh token. If the presented refresh token does not match
 // the stored one (replay attack), the entire session is deleted.
-func (tvm *VendingMachine) Refresh(ctx context.Context, refreshToken string) (accessToken string, newRefreshToken string, err error) {
+func (tvm *VendingMachine) Refresh(
+	ctx context.Context,
+	refreshToken string,
+) (accessToken string, newRefreshToken string, err error) {
 	if tokenPrefix(refreshToken) != prefixRefresh {
 		return "", "", ErrInvalidExpiredToken
 	}
@@ -129,7 +132,10 @@ func (tvm *VendingMachine) ListSessions(ctx context.Context, token string) ([]qu
 
 // ListAPITokensForEntity lists all API tokens associated with the given entity.
 // The caller is expected to have already verified permissions.
-func (tvm *VendingMachine) ListAPITokensForEntity(ctx context.Context, entity queries.Entity) ([]queries.ListAPITokensForEntityRow, error) {
+func (tvm *VendingMachine) ListAPITokensForEntity(
+	ctx context.Context,
+	entity queries.Entity,
+) ([]queries.ListAPITokensForEntityRow, error) {
 	return tvm.queries.ListAPITokensForEntity(ctx, queries.ListAPITokensForEntityParams{
 		EntityType: entity.Type,
 		EntityID:   entity.ID,

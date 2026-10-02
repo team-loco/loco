@@ -22,8 +22,12 @@ type ObservabilityAccessServer struct {
 	tvm     *tvm.VendingMachine
 }
 
-func NewObservabilityAccessServer(db *pgxpool.Pool, queries genDb.Querier, tvm *tvm.VendingMachine) *ObservabilityAccessServer {
-	return &ObservabilityAccessServer{db: db, queries: queries, tvm: tvm}
+func NewObservabilityAccessServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	vendingMachine *tvm.VendingMachine,
+) *ObservabilityAccessServer {
+	return &ObservabilityAccessServer{db: db, queries: queries, tvm: vendingMachine}
 }
 
 // GetObservabilityAccess returns the regional proxy endpoints for the workspace.

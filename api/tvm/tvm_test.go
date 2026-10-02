@@ -136,7 +136,10 @@ func (tq *TestingQueries) getUserScopesByEmail(ctx context.Context, email string
 	}
 }
 
-func (tq *TestingQueries) GetUserWithScopesByEmail(ctx context.Context, email string) (queries.UserWithScopesView, error) {
+func (tq *TestingQueries) GetUserWithScopesByEmail(
+	ctx context.Context,
+	email string,
+) (queries.UserWithScopesView, error) {
 	user, err := tq.GetUserByEmail(ctx, email)
 	if err != nil {
 		return queries.UserWithScopesView{}, err
@@ -156,7 +159,10 @@ func (tq *TestingQueries) GetUserWithScopesByEmail(ctx context.Context, email st
 	}, nil
 }
 
-func (*TestingQueries) GetUserScopesOnWorkspace(_ context.Context, _ queries.GetUserScopesOnWorkspaceParams) ([]queries.EntityScope, error) {
+func (*TestingQueries) GetUserScopesOnWorkspace(
+	_ context.Context,
+	_ queries.GetUserScopesOnWorkspaceParams,
+) ([]queries.EntityScope, error) {
 	return nil, nil
 }
 
@@ -170,7 +176,10 @@ func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uu
 	return uuid.UUID{}, tvm.ErrEntityNotFound
 }
 
-func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error) {
+func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(
+	ctx context.Context,
+	id uuid.UUID,
+) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error) {
 	if id == res1UUID {
 		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
 			WorkspaceID: ws1UUID,
@@ -210,7 +219,10 @@ func (tq *TestingQueries) CreateSessionToken(ctx context.Context, params queries
 	return nil
 }
 
-func (tq *TestingQueries) GetSessionByAccessToken(ctx context.Context, accessTokenHash string) (queries.GetSessionByAccessTokenRow, error) {
+func (tq *TestingQueries) GetSessionByAccessToken(
+	ctx context.Context,
+	accessTokenHash string,
+) (queries.GetSessionByAccessTokenRow, error) {
 	id, ok := tq.byAccess[accessTokenHash]
 	if !ok {
 		return queries.GetSessionByAccessTokenRow{}, tvm.ErrTokenNotFound
@@ -225,7 +237,10 @@ func (tq *TestingQueries) GetSessionByAccessToken(ctx context.Context, accessTok
 	}, nil
 }
 
-func (tq *TestingQueries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (queries.GetSessionByRefreshTokenRow, error) {
+func (tq *TestingQueries) GetSessionByRefreshToken(
+	ctx context.Context,
+	refreshTokenHash string,
+) (queries.GetSessionByRefreshTokenRow, error) {
 	id, ok := tq.byRefresh[refreshTokenHash]
 	if !ok {
 		return queries.GetSessionByRefreshTokenRow{}, tvm.ErrTokenNotFound
@@ -280,7 +295,10 @@ func (tq *TestingQueries) DeleteSessionTokenByAccessHash(ctx context.Context, ac
 
 func (tq *TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { return nil }
 
-func (tq *TestingQueries) ListSessionsForUser(_ context.Context, _ uuid.UUID) ([]queries.ListSessionsForUserRow, error) {
+func (tq *TestingQueries) ListSessionsForUser(
+	_ context.Context,
+	_ uuid.UUID,
+) ([]queries.ListSessionsForUserRow, error) {
 	return nil, nil
 }
 
@@ -302,7 +320,10 @@ func (tq *TestingQueries) DeleteAPITokenByHash(_ context.Context, _ string) erro
 
 func (tq *TestingQueries) DeleteExpiredAPITokens(_ context.Context) error { return nil }
 
-func (tq *TestingQueries) ListAPITokensForEntity(_ context.Context, _ queries.ListAPITokensForEntityParams) ([]queries.ListAPITokensForEntityRow, error) {
+func (tq *TestingQueries) ListAPITokensForEntity(
+	_ context.Context,
+	_ queries.ListAPITokensForEntityParams,
+) ([]queries.ListAPITokensForEntityRow, error) {
 	return nil, nil
 }
 
@@ -310,11 +331,17 @@ func (tq *TestingQueries) DeleteAPITokensForEntity(_ context.Context, _ queries.
 	return nil
 }
 
-func (tq *TestingQueries) GetAPITokenByNameAndEntity(_ context.Context, _ queries.GetAPITokenByNameAndEntityParams) (queries.GetAPITokenByNameAndEntityRow, error) {
+func (tq *TestingQueries) GetAPITokenByNameAndEntity(
+	_ context.Context,
+	_ queries.GetAPITokenByNameAndEntityParams,
+) (queries.GetAPITokenByNameAndEntityRow, error) {
 	return queries.GetAPITokenByNameAndEntityRow{}, tvm.ErrTokenNotFound
 }
 
-func (tq *TestingQueries) DeleteAPITokenByNameAndEntity(_ context.Context, _ queries.DeleteAPITokenByNameAndEntityParams) error {
+func (tq *TestingQueries) DeleteAPITokenByNameAndEntity(
+	_ context.Context,
+	_ queries.DeleteAPITokenByNameAndEntityParams,
+) error {
 	return nil
 }
 

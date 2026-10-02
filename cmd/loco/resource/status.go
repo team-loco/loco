@@ -110,7 +110,7 @@ Examples:
 				return fmt.Errorf("failed to get service status: %w", err)
 			}
 
-			if output == "json" {
+			if output == outputJSON {
 				encoder := json.NewEncoder(deps.Stdout)
 				encoder.SetIndent("", "  ")
 				return encoder.Encode(resp.Msg)

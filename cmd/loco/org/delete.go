@@ -74,7 +74,9 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			}
 
 			if !yes {
-				confirm, confirmErr := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete organization %q? This cannot be undone.", name))
+				confirm, confirmErr := deps.AskYesNo(
+					fmt.Sprintf("Are you sure you want to delete organization %q? This cannot be undone.", name),
+				)
 				if confirmErr != nil {
 					return fmt.Errorf("unable to prompt for confirmation: %w", confirmErr)
 				}

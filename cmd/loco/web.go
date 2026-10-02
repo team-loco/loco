@@ -14,7 +14,8 @@ import (
 )
 
 var webCmd = &cobra.Command{
-	Use:   "web [dashboard|resources|create-resource|events|observability|usage|settings|org-settings|profile|tokens|organizations|team]",
+	Use: "web [dashboard|resources|create-resource|events|observability|usage|settings|" +
+		"org-settings|profile|tokens|organizations|team]",
 	Short: "Open loco pages in your browser",
 	Long:  "Open loco pages in your browser. Defaults to dashboard if no argument provided.",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -70,7 +71,11 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 	case "team":
 		path = "/team"
 	default:
-		return fmt.Errorf("invalid page: %s. Valid options are: dashboard, resources, create-resource, events, observability, usage, settings, org-settings, profile, tokens, organizations, team", page)
+		return fmt.Errorf(
+			"invalid page: %s. Valid options are: dashboard, resources, create-resource, events, "+
+				"observability, usage, settings, org-settings, profile, tokens, organizations, team",
+			page,
+		)
 	}
 
 	url := host + path

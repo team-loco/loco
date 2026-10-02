@@ -35,8 +35,8 @@ type UserServer struct {
 }
 
 // NewUserServer creates a new UserServer instance
-func NewUserServer(db *pgxpool.Pool, queries genDb.Querier, tvm *tvm.VendingMachine) *UserServer {
-	return &UserServer{db: db, queries: queries, tvm: tvm}
+func NewUserServer(db *pgxpool.Pool, queries genDb.Querier, vendingMachine *tvm.VendingMachine) *UserServer {
+	return &UserServer{db: db, queries: queries, tvm: vendingMachine}
 }
 
 // CreateUser handles user creation with auto-org and workspace setup
@@ -154,7 +154,11 @@ func (s *UserServer) GetUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetUser, targetUserID)); verifyErr != nil {
+	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(
+		ctx,
+		entityScopes,
+		actions.New(actions.GetUser, targetUserID),
+	); verifyErr != nil {
 		// Return NotFound (not PermissionDenied) to prevent user-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get user", "userId", targetUserID)
 		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
@@ -219,8 +223,19 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.UpdateUser, r.GetUserId())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to update user", "targetUserId", r.GetUserId(), "currentUserId", entity.ID.String())
+	if err := s.tvm.VerifyWithGivenEntityScopes(
+		ctx,
+		entityScopes,
+		actions.New(actions.UpdateUser, r.GetUserId()),
+	); err != nil {
+		slog.WarnContext(
+			ctx,
+			"unauthorized to update user",
+			"targetUserId",
+			r.GetUserId(),
+			"currentUserId",
+			entity.ID.String(),
+		)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -303,7 +318,11 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.DeleteUser, r.GetUserId())); err != nil {
+	if err := s.tvm.VerifyWithGivenEntityScopes(
+		ctx,
+		entityScopes,
+		actions.New(actions.DeleteUser, r.GetUserId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete user", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}

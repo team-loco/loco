@@ -209,7 +209,12 @@ func seedOrganizations(ctx context.Context, queries *db.Queries, userIDs []uuid.
 	return orgIDs, nil
 }
 
-func seedWorkspaces(ctx context.Context, queries *db.Queries, orgIDs []uuid.UUID, userIDs []uuid.UUID) ([]uuid.UUID, []uuid.UUID, error) {
+func seedWorkspaces(
+	ctx context.Context,
+	queries *db.Queries,
+	orgIDs []uuid.UUID,
+	userIDs []uuid.UUID,
+) ([]uuid.UUID, []uuid.UUID, error) {
 	var wksIDs []uuid.UUID
 	var envIDs []uuid.UUID
 
@@ -544,7 +549,14 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, re
 	for _, scope := range allScopes {
 		if err := queries.AddUserScope(ctx, scope); err != nil {
 			// addiing organization_1:read for user with id 1: bla bla bla
-			return fmt.Errorf("adding %s_%v:%s for user with id %v: %w", scope.EntityType, scope.EntityID, scope.Scope, scope.UserID, err)
+			return fmt.Errorf(
+				"adding %s_%v:%s for user with id %v: %w",
+				scope.EntityType,
+				scope.EntityID,
+				scope.Scope,
+				scope.UserID,
+				err,
+			)
 		}
 	}
 	return nil

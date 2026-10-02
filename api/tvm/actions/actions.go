@@ -139,7 +139,8 @@ var (
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeRead,
 	}
-	// CreateOrg requires user:write. (user scopes are only granted when the user is onboarded, so this kinda exists as a check to ensure the user is onboarded)
+	// CreateOrg requires user:write. (user scopes are only granted when the user is onboarded,
+	// so this kinda exists as a check to ensure the user is onboarded)
 	CreateOrg = Action{
 		entityType: db.EntityTypeUser,
 		scope:      db.ScopeWrite,

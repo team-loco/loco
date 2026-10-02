@@ -57,7 +57,10 @@ func extractBearerToken(header string) string {
 }
 
 // authenticateAgent validates the agent token and returns the cluster.
-func (s *AgentServer) authenticateAgent(ctx context.Context, authHeader string) (genDb.GetClusterByAgentTokenRow, error) {
+func (s *AgentServer) authenticateAgent(
+	ctx context.Context,
+	authHeader string,
+) (genDb.GetClusterByAgentTokenRow, error) {
 	token := extractBearerToken(authHeader)
 	if token == "" {
 		return genDb.GetClusterByAgentTokenRow{}, ErrInvalidAgentToken

@@ -56,7 +56,9 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 				return fmt.Errorf("failed to get yes flag: %w", err)
 			}
 			if !yes {
-				confirm, confirmErr := deps.AskYesNo("Are you sure you want to revoke your token? You will need to login again.")
+				confirm, confirmErr := deps.AskYesNo(
+					"Are you sure you want to revoke your token? You will need to login again.",
+				)
 				if confirmErr != nil {
 					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
 				}

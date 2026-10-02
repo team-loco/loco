@@ -15,6 +15,12 @@ import (
 
 const DefaultAppDomain = "onloco.app"
 
+const (
+	defaultRegion      = "us-east-1"
+	buildTypeDocker    = "docker"
+	domainTypePlatform = "platform"
+)
+
 // AllowedSchemaVersions defines supported config versions
 var AllowedSchemaVersions = []string{
 	"0.1",
@@ -27,11 +33,11 @@ var Default = &LocoConfig{
 		Description:   "Default Loco app configuration",
 		Name:          "<ENTER_APP_NAME>",
 		Type:          "SERVICE",
-		Region:        "us-east-1",
+		Region:        defaultRegion,
 	},
 	Build: Build{
 		DockerfilePath: "Dockerfile",
-		Type:           "docker",
+		Type:           buildTypeDocker,
 	},
 	Routing: Routing{
 		IdleTimeout: 60,
@@ -106,29 +112,61 @@ func FillSensibleDefaults(cfg *LocoConfig) {
 
 // Validate ensures the LocoConfig is valid according to the schema
 func Validate(cfg *LocoConfig) error {
+	validators := []func(*LocoConfig) error{
+		validateMetadata,
+		validateDomain,
+		validateRouting,
+		validateBuild,
+		validateRegions,
+		validateHealth,
+		validateObs,
+	}
+	for _, validate := range validators {
+		if err := validate(cfg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateMetadata(cfg *LocoConfig) error {
 	if cfg.Metadata.ConfigVersion == "" {
 		return fmt.Errorf("metadata.configVersion must be set")
 	}
 	if !isAllowedSchemaVersion(cfg.Metadata.ConfigVersion) {
-		return fmt.Errorf("metadata.configVersion %q is not supported. allowed versions: %v", cfg.Metadata.ConfigVersion, AllowedSchemaVersions)
+		return fmt.Errorf(
+			"metadata.configVersion %q is not supported. allowed versions: %v",
+			cfg.Metadata.ConfigVersion,
+			AllowedSchemaVersions,
+		)
 	}
 
 	if cfg.Metadata.Name == "" {
 		return fmt.Errorf("metadata.name must be set")
 	}
 
+	return nil
+}
+
+func validateDomain(cfg *LocoConfig) error {
 	if cfg.DomainConfig != nil {
 		if cfg.DomainConfig.Hostname == "" {
 			return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.onloco.app')")
 		}
-		if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != "platform" && cfg.DomainConfig.Type != "custom" {
+		if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != domainTypePlatform &&
+			cfg.DomainConfig.Type != "custom" {
 			return fmt.Errorf("domainConfig.type must be 'platform' or 'custom', got %q", cfg.DomainConfig.Type)
 		}
 		if cfg.DomainConfig.Type == "" {
-			cfg.DomainConfig.Type = "platform"
+			cfg.DomainConfig.Type = domainTypePlatform
 		}
 	}
 
+	return nil
+}
+
+func validateRouting(cfg *LocoConfig) error {
 	if cfg.Routing.Port <= 1023 || cfg.Routing.Port > 65535 {
 		return fmt.Errorf("routing.port must be between 1024 and 65535, got %d", cfg.Routing.Port)
 	}
@@ -143,17 +181,25 @@ func Validate(cfg *LocoConfig) error {
 		return fmt.Errorf("routing.idleTimeout cannot be negative")
 	}
 
+	return nil
+}
+
+func validateBuild(cfg *LocoConfig) error {
 	if cfg.Build.DockerfilePath == "" {
 		cfg.Build.DockerfilePath = "Dockerfile"
 	}
 
 	if cfg.Build.Type == "" {
-		cfg.Build.Type = "docker"
+		cfg.Build.Type = buildTypeDocker
 	}
-	if cfg.Build.Type != "docker" {
+	if cfg.Build.Type != buildTypeDocker {
 		return fmt.Errorf("build.type %q is not supported. only 'docker' is allowed", cfg.Build.Type)
 	}
 
+	return nil
+}
+
+func validateRegions(cfg *LocoConfig) error {
 	if len(cfg.RegionConfig) == 0 {
 		return fmt.Errorf("regionConfig must have at least one region configured")
 	}
@@ -167,43 +213,67 @@ func Validate(cfg *LocoConfig) error {
 	}
 
 	for region, resources := range cfg.RegionConfig {
-		if resources.CPU == "" {
-			return fmt.Errorf("regionConfig.%s.cpu must be set (e.g. '100m')", region)
-		}
-		if resources.Memory == "" {
-			return fmt.Errorf("regionConfig.%s.memory must be set (e.g. '512Mi')", region)
-		}
-
-		if resources.ReplicasMin <= 0 {
-			return fmt.Errorf("regionConfig.%s.replicas_min must be greater than 0", region)
-		}
-		if resources.ReplicasMax <= 0 {
-			return fmt.Errorf("regionConfig.%s.replicas_max must be greater than 0", region)
-		}
-		if resources.ReplicasMax < resources.ReplicasMin {
-			return fmt.Errorf("regionConfig.%s.replicas_max must be greater than or equal to replicas_min", region)
-		}
-		if resources.ReplicasMax > 3 {
-			return fmt.Errorf("regionConfig.%s.replicas_max cannot exceed 3 replicas", region)
-		}
-
-		if resources.EnableAutoScaling {
-			if resources.CPUTarget == 0 && resources.ScalersMemTarget == 0 {
-				return fmt.Errorf("regionConfig.%s: when scalers_enabled=true, either scalers_cpu_target or scalers_memory_target must be provided (non-zero)", region)
-			}
-			if resources.CPUTarget != 0 && resources.ScalersMemTarget != 0 {
-				return fmt.Errorf("regionConfig.%s: only one of scalers_cpu_target or scalers_memory_target should be provided", region)
-			}
-			if resources.CPUTarget != 0 && (resources.CPUTarget < 1 || resources.CPUTarget > 100) {
-				return fmt.Errorf("regionConfig.%s.scalers_cpu_target must be between 1 and 100 (0 means disabled)", region)
-			}
-			if resources.ScalersMemTarget != 0 && (resources.ScalersMemTarget < 1 || resources.ScalersMemTarget > 100) {
-				return fmt.Errorf("regionConfig.%s.scalers_memory_target must be between 1 and 100 (0 means disabled)", region)
-			}
+		if err := validateRegionResources(region, resources); err != nil {
+			return err
 		}
 	}
 
-	// --- Health ---
+	return nil
+}
+
+func validateRegionResources(region string, resources Resources) error {
+	if resources.CPU == "" {
+		return fmt.Errorf("regionConfig.%s.cpu must be set (e.g. '100m')", region)
+	}
+	if resources.Memory == "" {
+		return fmt.Errorf("regionConfig.%s.memory must be set (e.g. '512Mi')", region)
+	}
+
+	if resources.ReplicasMin <= 0 {
+		return fmt.Errorf("regionConfig.%s.replicas_min must be greater than 0", region)
+	}
+	if resources.ReplicasMax <= 0 {
+		return fmt.Errorf("regionConfig.%s.replicas_max must be greater than 0", region)
+	}
+	if resources.ReplicasMax < resources.ReplicasMin {
+		return fmt.Errorf("regionConfig.%s.replicas_max must be greater than or equal to replicas_min", region)
+	}
+	if resources.ReplicasMax > 3 {
+		return fmt.Errorf("regionConfig.%s.replicas_max cannot exceed 3 replicas", region)
+	}
+
+	if resources.EnableAutoScaling {
+		if resources.CPUTarget == 0 && resources.ScalersMemTarget == 0 {
+			return fmt.Errorf(
+				"regionConfig.%s: when scalers_enabled=true, either scalers_cpu_target or "+
+					"scalers_memory_target must be provided (non-zero)",
+				region,
+			)
+		}
+		if resources.CPUTarget != 0 && resources.ScalersMemTarget != 0 {
+			return fmt.Errorf(
+				"regionConfig.%s: only one of scalers_cpu_target or scalers_memory_target should be provided",
+				region,
+			)
+		}
+		if resources.CPUTarget != 0 && (resources.CPUTarget < 1 || resources.CPUTarget > 100) {
+			return fmt.Errorf(
+				"regionConfig.%s.scalers_cpu_target must be between 1 and 100 (0 means disabled)",
+				region,
+			)
+		}
+		if resources.ScalersMemTarget != 0 && (resources.ScalersMemTarget < 1 || resources.ScalersMemTarget > 100) {
+			return fmt.Errorf(
+				"regionConfig.%s.scalers_memory_target must be between 1 and 100 (0 means disabled)",
+				region,
+			)
+		}
+	}
+
+	return nil
+}
+
+func validateHealth(cfg *LocoConfig) error {
 	if cfg.Health.Path == "" {
 		return fmt.Errorf("health.path must be provided")
 	}
@@ -226,6 +296,10 @@ func Validate(cfg *LocoConfig) error {
 		return fmt.Errorf("health.failThreshold cannot be negative")
 	}
 
+	return nil
+}
+
+func validateObs(cfg *LocoConfig) error {
 	if cfg.Obs.Logging.Enabled {
 		if cfg.Obs.Logging.RetentionPeriod == "" {
 			cfg.Obs.Logging.RetentionPeriod = "7d"
@@ -334,7 +408,10 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 	file, err := os.Open(cfgPathAbs)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("loco.toml not found. Please run 'loco init' to create the file or run the cmd with --config to specify a custom path")
+			return nil, fmt.Errorf(
+				"loco.toml not found. Please run 'loco init' to create the file " +
+					"or run the cmd with --config to specify a custom path",
+			)
 		}
 
 		return nil, fmt.Errorf("failed to open loco.toml: %w", err)
@@ -386,13 +463,13 @@ func Create(cfg *LocoConfig, outputPath string) error {
 func CreateDefault(appName, appDomain string) error {
 	cfg := *Default // Copy the default config
 	cfg.Metadata.Name = appName
-	cfg.Metadata.Region = "us-east-1"
+	cfg.Metadata.Region = defaultRegion
 	cfg.DomainConfig = &DomainConfig{
-		Type:     "platform",
+		Type:     domainTypePlatform,
 		Hostname: appName + "." + appDomain,
 	}
 	cfg.RegionConfig = map[string]Resources{
-		"us-east-1": {
+		defaultRegion: {
 			CPU:         "100m",
 			Memory:      "256Mi",
 			ReplicasMin: 1,

@@ -67,7 +67,10 @@ func newLogoutCmd(deps logoutDeps) *cobra.Command {
 			t, err := deps.GetLocoToken(currentUser.Name)
 			if err != nil {
 				slog.Debug("no token found in keychain", "error", err)
-				fmt.Fprintln(deps.Output, lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in."))
+				fmt.Fprintln(
+					deps.Output,
+					lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in."),
+				)
 				return nil
 			}
 

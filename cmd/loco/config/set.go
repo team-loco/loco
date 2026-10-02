@@ -23,9 +23,9 @@ func buildSetCmd() *cobra.Command {
 			}
 
 			switch key {
-			case "locoHost":
+			case keyLocoHost:
 				cfg.LocoHost = value
-			case "defaultAppDomain":
+			case keyDefaultAppDomain:
 				cfg.DefaultAppDomain = value
 			default:
 				return fmt.Errorf("unknown key %q — valid keys: %v", key, validKeys)

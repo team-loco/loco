@@ -132,7 +132,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		errCh <- a.runHeartbeat(ctx)
 	}()
 
-	// Wait for either to fail or context to be cancelled
+	// Wait for either to fail or context to be canceled
 	select {
 	case err := <-errCh:
 		return err
@@ -307,7 +307,9 @@ func (a *Agent) heartbeatLoop(ctx context.Context) error {
 	}
 }
 
-func (a *Agent) sendHeartbeat(stream *connect.BidiStreamForClient[agentv1.HeartbeatRequest, agentv1.HeartbeatResponse]) error {
+func (a *Agent) sendHeartbeat(
+	stream *connect.BidiStreamForClient[agentv1.HeartbeatRequest, agentv1.HeartbeatResponse],
+) error {
 	req := &agentv1.HeartbeatRequest{
 		ClusterId: a.clusterID,
 		Capacity:  a.getCapacity(),

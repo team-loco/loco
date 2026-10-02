@@ -218,15 +218,33 @@ func main() {
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
-	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(workspaceServiceHandler, httpInterceptors)
-	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(resourceServiceHandler, httpInterceptors)
-	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(deploymentServiceHandler, httpInterceptors)
+	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(
+		workspaceServiceHandler,
+		httpInterceptors,
+	)
+	resourcePath, resourceHandler := resourcev1connect.NewResourceServiceHandler(
+		resourceServiceHandler,
+		httpInterceptors,
+	)
+	deploymentPath, deploymentHandler := deploymentv1connect.NewDeploymentServiceHandler(
+		deploymentServiceHandler,
+		httpInterceptors,
+	)
 	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, httpInterceptors)
 	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, httpInterceptors)
-	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(registryServiceHandler, httpInterceptors)
+	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(
+		registryServiceHandler,
+		httpInterceptors,
+	)
 	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler)
-	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(observabilityAccessHandler, httpInterceptors)
-	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(environmentServiceHandler, httpInterceptors)
+	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(
+		observabilityAccessHandler,
+		httpInterceptors,
+	)
+	environmentPath, environmentHandler := environmentv1connect.NewEnvironmentServiceHandler(
+		environmentServiceHandler,
+		httpInterceptors,
+	)
 
 	reflector := grpcreflect.NewStaticReflector(
 		// config service

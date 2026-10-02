@@ -58,7 +58,9 @@ Examples:
 
 			// Confirmation prompt (before any API calls)
 			if !yes {
-				confirmed, confirmErr := ui.AskYesNo(fmt.Sprintf("Are you sure you want to destroy the service '%s'?", name))
+				confirmed, confirmErr := ui.AskYesNo(
+					fmt.Sprintf("Are you sure you want to destroy the service '%s'?", name),
+				)
 				if confirmErr != nil {
 					return confirmErr
 				}

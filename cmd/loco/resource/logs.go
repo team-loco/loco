@@ -62,7 +62,7 @@ Examples:
 			}
 
 			switch output {
-			case "json":
+			case outputJSON:
 				return streamLogsJSON(cmd, deps, name)
 			case "table", "":
 				return streamLogsInteractive(cmd, deps, name)

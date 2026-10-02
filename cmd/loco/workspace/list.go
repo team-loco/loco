@@ -17,10 +17,19 @@ import (
 )
 
 type listDeps struct {
-	WhoAmI             func(ctx context.Context, req *connect.Request[userv1.WhoAmIRequest]) (*connect.Response[userv1.WhoAmIResponse], error)
-	ListUserWorkspaces func(ctx context.Context, req *connect.Request[workspacev1.ListUserWorkspacesRequest]) (*connect.Response[workspacev1.ListUserWorkspacesResponse], error)
-	ListOrgWorkspaces  func(ctx context.Context, req *connect.Request[workspacev1.ListOrgWorkspacesRequest]) (*connect.Response[workspacev1.ListOrgWorkspacesResponse], error)
-	Output             io.Writer
+	WhoAmI func(
+		ctx context.Context,
+		req *connect.Request[userv1.WhoAmIRequest],
+	) (*connect.Response[userv1.WhoAmIResponse], error)
+	ListUserWorkspaces func(
+		ctx context.Context,
+		req *connect.Request[workspacev1.ListUserWorkspacesRequest],
+	) (*connect.Response[workspacev1.ListUserWorkspacesResponse], error)
+	ListOrgWorkspaces func(
+		ctx context.Context,
+		req *connect.Request[workspacev1.ListOrgWorkspacesRequest],
+	) (*connect.Response[workspacev1.ListOrgWorkspacesResponse], error)
+	Output io.Writer
 }
 
 func buildListCmd() *cobra.Command {

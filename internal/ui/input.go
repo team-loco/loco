@@ -31,7 +31,7 @@ func (m inputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "enter", "ctrl+c", "esc":
+		case "enter", keyCtrlC, "esc":
 			return m, tea.Quit
 		}
 	}
