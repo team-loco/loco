@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -184,7 +185,14 @@ func (s *AgentServer) CommandStream(
 				return nil
 			}
 
-			protoCmd := commandToProto(cmd)
+			protoCmd, err := commandToProto(cmd)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to convert command", "error", err, "command_id", cmd.ID)
+				if nackErr := s.commandBus.Nack(ctx, cmd.ID, false); nackErr != nil {
+					slog.WarnContext(ctx, "failed to nack command", "command_id", cmd.ID, "error", nackErr)
+				}
+				continue
+			}
 			if err := stream.Send(protoCmd); err != nil {
 				slog.ErrorContext(ctx, "failed to send command", "error", err, "command_id", cmd.ID)
 				return err
@@ -332,7 +340,7 @@ func protoPhaseToDBStatus(phase deploymentv1.DeploymentPhase) genDb.DeploymentSt
 }
 
 // commandToProto converts a commandbus.Command to a proto CommandStreamResponse.
-func commandToProto(cmd *commandbus.Command) *agentv1.CommandStreamResponse {
+func commandToProto(cmd *commandbus.Command) (*agentv1.CommandStreamResponse, error) {
 	protoCmd := &agentv1.CommandStreamResponse{
 		CommandId: cmd.ID,
 		ClusterId: cmd.ClusterID,
@@ -351,10 +359,14 @@ func commandToProto(cmd *commandbus.Command) *agentv1.CommandStreamResponse {
 		}
 	case commandbus.CommandTypeDelete:
 		protoCmd.Type = agentv1.CommandType_COMMAND_TYPE_DELETE
+		var payload DeleteCommandPayload
+		if err := json.Unmarshal(cmd.Payload, &payload); err != nil {
+			return nil, fmt.Errorf("unmarshal delete payload: %w", err)
+		}
 		protoCmd.Payload = &agentv1.CommandStreamResponse_Delete{
-			Delete: &agentv1.DeleteCommand{},
+			Delete: &agentv1.DeleteCommand{ResourceId: payload.ResourceID},
 		}
 	}
 
-	return protoCmd
+	return protoCmd, nil
 }
