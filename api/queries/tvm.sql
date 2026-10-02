@@ -98,10 +98,14 @@ SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, l
 FROM session_tokens
 WHERE refresh_token_hash = $1 AND refresh_expires_at > NOW();
 
--- name: RotateSessionToken :exec
+-- name: RotateSessionToken :execrows
 UPDATE session_tokens
-SET access_token_hash = $2, refresh_token_hash = $3, access_expires_at = $4, refresh_expires_at = $5, last_used_at = NOW()
-WHERE id = $1;
+SET access_token_hash = sqlc.arg('access_token_hash'),
+    refresh_token_hash = sqlc.arg('refresh_token_hash'),
+    access_expires_at = sqlc.arg('access_expires_at'),
+    refresh_expires_at = sqlc.arg('refresh_expires_at'),
+    last_used_at = NOW()
+WHERE id = sqlc.arg('id') AND refresh_token_hash = sqlc.arg('old_refresh_token_hash');
 
 -- name: TouchSessionLastUsed :exec
 UPDATE session_tokens SET last_used_at = NOW() WHERE id = $1;

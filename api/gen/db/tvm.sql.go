@@ -702,29 +702,38 @@ func (q *Queries) RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams
 	return err
 }
 
-const rotateSessionToken = `-- name: RotateSessionToken :exec
+const rotateSessionToken = `-- name: RotateSessionToken :execrows
 UPDATE session_tokens
-SET access_token_hash = $2, refresh_token_hash = $3, access_expires_at = $4, refresh_expires_at = $5, last_used_at = NOW()
-WHERE id = $1
+SET access_token_hash = $1,
+    refresh_token_hash = $2,
+    access_expires_at = $3,
+    refresh_expires_at = $4,
+    last_used_at = NOW()
+WHERE id = $5 AND refresh_token_hash = $6
 `
 
 type RotateSessionTokenParams struct {
-	ID               uuid.UUID `json:"id"`
-	AccessTokenHash  string    `json:"accessTokenHash"`
-	RefreshTokenHash string    `json:"refreshTokenHash"`
-	AccessExpiresAt  time.Time `json:"accessExpiresAt"`
-	RefreshExpiresAt time.Time `json:"refreshExpiresAt"`
+	AccessTokenHash     string    `json:"accessTokenHash"`
+	RefreshTokenHash    string    `json:"refreshTokenHash"`
+	AccessExpiresAt     time.Time `json:"accessExpiresAt"`
+	RefreshExpiresAt    time.Time `json:"refreshExpiresAt"`
+	ID                  uuid.UUID `json:"id"`
+	OldRefreshTokenHash string    `json:"oldRefreshTokenHash"`
 }
 
-func (q *Queries) RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) error {
-	_, err := q.db.Exec(ctx, rotateSessionToken,
-		arg.ID,
+func (q *Queries) RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rotateSessionToken,
 		arg.AccessTokenHash,
 		arg.RefreshTokenHash,
 		arg.AccessExpiresAt,
 		arg.RefreshExpiresAt,
+		arg.ID,
+		arg.OldRefreshTokenHash,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const touchAPITokenLastUsed = `-- name: TouchAPITokenLastUsed :exec

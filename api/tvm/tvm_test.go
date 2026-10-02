@@ -244,10 +244,13 @@ func (tq *TestingQueries) GetSessionByRefreshToken(
 	}, nil
 }
 
-func (tq *TestingQueries) RotateSessionToken(_ context.Context, params queries.RotateSessionTokenParams) error {
+func (tq *TestingQueries) RotateSessionToken(
+	_ context.Context,
+	params queries.RotateSessionTokenParams,
+) (int64, error) {
 	e, ok := tq.sessions[params.ID]
-	if !ok {
-		return tvm.ErrTokenNotFound
+	if !ok || e.refreshHash != params.OldRefreshTokenHash {
+		return 0, nil
 	}
 	delete(tq.byAccess, e.accessHash)
 	delete(tq.byRefresh, e.refreshHash)
@@ -257,7 +260,7 @@ func (tq *TestingQueries) RotateSessionToken(_ context.Context, params queries.R
 	e.refreshExpiresAt = params.RefreshExpiresAt
 	tq.byAccess[e.accessHash] = e.id
 	tq.byRefresh[e.refreshHash] = e.id
-	return nil
+	return 1, nil
 }
 
 func (*TestingQueries) TouchSessionLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
@@ -900,5 +903,68 @@ func TestExchangeUnchangedEmailIsNotRewritten(t *testing.T) {
 	}
 	if len(tq.updatedEmails) != 0 {
 		t.Fatalf("updated emails = %v, want none", tq.updatedEmails)
+	}
+}
+
+type racingRefreshQueries struct {
+	*TestingQueries
+}
+
+func (rq racingRefreshQueries) RotateSessionToken(
+	ctx context.Context,
+	params queries.RotateSessionTokenParams,
+) (int64, error) {
+	competing := params
+	competing.AccessTokenHash = "competing-access"
+	competing.RefreshTokenHash = "competing-refresh"
+	if _, err := rq.TestingQueries.RotateSessionToken(ctx, competing); err != nil {
+		return 0, err
+	}
+	return rq.TestingQueries.RotateSessionToken(ctx, params)
+}
+
+func TestRefreshRotatesTokens(t *testing.T) {
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, _, refreshToken, err := machine.Exchange(
+		t.Context(),
+		TestingGithubProvider(t.Context(), "github-token-user1"),
+		"",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
+	}
+
+	access, newRefresh, err := machine.Refresh(t.Context(), refreshToken)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if access == "" || newRefresh == "" || newRefresh == refreshToken {
+		t.Fatalf("refresh did not issue a new token pair")
+	}
+
+	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		t.Fatalf("reusing a rotated refresh token: got %v, want ErrInvalidExpiredToken", err)
+	}
+}
+
+func TestRefreshLosingRaceRevokesSession(t *testing.T) {
+	tq := newTestingQueries()
+	machine := tvm.NewVendingMachine(nil, racingRefreshQueries{tq}, testConfig())
+	_, _, refreshToken, err := machine.Exchange(
+		t.Context(),
+		TestingGithubProvider(t.Context(), "github-token-user1"),
+		"",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
+	}
+
+	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		t.Fatalf("losing refresh: got %v, want ErrInvalidExpiredToken", err)
+	}
+	if len(tq.sessions) != 0 {
+		t.Fatalf("sessions = %d, want the session revoked", len(tq.sessions))
 	}
 }

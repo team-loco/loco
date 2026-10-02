@@ -104,15 +104,24 @@ func (tvm *VendingMachine) Refresh(
 	newRefresh, newRefreshHash := generateToken(prefixRefresh)
 
 	now := time.Now()
-	if err := tvm.queries.RotateSessionToken(ctx, queries.RotateSessionTokenParams{
-		ID:               session.ID,
-		AccessTokenHash:  newAccessHash,
-		RefreshTokenHash: newRefreshHash,
-		AccessExpiresAt:  now.Add(tvm.Cfg.SessionAccessTokenDuration),
-		RefreshExpiresAt: now.Add(tvm.Cfg.SessionRefreshTokenDuration),
-	}); err != nil {
+	rotated, err := tvm.queries.RotateSessionToken(ctx, queries.RotateSessionTokenParams{
+		ID:                  session.ID,
+		OldRefreshTokenHash: hash,
+		AccessTokenHash:     newAccessHash,
+		RefreshTokenHash:    newRefreshHash,
+		AccessExpiresAt:     now.Add(tvm.Cfg.SessionAccessTokenDuration),
+		RefreshExpiresAt:    now.Add(tvm.Cfg.SessionRefreshTokenDuration),
+	})
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to rotate session token", "err", err)
 		return "", "", ErrStoreToken
+	}
+	if rotated == 0 {
+		slog.WarnContext(ctx, "refresh token reused, revoking session", "sessionId", session.ID)
+		if deleteErr := tvm.queries.DeleteSessionToken(ctx, session.ID); deleteErr != nil {
+			slog.ErrorContext(ctx, "failed to revoke session after refresh token reuse", "err", deleteErr)
+		}
+		return "", "", ErrInvalidExpiredToken
 	}
 
 	return newAccess, newRefresh, nil
