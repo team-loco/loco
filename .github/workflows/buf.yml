@@ -48,17 +48,6 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
-    name: Buf Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: ./.github/actions/setup-tools
-
-      - name: buf lint
-        run: mise run lint:proto -- --error-format github-actions
-
   generate:
     name: Verify Generated Code
     runs-on: ubuntu-latest
@@ -85,7 +74,7 @@ jobs:
           fi
 
   buf:
-    name: Buf Breaking
+    name: Buf
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -98,7 +87,7 @@ jobs:
       - uses: bufbuild/buf-action@8c6a16e16f12ba20b6470afa9c2ba9b5ba8c97c3 # v1.5.0
         with:
           token: ${{ secrets.BUF_TOKEN }}
-          lint: false
+          lint: true
           # Skip the breaking-change check on PRs labelled `break-buf`.
           # NOTE: this must key off the pull_request payload. The previous
           # `github.event.head_commit.message` only exists on push events, so on
