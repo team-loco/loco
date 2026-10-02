@@ -1,6 +1,6 @@
 certManager:
   issuer:
-    email: {{ env "CERT_MANAGER_EMAIL" | quote }}
+    email: {{ env "CERT_MANAGER_EMAIL" | default "dev@example.com" | quote }}
 
 global:
   domain:
