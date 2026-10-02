@@ -127,6 +127,22 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 	return resource_id, err
 }
 
+const getDeploymentStatus = `-- name: GetDeploymentStatus :one
+SELECT status, message FROM deployments WHERE id = $1
+`
+
+type GetDeploymentStatusRow struct {
+	Status  DeploymentStatus `json:"status"`
+	Message string           `json:"message"`
+}
+
+func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error) {
+	row := q.db.QueryRow(ctx, getDeploymentStatus, id)
+	var i GetDeploymentStatusRow
+	err := row.Scan(&i.Status, &i.Message)
+	return i, err
+}
+
 const listActiveDeployments = `-- name: ListActiveDeployments :many
 SELECT resource_id FROM deployments WHERE is_active = true
 `

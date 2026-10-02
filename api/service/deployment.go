@@ -613,6 +613,11 @@ func (s *DeploymentServer) DeleteDeployment(
 	return connect.NewResponse(&deploymentv1.DeleteDeploymentResponse{}), nil
 }
 
+const (
+	watchDeploymentPollInterval = 2 * time.Second
+	watchDeploymentMaxDuration  = 30 * time.Minute
+)
+
 // WatchDeployment streams deployment status updates
 func (s *DeploymentServer) WatchDeployment(
 	ctx context.Context,
@@ -629,84 +634,92 @@ func (s *DeploymentServer) WatchDeployment(
 		return connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get resource", "error", err)
-		return connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
 		return connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
+	resourceIDStr := resourceID.String()
 	if err := s.machine.VerifyWithGivenEntityScopes(
 		ctx,
 		scopes,
-		actions.New(actions.StreamDeployment, resource.ID.String()),
+		actions.New(actions.StreamDeployment, resourceIDStr),
 	); err != nil {
-		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resource.ID.String())
+		slog.WarnContext(ctx, "unauthorized to stream deployment", "resourceId", resourceIDStr)
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	lastStatus := ""
-	ticker := time.NewTicker(2 * time.Second)
+	ctx, cancel := context.WithTimeout(ctx, watchDeploymentMaxDuration)
+	defer cancel()
+
+	var lastStatus genDb.DeploymentStatus
+	ticker := time.NewTicker(watchDeploymentPollInterval)
 	defer ticker.Stop()
 
-	if err := s.sendDeploymentEvent(ctx, stream, r.DeploymentId, &lastStatus); err != nil {
-		return err
-	}
-
 	for {
+		status, err := s.sendDeploymentEvent(ctx, stream, deploymentID, lastStatus)
+		if err != nil {
+			return err
+		}
+		lastStatus = status
+		if isTerminalDeploymentStatus(lastStatus) {
+			return nil
+		}
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			if err := s.sendDeploymentEvent(ctx, stream, r.DeploymentId, &lastStatus); err != nil {
-				return err
-			}
-
-			if lastStatus == "succeeded" || lastStatus == "failed" {
-				return nil
-			}
 		}
+	}
+}
+
+func isTerminalDeploymentStatus(status genDb.DeploymentStatus) bool {
+	switch status {
+	case genDb.DeploymentStatusSucceeded:
+		return true
+	case genDb.DeploymentStatusFailed:
+		return true
+	case genDb.DeploymentStatusCanceled:
+		return true
+	default:
+		return false
 	}
 }
 
 func (s *DeploymentServer) sendDeploymentEvent(
 	ctx context.Context,
 	stream *connect.ServerStream[deploymentv1.WatchDeploymentResponse],
-	deploymentID string,
-	lastStatus *string,
-) error {
-	deployment, err := s.queries.GetDeploymentByID(ctx, uuid.MustParse(deploymentID))
+	deploymentID uuid.UUID,
+	lastStatus genDb.DeploymentStatus,
+) (genDb.DeploymentStatus, error) {
+	deployment, err := s.queries.GetDeploymentStatus(ctx, deploymentID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get deployment", "error", err)
-		return connect.NewError(connect.CodeInternal, ErrDB)
+		slog.ErrorContext(ctx, "failed to get deployment status", "error", err)
+		return lastStatus, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if deployment.Status == lastStatus {
+		return lastStatus, nil
+	}
+
+	deploymentIDStr := deploymentID.String()
 	statusPhase := parseDeploymentPhase(deployment.Status)
-	statusStr := string(deployment.Status)
-	message := deployment.Message
-
-	if statusStr != *lastStatus {
-		event := &deploymentv1.WatchDeploymentResponse{
-			DeploymentId: deploymentID,
-			Status:       statusPhase,
-			Message:      message,
-			Timestamp:    timestamppb.New(time.Now()),
-		}
-
-		if err := stream.Send(event); err != nil {
-			return err
-		}
-
-		*lastStatus = statusStr
-		slog.InfoContext(ctx, "sent deployment event", "deployment_id", deploymentID, "status", statusStr)
+	now := time.Now()
+	event := &deploymentv1.WatchDeploymentResponse{
+		DeploymentId: deploymentIDStr,
+		Status:       statusPhase,
+		Message:      deployment.Message,
+		Timestamp:    timestamppb.New(now),
 	}
 
-	return nil
+	if err := stream.Send(event); err != nil {
+		return lastStatus, err
+	}
+
+	slog.InfoContext(ctx, "sent deployment event", "deployment_id", deploymentIDStr, "status", deployment.Status)
+	return deployment.Status, nil
 }
 
 // buildApplicationSpec builds the ApplicationSpec for the loco controller.
