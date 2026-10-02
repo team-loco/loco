@@ -63,7 +63,7 @@ teardown() {
     # Remove Kind cluster
     if kind get clusters 2>/dev/null | grep -q "^${KIND_CLUSTER_NAME}$"; then
         log_info "Deleting Kind cluster ${KIND_CLUSTER_NAME}..."
-        kind delete cluster --name "$KIND_CLUSTER_NAME"
+        kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
     rm -f "$KUBECONFIG_FILE"
 
@@ -115,7 +115,7 @@ setup_kind() {
     if kind get clusters 2>/dev/null | grep -q "^${KIND_CLUSTER_NAME}$"; then
         log_info "Kind cluster ${KIND_CLUSTER_NAME} already exists, reusing"
     else
-        kind create cluster --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME"
+        kind create cluster --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
         log_ok "Kind cluster created"
     fi
 
