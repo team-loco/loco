@@ -12,34 +12,23 @@ SELECT entity_type, entity_id, scope
 FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3;
 
 -- name: GetUserScopesOnOrganization :many
-WITH RECURSIVE entity_hierarchy AS (
-     -- Base case: the organization itself
-     SELECT
-         'organization'::entity_type as entity_type,
-         o.id as entity_id,
-         o.name as entity_name
+WITH entity_hierarchy AS (
+     SELECT 'organization'::entity_type AS entity_type, o.id AS entity_id
      FROM organizations o
      WHERE o.id = $1
 
      UNION ALL
 
-     -- Workspaces in the organization
-     SELECT
-         'workspace'::entity_type,
-         w.id,
-         w.name
+     SELECT 'workspace'::entity_type, w.id
      FROM workspaces w
-     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'organization' AND eh.entity_id = w.org_id
+     WHERE w.org_id = $1
 
      UNION ALL
 
-     -- Resources in the workspaces
-     SELECT
-         'resource'::entity_type,
-         r.id,
-         r.name
+     SELECT 'resource'::entity_type, r.id
      FROM resources r
-     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
+     INNER JOIN workspaces w ON w.id = r.workspace_id
+     WHERE w.org_id = $1
  )
  SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
      us.entity_type, us.entity_id, us.scope
