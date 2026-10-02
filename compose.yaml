@@ -38,7 +38,8 @@ services:
     environment:
       <<: *postgres-env
       PGHOST: postgres
-      SEED_FILE: ${SEED_FILE:-seed.sql}
+      SEED_FILE: ${SEED_FILE:-api/seed/local.sql}
+      AGENT_TOKEN: ${AGENT_TOKEN:-}
     volumes:
       - .:/repo:ro
     working_dir: /repo
@@ -50,12 +51,12 @@ services:
           echo "applying $$f"
           psql -q -f "$$f" 2>/dev/null
         done
-        if [ -f "$$SEED_FILE" ]; then
-          echo "seeding $$SEED_FILE"
-          psql -q -f "$$SEED_FILE" 2>/dev/null
-        else
-          echo "no $$SEED_FILE, skipping seed data"
+        if [ -z "$$AGENT_TOKEN" ]; then
+          echo "AGENT_TOKEN is not set; the seeded cluster's agent authenticates with it" >&2
+          exit 1
         fi
+        echo "seeding $$SEED_FILE"
+        psql -q -v ON_ERROR_STOP=1 -v agent_token="$$AGENT_TOKEN" -f "$$SEED_FILE" || exit 1
         echo "migrations applied"
 
 volumes:
