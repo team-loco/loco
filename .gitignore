@@ -64,7 +64,6 @@ AGENTS.md
 # local helm charts and values
 **/values/local.yaml
 charts/loco-*/charts/
-env/local/
 env/local-controller.yaml.gotmpl
 
 # full helm chart references.
@@ -72,8 +71,6 @@ references/
 **/dist/**
 
 lint.html
-seed.sql
-!e2e/seed.sql
 
 # e2e test artifacts
 e2e/pids/

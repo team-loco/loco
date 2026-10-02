@@ -173,7 +173,7 @@ description = "Stop Postgres and Valkey; the database is kept in the postgres-da
 run = "docker compose down"
 
 [tasks."db:migrate"]
-description = "Apply api/migrations and seed.sql to the local database, from a container"
+description = "Apply api/migrations and seed api/seed/local.sql into the local database, from a container"
 run = "docker compose run --rm migrate"
 
 [tasks."db:psql"]

@@ -25,7 +25,7 @@
       enabled: false,
     },
     {
-      matchDepNames: ["github.com/team-loco/loco/gen/go", "github.com/team-loco/loco/k8sapi"],
+      matchDepNames: ["github.com/team-loco/loco", "github.com/team-loco/loco/k8sapi"],
       enabled: false,
     },
     {

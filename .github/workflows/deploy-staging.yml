@@ -45,9 +45,9 @@ jobs:
 
           {
             echo "controller=$(match '^(controller/|k8sapi/)')"
-            echo "api=$(match '^(api/|gen/go/|k8sapi/)')"
+            echo "api=$(match '^(api/|gen/go/|go\.mod$|go\.sum$|k8sapi/)')"
             echo "web=$(match '^(web/|gen/ts/|package\.json$|bun\.lock$)')"
-            echo "agent=$(match '^(agent/|gen/go/|k8sapi/)')"
+            echo "agent=$(match '^(agent/|gen/go/|go\.mod$|go\.sum$|k8sapi/)')"
           } >> "$GITHUB_OUTPUT"
 
   push-controller-image:
@@ -132,10 +132,8 @@ jobs:
       CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
       GITLAB_PAT: ${{ secrets.GITLAB_PAT }}
       GITLAB_PROJECT_ID: ${{ secrets.GITLAB_PROJECT_ID }}
-      GITLAB_TOKEN_NAME: ${{ secrets.GITLAB_TOKEN_NAME }}
       GITLAB_URL: ${{ secrets.GITLAB_URL }}
       GITLAB_REGISTRY_URL: ${{ secrets.GITLAB_REGISTRY_URL }}
-      GITLAB_DEPLOY_TOKEN_NAME: ${{ secrets.GITLAB_DEPLOY_TOKEN_NAME }}
       GH_OAUTH_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
       GH_OAUTH_CLIENT_SECRET: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
       GH_OAUTH_STATE: ${{ secrets.GH_OAUTH_STATE }}

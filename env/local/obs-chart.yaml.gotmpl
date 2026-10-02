@@ -1,0 +1,15 @@
+gatewayNamespace: loco-system
+
+grafana:
+  adminUser: admin
+  adminPassword: {{ env "GRAFANA_ADMIN_PASSWORD" | default "admin" | quote }}
+
+clickhouse:
+  enabled: true
+  defaultUser:
+    password: ""
+
+obsProxy:
+  enabled: true
+  controlPlane:
+    url: "http://loco-core-agent.loco-system.svc.cluster.local:8000"

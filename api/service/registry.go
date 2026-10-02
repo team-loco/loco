@@ -25,7 +25,6 @@ type RegistryServer struct {
 	gitlabURL         string
 	gitlabPAT         string
 	gitlabProjectID   string
-	deployTokenName   string
 	registryBaseImage string
 	httpClient        *http.Client
 	machine           *tvm.VendingMachine
@@ -38,7 +37,6 @@ func NewRegistryServer(
 	gitlabURL string,
 	gitlabPAT string,
 	gitlabProjectID string,
-	deployTokenName string,
 	registryBaseImage string,
 	httpClient *http.Client,
 	machine *tvm.VendingMachine,
@@ -49,7 +47,6 @@ func NewRegistryServer(
 		gitlabURL:         gitlabURL,
 		gitlabPAT:         gitlabPAT,
 		gitlabProjectID:   gitlabProjectID,
-		deployTokenName:   deployTokenName,
 		registryBaseImage: registryBaseImage,
 		httpClient:        httpClient,
 		machine:           machine,
@@ -86,7 +83,7 @@ func (s *RegistryServer) GetGitlabToken(
 
 	expiresAt := time.Now().Add(5 * time.Minute).UTC().Format(time.RFC3339)
 	payload := map[string]any{
-		"name":       s.deployTokenName,
+		"name":       "loco-push-" + entityIDStr,
 		"scopes":     []string{"write_registry", "read_registry"},
 		"expires_at": expiresAt,
 	}

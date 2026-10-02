@@ -46,7 +46,6 @@ type APIConfig struct {
 	ProjectID             string // GitLab project ID
 	GitlabURL             string // Container registry URL
 	RegistryURL           string // Container registry URL
-	DeployTokenName       string // Deploy token name
 	GitlabPAT             string // GitLab Personal Access Token
 	DatabaseURL           string // PostgreSQL connection string
 	LogLevel              slog.Level
@@ -86,7 +85,6 @@ func newAPIConfig() *APIConfig {
 		ProjectID:             os.Getenv("GITLAB_PROJECT_ID"),
 		GitlabURL:             os.Getenv("GITLAB_URL"),
 		RegistryURL:           os.Getenv("GITLAB_REGISTRY_URL"),
-		DeployTokenName:       os.Getenv("GITLAB_DEPLOY_TOKEN_NAME"),
 		GitlabPAT:             os.Getenv("GITLAB_PAT"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		Port:                  os.Getenv("APP_PORT"),
@@ -203,7 +201,6 @@ func main() {
 		ac.GitlabURL,
 		ac.GitlabPAT,
 		ac.ProjectID,
-		ac.DeployTokenName,
 		ac.RegistryTag,
 		httpClient,
 		machine,

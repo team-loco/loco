@@ -134,7 +134,7 @@ setup_postgres() {
 
 run_migrations() {
     log_step "Running migrations and seeding test data..."
-    SEED_FILE=e2e/seed.sql e2e_compose run --rm migrate >/dev/null
+    SEED_FILE=api/seed/e2e.sql AGENT_TOKEN="$AGENT_TOKEN" e2e_compose run --rm migrate >/dev/null
     log_ok "Migrations applied and test data seeded"
 }
 
