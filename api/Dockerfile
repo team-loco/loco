@@ -1,8 +1,9 @@
 FROM golang:1.27.1-alpine3.23 AS builder
+ARG TARGETARCH
 
 ENV CGO_ENABLED=0 \
     GOOS=linux \
-    GOARCH=amd64
+    GOARCH=${TARGETARCH}
 
 WORKDIR /app
 

@@ -1,8 +1,9 @@
 FROM golang:1.27.1-alpine3.23 AS builder
+ARG TARGETARCH
 
 ENV CGO_ENABLED=0 \
     GOOS=linux \
-    GOARCH=amd64
+    GOARCH=${TARGETARCH}
 
 WORKDIR /app
 
@@ -19,7 +20,7 @@ COPY gen/go ./gen/go
 COPY k8sapi ./k8sapi
 
 WORKDIR /app/agent
-RUN go build -o loco-agent .
+RUN --mount=type=cache,target=/root/.cache/go-build go build -o loco-agent .
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

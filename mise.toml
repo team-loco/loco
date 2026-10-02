@@ -22,7 +22,6 @@ helm-diff = { version = "3.15.15", rename_exe = "diff", filter_bins = "none" }
 kubectl = "1.37.1"
 kind = "0.33.0"
 tilt = "0.37.8"
-air = "1.67.4"
 
 terraform = "1.16.4"
 doctl = "1.177.0"
@@ -126,34 +125,6 @@ run = ["actionlint -shellcheck=", "pinact run --check"]
 description = "Run hadolint on every Dockerfile; LINT_DOCKER_FORMAT selects the output format"
 run = "git ls-files '*Dockerfile' | grep -v '^examples/' | xargs hadolint --no-color -f \"${LINT_DOCKER_FORMAT:-tty}\" --failure-threshold error"
 
-[tasks.dev]
-description = "Run the API, agent, observability proxy and UI with live reload, against infrastructure that is already running"
-depends = ["fmt", "vet"]
-run = "mise run reload:api ::: reload:agent ::: reload:obs-proxy ::: ui"
-
-[tasks."reload:api"]
-description = "Run the API server with live reload"
-env = { _.file = ".env" }
-run = [
-  "lsof -ti:8000 | xargs -r kill -15 2>/dev/null || true",
-  "air --build.cmd 'cd api && go build -o ./bin/loco-api .' --build.entrypoint ./api/bin/loco-api --build.exclude_dir bin,archive,assets,cmd,docs,internal,terraform,web",
-]
-
-[tasks."reload:cli"]
-description = "Rebuild the CLI on every change"
-env = { _.file = ".env" }
-run = "air --build.cmd 'mkdir -p ./bin && go build -o ./bin/loco .' --build.entrypoint ./bin/loco --build.exclude_dir bin,api,archive,assets,dashboards,docs,kube,terraform,web"
-
-[tasks."reload:agent"]
-description = "Run the agent with live reload"
-env = { _.file = ".env" }
-run = "air --build.cmd 'cd agent && go build -o ./bin/loco-agent .' --build.entrypoint ./agent/bin/loco-agent --build.exclude_dir bin,web"
-
-[tasks."reload:obs-proxy"]
-description = "Run the observability proxy with live reload"
-env = { _.file = ".env" }
-run = "air --build.cmd 'cd observability-proxy && go build -o ./bin/loco-obs-proxy .' --build.entrypoint ./observability-proxy/bin/loco-obs-proxy --build.exclude_dir bin,web"
-
 [tasks.ui]
 description = "Run the web UI dev server"
 dir = "web"
@@ -185,13 +156,6 @@ run = "docker compose exec postgres sh -c 'exec psql -U \"$POSTGRES_USER\" -d \"
 description = "Delete the local kind cluster"
 run = "kind delete cluster --name loco-cluster-local"
 
-[tasks."controller:image"]
-description = "Build the controller image and load it into the local kind cluster"
-run = [
-  "docker build -t loco-controller:latest -f controller/Dockerfile .",
-  "kind load docker-image loco-controller:latest --name loco-cluster-local",
-]
-
 [tasks."helm:repos"]
 description = "Add and update the helm repositories the charts depend on"
 run = [
@@ -213,21 +177,10 @@ run = [
   "helm dependency build ./charts/loco-controller",
 ]
 
-[tasks."helm:sync"]
-description = "Sync every release to the local cluster"
-depends = ["helm:deps"]
+[tasks."helm:sync:cert-manager"]
+description = "Sync cert-manager to the local cluster"
 env = { _.file = ".env" }
-run = "helmfile -e local sync"
-
-[tasks."helm:sync:core"]
-description = "Sync the core phase (cert-manager, Envoy Gateway, loco-core, loco-controller) to the local cluster"
-env = { _.file = ".env" }
-run = "helmfile -e local -l phase=2-core sync"
-
-[tasks."helm:sync:obs"]
-description = "Sync the observability phase (ClickHouse, OpenTelemetry, Grafana) to the local cluster"
-env = { _.file = ".env" }
-run = "helmfile -e local -l phase=3-observability sync"
+run = "helmfile -e local -l name=cert-manager sync"
 
 [tasks."helm:destroy"]
 description = "Uninstall every release from the local cluster"

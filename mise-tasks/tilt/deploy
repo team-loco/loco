@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#MISE description="Sync one release to the local cluster with extra values, and print the objects it deployed; Tilt runs this for every release that uses an image it builds"
+#USAGE arg "<release>" help="helmfile release name, such as loco-core"
+#USAGE arg "<namespace>" help="namespace the release is installed in"
+#USAGE arg "[values]..." var=#true help="extra values, each passed to helm as --set"
+set -euo pipefail
+
+release=$1
+namespace=$2
+shift 2
+
+sets=()
+for value in "$@"; do
+	sets+=(--set "$value")
+done
+
+helmfile -e local -l name="$release" sync ${sets[@]+"${sets[@]}"} >&2
+helm get manifest "$release" -n "$namespace" |
+	yq "select(. != null) | .metadata.namespace = (.metadata.namespace // \"$namespace\")" |
+	kubectl get -o yaml -f -

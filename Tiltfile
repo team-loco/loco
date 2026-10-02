@@ -1,8 +1,8 @@
 # Loco local development environment
 # Prerequisites: docker (OrbStack or Docker Desktop) and mise. Every other tool is
-# pinned in mise.toml, and every resource below runs a mise task.
+# pinned in mise.toml, and every resource below runs a mise task or builds a Dockerfile.
 # Run:  mise run tilt
-# Stop: tilt down  (tears down helm releases and the compose services; the kind cluster and the database volume persist)
+# Stop: tilt down  (stops the compose services; the helm releases, the kind cluster and the database volume persist; mise run helm:destroy removes the releases)
 #
 # First-time setup:
 #   1. mise run setup
@@ -18,6 +18,7 @@ if os.environ.get('DOCKER_HOST', '') == '' and os.path.exists(orbstack_sock):
     os.environ['DOCKER_HOST'] = 'unix://' + orbstack_sock
 
 allow_k8s_contexts('kind-loco-cluster-local')
+update_settings(k8s_upsert_timeout_secs=600)
 
 # ---------------------------------------------------------------------------
 # Setup: Docker and the pinned tools
@@ -52,20 +53,52 @@ local_resource(
 )
 
 # ---------------------------------------------------------------------------
-# Setup: controller image — built locally and loaded into kind
+# Images: built from this checkout with the Dockerfiles CI ships, loaded into kind
 # ---------------------------------------------------------------------------
 
-local_resource(
-    'loco-controller-image',
-    cmd='mise run controller:image',
-    deps=[
-        'controller/',
-        'proto/',
-        'k8sapi/',
-    ],
-    resource_deps=['kind-cluster'],
-    labels=['setup'],
+docker_build(
+    'loco-agent',
+    '.',
+    dockerfile='agent/Dockerfile',
+    only=['agent', 'gen/go', 'k8sapi', 'go.mod', 'go.sum'],
 )
+
+docker_build(
+    'loco-obs-proxy',
+    '.',
+    dockerfile='observability-proxy/Dockerfile',
+    only=['observability-proxy', 'gen/go', 'go.mod', 'go.sum'],
+)
+
+docker_build(
+    'loco-controller',
+    '.',
+    dockerfile='controller/Dockerfile',
+    only=['controller', 'k8sapi'],
+)
+
+control_plane_url = 'http://host.docker.internal:${APP_PORT##*:}'
+
+
+def helm_release(name, namespace, images, values, deps, resource_deps):
+    sets = []
+    for i, image in enumerate(images):
+        ref = 'TILT_IMAGE_' + str(i)
+        sets += [
+            image['repository'] + '=${' + ref + '%:*}',
+            image['tag'] + '=${' + ref + '##*:}',
+            image['pull_policy'] + '=IfNotPresent',
+        ]
+    sets += values
+    k8s_custom_deploy(
+        name,
+        apply_cmd=' '.join(['mise', 'run', 'tilt:deploy', name, namespace] + ['"' + v + '"' for v in sets]),
+        delete_cmd='true',
+        deps=deps,
+        image_deps=[image['name'] for image in images],
+    )
+    k8s_resource(name, resource_deps=resource_deps, labels=['infra'])
+
 
 # ---------------------------------------------------------------------------
 # Infrastructure: Postgres and Valkey from compose.yaml
@@ -108,48 +141,72 @@ local_resource(
 # ---------------------------------------------------------------------------
 
 local_resource(
-    'helm-core',
-    cmd='mise run helm:sync:core',
-    resource_deps=['helm-networking', 'loco-controller-image'],
-    deps=[
-        'charts/loco-core/',
-        'charts/loco-controller/',
-        'env/local/core-chart.yaml.gotmpl',
-        'env/local/controller-chart.yaml.gotmpl',
-    ],
+    'helm-cert-manager',
+    cmd='mise run helm:sync:cert-manager',
+    resource_deps=['helm-networking'],
     labels=['infra'],
+)
+
+helm_release(
+    'loco-core',
+    'loco-system',
+    images=[{
+        'name': 'loco-agent',
+        'repository': 'agent.image.repository',
+        'tag': 'agent.image.tag',
+        'pull_policy': 'agent.imagePullPolicy',
+    }],
+    values=[
+        'global.replicas.ui=0',
+        'env.AGENT_TOKEN=$AGENT_TOKEN',
+        'env.CONTROL_PLANE_URL=' + control_plane_url,
+    ],
+    deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],
+    resource_deps=['helm-cert-manager'],
+)
+
+helm_release(
+    'loco-controller',
+    'loco-system',
+    images=[{
+        'name': 'loco-controller',
+        'repository': 'manager.image.repository',
+        'tag': 'manager.image.tag',
+        'pull_policy': 'manager.image.pullPolicy',
+    }],
+    values=[],
+    deps=['charts/loco-controller/', 'env/local/controller-chart.yaml.gotmpl'],
+    resource_deps=['loco-core'],
 )
 
 # ---------------------------------------------------------------------------
 # Phase 3: Observability (ClickHouse + OpenTelemetry + Grafana)
 # ---------------------------------------------------------------------------
 
-local_resource(
-    'helm-obs',
-    cmd='mise run helm:sync:obs',
-    resource_deps=['helm-core'],
-    deps=[
-        'charts/loco-obs/',
-        'env/local/obs-chart.yaml.gotmpl',
-    ],
-    labels=['infra'],
+helm_release(
+    'loco-obs',
+    'observability',
+    images=[{
+        'name': 'loco-obs-proxy',
+        'repository': 'obsProxy.image.repository',
+        'tag': 'obsProxy.image.tag',
+        'pull_policy': 'obsProxy.imagePullPolicy',
+    }],
+    values=['obsProxy.controlPlane.url=' + control_plane_url],
+    deps=['charts/loco-obs/', 'env/local/obs-chart.yaml.gotmpl'],
+    resource_deps=['loco-core'],
 )
 
 # ---------------------------------------------------------------------------
-# Services — live-reloading processes
+# Services — processes on the host, rebuilt and restarted when their sources change
 # ---------------------------------------------------------------------------
 
 local_resource(
     'api',
-    serve_cmd='mise run reload:api',
-    resource_deps=['helm-core', 'db-migrate', 'valkey'],
-    labels=['services'],
-)
-
-local_resource(
-    'agent',
-    serve_cmd='mise run reload:agent',
-    resource_deps=['helm-core', 'db-migrate'],
+    cmd='mise run build:api',
+    serve_cmd='api/bin/loco-api',
+    deps=['api/', 'gen/go/', 'k8sapi/', 'go.mod', 'go.sum'],
+    resource_deps=['db-migrate', 'valkey'],
     labels=['services'],
 )
 
@@ -160,8 +217,8 @@ local_resource(
 )
 
 local_resource(
-    'obs-proxy',
-    serve_cmd='mise run reload:obs-proxy',
-    resource_deps=['helm-obs'],
+    'cli',
+    cmd='mise run build',
+    deps=['main.go', 'cmd/', 'internal/', 'gen/go/', 'go.mod', 'go.sum'],
     labels=['services'],
 )
