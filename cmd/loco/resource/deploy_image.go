@@ -141,11 +141,10 @@ func configToResourceSpecV1(cfg *config.LocoConfig) (*resourcev1.ResourceSpec, e
 	}
 
 	regions := make(map[string]*resourcev1.RegionTarget)
-	firstRegion := true
 	for regionName, resourceCfg := range cfg.RegionConfig {
 		target := &resourcev1.RegionTarget{
 			Enabled:     true,
-			Primary:     firstRegion,
+			Primary:     regionName == cfg.Metadata.Region,
 			Cpu:         resourceCfg.CPU,
 			Memory:      resourceCfg.Memory,
 			MinReplicas: resourceCfg.ReplicasMin,
@@ -162,7 +161,6 @@ func configToResourceSpecV1(cfg *config.LocoConfig) (*resourcev1.ResourceSpec, e
 		}
 
 		regions[regionName] = target
-		firstRegion = false
 	}
 
 	serviceSpec := &resourcev1.ServiceSpec{
