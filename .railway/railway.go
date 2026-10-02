@@ -67,9 +67,8 @@ func dockerBuild(dockerfile string) map[string]any {
 func ui(env environment) railway.Service {
 	return railway.ServiceNamed("loco::cp-ui", railway.ServiceConfig{
 		"source": railway.Github(repo, map[string]any{
-			"branch":        env.branch,
-			"checkSuites":   false,
-			"rootDirectory": "/web",
+			"branch":      env.branch,
+			"checkSuites": false,
 		}),
 		"build":      dockerBuild("/web/Dockerfile"),
 		"replicas":   map[string]any{region: 2},
