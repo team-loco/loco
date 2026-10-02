@@ -22,7 +22,7 @@ func GetHost(cmd *cobra.Command) (string, error) {
 		return host, nil
 	}
 
-	host = os.Getenv("LOCO__HOST")
+	host = os.Getenv("LOCO_HOST")
 	if host != "" {
 		slog.Debug("using host from environment variable")
 		return host, nil

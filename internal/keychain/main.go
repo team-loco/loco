@@ -15,7 +15,7 @@ import (
 
 const Service = "loco"
 
-const StoreEnvVar = "LOCO__CREDENTIAL_STORE"
+const StoreEnvVar = "LOCO_CREDENTIAL_STORE"
 
 const credentialsFileName = "credentials.json"
 

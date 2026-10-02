@@ -41,7 +41,7 @@ func setupScript(env *testscript.Env) error {
 	api := newFakeAPI()
 	srv := httptest.NewServer(api.handler())
 	env.Defer(srv.Close)
-	env.Setenv("LOCO__HOST", srv.URL)
+	env.Setenv("LOCO_HOST", srv.URL)
 	env.Values[fakeAPIKey{}] = api
 	return nil
 }

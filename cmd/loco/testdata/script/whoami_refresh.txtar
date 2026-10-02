@@ -1,6 +1,6 @@
 # an expiring token is refreshed against the host the command was given, not the default host.
-env FAKE_HOST=$LOCO__HOST
-env LOCO__HOST=
+env FAKE_HOST=$LOCO_HOST
+env LOCO_HOST=
 exec loco whoami --host $FAKE_HOST
 stdout 'Hi, Test User!'
 fakeapi called RefreshToken
