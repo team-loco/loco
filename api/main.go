@@ -130,6 +130,18 @@ func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
+func newOutboundHTTPClient() *http.Client {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		base = &http.Transport{}
+	}
+	transport := base.Clone()
+	transport.Protocols = new(http.Protocols)
+	transport.Protocols.SetHTTP1(true)
+	transport.Protocols.SetHTTP2(true)
+	return &http.Client{Transport: transport, Timeout: 15 * time.Second}
+}
+
 func main() {
 	ac := newAPIConfig()
 
@@ -182,11 +194,7 @@ func main() {
 	}
 	defer appCache.Close()
 
-	transport := &http.Transport{}
-	transport.Protocols = new(http.Protocols)
-	transport.Protocols.SetHTTP1(true)
-	transport.Protocols.SetHTTP2(true)
-	httpClient := &http.Client{Transport: transport}
+	httpClient := newOutboundHTTPClient()
 
 	// Initialize command bus for agent communication
 	cmdBus, err := commandbus.New(&commandbus.Config{
