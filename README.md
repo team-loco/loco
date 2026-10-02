@@ -11,10 +11,6 @@ Loco is a container orchestration platform that simplifies application deploymen
 - **HTTPS by default** - Automatic SSL certificate management, powered by Let's Encrypt and Certificate Manager.
 - **Fast and Secure** - Envoy Gateway API serves HTTP3 traffic, handles TLS termination, and routing.
 
-## Architecture Diagram
-
-![Architecture Diagram](./assets/arch-light.png)
-
 ## Quick Start
 
 1.  **Download the loco cli**
@@ -23,10 +19,12 @@ Loco is a container orchestration platform that simplifies application deploymen
 go install github.com/team-loco/loco@latest
 ```
 
-2. **Run `loco init` to create a `loco.toml` file.**
-3. **Deploy your app via `loco deploy`**
+2. **Log in with `loco login`.** It uses the GitHub device flow.
+3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
+4. **Deploy your app via `loco deploy <app-name>`**
 
-Your app will be available at `https://myapp.onloco.app`
+Your app will be available at `https://<app-name>.onloco.app`. `loco deploy` is shorthand for `loco resource deploy`;
+`loco resource` also holds `status`, `logs`, `events`, `env`, `scale` and `destroy`.
 
 See all loco cli commands via `loco help`.
 Loco also generates completions for shells such as bash and zshrc.
@@ -37,9 +35,12 @@ loco completion zsh
 
 ## Examples
 
-Sample [`loco.toml`](./loco.toml)
+Every `loco.toml` field, with its default and whether it is required: [`loco_example.toml`](./loco_example.toml)
 
-A very simple app (currently deployed on loco) can be found here: [example-test-api](./examples/test-api/)
+Deployable sample apps, each with its own `loco.toml`:
+
+- [`examples/test-api`](./examples/test-api/): a `backend`, `auth` and `frontend` service
+- [`examples/metrics-validation`](./examples/metrics-validation/): generates CPU, memory, network and disk load to check metrics
 
 ## How-Tos
 
@@ -87,6 +88,15 @@ mise run setup
 That installs the pinned tools, the web dependencies and the git hooks, then runs `mise run doctor`, which checks that Docker (OrbStack or Docker Desktop) and Docker Compose are running and recent enough. Docker and mise are the only tools you install yourself. With [`mise activate`](https://mise.jdx.dev/getting-started.html#activate-mise) in your shell, the pinned tools are on `PATH` whenever you are inside the repository.
 
 Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
+
+Copy `.env.example` to `.env` and fill in the GitHub OAuth app and GitLab registry credentials. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000`. The CLI talks to `https://loco.build` unless told otherwise, and does not remember a `--host` passed to `loco login`, so point every command at the local API through `LOCO_HOST`:
+
+```bash
+mise run build
+export LOCO_HOST=http://localhost:8000
+./bin/loco login
+cd examples/test-api/backend && ../../../bin/loco deploy backend
+```
 
 ---
 

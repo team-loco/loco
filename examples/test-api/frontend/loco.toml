@@ -1,21 +1,9 @@
 [Metadata]
 ConfigVersion = "0.1"
-Description = "Default Loco app configuration"
+Description = "Static frontend for test-api"
 Name = "frontend"
+Region = "us-east-1"
 Type = "SERVICE"
-
-[Resources]
-CPU = "100m"
-Memory = "256Mi"
-
-[Resources.Replicas]
-Max = 1
-Min = 1
-
-[Resources.Scalers]
-CPUTarget = 0
-Enabled = false
-MemoryTarget = 0
 
 [Build]
 DockerfilePath = "Dockerfile"
@@ -24,13 +12,26 @@ Type = "docker"
 [Routing]
 IdleTimeout = 60
 PathPrefix = "/"
-Port = 8000
-Subdomain = "frontend"
+Port = 8080
+
+[DomainConfig]
+Hostname = "frontend.onloco.app"
+Type = "platform"
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+CPUTarget = 0
+EnableAutoScaling = false
+Memory = "256Mi"
+MemoryTarget = 0
+ReplicasMax = 1
+ReplicasMin = 1
 
 [Health]
 FailThreshold = 3
 Interval = 30
-Path = "/health"
+Path = "/"
 StartupGracePeriod = 0
 Timeout = 5
 
@@ -43,14 +44,11 @@ File = ""
 Enabled = true
 RetentionPeriod = "7d"
 Structured = false
-
 [Obs.Metrics]
 Enabled = false
 Path = "/metrics"
 Port = 9090
-
 [Obs.Tracing]
 Enabled = false
 SampleRate = 0.1
-
 [Obs.Tracing.Tags]
