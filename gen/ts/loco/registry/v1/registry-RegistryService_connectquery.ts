@@ -10,3 +10,10 @@ import { RegistryService } from "./registry_pb";
  * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
  */
 export const getGitlabToken = RegistryService.method.getGitlabToken;
+
+/**
+ * GetImageRepository returns the repository the CLI pushes deployment images to.
+ *
+ * @generated from rpc loco.registry.v1.RegistryService.GetImageRepository
+ */
+export const getImageRepository = RegistryService.method.getImageRepository;

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/registry/v1/registry.proto.
  */
 export const file_loco_registry_v1_registry: GenFile = /*@__PURE__*/
-  fileDesc("Ch9sb2NvL3JlZ2lzdHJ5L3YxL3JlZ2lzdHJ5LnByb3RvEhBsb2NvLnJlZ2lzdHJ5LnYxIhcKFUdldEdpdGxhYlRva2VuUmVxdWVzdCI5ChZHZXRHaXRsYWJUb2tlblJlc3BvbnNlEhAKCHVzZXJuYW1lGAEgASgJEg0KBXRva2VuGAIgASgJMngKD1JlZ2lzdHJ5U2VydmljZRJlCg5HZXRHaXRsYWJUb2tlbhInLmxvY28ucmVnaXN0cnkudjEuR2V0R2l0bGFiVG9rZW5SZXF1ZXN0GigubG9jby5yZWdpc3RyeS52MS5HZXRHaXRsYWJUb2tlblJlc3BvbnNlIgBCPlo8Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9yZWdpc3RyeS92MTtyZWdpc3RyeXYxYgZwcm90bzM");
+  fileDesc("Ch9sb2NvL3JlZ2lzdHJ5L3YxL3JlZ2lzdHJ5LnByb3RvEhBsb2NvLnJlZ2lzdHJ5LnYxIhcKFUdldEdpdGxhYlRva2VuUmVxdWVzdCI5ChZHZXRHaXRsYWJUb2tlblJlc3BvbnNlEhAKCHVzZXJuYW1lGAEgASgJEg0KBXRva2VuGAIgASgJIhsKGUdldEltYWdlUmVwb3NpdG9yeVJlcXVlc3QiMAoaR2V0SW1hZ2VSZXBvc2l0b3J5UmVzcG9uc2USEgoKcmVwb3NpdG9yeRgBIAEoCTLrAQoPUmVnaXN0cnlTZXJ2aWNlEmUKDkdldEdpdGxhYlRva2VuEicubG9jby5yZWdpc3RyeS52MS5HZXRHaXRsYWJUb2tlblJlcXVlc3QaKC5sb2NvLnJlZ2lzdHJ5LnYxLkdldEdpdGxhYlRva2VuUmVzcG9uc2UiABJxChJHZXRJbWFnZVJlcG9zaXRvcnkSKy5sb2NvLnJlZ2lzdHJ5LnYxLkdldEltYWdlUmVwb3NpdG9yeVJlcXVlc3QaLC5sb2NvLnJlZ2lzdHJ5LnYxLkdldEltYWdlUmVwb3NpdG9yeVJlc3BvbnNlIgBCPlo8Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9yZWdpc3RyeS92MTtyZWdpc3RyeXYxYgZwcm90bzM");
 
 /**
  * GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
@@ -77,6 +77,60 @@ export const GetGitlabTokenResponseSchema: GenMessage<GetGitlabTokenResponse, {j
   messageDesc(file_loco_registry_v1_registry, 1);
 
 /**
+ * GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
+ *
+ * @generated from message loco.registry.v1.GetImageRepositoryRequest
+ */
+export type GetImageRepositoryRequest = Message<"loco.registry.v1.GetImageRepositoryRequest"> & {
+};
+
+/**
+ * GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
+ *
+ * @generated from message loco.registry.v1.GetImageRepositoryRequest
+ */
+export type GetImageRepositoryRequestJson = {
+};
+
+/**
+ * Describes the message loco.registry.v1.GetImageRepositoryRequest.
+ * Use `create(GetImageRepositoryRequestSchema)` to create a new message.
+ */
+export const GetImageRepositoryRequestSchema: GenMessage<GetImageRepositoryRequest, {jsonType: GetImageRepositoryRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_registry_v1_registry, 2);
+
+/**
+ * GetImageRepositoryResponse names the repository deployment images are pushed to.
+ *
+ * @generated from message loco.registry.v1.GetImageRepositoryResponse
+ */
+export type GetImageRepositoryResponse = Message<"loco.registry.v1.GetImageRepositoryResponse"> & {
+  /**
+   * @generated from field: string repository = 1;
+   */
+  repository: string;
+};
+
+/**
+ * GetImageRepositoryResponse names the repository deployment images are pushed to.
+ *
+ * @generated from message loco.registry.v1.GetImageRepositoryResponse
+ */
+export type GetImageRepositoryResponseJson = {
+  /**
+   * @generated from field: string repository = 1;
+   */
+  repository?: string;
+};
+
+/**
+ * Describes the message loco.registry.v1.GetImageRepositoryResponse.
+ * Use `create(GetImageRepositoryResponseSchema)` to create a new message.
+ */
+export const GetImageRepositoryResponseSchema: GenMessage<GetImageRepositoryResponse, {jsonType: GetImageRepositoryResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_registry_v1_registry, 3);
+
+/**
  * RegistryService manages container registry access.
  *
  * @generated from service loco.registry.v1.RegistryService
@@ -91,6 +145,16 @@ export const RegistryService: GenService<{
     methodKind: "unary";
     input: typeof GetGitlabTokenRequestSchema;
     output: typeof GetGitlabTokenResponseSchema;
+  },
+  /**
+   * GetImageRepository returns the repository the CLI pushes deployment images to.
+   *
+   * @generated from rpc loco.registry.v1.RegistryService.GetImageRepository
+   */
+  getImageRepository: {
+    methodKind: "unary";
+    input: typeof GetImageRepositoryRequestSchema;
+    output: typeof GetImageRepositoryResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_registry_v1_registry, 0);

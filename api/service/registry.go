@@ -108,3 +108,22 @@ func (s *RegistryServer) GetGitlabToken(
 	)
 	return res, nil
 }
+
+func (s *RegistryServer) GetImageRepository(
+	ctx context.Context,
+	_ *connect.Request[registryv1.GetImageRepositoryRequest],
+) (*connect.Response[registryv1.GetImageRepositoryResponse], error) {
+	if _, ok := ctx.Value(contextkeys.EntityKey).(db.Entity); !ok {
+		slog.ErrorContext(ctx, "entity not found in context")
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("unauthorized"))
+	}
+
+	if s.registryBaseImage == "" {
+		slog.ErrorContext(ctx, "REGISTRY_TAG is not set")
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("no image repository is configured"))
+	}
+
+	return connect.NewResponse(&registryv1.GetImageRepositoryResponse{
+		Repository: s.registryBaseImage,
+	}), nil
+}

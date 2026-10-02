@@ -111,6 +111,88 @@ func (x *GetGitlabTokenResponse) GetToken() string {
 	return ""
 }
 
+// GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
+type GetImageRepositoryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetImageRepositoryRequest) Reset() {
+	*x = GetImageRepositoryRequest{}
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetImageRepositoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetImageRepositoryRequest) ProtoMessage() {}
+
+func (x *GetImageRepositoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetImageRepositoryRequest.ProtoReflect.Descriptor instead.
+func (*GetImageRepositoryRequest) Descriptor() ([]byte, []int) {
+	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{2}
+}
+
+// GetImageRepositoryResponse names the repository deployment images are pushed to.
+type GetImageRepositoryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Repository    string                 `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetImageRepositoryResponse) Reset() {
+	*x = GetImageRepositoryResponse{}
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetImageRepositoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetImageRepositoryResponse) ProtoMessage() {}
+
+func (x *GetImageRepositoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetImageRepositoryResponse.ProtoReflect.Descriptor instead.
+func (*GetImageRepositoryResponse) Descriptor() ([]byte, []int) {
+	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetImageRepositoryResponse) GetRepository() string {
+	if x != nil {
+		return x.Repository
+	}
+	return ""
+}
+
 var File_loco_registry_v1_registry_proto protoreflect.FileDescriptor
 
 const file_loco_registry_v1_registry_proto_rawDesc = "" +
@@ -119,9 +201,15 @@ const file_loco_registry_v1_registry_proto_rawDesc = "" +
 	"\x15GetGitlabTokenRequest\"J\n" +
 	"\x16GetGitlabTokenResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token2x\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\"\x1b\n" +
+	"\x19GetImageRepositoryRequest\"<\n" +
+	"\x1aGetImageRepositoryResponse\x12\x1e\n" +
+	"\n" +
+	"repository\x18\x01 \x01(\tR\n" +
+	"repository2\xeb\x01\n" +
 	"\x0fRegistryService\x12e\n" +
-	"\x0eGetGitlabToken\x12'.loco.registry.v1.GetGitlabTokenRequest\x1a(.loco.registry.v1.GetGitlabTokenResponse\"\x00B>Z<github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1b\x06proto3"
+	"\x0eGetGitlabToken\x12'.loco.registry.v1.GetGitlabTokenRequest\x1a(.loco.registry.v1.GetGitlabTokenResponse\"\x00\x12q\n" +
+	"\x12GetImageRepository\x12+.loco.registry.v1.GetImageRepositoryRequest\x1a,.loco.registry.v1.GetImageRepositoryResponse\"\x00B>Z<github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1b\x06proto3"
 
 var (
 	file_loco_registry_v1_registry_proto_rawDescOnce sync.Once
@@ -135,16 +223,20 @@ func file_loco_registry_v1_registry_proto_rawDescGZIP() []byte {
 	return file_loco_registry_v1_registry_proto_rawDescData
 }
 
-var file_loco_registry_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_loco_registry_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_loco_registry_v1_registry_proto_goTypes = []any{
-	(*GetGitlabTokenRequest)(nil),  // 0: loco.registry.v1.GetGitlabTokenRequest
-	(*GetGitlabTokenResponse)(nil), // 1: loco.registry.v1.GetGitlabTokenResponse
+	(*GetGitlabTokenRequest)(nil),      // 0: loco.registry.v1.GetGitlabTokenRequest
+	(*GetGitlabTokenResponse)(nil),     // 1: loco.registry.v1.GetGitlabTokenResponse
+	(*GetImageRepositoryRequest)(nil),  // 2: loco.registry.v1.GetImageRepositoryRequest
+	(*GetImageRepositoryResponse)(nil), // 3: loco.registry.v1.GetImageRepositoryResponse
 }
 var file_loco_registry_v1_registry_proto_depIdxs = []int32{
 	0, // 0: loco.registry.v1.RegistryService.GetGitlabToken:input_type -> loco.registry.v1.GetGitlabTokenRequest
-	1, // 1: loco.registry.v1.RegistryService.GetGitlabToken:output_type -> loco.registry.v1.GetGitlabTokenResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	2, // 1: loco.registry.v1.RegistryService.GetImageRepository:input_type -> loco.registry.v1.GetImageRepositoryRequest
+	1, // 2: loco.registry.v1.RegistryService.GetGitlabToken:output_type -> loco.registry.v1.GetGitlabTokenResponse
+	3, // 3: loco.registry.v1.RegistryService.GetImageRepository:output_type -> loco.registry.v1.GetImageRepositoryResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -161,7 +253,7 @@ func file_loco_registry_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_registry_v1_registry_proto_rawDesc), len(file_loco_registry_v1_registry_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
