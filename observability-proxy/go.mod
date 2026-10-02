@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.21.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.48.0
 	github.com/allegro/bigcache/v3 v3.2.0
-	github.com/team-loco/loco/gen/go v0.0.0
+	github.com/team-loco/loco v0.0.0
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -28,4 +28,4 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 )
 
-replace github.com/team-loco/loco/gen/go => ../gen/go
+replace github.com/team-loco/loco => ../

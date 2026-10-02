@@ -7,7 +7,7 @@ ENV CGO_ENABLED=0 \
 WORKDIR /app
 
 COPY observability-proxy/go.mod observability-proxy/go.sum ./observability-proxy/
-COPY gen/go/go.mod gen/go/go.sum ./gen/go/
+COPY go.mod go.sum ./
 
 WORKDIR /app/observability-proxy
 RUN go mod download

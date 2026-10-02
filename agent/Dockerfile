@@ -7,7 +7,7 @@ ENV CGO_ENABLED=0 \
 WORKDIR /app
 
 COPY agent/go.mod agent/go.sum ./agent/
-COPY gen/go/go.mod gen/go/go.sum ./gen/go/
+COPY go.mod go.sum ./
 COPY k8sapi/go.mod k8sapi/go.sum ./k8sapi/
 
 WORKDIR /app/agent

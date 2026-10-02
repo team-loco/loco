@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	connectrpc.com/connect v1.21.0
-	github.com/team-loco/loco/gen/go v0.0.0
+	github.com/team-loco/loco v0.0.0
 	github.com/team-loco/loco/k8sapi v0.0.0-00010101000000-000000000000
 	k8s.io/apimachinery v0.37.1
 	k8s.io/client-go v0.37.1
@@ -61,6 +61,6 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/team-loco/loco/gen/go => ../gen/go
+replace github.com/team-loco/loco => ../
 
 replace github.com/team-loco/loco/k8sapi => ../k8sapi

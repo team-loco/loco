@@ -1,5 +1,7 @@
 *
 !observability-proxy
+!go.mod
+!go.sum
 !gen/go
 **/node_modules
 **/dist
