@@ -82,18 +82,30 @@ func (s *WorkspaceServer) CreateWorkspace(
 		slog.WarnContext(ctx, "only users can create organizations", "entityId", entity.ID, "entityType", entity.Type)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
 	}
-	wsID, err := s.queries.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	wsID, err := qtx.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
 		OrgID:       orgID,
 		Name:        r.Name,
 		Description: r.Description,
 		CreatedBy:   entity.ID,
 	})
 	if err != nil {
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
+		}
 		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
+	err = tvm.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
@@ -112,7 +124,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
+	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 		WorkspaceID:     wsID,
 		Name:            environmentTypeProduction,
 		EnvironmentType: environmentTypeProduction,
@@ -126,6 +138,11 @@ func (s *WorkspaceServer) CreateWorkspace(
 			"workspaceId",
 			wsID.String(),
 		)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 

@@ -99,16 +99,28 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 	}
 
-	org, err := s.queries.CreateOrg(ctx, genDb.CreateOrgParams{
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	org, err := qtx.CreateOrg(ctx, genDb.CreateOrgParams{
 		Name:      orgName,
 		CreatedBy: entity.ID,
 	})
 	if err != nil {
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+		}
 		slog.ErrorContext(ctx, "failed to create organization", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
+	err = tvm.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
@@ -124,6 +136,11 @@ func (s *OrgServer) CreateOrg(
 			"userId",
 			entity.ID.String(),
 		)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit organization creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
