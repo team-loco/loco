@@ -261,6 +261,56 @@ checksum = "sha256:fa4c4d01cacdc6e2209b71beac16d87d2b3c641866a5ddeb6d8e7dd6ba381
 url = "https://github.com/kubernetes-sigs/controller-tools/releases/download/v0.22.0/controller-gen-darwin-amd64"
 url_api = "https://api.github.com/repos/kubernetes-sigs/controller-tools/releases/assets/541008629"
 
+[[tools."github:pressly/goose"]]
+version = "3.28.0"
+backend = "github:pressly/goose"
+specifiers = ["3.28.0"]
+
+[tools."github:pressly/goose"."platforms.linux-arm64"]
+checksum = "sha256:3968855c11b4093af271c5226909789ea294468f6e50203d738b7504995b6247"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_arm64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871038"
+
+[tools."github:pressly/goose"."platforms.linux-arm64-musl"]
+checksum = "sha256:3968855c11b4093af271c5226909789ea294468f6e50203d738b7504995b6247"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_arm64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871038"
+
+[tools."github:pressly/goose"."platforms.linux-x64"]
+checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+
+[tools."github:pressly/goose"."platforms.linux-x64-baseline"]
+checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+
+[tools."github:pressly/goose"."platforms.linux-x64-musl"]
+checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+
+[tools."github:pressly/goose"."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:ab073515b78ef345f64f018c0d79aa7db50106806efc686dda7181253765ae13"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_linux_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871035"
+
+[tools."github:pressly/goose"."platforms.macos-arm64"]
+checksum = "sha256:e0bc7db0b4cfc652495f86dbf1681a668bb26e17d0ca28bad44218a905d01ac9"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_darwin_arm64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871077"
+
+[tools."github:pressly/goose"."platforms.macos-x64"]
+checksum = "sha256:8aa97e65273da3f58d6eae031d09f43089ef34e6b44cd713e80b2ffd5465bda7"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_darwin_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871037"
+
+[tools."github:pressly/goose"."platforms.macos-x64-baseline"]
+checksum = "sha256:8aa97e65273da3f58d6eae031d09f43089ef34e6b44cd713e80b2ffd5465bda7"
+url = "https://github.com/pressly/goose/releases/download/v3.28.0/goose_darwin_x86_64"
+url_api = "https://api.github.com/repos/pressly/goose/releases/assets/540871037"
+
 [[tools."github:sqlc-dev/sqlc"]]
 version = "1.31.1"
 backend = "github:sqlc-dev/sqlc"

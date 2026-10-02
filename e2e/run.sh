@@ -134,7 +134,8 @@ setup_postgres() {
 
 run_migrations() {
     log_step "Running migrations and seeding test data..."
-    SEED_FILE=api/seed/e2e.sql AGENT_TOKEN="$AGENT_TOKEN" e2e_compose run --rm migrate >/dev/null
+    goose -dir "$E2E_ROOT_DIR/api/migrations" postgres "$E2E_DATABASE_URL" up >/dev/null
+    SEED_FILE=api/seed/e2e.sql AGENT_TOKEN="$AGENT_TOKEN" e2e_compose run --rm seed >/dev/null
     log_ok "Migrations applied and test data seeded"
 }
 

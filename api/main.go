@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/service"
@@ -130,6 +131,16 @@ func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 func main() {
 	ac := newAPIConfig()
 
+	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
+	slog.SetDefault(logger)
+
+	if err := migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
+		log.Fatal(err)
+	}
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		return
+	}
+
 	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
 	if err != nil {
 		log.Fatal(err)
@@ -145,9 +156,6 @@ func main() {
 		SessionRefreshTokenDuration: time.Hour * 24 * 7,
 		LastUsedUpdateInterval:      time.Minute * 5,
 	})
-
-	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
-	slog.SetDefault(logger)
 
 	mux := http.NewServeMux()
 	httpInterceptors := connect.WithInterceptors(

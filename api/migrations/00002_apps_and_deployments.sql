@@ -1,3 +1,4 @@
+-- +goose Up
 -- Deployment status enum
 CREATE TYPE deployment_status AS ENUM (
     'pending',
@@ -232,3 +233,17 @@ CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_a
 CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deployments (resource_id, created_at DESC, id DESC);
 
 CREATE INDEX idx_deployments_environment_id ON deployments (environment_id);
+
+-- +goose Down
+DROP TABLE IF EXISTS deployments;
+DROP TABLE IF EXISTS resource_domains;
+DROP TABLE IF EXISTS resource_regions;
+DROP TABLE IF EXISTS resources;
+DROP TABLE IF EXISTS platform_domains;
+DROP TABLE IF EXISTS clusters;
+DROP TABLE IF EXISTS environments;
+DROP TYPE IF EXISTS region_intent_status;
+DROP TYPE IF EXISTS domain_source;
+DROP TYPE IF EXISTS resource_type;
+DROP TYPE IF EXISTS resource_status;
+DROP TYPE IF EXISTS deployment_status;

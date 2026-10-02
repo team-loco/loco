@@ -6,6 +6,7 @@ bun = "1.4.2"
 
 buf = "1.73.0"
 "github:sqlc-dev/sqlc" = "1.31.1"
+"github:pressly/goose" = "3.28.0"
 yq = "4.54.1"
 "github:kubernetes-sigs/controller-tools" = { version = "0.22.0", bin = "controller-gen" }
 kustomize = "5.8.2"
@@ -145,8 +146,18 @@ description = "Stop Postgres and Valkey; the database is kept in the postgres-da
 run = "docker compose down"
 
 [tasks."db:migrate"]
-description = "Apply api/migrations and seed api/seed/local.sql into the local database, from a container"
-run = "docker compose run --rm migrate"
+description = "Apply api/migrations with goose and seed api/seed/local.sql into the local database"
+env = { _.file = ".env" }
+run = [
+  "docker compose up -d --wait postgres",
+  'goose -dir api/migrations postgres "$DATABASE_URL" up',
+  "docker compose run --rm seed",
+]
+
+[tasks."db:status"]
+description = "Show which migrations goose has applied to the local database"
+env = { _.file = ".env" }
+run = 'goose -dir api/migrations postgres "$DATABASE_URL" status'
 
 [tasks."db:psql"]
 description = "Open psql against the local database, inside the Postgres container"
