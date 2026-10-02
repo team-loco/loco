@@ -57,9 +57,9 @@ CREATE TABLE
         UNIQUE (workspace_id, name)
     );
 
-CREATE INDEX idx_environments_workspace_id ON environments (workspace_id);
-
 CREATE INDEX IF NOT EXISTS idx_environments_workspace_id_created_at ON environments (workspace_id, created_at);
+
+CREATE INDEX idx_environments_created_by ON environments (created_by);
 
 -- Clusters table
 CREATE TABLE
@@ -123,8 +123,6 @@ CREATE TABLE
         UNIQUE (workspace_id, name)
     );
 
-CREATE INDEX idx_resources_workspace_id ON resources (workspace_id);
-
 CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources (workspace_id, created_at DESC, id DESC);
 
 -- Resource regions table (declarative intent)
@@ -140,8 +138,6 @@ CREATE TABLE
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (resource_id, region)
     );
-
-CREATE INDEX idx_resource_regions_resource_id ON resource_regions (resource_id);
 
 CREATE INDEX idx_resource_regions_region ON resource_regions (region);
 
@@ -174,10 +170,6 @@ CREATE TABLE
             )
         )
     );
-
-CREATE INDEX idx_resource_domains_resource_id ON resource_domains (resource_id);
-
-CREATE INDEX idx_resource_domains_domain ON resource_domains (domain);
 
 CREATE INDEX IF NOT EXISTS idx_resource_domains_resource_id_primary_created ON resource_domains (resource_id, is_primary DESC, created_at ASC);
 
@@ -212,17 +204,11 @@ CREATE TABLE
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
-CREATE INDEX idx_deployments_resource_id ON deployments (resource_id);
-
 CREATE INDEX idx_deployments_resource_region_id ON deployments (resource_region_id);
 
 CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
 
 CREATE INDEX idx_deployments_region ON deployments (region);
-
-CREATE INDEX idx_deployments_is_active ON deployments (resource_id, is_active)
-WHERE
-    is_active = true;
 
 CREATE INDEX idx_deployments_resource_region_active ON deployments (resource_id, region, is_active)
 WHERE
