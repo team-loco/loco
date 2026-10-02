@@ -1,0 +1,153 @@
+name: Release CLI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "gen/go/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/release-cli.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: CLI Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: test-.
+
+      - name: Run tests
+        run: mise run test:cli
+        timeout-minutes: 10
+
+  version:
+    name: Determine Version
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      latest_tag: ${{ steps.version.outputs.latest_tag }}
+      new_tag: ${{ steps.version.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Determine next version tag
+        id: version
+        run: |
+          latest_tag=$(git tag -l 'v*' --sort=-v:refname | sed -n 1p)
+          latest_tag=${latest_tag:-v0.0.0}
+          echo "Latest tag: $latest_tag"
+
+          major=$(echo "$latest_tag" | cut -d. -f1 | tr -d v)
+          minor=$(echo "$latest_tag" | cut -d. -f2)
+          patch=$(echo "$latest_tag" | cut -d. -f3)
+          new_tag="v${major}.${minor}.$((patch + 1))"
+          echo "New tag: $new_tag"
+
+          echo "latest_tag=$latest_tag" >> "$GITHUB_OUTPUT"
+          echo "new_tag=$new_tag" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: release-cli
+
+      - name: Build binary
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.version.outputs.new_tag }}
+        run: |
+          go build -trimpath \
+            -ldflags "-s -w -X github.com/team-loco/loco/cmd/loco.version=${VERSION}" \
+            -o "bin/loco-${GOOS}-${GOARCH}" -v
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: loco-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bin/loco-*
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: loco-*
+          path: bin
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: bin
+        run: sha256sum loco-* > checksums.txt
+
+      - name: Generate changelog
+        env:
+          LATEST_TAG: ${{ needs.version.outputs.latest_tag }}
+        run: |
+          range=HEAD
+          if git rev-parse -q --verify "refs/tags/${LATEST_TAG}" >/dev/null; then
+            range="${LATEST_TAG}..HEAD"
+          fi
+          git log "$range" --pretty=format:"* %s (%h)" \
+            -- cmd internal gen/go main.go go.mod go.sum > notes.md
+
+      - name: Create and push Git tag
+        env:
+          NEW_TAG: ${{ needs.version.outputs.new_tag }}
+        run: |
+          git tag "$NEW_TAG"
+          git push origin "$NEW_TAG"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_TAG: ${{ needs.version.outputs.new_tag }}
+        run: |
+          gh release create "$NEW_TAG" \
+            --title "Release $NEW_TAG" \
+            --notes-file notes.md \
+            bin/loco-* bin/checksums.txt
