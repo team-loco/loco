@@ -246,6 +246,22 @@ func (s *OAuthServer) exchangeGithubToken(
 	return s.machine.Exchange(ctx, emailResp, ip, userAgent)
 }
 
+func exchangeError(err error) error {
+	if errors.Is(err, tvm.ErrUserNotFound) {
+		return connect.NewError(
+			connect.CodeUnauthenticated,
+			errors.New("no Loco account is linked to this GitHub account"),
+		)
+	}
+	if errors.Is(err, tvm.ErrExchange) {
+		return connect.NewError(
+			connect.CodeUnauthenticated,
+			errors.New("could not read the primary email address of your GitHub account"),
+		)
+	}
+	return connect.NewError(connect.CodeInternal, errors.New("could not complete sign-in"))
+}
+
 func (s *OAuthServer) GetOAuthDetails(
 	_ context.Context, req *connect.Request[oAuth.GetOAuthDetailsRequest],
 ) (*connect.Response[oAuth.GetOAuthDetailsResponse], error) {
@@ -279,7 +295,10 @@ func (s *OAuthServer) ExchangeOAuthToken(
 	// Enforce one-time use: reject if this GitHub token has already been exchanged.
 	if err := s.stateCache.MarkTokenExchanged(ctx, token); err != nil {
 		slog.WarnContext(ctx, "oauth token already exchanged", "error", err)
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("oauth token has already been exchanged"))
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("this GitHub sign-in has already been used, start a new one"),
+		)
 	}
 
 	ip := req.Header().Get("X-Real-IP")
@@ -295,13 +314,9 @@ func (s *OAuthServer) ExchangeOAuthToken(
 		ua,
 		req.Msg.GetCreateUserIfNotExists(),
 	)
-	if errors.Is(err, tvm.ErrUserNotFound) || errors.Is(err, tvm.ErrExchange) {
-		slog.ErrorContext(ctx, "exchange oauth token", "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("exchange token: %w", err))
-	}
 	if err != nil {
 		slog.ErrorContext(ctx, "exchange oauth token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("exchange token: %w", err))
+		return nil, exchangeError(err)
 	}
 
 	res := connect.NewResponse(&oAuth.ExchangeOAuthTokenResponse{
@@ -340,9 +355,13 @@ func (s *OAuthServer) RefreshToken(
 	}
 
 	newAccess, newRefresh, err := s.machine.Refresh(ctx, refreshToken)
+	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		slog.WarnContext(ctx, "failed to refresh session token", "error", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("your session has expired, sign in again"))
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to refresh session token", "error", err)
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("could not refresh your session"))
 	}
 
 	res := connect.NewResponse(&oAuth.RefreshTokenResponse{
@@ -379,13 +398,13 @@ func (s *OAuthServer) GetOAuthAuthorizationURL(
 		state, err = generateSecureRandomString(32)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to generate state", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate state: %w", err))
+			return nil, connect.NewError(connect.CodeInternal, errors.New("could not start sign-in"))
 		}
 	}
 
 	// store state in cache
 	if err := s.stateCache.StoreState(ctx, state); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to store state: %w", err))
+		return nil, connect.NewError(connect.CodeInternal, errors.New("could not start sign-in"))
 	}
 	slog.InfoContext(ctx, "stored state in cache successfully")
 
@@ -438,7 +457,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		slog.ErrorContext(ctx, "failed to exchange authorization code", "error", err)
 		return nil, connect.NewError(
 			connect.CodeUnauthenticated,
-			fmt.Errorf("failed to exchange code: %w", err),
+			errors.New("GitHub did not accept the sign-in, start a new one"),
 		)
 	}
 
@@ -451,7 +470,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 	user, accessToken, refreshToken, err := s.exchangeGithubToken(ctx, token.AccessToken, ip, ua, true)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to exchange token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, exchangeError(err)
 	}
 
 	res := connect.NewResponse(&oAuth.ExchangeOAuthCodeResponse{
