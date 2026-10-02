@@ -3,10 +3,12 @@ environments:
   local:
     values:
       - env/global.yaml
+      - installCNI: true
 
   prod:
     values:
       - env/global.yaml
+      - installCNI: false
 ---
 helmDefaults:
   wait: false
@@ -26,6 +28,7 @@ repositories:
     url: https://open-telemetry.github.io/opentelemetry-helm-charts
 
 releases:
+{{- if .Values.installCNI }}
   # phase 1: networking
   - name: loco-networking
     chart: ./charts/loco-networking
@@ -36,14 +39,17 @@ releases:
     values:
       - ./charts/loco-networking/values.yaml
       - env/{{ .Environment.Name }}/networking-chart.yaml.gotmpl
+{{- end }}
 
   - name: cert-manager
     chart: jetstack/cert-manager
     version: v1.20.1
     namespace: cert-manager
     createNamespace: true
+{{- if .Values.installCNI }}
     needs:
       - kube-system/loco-networking
+{{- end }}
     labels:
       phase: "2-core"
     set:
