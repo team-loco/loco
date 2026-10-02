@@ -1,0 +1,89 @@
+name: Railway Config
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+      - staging
+    paths:
+      - ".railway/**"
+      - ".github/workflows/railway-config.yml"
+      - "mise.toml"
+      - "mise.lock"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.base_ref }}
+  cancel-in-progress: false
+
+env:
+  NO_COLOR: "1"
+
+jobs:
+  plan:
+    name: Railway Plan (${{ github.base_ref == 'main' && 'production' || 'staging' }})
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Plan
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          ENVIRONMENT: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
+        run: |
+          set -euo pipefail
+
+          status=0
+          railway config plan --detailed-exit-code > plan.txt 2>&1 || status=$?
+          cat plan.txt
+
+          marker="<!-- railway-config-plan:$ENVIRONMENT -->"
+          {
+            echo "$marker"
+            echo "### Railway plan: \`$ENVIRONMENT\`"
+            echo
+            echo '```'
+            cat plan.txt
+            echo '```'
+          } > comment.md
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
+
+          existing=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1)
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$existing" -F body=@comment.md > /dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@comment.md > /dev/null
+          fi
+
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            exit "$status"
+          fi
+
+  apply:
+    name: Railway Apply (${{ github.base_ref == 'main' && 'production' || 'staging' }})
+    if: github.event.action == 'closed' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - uses: ./.github/actions/setup-tools
+
+      - name: Apply
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway config apply --yes
