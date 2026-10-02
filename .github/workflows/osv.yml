@@ -100,16 +100,15 @@ jobs:
 
           # an image is rescanned when its own tree, its Dockerfile, or a module
           # graph it compiles against moves
-          add '{"name":"controller","context":".","dockerfile":"./controller/Dockerfile"}' '^(controller/|k8sapi/)'
-          add '{"name":"api","context":".","dockerfile":"./api/Dockerfile"}' '^(api/|gen/go/|k8sapi/)'
-          add '{"name":"agent","context":".","dockerfile":"./agent/Dockerfile"}' '^(agent/|gen/go/|k8sapi/)'
-          add '{"name":"observability-proxy","context":".","dockerfile":"./observability-proxy/Dockerfile"}' '^(observability-proxy/|gen/go/)'
-          add '{"name":"ui","context":".","dockerfile":"./web/Dockerfile"}' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
+          add '"controller"' '^(controller/|k8sapi/)'
+          add '"api"' '^(api/|gen/go/|k8sapi/)'
+          add '"agent"' '^(agent/|gen/go/|k8sapi/)'
+          add '"observability-proxy"' '^(observability-proxy/|gen/go/)'
+          add '"ui"' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
 
           printf 'images=[%s]\n' "$(IFS=,; echo "${sel[*]-}")" >> "$GITHUB_OUTPUT"
 
   image:
-    name: Image (${{ matrix.image.name }})
     needs: changes
     if: needs.changes.outputs.images != '[]'
     runs-on: ubuntu-latest
@@ -131,11 +130,11 @@ jobs:
       - name: Build
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.image.context }}
-          file: ${{ matrix.image.dockerfile }}
+          context: .
+          file: ${{ matrix.image == 'ui' && './web/Dockerfile' || format('./{0}/Dockerfile', matrix.image) }}
           push: false
           load: true
-          tags: loco-${{ matrix.image.name }}:osv
+          tags: loco-${{ matrix.image }}:osv
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -143,7 +142,7 @@ jobs:
       - name: Scan image
         run: |
           set -euo pipefail
-          docker save "loco-${{ matrix.image.name }}:osv" -o /tmp/image.tar
+          docker save "loco-${{ matrix.image }}:osv" -o /tmp/image.tar
           set +e
           docker run --rm -v /tmp:/out ghcr.io/google/osv-scanner:v2.6.0 \
             scan image --archive /out/image.tar \
@@ -181,4 +180,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: /tmp/osv-image.sarif
-          category: osv-image-${{ matrix.image.name }}
+          category: osv-image-${{ matrix.image }}

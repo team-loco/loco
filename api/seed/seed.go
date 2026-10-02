@@ -3,6 +3,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"os"
@@ -76,6 +79,10 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, migrationFiles []string) erro
 		return err
 	}
 	if err := seedUserScopes(ctx, q, orgIDs, wksIDs, resourceIds, userIDs); err != nil {
+		return err
+	}
+
+	if err := seedClusters(ctx, tx); err != nil {
 		return err
 	}
 
@@ -543,9 +550,49 @@ func seedUserScopes(ctx context.Context, queries *db.Queries, orgIDs, wksIDs, re
 	return nil
 }
 
-// func seedClusters(ctx context.Context, q *db.Queries) error {
-// 	q.Clu
-// }
+func seedClusters(ctx context.Context, tx pgx.Tx) error {
+	token := os.Getenv("AGENT_TOKEN")
+	if token == "" {
+		buf := make([]byte, 32)
+		if _, err := rand.Read(buf); err != nil {
+			return fmt.Errorf("generating agent token: %w", err)
+		}
+		token = "loco-dev-" + hex.EncodeToString(buf)
+		slog.Warn(
+			"AGENT_TOKEN is not set; generated one for the seeded cluster. "+
+				"Set AGENT_TOKEN to this value so the agent can authenticate.",
+			"agent_token", token,
+		)
+	}
+
+	sum := sha256.Sum256([]byte(token))
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO clusters (
+			name, region, provider, is_active, is_default,
+			tier, health_status, agent_token_hash
+		)
+		VALUES ($1, $2, $3, true, true, 'production', 'healthy', $4)
+		ON CONFLICT (name) DO UPDATE SET
+			tier = EXCLUDED.tier,
+			health_status = EXCLUDED.health_status,
+			agent_token_hash = EXCLUDED.agent_token_hash`,
+		"loco-local", "us-east-1", "local", hex.EncodeToString(sum[:]),
+	); err != nil {
+		return fmt.Errorf("seeding cluster: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO platform_domains (domain, is_active)
+		VALUES ($1, true)
+		ON CONFLICT DO NOTHING`,
+		"onloco.app",
+	); err != nil {
+		return fmt.Errorf("seeding platform domain: %w", err)
+	}
+
+	return nil
+}
 
 func main() {
 	migrationFiles := os.Getenv("MIGRATION_FILES")
