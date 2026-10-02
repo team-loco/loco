@@ -25,9 +25,18 @@ spec:
     spec:
       shareProcessNamespace: true
       serviceAccountName: {{ .Release.Name }}-agent
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: {{ .Release.Name }}-agent
           image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           imagePullPolicy: {{ .Values.agent.imagePullPolicy }}
           env:
             - name: LOCO_NAMESPACE

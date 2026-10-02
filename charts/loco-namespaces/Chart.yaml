@@ -1,0 +1,6 @@
+apiVersion: v2
+name: loco-namespaces
+description: Namespaces for the Loco platform components, with their Pod Security labels
+type: application
+version: 0.0.0
+appVersion: "latest"

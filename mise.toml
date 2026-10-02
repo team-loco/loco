@@ -189,6 +189,11 @@ run = [
   "helm dependency build ./charts/loco-controller",
 ]
 
+[tasks."helm:sync:namespaces"]
+description = "Sync the platform namespaces and their Pod Security labels to the local cluster"
+env = { _.file = ".env" }
+run = "helmfile -e local -l name=loco-namespaces sync"
+
 [tasks."helm:sync:cert-manager"]
 description = "Sync cert-manager to the local cluster"
 env = { _.file = ".env" }
