@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -59,6 +60,7 @@ type APIConfig struct {
 	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
+	PprofAddr             string
 }
 
 func newAPIConfig() *APIConfig {
@@ -98,6 +100,7 @@ func newAPIConfig() *APIConfig {
 		CacheAddr:             os.Getenv("CACHE_ADDR"),
 		CORSAllowedOrigins:    corsOrigins,
 		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
+		PprofAddr:             os.Getenv("PPROF_ADDR"),
 	}
 }
 
@@ -128,6 +131,20 @@ func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 			AllowCredentials: true,
 		})
 		return middleware.Handler(h)
+	}
+}
+
+func newPprofServer(addr string) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	return &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 }
 
@@ -400,6 +417,17 @@ func main() {
 		IdleTimeout:       120 * time.Second,
 	}
 
+	var pprofServer *http.Server
+	if ac.PprofAddr != "" {
+		pprofServer = newPprofServer(ac.PprofAddr)
+		go func() {
+			slog.Info("starting pprof server", "addr", pprofServer.Addr)
+			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("pprof server error", "error", err)
+			}
+		}()
+	}
+
 	quit := make(chan error, 1)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
@@ -417,6 +445,12 @@ func main() {
 		defer cancel()
 
 		machine.Close()
+
+		if pprofServer != nil {
+			if err := pprofServer.Close(); err != nil {
+				slog.WarnContext(ctx, "failed to close pprof server", "error", err)
+			}
+		}
 
 		if err := server.Shutdown(drainCtx); err != nil {
 			slog.WarnContext(ctx, "graceful shutdown did not finish, closing remaining connections", "error", err)
