@@ -41,6 +41,9 @@ func newLogoutCmd(env Env) *cobra.Command {
 				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
+			if t.Host != "" {
+				host = t.Host
+			}
 			if err = cmdutil.RevokeToken(ctx, host, t.Token); err != nil {
 				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
 				if connect.CodeOf(err) != connect.CodeUnauthenticated {
