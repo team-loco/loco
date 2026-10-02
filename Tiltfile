@@ -2,7 +2,7 @@
 # Prerequisites: docker (OrbStack or Docker Desktop) and mise. Every other tool is
 # pinned in mise.toml, and every resource below runs a mise task or builds a Dockerfile.
 # Run:  mise run tilt
-# Stop: tilt down  (tears down helm releases and the compose services; the kind cluster and the database volume persist)
+# Stop: tilt down  (stops the compose services; the helm releases, the kind cluster and the database volume persist; mise run helm:destroy removes the releases)
 #
 # First-time setup:
 #   1. mise run setup
@@ -78,7 +78,7 @@ docker_build(
     only=['controller', 'k8sapi'],
 )
 
-control_plane_url = 'http://${host_ip}:${APP_PORT##*:}'
+control_plane_url = 'http://host.docker.internal:${APP_PORT##*:}'
 
 
 def helm_release(name, namespace, images, values, deps, resource_deps):
@@ -93,8 +93,8 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
     sets += values
     k8s_custom_deploy(
         name,
-        apply_cmd='host_ip=$(mise run cluster:host-ip 2>/dev/null) && ' + ' '.join(['mise', 'run', 'tilt:deploy', name, namespace] + ['"' + v + '"' for v in sets]),
-        delete_cmd='helm uninstall ' + name + ' -n ' + namespace,
+        apply_cmd=' '.join(['mise', 'run', 'tilt:deploy', name, namespace] + ['"' + v + '"' for v in sets]),
+        delete_cmd='true',
         deps=deps,
         image_deps=[image['name'] for image in images],
     )
