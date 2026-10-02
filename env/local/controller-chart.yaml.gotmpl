@@ -8,3 +8,7 @@ manager:
       value: {{ env "GITLAB_PROJECT_ID" | quote }}
     - name: GITLAB_REGISTRY_URL
       value: {{ env "GITLAB_REGISTRY_URL" | default "https://registry.gitlab.com" | quote }}
+  image:
+    repository: loco-controller
+    tag: latest
+    pullPolicy: Never
