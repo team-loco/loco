@@ -50,7 +50,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 
   # List tokens for a workspace
   loco token list --entity-type workspace --entity-id 456`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			host, err := cmdutil.GetHost(cmd)

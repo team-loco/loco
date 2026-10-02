@@ -56,7 +56,7 @@ func NewClient(host, token string) *Client {
 	}
 }
 
-func (c *Client) WithAuth(ctx context.Context) context.Context {
+func (*Client) WithAuth(ctx context.Context) context.Context {
 	return ctx
 }
 

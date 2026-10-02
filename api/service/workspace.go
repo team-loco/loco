@@ -57,10 +57,10 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	orgId := uuid.MustParse(r.GetOrgId())
+	orgID := uuid.MustParse(r.GetOrgId())
 
 	isUnique, err := s.queries.IsWorkspaceNameUniqueInOrg(ctx, genDb.IsWorkspaceNameUniqueInOrgParams{
-		OrgID: orgId,
+		OrgID: orgID,
 		Name:  r.GetName(),
 	})
 	if err != nil {
@@ -83,7 +83,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
 	}
 	wsID, err := s.queries.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
-		OrgID:       orgId,
+		OrgID:       orgID,
 		Name:        r.Name,
 		Description: r.Description,
 		CreatedBy:   entity.ID,
@@ -286,10 +286,10 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		pageToken = &cursorID
 	}
 
-	orgId := uuid.MustParse(r.GetOrgId())
+	orgID := uuid.MustParse(r.GetOrgId())
 
 	workspaceList, err := s.queries.ListWorkspacesInOrg(ctx, genDb.ListWorkspacesInOrgParams{
-		OrgID:     orgId,
+		OrgID:     orgID,
 		Limit:     pageSize,
 		PageToken: pageToken,
 	})

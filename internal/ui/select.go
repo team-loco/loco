@@ -54,7 +54,7 @@ func newSelectModel(title string, items []selectItem) selectModel {
 	return selectModel{list: l}
 }
 
-func (m selectModel) Init() tea.Cmd {
+func (selectModel) Init() tea.Cmd {
 	return nil
 }
 

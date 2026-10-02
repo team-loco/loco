@@ -13,7 +13,7 @@ func buildGetCmd() *cobra.Command {
 		Short:   "Get a configuration value",
 		Args:    cobra.ExactArgs(1),
 		Example: `  loco config get locoHost`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			key := args[0]
 
 			cfg, err := session.Load()

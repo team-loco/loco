@@ -192,9 +192,9 @@ func (s *DeploymentServer) CreateDeployment(
 ) (*connect.Response[deploymentv1.CreateDeploymentResponse], error) {
 	r := req.Msg
 
-	resourceId := uuid.MustParse(r.GetResourceId())
+	resourceID := uuid.MustParse(r.GetResourceId())
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceId)
+	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
@@ -226,7 +226,7 @@ func (s *DeploymentServer) CreateDeployment(
 	serviceSpec := r.GetSpec().GetService()
 	replicas := serviceSpec.GetMinReplicas()
 
-	domain, err := s.queries.GetDomainByResourceId(ctx, resourceId)
+	domain, err := s.queries.GetDomainByResourceId(ctx, resourceID)
 	if err != nil {
 		slog.WarnContext(ctx, "domain not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
@@ -294,7 +294,7 @@ func (s *DeploymentServer) CreateDeployment(
 	resourceRegion, err := s.queries.GetResourceRegionByResourceAndRegion(
 		ctx,
 		genDb.GetResourceRegionByResourceAndRegionParams{
-			ResourceID: resourceId,
+			ResourceID: resourceID,
 			Region:     region,
 		},
 	)
@@ -305,7 +305,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 	// Create deployment transactionally, finalizing previous deployments in the same region
 	deploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID:       resourceId,
+		ResourceID:       resourceID,
 		ResourceRegionID: resourceRegion.ID,
 		ClusterID:        cluster.ID,
 		Region:           region,
@@ -391,9 +391,9 @@ func (s *DeploymentServer) GetDeployment(
 ) (*connect.Response[deploymentv1.GetDeploymentResponse], error) {
 	r := req.Msg
 
-	deploymentId := uuid.MustParse(r.DeploymentId)
+	deploymentID := uuid.MustParse(r.DeploymentId)
 
-	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentId)
+	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
@@ -448,9 +448,9 @@ func (s *DeploymentServer) ListDeployments(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	resourceId := uuid.MustParse(r.GetResourceId())
+	resourceID := uuid.MustParse(r.GetResourceId())
 
-	resource, err := s.queries.GetResourceByID(ctx, resourceId)
+	resource, err := s.queries.GetResourceByID(ctx, resourceID)
 	if err != nil {
 		slog.WarnContext(ctx, "resource not found", "resourceId", r.GetResourceId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
@@ -468,7 +468,7 @@ func (s *DeploymentServer) ListDeployments(
 	}
 
 	deploymentList, err := s.queries.ListDeploymentsForResource(ctx, genDb.ListDeploymentsForResourceParams{
-		ResourceID: resourceId,
+		ResourceID: resourceID,
 		Limit:      pageSize,
 		PageToken:  pageToken,
 	})
@@ -500,9 +500,9 @@ func (s *DeploymentServer) DeleteDeployment(
 ) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
 	r := req.Msg
 
-	deploymentId := uuid.MustParse(r.DeploymentId)
+	deploymentID := uuid.MustParse(r.DeploymentId)
 
-	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentId)
+	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
@@ -583,7 +583,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	}
 
 	// mark deployment as inactive
-	err = s.queries.MarkDeploymentNotActive(ctx, deploymentId)
+	err = s.queries.MarkDeploymentNotActive(ctx, deploymentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to mark deployment not active", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -600,9 +600,9 @@ func (s *DeploymentServer) WatchDeployment(
 ) error {
 	r := req.Msg
 
-	deploymentId := uuid.MustParse(r.DeploymentId)
+	deploymentID := uuid.MustParse(r.DeploymentId)
 
-	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentId)
+	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
 	if err != nil {
 		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
 		return connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
@@ -696,20 +696,20 @@ func buildApplicationSpec(
 	hostname string,
 	deploymentSpec *deploymentv1.DeploymentSpec,
 	region string,
-	environmentId uuid.UUID,
+	environmentID uuid.UUID,
 	environmentName string,
-	deploymentId uuid.UUID,
+	deploymentID uuid.UUID,
 ) (*locoControllerV1.ApplicationSpec, error) {
 	// convert proto to controller CRD types
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
 
 	appSpec := &locoControllerV1.ApplicationSpec{
-		ResourceId:      resource.ID.String(),
-		WorkspaceId:     resource.WorkspaceID.String(),
+		ResourceID:      resource.ID.String(),
+		WorkspaceID:     resource.WorkspaceID.String(),
 		Region:          region,
-		EnvironmentId:   environmentId.String(),
+		EnvironmentID:   environmentID.String(),
 		EnvironmentName: environmentName,
-		DeploymentId:    deploymentId.String(),
+		DeploymentID:    deploymentID.String(),
 	}
 
 	switch resource.Type {

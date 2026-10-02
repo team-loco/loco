@@ -29,7 +29,7 @@ func resolveRequestID(existing string) string {
 	return id.String()
 }
 
-func (i *contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+func (*contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return connect.UnaryFunc(func(
 		ctx context.Context,
 		req connect.AnyRequest,
@@ -74,7 +74,7 @@ func (i *contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc
 	})
 }
 
-func (i *contextInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+func (*contextInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
 	return connect.StreamingClientFunc(func(
 		ctx context.Context,
 		spec connect.Spec,
@@ -83,7 +83,7 @@ func (i *contextInterceptor) WrapStreamingClient(next connect.StreamingClientFun
 	})
 }
 
-func (i *contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+func (*contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
 	return connect.StreamingHandlerFunc(func(
 		ctx context.Context,
 		conn connect.StreamingHandlerConn,

@@ -27,17 +27,17 @@ import (
 	"github.com/team-loco/loco/internal/config"
 )
 
-// MINIMUM_DOCKER_ENGINE_VERSION is the lowest allowed docker version.
+// MinimumDockerEngineVersion is the lowest allowed docker version.
 // should be the limited to the last major docker version
 const (
-	MINIMUM_DOCKER_ENGINE_VERSION = "28.0.0"
-	GITLAB_REGISTRY_URL           = "registry.gitlab.com"
+	MinimumDockerEngineVersion = "28.0.0"
+	GitlabRegistryURL          = "registry.gitlab.com"
 )
 
 type DockerClient struct {
 	dockerClient *client.Client
 	cfg          *config.LoadedConfig
-	registryUrl  string
+	registryURL  string
 	ImageName    string
 }
 
@@ -59,17 +59,17 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 		)
 	}
 
-	if v.Version < MINIMUM_DOCKER_ENGINE_VERSION {
+	if v.Version < MinimumDockerEngineVersion {
 		return nil, fmt.Errorf(
 			"loco requires minimum Docker engine version of %s. Please update your Docker version",
-			MINIMUM_DOCKER_ENGINE_VERSION,
+			MinimumDockerEngineVersion,
 		)
 	}
 
 	return &DockerClient{
 		dockerClient: cli,
 		cfg:          cfg,
-		registryUrl:  GITLAB_REGISTRY_URL,
+		registryURL:  GitlabRegistryURL,
 	}, nil
 }
 
@@ -195,7 +195,7 @@ func (c *DockerClient) PushImage(ctx context.Context, logf func(string), usernam
 	authConfig := registry.AuthConfig{
 		Username:      username,
 		Password:      password,
-		ServerAddress: c.registryUrl,
+		ServerAddress: c.registryURL,
 	}
 
 	encodedJSON, err := json.Marshal(authConfig)
@@ -236,7 +236,7 @@ func (c *DockerClient) ValidateImage(ctx context.Context, imageID string, logf f
 	return nil
 }
 
-func (c *DockerClient) validateImageSize(sizeBytes int64, logf func(string)) error {
+func (*DockerClient) validateImageSize(sizeBytes int64, logf func(string)) error {
 	const maxSizeGB = 1
 	const bytesPerGB = 1024 * 1024 * 1024
 	maxSizeBytes := int64(maxSizeGB * bytesPerGB)
@@ -255,7 +255,7 @@ func (c *DockerClient) ImageTag(ctx context.Context, imageID string) error {
 	return c.dockerClient.ImageTag(ctx, imageID, c.ImageName)
 }
 
-func (c *DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appID string) string {
+func (*DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appID string) string {
 	imageNameBase := imageBase
 	var randSuffix string
 	randBytes := make([]byte, 4)

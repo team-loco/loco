@@ -24,14 +24,14 @@ var (
 var RootCmd = &cobra.Command{
 	Use:   "loco",
 	Short: "The CLI for managing loco deployments",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 		startTime = time.Now()
 		if err := initLogger(cmd); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to initialize logger: %v\n", err)
 			os.Exit(1)
 		}
 	},
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+	PersistentPostRun: func(cmd *cobra.Command, _ []string) {
 		slog.Info(
 			"command finished",
 			"command", cmd.Name(),

@@ -63,12 +63,12 @@ func (tvm *VendingMachine) GetRolesByEntity(
 	switch entity.Type {
 	case queries.EntityTypeOrganization:
 		// organization: get all org, workspace, resource roles
-		userId, err := uuid.Parse(userID)
+		userID, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
 		rows, err := tvm.queries.GetUserScopesOnOrganization(ctx, queries.GetUserScopesOnOrganizationParams{
-			UserID: userId,
+			UserID: userID,
 			ID:     entity.ID,
 		})
 		if err != nil {
@@ -77,13 +77,13 @@ func (tvm *VendingMachine) GetRolesByEntity(
 		return rows, nil
 	case queries.EntityTypeWorkspace:
 		// workspace: get all workspace + resource roles (recursive)
-		userId, err := uuid.Parse(userID)
+		userID, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
 		rows, err := tvm.queries.GetUserScopesOnWorkspace(ctx, queries.GetUserScopesOnWorkspaceParams{
 			ID:     entity.ID,
-			UserID: userId,
+			UserID: userID,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)
@@ -91,12 +91,12 @@ func (tvm *VendingMachine) GetRolesByEntity(
 		return rows, nil
 	case queries.EntityTypeResource, queries.EntityTypeUser, queries.EntityTypeSystem:
 		// resource or user: only get roles on that entity
-		userId, err := uuid.Parse(userID)
+		userID, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
 		userScopes, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
-			UserID:     userId,
+			UserID:     userID,
 			EntityType: entity.Type,
 			EntityID:   entity.ID,
 		})
@@ -171,14 +171,14 @@ func (tvm *VendingMachine) UpdateRoles(
 	}
 	qtx = qtx.WithTx(tx)
 
-	userId, err := uuid.Parse(userID)
+	userUUID, err := uuid.Parse(userID)
 	if err != nil {
 		return fmt.Errorf("invalid user id: %w", err)
 	}
 
 	for _, es := range addScopes {
 		if addErr := qtx.AddUserScope(ctx, queries.AddUserScopeParams{
-			UserID:     userId,
+			UserID:     userUUID,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
 			Scope:      es.Scope,
@@ -188,7 +188,7 @@ func (tvm *VendingMachine) UpdateRoles(
 	}
 	for _, es := range removeScopes {
 		if removeErr := qtx.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
-			UserID:     userId,
+			UserID:     userUUID,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
 			Scope:      es.Scope,

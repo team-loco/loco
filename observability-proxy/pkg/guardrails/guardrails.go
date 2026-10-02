@@ -49,7 +49,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 }
 
 // ValidateTailRequest validates a tail logs request.
-func ValidateTailRequest(req *observabilityv1.TailLogsRequest, cfg *config.Config) error {
+func ValidateTailRequest(req *observabilityv1.TailLogsRequest, _ *config.Config) error {
 	if req.GetWorkspaceId() == "" {
 		return fmt.Errorf("workspace_id is required")
 	}

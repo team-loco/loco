@@ -322,7 +322,7 @@ func (a *Agent) sendHeartbeat(
 	return nil
 }
 
-func (a *Agent) handleDirective(resp *agentv1.HeartbeatResponse) {
+func (*Agent) handleDirective(resp *agentv1.HeartbeatResponse) {
 	if resp == nil {
 		return
 	}
@@ -341,7 +341,7 @@ func (a *Agent) handleDirective(resp *agentv1.HeartbeatResponse) {
 }
 
 // getCapacity returns the cluster's current capacity.
-func (a *Agent) getCapacity() *agentv1.AgentCapacity {
+func (*Agent) getCapacity() *agentv1.AgentCapacity {
 	// TODO: query actual cluster capacity from Kubernetes
 	return &agentv1.AgentCapacity{
 		CpuMillicoresTotal: 8000,                    // 8 cores
@@ -354,7 +354,7 @@ func (a *Agent) getCapacity() *agentv1.AgentCapacity {
 }
 
 // getHealth returns the agent's health status.
-func (a *Agent) getHealth() *agentv1.AgentHealth {
+func (*Agent) getHealth() *agentv1.AgentHealth {
 	// TODO: implement actual health checks
 	return &agentv1.AgentHealth{
 		KubernetesHealthy: true,

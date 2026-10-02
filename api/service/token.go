@@ -78,14 +78,14 @@ func (s *TokenServer) CreateToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityId, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId(), "error", err)
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
 	}
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
-		ID:   entityId,
+		ID:   entityID,
 	}
 
 	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
@@ -106,7 +106,7 @@ func (s *TokenServer) CreateToken(
 
 	dbScopes := make([]genDb.EntityScope, len(r.GetScopes()))
 	for i, scope := range r.GetScopes() {
-		scopeEntityId, scopeErr := uuid.Parse(scope.GetEntityId())
+		scopeEntityID, scopeErr := uuid.Parse(scope.GetEntityId())
 		if scopeErr != nil {
 			slog.ErrorContext(ctx, "invalid scope entity id format", "entityId", scope.GetEntityId(), "error", scopeErr)
 			return nil, connect.NewError(
@@ -116,7 +116,7 @@ func (s *TokenServer) CreateToken(
 		}
 		dbScopes[i] = genDb.EntityScope{
 			EntityType: protoEntityTypeToDb(scope.GetEntityType()),
-			EntityID:   scopeEntityId,
+			EntityID:   scopeEntityID,
 			Scope:      protoScopeToDb(scope.GetScope()),
 		}
 	}
@@ -183,7 +183,7 @@ func (s *TokenServer) ListTokens(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityId, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
@@ -191,7 +191,7 @@ func (s *TokenServer) ListTokens(
 
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
-		ID:   entityId,
+		ID:   entityID,
 	}
 
 	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
@@ -257,7 +257,7 @@ func (s *TokenServer) GetToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityId, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
@@ -265,7 +265,7 @@ func (s *TokenServer) GetToken(
 
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
-		ID:   entityId,
+		ID:   entityID,
 	}
 
 	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
@@ -336,7 +336,7 @@ func (s *TokenServer) RevokeToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
 
-	entityId, err := uuid.Parse(r.GetEntityId())
+	entityID, err := uuid.Parse(r.GetEntityId())
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid entity id format", "entityId", r.GetEntityId())
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid entity id: %w", err))
@@ -344,7 +344,7 @@ func (s *TokenServer) RevokeToken(
 
 	targetEntity := genDb.Entity{
 		Type: protoEntityTypeToDb(r.GetEntityType()),
-		ID:   entityId,
+		ID:   entityID,
 	}
 
 	hasWritePermission := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
@@ -396,9 +396,9 @@ func (s *TokenServer) RevokeToken(
 }
 
 // GetScopes returns the entity and all scopes the current token has access to.
-func (s *TokenServer) GetScopes(
+func (*TokenServer) GetScopes(
 	ctx context.Context,
-	req *connect.Request[tokenv1.GetScopesRequest],
+	_ *connect.Request[tokenv1.GetScopesRequest],
 ) (*connect.Response[tokenv1.GetScopesResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {

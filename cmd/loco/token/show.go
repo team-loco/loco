@@ -35,7 +35,7 @@ func newShowCmd(deps showDeps) *cobra.Command {
 
   # Show raw token value (for scripting)
   loco token show --raw`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			currentUser, err := user.Current()
 			if err != nil {
 				return fmt.Errorf("failed to get current user: %w", err)

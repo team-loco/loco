@@ -19,8 +19,8 @@ func NewConfigServer(platformDomain string) *ConfigServer {
 }
 
 func (s *ConfigServer) GetDefaultServiceConfig(
-	ctx context.Context,
-	req *connect.Request[configv1.GetDefaultServiceConfigRequest],
+	_ context.Context,
+	_ *connect.Request[configv1.GetDefaultServiceConfigRequest],
 ) (*connect.Response[configv1.GetDefaultServiceConfigResponse], error) {
 	return connect.NewResponse(&configv1.GetDefaultServiceConfigResponse{
 		Config: &configv1.DefaultServiceConfig{

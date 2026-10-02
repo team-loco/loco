@@ -19,7 +19,7 @@ type EntityScope struct {
 }
 
 // ScanNull implements pgtype.CompositeIndexScanner.
-func (es *EntityScope) ScanNull() error {
+func (*EntityScope) ScanNull() error {
 	return fmt.Errorf("cannot scan NULL into EntityScope")
 }
 

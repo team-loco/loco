@@ -101,7 +101,7 @@ func (b *GRPCCommandBus) Receive(ctx context.Context, clusterID string) (<-chan 
 }
 
 // Ack acknowledges successful command processing.
-func (b *GRPCCommandBus) Ack(ctx context.Context, commandID string) error {
+func (b *GRPCCommandBus) Ack(_ context.Context, commandID string) error {
 	b.mu.Lock()
 	cmd, ok := b.pending[commandID]
 	delete(b.pending, commandID)
