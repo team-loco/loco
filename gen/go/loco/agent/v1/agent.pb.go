@@ -717,15 +717,9 @@ func (x *HeartbeatRequest) GetHealth() *AgentHealth {
 	return nil
 }
 
-// HeartbeatResponse may contain directives from the control plane.
+// HeartbeatResponse is the control plane's reply on the heartbeat stream.
 type HeartbeatResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Directive:
-	//
-	//	*HeartbeatResponse_Drain
-	//	*HeartbeatResponse_ReloadConfig
-	//	*HeartbeatResponse_Resync
-	Directive     isHeartbeatResponse_Directive `protobuf_oneof:"directive"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -760,197 +754,6 @@ func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *HeartbeatResponse) GetDirective() isHeartbeatResponse_Directive {
-	if x != nil {
-		return x.Directive
-	}
-	return nil
-}
-
-func (x *HeartbeatResponse) GetDrain() *DrainDirective {
-	if x != nil {
-		if x, ok := x.Directive.(*HeartbeatResponse_Drain); ok {
-			return x.Drain
-		}
-	}
-	return nil
-}
-
-func (x *HeartbeatResponse) GetReloadConfig() *ReloadConfigDirective {
-	if x != nil {
-		if x, ok := x.Directive.(*HeartbeatResponse_ReloadConfig); ok {
-			return x.ReloadConfig
-		}
-	}
-	return nil
-}
-
-func (x *HeartbeatResponse) GetResync() *ResyncDirective {
-	if x != nil {
-		if x, ok := x.Directive.(*HeartbeatResponse_Resync); ok {
-			return x.Resync
-		}
-	}
-	return nil
-}
-
-type isHeartbeatResponse_Directive interface {
-	isHeartbeatResponse_Directive()
-}
-
-type HeartbeatResponse_Drain struct {
-	Drain *DrainDirective `protobuf:"bytes,1,opt,name=drain,proto3,oneof"`
-}
-
-type HeartbeatResponse_ReloadConfig struct {
-	ReloadConfig *ReloadConfigDirective `protobuf:"bytes,2,opt,name=reload_config,json=reloadConfig,proto3,oneof"`
-}
-
-type HeartbeatResponse_Resync struct {
-	Resync *ResyncDirective `protobuf:"bytes,3,opt,name=resync,proto3,oneof"`
-}
-
-func (*HeartbeatResponse_Drain) isHeartbeatResponse_Directive() {}
-
-func (*HeartbeatResponse_ReloadConfig) isHeartbeatResponse_Directive() {}
-
-func (*HeartbeatResponse_Resync) isHeartbeatResponse_Directive() {}
-
-// DrainDirective requests the agent to prepare for graceful shutdown.
-type DrainDirective struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	TimeoutSeconds int32                  `protobuf:"varint,1,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *DrainDirective) Reset() {
-	*x = DrainDirective{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DrainDirective) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DrainDirective) ProtoMessage() {}
-
-func (x *DrainDirective) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DrainDirective.ProtoReflect.Descriptor instead.
-func (*DrainDirective) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *DrainDirective) GetTimeoutSeconds() int32 {
-	if x != nil {
-		return x.TimeoutSeconds
-	}
-	return 0
-}
-
-// ReloadConfigDirective requests the agent to reload configuration.
-type ReloadConfigDirective struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        map[string]string      `protobuf:"bytes,1,rep,name=config,proto3" json:"config,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReloadConfigDirective) Reset() {
-	*x = ReloadConfigDirective{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReloadConfigDirective) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReloadConfigDirective) ProtoMessage() {}
-
-func (x *ReloadConfigDirective) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReloadConfigDirective.ProtoReflect.Descriptor instead.
-func (*ReloadConfigDirective) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *ReloadConfigDirective) GetConfig() map[string]string {
-	if x != nil {
-		return x.Config
-	}
-	return nil
-}
-
-// ResyncDirective requests the agent to re-report status for resources.
-type ResyncDirective struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceIds   []string               `protobuf:"bytes,1,rep,name=resource_ids,json=resourceIds,proto3" json:"resource_ids,omitempty"` // empty means resync all
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResyncDirective) Reset() {
-	*x = ResyncDirective{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResyncDirective) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResyncDirective) ProtoMessage() {}
-
-func (x *ResyncDirective) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResyncDirective.ProtoReflect.Descriptor instead.
-func (*ResyncDirective) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *ResyncDirective) GetResourceIds() []string {
-	if x != nil {
-		return x.ResourceIds
-	}
-	return nil
-}
-
 // AgentCapacity reports cluster resource capacity.
 type AgentCapacity struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
@@ -966,7 +769,7 @@ type AgentCapacity struct {
 
 func (x *AgentCapacity) Reset() {
 	*x = AgentCapacity{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +781,7 @@ func (x *AgentCapacity) String() string {
 func (*AgentCapacity) ProtoMessage() {}
 
 func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +794,7 @@ func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentCapacity.ProtoReflect.Descriptor instead.
 func (*AgentCapacity) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{13}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AgentCapacity) GetCpuMillicoresTotal() int64 {
@@ -1048,7 +851,7 @@ type AgentHealth struct {
 
 func (x *AgentHealth) Reset() {
 	*x = AgentHealth{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1060,7 +863,7 @@ func (x *AgentHealth) String() string {
 func (*AgentHealth) ProtoMessage() {}
 
 func (x *AgentHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1073,7 +876,7 @@ func (x *AgentHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentHealth.ProtoReflect.Descriptor instead.
 func (*AgentHealth) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{14}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AgentHealth) GetKubernetesHealthy() bool {
@@ -1112,7 +915,7 @@ type ReportStatusRequest struct {
 
 func (x *ReportStatusRequest) Reset() {
 	*x = ReportStatusRequest{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1124,7 +927,7 @@ func (x *ReportStatusRequest) String() string {
 func (*ReportStatusRequest) ProtoMessage() {}
 
 func (x *ReportStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[15]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1137,7 +940,7 @@ func (x *ReportStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportStatusRequest.ProtoReflect.Descriptor instead.
 func (*ReportStatusRequest) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{15}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ReportStatusRequest) GetClusterId() string {
@@ -1191,7 +994,7 @@ type ReportStatusResponse struct {
 
 func (x *ReportStatusResponse) Reset() {
 	*x = ReportStatusResponse{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1006,7 @@ func (x *ReportStatusResponse) String() string {
 func (*ReportStatusResponse) ProtoMessage() {}
 
 func (x *ReportStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[16]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1019,7 @@ func (x *ReportStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportStatusResponse.ProtoReflect.Descriptor instead.
 func (*ReportStatusResponse) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{16}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 // Condition represents a Kubernetes-style condition.
@@ -1233,7 +1036,7 @@ type Condition struct {
 
 func (x *Condition) Reset() {
 	*x = Condition{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1048,7 @@ func (x *Condition) String() string {
 func (*Condition) ProtoMessage() {}
 
 func (x *Condition) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[17]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1061,7 @@ func (x *Condition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Condition.ProtoReflect.Descriptor instead.
 func (*Condition) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{17}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Condition) GetType() string {
@@ -1358,21 +1161,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
-	"\x06health\x18\x03 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\"\xde\x01\n" +
-	"\x11HeartbeatResponse\x125\n" +
-	"\x05drain\x18\x01 \x01(\v2\x1d.loco.agent.v1.DrainDirectiveH\x00R\x05drain\x12K\n" +
-	"\rreload_config\x18\x02 \x01(\v2$.loco.agent.v1.ReloadConfigDirectiveH\x00R\freloadConfig\x128\n" +
-	"\x06resync\x18\x03 \x01(\v2\x1e.loco.agent.v1.ResyncDirectiveH\x00R\x06resyncB\v\n" +
-	"\tdirective\"9\n" +
-	"\x0eDrainDirective\x12'\n" +
-	"\x0ftimeout_seconds\x18\x01 \x01(\x05R\x0etimeoutSeconds\"\x9c\x01\n" +
-	"\x15ReloadConfigDirective\x12H\n" +
-	"\x06config\x18\x01 \x03(\v20.loco.agent.v1.ReloadConfigDirective.ConfigEntryR\x06config\x1a9\n" +
-	"\vConfigEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"4\n" +
-	"\x0fResyncDirective\x12!\n" +
-	"\fresource_ids\x18\x01 \x03(\tR\vresourceIds\"\x8d\x02\n" +
+	"\x06health\x18\x03 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\"C\n" +
+	"\x11HeartbeatResponseJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x05drainR\rreload_configR\x06resync\"\x8d\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
 	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +
@@ -1426,7 +1216,7 @@ func file_loco_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(CommandType)(0),              // 0: loco.agent.v1.CommandType
 	(*RegisterRequest)(nil),       // 1: loco.agent.v1.RegisterRequest
@@ -1439,50 +1229,42 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*CommandStreamRequest)(nil),  // 8: loco.agent.v1.CommandStreamRequest
 	(*HeartbeatRequest)(nil),      // 9: loco.agent.v1.HeartbeatRequest
 	(*HeartbeatResponse)(nil),     // 10: loco.agent.v1.HeartbeatResponse
-	(*DrainDirective)(nil),        // 11: loco.agent.v1.DrainDirective
-	(*ReloadConfigDirective)(nil), // 12: loco.agent.v1.ReloadConfigDirective
-	(*ResyncDirective)(nil),       // 13: loco.agent.v1.ResyncDirective
-	(*AgentCapacity)(nil),         // 14: loco.agent.v1.AgentCapacity
-	(*AgentHealth)(nil),           // 15: loco.agent.v1.AgentHealth
-	(*ReportStatusRequest)(nil),   // 16: loco.agent.v1.ReportStatusRequest
-	(*ReportStatusResponse)(nil),  // 17: loco.agent.v1.ReportStatusResponse
-	(*Condition)(nil),             // 18: loco.agent.v1.Condition
-	nil,                           // 19: loco.agent.v1.UpdateEnvCommand.EnvEntry
-	nil,                           // 20: loco.agent.v1.ReloadConfigDirective.ConfigEntry
-	(*timestamppb.Timestamp)(nil), // 21: google.protobuf.Timestamp
-	(v1.DeploymentPhase)(0),       // 22: loco.deployment.v1.DeploymentPhase
+	(*AgentCapacity)(nil),         // 11: loco.agent.v1.AgentCapacity
+	(*AgentHealth)(nil),           // 12: loco.agent.v1.AgentHealth
+	(*ReportStatusRequest)(nil),   // 13: loco.agent.v1.ReportStatusRequest
+	(*ReportStatusResponse)(nil),  // 14: loco.agent.v1.ReportStatusResponse
+	(*Condition)(nil),             // 15: loco.agent.v1.Condition
+	nil,                           // 16: loco.agent.v1.UpdateEnvCommand.EnvEntry
+	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(v1.DeploymentPhase)(0),       // 18: loco.deployment.v1.DeploymentPhase
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
-	14, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	21, // 1: loco.agent.v1.CommandStreamResponse.created_at:type_name -> google.protobuf.Timestamp
+	11, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
+	17, // 1: loco.agent.v1.CommandStreamResponse.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: loco.agent.v1.CommandStreamResponse.type:type_name -> loco.agent.v1.CommandType
 	4,  // 3: loco.agent.v1.CommandStreamResponse.deploy:type_name -> loco.agent.v1.DeployCommand
 	5,  // 4: loco.agent.v1.CommandStreamResponse.delete:type_name -> loco.agent.v1.DeleteCommand
 	6,  // 5: loco.agent.v1.CommandStreamResponse.scale:type_name -> loco.agent.v1.ScaleCommand
 	7,  // 6: loco.agent.v1.CommandStreamResponse.update_env:type_name -> loco.agent.v1.UpdateEnvCommand
-	19, // 7: loco.agent.v1.UpdateEnvCommand.env:type_name -> loco.agent.v1.UpdateEnvCommand.EnvEntry
-	14, // 8: loco.agent.v1.HeartbeatRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	15, // 9: loco.agent.v1.HeartbeatRequest.health:type_name -> loco.agent.v1.AgentHealth
-	11, // 10: loco.agent.v1.HeartbeatResponse.drain:type_name -> loco.agent.v1.DrainDirective
-	12, // 11: loco.agent.v1.HeartbeatResponse.reload_config:type_name -> loco.agent.v1.ReloadConfigDirective
-	13, // 12: loco.agent.v1.HeartbeatResponse.resync:type_name -> loco.agent.v1.ResyncDirective
-	20, // 13: loco.agent.v1.ReloadConfigDirective.config:type_name -> loco.agent.v1.ReloadConfigDirective.ConfigEntry
-	22, // 14: loco.agent.v1.ReportStatusRequest.phase:type_name -> loco.deployment.v1.DeploymentPhase
-	18, // 15: loco.agent.v1.ReportStatusRequest.conditions:type_name -> loco.agent.v1.Condition
-	21, // 16: loco.agent.v1.Condition.last_transition_time:type_name -> google.protobuf.Timestamp
-	1,  // 17: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	8,  // 18: loco.agent.v1.AgentService.CommandStream:input_type -> loco.agent.v1.CommandStreamRequest
-	9,  // 19: loco.agent.v1.AgentService.Heartbeat:input_type -> loco.agent.v1.HeartbeatRequest
-	16, // 20: loco.agent.v1.AgentService.ReportStatus:input_type -> loco.agent.v1.ReportStatusRequest
-	2,  // 21: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	3,  // 22: loco.agent.v1.AgentService.CommandStream:output_type -> loco.agent.v1.CommandStreamResponse
-	10, // 23: loco.agent.v1.AgentService.Heartbeat:output_type -> loco.agent.v1.HeartbeatResponse
-	17, // 24: loco.agent.v1.AgentService.ReportStatus:output_type -> loco.agent.v1.ReportStatusResponse
-	21, // [21:25] is the sub-list for method output_type
-	17, // [17:21] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	16, // 7: loco.agent.v1.UpdateEnvCommand.env:type_name -> loco.agent.v1.UpdateEnvCommand.EnvEntry
+	11, // 8: loco.agent.v1.HeartbeatRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
+	12, // 9: loco.agent.v1.HeartbeatRequest.health:type_name -> loco.agent.v1.AgentHealth
+	18, // 10: loco.agent.v1.ReportStatusRequest.phase:type_name -> loco.deployment.v1.DeploymentPhase
+	15, // 11: loco.agent.v1.ReportStatusRequest.conditions:type_name -> loco.agent.v1.Condition
+	17, // 12: loco.agent.v1.Condition.last_transition_time:type_name -> google.protobuf.Timestamp
+	1,  // 13: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	8,  // 14: loco.agent.v1.AgentService.CommandStream:input_type -> loco.agent.v1.CommandStreamRequest
+	9,  // 15: loco.agent.v1.AgentService.Heartbeat:input_type -> loco.agent.v1.HeartbeatRequest
+	13, // 16: loco.agent.v1.AgentService.ReportStatus:input_type -> loco.agent.v1.ReportStatusRequest
+	2,  // 17: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	3,  // 18: loco.agent.v1.AgentService.CommandStream:output_type -> loco.agent.v1.CommandStreamResponse
+	10, // 19: loco.agent.v1.AgentService.Heartbeat:output_type -> loco.agent.v1.HeartbeatResponse
+	14, // 20: loco.agent.v1.AgentService.ReportStatus:output_type -> loco.agent.v1.ReportStatusResponse
+	17, // [17:21] is the sub-list for method output_type
+	13, // [13:17] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }
@@ -1496,18 +1278,13 @@ func file_loco_agent_v1_agent_proto_init() {
 		(*CommandStreamResponse_Scale)(nil),
 		(*CommandStreamResponse_UpdateEnv)(nil),
 	}
-	file_loco_agent_v1_agent_proto_msgTypes[9].OneofWrappers = []any{
-		(*HeartbeatResponse_Drain)(nil),
-		(*HeartbeatResponse_ReloadConfig)(nil),
-		(*HeartbeatResponse_Resync)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_agent_v1_agent_proto_rawDesc), len(file_loco_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

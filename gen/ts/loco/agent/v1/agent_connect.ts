@@ -39,7 +39,7 @@ export const AgentService = {
     },
     /**
      * Heartbeat is a bidirectional stream for agent health reporting.
-     * Agent sends periodic heartbeats, control plane can send directives back.
+     * Agent sends periodic heartbeats.
      *
      * @generated from rpc loco.agent.v1.AgentService.Heartbeat
      */
