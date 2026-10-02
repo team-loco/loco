@@ -22,9 +22,9 @@ func buildUnsetCmd() *cobra.Command {
 			}
 
 			switch key {
-			case "locoHost":
+			case keyLocoHost:
 				cfg.LocoHost = ""
-			case "defaultAppDomain":
+			case keyDefaultAppDomain:
 				cfg.DefaultAppDomain = ""
 			default:
 				return fmt.Errorf("unknown key %q — valid keys: %v", key, validKeys)

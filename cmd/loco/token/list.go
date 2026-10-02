@@ -137,7 +137,11 @@ func newListCmd(deps listDeps) *cobra.Command {
 	return cmd
 }
 
-func getCurrentUserID(ctx context.Context, userClient userv1connect.UserServiceClient, authHeader string) (string, error) {
+func getCurrentUserID(
+	ctx context.Context,
+	userClient userv1connect.UserServiceClient,
+	authHeader string,
+) (string, error) {
 	whoAmIReq := connect.NewRequest(&userv1.WhoAmIRequest{})
 	whoAmIReq.Header().Set("Authorization", authHeader)
 

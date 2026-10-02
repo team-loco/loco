@@ -43,7 +43,13 @@ func (s *ObservabilityService) QueryLogs(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	if err := s.validator.CheckPermission(ctx, token, tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, msg.GetWorkspaceId(), tokenv1.Scope_SCOPE_READ); err != nil {
+	if err := s.validator.CheckPermission(
+		ctx,
+		token,
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		msg.GetWorkspaceId(),
+		tokenv1.Scope_SCOPE_READ,
+	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -90,7 +96,13 @@ func (s *ObservabilityService) TailLogs(
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	if err := s.validator.CheckPermission(ctx, token, tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, msg.GetWorkspaceId(), tokenv1.Scope_SCOPE_READ); err != nil {
+	if err := s.validator.CheckPermission(
+		ctx,
+		token,
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		msg.GetWorkspaceId(),
+		tokenv1.Scope_SCOPE_READ,
+	); err != nil {
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 
@@ -176,7 +188,13 @@ func (s *ObservabilityService) QueryMetrics(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 
-	if err := s.validator.CheckPermission(ctx, token, tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, msg.GetWorkspaceId(), tokenv1.Scope_SCOPE_READ); err != nil {
+	if err := s.validator.CheckPermission(
+		ctx,
+		token,
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		msg.GetWorkspaceId(),
+		tokenv1.Scope_SCOPE_READ,
+	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 

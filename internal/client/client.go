@@ -213,7 +213,11 @@ func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deplo
 	return resp.Msg.Deployment, nil
 }
 
-func (c *Client) StreamDeployment(ctx context.Context, deploymentID string, eventHandler func(*deploymentv1.WatchDeploymentResponse) error) error {
+func (c *Client) StreamDeployment(
+	ctx context.Context,
+	deploymentID string,
+	eventHandler func(*deploymentv1.WatchDeploymentResponse) error,
+) error {
 	req := connect.NewRequest(&deploymentv1.WatchDeploymentRequest{DeploymentId: deploymentID})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
@@ -296,7 +300,13 @@ func (c *Client) GetAppStatus(ctx context.Context, appID string) (*resourcev1.Ge
 	return resp.Msg, nil
 }
 
-func (c *Client) StreamLogs(ctx context.Context, appID string, limit *int32, follow *bool, logHandler func(*resourcev1.WatchLogsResponse) error) error {
+func (c *Client) StreamLogs(
+	ctx context.Context,
+	appID string,
+	limit *int32,
+	follow *bool,
+	logHandler func(*resourcev1.WatchLogsResponse) error,
+) error {
 	req := connect.NewRequest(&resourcev1.WatchLogsRequest{
 		ResourceId: appID,
 		Limit:      limit,

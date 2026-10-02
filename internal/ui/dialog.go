@@ -29,7 +29,7 @@ func (m YesNoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n", "N":
 			m.Choice = "no"
 			return m, tea.Quit
-		case "ctrl+c", "q":
+		case keyCtrlC, "q":
 			return m, tea.Quit
 		}
 	}

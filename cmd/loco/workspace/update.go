@@ -17,8 +17,11 @@ import (
 )
 
 type updateDeps struct {
-	UpdateWorkspace func(ctx context.Context, req *connect.Request[workspacev1.UpdateWorkspaceRequest]) (*connect.Response[workspacev1.UpdateWorkspaceResponse], error)
-	Output          io.Writer
+	UpdateWorkspace func(
+		ctx context.Context,
+		req *connect.Request[workspacev1.UpdateWorkspaceRequest],
+	) (*connect.Response[workspacev1.UpdateWorkspaceResponse], error)
+	Output io.Writer
 }
 
 func buildUpdateCmd() *cobra.Command {

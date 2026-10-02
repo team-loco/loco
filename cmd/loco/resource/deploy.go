@@ -139,19 +139,45 @@ Examples:
 			registryClient := deps.NewRegistryClient(host)
 
 			// Get or create resource
-			resourceID, err := getOrCreateResource(ctx, resourceClient, domainClient, deps.SelectFromList, authHeader, workspaceID, loadedCfg.Config)
+			resourceID, err := getOrCreateResource(
+				ctx,
+				resourceClient,
+				domainClient,
+				deps.SelectFromList,
+				authHeader,
+				workspaceID,
+				loadedCfg.Config,
+			)
 			if err != nil {
 				return err
 			}
 
 			// Build and push image
-			imageName, err := buildAndPushImage(ctx, deps, registryClient, authHeader, orgID, workspaceID, resourceID, loadedCfg, imageID)
+			imageName, err := buildAndPushImage(
+				ctx,
+				deps,
+				registryClient,
+				authHeader,
+				orgID,
+				workspaceID,
+				resourceID,
+				loadedCfg,
+				imageID,
+			)
 			if err != nil {
 				return err
 			}
 
 			// Create deployment
-			if err := createDeployment(ctx, deploymentClient, authHeader, resourceID, imageName, loadedCfg.Config, wait); err != nil {
+			if err := createDeployment(
+				ctx,
+				deploymentClient,
+				authHeader,
+				resourceID,
+				imageName,
+				loadedCfg.Config,
+				wait,
+			); err != nil {
 				return err
 			}
 
@@ -163,7 +189,9 @@ Examples:
 			s := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoLightGreen).Render(successMsg)
 			fmt.Fprintln(deps.Stdout, s)
 
-			tip := lipgloss.NewStyle().Foreground(ui.LocoOrange).Render("\nTip: Keep tabs on your service using `loco service status " + name + "`")
+			tip := lipgloss.NewStyle().
+				Foreground(ui.LocoOrange).
+				Render("\nTip: Keep tabs on your service using `loco service status " + name + "`")
 			fmt.Fprintln(deps.Stdout, tip)
 
 			return nil

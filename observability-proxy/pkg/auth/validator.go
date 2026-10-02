@@ -40,7 +40,13 @@ func NewValidator(controlPlaneURL string, authToken string, c cache.Cache) *Vali
 
 // CheckPermission validates whether the given token has the requested permission.
 // Results are cached for the cache's configured TTL.
-func (v *Validator) CheckPermission(ctx context.Context, token string, entityType tokenv1.EntityType, entityID string, scope tokenv1.Scope) error {
+func (v *Validator) CheckPermission(
+	ctx context.Context,
+	token string,
+	entityType tokenv1.EntityType,
+	entityID string,
+	scope tokenv1.Scope,
+) error {
 	cacheKey := token + ":" + entityType.String() + ":" + entityID + ":" + scope.String()
 
 	if allowed, ok := getPermission(ctx, v.cache, cacheKey); ok {

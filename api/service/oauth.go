@@ -98,7 +98,7 @@ var OAuthConf = &oauth2.Config{
 	Endpoint:     github.Endpoint,
 }
 
-var OAuthStateTTL = time.Duration(10 * time.Minute)
+var OAuthStateTTL = 10 * time.Minute
 
 // secureFlag returns "; Secure" when running in production so cookies are
 // only sent over HTTPS. In other environments it returns an empty string.
@@ -117,7 +117,13 @@ func generateSecureRandomString(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func NewOAuthServer(db *pgxpool.Pool, queries genDb.Querier, httpClient *http.Client, machine *tvm.VendingMachine, stateCache *OAuthStateCache) *OAuthServer {
+func NewOAuthServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	httpClient *http.Client,
+	machine *tvm.VendingMachine,
+	stateCache *OAuthStateCache,
+) *OAuthServer {
 	return &OAuthServer{
 		db:         db,
 		queries:    queries,
@@ -154,7 +160,13 @@ func (s *OAuthServer) fetchGithubUserData(token string) (*GithubUser, error) {
 }
 
 // todo: remove the second we have a proper invitation system.
-func (s *OAuthServer) tempCreateUser(ctx context.Context, externalID string, email string, name string, avatarURL string) (*genDb.User, error) {
+func (s *OAuthServer) tempCreateUser(
+	ctx context.Context,
+	externalID string,
+	email string,
+	name string,
+	avatarURL string,
+) (*genDb.User, error) {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
@@ -410,7 +422,13 @@ func (s *OAuthServer) ExchangeOAuthCode(
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch github user: %w", fetchErr))
 		}
 
-		createdUser, createErr := s.tempCreateUser(ctx, fmt.Sprintf("%d", githubUser.ID), address, githubUser.Name, githubUser.Avatar)
+		createdUser, createErr := s.tempCreateUser(
+			ctx,
+			fmt.Sprintf("%d", githubUser.ID),
+			address,
+			githubUser.Name,
+			githubUser.Avatar,
+		)
 		if createErr != nil {
 			slog.ErrorContext(ctx, "failed to create user", "error", createErr)
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create user: %w", createErr))
@@ -446,6 +464,15 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		secureFlag(),
 	))
 
-	slog.InfoContext(ctx, "exchanged oauth code for loco token", "userId", user.ID, "method", "cookie", "provider", req.Msg.GetProvider())
+	slog.InfoContext(
+		ctx,
+		"exchanged oauth code for loco token",
+		"userId",
+		user.ID,
+		"method",
+		"cookie",
+		"provider",
+		req.Msg.GetProvider(),
+	)
 	return res, nil
 }

@@ -62,8 +62,8 @@ dir = "observability-proxy"
 run = "go build -o ./bin/loco-obs-proxy ."
 
 [tasks.fmt]
-description = "Run go fmt in every Go module"
-run = "for m in $(git ls-files -- '*go.mod' ':!:gen/**' | xargs -n1 dirname); do (cd \"$m\" && go fmt ./...); done"
+description = "Format every Go module with the gofmt, goimports and golines settings in .golangci.yml"
+run = "for m in $(git ls-files -- '*go.mod' ':!:gen/**' | xargs -n1 dirname); do (cd \"$m\" && golangci-lint fmt --config=\"$MISE_PROJECT_ROOT/.golangci.yml\"); done"
 
 [tasks.vet]
 description = "Run go vet in every Go module"

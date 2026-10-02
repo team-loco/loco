@@ -60,8 +60,21 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.CreateOrg, entity.ID.String())); err != nil {
-		slog.WarnContext(ctx, "unauthorized to create org", "entityId", entity.ID.String(), "entityType", entity.Type, "entityScopes", ctx.Value(contextkeys.EntityScopesKey))
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.CreateOrg, entity.ID.String()),
+	); err != nil {
+		slog.WarnContext(
+			ctx,
+			"unauthorized to create org",
+			"entityId",
+			entity.ID.String(),
+			"entityType",
+			entity.Type,
+			"entityScopes",
+			ctx.Value(contextkeys.EntityScopesKey),
+		)
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	user, err := s.queries.GetUserByID(ctx, entity.ID)
@@ -101,7 +114,16 @@ func (s *OrgServer) CreateOrg(
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
 	}, []genDb.EntityScope{})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update user roles for new organization", "error", err, "orgId", org.ID.String(), "userId", entity.ID.String())
+		slog.ErrorContext(
+			ctx,
+			"failed to update user roles for new organization",
+			"error",
+			err,
+			"orgId",
+			org.ID.String(),
+			"userId",
+			entity.ID.String(),
+		)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -126,7 +148,10 @@ func (s *OrgServer) GetOrg(
 	case *orgv1.GetOrgRequest_OrgName:
 		org, err = s.queries.GetOrgByName(ctx, key.OrgName)
 	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("either org_id or org_name must be provided"))
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("either org_id or org_name must be provided"),
+		)
 	}
 
 	if err != nil {
@@ -140,7 +165,11 @@ func (s *OrgServer) GetOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.GetOrg, org.ID.String())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.GetOrg, org.ID.String()),
+	); err != nil {
 		// Return NotFound (not PermissionDenied) to prevent org-existence probing.
 		slog.WarnContext(ctx, "unauthorized to get org", "orgId", org.ID.String())
 		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
@@ -170,7 +199,11 @@ func (s *OrgServer) ListUserOrgs(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListUserOrgs, r.GetUserId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ListUserOrgs, r.GetUserId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list user orgs", "userId", r.GetUserId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -233,7 +266,11 @@ func (s *OrgServer) UpdateOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.UpdateOrg, r.GetOrgId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.UpdateOrg, r.GetOrgId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to update org", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -283,7 +320,11 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.DeleteOrg, r.GetOrgId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.DeleteOrg, r.GetOrgId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to delete org", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -323,7 +364,11 @@ func (s *OrgServer) ListOrgUsers(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListOrgMembers, r.GetOrgId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ListOrgMembers, r.GetOrgId()),
+	); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list org users", "orgId", r.GetOrgId())
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -349,7 +394,11 @@ func (s *OrgServer) ListOrgWorkspaces(
 	}
 
 	// Check authorization
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, actions.New(actions.ListWorkspaces, r.GetOrgId())); err != nil {
+	if err := s.machine.VerifyWithGivenEntityScopes(
+		ctx,
+		scopes,
+		actions.New(actions.ListWorkspaces, r.GetOrgId()),
+	); err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 

@@ -115,7 +115,8 @@ func (c *SessionConfig) GetScope() (*Scope, error) {
 	return ctx, nil
 }
 
-// SetScope creates or updates a scope with the given organization and workspace, sets it as current, and persists the config.
+// SetScope creates or updates a scope with the given organization and workspace, sets it as current,
+// and persists the config.
 func (c *SessionConfig) SetScope(scopeName string, org SimpleOrg, wks SimpleWorkspace) error {
 	if scopeName == "" {
 		return fmt.Errorf("scope name cannot be empty")

@@ -12,7 +12,11 @@ import (
 // either explicitly or implicitly. It returns an error if an error occurs, if the entity does
 // not exist [ErrEntityNotFound], or if the token does not have sufficient permissions
 // [ErrInsufficentPermissions].
-func (tvm *VendingMachine) VerifyWithGivenEntityScopes(ctx context.Context, givenEntityScopes []queries.EntityScope, entityScope queries.EntityScope) error {
+func (tvm *VendingMachine) VerifyWithGivenEntityScopes(
+	ctx context.Context,
+	givenEntityScopes []queries.EntityScope,
+	entityScope queries.EntityScope,
+) error {
 	// hot path: check if token has the entityScope required or has sys:scope
 	for _, scope := range givenEntityScopes {
 		if scope == entityScope {
@@ -63,7 +67,11 @@ func (tvm *VendingMachine) VerifyWithGivenEntityScopes(ctx context.Context, give
 
 // VerifyWithEntity verifies that the given token has the entityScope required, either explicitly
 // or implicitly. Returns the entity associated with the token on success.
-func (tvm *VendingMachine) VerifyWithEntity(ctx context.Context, token string, entityScope queries.EntityScope) (queries.Entity, error) {
+func (tvm *VendingMachine) VerifyWithEntity(
+	ctx context.Context,
+	token string,
+	entityScope queries.EntityScope,
+) (queries.Entity, error) {
 	entity, scopes, err := tvm.GetToken(ctx, token)
 	if err != nil {
 		return queries.Entity{}, ErrTokenNotFound

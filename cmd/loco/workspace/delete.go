@@ -87,7 +87,13 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			}
 
 			if !yes {
-				confirm, confirmErr := deps.AskYesNo(fmt.Sprintf("Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.", getResp.Msg.Workspace.Name, id))
+				confirm, confirmErr := deps.AskYesNo(
+					fmt.Sprintf(
+						"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
+						getResp.Msg.Workspace.Name,
+						id,
+					),
+				)
 				if confirmErr != nil {
 					return fmt.Errorf("failed to prompt for confirmation: %w", confirmErr)
 				}

@@ -82,7 +82,12 @@ func buildAndPushImage(
 				return fmt.Errorf("failed to fetch registry credentials: %w", tokenErr)
 			}
 
-			if pushErr := dockerClient.PushImage(ctx, logf, tokenResp.Msg.GetUsername(), tokenResp.Msg.GetToken()); pushErr != nil {
+			if pushErr := dockerClient.PushImage(
+				ctx,
+				logf,
+				tokenResp.Msg.GetUsername(),
+				tokenResp.Msg.GetToken(),
+			); pushErr != nil {
 				return fmt.Errorf("docker push failed: %w", pushErr)
 			}
 			return nil

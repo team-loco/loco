@@ -125,7 +125,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 		selected, selErr := ui.SelectFromList("Select a scope", options)
 		if selErr != nil {
-			return fmt.Errorf("selection cancelled: %w", selErr)
+			return fmt.Errorf("selection canceled: %w", selErr)
 		}
 
 		scope, ok := selected.(scopeOption)

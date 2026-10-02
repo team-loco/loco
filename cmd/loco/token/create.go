@@ -175,7 +175,10 @@ func parseEntityType(s string) (tokenv1.EntityType, error) {
 	case "resource":
 		return tokenv1.EntityType_ENTITY_TYPE_RESOURCE, nil
 	default:
-		return tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED, fmt.Errorf("invalid entity type %q: must be user, org, workspace, or resource", s)
+		return tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED, fmt.Errorf(
+			"invalid entity type %q: must be user, org, workspace, or resource",
+			s,
+		)
 	}
 }
 
