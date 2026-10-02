@@ -1,8 +1,9 @@
 FROM golang:1.27.1-alpine3.23 AS builder
+ARG TARGETARCH
 
 ENV CGO_ENABLED=0 \
     GOOS=linux \
-    GOARCH=amd64
+    GOARCH=${TARGETARCH}
 
 WORKDIR /app
 
@@ -17,7 +18,7 @@ COPY observability-proxy ./observability-proxy
 COPY gen/go ./gen/go
 
 WORKDIR /app/observability-proxy
-RUN go build -o loco-obs-proxy .
+RUN --mount=type=cache,target=/root/.cache/go-build go build -o loco-obs-proxy .
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
