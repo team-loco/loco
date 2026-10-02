@@ -34,9 +34,10 @@ jobs:
           prev=""
 
           for attempt in $(seq 1 60); do
-            runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs" \
-              --jq '.check_runs[] | select(.name != env.SELF) | "\(.name)\t\(.status)\t\(.conclusion // "")"' \
-              | sort)
+            runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
+              --jq '.check_runs[] | select(.name != env.SELF) | "\(.name)\t\(.id)\t\(.status)\t\(.conclusion // "")"' \
+              | sort -t $'\t' -k1,1 -k2,2nr \
+              | awk -F'\t' '!seen[$1]++ {print $1 "\t" $3 "\t" $4}')
 
             total=$(printf '%s' "$runs" | grep -c . || true)
             pending=$(printf '%s\n' "$runs" | awk -F'\t' '$2 != "completed"' | grep -c . || true)
