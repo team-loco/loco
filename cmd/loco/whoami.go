@@ -27,7 +27,12 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				return err
 			}
 
-			t, err := env.Tokens.Get()
+			store, err := env.Tokens()
+			if err != nil {
+				return err
+			}
+
+			t, err := store.Get()
 			if errors.Is(err, keychain.ErrNotFound) {
 				return ErrLoginRequired
 			}

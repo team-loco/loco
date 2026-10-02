@@ -50,7 +50,12 @@ func TestLogoutKeychainDeleteFails(t *testing.T) {
 		deleteErr: errors.New("keychain locked"),
 	}
 	var stdout bytes.Buffer
-	root := NewRootCmd(Env{Tokens: store})
+	env := Env{
+		Tokens: func() (keychain.TokenStore, error) {
+			return store, nil
+		},
+	}
+	root := NewRootCmd(env)
 	root.SetOut(&stdout)
 	root.SetErr(&stdout)
 	root.SetArgs([]string{"logout", "--host", srv.URL})

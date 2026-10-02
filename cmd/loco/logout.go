@@ -31,7 +31,12 @@ func newLogoutCmd(env Env) *cobra.Command {
 				return err
 			}
 
-			t, err := env.Tokens.Get()
+			store, err := env.Tokens()
+			if err != nil {
+				return err
+			}
+
+			t, err := store.Get()
 			if errors.Is(err, keychain.ErrNotFound) {
 				notLoggedIn := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in.")
 				lipgloss.Fprintln(out, notLoggedIn)
@@ -53,7 +58,7 @@ func newLogoutCmd(env Env) *cobra.Command {
 				}
 			}
 
-			if err = env.Tokens.Delete(); err != nil {
+			if err = store.Delete(); err != nil {
 				return fmt.Errorf("failed to delete token from keychain: %w", err)
 			}
 

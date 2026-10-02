@@ -49,16 +49,10 @@ func Cli() {
 		}
 	}
 
-	env, err := NewEnv()
-	if err != nil {
-		message := lipgloss.NewStyle().Foreground(ui.LocoRed).Render(err.Error())
-		lipgloss.Fprintln(os.Stderr, message)
-		os.Exit(1)
-	}
-
+	env := NewEnv()
 	ctx := context.Background()
 	root := NewRootCmd(env)
-	if err = fang.Execute(ctx,
+	if err := fang.Execute(ctx,
 		root,
 		fang.WithVersion(i.Main.Version),
 		fang.WithColorSchemeFunc(LocoColorScheme())); err != nil {

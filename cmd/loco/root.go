@@ -20,19 +20,20 @@ import (
 )
 
 type Env struct {
-	Tokens keychain.TokenStore
+	CurrentUser func() (*user.User, error)
+	Tokens      func() (keychain.TokenStore, error)
 }
 
-func NewEnv() (Env, error) {
-	currentUser, err := user.Current()
-	if err != nil {
-		return Env{}, fmt.Errorf("failed to get current user: %w", err)
+func NewEnv() Env {
+	env := Env{CurrentUser: user.Current}
+	env.Tokens = func() (keychain.TokenStore, error) {
+		currentUser, err := env.CurrentUser()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current user: %w", err)
+		}
+		return keychain.NewStore(currentUser.Name)
 	}
-	tokens, err := keychain.NewStore(currentUser.Name)
-	if err != nil {
-		return Env{}, err
-	}
-	return Env{Tokens: tokens}, nil
+	return env
 }
 
 func NewRootCmd(env Env) *cobra.Command {
