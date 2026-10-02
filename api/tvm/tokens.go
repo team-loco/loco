@@ -33,7 +33,7 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 			ID:   session.UserID,
 		}
 
-		liveScopes, err := tvm.queries.GetUserScopes(ctx, session.UserID)
+		liveScopes, err := tvm.userScopes(ctx, session.UserID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to fetch live scopes for session token", "err", err)
 			return queries.Entity{}, nil, err

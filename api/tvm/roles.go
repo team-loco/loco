@@ -33,7 +33,7 @@ func (tvm *VendingMachine) GetRoles(ctx context.Context, token string) ([]querie
 		return nil, ErrInsufficentPermissions
 	}
 
-	userScopes, err := tvm.queries.GetUserScopes(ctx, entity.ID)
+	userScopes, err := tvm.userScopes(ctx, entity.ID)
 	if err != nil {
 		return nil, fmt.Errorf("get user scopes: %w", err)
 	}
@@ -74,7 +74,11 @@ func (tvm *VendingMachine) GetRolesByEntity(
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on organization: %w", err)
 		}
-		return rows, nil
+		scopes := make([]queries.EntityScope, len(rows))
+		for i, row := range rows {
+			scopes[i] = queries.EntityScope(row)
+		}
+		return scopes, nil
 	case queries.EntityTypeWorkspace:
 		// workspace: get all workspace + resource roles (recursive)
 		userID, err := uuid.Parse(userID)
@@ -88,14 +92,18 @@ func (tvm *VendingMachine) GetRolesByEntity(
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on workspace: %w", err)
 		}
-		return rows, nil
+		scopes := make([]queries.EntityScope, len(rows))
+		for i, row := range rows {
+			scopes[i] = queries.EntityScope(row)
+		}
+		return scopes, nil
 	case queries.EntityTypeResource, queries.EntityTypeUser, queries.EntityTypeSystem:
 		// resource or user: only get roles on that entity
 		userID, err := uuid.Parse(userID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid user id: %w", err)
 		}
-		userScopes, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
+		rows, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
 			UserID:     userID,
 			EntityType: entity.Type,
 			EntityID:   entity.ID,
@@ -103,7 +111,11 @@ func (tvm *VendingMachine) GetRolesByEntity(
 		if err != nil {
 			return nil, fmt.Errorf("get user scopes on entity: %w", err)
 		}
-		return userScopes, nil
+		scopes := make([]queries.EntityScope, len(rows))
+		for i, row := range rows {
+			scopes[i] = queries.EntityScope(row)
+		}
+		return scopes, nil
 	}
 	return nil, ErrEntityNotFound
 }
@@ -202,4 +214,16 @@ func (tvm *VendingMachine) UpdateRoles(
 		return fmt.Errorf("commit tx: %w", err)
 	}
 	return nil
+}
+
+func (tvm *VendingMachine) userScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
+	rows, err := tvm.queries.GetUserScopes(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	scopes := make([]queries.EntityScope, len(rows))
+	for i, row := range rows {
+		scopes[i] = queries.EntityScope(row)
+	}
+	return scopes, nil
 }

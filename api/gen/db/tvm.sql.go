@@ -329,24 +329,30 @@ func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash
 }
 
 const getUserScopes = `-- name: GetUserScopes :many
-SELECT ROW(scope, entity_type, entity_id)::entity_scope
+SELECT entity_type, entity_id, scope
 FROM user_scopes
 WHERE user_id = $1
 `
 
-func (q *Queries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]EntityScope, error) {
+type GetUserScopesRow struct {
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
+	Scope      Scope      `json:"scope"`
+}
+
+func (q *Queries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]GetUserScopesRow, error) {
 	rows, err := q.db.Query(ctx, getUserScopes, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []EntityScope
+	var items []GetUserScopesRow
 	for rows.Next() {
-		var column_1 EntityScope
-		if err := rows.Scan(&column_1); err != nil {
+		var i GetUserScopesRow
+		if err := rows.Scan(&i.EntityType, &i.EntityID, &i.Scope); err != nil {
 			return nil, err
 		}
-		items = append(items, column_1)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -355,7 +361,7 @@ func (q *Queries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]Entity
 }
 
 const getUserScopesOnEntity = `-- name: GetUserScopesOnEntity :many
-SELECT ROW(scope, entity_type, entity_id)::entity_scope
+SELECT entity_type, entity_id, scope
 FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3
 `
 
@@ -365,20 +371,26 @@ type GetUserScopesOnEntityParams struct {
 	EntityID   uuid.UUID  `json:"entityId"`
 }
 
+type GetUserScopesOnEntityRow struct {
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
+	Scope      Scope      `json:"scope"`
+}
+
 // what scopes does user x have on entity y?
-func (q *Queries) GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]EntityScope, error) {
+func (q *Queries) GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]GetUserScopesOnEntityRow, error) {
 	rows, err := q.db.Query(ctx, getUserScopesOnEntity, arg.UserID, arg.EntityType, arg.EntityID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []EntityScope
+	var items []GetUserScopesOnEntityRow
 	for rows.Next() {
-		var column_1 EntityScope
-		if err := rows.Scan(&column_1); err != nil {
+		var i GetUserScopesOnEntityRow
+		if err := rows.Scan(&i.EntityType, &i.EntityID, &i.Scope); err != nil {
 			return nil, err
 		}
-		items = append(items, column_1)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -417,7 +429,7 @@ WITH RECURSIVE entity_hierarchy AS (
      INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
  )
  SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+     us.entity_type, us.entity_id, us.scope
  FROM user_scopes us
  INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
  WHERE us.user_id = $2
@@ -429,19 +441,25 @@ type GetUserScopesOnOrganizationParams struct {
 	UserID uuid.UUID `json:"userId"`
 }
 
-func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]EntityScope, error) {
+type GetUserScopesOnOrganizationRow struct {
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
+	Scope      Scope      `json:"scope"`
+}
+
+func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]GetUserScopesOnOrganizationRow, error) {
 	rows, err := q.db.Query(ctx, getUserScopesOnOrganization, arg.ID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []EntityScope
+	var items []GetUserScopesOnOrganizationRow
 	for rows.Next() {
-		var column_1 EntityScope
-		if err := rows.Scan(&column_1); err != nil {
+		var i GetUserScopesOnOrganizationRow
+		if err := rows.Scan(&i.EntityType, &i.EntityID, &i.Scope); err != nil {
 			return nil, err
 		}
-		items = append(items, column_1)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -470,7 +488,7 @@ WITH RECURSIVE entity_hierarchy AS (
      INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
  )
  SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+     us.entity_type, us.entity_id, us.scope
  FROM user_scopes us
  INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
  WHERE us.user_id = $2
@@ -482,19 +500,25 @@ type GetUserScopesOnWorkspaceParams struct {
 	UserID uuid.UUID `json:"userId"`
 }
 
-func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]EntityScope, error) {
+type GetUserScopesOnWorkspaceRow struct {
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
+	Scope      Scope      `json:"scope"`
+}
+
+func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]GetUserScopesOnWorkspaceRow, error) {
 	rows, err := q.db.Query(ctx, getUserScopesOnWorkspace, arg.ID, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []EntityScope
+	var items []GetUserScopesOnWorkspaceRow
 	for rows.Next() {
-		var column_1 EntityScope
-		if err := rows.Scan(&column_1); err != nil {
+		var i GetUserScopesOnWorkspaceRow
+		if err := rows.Scan(&i.EntityType, &i.EntityID, &i.Scope); err != nil {
 			return nil, err
 		}
-		items = append(items, column_1)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

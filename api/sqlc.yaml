@@ -39,17 +39,6 @@ sql:
               type: "UUID"
               pointer: true
 
-          - db_type: "entity_scope"
-            go_type:
-              import: ""
-              type: "EntityScope"
-
-          - db_type: "entity_scope[]"
-            go_type:
-              import: ""
-              type: "EntityScope"
-              slice: true
-
           - column: "user_scopes.scope"
             go_type:
               import: ""

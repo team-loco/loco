@@ -1,5 +1,5 @@
 -- name: GetUserScopes :many
-SELECT ROW(scope, entity_type, entity_id)::entity_scope
+SELECT entity_type, entity_id, scope
 FROM user_scopes
 WHERE user_id = $1;
 
@@ -8,7 +8,7 @@ SELECT * FROM user_with_scopes_view WHERE email = $1;
 
 -- what scopes does user x have on entity y?
 -- name: GetUserScopesOnEntity :many
-SELECT ROW(scope, entity_type, entity_id)::entity_scope
+SELECT entity_type, entity_id, scope
 FROM user_scopes WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3;
 
 -- name: GetUserScopesOnOrganization :many
@@ -42,7 +42,7 @@ WITH RECURSIVE entity_hierarchy AS (
      INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
  )
  SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+     us.entity_type, us.entity_id, us.scope
  FROM user_scopes us
  INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
  WHERE us.user_id = $2
@@ -69,7 +69,7 @@ WITH RECURSIVE entity_hierarchy AS (
      INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
  )
  SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     ROW(us.scope, us.entity_type, us.entity_id)::entity_scope
+     us.entity_type, us.entity_id, us.scope
  FROM user_scopes us
  INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
  WHERE us.user_id = $2
