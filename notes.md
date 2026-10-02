@@ -270,7 +270,9 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
   - GitLab registry token is only fetched at deploy time — if a new node pulls the image
     later, the token is expired (5 min TTL). Need continuous rotation tied to the image
     pull secret in the app namespace.
-  - Would be better to deploy our own registry via Harbor or similar (V2).
+  - **Goal:** move off GitLab to a container registry hosted in our own cluster. There is no
+    settled approach yet -- the design doc below is a proposal, not a decision. Harbor, zot
+    and plain distribution are all still on the table.
   - **Design doc:** [`docs/design/tdd-pluggable-dependencies.md`](docs/design/tdd-pluggable-dependencies.md)
     proposes moving off GitLab to self-hosted zot behind a mode adapter, and covers the
     credential/TTL problem, tenancy isolation, and the CLI/proto de-vendoring needed first.
