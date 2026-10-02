@@ -25,6 +25,7 @@ jobs:
     name: Railway Plan (${{ github.base_ref == 'main' && 'production' || 'staging' }})
     if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -32,12 +33,13 @@ jobs:
         with:
           command: plan
           cli-version: 5.63.1
-          railway-token: ${{ github.base_ref == 'main' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING }}
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
 
   apply:
     name: Railway Apply (${{ github.base_ref == 'main' && 'production' || 'staging' }})
     if: github.event.action == 'closed' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,4 +50,4 @@ jobs:
           command: apply
           cli-version: 5.63.1
           confirm-destructive: "false"
-          railway-token: ${{ github.base_ref == 'main' && secrets.RAILWAY_TOKEN_PRODUCTION || secrets.RAILWAY_TOKEN_STAGING }}
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
