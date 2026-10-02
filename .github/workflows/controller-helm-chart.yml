@@ -50,7 +50,7 @@ jobs:
         with:
           go-cache: controller-codegen
 
-      - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD copy
+      - name: Regenerate CRDs, RBAC, deepcopy, and the chart's CRD and RBAC copies
         run: mise run controller:gen
 
       - name: Fail if anything is out of date
