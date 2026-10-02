@@ -107,8 +107,10 @@ func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cach
 			return nil, fmt.Errorf("CACHE_ADDR required when CACHE_TYPE=valkey")
 		}
 		return cache.NewValkey(CacheAddr, defaultTTL)
-	case "in-memory", "":
-		return cache.NewBigCache(defaultTTL)
+	case "in-memory":
+		return cache.NewMemory(defaultTTL)
+	case "":
+		return cache.NewMemory(defaultTTL)
 	default:
 		return nil, fmt.Errorf("unknown cache type: %s", cacheType)
 	}
