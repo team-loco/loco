@@ -18,6 +18,10 @@ rules:
   - apiGroups: ["infra.loco.io"]
     resources: ["applications/status"]
     verbs: ["get", "patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["controller-loco-manager"]
+    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -27,6 +31,28 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
+  name: {{ .Release.Name }}-agent
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Release.Name }}-agent
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-agent
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
   name: {{ .Release.Name }}-agent
 subjects:
   - kind: ServiceAccount
