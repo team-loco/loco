@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Copy the generated controller RBAC rules into the loco-controller chart's manager role"
+set -euo pipefail
+
+chart_role=charts/loco-controller/templates/rbac/manager-role.yaml
+generated_role=controller/config/rbac/role.yaml
+
+yq -P -I 4 -i ".rules = load(\"$generated_role\").rules" "$chart_role"
+echo "synced $chart_role"
