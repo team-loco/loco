@@ -18,6 +18,7 @@ spec:
   template:
     metadata:
       annotations:
+        # rolls the agent automatically when a value in its env secret changes
         checksum/env: {{ include (print $.Template.BasePath "/env-config-secret.yml") . | sha256sum }}
       labels:
         app: {{ .Release.Name }}-agent
