@@ -1,18 +1,13 @@
 package loco
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"net/http"
 
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
-	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/keychain"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -46,8 +41,7 @@ func newLogoutCmd(env Env) *cobra.Command {
 				return fmt.Errorf("failed to read token from keychain: %w", err)
 			}
 
-			httpClient := httputil.NewHTTPClient()
-			if err = revokeToken(ctx, httpClient, host, t.Token); err != nil {
+			if err = cmdutil.RevokeToken(ctx, host, t.Token); err != nil {
 				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
 				if connect.CodeOf(err) != connect.CodeUnauthenticated {
 					warning := lipgloss.NewStyle().
@@ -70,12 +64,4 @@ func newLogoutCmd(env Env) *cobra.Command {
 	}
 	cmd.Flags().String("host", "", "Set the host URL")
 	return cmd
-}
-
-func revokeToken(ctx context.Context, httpClient *http.Client, host, token string) error {
-	userClient := userv1connect.NewUserServiceClient(httpClient, host)
-	req := connect.NewRequest(&userv1.LogoutRequest{})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	_, err := userClient.Logout(ctx, req)
-	return err
 }
