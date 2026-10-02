@@ -17,6 +17,8 @@ spec:
     type: RollingUpdate
   template:
     metadata:
+      annotations:
+        checksum/env: {{ include (print $.Template.BasePath "/env-config-secret.yml") . | sha256sum }}
       labels:
         app: {{ .Release.Name }}-agent
     spec:
