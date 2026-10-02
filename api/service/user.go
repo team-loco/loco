@@ -175,7 +175,7 @@ func (s *UserServer) GetUser(
 // WhoAmI retrieves the current authenticated user
 func (s *UserServer) WhoAmI(
 	ctx context.Context,
-	req *connect.Request[userv1.WhoAmIRequest],
+	_ *connect.Request[userv1.WhoAmIRequest],
 ) (*connect.Response[userv1.WhoAmIResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
@@ -327,15 +327,15 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	userId := uuid.MustParse(r.GetUserId())
+	userID := uuid.MustParse(r.GetUserId())
 
-	_, err := s.queries.GetUserByID(ctx, userId)
+	_, err := s.queries.GetUserByID(ctx, userID)
 	if err != nil {
 		slog.WarnContext(ctx, "user not found", "user_id", r.GetUserId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
 	}
 
-	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, userId)
+	hasWorkspaces, err := s.queries.CheckUserHasWorkspaces(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -346,7 +346,7 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasActiveResources)
 	}
 
-	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, userId)
+	hasOrganizations, err := s.queries.CheckUserHasOrganizations(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check user organizations", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -357,7 +357,7 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrUserHasOrganizations)
 	}
 
-	err = s.queries.DeleteUser(ctx, userId)
+	err = s.queries.DeleteUser(ctx, userID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -369,7 +369,7 @@ func (s *UserServer) DeleteUser(
 // Logout logs out the user by clearing the session cookie
 func (s *UserServer) Logout(
 	ctx context.Context,
-	req *connect.Request[userv1.LogoutRequest],
+	_ *connect.Request[userv1.LogoutRequest],
 ) (*connect.Response[userv1.LogoutResponse], error) {
 	res := connect.NewResponse(&userv1.LogoutResponse{})
 	res.Header().Add("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag())

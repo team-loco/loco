@@ -218,7 +218,7 @@ func (s *DomainServer) DeletePlatformDomain(
 // ListLocoOwnedDomains lists all loco-owned (subdomain) domains (admin only)
 func (s *DomainServer) ListLocoOwnedDomains(
 	ctx context.Context,
-	req *connect.Request[domainv1.ListLocoOwnedDomainsRequest],
+	_ *connect.Request[domainv1.ListLocoOwnedDomainsRequest],
 ) (*connect.Response[domainv1.ListLocoOwnedDomainsResponse], error) {
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
@@ -309,15 +309,15 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 
 	// check if this is the first domain for the resource
-	resourceId := uuid.MustParse(r.ResourceId)
+	resourceID := uuid.MustParse(r.ResourceId)
 
-	count, err := s.queries.GetResourceDomainCount(ctx, resourceId)
+	count, err := s.queries.GetResourceDomainCount(ctx, resourceID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	resourceDomain, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-		ResourceID:       resourceId,
+		ResourceID:       resourceID,
 		Domain:           fullDomain,
 		DomainSource:     domainSource,
 		SubdomainLabel:   subdomainLabel,
@@ -341,9 +341,9 @@ func (s *DomainServer) UpdateResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource
-	domainId := uuid.MustParse(r.DomainId)
+	domainID := uuid.MustParse(r.DomainId)
 
-	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainId)
+	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
@@ -375,7 +375,7 @@ func (s *DomainServer) UpdateResourceDomain(
 
 		// update the domain
 		_, err = s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
-			ID:     domainId,
+			ID:     domainID,
 			Domain: r.GetDomain(),
 		})
 		if err != nil {
@@ -411,19 +411,19 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	}
 
 	// unset primary on all other domains
-	resourceId := uuid.MustParse(r.GetResourceId())
+	resourceID := uuid.MustParse(r.GetResourceId())
 
-	err := s.queries.UpdateResourceDomainPrimary(ctx, resourceId)
+	err := s.queries.UpdateResourceDomainPrimary(ctx, resourceID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	// set this domain as primary
-	domainId := uuid.MustParse(r.GetDomainId())
+	domainID := uuid.MustParse(r.GetDomainId())
 
 	_, err = s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
-		ID:         domainId,
-		ResourceID: resourceId,
+		ID:         domainID,
+		ResourceID: resourceID,
 	})
 	if err != nil {
 		return nil, connect.NewError(
@@ -446,9 +446,9 @@ func (s *DomainServer) DeleteResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource and whether it's primary
-	domainId := uuid.MustParse(r.GetDomainId())
+	domainID := uuid.MustParse(r.GetDomainId())
 
-	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainId)
+	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
 	}
@@ -482,7 +482,7 @@ func (s *DomainServer) DeleteResourceDomain(
 	}
 
 	// delete the domain
-	err = s.queries.DeleteResourceDomain(ctx, domainId)
+	err = s.queries.DeleteResourceDomain(ctx, domainID)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}

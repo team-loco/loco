@@ -42,7 +42,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 		Args:  cobra.NoArgs,
 		Example: `  # List all your organizations
   loco org list`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			host, err := cmdutil.GetHost(cmd)

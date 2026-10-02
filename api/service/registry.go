@@ -60,7 +60,7 @@ func NewRegistryServer(
 // Requires authenticated request (user must have valid token in context)
 func (s *RegistryServer) GetGitlabToken(
 	ctx context.Context,
-	req *connect.Request[registryv1.GetGitlabTokenRequest],
+	_ *connect.Request[registryv1.GetGitlabTokenRequest],
 ) (*connect.Response[registryv1.GetGitlabTokenResponse], error) {
 	entity, ok := ctx.Value(contextkeys.EntityKey).(db.Entity)
 	if !ok {

@@ -307,12 +307,12 @@ func (r *LocoResourceReconciler) handleDeletion(
 
 // getName derives the app name from the Application
 func getName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("resource-%v", locoRes.Spec.ResourceId)
+	return fmt.Sprintf("resource-%v", locoRes.Spec.ResourceID)
 }
 
 // getNamespace derives the namespace from the Application
 func getNamespace(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("wks-%v-res-%v", locoRes.Spec.WorkspaceId, locoRes.Spec.ResourceId)
+	return fmt.Sprintf("wks-%v-res-%v", locoRes.Spec.WorkspaceID, locoRes.Spec.ResourceID)
 }
 
 func getImageSecretName(locoRes *locov1alpha1.Application) string {
@@ -339,9 +339,9 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 			Name: namespace,
 			Labels: map[string]string{
 				"loco.io/app":      "true",
-				labelWorkspaceID:   locoRes.Spec.WorkspaceId,
-				labelResourceID:    locoRes.Spec.ResourceId,
-				labelEnvironmentID: locoRes.Spec.EnvironmentId,
+				labelWorkspaceID:   locoRes.Spec.WorkspaceID,
+				labelResourceID:    locoRes.Spec.ResourceID,
+				labelEnvironmentID: locoRes.Spec.EnvironmentID,
 			},
 		},
 	}
@@ -691,9 +691,9 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	// Inject LOCO_* system env vars so apps are aware of their deployment context.
 	envVars = append(envVars,
 		corev1.EnvVar{Name: "LOCO_APP_NAME", Value: locoRes.Name},
-		corev1.EnvVar{Name: "LOCO_RESOURCE_ID", Value: locoRes.Spec.ResourceId},
-		corev1.EnvVar{Name: "LOCO_WORKSPACE_ID", Value: locoRes.Spec.WorkspaceId},
-		corev1.EnvVar{Name: "LOCO_DEPLOYMENT_ID", Value: locoRes.Spec.DeploymentId},
+		corev1.EnvVar{Name: "LOCO_RESOURCE_ID", Value: locoRes.Spec.ResourceID},
+		corev1.EnvVar{Name: "LOCO_WORKSPACE_ID", Value: locoRes.Spec.WorkspaceID},
+		corev1.EnvVar{Name: "LOCO_DEPLOYMENT_ID", Value: locoRes.Spec.DeploymentID},
 		corev1.EnvVar{Name: "LOCO_REGION", Value: locoRes.Spec.Region},
 		corev1.EnvVar{Name: "LOCO_ENVIRONMENT", Value: locoRes.Spec.EnvironmentName},
 		corev1.EnvVar{Name: "LOCO_INTERNAL_DOMAIN", Value: getInternalDomain(locoRes)},
@@ -752,9 +752,9 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
 		dep.Labels = map[string]string{
 			labelApp:           name,
-			labelWorkspaceID:   locoRes.Spec.WorkspaceId,
-			labelResourceID:    locoRes.Spec.ResourceId,
-			labelEnvironmentID: locoRes.Spec.EnvironmentId,
+			labelWorkspaceID:   locoRes.Spec.WorkspaceID,
+			labelResourceID:    locoRes.Spec.ResourceID,
+			labelEnvironmentID: locoRes.Spec.EnvironmentID,
 		}
 
 		container := corev1.Container{
@@ -802,9 +802,9 @@ func (r *LocoResourceReconciler) ensureDeployment(
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					labelApp:           name,
-					labelWorkspaceID:   locoRes.Spec.WorkspaceId,
-					labelResourceID:    locoRes.Spec.ResourceId,
-					labelEnvironmentID: locoRes.Spec.EnvironmentId,
+					labelWorkspaceID:   locoRes.Spec.WorkspaceID,
+					labelResourceID:    locoRes.Spec.ResourceID,
+					labelEnvironmentID: locoRes.Spec.EnvironmentID,
 				},
 			},
 			Spec: corev1.PodSpec{

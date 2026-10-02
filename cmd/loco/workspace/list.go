@@ -43,7 +43,7 @@ func buildListCmd() *cobra.Command {
 
   # List workspaces in a specific organization
   loco workspace list --org-id 123`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			host, err := cmdutil.GetHost(cmd)

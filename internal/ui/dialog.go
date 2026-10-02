@@ -15,7 +15,7 @@ func NewYesNoModel(question string) YesNoModel {
 	return YesNoModel{Question: question}
 }
 
-func (m YesNoModel) Init() tea.Cmd {
+func (YesNoModel) Init() tea.Cmd {
 	return nil
 }
 

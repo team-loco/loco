@@ -48,7 +48,7 @@ func NewAuthInterceptor() *AuthInterceptor {
 	return &AuthInterceptor{}
 }
 
-func (i *AuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+func (*AuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 		token, err := extractToken(req.Header())
 		if err != nil {
@@ -59,11 +59,11 @@ func (i *AuthInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	}
 }
 
-func (i *AuthInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+func (*AuthInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
 	return next
 }
 
-func (i *AuthInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+func (*AuthInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
 	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
 		token, err := extractToken(conn.RequestHeader())
 		if err != nil {

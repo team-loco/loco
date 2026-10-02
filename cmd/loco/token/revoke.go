@@ -40,7 +40,7 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 
   # Revoke without confirmation
   loco token revoke --yes`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			currentUser, err := user.Current()
 			if err != nil {
 				return fmt.Errorf("failed to get current user: %w", err)

@@ -13,7 +13,7 @@ func buildUnsetCmd() *cobra.Command {
 		Short:   "Unset a configuration value, reverting to the default",
 		Args:    cobra.ExactArgs(1),
 		Example: `  loco config unset locoHost`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			key := args[0]
 
 			cfg, err := session.Load()

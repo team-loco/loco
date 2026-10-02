@@ -213,7 +213,7 @@ func (s *OAuthServer) tempCreateUser(
 }
 
 func (s *OAuthServer) GetOAuthDetails(
-	ctx context.Context, req *connect.Request[oAuth.GetOAuthDetailsRequest],
+	_ context.Context, req *connect.Request[oAuth.GetOAuthDetailsRequest],
 ) (*connect.Response[oAuth.GetOAuthDetailsResponse], error) {
 	// Currently only GitHub is supported
 	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {

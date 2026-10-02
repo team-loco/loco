@@ -46,7 +46,7 @@ func newWhoAmICmd(deps whoamiDeps) *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "whoami",
 		Short: "displays information on the logged in user",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
 			host, err := cmdutil.GetHost(cmd)

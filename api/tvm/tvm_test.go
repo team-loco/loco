@@ -56,7 +56,7 @@ var (
 	res3UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000033")
 )
 
-func (*TestingQueries) GetUserByEmail(ctx context.Context, email string) (queries.User, error) {
+func (*TestingQueries) GetUserByEmail(_ context.Context, email string) (queries.User, error) {
 	switch email {
 	case "user1@loco-testing.com":
 		return queries.User{ID: user1UUID, Email: email}, nil
@@ -73,7 +73,7 @@ func (*TestingQueries) GetUserByEmail(ctx context.Context, email string) (querie
 	}
 }
 
-func (*TestingQueries) GetUserScopes(ctx context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
+func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]queries.EntityScope, error) {
 	switch userID {
 	case user1UUID:
 		return []queries.EntityScope{
@@ -166,7 +166,7 @@ func (*TestingQueries) GetUserScopesOnWorkspace(
 	return nil, nil
 }
 
-func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+func (*TestingQueries) GetOrganizationIDByWorkspaceID(_ context.Context, id uuid.UUID) (uuid.UUID, error) {
 	if id == ws1UUID || id == ws2UUID {
 		return org1UUID, nil
 	}
@@ -177,7 +177,7 @@ func (*TestingQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uu
 }
 
 func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(
-	ctx context.Context,
+	_ context.Context,
 	id uuid.UUID,
 ) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error) {
 	if id == res1UUID {
@@ -203,7 +203,7 @@ func (*TestingQueries) GetWorkspaceOrganizationIDByResourceID(
 
 // --- Session token mock implementations ---
 
-func (tq *TestingQueries) CreateSessionToken(ctx context.Context, params queries.CreateSessionTokenParams) error {
+func (tq *TestingQueries) CreateSessionToken(_ context.Context, params queries.CreateSessionTokenParams) error {
 	entry := &sessionEntry{
 		id:               params.ID,
 		userID:           params.UserID,
@@ -220,7 +220,7 @@ func (tq *TestingQueries) CreateSessionToken(ctx context.Context, params queries
 }
 
 func (tq *TestingQueries) GetSessionByAccessToken(
-	ctx context.Context,
+	_ context.Context,
 	accessTokenHash string,
 ) (queries.GetSessionByAccessTokenRow, error) {
 	id, ok := tq.byAccess[accessTokenHash]
@@ -238,7 +238,7 @@ func (tq *TestingQueries) GetSessionByAccessToken(
 }
 
 func (tq *TestingQueries) GetSessionByRefreshToken(
-	ctx context.Context,
+	_ context.Context,
 	refreshTokenHash string,
 ) (queries.GetSessionByRefreshTokenRow, error) {
 	id, ok := tq.byRefresh[refreshTokenHash]
@@ -256,7 +256,7 @@ func (tq *TestingQueries) GetSessionByRefreshToken(
 	}, nil
 }
 
-func (tq *TestingQueries) RotateSessionToken(ctx context.Context, params queries.RotateSessionTokenParams) error {
+func (tq *TestingQueries) RotateSessionToken(_ context.Context, params queries.RotateSessionTokenParams) error {
 	e, ok := tq.sessions[params.ID]
 	if !ok {
 		return tvm.ErrTokenNotFound
@@ -272,9 +272,9 @@ func (tq *TestingQueries) RotateSessionToken(ctx context.Context, params queries
 	return nil
 }
 
-func (tq *TestingQueries) TouchSessionLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
+func (*TestingQueries) TouchSessionLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
 
-func (tq *TestingQueries) DeleteSessionToken(ctx context.Context, id uuid.UUID) error {
+func (tq *TestingQueries) DeleteSessionToken(_ context.Context, id uuid.UUID) error {
 	e, ok := tq.sessions[id]
 	if !ok {
 		return nil
@@ -293,9 +293,9 @@ func (tq *TestingQueries) DeleteSessionTokenByAccessHash(ctx context.Context, ac
 	return tq.DeleteSessionToken(ctx, id)
 }
 
-func (tq *TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { return nil }
+func (*TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { return nil }
 
-func (tq *TestingQueries) ListSessionsForUser(
+func (*TestingQueries) ListSessionsForUser(
 	_ context.Context,
 	_ uuid.UUID,
 ) ([]queries.ListSessionsForUserRow, error) {
@@ -304,41 +304,41 @@ func (tq *TestingQueries) ListSessionsForUser(
 
 // --- API token mock implementations (no-op; not exercised by permission tests) ---
 
-func (tq *TestingQueries) CreateAPIToken(_ context.Context, _ queries.CreateAPITokenParams) error {
+func (*TestingQueries) CreateAPIToken(_ context.Context, _ queries.CreateAPITokenParams) error {
 	return nil
 }
 
-func (tq *TestingQueries) GetAPIToken(_ context.Context, _ string) (queries.GetAPITokenRow, error) {
+func (*TestingQueries) GetAPIToken(_ context.Context, _ string) (queries.GetAPITokenRow, error) {
 	return queries.GetAPITokenRow{}, tvm.ErrTokenNotFound
 }
 
-func (tq *TestingQueries) TouchAPITokenLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
+func (*TestingQueries) TouchAPITokenLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
 
-func (tq *TestingQueries) DeleteAPIToken(_ context.Context, _ uuid.UUID) error { return nil }
+func (*TestingQueries) DeleteAPIToken(_ context.Context, _ uuid.UUID) error { return nil }
 
-func (tq *TestingQueries) DeleteAPITokenByHash(_ context.Context, _ string) error { return nil }
+func (*TestingQueries) DeleteAPITokenByHash(_ context.Context, _ string) error { return nil }
 
-func (tq *TestingQueries) DeleteExpiredAPITokens(_ context.Context) error { return nil }
+func (*TestingQueries) DeleteExpiredAPITokens(_ context.Context) error { return nil }
 
-func (tq *TestingQueries) ListAPITokensForEntity(
+func (*TestingQueries) ListAPITokensForEntity(
 	_ context.Context,
 	_ queries.ListAPITokensForEntityParams,
 ) ([]queries.ListAPITokensForEntityRow, error) {
 	return nil, nil
 }
 
-func (tq *TestingQueries) DeleteAPITokensForEntity(_ context.Context, _ queries.DeleteAPITokensForEntityParams) error {
+func (*TestingQueries) DeleteAPITokensForEntity(_ context.Context, _ queries.DeleteAPITokensForEntityParams) error {
 	return nil
 }
 
-func (tq *TestingQueries) GetAPITokenByNameAndEntity(
+func (*TestingQueries) GetAPITokenByNameAndEntity(
 	_ context.Context,
 	_ queries.GetAPITokenByNameAndEntityParams,
 ) (queries.GetAPITokenByNameAndEntityRow, error) {
 	return queries.GetAPITokenByNameAndEntityRow{}, tvm.ErrTokenNotFound
 }
 
-func (tq *TestingQueries) DeleteAPITokenByNameAndEntity(
+func (*TestingQueries) DeleteAPITokenByNameAndEntity(
 	_ context.Context,
 	_ queries.DeleteAPITokenByNameAndEntityParams,
 ) error {
@@ -347,7 +347,7 @@ func (tq *TestingQueries) DeleteAPITokenByNameAndEntity(
 
 // --- Test helpers ---
 
-func TestingGithubProvider(ctx context.Context, token string) providers.EmailResponse {
+func TestingGithubProvider(_ context.Context, token string) providers.EmailResponse {
 	switch token {
 	case "github-token-user1":
 		return providers.NewEmailResponse("user1@loco-testing.com", nil)

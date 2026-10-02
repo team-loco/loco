@@ -219,10 +219,10 @@ func (s *OrgServer) ListUserOrgs(
 		pageToken = &cursorID
 	}
 
-	userId := uuid.MustParse(r.GetUserId())
+	userID := uuid.MustParse(r.GetUserId())
 
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
-		UserID:    userId,
+		UserID:    userID,
 		Limit:     pageSize,
 		PageToken: pageToken,
 	})
@@ -329,9 +329,9 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	orgId := uuid.MustParse(r.GetOrgId())
+	orgID := uuid.MustParse(r.GetOrgId())
 
-	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgId)
+	hasResources, err := s.queries.OrgHasWorkspacesWithResources(ctx, orgID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check for resources in workspaces", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -342,7 +342,7 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
 	}
 
-	err = s.queries.DeleteOrg(ctx, orgId)
+	err = s.queries.DeleteOrg(ctx, orgID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete org", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

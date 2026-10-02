@@ -30,7 +30,7 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a new Loco project",
 	Long:  "Create a new loco.toml configuration file in the current directory.",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return initCmdFunc(cmd)
 	},
 }
@@ -47,17 +47,16 @@ func initCmdFunc(cmd *cobra.Command) error {
 	}
 
 	if _, statErr := os.Stat("loco.toml"); statErr == nil && !force {
-		if appName == "" {
-			overwrite, askErr := ui.AskYesNo("A loco.toml file already exists. Do you want to overwrite it?")
-			if askErr != nil {
-				return fmt.Errorf("failed to prompt user: %w", askErr)
-			}
-			if !overwrite {
-				fmt.Println("Aborted.")
-				return nil
-			}
-		} else {
+		if appName != "" {
 			return fmt.Errorf("loco.toml already exists. Use --force to overwrite")
+		}
+		overwrite, askErr := ui.AskYesNo("A loco.toml file already exists. Do you want to overwrite it?")
+		if askErr != nil {
+			return fmt.Errorf("failed to prompt user: %w", askErr)
+		}
+		if !overwrite {
+			fmt.Println("Aborted.")
+			return nil
 		}
 	}
 

@@ -21,7 +21,7 @@ func NewInputModel(prompt string) inputModel {
 	}
 }
 
-func (m inputModel) Init() tea.Cmd {
+func (inputModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 

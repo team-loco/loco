@@ -18,7 +18,7 @@ var validateCmd = &cobra.Command{
 
 Note: CPU and memory limits are validated against the Kubernetes resource format.
 See https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ for details.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		return validateCmdFunc(cmd)
 	},
 }

@@ -41,7 +41,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
 
-type ApiConfig struct {
+type APIConfig struct {
 	Env                   string // Environment (e.g., dev, prod)
 	ProjectID             string // GitLab project ID
 	GitlabURL             string // Container registry URL
@@ -58,7 +58,7 @@ type ApiConfig struct {
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
 }
 
-func newApiConfig() *ApiConfig {
+func newAPIConfig() *APIConfig {
 	logLevelStr := os.Getenv("LOG_LEVEL")
 	logLevel := slog.LevelInfo
 	if logLevelStr != "" {
@@ -81,7 +81,7 @@ func newApiConfig() *ApiConfig {
 		}
 	}
 
-	return &ApiConfig{
+	return &APIConfig{
 		Env:                   os.Getenv("APP_ENV"),
 		ProjectID:             os.Getenv("GITLAB_PROJECT_ID"),
 		GitlabURL:             os.Getenv("GITLAB_URL"),
@@ -128,7 +128,7 @@ func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 }
 
 func main() {
-	ac := newApiConfig()
+	ac := newAPIConfig()
 
 	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
 	if err != nil {
@@ -156,12 +156,12 @@ func main() {
 		validate.NewInterceptor(),
 	)
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Loco Service is Running")
 	})
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Server is healthy.")
 	})
@@ -407,7 +407,7 @@ func main() {
 	}
 }
 
-func getLoggerHandler(ac *ApiConfig) slog.Handler {
+func getLoggerHandler(ac *APIConfig) slog.Handler {
 	if ac.Env == "PRODUCTION" {
 		return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level:     ac.LogLevel,

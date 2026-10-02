@@ -32,7 +32,7 @@ import (
 const contentTypeJSON = "application/json"
 
 type DeviceCodeRequest struct {
-	ClientId string `json:"client_id"`
+	ClientID string `json:"client_id"`
 	Scope    string `json:"scope"`
 }
 
@@ -45,7 +45,7 @@ type DeviceCodeResponse struct {
 }
 
 type AuthTokenRequest struct {
-	ClientId   string `json:"client_id"`
+	ClientID   string `json:"client_id"`
 	DeviceCode string `json:"device_code"`
 	GrantType  string `json:"grant_type"`
 }
@@ -57,7 +57,7 @@ type AuthTokenResponse struct {
 }
 
 type TokenDetails struct {
-	ClientId string  `json:"clientId"`
+	ClientID string  `json:"clientId"`
 	TokenTTL float64 `json:"tokenTTL"`
 }
 
@@ -68,7 +68,7 @@ func init() {
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Login to loco via Github OAuth",
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		host, err := cmdutil.GetHost(cmd)
 		if err != nil {
 			return err
@@ -113,7 +113,7 @@ var loginCmd = &cobra.Command{
 		slog.Debug("retrieved oauth details", "client_id", resp.Msg.ClientId)
 
 		payload := DeviceCodeRequest{
-			ClientId: resp.Msg.ClientId,
+			ClientID: resp.Msg.ClientId,
 			Scope:    "read:user user:email",
 		}
 
@@ -139,7 +139,7 @@ var loginCmd = &cobra.Command{
 		go func() {
 			pollErr := pollAuthToken(
 				c,
-				payload.ClientId,
+				payload.ClientID,
 				deviceTokenResponse.DeviceCode,
 				deviceTokenResponse.Interval,
 				tokenChan,
@@ -421,13 +421,13 @@ var loginCmd = &cobra.Command{
 
 func pollAuthToken(
 	c *api.Client,
-	clientId string,
+	clientID string,
 	deviceCode string,
 	interval int,
 	tokenChan chan AuthTokenResponse,
 ) error {
 	authTokenRequest := AuthTokenRequest{
-		ClientId:   clientId,
+		ClientID:   clientID,
 		DeviceCode: deviceCode,
 		GrantType:  "urn:ietf:params:oauth:grant-type:device_code",
 	}
@@ -438,22 +438,22 @@ func pollAuthToken(
 			"Content-Type": contentTypeJSON,
 		})
 		if err != nil {
-			if apiError, ok := err.(*api.APIError); ok {
-				switch apiError.StatusCode {
-				case 400:
-					slog.Debug("authorization pending", "status_code", apiError.StatusCode)
-					time.Sleep(time.Duration(interval) * time.Second)
-					continue
-				case 403: // rate limit or access denied
-					slog.Debug("access denied or rate limited", "status_code", apiError.StatusCode, "error", err)
-					return fmt.Errorf("access denied or rate limited: %w", err)
-				default:
-					slog.Debug("API error while polling for token", "status_code", apiError.StatusCode, "error", err)
-					return fmt.Errorf("API error: %w", err)
-				}
-			} else {
+			apiError, ok := err.(*api.APIError)
+			if !ok {
 				slog.Debug("network error while polling for token", "error", err)
 				return fmt.Errorf("network error: %w", err)
+			}
+			switch apiError.StatusCode {
+			case 400:
+				slog.Debug("authorization pending", "status_code", apiError.StatusCode)
+				time.Sleep(time.Duration(interval) * time.Second)
+				continue
+			case 403: // rate limit or access denied
+				slog.Debug("access denied or rate limited", "status_code", apiError.StatusCode, "error", err)
+				return fmt.Errorf("access denied or rate limited: %w", err)
+			default:
+				slog.Debug("API error while polling for token", "status_code", apiError.StatusCode, "error", err)
+				return fmt.Errorf("API error: %w", err)
 			}
 		}
 
@@ -514,13 +514,13 @@ type model struct {
 
 func initialModel(
 	userCode string,
-	verificationUri string,
+	verificationURI string,
 	tokenChan <-chan AuthTokenResponse,
 	errorChan <-chan error,
 ) model {
 	return model{
 		userCode:        userCode,
-		verificationURI: verificationUri,
+		verificationURI: verificationURI,
 		loadingFrames:   []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		frameIndex:      0,
 		polling:         true,

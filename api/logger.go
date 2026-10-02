@@ -16,13 +16,13 @@ func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 		return l.Handler.Handle(ctx, r)
 	}
 
-	requestId, okReqId := ctx.Value(contextkeys.RequestIDKey).(string)
-	if !okReqId {
-		requestId = ""
+	requestID, okReqID := ctx.Value(contextkeys.RequestIDKey).(string)
+	if !okReqID {
+		requestID = ""
 	}
-	sourceIp, okSourceIp := ctx.Value(contextkeys.SourceIPKey).(string)
-	if !okSourceIp {
-		sourceIp = ""
+	sourceIP, okSourceIP := ctx.Value(contextkeys.SourceIPKey).(string)
+	if !okSourceIP {
+		sourceIP = ""
 	}
 	path, okPath := ctx.Value(contextkeys.PathKey).(string)
 	if !okPath {
@@ -38,8 +38,8 @@ func (l CustomHandler) Handle(ctx context.Context, r slog.Record) error {
 
 	requestGroup := slog.Group(
 		"request",
-		slog.String("requestId", requestId),
-		slog.String("sourceIp", sourceIp),
+		slog.String("requestId", requestID),
+		slog.String("sourceIp", sourceIP),
 		slog.String("method", method),
 		slog.String("path", path),
 		slog.Any("entity", entity),

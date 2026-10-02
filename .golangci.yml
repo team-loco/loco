@@ -131,6 +131,10 @@ linters:
       rules:
         - name: comment-spacings
         - name: import-shadowing
+        - name: var-naming
+        - name: early-return
+        - name: unused-parameter
+        - name: unused-receiver
 
     tagalign:
       strict: true

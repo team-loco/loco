@@ -13,7 +13,7 @@ func buildListCmd() *cobra.Command {
 		Short:   "List all configuration values",
 		Args:    cobra.NoArgs,
 		Example: `  loco config list`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			cfg, err := session.Load()
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)

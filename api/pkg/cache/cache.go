@@ -42,7 +42,7 @@ func NewBigCache(defaultTTL time.Duration) (*BigCacheAdapter, error) {
 	return &BigCacheAdapter{cache: bc}, nil
 }
 
-func (b *BigCacheAdapter) Get(ctx context.Context, key string) ([]byte, error) {
+func (b *BigCacheAdapter) Get(_ context.Context, key string) ([]byte, error) {
 	val, err := b.cache.Get(key)
 	if errors.Is(err, bigcache.ErrEntryNotFound) {
 		return nil, ErrNotFound
@@ -50,12 +50,12 @@ func (b *BigCacheAdapter) Get(ctx context.Context, key string) ([]byte, error) {
 	return val, err
 }
 
-func (b *BigCacheAdapter) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+func (b *BigCacheAdapter) Set(_ context.Context, key string, value []byte, _ time.Duration) error {
 	// no per item ttl
 	return b.cache.Set(key, value)
 }
 
-func (b *BigCacheAdapter) Delete(ctx context.Context, key string) error {
+func (b *BigCacheAdapter) Delete(_ context.Context, key string) error {
 	return b.cache.Delete(key)
 }
 

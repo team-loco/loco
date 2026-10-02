@@ -79,14 +79,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 	var orgName, workspaceName string
 
-	if len(args) == 1 {
-		parts := strings.Split(args[0], "/")
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid format - expected <org-name>/<workspace-name>")
-		}
-		orgName = parts[0]
-		workspaceName = parts[1]
-	} else {
+	if len(args) != 1 {
 		// build a flat list of org/workspace pairs for the picker
 		type scopeOption struct {
 			orgID         string
@@ -143,6 +136,13 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		printSwitched(scope.orgName, scope.workspaceName)
 		return nil
 	}
+
+	parts := strings.Split(args[0], "/")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid format - expected <org-name>/<workspace-name>")
+	}
+	orgName = parts[0]
+	workspaceName = parts[1]
 
 	// direct switch via argument — look up IDs
 	var orgID string

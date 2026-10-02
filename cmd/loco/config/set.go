@@ -14,7 +14,7 @@ func buildSetCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(2),
 		Example: `  loco config set locoHost https://loco.example.com
   loco config set defaultAppDomain mycompany.app`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			key, value := args[0], args[1]
 
 			cfg, err := session.Load()
