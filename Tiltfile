@@ -78,7 +78,7 @@ docker_build(
     only=['controller', 'k8sapi'],
 )
 
-control_plane_url = 'http://$(mise run cluster:host-ip 2>/dev/null):${APP_PORT##*:}'
+control_plane_url = 'http://${host_ip}:${APP_PORT##*:}'
 
 
 def helm_release(name, namespace, images, values, deps, resource_deps):
@@ -93,7 +93,7 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
     sets += values
     k8s_custom_deploy(
         name,
-        apply_cmd=' '.join(['mise', 'run', 'tilt:deploy', name, namespace] + ['"' + v + '"' for v in sets]),
+        apply_cmd='host_ip=$(mise run cluster:host-ip 2>/dev/null) && ' + ' '.join(['mise', 'run', 'tilt:deploy', name, namespace] + ['"' + v + '"' for v in sets]),
         delete_cmd='helm uninstall ' + name + ' -n ' + namespace,
         deps=deps,
         image_deps=[image['name'] for image in images],
