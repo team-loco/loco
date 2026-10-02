@@ -2,6 +2,7 @@ name: CI Gate
 
 on:
   pull_request:
+  merge_group:
 
 permissions:
   checks: read
@@ -22,7 +23,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event.pull_request.head.sha }}
+          SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
           SELF: CI Gate
         run: |
           set -euo pipefail
