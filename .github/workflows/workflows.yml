@@ -16,6 +16,7 @@ on:
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/**"
+  merge_group:
 
 permissions:
   contents: read

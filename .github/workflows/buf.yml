@@ -28,6 +28,7 @@ on:
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
+  merge_group:
 
 permissions:
   contents: read

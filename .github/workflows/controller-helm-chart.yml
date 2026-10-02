@@ -28,6 +28,7 @@ on:
       - "mise.lock"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/controller-helm-chart.yml"
+  merge_group:
 
 # Both jobs execute code from the PR under review (Makefiles, Go tooling, helm
 # charts), so neither may hold anything an attacker would want.
