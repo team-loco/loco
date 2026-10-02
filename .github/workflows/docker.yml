@@ -7,7 +7,7 @@ on:
       - staging
     paths:
       - "**/Dockerfile"
-      - "**/.dockerignore"
+      - "**/*.dockerignore"
       - ".github/workflows/docker.yml"
       - "mise-tasks/lint/versions"
       - "mise.toml"
@@ -16,7 +16,7 @@ on:
   pull_request:
     paths:
       - "**/Dockerfile"
-      - "**/.dockerignore"
+      - "**/*.dockerignore"
       - ".github/workflows/docker.yml"
       - "mise-tasks/lint/versions"
       - "mise.toml"

@@ -45,9 +45,9 @@ jobs:
 
           {
             echo "controller=$(match '^(controller/|k8sapi/)')"
-            echo "api=$(match '^(api/|gen/go/|k8sapi/)')"
+            echo "api=$(match '^(api/|gen/go/|go\.mod$|go\.sum$|k8sapi/)')"
             echo "web=$(match '^(web/|gen/ts/|package\.json$|bun\.lock$)')"
-            echo "agent=$(match '^(agent/|gen/go/|k8sapi/)')"
+            echo "agent=$(match '^(agent/|gen/go/|go\.mod$|go\.sum$|k8sapi/)')"
           } >> "$GITHUB_OUTPUT"
 
   push-controller-image:
