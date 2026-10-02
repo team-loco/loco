@@ -1,0 +1,19 @@
+{{- with .Values.global.cloudProvider.loadBalancerIPPool }}
+apiVersion: cilium.io/v2
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: {{ $.Release.Name }}
+spec:
+  blocks:
+    - start: {{ .start | quote }}
+      stop: {{ .stop | quote }}
+---
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: {{ $.Release.Name }}
+spec:
+  loadBalancerIPs: true
+  interfaces:
+    - ^eth[0-9]+
+{{- end }}

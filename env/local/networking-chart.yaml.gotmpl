@@ -9,3 +9,8 @@ cilium:
   bpf:
     hostLegacyRouting: true
     masquerade: false
+  l2announcements:
+    enabled: true
+  k8sClientRateLimit:
+    qps: 10
+    burst: 20
