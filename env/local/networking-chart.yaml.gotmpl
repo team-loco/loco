@@ -1,7 +1,11 @@
 cilium:
   enabled: true
+  rollOutCiliumPods: true
   kubeProxyReplacement: true
   k8sServiceHost: {{ requiredEnv "KIND_API_SERVER_IP" }}
   k8sServicePort: "6443"
   ipam:
     mode: kubernetes
+  bpf:
+    hostLegacyRouting: true
+    masquerade: false
