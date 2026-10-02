@@ -7,10 +7,11 @@ import (
 // validKeys lists all configurable keys in ~/.loco/config.toml.
 const (
 	keyLocoHost         = "locoHost"
+	keyWebHost          = "webHost"
 	keyDefaultAppDomain = "defaultAppDomain"
 )
 
-var validKeys = []string{keyLocoHost, keyDefaultAppDomain}
+var validKeys = []string{keyLocoHost, keyWebHost, keyDefaultAppDomain}
 
 func BuildConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{

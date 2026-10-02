@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/session"
 )
 
@@ -26,7 +27,13 @@ func buildGetCmd() *cobra.Command {
 				if cfg.LocoHost != "" {
 					fmt.Println(cfg.LocoHost)
 				} else {
-					fmt.Println("(not set, default: https://loco.build)")
+					fmt.Println("(not set, default: " + cmdutil.DefaultLocoHost + ")")
+				}
+			case keyWebHost:
+				if cfg.WebHost != "" {
+					fmt.Println(cfg.WebHost)
+				} else {
+					fmt.Println("(not set, default: " + cmdutil.DefaultWebHost + ")")
 				}
 			case keyDefaultAppDomain:
 				if cfg.DefaultAppDomain != "" {

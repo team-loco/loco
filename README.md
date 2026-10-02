@@ -89,11 +89,12 @@ That installs the pinned tools, the web dependencies and the git hooks, then run
 
 Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
 
-Copy `.env.example` to `.env` and fill in the GitHub OAuth app and GitLab registry credentials. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000`. The CLI talks to `https://loco.build` unless told otherwise, and does not remember a `--host` passed to `loco login`, so point every command at the local API through `LOCO_HOST`:
+Copy `.env.example` to `.env` and fill in the GitHub OAuth app and GitLab registry credentials. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. The CLI does not remember a `--host` passed to `loco login`, so point every command at the local stack through `LOCO_HOST` and `LOCO_WEB_HOST`:
 
 ```bash
 mise run build
 export LOCO_HOST=http://localhost:8000
+export LOCO_WEB_HOST=http://localhost:5173
 ./bin/loco login
 cd examples/test-api/backend && ../../../bin/loco deploy backend
 ```
