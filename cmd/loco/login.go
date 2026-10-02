@@ -3,6 +3,7 @@ package loco
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -51,9 +52,11 @@ type AuthTokenRequest struct {
 }
 
 type AuthTokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	Scope       string `json:"scope"`
+	AccessToken      string `json:"access_token"`
+	TokenType        string `json:"token_type"`
+	Scope            string `json:"scope"`
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
 }
 
 type TokenDetails struct {
@@ -132,18 +135,23 @@ func newLoginCmd(env Env) *cobra.Command {
 			tokenChan := make(chan AuthTokenResponse, 1)
 			errorChan := make(chan error, 1)
 
+			pollCtx, cancelPoll := context.WithCancel(cmd.Context())
+			defer cancelPoll()
+			pollInterval := time.Duration(deviceTokenResponse.Interval) * time.Second
+
 			go func() {
-				pollErr := pollAuthToken(
+				token, pollErr := pollAuthToken(
+					pollCtx,
 					c,
 					payload.ClientID,
 					deviceTokenResponse.DeviceCode,
-					deviceTokenResponse.Interval,
-					tokenChan,
+					pollInterval,
 				)
 				if pollErr != nil {
-					fmt.Println(pollErr.Error())
 					errorChan <- pollErr
+					return
 				}
+				tokenChan <- *token
 			}()
 
 			m := initialModel(deviceTokenResponse.UserCode, deviceTokenResponse.VerificationURI, tokenChan, errorChan)
@@ -428,59 +436,74 @@ func tokenFromExchange(resp *oAuth.ExchangeOAuthTokenResponse) keychain.UserToke
 }
 
 func pollAuthToken(
+	ctx context.Context,
 	c *api.Client,
 	clientID string,
 	deviceCode string,
-	interval int,
-	tokenChan chan AuthTokenResponse,
-) error {
+	interval time.Duration,
+) (*AuthTokenResponse, error) {
 	authTokenRequest := AuthTokenRequest{
 		ClientID:   clientID,
 		DeviceCode: deviceCode,
 		GrantType:  "urn:ietf:params:oauth:grant-type:device_code",
 	}
+	headers := map[string]string{
+		"Accept":       contentTypeJSON,
+		"Content-Type": contentTypeJSON,
+	}
 
 	for {
-		resp, err := c.Post("/login/oauth/access_token", authTokenRequest, map[string]string{
-			"Accept":       contentTypeJSON,
-			"Content-Type": contentTypeJSON,
-		})
+		wait := time.After(interval)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-wait:
+		}
+
+		resp, err := c.Post("/login/oauth/access_token", authTokenRequest, headers)
 		if err != nil {
-			apiError, ok := err.(*api.APIError)
+			apiError, ok := errors.AsType[*api.APIError](err)
 			if !ok {
 				slog.Debug("network error while polling for token", "error", err)
-				return fmt.Errorf("network error: %w", err)
+				return nil, fmt.Errorf("network error: %w", err)
 			}
 			switch apiError.StatusCode {
 			case 400:
 				slog.Debug("authorization pending", "status_code", apiError.StatusCode)
-				time.Sleep(time.Duration(interval) * time.Second)
 				continue
-			case 403: // rate limit or access denied
+			case 403:
 				slog.Debug("access denied or rate limited", "status_code", apiError.StatusCode, "error", err)
-				return fmt.Errorf("access denied or rate limited: %w", err)
+				return nil, fmt.Errorf("access denied or rate limited: %w", err)
 			default:
 				slog.Debug("API error while polling for token", "status_code", apiError.StatusCode, "error", err)
-				return fmt.Errorf("API error: %w", err)
+				return nil, fmt.Errorf("API error: %w", err)
 			}
 		}
 
 		authTokenResponse := new(AuthTokenResponse)
-		err = json.Unmarshal(resp, authTokenResponse)
-		if err != nil {
+		if err = json.Unmarshal(resp, authTokenResponse); err != nil {
 			slog.Debug("failed to unmarshal auth token response", "error", err)
-			return fmt.Errorf("failed to unmarshal response: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 		}
 
-		if authTokenResponse.AccessToken != "" {
-			tokenChan <- *authTokenResponse
-			break
+		switch authTokenResponse.Error {
+		case "":
+			if authTokenResponse.AccessToken != "" {
+				return authTokenResponse, nil
+			}
+		case "authorization_pending":
+			slog.Debug("authorization pending")
+		case "slow_down":
+			interval += 5 * time.Second
+			slog.Debug("github asked to slow down", "interval", interval)
+		default:
+			return nil, fmt.Errorf(
+				"github device authorization failed: %s: %s",
+				authTokenResponse.Error,
+				authTokenResponse.ErrorDescription,
+			)
 		}
-
-		time.Sleep(time.Duration(interval) * time.Second)
 	}
-
-	return nil
 }
 
 type (
