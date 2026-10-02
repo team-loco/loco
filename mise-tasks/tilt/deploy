@@ -15,4 +15,4 @@ for value in "$@"; do
 done
 
 helmfile -e local -l name="$release" sync ${sets[@]+"${sets[@]}"} >&2
-helm get manifest "$release" -n "$namespace" | kubectl get -o yaml -f -
+helm get manifest "$release" -n "$namespace" | kubectl get -n "$namespace" -o yaml -f -
