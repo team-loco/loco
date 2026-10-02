@@ -11,6 +11,10 @@ global:
   cloudProvider:
     type: local
     annotations: {}
+    {{- $lbRange := exec "mise" (list "run" "--quiet" "cluster:lb-range") | trim | splitList " " }}
+    loadBalancerIPPool:
+      start: {{ index $lbRange 0 | quote }}
+      stop: {{ index $lbRange 1 | quote }}
 
 secrets:
   cloudflareToken: {{ env "CLOUDFLARE_TOKEN" | quote }}

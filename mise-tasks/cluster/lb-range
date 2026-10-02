@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#MISE description="Print the first and last address of the LoadBalancer range, carved from the top of the kind docker network"
+set -euo pipefail
+
+subnet=$(docker network inspect kind -f '{{range .IPAM.Config}}{{println .Subnet}}{{end}}' | grep -v : | head -n1)
+prefix=${subnet#*/}
+if [ "$prefix" -gt 26 ]; then
+	echo "kind network $subnet is too small to carve a LoadBalancer range from" >&2
+	exit 1
+fi
+
+IFS=. read -r a b c d <<<"${subnet%/*}"
+network=$(((a << 24) | (b << 16) | (c << 8) | d))
+broadcast=$((network | ((1 << (32 - prefix)) - 1)))
+
+ip() {
+	echo "$((($1 >> 24) & 255)).$((($1 >> 16) & 255)).$((($1 >> 8) & 255)).$(($1 & 255))"
+}
+
+echo "$(ip $((broadcast - 55))) $(ip $((broadcast - 6)))"
