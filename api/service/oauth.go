@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -212,6 +213,39 @@ func (s *OAuthServer) tempCreateUser(
 	return &user, nil
 }
 
+func (s *OAuthServer) exchangeGithubToken(
+	ctx context.Context,
+	githubToken string,
+	ip string,
+	userAgent string,
+	createIfMissing bool,
+) (genDb.User, string, string, error) {
+	emailResp := providers.Github(githubToken)
+	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, emailResp, ip, userAgent)
+	if !errors.Is(err, tvm.ErrUserNotFound) || !createIfMissing {
+		return user, accessToken, refreshToken, err
+	}
+
+	address, err := emailResp.Address()
+	if err != nil {
+		return genDb.User{}, "", "", fmt.Errorf("failed to get email: %w", err)
+	}
+
+	githubUser, err := s.fetchGithubUserData(githubToken)
+	if err != nil {
+		return genDb.User{}, "", "", fmt.Errorf("failed to fetch github user: %w", err)
+	}
+
+	externalID := strconv.FormatInt(githubUser.ID, 10)
+	createdUser, err := s.tempCreateUser(ctx, externalID, address, githubUser.Name, githubUser.Avatar)
+	if err != nil {
+		return genDb.User{}, "", "", fmt.Errorf("failed to create user: %w", err)
+	}
+	slog.InfoContext(ctx, "created new user from github oauth", "userId", createdUser.ID)
+
+	return s.machine.Exchange(ctx, emailResp, ip, userAgent)
+}
+
 func (s *OAuthServer) GetOAuthDetails(
 	_ context.Context, req *connect.Request[oAuth.GetOAuthDetailsRequest],
 ) (*connect.Response[oAuth.GetOAuthDetailsResponse], error) {
@@ -254,10 +288,20 @@ func (s *OAuthServer) ExchangeOAuthToken(
 	}
 	ua := req.Header().Get("User-Agent")
 
-	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, providers.Github(token), ip, ua)
-	if err != nil {
+	user, accessToken, refreshToken, err := s.exchangeGithubToken(
+		ctx,
+		token,
+		ip,
+		ua,
+		req.Msg.GetCreateUserIfNotExists(),
+	)
+	if errors.Is(err, tvm.ErrUserNotFound) || errors.Is(err, tvm.ErrExchange) {
 		slog.ErrorContext(ctx, "exchange oauth token", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("exchange token: %w", err))
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "exchange oauth token", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("exchange token: %w", err))
 	}
 
 	res := connect.NewResponse(&oAuth.ExchangeOAuthTokenResponse{
@@ -398,50 +442,14 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		)
 	}
 
-	// get github user data
-	emailResp := providers.Github(token.AccessToken)
-	address, err := emailResp.Address()
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get email from github token", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get email: %w", err))
-	}
-
 	ip := req.Header().Get("X-Real-IP")
 	if ip == "" {
 		ip = req.Header().Get("X-Forwarded-For")
 	}
 	ua := req.Header().Get("User-Agent")
 
-	// try to exchange token for existing user
-	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, emailResp, ip, ua)
-	if err == tvm.ErrUserNotFound {
-		// user doesn't exist, fetch github profile and create user
-		githubUser, fetchErr := s.fetchGithubUserData(token.AccessToken)
-		if fetchErr != nil {
-			slog.ErrorContext(ctx, "failed to fetch github user data", "error", fetchErr)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to fetch github user: %w", fetchErr))
-		}
-
-		createdUser, createErr := s.tempCreateUser(
-			ctx,
-			fmt.Sprintf("%d", githubUser.ID),
-			address,
-			githubUser.Name,
-			githubUser.Avatar,
-		)
-		if createErr != nil {
-			slog.ErrorContext(ctx, "failed to create user", "error", createErr)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create user: %w", createErr))
-		}
-
-		// exchange again with newly created user
-		user, accessToken, refreshToken, err = s.machine.Exchange(ctx, emailResp, ip, ua)
-		if err != nil {
-			slog.ErrorContext(ctx, "exchange github token for new user", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("exchange token: %w", err))
-		}
-		slog.InfoContext(ctx, "created new user from github oauth", "userId", createdUser.ID)
-	} else if err != nil {
+	user, accessToken, refreshToken, err := s.exchangeGithubToken(ctx, token.AccessToken, ip, ua, true)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to exchange token", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
