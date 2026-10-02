@@ -7,7 +7,7 @@ stdout 'Context: acme/production'
 fakeapi called WhoAmI 'Bearer test-token'
 
 -- home/.loco/credentials.json --
-{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
 -- home/.loco/config.toml --
 currentScope = "default"
 

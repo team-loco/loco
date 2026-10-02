@@ -22,6 +22,7 @@ const credentialsFileName = "credentials.json"
 var ErrNotFound = keyring.ErrNotFound
 
 type UserToken struct {
+	Host         string
 	ExpiresAt    time.Time
 	Token        string
 	RefreshToken string

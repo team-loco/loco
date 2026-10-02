@@ -1,0 +1,6 @@
+! exec loco whoami
+stderr 'Login required'
+! fakeapi called WhoAmI
+
+-- home/.loco/credentials.json --
+{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

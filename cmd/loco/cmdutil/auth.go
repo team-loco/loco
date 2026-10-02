@@ -43,6 +43,17 @@ func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*k
 	if err != nil {
 		return nil, fmt.Errorf("failed to read token from keychain: %w", err)
 	}
+	if locoToken.Host == "" {
+		return nil, ErrLoginRequired
+	}
+	if locoToken.Host != host {
+		return nil, fmt.Errorf(
+			"logged in to %s, not %s - run 'loco login --host %s' to switch",
+			locoToken.Host,
+			host,
+			host,
+		)
+	}
 
 	refreshBy := time.Now().Add(refreshWindow)
 	if !locoToken.ExpiresAt.Before(refreshBy) {
@@ -84,6 +95,7 @@ func refreshLocoToken(
 
 	lifetime := time.Duration(resp.Msg.GetExpiresIn())*time.Second - 10*time.Minute
 	newToken := &keychain.UserToken{
+		Host:         host,
 		Token:        resp.Msg.GetLocoToken(),
 		RefreshToken: resp.Msg.GetRefreshToken(),
 		ExpiresAt:    time.Now().Add(lifetime),

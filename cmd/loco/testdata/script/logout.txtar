@@ -11,4 +11,4 @@ exec loco logout
 stdout '^You are not logged in\.$'
 
 -- home/.loco/credentials.json --
-{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

@@ -3,4 +3,4 @@ stderr 'Failed to get user info: fakeapi: unknown token\.'
 ! stderr '(?i)unauthenticated'
 
 -- home/.loco/credentials.json --
-{"ExpiresAt":"2099-01-01T00:00:00Z","Token":"not-a-known-token","RefreshToken":""}
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"not-a-known-token","RefreshToken":""}
