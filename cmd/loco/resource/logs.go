@@ -49,9 +49,9 @@ func newLogsCmd(deps logsDeps) *cobra.Command {
 		Long: `Stream logs from a service's running deployment.
 
 Examples:
-  loco service logs myapp
-  loco service logs myapp --follow
-  loco service logs myapp --lines 100 --output json`,
+  loco resource logs myapp
+  loco resource logs myapp --follow
+  loco resource logs myapp --lines 100 --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]

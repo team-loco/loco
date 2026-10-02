@@ -67,6 +67,7 @@ func NewRootCmd(env Env) *cobra.Command {
 		config.BuildConfigCmd(),
 	)
 
+	root.AddCommand(resource.BuildDeployCmd())
 	root.AddCommand(resource.BuildResourceCmd())
 	root.AddCommand(org.BuildOrgCmd())
 	root.AddCommand(workspace.BuildWorkspaceCmd())

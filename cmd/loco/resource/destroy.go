@@ -44,8 +44,8 @@ func newDestroyCmd(deps destroyDeps) *cobra.Command {
 		Long: `Destroy a service and all its resources.
 
 Examples:
-  loco service destroy myapp
-  loco service destroy myapp --yes`,
+  loco resource destroy myapp
+  loco resource destroy myapp --yes`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

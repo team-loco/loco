@@ -47,10 +47,10 @@ func newEnvCmd(deps envDeps) *cobra.Command {
 		Long: `Manage environment variables for a service.
 
 Examples:
-  loco service env myapp set KEY=VALUE
-  loco service env myapp set KEY1=VALUE1 KEY2=VALUE2
-  loco service env myapp --env-file .env
-  loco service env myapp --set KEY=VALUE --env-file .env`,
+  loco resource env myapp set KEY=VALUE
+  loco resource env myapp set KEY1=VALUE1 KEY2=VALUE2
+  loco resource env myapp --env-file .env
+  loco resource env myapp --set KEY=VALUE --env-file .env`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

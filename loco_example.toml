@@ -19,29 +19,23 @@ Port = 8000 # Port the app listens on. Required: yes. No default.
 Hostname = "myapp.onloco.app" # Full resolvable hostname for the app. Required: yes (if DomainConfig is present). No default.
 Type = "platform" # Domain type: "platform" (Loco-provided, default) or "custom" (user-provided). Required: no. Default: "platform"
 
-# Regional configuration: each region specifies its own resources (CPU, Memory, Replicas, Scalers)
+# Regional configuration: each region specifies its own resources, replicas and autoscaling
 # Subdomain is derived from Hostname (leftmost label)
 [RegionConfig."us-east-1"]
 CPU = "100m" # CPU request for this region. Required: yes. No default.
 Memory = "256Mi" # Memory request for this region. Required: yes. No default.
-
-[RegionConfig."us-east-1".Replicas]
-Max = 1 # Maximum number of replicas for this region. Required: yes. No default.
-Min = 1 # Minimum number of replicas for this region. Required: yes. No default.
-
-[RegionConfig."us-east-1".Scalers]
-CPUTarget = 0 # Target CPU percentage for autoscaling. 0 means disabled. Required: no. Default: 0
-Enabled = false # Whether autoscaling is enabled for this region. Required: no. Default: false
-MemoryTarget = 0 # Target memory percentage for autoscaling. 0 means disabled. Required: no. Default: 0
+ReplicasMin = 1 # Minimum number of replicas for this region. Must be greater than 0. Required: yes. No default.
+ReplicasMax = 1 # Maximum number of replicas for this region. Between ReplicasMin and 3. Required: yes. No default.
+EnableAutoScaling = false # Whether autoscaling is enabled for this region. Required: no. Default: false
+CPUTarget = 0 # Target CPU percentage (1-100). With autoscaling, set exactly one of CPUTarget or MemoryTarget. Required: no. Default: 0
+MemoryTarget = 0 # Target memory percentage (1-100). Required: no. Default: 0
 
 # Optional: add more regions with their own resource overrides
 [RegionConfig."us-west-1"]
 CPU = "200m"
 Memory = "512Mi"
-
-[RegionConfig."us-west-1".Replicas]
-Max = 2
-Min = 1
+ReplicasMin = 1
+ReplicasMax = 2
 
 [Health]
 FailThreshold = 3 # Number of failed healthchecks before restarting. Required: no. Default: 3

@@ -14,7 +14,7 @@ func BuildResourceCmd() *cobra.Command {
 
 	// Add subcommands
 	cmd.AddCommand(
-		buildDeployCmd(),
+		BuildDeployCmd(),
 		buildScaleCmd(),
 		buildStatusCmd(),
 		buildLogsCmd(),

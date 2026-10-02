@@ -1,19 +1,9 @@
 [Metadata]
 ConfigVersion = "0.1"
-Description = "Auth Service"
+Description = "Auth service for test-api"
 Name = "auth"
-
-[Resources]
-Cpu = "100m"
-Memory = "256Mi"
-
-[Resources.Replicas]
-Max = 1
-Min = 1
-
-[Resources.Scalers]
-CpuTarget = 70
-Enabled = true
+Region = "us-east-1"
+Type = "SERVICE"
 
 [Build]
 DockerfilePath = "Dockerfile"
@@ -23,27 +13,42 @@ Type = "docker"
 IdleTimeout = 60
 PathPrefix = "/auth"
 Port = 8000
-Subdomain = "test-api"
+
+[DomainConfig]
+Hostname = "auth.onloco.app"
+Type = "platform"
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+CPUTarget = 70
+EnableAutoScaling = true
+Memory = "256Mi"
+MemoryTarget = 0
+ReplicasMax = 1
+ReplicasMin = 1
 
 [Health]
+FailThreshold = 3
 Interval = 30
-Path = "/health"
+Path = "/auth/health"
 StartupGracePeriod = 0
 Timeout = 5
 
 [Env]
-File = ".env"
+File = ""
+[Env.Variables]
 
+[Obs]
 [Obs.Logging]
 Enabled = true
 RetentionPeriod = "7d"
 Structured = false
-
 [Obs.Metrics]
 Enabled = false
 Path = "/metrics"
 Port = 9090
-
 [Obs.Tracing]
 Enabled = false
 SampleRate = 0.1
+[Obs.Tracing.Tags]

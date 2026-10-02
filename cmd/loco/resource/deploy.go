@@ -37,7 +37,7 @@ type deployDeps struct {
 	Stdout              io.Writer
 }
 
-func buildDeployCmd() *cobra.Command {
+func BuildDeployCmd() *cobra.Command {
 	deps := deployDeps{
 		LoadSessionConfig: session.Load,
 		LoadLocoConfig:    config.Load,
@@ -67,15 +67,13 @@ func newDeployCmd(deps deployDeps) *cobra.Command {
 		Short: "Deploy a service to Loco",
 		Long: `Deploy a service to Loco.
 
-If a loco.toml config file exists in the current directory (or specified via --config),
-it will be used for configuration. Otherwise, you will be prompted interactively for
-required values like region and domain.
+Reads loco.toml from the current directory, or from the path given with --config.
 
 Examples:
-  loco service deploy myapp
-  loco service deploy myapp --config ./loco.toml
-  loco service deploy myapp --wait
-  loco service deploy myapp --image myregistry/myimage:tag`,
+  loco deploy myapp
+  loco deploy myapp --config ./loco.toml
+  loco deploy myapp --wait
+  loco deploy myapp --image myregistry/myimage:tag`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -191,7 +189,7 @@ Examples:
 
 			tip := lipgloss.NewStyle().
 				Foreground(ui.LocoOrange).
-				Render("\nTip: Keep tabs on your service using `loco service status " + name + "`")
+				Render("\nTip: Keep tabs on your service using `loco resource status " + name + "`")
 			fmt.Fprintln(deps.Stdout, tip)
 
 			return nil

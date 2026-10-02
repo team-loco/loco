@@ -1,39 +1,41 @@
+exec loco validate
+stdout 'loco.toml is valid'
+stdout '^Application name: internal-worker$'
+! stdout 'Hostname'
+
+-- loco.toml --
 [Metadata]
 ConfigVersion = "0.1"
-Description = "Generates CPU, memory, network and disk load to validate metrics"
-Name = "metrics-server"
-Region = "us-east-1"
+Description = "Default Loco app configuration"
+Name = "internal-worker"
 Type = "SERVICE"
+Region = "us-east-1"
 
 [Build]
 DockerfilePath = "Dockerfile"
 Type = "docker"
 
 [Routing]
-IdleTimeout = 60
-PathPrefix = "/"
 Port = 8000
-
-[DomainConfig]
-Hostname = "metrics-server.onloco.app"
-Type = "platform"
+PathPrefix = "/"
+IdleTimeout = 60
 
 [RegionConfig]
 [RegionConfig.us-east-1]
 CPU = "100m"
-CPUTarget = 70
-EnableAutoScaling = true
 Memory = "256Mi"
-MemoryTarget = 0
-ReplicasMax = 1
 ReplicasMin = 1
+ReplicasMax = 1
+EnableAutoScaling = false
+CPUTarget = 0
+MemoryTarget = 0
 
 [Health]
-FailThreshold = 3
+Path = "/health"
 Interval = 30
-Path = "/"
-StartupGracePeriod = 0
 Timeout = 5
+StartupGracePeriod = 0
+FailThreshold = 3
 
 [Env]
 File = ""
