@@ -41,6 +41,12 @@ releases:
       - env/{{ .Environment.Name }}/networking-chart.yaml.gotmpl
 {{- end }}
 
+  - name: loco-namespaces
+    chart: ./manifests/namespaces
+    namespace: kube-system
+    labels:
+      phase: "2-core"
+
   - name: cert-manager
     chart: jetstack/cert-manager
     version: v1.20.1
@@ -59,8 +65,9 @@ releases:
   - name: loco-core
     chart: ./charts/loco-core
     namespace: loco-system
-    createNamespace: true
+    createNamespace: false
     needs:
+      - kube-system/loco-namespaces
       - cert-manager/cert-manager
     labels:
       phase: "2-core"

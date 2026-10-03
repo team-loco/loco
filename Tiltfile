@@ -141,6 +141,14 @@ local_resource(
 # ---------------------------------------------------------------------------
 
 local_resource(
+    'helm-namespaces',
+    cmd='mise run helm:sync:namespaces',
+    resource_deps=['kind-cluster'],
+    deps=['manifests/namespaces/'],
+    labels=['infra'],
+)
+
+local_resource(
     'helm-cert-manager',
     cmd='mise run helm:sync:cert-manager',
     resource_deps=['helm-networking'],
@@ -161,7 +169,7 @@ helm_release(
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
     deps=['charts/loco-core/', 'env/local/core-chart.yaml.gotmpl'],
-    resource_deps=['helm-cert-manager'],
+    resource_deps=['helm-namespaces', 'helm-cert-manager'],
 )
 
 helm_release(
