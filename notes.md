@@ -153,7 +153,7 @@ None of these block anything today; they are the things we knowingly deferred.
   no input for them, so production images baked in `http://localhost:8000` and
   `APP_ENV=DEVELOPMENT` (which also forces the JSON wire format instead of binary).
   `build-push.yml` now takes `build_args`; the deploy workflows pass
-  `vars.VITE_API_URL_{STAGING,PRODUCTION}` with a fallback to `https://api.deploy-app.com`.
+  `vars.VITE_API_URL_{STAGING,PRODUCTION}` with a fallback to `https://api.loco.build`.
   **Set those two repository variables** if the hosts ever diverge — today both
   `clusters/*/infrastructure/values/loco-core-values.yaml` point at the same API host.
 - **`controller-e2e.yml` was entirely commented out**, so GitHub parsed a workflow with no

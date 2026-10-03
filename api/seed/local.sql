@@ -19,5 +19,5 @@ VALUES (
 ) ON CONFLICT (name) DO UPDATE SET agent_token_hash = EXCLUDED.agent_token_hash;
 
 INSERT INTO platform_domains (domain, is_active)
-VALUES ('onloco.app', true)
+VALUES ('onloco.app', true), ('onloco.build', true)
 ON CONFLICT DO NOTHING;

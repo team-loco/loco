@@ -60,7 +60,7 @@ experiment's route, and apply:
 US_NP=$(kubectl --context kind-fo-us get svc -n envoy-gateway-system \
   -l gateway.envoyproxy.io/owning-gateway-name=eg \
   -o jsonpath='{.items[0].spec.ports[?(@.port==80)].nodePort}')
-sed -e "s/us-east-1.deploy-app.com/us-east-1.gw.demo.local/" -e "s/port: 443/port: $US_NP/" -e '/^status:/,/^  parents: null$/d' \
+sed -e "s/us-east-1.onloco.app/us-east-1.gw.demo.local/" -e "s/port: 443/port: $US_NP/" -e '/^status:/,/^  parents: null$/d' \
   ../../controller/internal/controller/testdata/generated-failover.yaml > /tmp/gen.yaml
 kubectl --context kind-fo-eu delete httproute demo-app backendtrafficpolicy demo-app-health --ignore-not-found
 kubectl --context kind-fo-eu apply -f /tmp/gen.yaml

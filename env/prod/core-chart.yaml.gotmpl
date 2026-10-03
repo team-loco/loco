@@ -1,9 +1,5 @@
 # Production environment values for loco-core chart
 
-ui:
-  image:
-    tag: sha-{{ requiredEnv "GH_SHA" }}
-
 agent:
   image:
     tag: sha-{{ requiredEnv "GH_SHA" }}
@@ -16,9 +12,10 @@ certManager:
 # Domain configuration for production
 global:
   domain:
-    base: deploy-app.com
-    wildcard: "*.deploy-app.com"
-    ui: deploy-app.com
+    apps:
+      - onloco.app
+      - onloco.build
+    platform: loco.build
 
   cloudProvider:
     type: digitalocean

@@ -6,14 +6,6 @@ global:
   namespaces:
     core: loco-system
 
-  # Domain configuration
-  domain:
-    base: deploy-app.com
-    wildcard: "*.deploy-app.com"
-    api: api.deploy-app.com
-    ui: deploy-app.com
-    dashboards: dashboards.deploy-app.com
-
   # Cloud provider configuration
   cloudProvider:
     type: "" # e.g., "digitalocean", "aws", "gcp", "local"
@@ -21,13 +13,6 @@ global:
 
   # Default resource limits
   resources:
-    ui:
-      requests:
-        cpu: 100m
-        memory: 128Mi
-      limits:
-        cpu: 250m
-        memory: 256Mi
     otelCollector:
       requests:
         cpu: 100m

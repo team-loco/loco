@@ -157,7 +157,6 @@ helm_release(
         'pull_policy': 'agent.imagePullPolicy',
     }],
     values=[
-        'global.replicas.ui=0',
         'env.AGENT_TOKEN=$AGENT_TOKEN',
         'env.CONTROL_PLANE_URL=' + control_plane_url,
     ],
