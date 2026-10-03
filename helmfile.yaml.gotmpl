@@ -42,7 +42,7 @@ releases:
 {{- end }}
 
   - name: loco-namespaces
-    chart: ./charts/loco-namespaces
+    chart: ./manifests/namespaces
     namespace: kube-system
     labels:
       phase: "2-core"

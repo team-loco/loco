@@ -1,3 +1,0 @@
-namespaces:
-  - name: loco-system
-    podSecurity: restricted

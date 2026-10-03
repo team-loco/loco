@@ -144,7 +144,7 @@ local_resource(
     'helm-namespaces',
     cmd='mise run helm:sync:namespaces',
     resource_deps=['kind-cluster'],
-    deps=['charts/loco-namespaces/'],
+    deps=['manifests/namespaces/'],
     labels=['infra'],
 )
 
