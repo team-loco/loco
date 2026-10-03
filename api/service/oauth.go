@@ -42,34 +42,36 @@ func (c *OAuthStateCache) StoreState(ctx context.Context, state string) error {
 	return nil
 }
 
-// MarkTokenExchanged enforces one-time use for ExchangeOAuthToken. Returns an error
+var (
+	errTokenAlreadyExchanged = errors.New("oauth token has already been exchanged")
+	errInvalidState          = errors.New("invalid or expired state")
+)
+
+// MarkTokenExchanged enforces one-time use for ExchangeOAuthToken. Returns errTokenAlreadyExchanged
 // if the GitHub token has already been exchanged within OAuthStateTTL.
 func (c *OAuthStateCache) MarkTokenExchanged(ctx context.Context, githubToken string) error {
 	key := "loco_api:oauth:token_used:" + hashToken(githubToken)
-	if _, err := c.cache.Get(ctx, key); err == nil {
-		return errors.New("oauth token has already been exchanged")
+	stored, err := c.cache.SetIfAbsent(ctx, key, []byte("1"), OAuthStateTTL)
+	if err != nil {
+		return fmt.Errorf("failed to mark token exchanged: %w", err)
 	}
-	return c.cache.Set(ctx, key, []byte("1"), OAuthStateTTL)
+	if !stored {
+		return errTokenAlreadyExchanged
+	}
+	return nil
 }
 
 func (c *OAuthStateCache) VerifyAndDeleteState(ctx context.Context, state string) error {
 	key := "loco_api:oauth:state:" + state
-	_, err := c.cache.Get(ctx, key)
-	if errors.Is(err, cache.ErrNotFound) {
-		return errors.New("invalid or expired state")
-	}
+	existed, err := c.cache.Take(ctx, key)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to verify state", "error", err)
 		return fmt.Errorf("failed to verify state: %w", err)
 	}
-
-	// delete the state (one-time use)
-	if err := c.cache.Delete(ctx, key); err != nil {
-		slog.ErrorContext(ctx, "failed to delete state", "error", err)
-		return fmt.Errorf("failed to delete state: %w", err)
+	if !existed {
+		return errInvalidState
 	}
-
-	slog.InfoContext(ctx, "verified and deleted oauth state")
+	slog.DebugContext(ctx, "verified and deleted oauth state")
 	return nil
 }
 
@@ -308,12 +310,17 @@ func (s *OAuthServer) ExchangeOAuthToken(
 	}
 
 	// Enforce one-time use: reject if this GitHub token has already been exchanged.
-	if err := s.stateCache.MarkTokenExchanged(ctx, token); err != nil {
-		slog.WarnContext(ctx, "oauth token already exchanged", "error", err)
+	markErr := s.stateCache.MarkTokenExchanged(ctx, token)
+	if errors.Is(markErr, errTokenAlreadyExchanged) {
+		slog.WarnContext(ctx, "oauth token already exchanged")
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("this GitHub sign-in has already been used, start a new one"),
 		)
+	}
+	if markErr != nil {
+		slog.ErrorContext(ctx, "failed to record oauth token exchange", "error", markErr)
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("sign-in is temporarily unavailable"))
 	}
 
 	ip := req.Header().Get("X-Real-IP")
@@ -459,12 +466,14 @@ func (s *OAuthServer) ExchangeOAuthCode(
 	}
 
 	// verify state
-	slog.InfoContext(ctx, "attempting to verify state", "state", state, "code", code)
-	if err := s.stateCache.VerifyAndDeleteState(ctx, state); err != nil {
-		slog.ErrorContext(ctx, "invalid oauth state", "error", err, "state", state)
+	verifyErr := s.stateCache.VerifyAndDeleteState(ctx, state)
+	if errors.Is(verifyErr, errInvalidState) {
+		slog.WarnContext(ctx, "invalid oauth state")
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid state parameter"))
 	}
-	slog.InfoContext(ctx, "state verified and deleted", "state", state)
+	if verifyErr != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("sign-in is temporarily unavailable"))
+	}
 
 	// exchange authorization code for github access token
 	token, err := OAuthConf.Exchange(ctx, code)

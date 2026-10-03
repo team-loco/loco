@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/dgraph-io/ristretto/v2"
@@ -21,6 +22,12 @@ type Cache interface {
 	// Set stores a value with the given TTL. TTL of 0 means use default.
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
 
+	// SetIfAbsent stores a value only if the key does not exist, reporting whether it was stored.
+	SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error)
+
+	// Take removes a key, reporting whether it existed.
+	Take(ctx context.Context, key string) (bool, error)
+
 	// Delete removes a key. No error if key doesn't exist.
 	Delete(ctx context.Context, key string) error
 
@@ -37,6 +44,7 @@ const (
 )
 
 type MemoryCache struct {
+	mu         sync.Mutex
 	cache      *ristretto.Cache[string, []byte]
 	defaultTTL time.Duration
 }
@@ -78,6 +86,28 @@ func (m *MemoryCache) Set(_ context.Context, key string, value []byte, ttl time.
 		return ErrNotStored
 	}
 	return nil
+}
+
+func (m *MemoryCache) SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.cache.Get(key); ok {
+		return false, nil
+	}
+	if err := m.Set(ctx, key, value, ttl); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (m *MemoryCache) Take(_ context.Context, key string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.cache.Get(key); !ok {
+		return false, nil
+	}
+	m.cache.Del(key)
+	return true, nil
 }
 
 func (m *MemoryCache) Delete(_ context.Context, key string) error {
@@ -133,6 +163,33 @@ func (v *ValkeyAdapter) Set(ctx context.Context, key string, value []byte, ttl t
 		ttl = v.defaultTTL
 	}
 	return v.client.Do(ctx, v.client.B().Set().Key(key).Value(string(value)).Ex(ttl).Build()).Error()
+}
+
+func (v *ValkeyAdapter) SetIfAbsent(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	if ttl == 0 {
+		ttl = v.defaultTTL
+	}
+	cmd := v.client.B().Set().Key(key).Value(string(value)).Nx().Ex(ttl).Build()
+	err := v.client.Do(ctx, cmd).Error()
+	if valkey.IsValkeyNil(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (v *ValkeyAdapter) Take(ctx context.Context, key string) (bool, error) {
+	cmd := v.client.B().Getdel().Key(key).Build()
+	err := v.client.Do(ctx, cmd).Error()
+	if valkey.IsValkeyNil(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (v *ValkeyAdapter) Delete(ctx context.Context, key string) error {
