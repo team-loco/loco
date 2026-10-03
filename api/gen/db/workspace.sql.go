@@ -289,3 +289,14 @@ func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams
 	err := row.Scan(&id)
 	return id, err
 }
+
+const workspaceHasResources = `-- name: WorkspaceHasResources :one
+SELECT EXISTS(SELECT 1 FROM resources WHERE workspace_id = $1) AS has_resources
+`
+
+func (q *Queries) WorkspaceHasResources(ctx context.Context, workspaceID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, workspaceHasResources, workspaceID)
+	var has_resources bool
+	err := row.Scan(&has_resources)
+	return has_resources, err
+}

@@ -104,6 +104,9 @@ func (s *UserServer) CreateUser(
 		AvatarUrl:  avatarURL,
 	})
 	if err != nil {
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrUserAlreadyExists)
+		}
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}

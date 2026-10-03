@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -325,6 +327,10 @@ func (s *DomainServer) CreateResourceDomain(
 		IsPrimary:        count == 0, // first domain is primary
 	})
 	if err != nil {
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+		}
+		slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -373,13 +379,25 @@ func (s *DomainServer) UpdateResourceDomain(
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
 		}
 
-		// update the domain
+		var subdomainLabel *string
+		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
+			label, labelErr := s.platformSubdomainLabel(ctx, domainRow.PlatformDomainID, r.GetDomain())
+			if labelErr != nil {
+				return nil, labelErr
+			}
+			subdomainLabel = &label
+		}
+
 		_, err = s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
-			ID:     domainID,
-			Domain: r.GetDomain(),
+			ID:             domainID,
+			Domain:         r.GetDomain(),
+			SubdomainLabel: subdomainLabel,
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update resource domain", "id", r.GetDomainId(), "error", err)
+			if isPgConstraintViolation(err) {
+				return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+			}
 			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 	}
@@ -387,6 +405,37 @@ func (s *DomainServer) UpdateResourceDomain(
 	return connect.NewResponse(&domainv1.UpdateResourceDomainResponse{
 		DomainId: r.GetDomainId(),
 	}), nil
+}
+
+func (s *DomainServer) platformSubdomainLabel(
+	ctx context.Context,
+	platformDomainID *uuid.UUID,
+	domain string,
+) (string, error) {
+	if platformDomainID == nil {
+		slog.ErrorContext(ctx, "platform-provided domain has no platform domain id")
+		return "", connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	platformDomain, err := s.queries.GetPlatformDomain(ctx, *platformDomainID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", connect.NewError(connect.CodeNotFound, ErrPlatformDomainNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
+		return "", connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	return subdomainLabelFor(domain, platformDomain.Domain)
+}
+
+func subdomainLabelFor(domain string, platformDomain string) (string, error) {
+	label, found := strings.CutSuffix(domain, "."+platformDomain)
+	if !found || label == "" || strings.Contains(label, ".") {
+		return "", connect.NewError(
+			connect.CodeInvalidArgument,
+			fmt.Errorf("domain must be a single label under %s", platformDomain),
+		)
+	}
+	return label, nil
 }
 
 // SetPrimaryResourceDomain sets which domain is primary for a resource
@@ -410,26 +459,41 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	// unset primary on all other domains
 	resourceID := uuid.MustParse(r.GetResourceId())
+	domainID := uuid.MustParse(r.GetDomainId())
 
-	err := s.queries.UpdateResourceDomainPrimary(ctx, resourceID)
+	tx, err := s.db.Begin(ctx)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	if clearErr := qtx.UpdateResourceDomainPrimary(ctx, resourceID); clearErr != nil {
+		slog.ErrorContext(ctx, "failed to clear primary domain", "resourceId", resourceID, "error", clearErr)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	// set this domain as primary
-	domainID := uuid.MustParse(r.GetDomainId())
-
-	_, err = s.queries.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
+	_, err = qtx.SetResourceDomainPrimary(ctx, genDb.SetResourceDomainPrimaryParams{
 		ID:         domainID,
 		ResourceID: resourceID,
 	})
-	if err != nil {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, connect.NewError(
 			connect.CodeNotFound,
 			errors.New("domain not found or does not belong to resource"),
 		)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to set primary domain", "domainId", domainID, "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit primary domain change", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&domainv1.SetPrimaryResourceDomainResponse{

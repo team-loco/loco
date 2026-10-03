@@ -3,6 +3,7 @@ package tvm_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +33,8 @@ type TestingQueries struct {
 	sessions  map[uuid.UUID]*sessionEntry
 	byAccess  map[string]uuid.UUID
 	byRefresh map[string]uuid.UUID
+
+	updatedEmails []string
 }
 
 func newTestingQueries() *TestingQueries {
@@ -123,48 +126,25 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 	}
 }
 
-func (tq *TestingQueries) getUserScopesByEmail(ctx context.Context, email string) ([]queries.GetUserScopesRow, error) {
-	switch email {
-	case "user1@loco-testing.com":
-		return tq.GetUserScopes(ctx, user1UUID)
-	case "user2@loco-testing.com":
-		return tq.GetUserScopes(ctx, user2UUID)
-	case "user3@loco-testing.com":
-		return tq.GetUserScopes(ctx, user3UUID)
-	case "user4@loco-testing.com":
-		return tq.GetUserScopes(ctx, user4UUID)
-	case "user5@loco-testing.com":
-		return tq.GetUserScopes(ctx, user5UUID)
-	default:
-		return nil, tvm.ErrUserNotFound
+func (tq *TestingQueries) GetUserByExternalID(ctx context.Context, externalID string) (queries.User, error) {
+	email, ok := strings.CutPrefix(externalID, "github:")
+	if !ok {
+		return queries.User{}, pgx.ErrNoRows
 	}
+	user, err := tq.GetUserByEmail(ctx, email+"@loco-testing.com")
+	if err != nil {
+		return queries.User{}, err
+	}
+	user.ExternalID = externalID
+	return user, nil
 }
 
-func (tq *TestingQueries) GetUserWithScopesByEmail(
-	ctx context.Context,
-	email string,
-) (queries.UserWithScopesView, error) {
-	user, err := tq.GetUserByEmail(ctx, email)
-	if err != nil {
-		return queries.UserWithScopesView{}, err
-	}
-	rows, err := tq.getUserScopesByEmail(ctx, email)
-	if err != nil {
-		return queries.UserWithScopesView{}, err
-	}
-	scopes := make([]queries.EntityScope, len(rows))
-	for i, row := range rows {
-		scopes[i] = queries.EntityScope(row)
-	}
-	return queries.UserWithScopesView{
-		ID:        user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		AvatarUrl: user.AvatarUrl,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Scopes:    scopes,
-	}, nil
+func (tq *TestingQueries) UpdateUserEmail(
+	_ context.Context,
+	params queries.UpdateUserEmailParams,
+) (queries.User, error) {
+	tq.updatedEmails = append(tq.updatedEmails, params.Email)
+	return queries.User{ID: params.ID, Email: params.Email}, nil
 }
 
 func (*TestingQueries) GetUserScopesOnWorkspace(
@@ -264,10 +244,13 @@ func (tq *TestingQueries) GetSessionByRefreshToken(
 	}, nil
 }
 
-func (tq *TestingQueries) RotateSessionToken(_ context.Context, params queries.RotateSessionTokenParams) error {
+func (tq *TestingQueries) RotateSessionToken(
+	_ context.Context,
+	params queries.RotateSessionTokenParams,
+) (int64, error) {
 	e, ok := tq.sessions[params.ID]
-	if !ok {
-		return tvm.ErrTokenNotFound
+	if !ok || e.refreshHash != params.OldRefreshTokenHash {
+		return 0, nil
 	}
 	delete(tq.byAccess, e.accessHash)
 	delete(tq.byRefresh, e.refreshHash)
@@ -277,7 +260,7 @@ func (tq *TestingQueries) RotateSessionToken(_ context.Context, params queries.R
 	e.refreshExpiresAt = params.RefreshExpiresAt
 	tq.byAccess[e.accessHash] = e.id
 	tq.byRefresh[e.refreshHash] = e.id
-	return nil
+	return 1, nil
 }
 
 func (*TestingQueries) TouchSessionLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
@@ -358,21 +341,21 @@ func (*TestingQueries) DeleteAPITokenByNameAndEntity(
 func TestingGithubProvider(_ context.Context, token string) providers.EmailResponse {
 	switch token {
 	case "github-token-user1":
-		return providers.NewEmailResponse("user1@loco-testing.com", nil)
+		return providers.NewEmailResponse("github:user1", "user1@loco-testing.com", nil)
 	case "github-token-user2":
-		return providers.NewEmailResponse("user2@loco-testing.com", nil)
+		return providers.NewEmailResponse("github:user2", "user2@loco-testing.com", nil)
 	case "github-token-user3":
-		return providers.NewEmailResponse("user3@loco-testing.com", nil)
+		return providers.NewEmailResponse("github:user3", "user3@loco-testing.com", nil)
 	case "github-token-user4":
-		return providers.NewEmailResponse("user4@loco-testing.com", nil)
+		return providers.NewEmailResponse("github:user4", "user4@loco-testing.com", nil)
 	case "github-token-user5":
-		return providers.NewEmailResponse("user5@loco-testing.com", nil)
+		return providers.NewEmailResponse("github:user5", "user5@loco-testing.com", nil)
 	case "github-token-unknown":
-		return providers.NewEmailResponse("unknown@loco-testing.com", nil)
+		return providers.NewEmailResponse("github:unknown", "unknown@loco-testing.com", nil)
 	case "github-token-db-error":
-		return providers.NewEmailResponse(dbErrorEmail, nil)
+		return providers.NewEmailResponse("github:db-error", dbErrorEmail, nil)
 	}
-	return providers.NewEmailResponse("", tvm.ErrUserNotFound)
+	return providers.NewEmailResponse("", "", tvm.ErrUserNotFound)
 }
 
 func testConfig() tvm.Config {
@@ -890,5 +873,98 @@ func TestExchangeUserLookupFailure(t *testing.T) {
 	}
 	if errors.Is(err, tvm.ErrUserNotFound) {
 		t.Fatalf("a failed lookup must not read as a missing user")
+	}
+}
+
+func TestExchangeMatchesByExternalIDAndSyncsEmail(t *testing.T) {
+	tq := newTestingQueries()
+	machine := tvm.NewVendingMachine(nil, tq, testConfig())
+	identity := providers.NewEmailResponse("github:user1", "renamed@loco-testing.com", nil)
+
+	user, _, _, err := machine.Exchange(t.Context(), identity, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
+	}
+	if user.ID != user1UUID {
+		t.Fatalf("user id = %s, want %s", user.ID, user1UUID)
+	}
+	if len(tq.updatedEmails) != 1 || tq.updatedEmails[0] != "renamed@loco-testing.com" {
+		t.Fatalf("updated emails = %v, want [renamed@loco-testing.com]", tq.updatedEmails)
+	}
+}
+
+func TestExchangeUnchangedEmailIsNotRewritten(t *testing.T) {
+	tq := newTestingQueries()
+	machine := tvm.NewVendingMachine(nil, tq, testConfig())
+
+	_, _, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user2"), "", "")
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
+	}
+	if len(tq.updatedEmails) != 0 {
+		t.Fatalf("updated emails = %v, want none", tq.updatedEmails)
+	}
+}
+
+type racingRefreshQueries struct {
+	*TestingQueries
+}
+
+func (rq racingRefreshQueries) RotateSessionToken(
+	ctx context.Context,
+	params queries.RotateSessionTokenParams,
+) (int64, error) {
+	competing := params
+	competing.AccessTokenHash = "competing-access"
+	competing.RefreshTokenHash = "competing-refresh"
+	if _, err := rq.TestingQueries.RotateSessionToken(ctx, competing); err != nil {
+		return 0, err
+	}
+	return rq.TestingQueries.RotateSessionToken(ctx, params)
+}
+
+func TestRefreshRotatesTokens(t *testing.T) {
+	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
+	_, _, refreshToken, err := machine.Exchange(
+		t.Context(),
+		TestingGithubProvider(t.Context(), "github-token-user1"),
+		"",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
+	}
+
+	access, newRefresh, err := machine.Refresh(t.Context(), refreshToken)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if access == "" || newRefresh == "" || newRefresh == refreshToken {
+		t.Fatalf("refresh did not issue a new token pair")
+	}
+
+	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		t.Fatalf("reusing a rotated refresh token: got %v, want ErrInvalidExpiredToken", err)
+	}
+}
+
+func TestRefreshLosingRaceRevokesSession(t *testing.T) {
+	tq := newTestingQueries()
+	machine := tvm.NewVendingMachine(nil, racingRefreshQueries{tq}, testConfig())
+	_, _, refreshToken, err := machine.Exchange(
+		t.Context(),
+		TestingGithubProvider(t.Context(), "github-token-user1"),
+		"",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("unexpected error during exchange: %v", err)
+	}
+
+	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		t.Fatalf("losing refresh: got %v, want ErrInvalidExpiredToken", err)
+	}
+	if len(tq.sessions) != 0 {
+		t.Fatalf("sessions = %d, want the session revoked", len(tq.sessions))
 	}
 }

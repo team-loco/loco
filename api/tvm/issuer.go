@@ -2,10 +2,12 @@ package tvm
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -89,6 +91,10 @@ func (tvm *VendingMachine) issueAPITokenNoCheck(
 		CreatedBy:  createdBy,
 		ExpiresAt:  time.Now().Add(duration),
 	}); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return "", ErrTokenNameTaken
+		}
 		slog.ErrorContext(ctx, err.Error())
 		return "", ErrStoreToken
 	}

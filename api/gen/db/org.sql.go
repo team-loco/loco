@@ -111,6 +111,57 @@ func (q *Queries) IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams
 	return is_unique, err
 }
 
+const listOrgUsersWithDetails = `-- name: ListOrgUsersWithDetails :many
+SELECT u.id, u.email, u.name, u.avatar_url
+FROM users u
+WHERE u.id IN (
+  SELECT us.user_id FROM user_scopes us
+  WHERE us.entity_type = 'organization' AND us.entity_id = $1
+)
+  AND ($3::text IS NULL
+       OR u.id < $3::uuid)
+ORDER BY u.id DESC
+LIMIT $2
+`
+
+type ListOrgUsersWithDetailsParams struct {
+	EntityID  uuid.UUID `json:"entityId"`
+	Limit     int32     `json:"limit"`
+	PageToken *string   `json:"pageToken"`
+}
+
+type ListOrgUsersWithDetailsRow struct {
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	Name      *string   `json:"name"`
+	AvatarUrl *string   `json:"avatarUrl"`
+}
+
+func (q *Queries) ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error) {
+	rows, err := q.db.Query(ctx, listOrgUsersWithDetails, arg.EntityID, arg.Limit, arg.PageToken)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrgUsersWithDetailsRow
+	for rows.Next() {
+		var i ListOrgUsersWithDetailsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.AvatarUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrgsForUser = `-- name: ListOrgsForUser :many
 SELECT DISTINCT o.id, o.name, o.created_by, o.created_at, o.updated_at
 FROM organizations o

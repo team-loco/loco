@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ import (
 var (
 	ErrWorkspaceNotFound      = errors.New("workspace not found")
 	ErrWorkspaceNameNotUnique = errors.New("workspace name already exists in this organization")
-	ErrWorkspaceHasResources  = errors.New("workspace has resources - must confirm deletion")
+	ErrWorkspaceHasResources  = errors.New("workspace has resources, delete them first")
 )
 
 // WorkspaceServer implements the WorkspaceService gRPC server
@@ -82,18 +83,30 @@ func (s *WorkspaceServer) CreateWorkspace(
 		slog.WarnContext(ctx, "only users can create organizations", "entityId", entity.ID, "entityType", entity.Type)
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrImproperUsage)
 	}
-	wsID, err := s.queries.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	wsID, err := qtx.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
 		OrgID:       orgID,
 		Name:        r.Name,
 		Description: r.Description,
 		CreatedBy:   entity.ID,
 	})
 	if err != nil {
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrWorkspaceNameNotUnique)
+		}
 		slog.ErrorContext(ctx, "failed to create workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
+	err = tvm.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
@@ -112,7 +125,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	if _, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
+	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
 		WorkspaceID:     wsID,
 		Name:            environmentTypeProduction,
 		EnvironmentType: environmentTypeProduction,
@@ -126,6 +139,11 @@ func (s *WorkspaceServer) CreateWorkspace(
 			"workspaceId",
 			wsID.String(),
 		)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -406,13 +424,31 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	err := s.queries.RemoveWorkspace(ctx, uuid.MustParse(r.GetWorkspaceId()))
-	if err != nil {
+	wsID := uuid.MustParse(r.GetWorkspaceId())
+
+	if err := s.ensureWorkspaceHasNoResources(ctx, wsID); err != nil {
+		return nil, err
+	}
+
+	if err := s.queries.RemoveWorkspace(ctx, wsID); err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
+}
+
+func (s *WorkspaceServer) ensureWorkspaceHasNoResources(ctx context.Context, wsID uuid.UUID) error {
+	hasResources, err := s.queries.WorkspaceHasResources(ctx, wsID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check workspace for resources", "error", err)
+		return connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	if hasResources {
+		slog.WarnContext(ctx, "workspace has resources", "workspaceId", wsID)
+		return connect.NewError(connect.CodeFailedPrecondition, ErrWorkspaceHasResources)
+	}
+	return nil
 }
 
 // CreateMember adds a member to a workspace with the given scopes
@@ -438,21 +474,35 @@ func (s *WorkspaceServer) CreateMember(
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
+	validScopes := []genDb.Scope{genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin}
 	var addScopes []genDb.EntityScope
 	for _, sc := range r.GetScopes() {
-		switch sc {
-		case genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin:
-		default:
+		if !slices.Contains(validScopes, sc) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid scope: %s", sc))
 		}
-		addScopes = append(addScopes, genDb.EntityScope{
+		requested := genDb.EntityScope{
 			EntityType: genDb.EntityTypeWorkspace,
 			EntityID:   wsID,
 			Scope:      sc,
-		})
+		}
+		if err := s.machine.VerifyWithGivenEntityScopes(ctx, entityScopes, requested); err != nil {
+			slog.WarnContext(
+				ctx,
+				"cannot grant a workspace scope the caller does not hold",
+				"workspaceId",
+				r.GetWorkspaceId(),
+				"scope",
+				sc,
+			)
+			return nil, connect.NewError(connect.CodePermissionDenied, err)
+		}
+		addScopes = append(addScopes, requested)
 	}
 
 	if err := s.machine.UpdateRoles(ctx, r.GetUserId(), addScopes, []genDb.EntityScope{}); err != nil {
+		if isPgForeignKeyViolation(err) {
+			return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+		}
 		slog.ErrorContext(ctx, "failed to add workspace member scopes", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
@@ -486,14 +536,39 @@ func (s *WorkspaceServer) DeleteMember(
 	}
 
 	wsID := uuid.MustParse(r.GetWorkspaceId())
-	removeScopes := []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
+	userID, err := uuid.Parse(r.GetUserId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
 	}
 
-	if err := s.machine.UpdateRoles(ctx, r.GetUserId(), []genDb.EntityScope{}, removeScopes); err != nil {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	if err := qtx.RemoveAllScopesForUserOnEntity(ctx, genDb.RemoveAllScopesForUserOnEntityParams{
+		UserID:     userID,
+		EntityType: genDb.EntityTypeWorkspace,
+		EntityID:   wsID,
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to remove workspace member scopes", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	if err := qtx.RemoveResourceScopesForUserInWorkspace(ctx, genDb.RemoveResourceScopesForUserInWorkspaceParams{
+		UserID:      userID,
+		WorkspaceID: wsID,
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to remove member resource scopes", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit member removal", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 

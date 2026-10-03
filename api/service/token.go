@@ -128,6 +128,9 @@ func (s *TokenServer) CreateToken(
 			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())
 			return nil, connect.NewError(connect.CodePermissionDenied, err)
 		}
+		if errors.Is(err, tvm.ErrTokenNameTaken) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrTokenAlreadyExists)
+		}
 		slog.ErrorContext(ctx, "failed to issue token", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to issue token"))
 	}

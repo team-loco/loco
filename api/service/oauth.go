@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -192,6 +191,10 @@ func (s *OAuthServer) tempCreateUser(
 		AvatarUrl:  &avatarURL,
 	})
 	if err != nil {
+		if isPgConstraintViolation(err) {
+			slog.WarnContext(ctx, "email already registered to another account", "externalId", externalID)
+			return nil, ErrEmailAlreadyRegistered
+		}
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
 		return nil, ErrDB
 	}
@@ -239,7 +242,11 @@ func (s *OAuthServer) exchangeGithubToken(
 		return genDb.User{}, "", "", fmt.Errorf("failed to fetch github user: %w", err)
 	}
 
-	externalID := strconv.FormatInt(githubUser.ID, 10)
+	externalID, err := emailResp.ExternalID()
+	if err != nil {
+		return genDb.User{}, "", "", fmt.Errorf("failed to get external id: %w", err)
+	}
+
 	createdUser, err := s.tempCreateUser(ctx, externalID, address, githubUser.Name, githubUser.Avatar)
 	if err != nil {
 		return genDb.User{}, "", "", fmt.Errorf("failed to create user: %w", err)
@@ -254,6 +261,12 @@ func exchangeError(err error) error {
 		return connect.NewError(
 			connect.CodeUnauthenticated,
 			errors.New("no Loco account is linked to this GitHub account"),
+		)
+	}
+	if errors.Is(err, ErrEmailAlreadyRegistered) {
+		return connect.NewError(
+			connect.CodeAlreadyExists,
+			errors.New("the primary email of this GitHub account is already used by another Loco account"),
 		)
 	}
 	if errors.Is(err, tvm.ErrExchange) {

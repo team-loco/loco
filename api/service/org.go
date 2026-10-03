@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -99,16 +100,28 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 	}
 
-	org, err := s.queries.CreateOrg(ctx, genDb.CreateOrgParams{
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	org, err := qtx.CreateOrg(ctx, genDb.CreateOrgParams{
 		Name:      orgName,
 		CreatedBy: entity.ID,
 	})
 	if err != nil {
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+		}
 		slog.ErrorContext(ctx, "failed to create organization", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	err = s.machine.UpdateRoles(ctx, entity.ID.String(), []genDb.EntityScope{
+	err = tvm.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
@@ -124,6 +137,11 @@ func (s *OrgServer) CreateOrg(
 			"userId",
 			entity.ID.String(),
 		)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit organization creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
@@ -154,9 +172,12 @@ func (s *OrgServer) GetOrg(
 		)
 	}
 
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+	}
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to query org", "error", err)
-		return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
@@ -296,9 +317,15 @@ func (s *OrgServer) UpdateOrg(
 			ID:   orgID,
 			Name: r.GetName(),
 		})
+		if isPgConstraintViolation(err) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+		}
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+		}
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update org", "error", err)
-			return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
 	}
 
@@ -373,10 +400,46 @@ func (s *OrgServer) ListOrgUsers(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	// TODO: Implement database query to get org users
+	pageSize := normalizePageSize(r.GetPageSize())
+
+	var pageToken *string
+	if r.GetPageToken() != "" {
+		cursorID, err := decodeCursor(r.GetPageToken())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid page_token: %w", err))
+		}
+		pageToken = &cursorID
+	}
+
+	rows, err := s.queries.ListOrgUsersWithDetails(ctx, genDb.ListOrgUsersWithDetailsParams{
+		EntityID:  uuid.MustParse(r.GetOrgId()),
+		Limit:     pageSize,
+		PageToken: pageToken,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list org users", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	users := make([]*orgv1.User, len(rows))
+	for i, row := range rows {
+		users[i] = &orgv1.User{
+			Id:        row.ID.String(),
+			Email:     row.Email,
+			Name:      derefString(row.Name),
+			AvatarUrl: derefString(row.AvatarUrl),
+		}
+	}
+
+	var nextPageToken string
+	if len(rows) == int(pageSize) {
+		lastID := rows[len(rows)-1].ID.String()
+		nextPageToken = encodeCursor(lastID)
+	}
+
 	return connect.NewResponse(&orgv1.ListOrgUsersResponse{
-		Users:         []*orgv1.User{},
-		NextPageToken: "",
+		Users:         users,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 

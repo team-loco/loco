@@ -170,48 +170,55 @@ func (tvm *VendingMachine) UpdateRoles(
 	addScopes []queries.EntityScope,
 	removeScopes []queries.EntityScope,
 ) error {
-	// use a transaction to ensure all or nothing
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user id: %w", err)
+	}
+
 	tx, err := tvm.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	qtx, ok := tvm.queries.(*queries.Queries)
-	if !ok {
-		return fmt.Errorf("failed to cast queries to *queries.Queries")
-	}
-	qtx = qtx.WithTx(tx)
-
-	userUUID, err := uuid.Parse(userID)
-	if err != nil {
-		return fmt.Errorf("invalid user id: %w", err)
+	qtx := queries.New(tx)
+	if err := ApplyRoles(ctx, qtx, userUUID, addScopes, removeScopes); err != nil {
+		return err
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return fmt.Errorf("commit tx: %w", err)
+	}
+	return nil
+}
+
+func ApplyRoles(
+	ctx context.Context,
+	q queries.Querier,
+	userID uuid.UUID,
+	addScopes []queries.EntityScope,
+	removeScopes []queries.EntityScope,
+) error {
 	for _, es := range addScopes {
-		if addErr := qtx.AddUserScope(ctx, queries.AddUserScopeParams{
-			UserID:     userUUID,
+		if err := q.AddUserScope(ctx, queries.AddUserScopeParams{
+			UserID:     userID,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
 			Scope:      es.Scope,
-		}); addErr != nil {
-			return fmt.Errorf("add user scope: %w", addErr)
+		}); err != nil {
+			return fmt.Errorf("add user scope: %w", err)
 		}
 	}
 	for _, es := range removeScopes {
-		if removeErr := qtx.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
-			UserID:     userUUID,
+		if err := q.RemoveUserScope(ctx, queries.RemoveUserScopeParams{
+			UserID:     userID,
 			EntityType: es.EntityType,
 			EntityID:   es.EntityID,
 			Scope:      es.Scope,
-		}); removeErr != nil {
-			return fmt.Errorf("remove user scope: %w", removeErr)
+		}); err != nil {
+			return fmt.Errorf("remove user scope: %w", err)
 		}
-	}
-	err = tx.Commit(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, err.Error())
-		return fmt.Errorf("commit tx: %w", err)
 	}
 	return nil
 }

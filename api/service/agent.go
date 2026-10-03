@@ -306,17 +306,23 @@ func (*AgentServer) getDirectiveForCluster(_ context.Context, _ uuid.UUID) *agen
 }
 
 // healthStatusFromProto converts agent health to a status string.
+const (
+	clusterHealthHealthy   = "healthy"
+	clusterHealthDegraded  = "degraded"
+	clusterHealthUnhealthy = "unhealthy"
+)
+
 func healthStatusFromProto(h *agentv1.AgentHealth) string {
 	if h == nil {
-		return "unknown"
+		return clusterHealthDegraded
 	}
 	if h.GetKubernetesHealthy() && h.GetControllerHealthy() {
-		return "healthy"
+		return clusterHealthHealthy
 	}
-	if !h.GetKubernetesHealthy() || !h.GetControllerHealthy() {
-		return "unhealthy"
+	if !h.GetKubernetesHealthy() && !h.GetControllerHealthy() {
+		return clusterHealthUnhealthy
 	}
-	return "degraded"
+	return clusterHealthDegraded
 }
 
 // protoPhaseToDBStatus converts proto deployment phase to DB status.

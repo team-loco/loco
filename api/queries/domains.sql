@@ -112,6 +112,7 @@ RETURNING id;
 -- name: UpdateResourceDomain :one
 UPDATE resource_domains
 SET domain = $2,
+    subdomain_label = sqlc.narg('subdomain_label'),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id;

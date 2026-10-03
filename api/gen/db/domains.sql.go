@@ -398,18 +398,20 @@ func (q *Queries) SetResourceDomainPrimary(ctx context.Context, arg SetResourceD
 const updateResourceDomain = `-- name: UpdateResourceDomain :one
 UPDATE resource_domains
 SET domain = $2,
+    subdomain_label = $3,
     updated_at = NOW()
 WHERE id = $1
 RETURNING id
 `
 
 type UpdateResourceDomainParams struct {
-	ID     uuid.UUID `json:"id"`
-	Domain string    `json:"domain"`
+	ID             uuid.UUID `json:"id"`
+	Domain         string    `json:"domain"`
+	SubdomainLabel *string   `json:"subdomainLabel"`
 }
 
 func (q *Queries) UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateResourceDomain, arg.ID, arg.Domain)
+	row := q.db.QueryRow(ctx, updateResourceDomain, arg.ID, arg.Domain, arg.SubdomainLabel)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

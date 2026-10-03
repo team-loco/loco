@@ -206,7 +206,16 @@ func (s *ResourceServer) CreateResource(
 		SpecVersion: int32(1),
 		Description: r.GetDescription(),
 	}
-	resourceID, err := s.queries.CreateResource(ctx, params)
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	defer tx.Rollback(ctx)
+
+	qtx := genDb.New(tx)
+
+	resourceID, err := qtx.CreateResource(ctx, params)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create resource", "error", err)
 		if isPgConstraintViolation(err) {
@@ -218,10 +227,9 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create resource"))
 	}
 
-	// Create resource regions (first region is primary)
 	for region, regionConfig := range serviceSpec.GetRegions() {
 		isPrimary := regionConfig.GetPrimary()
-		_, regionErr := s.queries.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
+		_, regionErr := qtx.CreateResourceRegion(ctx, genDb.CreateResourceRegionParams{
 			ResourceID: resourceID,
 			Region:     region,
 			IsPrimary:  isPrimary,
@@ -243,11 +251,19 @@ func (s *ResourceServer) CreateResource(
 			IsPrimary:        true,
 		}
 
-		_, err = s.queries.CreateResourceDomain(ctx, domainParams)
+		_, err = qtx.CreateResourceDomain(ctx, domainParams)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
+			if isPgConstraintViolation(err) {
+				return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
+			}
 			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to commit resource creation", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	return connect.NewResponse(&resourcev1.CreateResourceResponse{ResourceId: resourceID.String()}), nil
