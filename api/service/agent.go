@@ -131,11 +131,7 @@ func (s *AgentServer) CommandStream(
 
 	slog.InfoContext(ctx, "command stream opened", "cluster_id", cluster.ID)
 
-	listener, err := s.commandBus.Listen(ctx, cluster.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to listen for agent commands", "error", err, "cluster_id", cluster.ID)
-		return connect.NewError(connect.CodeUnavailable, errors.New("command queue unavailable"))
-	}
+	listener := s.commandBus.Listen(ctx, cluster.ID)
 	defer listener.Close()
 
 	errCh := make(chan error, 1)
@@ -154,10 +150,6 @@ func (s *AgentServer) CommandStream(
 		case err := <-errCh:
 			slog.InfoContext(ctx, "command stream closed", "cluster_id", cluster.ID, "error", err)
 			return err
-
-		case err := <-listener.Err():
-			slog.ErrorContext(ctx, "command listener failed", "cluster_id", cluster.ID, "error", err)
-			return connect.NewError(connect.CodeUnavailable, errors.New("command queue unavailable"))
 
 		case <-listener.Wake():
 		}

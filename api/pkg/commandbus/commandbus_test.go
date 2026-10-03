@@ -35,13 +35,6 @@ func TestBackoffDoublesUpToCap(t *testing.T) {
 	}
 }
 
-func TestChannelNameFitsPostgresIdentifierLimit(t *testing.T) {
-	name := commandbus.ChannelName(uuid.New())
-	if len(name) > 63 {
-		t.Fatalf("channel name %q is %d bytes, postgres truncates identifiers past 63", name, len(name))
-	}
-}
-
 type fixture struct {
 	pool         *pgxpool.Pool
 	queries      *genDb.Queries
@@ -375,20 +368,29 @@ func TestExpiredLeaseIsRedeliveredThenFailsWhenAttemptsRunOut(t *testing.T) {
 	}
 }
 
+func startBus(t *testing.T, f *fixture, cfg commandbus.Config) *commandbus.Bus {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	bus := commandbus.New(f.pool, f.queries, cfg)
+	if err := bus.Start(ctx); err != nil {
+		t.Fatalf("start bus: %v", err)
+	}
+	return bus
+}
+
 func TestListenerWakesOnCommittedEnqueue(t *testing.T) {
 	f := newFixture(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	bus := commandbus.New(f.pool, f.queries, commandbus.Config{PollInterval: time.Hour})
+	ctx := context.Background()
+	bus := startBus(t, f, commandbus.Config{PollInterval: time.Hour})
 
-	listener, err := bus.Listen(ctx, f.clusterID)
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
+	listener := bus.Listen(ctx, f.clusterID)
 	defer listener.Close()
+	other := bus.Listen(ctx, uuid.New())
+	defer other.Close()
 
 	rollback := errors.New("rollback")
-	err = pgx.BeginFunc(ctx, f.pool, func(tx pgx.Tx) error {
+	err := pgx.BeginFunc(ctx, f.pool, func(tx pgx.Tx) error {
 		qtx := genDb.New(tx)
 		if _, enqueueErr := commandbus.Enqueue(ctx, qtx, commandbus.NewCommand{
 			ClusterID:  f.clusterID,
@@ -412,35 +414,78 @@ func TestListenerWakesOnCommittedEnqueue(t *testing.T) {
 	f.enqueue(t, f.resourceID, nil)
 	select {
 	case <-listener.Wake():
-	case err := <-listener.Err():
-		t.Fatalf("listener failed: %v", err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("listener not woken by a committed enqueue")
 	}
+	select {
+	case <-other.Wake():
+		t.Fatal("listener for another cluster was woken")
+	case <-time.After(300 * time.Millisecond):
+	}
 }
 
-func TestListenerReleasesItsConnection(t *testing.T) {
+func TestListenersHoldNoPoolConnections(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
-	bus := commandbus.New(f.pool, f.queries, commandbus.Config{})
+	bus := startBus(t, f, commandbus.Config{PollInterval: time.Hour})
 
-	for i := range 3 {
-		listener, err := bus.Listen(ctx, f.clusterID)
-		if err != nil {
-			t.Fatalf("listen %d: %v", i, err)
-		}
-		listener.Close()
+	maxConns := int(f.pool.Config().MaxConns)
+	listeners := make([]*commandbus.Listener, 0, maxConns*2)
+	for range maxConns * 2 {
+		listeners = append(listeners, bus.Listen(ctx, uuid.New()))
 	}
+	listeners = append(listeners, bus.Listen(ctx, f.clusterID))
+
 	if acquired := f.pool.Stat().AcquiredConns(); acquired != 0 {
-		t.Fatalf("%d connections still acquired after closing listeners", acquired)
+		t.Fatalf("%d pool connections acquired by %d listeners", acquired, len(listeners))
 	}
-	var listening int
-	err := f.pool.QueryRow(ctx, `SELECT count(*) FROM pg_listening_channels()`).Scan(&listening)
-	if err != nil {
-		t.Fatalf("count channels: %v", err)
+	f.enqueue(t, f.resourceID, nil)
+	select {
+	case <-listeners[len(listeners)-1].Wake():
+	case <-time.After(5 * time.Second):
+		t.Fatal("listener not woken with the pool's worth of other listeners open")
 	}
-	if listening != 0 {
-		t.Fatalf("pooled connection still listening on %d channels", listening)
+
+	for _, l := range listeners {
+		l.Close()
+	}
+}
+
+func TestListenerSurvivesListenConnectionLoss(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	bus := startBus(t, f, commandbus.Config{PollInterval: time.Hour})
+
+	listener := bus.Listen(ctx, f.clusterID)
+	defer listener.Close()
+
+	var terminated int
+	err := f.pool.QueryRow(ctx, `
+		SELECT count(*) FROM (
+			SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+			WHERE query LIKE 'LISTEN %' AND pid <> pg_backend_pid()
+		) t`).Scan(&terminated)
+	if err != nil || terminated == 0 {
+		t.Fatalf("terminate listen connection: %d, %v", terminated, err)
+	}
+
+	select {
+	case <-listener.Wake():
+	case <-time.After(5 * time.Second):
+		t.Fatal("listener not woken after the listen connection was replaced")
+	}
+
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		f.enqueue(t, f.resourceID, nil)
+		select {
+		case <-listener.Wake():
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("notifications not delivered after reconnecting")
+		}
 	}
 }
 

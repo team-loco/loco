@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"math"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,7 +30,8 @@ const (
 	DefaultBatchSize    = 10
 	baseBackoff         = 5 * time.Second
 	maxBackoff          = 5 * time.Minute
-	channelPrefix       = "agent_commands_"
+	notifyChannel       = "agent_commands"
+	reconnectDelay      = time.Second
 )
 
 type Command struct {
@@ -61,6 +63,9 @@ type Bus struct {
 	pool    *pgxpool.Pool
 	queries genDb.Querier
 	cfg     Config
+
+	mu          sync.Mutex
+	subscribers map[uuid.UUID]map[*Listener]struct{}
 }
 
 func New(pool *pgxpool.Pool, queries genDb.Querier, cfg Config) *Bus {
@@ -73,11 +78,12 @@ func New(pool *pgxpool.Pool, queries genDb.Querier, cfg Config) *Bus {
 	if cfg.BatchSize <= 0 {
 		cfg.BatchSize = DefaultBatchSize
 	}
-	return &Bus{pool: pool, queries: queries, cfg: cfg}
-}
-
-func ChannelName(clusterID uuid.UUID) string {
-	return channelPrefix + clusterID.String()
+	return &Bus{
+		pool:        pool,
+		queries:     queries,
+		cfg:         cfg,
+		subscribers: make(map[uuid.UUID]map[*Listener]struct{}),
+	}
 }
 
 func Backoff(attempts int32) time.Duration {
@@ -120,8 +126,7 @@ func Enqueue(ctx context.Context, q genDb.Querier, cmd NewCommand) (uuid.UUID, e
 		return uuid.Nil, fmt.Errorf("insert command: %w", err)
 	}
 
-	channel := ChannelName(cmd.ClusterID)
-	if err := q.NotifyAgentCommands(ctx, channel); err != nil {
+	if err := q.NotifyAgentCommands(ctx, cmd.ClusterID.String()); err != nil {
 		return uuid.Nil, fmt.Errorf("notify agent commands: %w", err)
 	}
 
@@ -273,53 +278,140 @@ func (b *Bus) Nack(ctx context.Context, clusterID, commandID uuid.UUID, retry bo
 }
 
 type Listener struct {
-	conn   *pgxpool.Conn
-	cancel context.CancelFunc
-	wake   chan struct{}
-	errs   chan error
-	done   chan struct{}
+	bus       *Bus
+	clusterID uuid.UUID
+	wake      chan struct{}
+	cancel    context.CancelFunc
+	done      chan struct{}
 }
 
-func (b *Bus) Listen(ctx context.Context, clusterID uuid.UUID) (*Listener, error) {
-	conn, err := b.pool.Acquire(ctx)
+func (b *Bus) Start(ctx context.Context) error {
+	conn, err := b.listen(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("acquire listen connection: %w", err)
+		return err
 	}
+	go b.run(ctx, conn)
+	return nil
+}
 
-	channelName := ChannelName(clusterID)
-	channel := pgx.Identifier{channelName}.Sanitize()
+func (b *Bus) listen(ctx context.Context) (*pgx.Conn, error) {
+	connConfig := b.pool.Config().ConnConfig.Copy()
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
+	if err != nil {
+		return nil, fmt.Errorf("connect listen connection: %w", err)
+	}
+	channel := pgx.Identifier{notifyChannel}.Sanitize()
 	if _, err := conn.Exec(ctx, "LISTEN "+channel); err != nil {
-		hijacked := conn.Hijack()
-		closeConn(ctx, hijacked)
+		closeConn(ctx, conn)
 		return nil, fmt.Errorf("listen on %s: %w", channel, err)
 	}
+	return conn, nil
+}
 
-	listenCtx, cancel := context.WithCancel(ctx)
-	l := &Listener{
-		conn:   conn,
-		cancel: cancel,
-		wake:   make(chan struct{}, 1),
-		errs:   make(chan error, 1),
-		done:   make(chan struct{}),
+func (b *Bus) run(ctx context.Context, conn *pgx.Conn) {
+	for {
+		err := b.dispatch(ctx, conn)
+		closeConn(ctx, conn)
+		if ctx.Err() != nil {
+			return
+		}
+		slog.ErrorContext(ctx, "agent command listener disconnected", "error", err)
+		conn = b.reconnect(ctx)
+		if conn == nil {
+			return
+		}
+		b.wakeAll()
 	}
-	go l.waitForNotifications(listenCtx)
-	go l.poll(listenCtx, b.cfg.PollInterval)
-	return l, nil
+}
+
+func (b *Bus) dispatch(ctx context.Context, conn *pgx.Conn) error {
+	for {
+		notification, err := conn.WaitForNotification(ctx)
+		if err != nil {
+			return fmt.Errorf("wait for notification: %w", err)
+		}
+		clusterID, parseErr := uuid.Parse(notification.Payload)
+		if parseErr != nil {
+			slog.WarnContext(ctx, "ignoring agent command notification", "payload", notification.Payload)
+			continue
+		}
+		b.wakeCluster(clusterID)
+	}
+}
+
+func (b *Bus) reconnect(ctx context.Context) *pgx.Conn {
+	ticker := time.NewTicker(reconnectDelay)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+		}
+		conn, err := b.listen(ctx)
+		if err == nil {
+			return conn
+		}
+		slog.ErrorContext(ctx, "failed to reconnect agent command listener", "error", err)
+	}
+}
+
+func (b *Bus) wakeCluster(clusterID uuid.UUID) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for l := range b.subscribers[clusterID] {
+		l.signal()
+	}
+}
+
+func (b *Bus) wakeAll() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for _, listeners := range b.subscribers {
+		for l := range listeners {
+			l.signal()
+		}
+	}
+}
+
+func (b *Bus) Listen(ctx context.Context, clusterID uuid.UUID) *Listener {
+	pollCtx, cancel := context.WithCancel(ctx)
+	l := &Listener{
+		bus:       b,
+		clusterID: clusterID,
+		wake:      make(chan struct{}, 1),
+		cancel:    cancel,
+		done:      make(chan struct{}),
+	}
+
+	b.mu.Lock()
+	listeners, ok := b.subscribers[clusterID]
+	if !ok {
+		listeners = make(map[*Listener]struct{})
+		b.subscribers[clusterID] = listeners
+	}
+	listeners[l] = struct{}{}
+	b.mu.Unlock()
+
+	go l.poll(pollCtx, b.cfg.PollInterval)
+	return l
 }
 
 func (l *Listener) Wake() <-chan struct{} {
 	return l.wake
 }
 
-func (l *Listener) Err() <-chan error {
-	return l.errs
-}
-
 func (l *Listener) Close() {
 	l.cancel()
 	<-l.done
-	hijacked := l.conn.Hijack()
-	closeConn(context.Background(), hijacked)
+
+	l.bus.mu.Lock()
+	defer l.bus.mu.Unlock()
+	listeners := l.bus.subscribers[l.clusterID]
+	delete(listeners, l)
+	if len(listeners) == 0 {
+		delete(l.bus.subscribers, l.clusterID)
+	}
 }
 
 func (l *Listener) signal() {
@@ -329,22 +421,8 @@ func (l *Listener) signal() {
 	}
 }
 
-func (l *Listener) waitForNotifications(ctx context.Context) {
-	defer close(l.done)
-	for {
-		_, err := l.conn.Conn().WaitForNotification(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return
-			}
-			l.errs <- fmt.Errorf("wait for notification: %w", err)
-			return
-		}
-		l.signal()
-	}
-}
-
 func (l *Listener) poll(ctx context.Context, interval time.Duration) {
+	defer close(l.done)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {

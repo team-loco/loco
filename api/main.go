@@ -222,6 +222,9 @@ func main() {
 	httpClient := newOutboundHTTPClient()
 
 	cmdBus := commandbus.New(pool, queries, commandbus.Config{})
+	if err := cmdBus.Start(shutdownCtx); err != nil {
+		log.Fatalf("failed to start agent command listener: %v", err)
+	}
 
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	secureCookies := ac.Env == envProduction

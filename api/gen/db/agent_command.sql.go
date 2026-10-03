@@ -214,11 +214,11 @@ func (q *Queries) InsertAgentCommand(ctx context.Context, arg InsertAgentCommand
 }
 
 const notifyAgentCommands = `-- name: NotifyAgentCommands :exec
-SELECT pg_notify($1::text, '')
+SELECT pg_notify('agent_commands', $1::text)
 `
 
-func (q *Queries) NotifyAgentCommands(ctx context.Context, channel string) error {
-	_, err := q.db.Exec(ctx, notifyAgentCommands, channel)
+func (q *Queries) NotifyAgentCommands(ctx context.Context, clusterID string) error {
+	_, err := q.db.Exec(ctx, notifyAgentCommands, clusterID)
 	return err
 }
 

@@ -137,7 +137,7 @@ type Querier interface {
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
 	MarkDeploymentNotActive(ctx context.Context, id uuid.UUID) error
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
-	NotifyAgentCommands(ctx context.Context, channel string) error
+	NotifyAgentCommands(ctx context.Context, clusterID string) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error

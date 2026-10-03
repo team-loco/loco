@@ -9,7 +9,7 @@ VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id;
 
 -- name: NotifyAgentCommands :exec
-SELECT pg_notify(sqlc.arg(channel)::text, '');
+SELECT pg_notify('agent_commands', sqlc.arg(cluster_id)::text);
 
 -- name: ExpireAgentCommands :many
 UPDATE agent_commands
