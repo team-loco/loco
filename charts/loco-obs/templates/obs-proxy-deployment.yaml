@@ -21,10 +21,19 @@ spec:
       labels:
         app: {{ .Release.Name }}-obs-proxy
     spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: obs-proxy
           image: "{{ .Values.obsProxy.image.repository }}:{{ .Values.obsProxy.image.tag }}"
           imagePullPolicy: {{ .Values.obsProxy.imagePullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: PORT
               value: {{ .Values.obsProxy.port | quote }}

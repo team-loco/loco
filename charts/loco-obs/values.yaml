@@ -10,7 +10,49 @@ clickhouse:
   enabled: true
   nameOverride: "clickhouse"
   # Note: The service name will be auto-generated as: clickhouse-{{ .Release.Name }}-clickhouse
+  operator:
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 65534
+      runAsGroup: 65534
+      seccompProfile:
+        type: RuntimeDefault
+    operator:
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+    metrics:
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+    crdHook:
+      podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
   clickhouse:
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 101
+      runAsGroup: 101
+      fsGroup: 101
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
     antiAffinity: true
     persistence:
       enabled: true
@@ -28,12 +70,11 @@ opentelemetry-operator:
 otel-col-daemon:
   enabled: true
   fullnameOverride: "otel-col-daemon"
+  namespaceOverride: observability-node
   mode: daemonset
   image:
     repository: "otel/opentelemetry-collector-contrib"
     tag: "0.161.0"
-  hostNetwork: true
-  dnsPolicy: ClusterFirstWithHostNet
   resources:
     limits:
       cpu: 250m
@@ -64,7 +105,7 @@ otel-col-daemon:
       kubeletstats:
         collection_interval: 20s
         auth_type: "serviceAccount"
-        endpoint: "https://${env:K8S_NODE_NAME}:10250"
+        endpoint: "https://${env:OTEL_K8S_NODE_IP}:10250"
         insecure_skip_verify: true
         node: "${env:K8S_NODE_NAME}"
         k8s_api_config:
@@ -133,6 +174,15 @@ otel-col-deploy:
   image:
     repository: "otel/opentelemetry-collector-contrib"
     tag: "0.161.0"
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
   resources:
     limits:
       cpu: 250m
@@ -218,13 +268,7 @@ grafana:
         revision: 29
         datasource: ClickHouse
   initChownData:
-    securityContext:
-      capabilities:
-        add:
-          - CHOWN
-          - DAC_OVERRIDE
-        drop:
-          - ALL
+    enabled: false
 
 obsProxy:
   enabled: true
