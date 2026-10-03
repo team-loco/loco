@@ -86,4 +86,4 @@ jobs:
       - name: Apply
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway config apply --yes
+        run: railway config apply --yes --confirm-destructive
