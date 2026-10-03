@@ -53,7 +53,7 @@ type AgentServiceClient interface {
 	// Control plane sends commands, agent sends acks back.
 	CommandStream(context.Context) *connect.BidiStreamForClient[v1.CommandStreamRequest, v1.CommandStreamResponse]
 	// Heartbeat is a bidirectional stream for agent health reporting.
-	// Agent sends periodic heartbeats, control plane can send directives back.
+	// Agent sends periodic heartbeats.
 	Heartbeat(context.Context) *connect.BidiStreamForClient[v1.HeartbeatRequest, v1.HeartbeatResponse]
 	// ReportStatus reports deployment status changes from the agent.
 	ReportStatus(context.Context, *connect.Request[v1.ReportStatusRequest]) (*connect.Response[v1.ReportStatusResponse], error)
@@ -133,7 +133,7 @@ type AgentServiceHandler interface {
 	// Control plane sends commands, agent sends acks back.
 	CommandStream(context.Context, *connect.BidiStream[v1.CommandStreamRequest, v1.CommandStreamResponse]) error
 	// Heartbeat is a bidirectional stream for agent health reporting.
-	// Agent sends periodic heartbeats, control plane can send directives back.
+	// Agent sends periodic heartbeats.
 	Heartbeat(context.Context, *connect.BidiStream[v1.HeartbeatRequest, v1.HeartbeatResponse]) error
 	// ReportStatus reports deployment status changes from the agent.
 	ReportStatus(context.Context, *connect.Request[v1.ReportStatusRequest]) (*connect.Response[v1.ReportStatusResponse], error)

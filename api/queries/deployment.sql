@@ -46,11 +46,6 @@ UPDATE deployments
 SET status = $2, updated_at = NOW()
 WHERE id = $1;
 
--- name: UpdateDeploymentStatusWithMessage :exec
-UPDATE deployments
-SET status = $2, message = $3, updated_at = NOW()
-WHERE id = $1;
-
 -- name: UpdateActiveDeploymentStatus :exec
 UPDATE deployments
 SET status = $2, message = $3, updated_at = NOW()
@@ -68,3 +63,19 @@ ORDER BY created_at DESC;
 UPDATE deployments
 SET is_active = false, updated_at = NOW()
 WHERE id = $1;
+
+-- name: FailDeployment :exec
+UPDATE deployments
+SET status = 'failed', message = $2, completed_at = NOW(), updated_at = NOW()
+WHERE id = $1 AND status NOT IN ('succeeded', 'failed', 'canceled');
+
+-- name: UpdateDeploymentStatusFromAgent :execrows
+UPDATE deployments
+SET status = sqlc.arg(status),
+    message = sqlc.arg(message),
+    completed_at = CASE
+        WHEN sqlc.arg(status)::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
+        ELSE completed_at
+    END,
+    updated_at = NOW()
+WHERE id = sqlc.arg(id) AND cluster_id = sqlc.arg(cluster_id) AND is_active = true;

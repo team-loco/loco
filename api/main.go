@@ -221,15 +221,10 @@ func main() {
 
 	httpClient := newOutboundHTTPClient()
 
-	// Initialize command bus for agent communication
-	cmdBus, err := commandbus.New(&commandbus.Config{
-		Type:       "grpc",
-		MaxRetries: 3,
-	})
-	if err != nil {
-		log.Fatalf("failed to create command bus: %v", err)
+	cmdBus := commandbus.New(pool, queries, commandbus.Config{})
+	if err := cmdBus.Start(shutdownCtx); err != nil {
+		log.Fatalf("failed to start agent command listener: %v", err)
 	}
-	defer cmdBus.Close()
 
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	secureCookies := ac.Env == envProduction
@@ -237,8 +232,8 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, cmdBus)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, cmdBus)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(

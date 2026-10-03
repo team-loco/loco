@@ -52,6 +52,22 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 	return id, err
 }
 
+const failDeployment = `-- name: FailDeployment :exec
+UPDATE deployments
+SET status = 'failed', message = $2, completed_at = NOW(), updated_at = NOW()
+WHERE id = $1 AND status NOT IN ('succeeded', 'failed', 'canceled')
+`
+
+type FailDeploymentParams struct {
+	ID      uuid.UUID `json:"id"`
+	Message string    `json:"message"`
+}
+
+func (q *Queries) FailDeployment(ctx context.Context, arg FailDeploymentParams) error {
+	_, err := q.db.Exec(ctx, failDeployment, arg.ID, arg.Message)
+	return err
+}
+
 const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
 SELECT id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND region = $2 AND is_active = true
@@ -337,19 +353,34 @@ func (q *Queries) UpdateDeploymentStatusAndActive(ctx context.Context, arg Updat
 	return err
 }
 
-const updateDeploymentStatusWithMessage = `-- name: UpdateDeploymentStatusWithMessage :exec
+const updateDeploymentStatusFromAgent = `-- name: UpdateDeploymentStatusFromAgent :execrows
 UPDATE deployments
-SET status = $2, message = $3, updated_at = NOW()
-WHERE id = $1
+SET status = $1,
+    message = $2,
+    completed_at = CASE
+        WHEN $1::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
+        ELSE completed_at
+    END,
+    updated_at = NOW()
+WHERE id = $3 AND cluster_id = $4 AND is_active = true
 `
 
-type UpdateDeploymentStatusWithMessageParams struct {
-	ID      uuid.UUID        `json:"id"`
-	Status  DeploymentStatus `json:"status"`
-	Message string           `json:"message"`
+type UpdateDeploymentStatusFromAgentParams struct {
+	Status    DeploymentStatus `json:"status"`
+	Message   string           `json:"message"`
+	ID        uuid.UUID        `json:"id"`
+	ClusterID uuid.UUID        `json:"clusterId"`
 }
 
-func (q *Queries) UpdateDeploymentStatusWithMessage(ctx context.Context, arg UpdateDeploymentStatusWithMessageParams) error {
-	_, err := q.db.Exec(ctx, updateDeploymentStatusWithMessage, arg.ID, arg.Status, arg.Message)
-	return err
+func (q *Queries) UpdateDeploymentStatusFromAgent(ctx context.Context, arg UpdateDeploymentStatusFromAgentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateDeploymentStatusFromAgent,
+		arg.Status,
+		arg.Message,
+		arg.ID,
+		arg.ClusterID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

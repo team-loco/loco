@@ -18,7 +18,7 @@ service AgentService {
   rpc CommandStream(stream CommandStreamRequest) returns (stream CommandStreamResponse);
 
   // Heartbeat is a bidirectional stream for agent health reporting.
-  // Agent sends periodic heartbeats, control plane can send directives back.
+  // Agent sends periodic heartbeats.
   rpc Heartbeat(stream HeartbeatRequest) returns (stream HeartbeatResponse);
 
   // ReportStatus reports deployment status changes from the agent.
@@ -104,28 +104,10 @@ message HeartbeatRequest {
   AgentHealth health = 3;
 }
 
-// HeartbeatResponse may contain directives from the control plane.
+// HeartbeatResponse is the control plane's reply on the heartbeat stream.
 message HeartbeatResponse {
-  oneof directive {
-    DrainDirective drain = 1;
-    ReloadConfigDirective reload_config = 2;
-    ResyncDirective resync = 3;
-  }
-}
-
-// DrainDirective requests the agent to prepare for graceful shutdown.
-message DrainDirective {
-  int32 timeout_seconds = 1;
-}
-
-// ReloadConfigDirective requests the agent to reload configuration.
-message ReloadConfigDirective {
-  map<string, string> config = 1;
-}
-
-// ResyncDirective requests the agent to re-report status for resources.
-message ResyncDirective {
-  repeated string resource_ids = 1; // empty means resync all
+  reserved 1, 2, 3;
+  reserved "drain", "reload_config", "resync";
 }
 
 // AgentCapacity reports cluster resource capacity.

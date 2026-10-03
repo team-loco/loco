@@ -384,8 +384,7 @@ func (a *Agent) heartbeatLoop(ctx context.Context) error {
 			return ctx.Err()
 		case err := <-recvErr:
 			return fmt.Errorf("receive heartbeat response: %w", err)
-		case resp := <-responses:
-			a.handleDirective(resp)
+		case <-responses:
 		case <-ticker.C:
 			if err := a.sendHeartbeat(streamCtx, stream); err != nil {
 				return err
@@ -432,21 +431,6 @@ func (a *Agent) sendHeartbeat(
 		return fmt.Errorf("send heartbeat: %w", err)
 	}
 	return nil
-}
-
-func (*Agent) handleDirective(resp *agentv1.HeartbeatResponse) {
-	if resp == nil {
-		return
-	}
-
-	switch d := resp.GetDirective().(type) {
-	case *agentv1.HeartbeatResponse_Drain:
-		slog.Debug("ignoring DRAIN directive", "timeout_seconds", d.Drain.GetTimeoutSeconds())
-	case *agentv1.HeartbeatResponse_ReloadConfig:
-		slog.Debug("ignoring RELOAD_CONFIG directive", "config", d.ReloadConfig.GetConfig())
-	case *agentv1.HeartbeatResponse_Resync:
-		slog.Debug("ignoring RESYNC directive", "resource_ids", d.Resync.GetResourceIds())
-	}
 }
 
 func (a *Agent) getCapacity(ctx context.Context) *agentv1.AgentCapacity {

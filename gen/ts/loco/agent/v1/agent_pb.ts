@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/agent/v1/agent.proto.
  */
 export const file_loco_agent_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIn4KD1JlZ2lzdGVyUmVxdWVzdBIUCgxjbHVzdGVyX25hbWUYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSLgoIY2FwYWNpdHkYBCABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkiJgoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIukCChVDb21tYW5kU3RyZWFtUmVzcG9uc2USEgoKY29tbWFuZF9pZBgBIAEoCRISCgpjbHVzdGVyX2lkGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEigKBHR5cGUYBCABKA4yGi5sb2NvLmFnZW50LnYxLkNvbW1hbmRUeXBlEi4KBmRlcGxveRgKIAEoCzIcLmxvY28uYWdlbnQudjEuRGVwbG95Q29tbWFuZEgAEi4KBmRlbGV0ZRgLIAEoCzIcLmxvY28uYWdlbnQudjEuRGVsZXRlQ29tbWFuZEgAEiwKBXNjYWxlGAwgASgLMhsubG9jby5hZ2VudC52MS5TY2FsZUNvbW1hbmRIABI1Cgp1cGRhdGVfZW52GA0gASgLMh8ubG9jby5hZ2VudC52MS5VcGRhdGVFbnZDb21tYW5kSABCCQoHcGF5bG9hZCJ+Cg1EZXBsb3lDb21tYW5kEhMKC3Jlc291cmNlX2lkGAEgASgJEhUKDWRlcGxveW1lbnRfaWQYAiABKAkSFAoMd29ya3NwYWNlX2lkGAMgASgJEhEKCW5hbWVzcGFjZRgEIAEoCRIYChBhcHBsaWNhdGlvbl9zcGVjGAUgASgMIjcKDURlbGV0ZUNvbW1hbmQSEwoLcmVzb3VyY2VfaWQYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJIkgKDFNjYWxlQ29tbWFuZBITCgtyZXNvdXJjZV9pZBgBIAEoCRIQCghyZXBsaWNhcxgCIAEoBRIRCgluYW1lc3BhY2UYAyABKAkinQEKEFVwZGF0ZUVudkNvbW1hbmQSEwoLcmVzb3VyY2VfaWQYASABKAkSNQoDZW52GAIgAygLMigubG9jby5hZ2VudC52MS5VcGRhdGVFbnZDb21tYW5kLkVudkVudHJ5EhEKCW5hbWVzcGFjZRgDIAEoCRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBImEKFENvbW1hbmRTdHJlYW1SZXF1ZXN0EhIKCmNvbW1hbmRfaWQYASABKAkSDwoHc3VjY2VzcxgCIAEoCBIVCg1lcnJvcl9tZXNzYWdlGAMgASgJEg0KBXJldHJ5GAQgASgIIowBChBIZWFydGJlYXRSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEi4KCGNhcGFjaXR5GAIgASgLMhwubG9jby5hZ2VudC52MS5BZ2VudENhcGFjaXR5EioKBmhlYWx0aBgDIAEoCzIaLmxvY28uYWdlbnQudjEuQWdlbnRIZWFsdGgiwQEKEUhlYXJ0YmVhdFJlc3BvbnNlEi4KBWRyYWluGAEgASgLMh0ubG9jby5hZ2VudC52MS5EcmFpbkRpcmVjdGl2ZUgAEj0KDXJlbG9hZF9jb25maWcYAiABKAsyJC5sb2NvLmFnZW50LnYxLlJlbG9hZENvbmZpZ0RpcmVjdGl2ZUgAEjAKBnJlc3luYxgDIAEoCzIeLmxvY28uYWdlbnQudjEuUmVzeW5jRGlyZWN0aXZlSABCCwoJZGlyZWN0aXZlIikKDkRyYWluRGlyZWN0aXZlEhcKD3RpbWVvdXRfc2Vjb25kcxgBIAEoBSKIAQoVUmVsb2FkQ29uZmlnRGlyZWN0aXZlEkAKBmNvbmZpZxgBIAMoCzIwLmxvY28uYWdlbnQudjEuUmVsb2FkQ29uZmlnRGlyZWN0aXZlLkNvbmZpZ0VudHJ5Gi0KC0NvbmZpZ0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiJwoPUmVzeW5jRGlyZWN0aXZlEhQKDHJlc291cmNlX2lkcxgBIAMoCSKrAQoNQWdlbnRDYXBhY2l0eRIcChRjcHVfbWlsbGljb3Jlc190b3RhbBgBIAEoAxIbChNjcHVfbWlsbGljb3Jlc191c2VkGAIgASgDEhoKEm1lbW9yeV9ieXRlc190b3RhbBgDIAEoAxIZChFtZW1vcnlfYnl0ZXNfdXNlZBgEIAEoAxISCgpwb2RzX3RvdGFsGAUgASgFEhQKDHBvZHNfcnVubmluZxgGIAEoBSJWCgtBZ2VudEhlYWx0aBIaChJrdWJlcm5ldGVzX2hlYWx0aHkYASABKAgSGgoSY29udHJvbGxlcl9oZWFsdGh5GAIgASgIEg8KB21lc3NhZ2UYAyABKAki5gEKE1JlcG9ydFN0YXR1c1JlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESHQoLcmVzb3VyY2VfaWQYAiABKAlCCLpIBXIDsAEBEh8KDWRlcGxveW1lbnRfaWQYAyABKAlCCLpIBXIDsAEBEjIKBXBoYXNlGAQgASgOMiMubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRQaGFzZRIPCgdtZXNzYWdlGAUgASgJEiwKCmNvbmRpdGlvbnMYBiADKAsyGC5sb2NvLmFnZW50LnYxLkNvbmRpdGlvbiIWChRSZXBvcnRTdGF0dXNSZXNwb25zZSKEAQoJQ29uZGl0aW9uEgwKBHR5cGUYASABKAkSDgoGc3RhdHVzGAIgASgJEg4KBnJlYXNvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEjgKFGxhc3RfdHJhbnNpdGlvbl90aW1lGAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCpdCgtDb21tYW5kVHlwZRIcChhDT01NQU5EX1RZUEVfVU5TUEVDSUZJRUQQABIXChNDT01NQU5EX1RZUEVfREVQTE9ZEAESFwoTQ09NTUFORF9UWVBFX0RFTEVURRACMugCCgxBZ2VudFNlcnZpY2USSwoIUmVnaXN0ZXISHi5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVxdWVzdBofLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXNwb25zZRJeCg1Db21tYW5kU3RyZWFtEiMubG9jby5hZ2VudC52MS5Db21tYW5kU3RyZWFtUmVxdWVzdBokLmxvY28uYWdlbnQudjEuQ29tbWFuZFN0cmVhbVJlc3BvbnNlKAEwARJSCglIZWFydGJlYXQSHy5sb2NvLmFnZW50LnYxLkhlYXJ0YmVhdFJlcXVlc3QaIC5sb2NvLmFnZW50LnYxLkhlYXJ0YmVhdFJlc3BvbnNlKAEwARJXCgxSZXBvcnRTdGF0dXMSIi5sb2NvLmFnZW50LnYxLlJlcG9ydFN0YXR1c1JlcXVlc3QaIy5sb2NvLmFnZW50LnYxLlJlcG9ydFN0YXR1c1Jlc3BvbnNlQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWdlbnQvdjE7YWdlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_deployment_v1_deployment]);
+  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIn4KD1JlZ2lzdGVyUmVxdWVzdBIUCgxjbHVzdGVyX25hbWUYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSLgoIY2FwYWNpdHkYBCABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkiJgoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIukCChVDb21tYW5kU3RyZWFtUmVzcG9uc2USEgoKY29tbWFuZF9pZBgBIAEoCRISCgpjbHVzdGVyX2lkGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEigKBHR5cGUYBCABKA4yGi5sb2NvLmFnZW50LnYxLkNvbW1hbmRUeXBlEi4KBmRlcGxveRgKIAEoCzIcLmxvY28uYWdlbnQudjEuRGVwbG95Q29tbWFuZEgAEi4KBmRlbGV0ZRgLIAEoCzIcLmxvY28uYWdlbnQudjEuRGVsZXRlQ29tbWFuZEgAEiwKBXNjYWxlGAwgASgLMhsubG9jby5hZ2VudC52MS5TY2FsZUNvbW1hbmRIABI1Cgp1cGRhdGVfZW52GA0gASgLMh8ubG9jby5hZ2VudC52MS5VcGRhdGVFbnZDb21tYW5kSABCCQoHcGF5bG9hZCJ+Cg1EZXBsb3lDb21tYW5kEhMKC3Jlc291cmNlX2lkGAEgASgJEhUKDWRlcGxveW1lbnRfaWQYAiABKAkSFAoMd29ya3NwYWNlX2lkGAMgASgJEhEKCW5hbWVzcGFjZRgEIAEoCRIYChBhcHBsaWNhdGlvbl9zcGVjGAUgASgMIjcKDURlbGV0ZUNvbW1hbmQSEwoLcmVzb3VyY2VfaWQYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJIkgKDFNjYWxlQ29tbWFuZBITCgtyZXNvdXJjZV9pZBgBIAEoCRIQCghyZXBsaWNhcxgCIAEoBRIRCgluYW1lc3BhY2UYAyABKAkinQEKEFVwZGF0ZUVudkNvbW1hbmQSEwoLcmVzb3VyY2VfaWQYASABKAkSNQoDZW52GAIgAygLMigubG9jby5hZ2VudC52MS5VcGRhdGVFbnZDb21tYW5kLkVudkVudHJ5EhEKCW5hbWVzcGFjZRgDIAEoCRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBImEKFENvbW1hbmRTdHJlYW1SZXF1ZXN0EhIKCmNvbW1hbmRfaWQYASABKAkSDwoHc3VjY2VzcxgCIAEoCBIVCg1lcnJvcl9tZXNzYWdlGAMgASgJEg0KBXJldHJ5GAQgASgIIowBChBIZWFydGJlYXRSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEi4KCGNhcGFjaXR5GAIgASgLMhwubG9jby5hZ2VudC52MS5BZ2VudENhcGFjaXR5EioKBmhlYWx0aBgDIAEoCzIaLmxvY28uYWdlbnQudjEuQWdlbnRIZWFsdGgiQwoRSGVhcnRiZWF0UmVzcG9uc2VKBAgBEAJKBAgCEANKBAgDEARSBWRyYWluUg1yZWxvYWRfY29uZmlnUgZyZXN5bmMiqwEKDUFnZW50Q2FwYWNpdHkSHAoUY3B1X21pbGxpY29yZXNfdG90YWwYASABKAMSGwoTY3B1X21pbGxpY29yZXNfdXNlZBgCIAEoAxIaChJtZW1vcnlfYnl0ZXNfdG90YWwYAyABKAMSGQoRbWVtb3J5X2J5dGVzX3VzZWQYBCABKAMSEgoKcG9kc190b3RhbBgFIAEoBRIUCgxwb2RzX3J1bm5pbmcYBiABKAUiVgoLQWdlbnRIZWFsdGgSGgoSa3ViZXJuZXRlc19oZWFsdGh5GAEgASgIEhoKEmNvbnRyb2xsZXJfaGVhbHRoeRgCIAEoCBIPCgdtZXNzYWdlGAMgASgJIuYBChNSZXBvcnRTdGF0dXNSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAIgASgJQgi6SAVyA7ABARIfCg1kZXBsb3ltZW50X2lkGAMgASgJQgi6SAVyA7ABARIyCgVwaGFzZRgEIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USDwoHbWVzc2FnZRgFIAEoCRIsCgpjb25kaXRpb25zGAYgAygLMhgubG9jby5hZ2VudC52MS5Db25kaXRpb24iFgoUUmVwb3J0U3RhdHVzUmVzcG9uc2UihAEKCUNvbmRpdGlvbhIMCgR0eXBlGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIOCgZyZWFzb24YAyABKAkSDwoHbWVzc2FnZRgEIAEoCRI4ChRsYXN0X3RyYW5zaXRpb25fdGltZRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqXQoLQ29tbWFuZFR5cGUSHAoYQ09NTUFORF9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTQ09NTUFORF9UWVBFX0RFUExPWRABEhcKE0NPTU1BTkRfVFlQRV9ERUxFVEUQAjLoAgoMQWdlbnRTZXJ2aWNlEksKCFJlZ2lzdGVyEh4ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlcXVlc3QaHy5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVzcG9uc2USXgoNQ29tbWFuZFN0cmVhbRIjLmxvY28uYWdlbnQudjEuQ29tbWFuZFN0cmVhbVJlcXVlc3QaJC5sb2NvLmFnZW50LnYxLkNvbW1hbmRTdHJlYW1SZXNwb25zZSgBMAESUgoJSGVhcnRiZWF0Eh8ubG9jby5hZ2VudC52MS5IZWFydGJlYXRSZXF1ZXN0GiAubG9jby5hZ2VudC52MS5IZWFydGJlYXRSZXNwb25zZSgBMAESVwoMUmVwb3J0U3RhdHVzEiIubG9jby5hZ2VudC52MS5SZXBvcnRTdGF0dXNSZXF1ZXN0GiMubG9jby5hZ2VudC52MS5SZXBvcnRTdGF0dXNSZXNwb25zZUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FnZW50L3YxO2FnZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_deployment_v1_deployment]);
 
 /**
  * RegisterRequest is sent by the agent on startup to announce itself.
@@ -558,55 +558,19 @@ export const HeartbeatRequestSchema: GenMessage<HeartbeatRequest, {jsonType: Hea
   messageDesc(file_loco_agent_v1_agent, 8);
 
 /**
- * HeartbeatResponse may contain directives from the control plane.
+ * HeartbeatResponse is the control plane's reply on the heartbeat stream.
  *
  * @generated from message loco.agent.v1.HeartbeatResponse
  */
 export type HeartbeatResponse = Message<"loco.agent.v1.HeartbeatResponse"> & {
-  /**
-   * @generated from oneof loco.agent.v1.HeartbeatResponse.directive
-   */
-  directive: {
-    /**
-     * @generated from field: loco.agent.v1.DrainDirective drain = 1;
-     */
-    value: DrainDirective;
-    case: "drain";
-  } | {
-    /**
-     * @generated from field: loco.agent.v1.ReloadConfigDirective reload_config = 2;
-     */
-    value: ReloadConfigDirective;
-    case: "reloadConfig";
-  } | {
-    /**
-     * @generated from field: loco.agent.v1.ResyncDirective resync = 3;
-     */
-    value: ResyncDirective;
-    case: "resync";
-  } | { case: undefined; value?: undefined };
 };
 
 /**
- * HeartbeatResponse may contain directives from the control plane.
+ * HeartbeatResponse is the control plane's reply on the heartbeat stream.
  *
  * @generated from message loco.agent.v1.HeartbeatResponse
  */
 export type HeartbeatResponseJson = {
-  /**
-   * @generated from field: loco.agent.v1.DrainDirective drain = 1;
-   */
-  drain?: DrainDirectiveJson;
-
-  /**
-   * @generated from field: loco.agent.v1.ReloadConfigDirective reload_config = 2;
-   */
-  reloadConfig?: ReloadConfigDirectiveJson;
-
-  /**
-   * @generated from field: loco.agent.v1.ResyncDirective resync = 3;
-   */
-  resync?: ResyncDirectiveJson;
 };
 
 /**
@@ -615,103 +579,6 @@ export type HeartbeatResponseJson = {
  */
 export const HeartbeatResponseSchema: GenMessage<HeartbeatResponse, {jsonType: HeartbeatResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 9);
-
-/**
- * DrainDirective requests the agent to prepare for graceful shutdown.
- *
- * @generated from message loco.agent.v1.DrainDirective
- */
-export type DrainDirective = Message<"loco.agent.v1.DrainDirective"> & {
-  /**
-   * @generated from field: int32 timeout_seconds = 1;
-   */
-  timeoutSeconds: number;
-};
-
-/**
- * DrainDirective requests the agent to prepare for graceful shutdown.
- *
- * @generated from message loco.agent.v1.DrainDirective
- */
-export type DrainDirectiveJson = {
-  /**
-   * @generated from field: int32 timeout_seconds = 1;
-   */
-  timeoutSeconds?: number;
-};
-
-/**
- * Describes the message loco.agent.v1.DrainDirective.
- * Use `create(DrainDirectiveSchema)` to create a new message.
- */
-export const DrainDirectiveSchema: GenMessage<DrainDirective, {jsonType: DrainDirectiveJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 10);
-
-/**
- * ReloadConfigDirective requests the agent to reload configuration.
- *
- * @generated from message loco.agent.v1.ReloadConfigDirective
- */
-export type ReloadConfigDirective = Message<"loco.agent.v1.ReloadConfigDirective"> & {
-  /**
-   * @generated from field: map<string, string> config = 1;
-   */
-  config: { [key: string]: string };
-};
-
-/**
- * ReloadConfigDirective requests the agent to reload configuration.
- *
- * @generated from message loco.agent.v1.ReloadConfigDirective
- */
-export type ReloadConfigDirectiveJson = {
-  /**
-   * @generated from field: map<string, string> config = 1;
-   */
-  config?: { [key: string]: string };
-};
-
-/**
- * Describes the message loco.agent.v1.ReloadConfigDirective.
- * Use `create(ReloadConfigDirectiveSchema)` to create a new message.
- */
-export const ReloadConfigDirectiveSchema: GenMessage<ReloadConfigDirective, {jsonType: ReloadConfigDirectiveJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 11);
-
-/**
- * ResyncDirective requests the agent to re-report status for resources.
- *
- * @generated from message loco.agent.v1.ResyncDirective
- */
-export type ResyncDirective = Message<"loco.agent.v1.ResyncDirective"> & {
-  /**
-   * empty means resync all
-   *
-   * @generated from field: repeated string resource_ids = 1;
-   */
-  resourceIds: string[];
-};
-
-/**
- * ResyncDirective requests the agent to re-report status for resources.
- *
- * @generated from message loco.agent.v1.ResyncDirective
- */
-export type ResyncDirectiveJson = {
-  /**
-   * empty means resync all
-   *
-   * @generated from field: repeated string resource_ids = 1;
-   */
-  resourceIds?: string[];
-};
-
-/**
- * Describes the message loco.agent.v1.ResyncDirective.
- * Use `create(ResyncDirectiveSchema)` to create a new message.
- */
-export const ResyncDirectiveSchema: GenMessage<ResyncDirective, {jsonType: ResyncDirectiveJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 12);
 
 /**
  * AgentCapacity reports cluster resource capacity.
@@ -792,7 +659,7 @@ export type AgentCapacityJson = {
  * Use `create(AgentCapacitySchema)` to create a new message.
  */
 export const AgentCapacitySchema: GenMessage<AgentCapacity, {jsonType: AgentCapacityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 13);
+  messageDesc(file_loco_agent_v1_agent, 10);
 
 /**
  * AgentHealth reports agent and cluster health status.
@@ -843,7 +710,7 @@ export type AgentHealthJson = {
  * Use `create(AgentHealthSchema)` to create a new message.
  */
 export const AgentHealthSchema: GenMessage<AgentHealth, {jsonType: AgentHealthJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 14);
+  messageDesc(file_loco_agent_v1_agent, 11);
 
 /**
  * ReportStatusRequest is sent by the agent when deployment status changes.
@@ -924,7 +791,7 @@ export type ReportStatusRequestJson = {
  * Use `create(ReportStatusRequestSchema)` to create a new message.
  */
 export const ReportStatusRequestSchema: GenMessage<ReportStatusRequest, {jsonType: ReportStatusRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 15);
+  messageDesc(file_loco_agent_v1_agent, 12);
 
 /**
  * ReportStatusResponse acknowledges the status report.
@@ -947,7 +814,7 @@ export type ReportStatusResponseJson = {
  * Use `create(ReportStatusResponseSchema)` to create a new message.
  */
 export const ReportStatusResponseSchema: GenMessage<ReportStatusResponse, {jsonType: ReportStatusResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 16);
+  messageDesc(file_loco_agent_v1_agent, 13);
 
 /**
  * Condition represents a Kubernetes-style condition.
@@ -1022,7 +889,7 @@ export type ConditionJson = {
  * Use `create(ConditionSchema)` to create a new message.
  */
 export const ConditionSchema: GenMessage<Condition, {jsonType: ConditionJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 17);
+  messageDesc(file_loco_agent_v1_agent, 14);
 
 /**
  * CommandType identifies the type of command.
@@ -1088,7 +955,7 @@ export const AgentService: GenService<{
   },
   /**
    * Heartbeat is a bidirectional stream for agent health reporting.
-   * Agent sends periodic heartbeats, control plane can send directives back.
+   * Agent sends periodic heartbeats.
    *
    * @generated from rpc loco.agent.v1.AgentService.Heartbeat
    */

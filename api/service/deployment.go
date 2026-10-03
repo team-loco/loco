@@ -169,7 +169,6 @@ type DeploymentServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	machine *tvm.VendingMachine
-	cmdBus  commandbus.CommandBus
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -177,13 +176,11 @@ func NewDeploymentServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
-	cmdBus commandbus.CommandBus,
 ) *DeploymentServer {
 	return &DeploymentServer{
 		db:      db,
 		queries: queries,
 		machine: machine,
-		cmdBus:  cmdBus,
 	}
 }
 
@@ -324,27 +321,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("resource region not found"))
 	}
 
-	// Create deployment transactionally, finalizing previous deployments in the same region
-	deploymentID, err := createDeploymentWithCleanup(ctx, s.db, s.queries, genDb.CreateDeploymentParams{
-		ResourceID:       resourceID,
-		ResourceRegionID: resourceRegion.ID,
-		ClusterID:        cluster.ID,
-		Region:           region,
-		Replicas:         replicas,
-		Status:           genDb.DeploymentStatusPending,
-		IsActive:         true,
-		Message:          "Scheduling deployment",
-		Spec:             specJSON,
-		SpecVersion:      int32(1),
-		EnvironmentID:    environmentID,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to create deployment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	// Build the Application spec for the agent
-	appSpec, err := buildApplicationSpec(
+	buildPayload := deployCommandPayload(
 		resource,
 		resourceSpec,
 		domain.Domain,
@@ -352,55 +329,29 @@ func (s *DeploymentServer) CreateDeployment(
 		region,
 		environmentID,
 		env.Name,
-		deploymentID,
 	)
+
+	var deploymentID uuid.UUID
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var txErr error
+		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, genDb.CreateDeploymentParams{
+			ResourceID:       resourceID,
+			ResourceRegionID: resourceRegion.ID,
+			ClusterID:        cluster.ID,
+			Region:           region,
+			Replicas:         replicas,
+			Status:           genDb.DeploymentStatusPending,
+			IsActive:         true,
+			Message:          "Scheduling deployment",
+			Spec:             specJSON,
+			SpecVersion:      int32(1),
+			EnvironmentID:    environmentID,
+		}, buildPayload)
+		return txErr
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to build application spec", "error", err, "resourceId", resource.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to build application spec: %w", err))
+		return nil, deploymentTxError(ctx, err)
 	}
-
-	// Create command payload with all info the agent needs
-	cmdPayload := DeployCommandPayload{
-		DeploymentID: deploymentID.String(),
-		ResourceID:   resource.ID.String(),
-		WorkspaceID:  resource.WorkspaceID.String(),
-		ResourceName: resource.Name,
-		ResourceType: string(resource.Type),
-		Region:       region,
-		Hostname:     domain.Domain,
-		AppSpec:      appSpec,
-	}
-
-	payloadJSON, err := json.Marshal(cmdPayload)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to marshal command payload", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to marshal command payload: %w", err))
-	}
-
-	// Dispatch deploy command to the agent via CommandBus
-	cmd := &commandbus.Command{
-		ID:        uuid.NewString(),
-		ClusterID: cluster.ID.String(),
-		Type:      commandbus.CommandTypeDeploy,
-		Payload:   payloadJSON,
-		CreatedAt: time.Now(),
-	}
-
-	if err := s.cmdBus.Send(ctx, cmd); err != nil {
-		slog.ErrorContext(ctx, "failed to dispatch deploy command", "cluster_id", cluster.ID, "error", err)
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("no agent connected for cluster: %w", err))
-	}
-
-	slog.InfoContext(
-		ctx,
-		"deploy command dispatched",
-		"command_id",
-		cmd.ID,
-		"cluster_id",
-		cluster.ID,
-		"deployment_id",
-		deploymentID.String(),
-	)
 
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deploymentID.String()}), nil
 }
@@ -550,63 +501,46 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
 	}
 
-	// if this is the active deployment, delete the Application
-	if deployment.IsActive {
-		// Create delete command payload
-		cmdPayload := DeleteCommandPayload{
-			DeploymentID: deployment.ID.String(),
-			ResourceID:   resource.ID.String(),
-		}
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if deployment.IsActive {
+			payloadJSON, marshalErr := json.Marshal(DeleteCommandPayload{
+				DeploymentID: deployment.ID.String(),
+				ResourceID:   resource.ID.String(),
+			})
+			if marshalErr != nil {
+				return fmt.Errorf("marshal delete command payload: %w", marshalErr)
+			}
 
-		payloadJSON, marshalErr := json.Marshal(cmdPayload)
-		if marshalErr != nil {
-			slog.ErrorContext(ctx, "failed to marshal delete command payload", "error", marshalErr)
-			return nil, connect.NewError(
-				connect.CodeInternal,
-				fmt.Errorf("failed to marshal command payload: %w", marshalErr),
-			)
-		}
+			commandID, enqueueErr := commandbus.Enqueue(ctx, qtx, commandbus.NewCommand{
+				ClusterID:    deployment.ClusterID,
+				ResourceID:   resource.ID,
+				DeploymentID: &deployment.ID,
+				Type:         commandbus.CommandTypeDelete,
+				Payload:      payloadJSON,
+			})
+			if enqueueErr != nil {
+				return fmt.Errorf("enqueue delete command: %w", enqueueErr)
+			}
 
-		// Dispatch delete command to the agent via CommandBus
-		cmd := &commandbus.Command{
-			ID:        uuid.NewString(),
-			ClusterID: deployment.ClusterID.String(),
-			Type:      commandbus.CommandTypeDelete,
-			Payload:   payloadJSON,
-			CreatedAt: time.Now(),
-		}
-
-		if sendErr := s.cmdBus.Send(ctx, cmd); sendErr != nil {
-			slog.ErrorContext(
+			slog.InfoContext(
 				ctx,
-				"failed to dispatch delete command",
+				"delete command enqueued",
+				"command_id",
+				commandID,
 				"cluster_id",
 				deployment.ClusterID,
-				"error",
-				sendErr,
-			)
-			return nil, connect.NewError(
-				connect.CodeUnavailable,
-				fmt.Errorf("no agent connected for cluster: %w", sendErr),
+				"deployment_id",
+				deployment.ID.String(),
 			)
 		}
 
-		slog.InfoContext(
-			ctx,
-			"delete command dispatched",
-			"command_id",
-			cmd.ID,
-			"cluster_id",
-			deployment.ClusterID,
-			"deployment_id",
-			deployment.ID.String(),
-		)
-	}
-
-	// mark deployment as inactive
-	err = s.queries.MarkDeploymentNotActive(ctx, deploymentID)
+		if markErr := qtx.MarkDeploymentNotActive(ctx, deploymentID); markErr != nil {
+			return fmt.Errorf("mark deployment not active: %w", markErr)
+		}
+		return nil
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to mark deployment not active", "error", err)
+		slog.ErrorContext(ctx, "failed to delete deployment", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 

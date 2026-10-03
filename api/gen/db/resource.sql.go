@@ -546,6 +546,34 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 	return items, nil
 }
 
+const lockResourceRegion = `-- name: LockResourceRegion :one
+SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at
+FROM resource_regions
+WHERE resource_id = $1 AND region = $2
+FOR UPDATE
+`
+
+type LockResourceRegionParams struct {
+	ResourceID uuid.UUID `json:"resourceId"`
+	Region     string    `json:"region"`
+}
+
+func (q *Queries) LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error) {
+	row := q.db.QueryRow(ctx, lockResourceRegion, arg.ResourceID, arg.Region)
+	var i ResourceRegion
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.Region,
+		&i.IsPrimary,
+		&i.Status,
+		&i.LastError,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateResource = `-- name: UpdateResource :one
 UPDATE resources
 SET name = COALESCE($2, name),

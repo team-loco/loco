@@ -31,11 +31,11 @@ var (
 type AgentServer struct {
 	db         *pgxpool.Pool
 	queries    genDb.Querier
-	commandBus commandbus.CommandBus
+	commandBus *commandbus.Bus
 }
 
 // NewAgentServer creates a new AgentServer instance.
-func NewAgentServer(db *pgxpool.Pool, queries genDb.Querier, commandBus commandbus.CommandBus) *AgentServer {
+func NewAgentServer(db *pgxpool.Pool, queries genDb.Querier, commandBus *commandbus.Bus) *AgentServer {
 	return &AgentServer{
 		db:         db,
 		queries:    queries,
@@ -131,45 +131,17 @@ func (s *AgentServer) CommandStream(
 
 	slog.InfoContext(ctx, "command stream opened", "cluster_id", cluster.ID)
 
-	// Register this agent's command channel
-	cmdChan, err := s.commandBus.Receive(ctx, cluster.ID.String())
-	if err != nil {
-		return connect.NewError(connect.CodeInternal, err)
-	}
+	listener := s.commandBus.Listen(ctx, cluster.ID)
+	defer listener.Close()
 
-	// Handle incoming acks in separate goroutine
 	errCh := make(chan error, 1)
-	go func() {
-		for {
-			ack, err := stream.Receive()
-			if err != nil {
-				if errors.Is(err, io.EOF) {
-					errCh <- nil
-				} else {
-					errCh <- err
-				}
-				return
-			}
+	go s.receiveAcks(ctx, stream, cluster.ID, errCh)
 
-			if ack.GetSuccess() {
-				if err := s.commandBus.Ack(ctx, ack.GetCommandId()); err != nil {
-					slog.WarnContext(ctx, "failed to ack command", "command_id", ack.GetCommandId(), "error", err)
-				}
-			} else {
-				if err := s.commandBus.Nack(ctx, ack.GetCommandId(), ack.GetRetry()); err != nil {
-					slog.WarnContext(ctx, "failed to nack command", "command_id", ack.GetCommandId(), "error", err)
-				}
-				slog.WarnContext(ctx, "command failed",
-					"command_id", ack.GetCommandId(),
-					"error", ack.GetErrorMessage(),
-					"retry", ack.GetRetry(),
-				)
-			}
-		}
-	}()
-
-	// Send commands to agent
 	for {
+		if err := s.deliverCommands(ctx, stream, cluster.ID); err != nil {
+			return err
+		}
+
 		select {
 		case <-ctx.Done():
 			slog.InfoContext(ctx, "command stream context done", "cluster_id", cluster.ID)
@@ -179,17 +151,78 @@ func (s *AgentServer) CommandStream(
 			slog.InfoContext(ctx, "command stream closed", "cluster_id", cluster.ID, "error", err)
 			return err
 
-		case cmd, ok := <-cmdChan:
-			if !ok {
-				slog.InfoContext(ctx, "command channel closed", "cluster_id", cluster.ID)
-				return nil
-			}
+		case <-listener.Wake():
+		}
+	}
+}
 
+func (s *AgentServer) receiveAcks(
+	ctx context.Context,
+	stream *connect.BidiStream[agentv1.CommandStreamRequest, agentv1.CommandStreamResponse],
+	clusterID uuid.UUID,
+	errCh chan<- error,
+) {
+	for {
+		ack, err := stream.Receive()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				errCh <- nil
+			} else {
+				errCh <- err
+			}
+			return
+		}
+
+		commandID, err := uuid.Parse(ack.GetCommandId())
+		if err != nil {
+			slog.WarnContext(ctx, "ack with invalid command id",
+				"command_id", ack.GetCommandId(),
+				"cluster_id", clusterID,
+			)
+			continue
+		}
+
+		if ack.GetSuccess() {
+			if err := s.commandBus.Ack(ctx, clusterID, commandID); err != nil {
+				slog.ErrorContext(ctx, "failed to ack command", "command_id", commandID, "error", err)
+			}
+			continue
+		}
+
+		slog.WarnContext(ctx, "command failed",
+			"command_id", commandID,
+			"error", ack.GetErrorMessage(),
+			"retry", ack.GetRetry(),
+		)
+		if err := s.commandBus.Nack(ctx, clusterID, commandID, ack.GetRetry(), ack.GetErrorMessage()); err != nil {
+			slog.ErrorContext(ctx, "failed to nack command", "command_id", commandID, "error", err)
+		}
+	}
+}
+
+func (s *AgentServer) deliverCommands(
+	ctx context.Context,
+	stream *connect.BidiStream[agentv1.CommandStreamRequest, agentv1.CommandStreamResponse],
+	clusterID uuid.UUID,
+) error {
+	for {
+		cmds, err := s.commandBus.Claim(ctx, clusterID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to claim commands", "error", err, "cluster_id", clusterID)
+			return nil
+		}
+		if len(cmds) == 0 {
+			return nil
+		}
+
+		for i := range cmds {
+			cmd := &cmds[i]
 			protoCmd, err := commandToProto(cmd)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to convert command", "error", err, "command_id", cmd.ID)
-				if nackErr := s.commandBus.Nack(ctx, cmd.ID, false); nackErr != nil {
-					slog.WarnContext(ctx, "failed to nack command", "command_id", cmd.ID, "error", nackErr)
+				errMessage := err.Error()
+				if nackErr := s.commandBus.Nack(ctx, clusterID, cmd.ID, false, errMessage); nackErr != nil {
+					slog.ErrorContext(ctx, "failed to nack command", "command_id", cmd.ID, "error", nackErr)
 				}
 				continue
 			}
@@ -197,6 +230,12 @@ func (s *AgentServer) CommandStream(
 				slog.ErrorContext(ctx, "failed to send command", "error", err, "command_id", cmd.ID)
 				return err
 			}
+			slog.InfoContext(ctx, "command delivered",
+				"command_id", cmd.ID,
+				"cluster_id", clusterID,
+				"type", cmd.Type,
+				"attempt", cmd.Attempts,
+			)
 		}
 	}
 }
@@ -238,14 +277,6 @@ func (s *AgentServer) Heartbeat(
 			slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", cluster.ID)
 		}
 
-		// Check if we have a directive to send
-		directive := s.getDirectiveForCluster(ctx, cluster.ID)
-		if directive != nil {
-			if err := stream.Send(directive); err != nil {
-				return err
-			}
-		}
-		// Otherwise: silence means "all good"
 	}
 }
 
@@ -276,15 +307,18 @@ func (s *AgentServer) ReportStatus(
 	// Map proto phase to DB status
 	dbStatus := protoPhaseToDBStatus(r.GetPhase())
 
-	// Update deployment status
-	err = s.queries.UpdateDeploymentStatusWithMessage(ctx, genDb.UpdateDeploymentStatusWithMessageParams{
-		ID:      deploymentIDParsed,
-		Status:  dbStatus,
-		Message: r.GetMessage(),
+	updated, err := s.queries.UpdateDeploymentStatusFromAgent(ctx, genDb.UpdateDeploymentStatusFromAgentParams{
+		Status:    dbStatus,
+		Message:   r.GetMessage(),
+		ID:        deploymentIDParsed,
+		ClusterID: cluster.ID,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update deployment status", "error", err, "deployment_id", r.GetDeploymentId())
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	if updated == 0 {
+		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
 	slog.InfoContext(ctx, "deployment status updated",
@@ -295,14 +329,6 @@ func (s *AgentServer) ReportStatus(
 	)
 
 	return connect.NewResponse(&agentv1.ReportStatusResponse{}), nil
-}
-
-// getDirectiveForCluster checks for pending directives for a cluster.
-// Returns nil if no directive is pending.
-func (*AgentServer) getDirectiveForCluster(_ context.Context, _ uuid.UUID) *agentv1.HeartbeatResponse {
-	// TODO: implement directive storage (e.g., in cache or DB)
-	// For now, no directives
-	return nil
 }
 
 // healthStatusFromProto converts agent health to a status string.
@@ -347,14 +373,18 @@ func protoPhaseToDBStatus(phase deploymentv1.DeploymentPhase) genDb.DeploymentSt
 
 // commandToProto converts a commandbus.Command to a proto CommandStreamResponse.
 func commandToProto(cmd *commandbus.Command) (*agentv1.CommandStreamResponse, error) {
+	createdAt := timestamppb.New(cmd.CreatedAt)
 	protoCmd := &agentv1.CommandStreamResponse{
-		CommandId: cmd.ID,
-		ClusterId: cmd.ClusterID,
-		CreatedAt: timestamppb.New(cmd.CreatedAt),
+		CommandId: cmd.ID.String(),
+		ClusterId: cmd.ClusterID.String(),
+		CreatedAt: createdAt,
 	}
 
 	switch cmd.Type {
 	case commandbus.CommandTypeDeploy:
+		if len(cmd.Payload) == 0 {
+			return nil, errors.New("deploy command has no payload")
+		}
 		protoCmd.Type = agentv1.CommandType_COMMAND_TYPE_DEPLOY
 		// Payload is already JSON, unmarshal to proto would go here
 		// For now, we embed it in DeployCommand.ApplicationSpec
@@ -372,6 +402,8 @@ func commandToProto(cmd *commandbus.Command) (*agentv1.CommandStreamResponse, er
 		protoCmd.Payload = &agentv1.CommandStreamResponse_Delete{
 			Delete: &agentv1.DeleteCommand{ResourceId: payload.ResourceID},
 		}
+	default:
+		return nil, fmt.Errorf("unknown command type %q", cmd.Type)
 	}
 
 	return protoCmd, nil
