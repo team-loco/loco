@@ -84,6 +84,23 @@ func ui(env environment) railway.Service {
 }
 
 func api(env environment) railway.Service {
+	apiEnv := preserved(
+		"APP_ENV",
+		"APP_PORT",
+		"CACHE_ADDR",
+		"CACHE_TYPE",
+		"CORS_ALLOWED_ORIGINS",
+		"DATABASE_URL",
+		"GH_OAUTH_CLIENT_ID",
+		"GH_OAUTH_CLIENT_SECRET",
+		"GITLAB_PAT",
+		"GITLAB_PROJECT_ID",
+		"GITLAB_REGISTRY_URL",
+		"GITLAB_URL",
+		"LOG_LEVEL",
+		"REGISTRY_TAG",
+	)
+	apiEnv["PORT"] = "8000"
 	deploy := limits(1, 2000000000)
 	deploy["healthcheckPath"] = "/health"
 	deploy["healthcheckTimeout"] = 300
@@ -101,23 +118,7 @@ func api(env environment) railway.Service {
 				"api." + env.domainPrefix + "loco.build": map[string]any{"port": 8000},
 			},
 		},
-		"env": preserved(
-			"APP_ENV",
-			"APP_PORT",
-			"CACHE_ADDR",
-			"CACHE_TYPE",
-			"CORS_ALLOWED_ORIGINS",
-			"DATABASE_URL",
-			"GH_OAUTH_CLIENT_ID",
-			"GH_OAUTH_CLIENT_SECRET",
-			"GITLAB_PAT",
-			"GITLAB_PROJECT_ID",
-			"GITLAB_REGISTRY_URL",
-			"GITLAB_URL",
-			"LOG_LEVEL",
-			"PORT",
-			"REGISTRY_TAG",
-		),
+		"env": apiEnv,
 	})
 }
 
