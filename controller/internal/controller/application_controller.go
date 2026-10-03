@@ -67,6 +67,7 @@ type LocoResourceReconciler struct {
 	gitlabProjectID   string
 	gitlabRegistryURL string
 	locoNamespace     string
+	obsNamespace      string
 	secretRefreshers  map[string]context.CancelFunc
 
 	// reconcile can be called concurrently, so protect map access.
@@ -76,13 +77,14 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/finalizers,verbs=update
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;delete
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update
 
 // todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
@@ -147,6 +149,16 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		currentMessage = fmt.Sprintf("failed to ensure namespace: %v", err)
 		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after namespace error", "error", statusErr)
+		}
+		return ctrl.Result{}, err
+	}
+
+	if err := r.ensureNetworkPolicies(ctx, &locoRes); err != nil {
+		slog.ErrorContext(ctx, "failed to ensure network policies", "error", err)
+		currentPhase = phaseFailed
+		currentMessage = fmt.Sprintf("failed to ensure network policies: %v", err)
+		if statusErr := r.updatePhase(ctx, &locoRes, currentPhase, currentMessage); statusErr != nil {
+			slog.ErrorContext(ctx, "failed to update status after network policy error", "error", statusErr)
 		}
 		return ctrl.Result{}, err
 	}
@@ -328,30 +340,22 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 	namespace := getNamespace(locoRes)
 	slog.InfoContext(ctx, "ensuring namespace", "namespace", namespace)
 
-	ns := &corev1.Namespace{}
-	if err := kubeClient.Get(ctx, client.ObjectKey{Name: namespace}, ns); err == nil {
-		slog.InfoContext(ctx, "namespace already exists", "namespace", namespace)
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	op, err := controllerutil.CreateOrUpdate(ctx, kubeClient, ns, func() error {
+		if ns.Labels == nil {
+			ns.Labels = map[string]string{}
+		}
+		for key, value := range namespaceLabels(locoRes) {
+			ns.Labels[key] = value
+		}
 		return nil
-	}
-
-	ns = &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
-			Labels: map[string]string{
-				"loco.io/app":      "true",
-				labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-				labelResourceID:    locoRes.Spec.ResourceID,
-				labelEnvironmentID: locoRes.Spec.EnvironmentID,
-			},
-		},
-	}
-
-	if err := kubeClient.Create(ctx, ns); err != nil {
-		slog.ErrorContext(ctx, "failed to create namespace", "namespace", namespace, "error", err)
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to ensure namespace", "namespace", namespace, "error", err)
 		return err
 	}
 
-	slog.InfoContext(ctx, "namespace created", "namespace", namespace)
+	slog.InfoContext(ctx, "namespace ensured", "namespace", namespace, "op", op)
 	return nil
 }
 
@@ -516,6 +520,8 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 	}
 
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, sa, func() error {
+		automountToken := false
+		sa.AutomountServiceAccountToken = &automountToken
 		hasImagePullSecret := false
 		for _, ips := range sa.ImagePullSecrets {
 			if ips.Name == secretName {
@@ -700,9 +706,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 		corev1.EnvVar{Name: "LOCO_PUBLIC_DOMAIN", Value: locoRes.Spec.ServiceSpec.Routing.HostName},
 	)
 
-	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
-		containerPort = locoRes.Spec.ServiceSpec.Deployment.Port
-	}
+	containerPort = appPort(locoRes)
 
 	if locoRes.Spec.ServiceSpec.Deployment.HealthCheck != nil {
 		hc := locoRes.Spec.ServiceSpec.Deployment.HealthCheck
@@ -749,6 +753,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 		},
 	}
 
+	automountToken := false
 	op, err := controllerutil.CreateOrUpdate(ctx, r.Client, dep, func() error {
 		dep.Labels = map[string]string{
 			labelApp:           name,
@@ -768,6 +773,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 					Protocol:      corev1.ProtocolTCP,
 				},
 			},
+			SecurityContext: containerSecurityContext(),
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse(cpuRequest),
@@ -808,8 +814,10 @@ func (r *LocoResourceReconciler) ensureDeployment(
 				},
 			},
 			Spec: corev1.PodSpec{
-				ServiceAccountName: name,
-				RestartPolicy:      corev1.RestartPolicyAlways,
+				ServiceAccountName:           name,
+				AutomountServiceAccountToken: &automountToken,
+				SecurityContext:              podSecurityContext(),
+				RestartPolicy:                corev1.RestartPolicyAlways,
 				Containers: []corev1.Container{
 					container,
 				},
@@ -1177,6 +1185,10 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.gitlabProjectID = os.Getenv("GITLAB_PROJECT_ID")
 	r.gitlabRegistryURL = os.Getenv("GITLAB_REGISTRY_URL")
 	r.locoNamespace = os.Getenv("LOCO_NAMESPACE")
+	r.obsNamespace = os.Getenv("LOCO_OBSERVABILITY_NAMESPACE")
+	if r.obsNamespace == "" {
+		r.obsNamespace = defaultObsNamespace
+	}
 
 	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {
 		slog.Error("missing required gitlab environment variables")
