@@ -46,7 +46,7 @@ func main() {
 	}
 
 	// Initialize permission cache and token validator
-	permCache, err := cache.NewBigCache(cfg.TokenCacheTTL)
+	permCache, err := cache.NewMemory(cfg.TokenCacheTTL)
 	if err != nil {
 		log.Fatalf("failed to create permission cache: %v", err)
 	}

@@ -3,9 +3,10 @@ package cache
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
-	"github.com/allegro/bigcache/v3"
+	"github.com/dgraph-io/ristretto/v2"
 )
 
 // ErrNotFound is returned when a key is not found in the cache.
@@ -23,32 +24,51 @@ type Cache interface {
 	Close() error
 }
 
-// BigCacheAdapter wraps bigcache for in-memory caching.
-type BigCacheAdapter struct {
-	cache *bigcache.BigCache
+const (
+	memoryMaxCost     = 32 << 20
+	memoryNumCounters = 1 << 17
+	memoryBufferItems = 64
+)
+
+type MemoryCache struct {
+	cache      *ristretto.Cache[string, []byte]
+	defaultTTL time.Duration
 }
 
-func NewBigCache(defaultTTL time.Duration) (*BigCacheAdapter, error) {
-	bc, err := bigcache.New(context.Background(), bigcache.DefaultConfig(defaultTTL))
+func NewMemory(defaultTTL time.Duration) (*MemoryCache, error) {
+	c, err := ristretto.NewCache(&ristretto.Config[string, []byte]{
+		NumCounters: memoryNumCounters,
+		MaxCost:     memoryMaxCost,
+		BufferItems: memoryBufferItems,
+	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create in-memory cache: %w", err)
 	}
-	return &BigCacheAdapter{cache: bc}, nil
+	return &MemoryCache{cache: c, defaultTTL: defaultTTL}, nil
 }
 
-func (b *BigCacheAdapter) Get(_ context.Context, key string) ([]byte, error) {
-	val, err := b.cache.Get(key)
-	if errors.Is(err, bigcache.ErrEntryNotFound) {
+func (m *MemoryCache) Get(_ context.Context, key string) ([]byte, error) {
+	value, ok := m.cache.Get(key)
+	if !ok {
 		return nil, ErrNotFound
 	}
-	return val, err
+	out := make([]byte, len(value))
+	copy(out, value)
+	return out, nil
 }
 
-func (b *BigCacheAdapter) Set(_ context.Context, key string, value []byte, _ time.Duration) error {
-	// bigcache does not support per-item TTL; TTL is set at cache creation time.
-	return b.cache.Set(key, value)
+func (m *MemoryCache) Set(_ context.Context, key string, value []byte, ttl time.Duration) error {
+	if ttl == 0 {
+		ttl = m.defaultTTL
+	}
+	stored := make([]byte, len(value))
+	copy(stored, value)
+	cost := int64(len(key) + len(stored))
+	m.cache.SetWithTTL(key, stored, cost, ttl)
+	return nil
 }
 
-func (b *BigCacheAdapter) Close() error {
-	return b.cache.Close()
+func (m *MemoryCache) Close() error {
+	m.cache.Close()
+	return nil
 }
