@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,26 +14,41 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/team-loco/loco/agent/pkg/applier"
+	"github.com/team-loco/loco/agent/pkg/cluster"
+	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 )
 
+const (
+	heartbeatInterval           = 30 * time.Second
+	clusterQueryTimeout         = 10 * time.Second
+	defaultControllerDeployment = "controller-loco-manager"
+)
+
 type Config struct {
-	ControlPlaneURL string // e.g., "https://api.loco.build"
-	AgentToken      string // Bearer token for authentication
-	Region          string // Region this agent is in
-	AgentVersion    string // Version of the agent
-	Namespace       string
+	ControlPlaneURL      string
+	AgentToken           string
+	Region               string
+	AgentVersion         string
+	Namespace            string
+	ControllerNamespace  string
+	ControllerDeployment string
 }
 
 func newConfig() *Config {
+	namespace := os.Getenv("LOCO_NAMESPACE")
 	return &Config{
-		ControlPlaneURL: getEnvOrDefault("CONTROL_PLANE_URL", "http://localhost:8000"),
-		AgentToken:      os.Getenv("AGENT_TOKEN"),
-		Region:          getEnvOrDefault("REGION", "us-east-1"),
-		AgentVersion:    getEnvOrDefault("AGENT_VERSION", "0.1.0"),
-		Namespace:       os.Getenv("LOCO_NAMESPACE"),
+		ControlPlaneURL:      getEnvOrDefault("CONTROL_PLANE_URL", "http://localhost:8000"),
+		AgentToken:           os.Getenv("AGENT_TOKEN"),
+		Region:               getEnvOrDefault("REGION", "us-east-1"),
+		AgentVersion:         getEnvOrDefault("AGENT_VERSION", "0.1.0"),
+		Namespace:            namespace,
+		ControllerNamespace:  getEnvOrDefault("LOCO_CONTROLLER_NAMESPACE", namespace),
+		ControllerDeployment: getEnvOrDefault("LOCO_CONTROLLER_DEPLOYMENT", defaultControllerDeployment),
 	}
 }
 
@@ -55,9 +72,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
-	}))
+	})
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
 	slog.Info("starting loco agent",
@@ -65,6 +83,8 @@ func main() {
 		"region", cfg.Region,
 		"version", cfg.AgentVersion,
 		"namespace", cfg.Namespace,
+		"controller_namespace", cfg.ControllerNamespace,
+		"controller_deployment", cfg.ControllerDeployment,
 	)
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
@@ -81,24 +101,37 @@ func main() {
 		cfg.ControlPlaneURL,
 	)
 
-	// Create the Kubernetes applier
-	kubeApplier, err := applier.New(cfg.Namespace)
+	restConfig, err := kube.RestConfig()
+	if err != nil {
+		slog.Error("failed to load kubernetes config", "error", err)
+		os.Exit(1)
+	}
+
+	kubeApplier, err := applier.New(restConfig, cfg.Namespace)
 	if err != nil {
 		slog.Error("failed to create kubernetes applier", "error", err)
 		os.Exit(1)
 	}
 
+	inspectorConfig := *restConfig
+	inspectorConfig.Timeout = clusterQueryTimeout
+	clientset, err := kubernetes.NewForConfig(&inspectorConfig)
+	if err != nil {
+		slog.Error("failed to create kubernetes clientset", "error", err)
+		os.Exit(1)
+	}
+
+	inspector := cluster.NewInspector(clientset, cfg.ControllerNamespace, cfg.ControllerDeployment)
 	agent := &Agent{
 		cfg:       cfg,
 		client:    client,
 		applier:   kubeApplier,
-		clusterID: "", // Will be set after registration
+		inspector: inspector,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Handle shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -107,8 +140,7 @@ func main() {
 		cancel()
 	}()
 
-	// Run the agent
-	if err := agent.Run(ctx); err != nil {
+	if err := agent.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.Error("agent error", "error", err)
 		os.Exit(1)
 	}
@@ -119,17 +151,16 @@ type Agent struct {
 	cfg       *Config
 	client    agentv1connect.AgentServiceClient
 	applier   *applier.Applier
+	inspector *cluster.Inspector
 	clusterID string
 }
 
 // Run starts the agent's main loop.
 func (a *Agent) Run(ctx context.Context) error {
-	// Register with control plane
 	if err := a.register(ctx); err != nil {
 		return fmt.Errorf("registration failed: %w", err)
 	}
 
-	// Start command stream and heartbeat in parallel
 	errCh := make(chan error, 2)
 
 	go func() {
@@ -140,7 +171,6 @@ func (a *Agent) Run(ctx context.Context) error {
 		errCh <- a.runHeartbeat(ctx)
 	}()
 
-	// Wait for either to fail or context to be canceled
 	select {
 	case err := <-errCh:
 		return err
@@ -151,10 +181,11 @@ func (a *Agent) Run(ctx context.Context) error {
 
 // register announces the agent to the control plane.
 func (a *Agent) register(ctx context.Context) error {
+	capacity := a.getCapacity(ctx)
 	req := connect.NewRequest(&agentv1.RegisterRequest{
 		Region:       a.cfg.Region,
 		AgentVersion: a.cfg.AgentVersion,
-		Capacity:     a.getCapacity(),
+		Capacity:     capacity,
 	})
 	req.Header().Set("Authorization", "Bearer "+a.cfg.AgentToken)
 
@@ -164,29 +195,61 @@ func (a *Agent) register(ctx context.Context) error {
 	}
 
 	a.clusterID = resp.Msg.GetClusterId()
-	slog.Info("registered with control plane", "cluster_id", a.clusterID)
+	slog.InfoContext(ctx, "registered with control plane", "cluster_id", a.clusterID)
 	return nil
 }
 
-// runCommandStream handles the bidirectional command stream.
 func (a *Agent) runCommandStream(ctx context.Context) error {
-	for {
-		err := a.commandStreamLoop(ctx)
-		slog.Error("command stream error, reconnecting...", "error", err)
+	return reconnectLoop(ctx, "command stream", a.commandStreamLoop)
+}
 
+func (a *Agent) runHeartbeat(ctx context.Context) error {
+	return reconnectLoop(ctx, "heartbeat stream", a.heartbeatLoop)
+}
+
+func reconnectLoop(ctx context.Context, name string, attempt func(context.Context) error) error {
+	backoff := reconnectBackoff
+	for {
+		started := time.Now()
+		err := attempt(ctx)
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		elapsed := time.Since(started)
+		if elapsed >= healthyStreamDuration {
+			backoff = reconnectBackoff
+		}
+		delay := backoff.Step()
+		slog.ErrorContext(ctx, name+" error, reconnecting", "error", err, "delay", delay)
+
+		timer := time.NewTimer(delay)
 		select {
 		case <-ctx.Done():
+			timer.Stop()
 			return ctx.Err()
-		case <-time.After(5 * time.Second):
+		case <-timer.C:
 		}
 	}
 }
 
 func (a *Agent) commandStreamLoop(ctx context.Context) error {
-	stream := a.client.CommandStream(ctx)
-	stream.RequestHeader().Set("Authorization", "Bearer "+a.cfg.AgentToken)
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	slog.Info("command stream connected")
+	stream := a.client.CommandStream(streamCtx)
+	stream.RequestHeader().Set("Authorization", "Bearer "+a.cfg.AgentToken)
+	defer func() {
+		cancel()
+		closeStream(ctx, "command stream", stream)
+	}()
+
+	if err := stream.Send(nil); err != nil {
+		openErr := streamError(stream, err)
+		return fmt.Errorf("open command stream: %w", openErr)
+	}
+
+	slog.InfoContext(ctx, "command stream connected")
 
 	for {
 		cmd, err := stream.Receive()
@@ -194,18 +257,39 @@ func (a *Agent) commandStreamLoop(ctx context.Context) error {
 			return fmt.Errorf("receive command: %w", err)
 		}
 
-		slog.Info("received command",
+		slog.InfoContext(streamCtx, "received command",
 			"command_id", cmd.GetCommandId(),
 			"type", cmd.GetType().String(),
 			"cluster_id", cmd.GetClusterId(),
 		)
 
-		ack := a.processCommand(ctx, cmd)
+		ack := a.processCommand(streamCtx, cmd)
 
 		if err := stream.Send(ack); err != nil {
-			return fmt.Errorf("send ack: %w", err)
+			sendErr := streamError(stream, err)
+			return fmt.Errorf("send ack: %w", sendErr)
 		}
 	}
+}
+
+func closeStream[Req, Res any](ctx context.Context, name string, stream *connect.BidiStreamForClient[Req, Res]) {
+	if err := stream.CloseRequest(); err != nil {
+		slog.DebugContext(ctx, "close "+name+" request", "error", err)
+	}
+	if err := stream.CloseResponse(); err != nil {
+		slog.DebugContext(ctx, "close "+name+" response", "error", err)
+	}
+}
+
+func streamError[Req, Res any](stream *connect.BidiStreamForClient[Req, Res], sendErr error) error {
+	if !errors.Is(sendErr, io.EOF) {
+		return sendErr
+	}
+	_, recvErr := stream.Receive()
+	if recvErr == nil || errors.Is(recvErr, io.EOF) {
+		return sendErr
+	}
+	return recvErr
 }
 
 // processCommand handles a single command and returns an ack.
@@ -218,20 +302,25 @@ func (a *Agent) processCommand(ctx context.Context, cmd *agentv1.CommandStreamRe
 	case agentv1.CommandType_COMMAND_TYPE_DELETE:
 		err = a.handleDelete(ctx, cmd)
 	default:
-		err = fmt.Errorf("unknown command type: %s", cmd.GetType())
+		err = fmt.Errorf("%w: unknown command type %s", applier.ErrInvalidPayload, cmd.GetType())
 	}
 
 	if err != nil {
-		slog.Error("command failed", "command_id", cmd.GetCommandId(), "error", err)
+		retry := isRetryable(err)
+		slog.ErrorContext(ctx, "command failed",
+			"command_id", cmd.GetCommandId(),
+			"retry", retry,
+			"error", err,
+		)
 		return &agentv1.CommandStreamRequest{
 			CommandId:    cmd.GetCommandId(),
 			Success:      false,
 			ErrorMessage: err.Error(),
-			Retry:        true, // Let control plane decide on retry
+			Retry:        retry,
 		}
 	}
 
-	slog.Info("command succeeded", "command_id", cmd.GetCommandId())
+	slog.InfoContext(ctx, "command succeeded", "command_id", cmd.GetCommandId())
 	return &agentv1.CommandStreamRequest{
 		CommandId: cmd.GetCommandId(),
 		Success:   true,
@@ -242,7 +331,7 @@ func (a *Agent) processCommand(ctx context.Context, cmd *agentv1.CommandStreamRe
 func (a *Agent) handleDeploy(ctx context.Context, cmd *agentv1.CommandStreamResponse) error {
 	deploy := cmd.GetDeploy()
 	if deploy == nil {
-		return fmt.Errorf("deploy payload is nil")
+		return fmt.Errorf("%w: deploy payload is nil", applier.ErrInvalidPayload)
 	}
 
 	return a.applier.ApplyFromJSON(ctx, deploy.GetApplicationSpec())
@@ -252,76 +341,91 @@ func (a *Agent) handleDeploy(ctx context.Context, cmd *agentv1.CommandStreamResp
 func (a *Agent) handleDelete(ctx context.Context, cmd *agentv1.CommandStreamResponse) error {
 	del := cmd.GetDelete()
 	if del == nil {
-		return fmt.Errorf("delete payload is nil")
+		return fmt.Errorf("%w: delete payload is nil", applier.ErrInvalidPayload)
 	}
 
 	return a.applier.DeleteFromJSON(ctx, del.GetResourceId())
 }
 
-// runHeartbeat sends periodic heartbeats to the control plane.
-func (a *Agent) runHeartbeat(ctx context.Context) error {
-	for {
-		if err := a.heartbeatLoop(ctx); err != nil {
-			slog.Error("heartbeat stream error, reconnecting...", "error", err)
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(5 * time.Second):
-				continue
-			}
-		}
-	}
-}
-
 func (a *Agent) heartbeatLoop(ctx context.Context) error {
-	stream := a.client.Heartbeat(ctx)
+	streamCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	stream := a.client.Heartbeat(streamCtx)
 	stream.RequestHeader().Set("Authorization", "Bearer "+a.cfg.AgentToken)
 
-	slog.Info("heartbeat stream connected")
+	responses := make(chan *agentv1.HeartbeatResponse)
+	recvErr := make(chan error, 1)
+	recvDone := make(chan struct{})
+	receiving := false
+	defer func() {
+		cancel()
+		if receiving {
+			<-recvDone
+		}
+		closeStream(ctx, "heartbeat stream", stream)
+	}()
 
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	// Send initial heartbeat
-	if err := a.sendHeartbeat(stream); err != nil {
+	if err := a.sendHeartbeat(streamCtx, stream); err != nil {
 		return err
 	}
+
+	slog.InfoContext(ctx, "heartbeat stream connected")
+
+	receiving = true
+	go receiveHeartbeats(streamCtx, stream, responses, recvErr, recvDone)
+
+	ticker := time.NewTicker(heartbeatInterval)
+	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case err := <-recvErr:
+			return fmt.Errorf("receive heartbeat response: %w", err)
+		case resp := <-responses:
+			a.handleDirective(resp)
 		case <-ticker.C:
-			if err := a.sendHeartbeat(stream); err != nil {
+			if err := a.sendHeartbeat(streamCtx, stream); err != nil {
 				return err
 			}
+		}
+	}
+}
 
-			// Check for directives (non-blocking receive with timeout)
-			// The server may not always send a response, so we use a timeout
-			recvCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
-			resp, err := stream.Receive()
-			cancel()
-			if err != nil {
-				// Timeout or error - continue heartbeat loop
-				if recvCtx.Err() == context.DeadlineExceeded {
-					continue
-				}
-				return fmt.Errorf("receive heartbeat response: %w", err)
-			}
-
-			// Handle directives based on the oneof
-			a.handleDirective(resp)
+func receiveHeartbeats(
+	ctx context.Context,
+	stream *connect.BidiStreamForClient[agentv1.HeartbeatRequest, agentv1.HeartbeatResponse],
+	responses chan<- *agentv1.HeartbeatResponse,
+	recvErr chan<- error,
+	done chan<- struct{},
+) {
+	defer close(done)
+	for {
+		resp, err := stream.Receive()
+		if err != nil {
+			recvErr <- err
+			return
+		}
+		select {
+		case responses <- resp:
+		case <-ctx.Done():
+			return
 		}
 	}
 }
 
 func (a *Agent) sendHeartbeat(
+	ctx context.Context,
 	stream *connect.BidiStreamForClient[agentv1.HeartbeatRequest, agentv1.HeartbeatResponse],
 ) error {
+	capacity := a.getCapacity(ctx)
+	health := a.getHealth(ctx)
 	req := &agentv1.HeartbeatRequest{
 		ClusterId: a.clusterID,
-		Capacity:  a.getCapacity(),
-		Health:    a.getHealth(),
+		Capacity:  capacity,
+		Health:    health,
 	}
 
 	if err := stream.Send(req); err != nil {
@@ -337,35 +441,27 @@ func (*Agent) handleDirective(resp *agentv1.HeartbeatResponse) {
 
 	switch d := resp.GetDirective().(type) {
 	case *agentv1.HeartbeatResponse_Drain:
-		slog.Warn("received DRAIN directive", "timeout_seconds", d.Drain.GetTimeoutSeconds())
-		// TODO: implement drain logic
+		slog.Debug("ignoring DRAIN directive", "timeout_seconds", d.Drain.GetTimeoutSeconds())
 	case *agentv1.HeartbeatResponse_ReloadConfig:
-		slog.Warn("received RELOAD_CONFIG directive", "config", d.ReloadConfig.GetConfig())
-		// TODO: implement config reload
+		slog.Debug("ignoring RELOAD_CONFIG directive", "config", d.ReloadConfig.GetConfig())
 	case *agentv1.HeartbeatResponse_Resync:
-		slog.Warn("received RESYNC directive", "resource_ids", d.Resync.GetResourceIds())
-		// TODO: implement resync logic
+		slog.Debug("ignoring RESYNC directive", "resource_ids", d.Resync.GetResourceIds())
 	}
 }
 
-// getCapacity returns the cluster's current capacity.
-func (*Agent) getCapacity() *agentv1.AgentCapacity {
-	// TODO: query actual cluster capacity from Kubernetes
-	return &agentv1.AgentCapacity{
-		CpuMillicoresTotal: 8000,                    // 8 cores
-		CpuMillicoresUsed:  4000,                    // 4 cores used
-		MemoryBytesTotal:   16 * 1024 * 1024 * 1024, // 16GB
-		MemoryBytesUsed:    8 * 1024 * 1024 * 1024,  // 8GB used
-		PodsTotal:          110,                     // typical node limit
-		PodsRunning:        50,                      // 50 pods running
+func (a *Agent) getCapacity(ctx context.Context) *agentv1.AgentCapacity {
+	capacity, err := a.inspector.Capacity(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to read cluster capacity", "error", err)
+		return nil
 	}
+	return capacity
 }
 
-// getHealth returns the agent's health status.
-func (*Agent) getHealth() *agentv1.AgentHealth {
-	// TODO: implement actual health checks
-	return &agentv1.AgentHealth{
-		KubernetesHealthy: true,
-		ControllerHealthy: true,
+func (a *Agent) getHealth(ctx context.Context) *agentv1.AgentHealth {
+	health := a.inspector.Health(ctx)
+	if !health.GetKubernetesHealthy() || !health.GetControllerHealthy() {
+		slog.WarnContext(ctx, "cluster unhealthy", "message", health.GetMessage())
 	}
+	return health
 }

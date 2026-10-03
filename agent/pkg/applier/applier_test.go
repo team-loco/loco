@@ -3,6 +3,7 @@ package applier
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -60,5 +61,44 @@ func TestApplyAndDeleteUseAgentNamespace(t *testing.T) {
 	err = a.client.Get(ctx, key, &locoControllerV1.Application{})
 	if !apierrors.IsNotFound(err) {
 		t.Fatalf("Application still present after delete, err = %v", err)
+	}
+}
+
+func TestDeleteMissingApplicationSucceeds(t *testing.T) {
+	a := newTestApplier(t)
+
+	err := a.DeleteFromJSON(context.Background(), "missing")
+	if err != nil {
+		t.Fatalf("delete missing Application: %v", err)
+	}
+}
+
+func TestInvalidPayloadsAreMarked(t *testing.T) {
+	noSpec, err := json.Marshal(DeployPayload{ResourceID: "abc"})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	noID, err := json.Marshal(DeployPayload{AppSpec: &locoControllerV1.ApplicationSpec{}})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	cases := []struct {
+		name    string
+		payload []byte
+	}{
+		{name: "malformed json", payload: []byte("{")},
+		{name: "missing app_spec", payload: noSpec},
+		{name: "missing resource_id", payload: noID},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a := newTestApplier(t)
+			applyErr := a.ApplyFromJSON(context.Background(), tc.payload)
+			if !errors.Is(applyErr, ErrInvalidPayload) {
+				t.Fatalf("ApplyFromJSON error = %v, want ErrInvalidPayload", applyErr)
+			}
+		})
 	}
 }
