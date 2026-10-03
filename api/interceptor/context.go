@@ -34,7 +34,7 @@ func (*contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		ctx context.Context,
 		req connect.AnyRequest,
 	) (connect.AnyResponse, error) {
-		slog.Info("adding additional request context",
+		slog.DebugContext(ctx, "adding additional request context",
 			slog.String("user-agent", req.Header().Get("User-Agent")),
 			slog.String("content-type", req.Header().Get("Content-Type")),
 		)
@@ -47,7 +47,8 @@ func (*contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		start := time.Now()
 		resp, err := next(ctx, req)
 		dur := time.Since(start)
-		durMilli := float64(dur.Milliseconds())
+		durMicros := dur.Microseconds()
+		durMilli := float64(durMicros) / 1000
 
 		if err != nil {
 			slog.WarnContext(
@@ -88,7 +89,7 @@ func (*contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFun
 		ctx context.Context,
 		conn connect.StreamingHandlerConn,
 	) error {
-		slog.Info("adding additional request context",
+		slog.DebugContext(ctx, "adding additional request context",
 			slog.String("user-agent", conn.RequestHeader().Get("User-Agent")),
 			slog.String("content-type", conn.RequestHeader().Get("Content-Type")),
 		)
@@ -103,7 +104,8 @@ func (*contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFun
 		start := time.Now()
 		err := next(ctx, conn)
 		duration := time.Since(start)
-		durMilli := float64(duration.Microseconds())
+		durMicros := duration.Microseconds()
+		durMilli := float64(durMicros) / 1000
 
 		if err != nil {
 			slog.WarnContext(

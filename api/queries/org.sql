@@ -10,12 +10,15 @@ SELECT * FROM organizations WHERE id = $1;
 SELECT * FROM organizations WHERE name = $1;
 
 -- name: ListOrgsForUser :many
-SELECT DISTINCT o.*
+SELECT o.*
 FROM organizations o
-JOIN user_scopes us ON us.entity_id = o.id
-  AND us.entity_type = 'organization'
-  AND us.user_id = $1
-WHERE (sqlc.narg('page_token')::text IS NULL
+WHERE EXISTS (
+    SELECT 1 FROM user_scopes us
+    WHERE us.user_id = $1
+      AND us.entity_type = 'organization'
+      AND us.entity_id = o.id
+  )
+  AND (sqlc.narg('page_token')::text IS NULL
        OR (o.created_at, o.id) < (
          (SELECT created_at FROM organizations WHERE id = sqlc.narg('page_token')::uuid),
          sqlc.narg('page_token')::uuid

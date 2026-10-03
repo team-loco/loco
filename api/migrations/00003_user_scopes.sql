@@ -16,9 +16,6 @@ CREATE INDEX user_scopes_user_entity_idx ON user_scopes (user_id, entity_type, e
 -- what users have scope z on entity y?
 CREATE INDEX user_scopes_entity_scope_idx ON user_scopes (entity_type, entity_id, scope);
 
--- what scopes does user x have?
-CREATE INDEX user_scopes_user_idx ON user_scopes (user_id);
-
 -- session tokens: ephemeral, unlogged, scopes always resolved live from user_scopes
 -- token format: loco_s_<base64url(uuidv7 bytes)>  access token
 --               loco_r_<base64url(uuidv7 bytes)>  refresh token
@@ -60,6 +57,7 @@ CREATE TABLE api_tokens (
 
 CREATE INDEX api_tokens_entity_idx ON api_tokens (entity_type, entity_id);
 CREATE INDEX api_tokens_expires_idx ON api_tokens (expires_at);
+CREATE INDEX api_tokens_created_by_idx ON api_tokens (created_by);
 
 CREATE VIEW user_with_scopes_view AS
 SELECT

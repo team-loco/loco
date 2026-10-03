@@ -11,10 +11,6 @@ CREATE TABLE
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
-CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (external_id);
-
-CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
-
 CREATE INDEX IF NOT EXISTS idx_users_created_at_id_desc ON users (created_at DESC, id DESC);
 
 -- Organizations table
@@ -26,8 +22,6 @@ CREATE TABLE
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
-
-CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations (name);
 
 CREATE INDEX IF NOT EXISTS idx_organizations_created_by ON organizations (created_by);
 
@@ -45,8 +39,6 @@ CREATE TABLE
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         UNIQUE (org_id, name)
     );
-
-CREATE INDEX IF NOT EXISTS idx_workspaces_org_id ON workspaces (org_id);
 
 CREATE INDEX IF NOT EXISTS idx_workspaces_created_by ON workspaces (created_by);
 

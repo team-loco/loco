@@ -376,6 +376,52 @@ func (q *Queries) ListResourceDomains(ctx context.Context, resourceID uuid.UUID)
 	return items, nil
 }
 
+const listResourceDomainsForResources = `-- name: ListResourceDomainsForResources :many
+SELECT
+    rd.id,
+    rd.resource_id,
+    rd.domain,
+    rd.domain_source,
+    rd.subdomain_label,
+    rd.platform_domain_id,
+    rd.is_primary,
+    rd.created_at,
+    rd.updated_at
+FROM resource_domains rd
+WHERE rd.resource_id = ANY($1::uuid[])
+ORDER BY rd.resource_id, rd.is_primary DESC, rd.created_at ASC
+`
+
+func (q *Queries) ListResourceDomainsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceDomain, error) {
+	rows, err := q.db.Query(ctx, listResourceDomainsForResources, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ResourceDomain
+	for rows.Next() {
+		var i ResourceDomain
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.Domain,
+			&i.DomainSource,
+			&i.SubdomainLabel,
+			&i.PlatformDomainID,
+			&i.IsPrimary,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setResourceDomainPrimary = `-- name: SetResourceDomainPrimary :one
 UPDATE resource_domains
 SET is_primary = true

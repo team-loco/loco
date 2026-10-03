@@ -8,6 +8,9 @@ RETURNING id;
 -- name: GetDeploymentByID :one
 SELECT * FROM deployments WHERE id = $1;
 
+-- name: GetDeploymentStatus :one
+SELECT status, message FROM deployments WHERE id = $1;
+
 -- name: ListDeploymentsForResource :many
 SELECT * FROM deployments d
 WHERE d.resource_id = $1

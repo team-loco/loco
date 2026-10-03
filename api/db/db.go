@@ -30,9 +30,13 @@ func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 	// todo: ensure we use pg tx where necessary.
 	cfg.MaxConns = 25
 	cfg.MinConns = 5
-	cfg.MaxConnLifetime = 5 * time.Minute
+	cfg.MaxConnLifetime = time.Hour
+	cfg.MaxConnLifetimeJitter = 5 * time.Minute
 	cfg.MaxConnIdleTime = 2 * time.Minute
 	cfg.ConnConfig.ConnectTimeout = 5 * time.Second
+	if _, ok := cfg.ConnConfig.RuntimeParams["statement_timeout"]; !ok {
+		cfg.ConnConfig.RuntimeParams["statement_timeout"] = "15s"
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

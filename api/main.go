@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -58,6 +60,7 @@ type APIConfig struct {
 	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
+	PprofAddr             string
 }
 
 func newAPIConfig() *APIConfig {
@@ -97,6 +100,7 @@ func newAPIConfig() *APIConfig {
 		CacheAddr:             os.Getenv("CACHE_ADDR"),
 		CORSAllowedOrigins:    corsOrigins,
 		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
+		PprofAddr:             os.Getenv("PPROF_ADDR"),
 	}
 }
 
@@ -107,8 +111,10 @@ func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cach
 			return nil, fmt.Errorf("CACHE_ADDR required when CACHE_TYPE=valkey")
 		}
 		return cache.NewValkey(CacheAddr, defaultTTL)
-	case "in-memory", "":
-		return cache.NewBigCache(defaultTTL)
+	case "in-memory":
+		return cache.NewMemory(defaultTTL)
+	case "":
+		return cache.NewMemory(defaultTTL)
 	default:
 		return nil, fmt.Errorf("unknown cache type: %s", cacheType)
 	}
@@ -126,6 +132,32 @@ func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
 		})
 		return middleware.Handler(h)
 	}
+}
+
+func newPprofServer(addr string) *http.Server {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	return &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+}
+
+func newOutboundHTTPClient() *http.Client {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		base = &http.Transport{}
+	}
+	transport := base.Clone()
+	transport.Protocols = new(http.Protocols)
+	transport.Protocols.SetHTTP1(true)
+	transport.Protocols.SetHTTP2(true)
+	return &http.Client{Transport: transport, Timeout: 15 * time.Second}
 }
 
 func main() {
@@ -157,8 +189,15 @@ func main() {
 		LastUsedUpdateInterval:      time.Minute * 5,
 	})
 
+	shutdownCtx, beginShutdown := context.WithCancel(context.Background())
+	defer beginShutdown()
+
+	deadlineInterceptor := interceptor.NewDeadlineInterceptor(shutdownCtx, 30*time.Second)
+	baseInterceptors := connect.WithInterceptors(deadlineInterceptor)
+
 	mux := http.NewServeMux()
 	httpInterceptors := connect.WithInterceptors(
+		deadlineInterceptor,
 		interceptor.NewContextInterceptor(),
 		interceptor.NewGithubAuthInterceptor(machine),
 		validate.NewInterceptor(),
@@ -180,11 +219,7 @@ func main() {
 	}
 	defer appCache.Close()
 
-	transport := &http.Transport{}
-	transport.Protocols = new(http.Protocols)
-	transport.Protocols.SetHTTP1(true)
-	transport.Protocols.SetHTTP2(true)
-	httpClient := &http.Client{Transport: transport}
+	httpClient := newOutboundHTTPClient()
 
 	// Initialize command bus for agent communication
 	cmdBus, err := commandbus.New(&commandbus.Config{
@@ -222,7 +257,7 @@ func main() {
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain)
 
-	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler)
+	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
@@ -244,7 +279,7 @@ func main() {
 		registryServiceHandler,
 		httpInterceptors,
 	)
-	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler)
+	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler, baseInterceptors)
 	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(
 		observabilityAccessHandler,
 		httpInterceptors,
@@ -375,9 +410,22 @@ func main() {
 	protocols.SetUnencryptedHTTP2(true)
 
 	server := &http.Server{
-		Addr:      ac.Port,
-		Handler:   muxWCors,
-		Protocols: protocols,
+		Addr:              ac.Port,
+		Handler:           muxWCors,
+		Protocols:         protocols,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
+	var pprofServer *http.Server
+	if ac.PprofAddr != "" {
+		pprofServer = newPprofServer(ac.PprofAddr)
+		go func() {
+			slog.Info("starting pprof server", "addr", pprofServer.Addr)
+			if err := pprofServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("pprof server error", "error", err)
+			}
+		}()
 	}
 
 	quit := make(chan error, 1)
@@ -391,22 +439,35 @@ func main() {
 		sig := <-sigChan
 		slog.InfoContext(ctx, "shutdown signal received", "signal", sig.String())
 
-		shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		beginShutdown()
+
+		drainCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 
 		machine.Close()
 
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			quit <- err
+		if pprofServer != nil {
+			if err := pprofServer.Close(); err != nil {
+				slog.WarnContext(ctx, "failed to close pprof server", "error", err)
+			}
+		}
+
+		if err := server.Shutdown(drainCtx); err != nil {
+			slog.WarnContext(ctx, "graceful shutdown did not finish, closing remaining connections", "error", err)
+			if closeErr := server.Close(); closeErr != nil {
+				quit <- closeErr
+				return
+			}
+			quit <- nil
 			return
 		}
 
-		slog.InfoContext(shutdownCtx, "server shutdown completed gracefully")
+		slog.InfoContext(ctx, "server shutdown completed gracefully")
 		quit <- nil
 	}()
 
 	slog.Info("starting server", "addr", server.Addr)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server error", "error", err)
 		return
 	}

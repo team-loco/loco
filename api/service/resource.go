@@ -377,18 +377,35 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	var resources []*resourcev1.Resource
+	resourceIDs := make([]uuid.UUID, len(dbResources))
+	for i, dbResource := range dbResources {
+		resourceIDs[i] = dbResource.ID
+	}
+
+	allDomains, err := s.queries.ListResourceDomainsForResources(ctx, resourceIDs)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource domains", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	allRegions, err := s.queries.ListResourceRegionsForResources(ctx, resourceIDs)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list resource regions", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+
+	domainsByResource := make(map[uuid.UUID][]genDb.ResourceDomain, len(dbResources))
+	for _, domain := range allDomains {
+		domainsByResource[domain.ResourceID] = append(domainsByResource[domain.ResourceID], domain)
+	}
+	regionsByResource := make(map[uuid.UUID][]genDb.ResourceRegion, len(dbResources))
+	for _, region := range allRegions {
+		regionsByResource[region.ResourceID] = append(regionsByResource[region.ResourceID], region)
+	}
+
+	resources := make([]*resourcev1.Resource, 0, len(dbResources))
 	for _, dbResource := range dbResources {
-		resourceDomains, err := s.queries.ListResourceDomains(ctx, dbResource.ID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to list resource domains", "resourceId", dbResource.ID, "error", err)
-			continue
-		}
-		resourceRegions, err := s.queries.ListResourceRegions(ctx, dbResource.ID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to list resource regions", "resourceId", dbResource.ID, "error", err)
-			continue
-		}
+		resourceDomains := domainsByResource[dbResource.ID]
+		resourceRegions := regionsByResource[dbResource.ID]
 		resources = append(resources, dbResourceToProto(dbResource, resourceDomains, resourceRegions))
 	}
 

@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"time"
 
@@ -23,7 +24,7 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 
 	switch tokenPrefix(token) {
 	case prefixSession:
-		session, err := tvm.queries.GetSessionByAccessToken(ctx, hash)
+		session, err := tvm.queries.GetSessionWithScopesByAccessToken(ctx, hash)
 		if err != nil {
 			return queries.Entity{}, nil, ErrInvalidExpiredToken
 		}
@@ -33,9 +34,9 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (queries.
 			ID:   session.UserID,
 		}
 
-		liveScopes, err := tvm.userScopes(ctx, session.UserID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to fetch live scopes for session token", "err", err)
+		var liveScopes []queries.EntityScope
+		if err := json.Unmarshal(session.Scopes, &liveScopes); err != nil {
+			slog.ErrorContext(ctx, "failed to decode live scopes for session token", "err", err)
 			return queries.Entity{}, nil, err
 		}
 

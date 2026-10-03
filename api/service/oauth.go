@@ -38,7 +38,7 @@ func (c *OAuthStateCache) StoreState(ctx context.Context, state string) error {
 		slog.ErrorContext(ctx, "failed to store oauth state", "error", err)
 		return fmt.Errorf("failed to store state: %w", err)
 	}
-	slog.InfoContext(ctx, "stored oauth state", "state", state)
+	slog.DebugContext(ctx, "stored oauth state")
 	return nil
 }
 
@@ -53,7 +53,6 @@ func (c *OAuthStateCache) MarkTokenExchanged(ctx context.Context, githubToken st
 }
 
 func (c *OAuthStateCache) VerifyAndDeleteState(ctx context.Context, state string) error {
-	slog.InfoContext(ctx, "looking for state", "state", state)
 	key := "loco_api:oauth:state:" + state
 	_, err := c.cache.Get(ctx, key)
 	if errors.Is(err, cache.ErrNotFound) {
@@ -136,8 +135,8 @@ func NewOAuthServer(
 	}
 }
 
-func (s *OAuthServer) fetchGithubUserData(token string) (*GithubUser, error) {
-	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+func (s *OAuthServer) fetchGithubUserData(ctx context.Context, token string) (*GithubUser, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create github request: %w", err)
 	}
@@ -226,7 +225,7 @@ func (s *OAuthServer) exchangeGithubToken(
 	userAgent string,
 	createIfMissing bool,
 ) (genDb.User, string, string, error) {
-	emailResp := providers.Github(githubToken)
+	emailResp := providers.Github(ctx, s.httpClient, githubToken)
 	user, accessToken, refreshToken, err := s.machine.Exchange(ctx, emailResp, ip, userAgent)
 	if !errors.Is(err, tvm.ErrUserNotFound) || !createIfMissing {
 		return user, accessToken, refreshToken, err
@@ -237,7 +236,7 @@ func (s *OAuthServer) exchangeGithubToken(
 		return genDb.User{}, "", "", fmt.Errorf("failed to get email: %w", err)
 	}
 
-	githubUser, err := s.fetchGithubUserData(githubToken)
+	githubUser, err := s.fetchGithubUserData(ctx, githubToken)
 	if err != nil {
 		return genDb.User{}, "", "", fmt.Errorf("failed to fetch github user: %w", err)
 	}

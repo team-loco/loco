@@ -94,10 +94,27 @@ DELETE FROM user_scopes WHERE user_id = $1;
 INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
--- name: GetSessionByAccessToken :one
-SELECT id, user_id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
-FROM session_tokens
-WHERE access_token_hash = $1 AND access_expires_at > NOW();
+-- name: GetSessionWithScopesByAccessToken :one
+SELECT
+    st.id,
+    st.user_id,
+    st.last_used_at,
+    COALESCE(
+        (
+            SELECT JSON_AGG(
+                JSON_BUILD_OBJECT(
+                    'scope', us.scope,
+                    'entity_type', us.entity_type,
+                    'entity_id', us.entity_id
+                )
+            )
+            FROM user_scopes us
+            WHERE us.user_id = st.user_id
+        ),
+        '[]'::json
+    )::json AS scopes
+FROM session_tokens st
+WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW();
 
 -- name: GetSessionByRefreshToken :one
 SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
