@@ -42,7 +42,7 @@ function SidebarProvider({ style, className, ...props }: React.ComponentProps<ty
 }
 
 function Sidebar({ className, ...props }: React.ComponentProps<typeof SidebarBase>) {
-	return <SidebarBase className={cn(motion, className)} {...props} />
+	return <SidebarBase className={cn(motion, "z-30", className)} {...props} />
 }
 
 function SidebarGroupLabel({ className, ...props }: React.ComponentProps<typeof SidebarGroupLabelBase>) {
