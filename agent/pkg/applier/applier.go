@@ -56,7 +56,6 @@ type Placement struct {
 	Application []byte
 }
 
-// ApplyPlacement server-side applies the Application for a placement revision.
 func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error {
 	var payload DeployPayload
 	if err := json.Unmarshal(placement.Application, &payload); err != nil {
@@ -151,7 +150,6 @@ func applicationApplyConfiguration(
 	return client.ApplyConfigurationFromUnstructured(obj), nil
 }
 
-// DeletePlacement deletes the Application for a placement unless a different placement owns it.
 func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) error {
 	if placement.ResourceID == "" {
 		return fmt.Errorf("%w: delete has no resource_id", ErrInvalidPayload)
@@ -202,7 +200,6 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 	})
 }
 
-// PlacementOf reads the placement annotations of an Application.
 func PlacementOf(app *locoControllerV1.Application) (Placement, bool) {
 	annotations := app.GetAnnotations()
 	id := annotations[AnnotationPlacementID]
@@ -216,7 +213,6 @@ func PlacementOf(app *locoControllerV1.Application) (Placement, bool) {
 	return Placement{ID: id, Revision: revision}, true
 }
 
-// DeployPayload matches the structure sent by the API's ApplicationPayload.
 type DeployPayload struct {
 	DeploymentID string                            `json:"deployment_id"`
 	ResourceID   string                            `json:"resource_id"`

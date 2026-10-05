@@ -23,7 +23,6 @@ const phaseReady = "Ready"
 
 type Sink func(*agentv1.PlacementStatus)
 
-// Watcher keeps an informer over the agent's Applications for inventory and status reports.
 type Watcher struct {
 	reader    client.Reader
 	namespace string
@@ -80,7 +79,6 @@ func New(reader client.Reader, namespace string) *Watcher {
 	}
 }
 
-// Inventory lists the placement and revision of every Application the agent manages.
 func (w *Watcher) Inventory(ctx context.Context) (*agentv1.Inventory, error) {
 	var apps locoControllerV1.ApplicationList
 	if err := w.reader.List(ctx, &apps, client.InNamespace(w.namespace)); err != nil {
@@ -100,7 +98,6 @@ func (w *Watcher) Inventory(ctx context.Context) (*agentv1.Inventory, error) {
 	return &agentv1.Inventory{Entries: entries}, nil
 }
 
-// Attach sends every known status to sink, then each change until the returned func detaches it.
 func (w *Watcher) Attach(sink Sink) func() {
 	w.mu.Lock()
 	w.sinkID++
@@ -129,7 +126,6 @@ func (w *Watcher) observeUpdate(_, obj any) {
 	w.Observe(obj)
 }
 
-// Observe records an Application's status and forwards it if it changed.
 func (w *Watcher) Observe(obj any) {
 	app, ok := obj.(*locoControllerV1.Application)
 	if !ok {
@@ -162,7 +158,6 @@ func (w *Watcher) Observe(obj any) {
 	}
 }
 
-// Forget drops the status of a deleted Application.
 func (w *Watcher) Forget(obj any) {
 	if tombstone, ok := obj.(toolscache.DeletedFinalStateUnknown); ok {
 		obj = tombstone.Obj

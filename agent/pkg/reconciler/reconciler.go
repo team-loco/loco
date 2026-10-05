@@ -56,7 +56,6 @@ func New(a Applier, report func(*agentv1.Applied), workers int) *Reconciler {
 	}
 }
 
-// Submit queues work for a placement, replacing any older revision that has not run yet.
 func (r *Reconciler) Submit(w Work) {
 	id := w.Placement.ID
 	r.mu.Lock()
@@ -70,7 +69,6 @@ func (r *Reconciler) Submit(w Work) {
 	r.queue.Add(id)
 }
 
-// Run processes queued work until ctx is done.
 func (r *Reconciler) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 	for range r.workers {
@@ -167,7 +165,6 @@ func (r *Reconciler) firstFailure(id string, revision int64) bool {
 	return true
 }
 
-// IsRetryable reports whether an apply error is transient.
 func IsRetryable(err error) bool {
 	if err == nil {
 		return false

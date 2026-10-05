@@ -20,7 +20,6 @@ var errSyncSuperseded = errors.New("a newer sync stream for this cluster is conn
 
 type syncStream = connect.BidiStream[agentv1.SyncRequest, agentv1.SyncResponse]
 
-// Sync keeps a cluster's Applications in line with its placements.
 func (s *AgentServer) Sync(ctx context.Context, stream *syncStream) error {
 	cluster, err := s.authenticateAgent(ctx, stream.RequestHeader().Get("Authorization"))
 	if err != nil {
