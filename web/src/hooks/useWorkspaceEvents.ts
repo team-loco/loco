@@ -4,6 +4,8 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { listResourceEvents, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Event, Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { isUnimplemented } from "@/lib/error-handler";
+
 export interface WorkspaceEventWithResource extends Event {
 	id: string;
 	resourceId: string;
@@ -53,11 +55,13 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 	});
 	events.sort((a, b) => getTimestampMs(b.timestamp) - getTimestampMs(a.timestamp));
 
-	const error = queries.find((q) => q.error !== null)?.error ?? null;
+	const unavailable = queries.some((q) => isUnimplemented(q.error));
+	const error = queries.find((q) => q.error !== null && !isUnimplemented(q.error))?.error ?? null;
 
 	return {
 		events,
 		isLoading: resourcesLoading || queries.some((q) => q.isLoading),
 		error,
+		unavailable,
 	};
 }

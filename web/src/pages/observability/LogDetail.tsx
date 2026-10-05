@@ -2,11 +2,12 @@ import { useState } from "react";
 import { ChartLineIcon, CheckIcon, CopyIcon, MinusIcon, PlusIcon, ScrollTextIcon, SearchIcon, ServerIcon, WaypointsIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { Code, CodeBlock } from "@/components/design/CodeBlock";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { cn } from "@/lib/utils";
 
 import { fitRange, useObs } from "./context";
-import { bodyParts, flattenJson, fmtClock, fmtTs, jsonView, levelStyle } from "./format";
+import { bodyParts, flattenJson, fmtClock, fmtTs, levelStyle } from "./format";
 import { sameToken, type FieldKey, type Token } from "./query";
 import type { LogRow } from "./rows";
 import { CopyButton, DetailPanel, Dot, JumpButton, PanelNav, useCopy } from "./shared";
@@ -124,7 +125,7 @@ export function LogDetail({
 						row.json !== null ? "bg-bg2 px-3 py-2.5 text-foreground" : style.body,
 					)}
 				>
-					{row.json !== null ? jsonView(row.json) : bodyParts(e.body, words)}
+					{row.json !== null ? <Code code={msgText} language="json" /> : bodyParts(e.body, words)}
 				</div>
 			</div>
 			<ToggleGroup
@@ -261,9 +262,13 @@ export function LogDetail({
 							{copied === "json" ? <CheckIcon className="size-3" /> : <CopyIcon className="size-3" />}
 							{copied === "json" ? "Copied" : "Copy"}
 						</Button>
-						<pre className="m-0 rounded-sm border border-line bg-bg2 p-3 font-mono text-sm leading-[1.6] break-all whitespace-pre-wrap">
-							{jsonView(JSON.parse(json))}
-						</pre>
+						<CodeBlock
+							language="json"
+							className="rounded-sm bg-bg2"
+							codeClassName="p-3 break-all whitespace-pre-wrap"
+						>
+							{json}
+						</CodeBlock>
 					</div>
 				)}
 			</div>

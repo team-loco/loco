@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SearchIcon } from "lucide-react";
 
+import { EmptyState } from "@/components/design/EmptyState";
 import { Input } from "@/components/design/Input";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
@@ -45,7 +46,7 @@ export function EventsView() {
 	const from = nowMs - timeRangeMs(range);
 
 	const sel = selectedResources(resources, selected);
-	const { events, isLoading, error } = useWorkspaceEvents(workspaceId, resources.map((r) => r.raw));
+	const { events, isLoading, error, unavailable } = useWorkspaceEvents(workspaceId, resources.map((r) => r.raw));
 	const selIds = new Set(sel.map((r) => r.id));
 	const q = query.trim().toLowerCase();
 	const base = events.filter((e) => {
@@ -92,14 +93,37 @@ export function EventsView() {
 		if (idx >= 0) setPage(Math.floor(idx / size));
 	};
 	const loading = isLoading || resourcesLoading;
+	const toolbar = (
+		<div className="flex flex-wrap items-center gap-2">
+			<ResourceMenu />
+			<div className="flex-1" />
+			<TimeRangeMenu maxRange={null} />
+		</div>
+	);
+
+	if (!loading && unavailable) {
+		return (
+			<>
+				{toolbar}
+				<section className="rounded-lg border border-line bg-background">
+					<EmptyState
+						title={
+							<span className="flex items-center gap-2">
+								Events aren&apos;t available yet
+								<SoonTag />
+							</span>
+						}
+					>
+						Kubernetes events for your resources will show up here once the API supports them.
+					</EmptyState>
+				</section>
+			</>
+		);
+	}
 
 	return (
 		<>
-			<div className="flex flex-wrap items-center gap-2">
-				<ResourceMenu />
-				<div className="flex-1" />
-				<TimeRangeMenu maxRange={null} />
-			</div>
+			{toolbar}
 			<div className="grid items-start gap-5" style={{ gridTemplateColumns: open ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)" }}>
 				<div className="flex min-w-0 flex-col gap-3">
 					<div className="flex flex-wrap items-center gap-2">

@@ -171,39 +171,6 @@ export function jsonPreview(obj: JsonObject, words: string[]): ReactNode[] {
 	return out;
 }
 
-function jsonValueClass(v: string): string {
-	if (v.startsWith('"')) return "text-ok-fg";
-	if (/^-?[\d.]/.test(v)) return "text-info-fg";
-	if (/^(true|false|null)/.test(v)) return "text-warn-fg";
-	return "text-fg3";
-}
-
-export function jsonView(value: unknown): ReactNode[] {
-	return JSON.stringify(value, null, 2)
-		.split("\n")
-		.map((line, i) => {
-			const m = /^(\s*)"([^"]+)":\s(.*)$/.exec(line);
-			const key = `l${String(i)}`;
-			if (!m) {
-				const t = line.trim();
-				return (
-					<div key={key}>
-						<span className={/^[[\]{},]+$/.test(t) ? "text-fg4" : jsonValueClass(t)}>{line}</span>
-					</div>
-				);
-			}
-			const val = m[3] ?? "";
-			return (
-				<div key={key}>
-					{m[1]}
-					<span className="text-fg2">"{m[2]}"</span>
-					<span className="text-fg4">: </span>
-					<span className={jsonValueClass(val)}>{val}</span>
-				</div>
-			);
-		});
-}
-
 export function flattenJson(obj: JsonObject, prefix = ""): Record<string, string> {
 	const out: Record<string, string> = {};
 	for (const [k, v] of Object.entries(obj)) {
