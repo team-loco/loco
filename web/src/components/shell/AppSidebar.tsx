@@ -34,6 +34,9 @@ import {
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import {
@@ -82,7 +85,6 @@ export function AppSidebar() {
 
 	const { data: wsRes } = useQuery(listUserWorkspaces, { userId: user?.id ?? "", pageSize: 200 }, { enabled: !!user });
 	const allWorkspaces = wsRes?.workspaces ?? [];
-	const activeOrg = orgs.find((o) => o.id === activeOrgId);
 	const activeWs = allWorkspaces.find((w) => w.id === activeWorkspaceId);
 
 	const env = params.get("env");
@@ -144,55 +146,13 @@ export function AppSidebar() {
 	return (
 		<Sidebar collapsible="icon" onMouseEnter={peek.onEnter} onMouseLeave={peek.onLeave}>
 			<SidebarHeader className="p-2">
-				<SidebarMenu>
-					<SidebarMenuItem>
-						<DropdownMenu onOpenChange={peek.lock}>
-							<DropdownMenuTrigger
-								render={<SidebarMenuButton size="lg" className="gap-2.5 aria-expanded:bg-sidebar-accent" />}
-							>
-								<span className="flex h-8 w-14 shrink-0 items-center justify-center group-data-[collapsible=icon]:w-8">
-									<LocoLogo className="h-auto! w-full!" />
-								</span>
-								<span className="flex min-w-0 flex-1 flex-col leading-tight">
-									<span className="truncate text-md font-semibold">{activeWs?.name ?? "Select workspace"}</span>
-									<span className="truncate text-sm text-fg3">{activeOrg?.name ?? ""}</span>
-								</span>
-								<ChevronsUpDownIcon className="text-fg3" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent className="w-[264px]" align="start">
-								{byOrg.map(({ org, workspaces }) => (
-									<DropdownMenuGroup key={org.id}>
-										<div className="flex items-center justify-between pt-2 pr-1 pb-1 pl-2.5">
-											<DropdownMenuLabel className="p-0">{org.name}</DropdownMenuLabel>
-											{workspaces[0] !== undefined && (
-												<Link
-													to={`${workspacePath(org.id, workspaces[0].id, "settings")}?tab=org`}
-													title="Organization settings"
-													className="flex size-6 items-center justify-center rounded-sm text-fg3 hover:bg-bg3"
-												>
-													<SettingsIcon className="size-3.5" />
-												</Link>
-											)}
-										</div>
-										{workspaces.map((w) => (
-											<DropdownMenuItem
-												key={w.id}
-												onClick={() => { void navigate(workspacePath(org.id, w.id)); }}
-												className="gap-2"
-											>
-												<span className="flex size-[18px] items-center justify-center rounded-sm bg-bg3 text-[10px] font-semibold text-fg2">
-													{(w.name[0] ?? "?").toUpperCase()}
-												</span>
-												<span className="flex-1">{w.name}</span>
-												{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
-											</DropdownMenuItem>
-										))}
-									</DropdownMenuGroup>
-								))}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					</SidebarMenuItem>
-				</SidebarMenu>
+				<Link
+					to={wsBase ?? "/dashboard"}
+					aria-label="Loco dashboard"
+					className="flex h-12 items-center rounded-lg px-2 hover:bg-sidebar-accent"
+				>
+					<LocoLogo className="w-16 group-data-[collapsible=icon]:w-8" />
+				</Link>
 			</SidebarHeader>
 
 			<SidebarContent className="pt-1">
@@ -259,6 +219,43 @@ export function AppSidebar() {
 									Personal access tokens
 								</MenuLink>
 								<DropdownMenuSeparator />
+								<DropdownMenuSub>
+									<DropdownMenuSubTrigger className="gap-2">
+										<span className="flex-1">Workspace</span>
+										<span className="max-w-[110px] truncate text-fg3">{activeWs?.name ?? ""}</span>
+									</DropdownMenuSubTrigger>
+									<DropdownMenuSubContent className="w-[264px]">
+										{byOrg.map(({ org, workspaces }) => (
+											<DropdownMenuGroup key={org.id}>
+												<div className="flex items-center justify-between pt-2 pr-1 pb-1 pl-2.5">
+													<DropdownMenuLabel className="p-0">{org.name}</DropdownMenuLabel>
+													{workspaces[0] !== undefined && (
+														<Link
+															to={`${workspacePath(org.id, workspaces[0].id, "settings")}?tab=org`}
+															title="Organization settings"
+															className="flex size-6 items-center justify-center rounded-sm text-fg3 hover:bg-bg3"
+														>
+															<SettingsIcon className="size-3.5" />
+														</Link>
+													)}
+												</div>
+												{workspaces.map((w) => (
+													<DropdownMenuItem
+														key={w.id}
+														onClick={() => { void navigate(workspacePath(org.id, w.id)); }}
+														className="gap-2"
+													>
+														<span className="flex size-[18px] items-center justify-center rounded-sm bg-bg3 text-[10px] font-semibold text-fg2">
+															{(w.name[0] ?? "?").toUpperCase()}
+														</span>
+														<span className="flex-1">{w.name}</span>
+														{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
+													</DropdownMenuItem>
+												))}
+											</DropdownMenuGroup>
+										))}
+									</DropdownMenuSubContent>
+								</DropdownMenuSub>
 								<MenuLink icon={<Building2Icon />} onClick={() => { void navigate("/organizations"); }}>
 									Organizations
 								</MenuLink>
