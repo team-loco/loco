@@ -26,7 +26,7 @@ import (
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/cache"
-	"github.com/team-loco/loco/api/pkg/commandbus"
+	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -221,9 +221,9 @@ func main() {
 
 	httpClient := newOutboundHTTPClient()
 
-	cmdBus := commandbus.New(pool, queries, commandbus.Config{})
-	if err := cmdBus.Start(shutdownCtx); err != nil {
-		log.Fatalf("failed to start agent command listener: %v", err)
+	placementNotifier := clusternotify.New(pool, clusternotify.DefaultPollInterval)
+	if err := placementNotifier.Start(shutdownCtx); err != nil {
+		log.Fatalf("failed to start placement listener: %v", err)
 	}
 
 	oauthStateCache := service.NewOAuthStateCache(appCache)
@@ -247,7 +247,7 @@ func main() {
 		machine,
 	)
 
-	agentServiceHandler := service.NewAgentServer(pool, queries, cmdBus)
+	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain)
@@ -363,9 +363,8 @@ func main() {
 
 		// agent service
 		agentv1connect.AgentServiceRegisterProcedure,
-		agentv1connect.AgentServiceCommandStreamProcedure,
+		agentv1connect.AgentServiceSyncProcedure,
 		agentv1connect.AgentServiceHeartbeatProcedure,
-		agentv1connect.AgentServiceReportStatusProcedure,
 
 		// observability access service
 		observabilityv1connect.ObservabilityAccessServiceGetObservabilityAccessProcedure,

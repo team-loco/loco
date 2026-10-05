@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
@@ -23,6 +22,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -490,47 +490,8 @@ func (s *ResourceServer) DeleteResource(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		activeDeployments, listErr := qtx.ListActiveDeploymentsForResource(ctx, resourceID)
-		if listErr != nil {
-			return fmt.Errorf("list active deployments: %w", listErr)
-		}
-
-		enqueued := make(map[uuid.UUID]bool, len(activeDeployments))
-		for _, deployment := range activeDeployments {
-			if enqueued[deployment.ClusterID] {
-				continue
-			}
-			enqueued[deployment.ClusterID] = true
-
-			payloadJSON, marshalErr := json.Marshal(DeleteCommandPayload{
-				DeploymentID: deployment.ID.String(),
-				ResourceID:   res.ID.String(),
-			})
-			if marshalErr != nil {
-				return fmt.Errorf("marshal delete command payload: %w", marshalErr)
-			}
-
-			commandID, enqueueErr := commandbus.Enqueue(ctx, qtx, commandbus.NewCommand{
-				ClusterID:    deployment.ClusterID,
-				ResourceID:   res.ID,
-				DeploymentID: &deployment.ID,
-				Type:         commandbus.CommandTypeDelete,
-				Payload:      payloadJSON,
-			})
-			if enqueueErr != nil {
-				return fmt.Errorf("enqueue delete command: %w", enqueueErr)
-			}
-
-			slog.InfoContext(
-				ctx,
-				"delete command enqueued",
-				"command_id",
-				commandID,
-				"cluster_id",
-				deployment.ClusterID,
-				"resource_id",
-				res.ID,
-			)
+		if removeErr := removeResourcePlacements(ctx, qtx, res.ID); removeErr != nil {
+			return removeErr
 		}
 
 		if deleteErr := qtx.DeleteResource(ctx, resourceID); deleteErr != nil {
@@ -695,6 +656,13 @@ func (s *ResourceServer) ScaleResource(
 		if !scaleChangesDeployment(r, serviceDeploymentSpec, current.Replicas) {
 			continue
 		}
+
+		env, envErr := desiredEnv(ctx, s.queries, current.ResourceID, current.ClusterID)
+		if envErr != nil {
+			slog.ErrorContext(ctx, "failed to read desired env", "error", envErr)
+			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		}
+		serviceDeploymentSpec.Env = env
 
 		if r.Cpu != nil {
 			serviceDeploymentSpec.Cpu = r.Cpu
@@ -884,7 +852,15 @@ func (s *ResourceServer) planRegionRedeploy(
 	replicas int32,
 	message string,
 ) (regionRedeploy, error) {
-	specJSON, err := protojson.Marshal(serviceDeploymentSpec)
+	clonedSpec := proto.Clone(serviceDeploymentSpec)
+	specForDB, ok := clonedSpec.(*deploymentv1.ServiceDeploymentSpec)
+	if !ok {
+		slog.ErrorContext(ctx, "failed to clone service deployment spec")
+		return regionRedeploy{}, connect.NewError(connect.CodeInternal, errors.New("failed to clone service spec"))
+	}
+	specForDB.Env = nil
+
+	specJSON, err := protojson.Marshal(specForDB)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal service deployment spec", "error", err)
 		return regionRedeploy{}, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid spec: %w", err))
@@ -945,7 +921,7 @@ func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		for _, plan := range plans {
-			buildPayload := deployCommandPayload(
+			buildSpec := desiredApplicationSpec(
 				res,
 				resourceSpec,
 				domain.Domain,
@@ -954,7 +930,7 @@ func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource
 				plan.params.EnvironmentID,
 				plan.environmentName,
 			)
-			if _, deployErr := createDeploymentWithCleanup(ctx, qtx, plan.params, buildPayload); deployErr != nil {
+			if _, deployErr := createDeploymentWithCleanup(ctx, qtx, plan.params, buildSpec); deployErr != nil {
 				return deployErr
 			}
 		}
@@ -1231,9 +1207,9 @@ func reconstructResourceSpec(resourceType genDb.ResourceType, specBytes []byte) 
 	}
 }
 
-var errCommandPayload = errors.New("build command payload")
+var errDesiredSpec = errors.New("build desired spec")
 
-type deployPayloadFunc func(deploymentID uuid.UUID) ([]byte, error)
+type desiredSpecFunc func(deploymentID uuid.UUID) ([]byte, error)
 
 func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
@@ -1242,7 +1218,7 @@ func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries)
 	})
 }
 
-func deployCommandPayload(
+func desiredApplicationSpec(
 	res genDb.Resource,
 	resourceSpec *resourcev1.ResourceSpec,
 	hostname string,
@@ -1250,7 +1226,7 @@ func deployCommandPayload(
 	region string,
 	environmentID uuid.UUID,
 	environmentName string,
-) deployPayloadFunc {
+) desiredSpecFunc {
 	return func(deploymentID uuid.UUID) ([]byte, error) {
 		appSpec, err := buildApplicationSpec(
 			res,
@@ -1266,7 +1242,7 @@ func deployCommandPayload(
 			return nil, fmt.Errorf("failed to build application spec: %w", err)
 		}
 
-		payload, err := json.Marshal(DeployCommandPayload{
+		payload, err := json.Marshal(ApplicationPayload{
 			DeploymentID: deploymentID.String(),
 			ResourceID:   res.ID.String(),
 			WorkspaceID:  res.WorkspaceID.String(),
@@ -1277,15 +1253,15 @@ func deployCommandPayload(
 			AppSpec:      appSpec,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal command payload: %w", err)
+			return nil, fmt.Errorf("failed to marshal application payload: %w", err)
 		}
 		return payload, nil
 	}
 }
 
 func deploymentTxError(ctx context.Context, err error) error {
-	if errors.Is(err, errCommandPayload) {
-		slog.ErrorContext(ctx, "failed to build deploy command", "error", err)
+	if errors.Is(err, errDesiredSpec) {
+		slog.ErrorContext(ctx, "failed to build desired application spec", "error", err)
 		return connect.NewError(connect.CodeInternal, err)
 	}
 	if isPgConstraintViolation(err) {
@@ -1316,7 +1292,7 @@ func createDeploymentWithCleanup(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	params genDb.CreateDeploymentParams,
-	buildPayload deployPayloadFunc,
+	buildSpec desiredSpecFunc,
 ) (uuid.UUID, error) {
 	resourceRegion, err := qtx.LockResourceRegion(ctx, genDb.LockResourceRegionParams{
 		ResourceID: params.ResourceID,
@@ -1360,25 +1336,30 @@ func createDeploymentWithCleanup(
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	payload, err := buildPayload(deploymentID)
+	spec, err := buildSpec(deploymentID)
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("%w: %w", errCommandPayload, err)
+		return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, err)
 	}
 
-	commandID, err := commandbus.Enqueue(ctx, qtx, commandbus.NewCommand{
-		ClusterID:    params.ClusterID,
+	if hadPreviousDeployment && activeDeployment.ClusterID != params.ClusterID {
+		if removeErr := removePlacement(ctx, qtx, params.ResourceID, activeDeployment.ClusterID); removeErr != nil {
+			return uuid.UUID{}, removeErr
+		}
+	}
+
+	_, err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
 		ResourceID:   params.ResourceID,
+		ClusterID:    params.ClusterID,
+		Region:       params.Region,
 		DeploymentID: &deploymentID,
-		Type:         commandbus.CommandTypeDeploy,
-		Payload:      payload,
+		DesiredSpec:  spec,
 	})
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("failed to enqueue deploy command: %w", err)
+		return uuid.UUID{}, err
 	}
 
-	slog.InfoContext(ctx, "deployment created and deploy command enqueued",
+	slog.InfoContext(ctx, "deployment created",
 		"deployment_id", deploymentID,
-		"command_id", commandID,
 		"cluster_id", params.ClusterID,
 		"resourceId", params.ResourceID,
 		"region", params.Region,

@@ -83,6 +83,7 @@ CREATE TABLE
         observability_proxy_endpoint TEXT,
         -- publicly resolvable FQDN of this cluster's gateway; a hostname, never an address
         gateway_hostname TEXT,
+        sync_generation BIGINT NOT NULL DEFAULT 0,
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('dev', 'staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
@@ -220,46 +221,41 @@ CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deploymen
 
 CREATE INDEX idx_deployments_environment_id ON deployments (environment_id);
 
-CREATE TYPE agent_command_type AS ENUM ('deploy', 'delete');
-
-CREATE TYPE agent_command_status AS ENUM (
-    'pending',
-    'delivered',
-    'succeeded',
-    'failed',
-    'superseded'
-);
-
 CREATE TABLE
-    agent_commands (
+    placements (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
         resource_id UUID NOT NULL,
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
+        region TEXT NOT NULL,
         deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
-        type agent_command_type NOT NULL,
-        payload JSONB,
-        status agent_command_status NOT NULL DEFAULT 'pending',
-        attempts INT NOT NULL DEFAULT 0,
-        max_attempts INT NOT NULL CHECK (max_attempts > 0),
-        last_error TEXT,
-        visible_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        desired_revision BIGINT NOT NULL DEFAULT 1 CHECK (desired_revision > 0),
+        desired_spec JSONB,
+        desired_deleted BOOLEAN NOT NULL DEFAULT false,
+        applied_revision BIGINT NOT NULL DEFAULT 0,
+        applied_at TIMESTAMPTZ,
+        applied_error TEXT,
+        observed_revision BIGINT NOT NULL DEFAULT 0,
+        ready BOOLEAN NOT NULL DEFAULT false,
+        ready_replicas INT NOT NULL DEFAULT 0,
+        status_phase TEXT NOT NULL DEFAULT '',
+        status_message TEXT NOT NULL DEFAULT '',
+        status_updated_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        acked_at TIMESTAMPTZ
+        UNIQUE (resource_id, cluster_id),
+        CHECK (desired_deleted OR desired_spec IS NOT NULL)
     );
 
-CREATE INDEX idx_agent_commands_claim ON agent_commands (cluster_id, visible_at, created_at)
+CREATE INDEX idx_placements_pending ON placements (cluster_id)
 WHERE
-    status IN ('pending', 'delivered');
+    applied_revision < desired_revision;
 
-CREATE INDEX idx_agent_commands_resource_cluster_live ON agent_commands (resource_id, cluster_id)
-WHERE
-    status IN ('pending', 'delivered');
+CREATE INDEX idx_placements_cluster_id ON placements (cluster_id);
 
-CREATE INDEX idx_agent_commands_deployment_id ON agent_commands (deployment_id);
+CREATE INDEX idx_placements_deployment_id ON placements (deployment_id);
 
 -- +goose Down
-DROP TABLE IF EXISTS agent_commands;
+DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;
 DROP TABLE IF EXISTS resource_regions;
@@ -267,8 +263,6 @@ DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS platform_domains;
 DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environments;
-DROP TYPE IF EXISTS agent_command_status;
-DROP TYPE IF EXISTS agent_command_type;
 DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;
 DROP TYPE IF EXISTS resource_type;
