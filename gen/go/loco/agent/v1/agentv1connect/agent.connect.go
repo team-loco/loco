@@ -35,28 +35,20 @@ const (
 const (
 	// AgentServiceRegisterProcedure is the fully-qualified name of the AgentService's Register RPC.
 	AgentServiceRegisterProcedure = "/loco.agent.v1.AgentService/Register"
-	// AgentServiceCommandStreamProcedure is the fully-qualified name of the AgentService's
-	// CommandStream RPC.
-	AgentServiceCommandStreamProcedure = "/loco.agent.v1.AgentService/CommandStream"
+	// AgentServiceSyncProcedure is the fully-qualified name of the AgentService's Sync RPC.
+	AgentServiceSyncProcedure = "/loco.agent.v1.AgentService/Sync"
 	// AgentServiceHeartbeatProcedure is the fully-qualified name of the AgentService's Heartbeat RPC.
 	AgentServiceHeartbeatProcedure = "/loco.agent.v1.AgentService/Heartbeat"
-	// AgentServiceReportStatusProcedure is the fully-qualified name of the AgentService's ReportStatus
-	// RPC.
-	AgentServiceReportStatusProcedure = "/loco.agent.v1.AgentService/ReportStatus"
 )
 
 // AgentServiceClient is a client for the loco.agent.v1.AgentService service.
 type AgentServiceClient interface {
 	// Register announces an agent to the control plane and returns the cluster ID.
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
-	// CommandStream is a bidirectional stream for command dispatch.
-	// Control plane sends commands, agent sends acks back.
-	CommandStream(context.Context) *connect.BidiStreamForClient[v1.CommandStreamRequest, v1.CommandStreamResponse]
+	Sync(context.Context) *connect.BidiStreamForClient[v1.SyncRequest, v1.SyncResponse]
 	// Heartbeat is a bidirectional stream for agent health reporting.
 	// Agent sends periodic heartbeats.
 	Heartbeat(context.Context) *connect.BidiStreamForClient[v1.HeartbeatRequest, v1.HeartbeatResponse]
-	// ReportStatus reports deployment status changes from the agent.
-	ReportStatus(context.Context, *connect.Request[v1.ReportStatusRequest]) (*connect.Response[v1.ReportStatusResponse], error)
 }
 
 // NewAgentServiceClient constructs a client for the loco.agent.v1.AgentService service. By default,
@@ -76,10 +68,10 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("Register")),
 			connect.WithClientOptions(opts...),
 		),
-		commandStream: connect.NewClient[v1.CommandStreamRequest, v1.CommandStreamResponse](
+		sync: connect.NewClient[v1.SyncRequest, v1.SyncResponse](
 			httpClient,
-			baseURL+AgentServiceCommandStreamProcedure,
-			connect.WithSchema(agentServiceMethods.ByName("CommandStream")),
+			baseURL+AgentServiceSyncProcedure,
+			connect.WithSchema(agentServiceMethods.ByName("Sync")),
 			connect.WithClientOptions(opts...),
 		),
 		heartbeat: connect.NewClient[v1.HeartbeatRequest, v1.HeartbeatResponse](
@@ -88,21 +80,14 @@ func NewAgentServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(agentServiceMethods.ByName("Heartbeat")),
 			connect.WithClientOptions(opts...),
 		),
-		reportStatus: connect.NewClient[v1.ReportStatusRequest, v1.ReportStatusResponse](
-			httpClient,
-			baseURL+AgentServiceReportStatusProcedure,
-			connect.WithSchema(agentServiceMethods.ByName("ReportStatus")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // agentServiceClient implements AgentServiceClient.
 type agentServiceClient struct {
-	register      *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
-	commandStream *connect.Client[v1.CommandStreamRequest, v1.CommandStreamResponse]
-	heartbeat     *connect.Client[v1.HeartbeatRequest, v1.HeartbeatResponse]
-	reportStatus  *connect.Client[v1.ReportStatusRequest, v1.ReportStatusResponse]
+	register  *connect.Client[v1.RegisterRequest, v1.RegisterResponse]
+	sync      *connect.Client[v1.SyncRequest, v1.SyncResponse]
+	heartbeat *connect.Client[v1.HeartbeatRequest, v1.HeartbeatResponse]
 }
 
 // Register calls loco.agent.v1.AgentService.Register.
@@ -110,9 +95,9 @@ func (c *agentServiceClient) Register(ctx context.Context, req *connect.Request[
 	return c.register.CallUnary(ctx, req)
 }
 
-// CommandStream calls loco.agent.v1.AgentService.CommandStream.
-func (c *agentServiceClient) CommandStream(ctx context.Context) *connect.BidiStreamForClient[v1.CommandStreamRequest, v1.CommandStreamResponse] {
-	return c.commandStream.CallBidiStream(ctx)
+// Sync calls loco.agent.v1.AgentService.Sync.
+func (c *agentServiceClient) Sync(ctx context.Context) *connect.BidiStreamForClient[v1.SyncRequest, v1.SyncResponse] {
+	return c.sync.CallBidiStream(ctx)
 }
 
 // Heartbeat calls loco.agent.v1.AgentService.Heartbeat.
@@ -120,23 +105,14 @@ func (c *agentServiceClient) Heartbeat(ctx context.Context) *connect.BidiStreamF
 	return c.heartbeat.CallBidiStream(ctx)
 }
 
-// ReportStatus calls loco.agent.v1.AgentService.ReportStatus.
-func (c *agentServiceClient) ReportStatus(ctx context.Context, req *connect.Request[v1.ReportStatusRequest]) (*connect.Response[v1.ReportStatusResponse], error) {
-	return c.reportStatus.CallUnary(ctx, req)
-}
-
 // AgentServiceHandler is an implementation of the loco.agent.v1.AgentService service.
 type AgentServiceHandler interface {
 	// Register announces an agent to the control plane and returns the cluster ID.
 	Register(context.Context, *connect.Request[v1.RegisterRequest]) (*connect.Response[v1.RegisterResponse], error)
-	// CommandStream is a bidirectional stream for command dispatch.
-	// Control plane sends commands, agent sends acks back.
-	CommandStream(context.Context, *connect.BidiStream[v1.CommandStreamRequest, v1.CommandStreamResponse]) error
+	Sync(context.Context, *connect.BidiStream[v1.SyncRequest, v1.SyncResponse]) error
 	// Heartbeat is a bidirectional stream for agent health reporting.
 	// Agent sends periodic heartbeats.
 	Heartbeat(context.Context, *connect.BidiStream[v1.HeartbeatRequest, v1.HeartbeatResponse]) error
-	// ReportStatus reports deployment status changes from the agent.
-	ReportStatus(context.Context, *connect.Request[v1.ReportStatusRequest]) (*connect.Response[v1.ReportStatusResponse], error)
 }
 
 // NewAgentServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -152,10 +128,10 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("Register")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentServiceCommandStreamHandler := connect.NewBidiStreamHandler(
-		AgentServiceCommandStreamProcedure,
-		svc.CommandStream,
-		connect.WithSchema(agentServiceMethods.ByName("CommandStream")),
+	agentServiceSyncHandler := connect.NewBidiStreamHandler(
+		AgentServiceSyncProcedure,
+		svc.Sync,
+		connect.WithSchema(agentServiceMethods.ByName("Sync")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentServiceHeartbeatHandler := connect.NewBidiStreamHandler(
@@ -164,22 +140,14 @@ func NewAgentServiceHandler(svc AgentServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(agentServiceMethods.ByName("Heartbeat")),
 		connect.WithHandlerOptions(opts...),
 	)
-	agentServiceReportStatusHandler := connect.NewUnaryHandler(
-		AgentServiceReportStatusProcedure,
-		svc.ReportStatus,
-		connect.WithSchema(agentServiceMethods.ByName("ReportStatus")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/loco.agent.v1.AgentService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AgentServiceRegisterProcedure:
 			agentServiceRegisterHandler.ServeHTTP(w, r)
-		case AgentServiceCommandStreamProcedure:
-			agentServiceCommandStreamHandler.ServeHTTP(w, r)
+		case AgentServiceSyncProcedure:
+			agentServiceSyncHandler.ServeHTTP(w, r)
 		case AgentServiceHeartbeatProcedure:
 			agentServiceHeartbeatHandler.ServeHTTP(w, r)
-		case AgentServiceReportStatusProcedure:
-			agentServiceReportStatusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -193,14 +161,10 @@ func (UnimplementedAgentServiceHandler) Register(context.Context, *connect.Reque
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.Register is not implemented"))
 }
 
-func (UnimplementedAgentServiceHandler) CommandStream(context.Context, *connect.BidiStream[v1.CommandStreamRequest, v1.CommandStreamResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.CommandStream is not implemented"))
+func (UnimplementedAgentServiceHandler) Sync(context.Context, *connect.BidiStream[v1.SyncRequest, v1.SyncResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.Sync is not implemented"))
 }
 
 func (UnimplementedAgentServiceHandler) Heartbeat(context.Context, *connect.BidiStream[v1.HeartbeatRequest, v1.HeartbeatResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.Heartbeat is not implemented"))
-}
-
-func (UnimplementedAgentServiceHandler) ReportStatus(context.Context, *connect.Request[v1.ReportStatusRequest]) (*connect.Response[v1.ReportStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.agent.v1.AgentService.ReportStatus is not implemented"))
 }

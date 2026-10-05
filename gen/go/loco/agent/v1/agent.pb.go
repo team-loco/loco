@@ -8,10 +8,8 @@ package agentv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	v1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -23,56 +21,6 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
-
-// CommandType identifies the type of command.
-type CommandType int32
-
-const (
-	CommandType_COMMAND_TYPE_UNSPECIFIED CommandType = 0
-	CommandType_COMMAND_TYPE_DEPLOY      CommandType = 1
-	CommandType_COMMAND_TYPE_DELETE      CommandType = 2
-)
-
-// Enum value maps for CommandType.
-var (
-	CommandType_name = map[int32]string{
-		0: "COMMAND_TYPE_UNSPECIFIED",
-		1: "COMMAND_TYPE_DEPLOY",
-		2: "COMMAND_TYPE_DELETE",
-	}
-	CommandType_value = map[string]int32{
-		"COMMAND_TYPE_UNSPECIFIED": 0,
-		"COMMAND_TYPE_DEPLOY":      1,
-		"COMMAND_TYPE_DELETE":      2,
-	}
-)
-
-func (x CommandType) Enum() *CommandType {
-	p := new(CommandType)
-	*p = x
-	return p
-}
-
-func (x CommandType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (CommandType) Descriptor() protoreflect.EnumDescriptor {
-	return file_loco_agent_v1_agent_proto_enumTypes[0].Descriptor()
-}
-
-func (CommandType) Type() protoreflect.EnumType {
-	return &file_loco_agent_v1_agent_proto_enumTypes[0]
-}
-
-func (x CommandType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use CommandType.Descriptor instead.
-func (CommandType) EnumDescriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{0}
-}
 
 // RegisterRequest is sent by the agent on startup to announce itself.
 type RegisterRequest struct {
@@ -188,38 +136,32 @@ func (x *RegisterResponse) GetClusterId() string {
 	return ""
 }
 
-// CommandStreamResponse represents a unit of work to be executed by an agent.
-type CommandStreamResponse struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	CommandId string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
-	ClusterId string                 `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	Type      CommandType            `protobuf:"varint,4,opt,name=type,proto3,enum=loco.agent.v1.CommandType" json:"type,omitempty"`
-	// Types that are valid to be assigned to Payload:
+type SyncRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Message:
 	//
-	//	*CommandStreamResponse_Deploy
-	//	*CommandStreamResponse_Delete
-	//	*CommandStreamResponse_Scale
-	//	*CommandStreamResponse_UpdateEnv
-	Payload       isCommandStreamResponse_Payload `protobuf_oneof:"payload"`
+	//	*SyncRequest_Inventory
+	//	*SyncRequest_Applied
+	//	*SyncRequest_Status
+	Message       isSyncRequest_Message `protobuf_oneof:"message"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CommandStreamResponse) Reset() {
-	*x = CommandStreamResponse{}
+func (x *SyncRequest) Reset() {
+	*x = SyncRequest{}
 	mi := &file_loco_agent_v1_agent_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CommandStreamResponse) String() string {
+func (x *SyncRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CommandStreamResponse) ProtoMessage() {}
+func (*SyncRequest) ProtoMessage() {}
 
-func (x *CommandStreamResponse) ProtoReflect() protoreflect.Message {
+func (x *SyncRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_agent_v1_agent_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -231,211 +173,422 @@ func (x *CommandStreamResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CommandStreamResponse.ProtoReflect.Descriptor instead.
-func (*CommandStreamResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
+func (*SyncRequest) Descriptor() ([]byte, []int) {
 	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *CommandStreamResponse) GetCommandId() string {
+func (x *SyncRequest) GetMessage() isSyncRequest_Message {
 	if x != nil {
-		return x.CommandId
-	}
-	return ""
-}
-
-func (x *CommandStreamResponse) GetClusterId() string {
-	if x != nil {
-		return x.ClusterId
-	}
-	return ""
-}
-
-func (x *CommandStreamResponse) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
+		return x.Message
 	}
 	return nil
 }
 
-func (x *CommandStreamResponse) GetType() CommandType {
+func (x *SyncRequest) GetInventory() *Inventory {
 	if x != nil {
-		return x.Type
-	}
-	return CommandType_COMMAND_TYPE_UNSPECIFIED
-}
-
-func (x *CommandStreamResponse) GetPayload() isCommandStreamResponse_Payload {
-	if x != nil {
-		return x.Payload
-	}
-	return nil
-}
-
-func (x *CommandStreamResponse) GetDeploy() *DeployCommand {
-	if x != nil {
-		if x, ok := x.Payload.(*CommandStreamResponse_Deploy); ok {
-			return x.Deploy
+		if x, ok := x.Message.(*SyncRequest_Inventory); ok {
+			return x.Inventory
 		}
 	}
 	return nil
 }
 
-func (x *CommandStreamResponse) GetDelete() *DeleteCommand {
+func (x *SyncRequest) GetApplied() *Applied {
 	if x != nil {
-		if x, ok := x.Payload.(*CommandStreamResponse_Delete); ok {
+		if x, ok := x.Message.(*SyncRequest_Applied); ok {
+			return x.Applied
+		}
+	}
+	return nil
+}
+
+func (x *SyncRequest) GetStatus() *PlacementStatus {
+	if x != nil {
+		if x, ok := x.Message.(*SyncRequest_Status); ok {
+			return x.Status
+		}
+	}
+	return nil
+}
+
+type isSyncRequest_Message interface {
+	isSyncRequest_Message()
+}
+
+type SyncRequest_Inventory struct {
+	Inventory *Inventory `protobuf:"bytes,1,opt,name=inventory,proto3,oneof"`
+}
+
+type SyncRequest_Applied struct {
+	Applied *Applied `protobuf:"bytes,2,opt,name=applied,proto3,oneof"`
+}
+
+type SyncRequest_Status struct {
+	Status *PlacementStatus `protobuf:"bytes,3,opt,name=status,proto3,oneof"`
+}
+
+func (*SyncRequest_Inventory) isSyncRequest_Message() {}
+
+func (*SyncRequest_Applied) isSyncRequest_Message() {}
+
+func (*SyncRequest_Status) isSyncRequest_Message() {}
+
+type Inventory struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*InventoryEntry      `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Inventory) Reset() {
+	*x = Inventory{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Inventory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Inventory) ProtoMessage() {}
+
+func (x *Inventory) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Inventory.ProtoReflect.Descriptor instead.
+func (*Inventory) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Inventory) GetEntries() []*InventoryEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type InventoryEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InventoryEntry) Reset() {
+	*x = InventoryEntry{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InventoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InventoryEntry) ProtoMessage() {}
+
+func (x *InventoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InventoryEntry.ProtoReflect.Descriptor instead.
+func (*InventoryEntry) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *InventoryEntry) GetPlacementId() string {
+	if x != nil {
+		return x.PlacementId
+	}
+	return ""
+}
+
+func (x *InventoryEntry) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+type Applied struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	Retrying      bool                   `protobuf:"varint,4,opt,name=retrying,proto3" json:"retrying,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Applied) Reset() {
+	*x = Applied{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Applied) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Applied) ProtoMessage() {}
+
+func (x *Applied) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Applied.ProtoReflect.Descriptor instead.
+func (*Applied) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Applied) GetPlacementId() string {
+	if x != nil {
+		return x.PlacementId
+	}
+	return ""
+}
+
+func (x *Applied) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *Applied) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *Applied) GetRetrying() bool {
+	if x != nil {
+		return x.Retrying
+	}
+	return false
+}
+
+type PlacementStatus struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	PlacementId      string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	ObservedRevision int64                  `protobuf:"varint,2,opt,name=observed_revision,json=observedRevision,proto3" json:"observed_revision,omitempty"`
+	Ready            bool                   `protobuf:"varint,3,opt,name=ready,proto3" json:"ready,omitempty"`
+	ReadyReplicas    int32                  `protobuf:"varint,4,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
+	Phase            string                 `protobuf:"bytes,5,opt,name=phase,proto3" json:"phase,omitempty"`
+	Message          string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *PlacementStatus) Reset() {
+	*x = PlacementStatus{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlacementStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlacementStatus) ProtoMessage() {}
+
+func (x *PlacementStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlacementStatus.ProtoReflect.Descriptor instead.
+func (*PlacementStatus) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PlacementStatus) GetPlacementId() string {
+	if x != nil {
+		return x.PlacementId
+	}
+	return ""
+}
+
+func (x *PlacementStatus) GetObservedRevision() int64 {
+	if x != nil {
+		return x.ObservedRevision
+	}
+	return 0
+}
+
+func (x *PlacementStatus) GetReady() bool {
+	if x != nil {
+		return x.Ready
+	}
+	return false
+}
+
+func (x *PlacementStatus) GetReadyReplicas() int32 {
+	if x != nil {
+		return x.ReadyReplicas
+	}
+	return 0
+}
+
+func (x *PlacementStatus) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *PlacementStatus) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type SyncResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Message:
+	//
+	//	*SyncResponse_Apply
+	//	*SyncResponse_Delete
+	Message       isSyncResponse_Message `protobuf_oneof:"message"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncResponse) Reset() {
+	*x = SyncResponse{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncResponse) ProtoMessage() {}
+
+func (x *SyncResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
+func (*SyncResponse) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SyncResponse) GetMessage() isSyncResponse_Message {
+	if x != nil {
+		return x.Message
+	}
+	return nil
+}
+
+func (x *SyncResponse) GetApply() *Apply {
+	if x != nil {
+		if x, ok := x.Message.(*SyncResponse_Apply); ok {
+			return x.Apply
+		}
+	}
+	return nil
+}
+
+func (x *SyncResponse) GetDelete() *Delete {
+	if x != nil {
+		if x, ok := x.Message.(*SyncResponse_Delete); ok {
 			return x.Delete
 		}
 	}
 	return nil
 }
 
-func (x *CommandStreamResponse) GetScale() *ScaleCommand {
-	if x != nil {
-		if x, ok := x.Payload.(*CommandStreamResponse_Scale); ok {
-			return x.Scale
-		}
-	}
-	return nil
+type isSyncResponse_Message interface {
+	isSyncResponse_Message()
 }
 
-func (x *CommandStreamResponse) GetUpdateEnv() *UpdateEnvCommand {
-	if x != nil {
-		if x, ok := x.Payload.(*CommandStreamResponse_UpdateEnv); ok {
-			return x.UpdateEnv
-		}
-	}
-	return nil
+type SyncResponse_Apply struct {
+	Apply *Apply `protobuf:"bytes,1,opt,name=apply,proto3,oneof"`
 }
 
-type isCommandStreamResponse_Payload interface {
-	isCommandStreamResponse_Payload()
+type SyncResponse_Delete struct {
+	Delete *Delete `protobuf:"bytes,2,opt,name=delete,proto3,oneof"`
 }
 
-type CommandStreamResponse_Deploy struct {
-	Deploy *DeployCommand `protobuf:"bytes,10,opt,name=deploy,proto3,oneof"`
-}
+func (*SyncResponse_Apply) isSyncResponse_Message() {}
 
-type CommandStreamResponse_Delete struct {
-	Delete *DeleteCommand `protobuf:"bytes,11,opt,name=delete,proto3,oneof"`
-}
+func (*SyncResponse_Delete) isSyncResponse_Message() {}
 
-type CommandStreamResponse_Scale struct {
-	Scale *ScaleCommand `protobuf:"bytes,12,opt,name=scale,proto3,oneof"`
-}
-
-type CommandStreamResponse_UpdateEnv struct {
-	UpdateEnv *UpdateEnvCommand `protobuf:"bytes,13,opt,name=update_env,json=updateEnv,proto3,oneof"`
-}
-
-func (*CommandStreamResponse_Deploy) isCommandStreamResponse_Payload() {}
-
-func (*CommandStreamResponse_Delete) isCommandStreamResponse_Payload() {}
-
-func (*CommandStreamResponse_Scale) isCommandStreamResponse_Payload() {}
-
-func (*CommandStreamResponse_UpdateEnv) isCommandStreamResponse_Payload() {}
-
-// DeployCommand instructs the agent to deploy an application.
-type DeployCommand struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId      string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	DeploymentId    string                 `protobuf:"bytes,2,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	WorkspaceId     string                 `protobuf:"bytes,3,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Namespace       string                 `protobuf:"bytes,4,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	ApplicationSpec []byte                 `protobuf:"bytes,5,opt,name=application_spec,json=applicationSpec,proto3" json:"application_spec,omitempty"` // JSON-serialized Application CRD spec
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *DeployCommand) Reset() {
-	*x = DeployCommand{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeployCommand) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeployCommand) ProtoMessage() {}
-
-func (x *DeployCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeployCommand.ProtoReflect.Descriptor instead.
-func (*DeployCommand) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *DeployCommand) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
-}
-
-func (x *DeployCommand) GetDeploymentId() string {
-	if x != nil {
-		return x.DeploymentId
-	}
-	return ""
-}
-
-func (x *DeployCommand) GetWorkspaceId() string {
-	if x != nil {
-		return x.WorkspaceId
-	}
-	return ""
-}
-
-func (x *DeployCommand) GetNamespace() string {
-	if x != nil {
-		return x.Namespace
-	}
-	return ""
-}
-
-func (x *DeployCommand) GetApplicationSpec() []byte {
-	if x != nil {
-		return x.ApplicationSpec
-	}
-	return nil
-}
-
-// DeleteCommand instructs the agent to delete an application.
-type DeleteCommand struct {
+type Apply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	Application   []byte                 `protobuf:"bytes,4,opt,name=application,proto3" json:"application,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DeleteCommand) Reset() {
-	*x = DeleteCommand{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[4]
+func (x *Apply) Reset() {
+	*x = Apply{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DeleteCommand) String() string {
+func (x *Apply) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DeleteCommand) ProtoMessage() {}
+func (*Apply) ProtoMessage() {}
 
-func (x *DeleteCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[4]
+func (x *Apply) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -446,173 +599,63 @@ func (x *DeleteCommand) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DeleteCommand.ProtoReflect.Descriptor instead.
-func (*DeleteCommand) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{4}
+// Deprecated: Use Apply.ProtoReflect.Descriptor instead.
+func (*Apply) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *DeleteCommand) GetResourceId() string {
+func (x *Apply) GetPlacementId() string {
 	if x != nil {
-		return x.ResourceId
+		return x.PlacementId
 	}
 	return ""
 }
 
-func (x *DeleteCommand) GetNamespace() string {
+func (x *Apply) GetRevision() int64 {
 	if x != nil {
-		return x.Namespace
-	}
-	return ""
-}
-
-// ScaleCommand instructs the agent to scale an application.
-type ScaleCommand struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Replicas      int32                  `protobuf:"varint,2,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	Namespace     string                 `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ScaleCommand) Reset() {
-	*x = ScaleCommand{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ScaleCommand) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ScaleCommand) ProtoMessage() {}
-
-func (x *ScaleCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ScaleCommand.ProtoReflect.Descriptor instead.
-func (*ScaleCommand) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *ScaleCommand) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
-}
-
-func (x *ScaleCommand) GetReplicas() int32 {
-	if x != nil {
-		return x.Replicas
+		return x.Revision
 	}
 	return 0
 }
 
-func (x *ScaleCommand) GetNamespace() string {
-	if x != nil {
-		return x.Namespace
-	}
-	return ""
-}
-
-// UpdateEnvCommand instructs the agent to update environment variables.
-type UpdateEnvCommand struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Env           map[string]string      `protobuf:"bytes,2,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Namespace     string                 `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateEnvCommand) Reset() {
-	*x = UpdateEnvCommand{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateEnvCommand) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateEnvCommand) ProtoMessage() {}
-
-func (x *UpdateEnvCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateEnvCommand.ProtoReflect.Descriptor instead.
-func (*UpdateEnvCommand) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *UpdateEnvCommand) GetResourceId() string {
+func (x *Apply) GetResourceId() string {
 	if x != nil {
 		return x.ResourceId
 	}
 	return ""
 }
 
-func (x *UpdateEnvCommand) GetEnv() map[string]string {
+func (x *Apply) GetApplication() []byte {
 	if x != nil {
-		return x.Env
+		return x.Application
 	}
 	return nil
 }
 
-func (x *UpdateEnvCommand) GetNamespace() string {
-	if x != nil {
-		return x.Namespace
-	}
-	return ""
-}
-
-// CommandStreamRequest is sent by the agent to acknowledge command processing.
-type CommandStreamRequest struct {
+type Delete struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	CommandId     string                 `protobuf:"bytes,1,opt,name=command_id,json=commandId,proto3" json:"command_id,omitempty"`
-	Success       bool                   `protobuf:"varint,2,opt,name=success,proto3" json:"success,omitempty"`
-	ErrorMessage  string                 `protobuf:"bytes,3,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"` // populated if success = false
-	Retry         bool                   `protobuf:"varint,4,opt,name=retry,proto3" json:"retry,omitempty"`                                  // if true and failed, control plane should retry
+	PlacementId   string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
+	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	ResourceId    string                 `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *CommandStreamRequest) Reset() {
-	*x = CommandStreamRequest{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[7]
+func (x *Delete) Reset() {
+	*x = Delete{}
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *CommandStreamRequest) String() string {
+func (x *Delete) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*CommandStreamRequest) ProtoMessage() {}
+func (*Delete) ProtoMessage() {}
 
-func (x *CommandStreamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[7]
+func (x *Delete) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -623,37 +666,30 @@ func (x *CommandStreamRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use CommandStreamRequest.ProtoReflect.Descriptor instead.
-func (*CommandStreamRequest) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+// Deprecated: Use Delete.ProtoReflect.Descriptor instead.
+func (*Delete) Descriptor() ([]byte, []int) {
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *CommandStreamRequest) GetCommandId() string {
+func (x *Delete) GetPlacementId() string {
 	if x != nil {
-		return x.CommandId
+		return x.PlacementId
 	}
 	return ""
 }
 
-func (x *CommandStreamRequest) GetSuccess() bool {
+func (x *Delete) GetRevision() int64 {
 	if x != nil {
-		return x.Success
+		return x.Revision
 	}
-	return false
+	return 0
 }
 
-func (x *CommandStreamRequest) GetErrorMessage() string {
+func (x *Delete) GetResourceId() string {
 	if x != nil {
-		return x.ErrorMessage
+		return x.ResourceId
 	}
 	return ""
-}
-
-func (x *CommandStreamRequest) GetRetry() bool {
-	if x != nil {
-		return x.Retry
-	}
-	return false
 }
 
 // HeartbeatRequest is sent periodically by the agent.
@@ -668,7 +704,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -680,7 +716,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[8]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -693,7 +729,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{8}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *HeartbeatRequest) GetClusterId() string {
@@ -726,7 +762,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -738,7 +774,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[9]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -751,7 +787,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{9}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{11}
 }
 
 // AgentCapacity reports cluster resource capacity.
@@ -769,7 +805,7 @@ type AgentCapacity struct {
 
 func (x *AgentCapacity) Reset() {
 	*x = AgentCapacity{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +817,7 @@ func (x *AgentCapacity) String() string {
 func (*AgentCapacity) ProtoMessage() {}
 
 func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[10]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +830,7 @@ func (x *AgentCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentCapacity.ProtoReflect.Descriptor instead.
 func (*AgentCapacity) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{10}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AgentCapacity) GetCpuMillicoresTotal() int64 {
@@ -851,7 +887,7 @@ type AgentHealth struct {
 
 func (x *AgentHealth) Reset() {
 	*x = AgentHealth{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -863,7 +899,7 @@ func (x *AgentHealth) String() string {
 func (*AgentHealth) ProtoMessage() {}
 
 func (x *AgentHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[11]
+	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -876,7 +912,7 @@ func (x *AgentHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentHealth.ProtoReflect.Descriptor instead.
 func (*AgentHealth) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{11}
+	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AgentHealth) GetKubernetesHealthy() bool {
@@ -900,210 +936,11 @@ func (x *AgentHealth) GetMessage() string {
 	return ""
 }
 
-// ReportStatusRequest is sent by the agent when deployment status changes.
-type ReportStatusRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ClusterId     string                 `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	ResourceId    string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	DeploymentId  string                 `protobuf:"bytes,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	Phase         v1.DeploymentPhase     `protobuf:"varint,4,opt,name=phase,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"phase,omitempty"`
-	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
-	Conditions    []*Condition           `protobuf:"bytes,6,rep,name=conditions,proto3" json:"conditions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReportStatusRequest) Reset() {
-	*x = ReportStatusRequest{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReportStatusRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReportStatusRequest) ProtoMessage() {}
-
-func (x *ReportStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReportStatusRequest.ProtoReflect.Descriptor instead.
-func (*ReportStatusRequest) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *ReportStatusRequest) GetClusterId() string {
-	if x != nil {
-		return x.ClusterId
-	}
-	return ""
-}
-
-func (x *ReportStatusRequest) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
-}
-
-func (x *ReportStatusRequest) GetDeploymentId() string {
-	if x != nil {
-		return x.DeploymentId
-	}
-	return ""
-}
-
-func (x *ReportStatusRequest) GetPhase() v1.DeploymentPhase {
-	if x != nil {
-		return x.Phase
-	}
-	return v1.DeploymentPhase(0)
-}
-
-func (x *ReportStatusRequest) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *ReportStatusRequest) GetConditions() []*Condition {
-	if x != nil {
-		return x.Conditions
-	}
-	return nil
-}
-
-// ReportStatusResponse acknowledges the status report.
-type ReportStatusResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReportStatusResponse) Reset() {
-	*x = ReportStatusResponse{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReportStatusResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReportStatusResponse) ProtoMessage() {}
-
-func (x *ReportStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReportStatusResponse.ProtoReflect.Descriptor instead.
-func (*ReportStatusResponse) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{13}
-}
-
-// Condition represents a Kubernetes-style condition.
-type Condition struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	Type               string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	Status             string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"` // "True", "False", "Unknown"
-	Reason             string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	Message            string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	LastTransitionTime *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_transition_time,json=lastTransitionTime,proto3" json:"last_transition_time,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
-}
-
-func (x *Condition) Reset() {
-	*x = Condition{}
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Condition) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Condition) ProtoMessage() {}
-
-func (x *Condition) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_agent_v1_agent_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Condition.ProtoReflect.Descriptor instead.
-func (*Condition) Descriptor() ([]byte, []int) {
-	return file_loco_agent_v1_agent_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *Condition) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *Condition) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *Condition) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *Condition) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *Condition) GetLastTransitionTime() *timestamppb.Timestamp {
-	if x != nil {
-		return x.LastTransitionTime
-	}
-	return nil
-}
-
 var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\"\xab\x01\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\"\xab\x01\n" +
 	"\x0fRegisterRequest\x12!\n" +
 	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12\x16\n" +
 	"\x06region\x18\x02 \x01(\tR\x06region\x12#\n" +
@@ -1111,52 +948,44 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\bcapacity\x18\x04 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\"1\n" +
 	"\x10RegisterResponse\x12\x1d\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\tR\tclusterId\"\xb2\x03\n" +
-	"\x15CommandStreamResponse\x12\x1d\n" +
-	"\n" +
-	"command_id\x18\x01 \x01(\tR\tcommandId\x12\x1d\n" +
-	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x129\n" +
-	"\n" +
-	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12.\n" +
-	"\x04type\x18\x04 \x01(\x0e2\x1a.loco.agent.v1.CommandTypeR\x04type\x126\n" +
-	"\x06deploy\x18\n" +
-	" \x01(\v2\x1c.loco.agent.v1.DeployCommandH\x00R\x06deploy\x126\n" +
-	"\x06delete\x18\v \x01(\v2\x1c.loco.agent.v1.DeleteCommandH\x00R\x06delete\x123\n" +
-	"\x05scale\x18\f \x01(\v2\x1b.loco.agent.v1.ScaleCommandH\x00R\x05scale\x12@\n" +
-	"\n" +
-	"update_env\x18\r \x01(\v2\x1f.loco.agent.v1.UpdateEnvCommandH\x00R\tupdateEnvB\t\n" +
-	"\apayload\"\xc1\x01\n" +
-	"\rDeployCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12#\n" +
-	"\rdeployment_id\x18\x02 \x01(\tR\fdeploymentId\x12!\n" +
-	"\fworkspace_id\x18\x03 \x01(\tR\vworkspaceId\x12\x1c\n" +
-	"\tnamespace\x18\x04 \x01(\tR\tnamespace\x12)\n" +
-	"\x10application_spec\x18\x05 \x01(\fR\x0fapplicationSpec\"N\n" +
-	"\rDeleteCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x1c\n" +
-	"\tnamespace\x18\x02 \x01(\tR\tnamespace\"i\n" +
-	"\fScaleCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12\x1a\n" +
-	"\breplicas\x18\x02 \x01(\x05R\breplicas\x12\x1c\n" +
-	"\tnamespace\x18\x03 \x01(\tR\tnamespace\"\xc5\x01\n" +
-	"\x10UpdateEnvCommand\x12\x1f\n" +
-	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\x12:\n" +
-	"\x03env\x18\x02 \x03(\v2(.loco.agent.v1.UpdateEnvCommand.EnvEntryR\x03env\x12\x1c\n" +
-	"\tnamespace\x18\x03 \x01(\tR\tnamespace\x1a6\n" +
-	"\bEnvEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8a\x01\n" +
-	"\x14CommandStreamRequest\x12\x1d\n" +
-	"\n" +
-	"command_id\x18\x01 \x01(\tR\tcommandId\x12\x18\n" +
-	"\asuccess\x18\x02 \x01(\bR\asuccess\x12#\n" +
-	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\x12\x14\n" +
-	"\x05retry\x18\x04 \x01(\bR\x05retry\"\xa9\x01\n" +
+	"cluster_id\x18\x01 \x01(\tR\tclusterId\"\xc0\x01\n" +
+	"\vSyncRequest\x128\n" +
+	"\tinventory\x18\x01 \x01(\v2\x18.loco.agent.v1.InventoryH\x00R\tinventory\x122\n" +
+	"\aapplied\x18\x02 \x01(\v2\x16.loco.agent.v1.AppliedH\x00R\aapplied\x128\n" +
+	"\x06status\x18\x03 \x01(\v2\x1e.loco.agent.v1.PlacementStatusH\x00R\x06statusB\t\n" +
+	"\amessage\"D\n" +
+	"\tInventory\x127\n" +
+	"\aentries\x18\x01 \x03(\v2\x1d.loco.agent.v1.InventoryEntryR\aentries\"O\n" +
+	"\x0eInventoryEntry\x12!\n" +
+	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\"z\n" +
+	"\aApplied\x12!\n" +
+	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xce\x01\n" +
+	"\x0fPlacementStatus\x12!\n" +
+	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
+	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12\x14\n" +
+	"\x05ready\x18\x03 \x01(\bR\x05ready\x12%\n" +
+	"\x0eready_replicas\x18\x04 \x01(\x05R\rreadyReplicas\x12\x14\n" +
+	"\x05phase\x18\x05 \x01(\tR\x05phase\x12\x18\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"x\n" +
+	"\fSyncResponse\x12,\n" +
+	"\x05apply\x18\x01 \x01(\v2\x14.loco.agent.v1.ApplyH\x00R\x05apply\x12/\n" +
+	"\x06delete\x18\x02 \x01(\v2\x15.loco.agent.v1.DeleteH\x00R\x06deleteB\t\n" +
+	"\amessage\"\x89\x01\n" +
+	"\x05Apply\x12!\n" +
+	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
+	"\vresource_id\x18\x03 \x01(\tR\n" +
+	"resourceId\x12 \n" +
+	"\vapplication\x18\x04 \x01(\fR\vapplication\"h\n" +
+	"\x06Delete\x12!\n" +
+	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
+	"\vresource_id\x18\x03 \x01(\tR\n" +
+	"resourceId\"\xa9\x01\n" +
 	"\x10HeartbeatRequest\x12'\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x128\n" +
@@ -1174,34 +1003,11 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xa7\x02\n" +
-	"\x13ReportStatusRequest\x12'\n" +
-	"\n" +
-	"cluster_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tclusterId\x12)\n" +
-	"\vresource_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12-\n" +
-	"\rdeployment_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\x129\n" +
-	"\x05phase\x18\x04 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x05phase\x12\x18\n" +
-	"\amessage\x18\x05 \x01(\tR\amessage\x128\n" +
-	"\n" +
-	"conditions\x18\x06 \x03(\v2\x18.loco.agent.v1.ConditionR\n" +
-	"conditions\"\x16\n" +
-	"\x14ReportStatusResponse\"\xb7\x01\n" +
-	"\tCondition\x12\x12\n" +
-	"\x04type\x18\x01 \x01(\tR\x04type\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\x12L\n" +
-	"\x14last_transition_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x12lastTransitionTime*]\n" +
-	"\vCommandType\x12\x1c\n" +
-	"\x18COMMAND_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
-	"\x13COMMAND_TYPE_DEPLOY\x10\x01\x12\x17\n" +
-	"\x13COMMAND_TYPE_DELETE\x10\x022\xe8\x02\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage2\xf4\x01\n" +
 	"\fAgentService\x12K\n" +
-	"\bRegister\x12\x1e.loco.agent.v1.RegisterRequest\x1a\x1f.loco.agent.v1.RegisterResponse\x12^\n" +
-	"\rCommandStream\x12#.loco.agent.v1.CommandStreamRequest\x1a$.loco.agent.v1.CommandStreamResponse(\x010\x01\x12R\n" +
-	"\tHeartbeat\x12\x1f.loco.agent.v1.HeartbeatRequest\x1a .loco.agent.v1.HeartbeatResponse(\x010\x01\x12W\n" +
-	"\fReportStatus\x12\".loco.agent.v1.ReportStatusRequest\x1a#.loco.agent.v1.ReportStatusResponseB8Z6github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1b\x06proto3"
+	"\bRegister\x12\x1e.loco.agent.v1.RegisterRequest\x1a\x1f.loco.agent.v1.RegisterResponse\x12C\n" +
+	"\x04Sync\x12\x1a.loco.agent.v1.SyncRequest\x1a\x1b.loco.agent.v1.SyncResponse(\x010\x01\x12R\n" +
+	"\tHeartbeat\x12\x1f.loco.agent.v1.HeartbeatRequest\x1a .loco.agent.v1.HeartbeatResponse(\x010\x01B8Z6github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1b\x06proto3"
 
 var (
 	file_loco_agent_v1_agent_proto_rawDescOnce sync.Once
@@ -1215,56 +1021,44 @@ func file_loco_agent_v1_agent_proto_rawDescGZIP() []byte {
 	return file_loco_agent_v1_agent_proto_rawDescData
 }
 
-var file_loco_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_loco_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_loco_agent_v1_agent_proto_goTypes = []any{
-	(CommandType)(0),              // 0: loco.agent.v1.CommandType
-	(*RegisterRequest)(nil),       // 1: loco.agent.v1.RegisterRequest
-	(*RegisterResponse)(nil),      // 2: loco.agent.v1.RegisterResponse
-	(*CommandStreamResponse)(nil), // 3: loco.agent.v1.CommandStreamResponse
-	(*DeployCommand)(nil),         // 4: loco.agent.v1.DeployCommand
-	(*DeleteCommand)(nil),         // 5: loco.agent.v1.DeleteCommand
-	(*ScaleCommand)(nil),          // 6: loco.agent.v1.ScaleCommand
-	(*UpdateEnvCommand)(nil),      // 7: loco.agent.v1.UpdateEnvCommand
-	(*CommandStreamRequest)(nil),  // 8: loco.agent.v1.CommandStreamRequest
-	(*HeartbeatRequest)(nil),      // 9: loco.agent.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),     // 10: loco.agent.v1.HeartbeatResponse
-	(*AgentCapacity)(nil),         // 11: loco.agent.v1.AgentCapacity
-	(*AgentHealth)(nil),           // 12: loco.agent.v1.AgentHealth
-	(*ReportStatusRequest)(nil),   // 13: loco.agent.v1.ReportStatusRequest
-	(*ReportStatusResponse)(nil),  // 14: loco.agent.v1.ReportStatusResponse
-	(*Condition)(nil),             // 15: loco.agent.v1.Condition
-	nil,                           // 16: loco.agent.v1.UpdateEnvCommand.EnvEntry
-	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
-	(v1.DeploymentPhase)(0),       // 18: loco.deployment.v1.DeploymentPhase
+	(*RegisterRequest)(nil),   // 0: loco.agent.v1.RegisterRequest
+	(*RegisterResponse)(nil),  // 1: loco.agent.v1.RegisterResponse
+	(*SyncRequest)(nil),       // 2: loco.agent.v1.SyncRequest
+	(*Inventory)(nil),         // 3: loco.agent.v1.Inventory
+	(*InventoryEntry)(nil),    // 4: loco.agent.v1.InventoryEntry
+	(*Applied)(nil),           // 5: loco.agent.v1.Applied
+	(*PlacementStatus)(nil),   // 6: loco.agent.v1.PlacementStatus
+	(*SyncResponse)(nil),      // 7: loco.agent.v1.SyncResponse
+	(*Apply)(nil),             // 8: loco.agent.v1.Apply
+	(*Delete)(nil),            // 9: loco.agent.v1.Delete
+	(*HeartbeatRequest)(nil),  // 10: loco.agent.v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil), // 11: loco.agent.v1.HeartbeatResponse
+	(*AgentCapacity)(nil),     // 12: loco.agent.v1.AgentCapacity
+	(*AgentHealth)(nil),       // 13: loco.agent.v1.AgentHealth
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
-	11, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	17, // 1: loco.agent.v1.CommandStreamResponse.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 2: loco.agent.v1.CommandStreamResponse.type:type_name -> loco.agent.v1.CommandType
-	4,  // 3: loco.agent.v1.CommandStreamResponse.deploy:type_name -> loco.agent.v1.DeployCommand
-	5,  // 4: loco.agent.v1.CommandStreamResponse.delete:type_name -> loco.agent.v1.DeleteCommand
-	6,  // 5: loco.agent.v1.CommandStreamResponse.scale:type_name -> loco.agent.v1.ScaleCommand
-	7,  // 6: loco.agent.v1.CommandStreamResponse.update_env:type_name -> loco.agent.v1.UpdateEnvCommand
-	16, // 7: loco.agent.v1.UpdateEnvCommand.env:type_name -> loco.agent.v1.UpdateEnvCommand.EnvEntry
-	11, // 8: loco.agent.v1.HeartbeatRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
-	12, // 9: loco.agent.v1.HeartbeatRequest.health:type_name -> loco.agent.v1.AgentHealth
-	18, // 10: loco.agent.v1.ReportStatusRequest.phase:type_name -> loco.deployment.v1.DeploymentPhase
-	15, // 11: loco.agent.v1.ReportStatusRequest.conditions:type_name -> loco.agent.v1.Condition
-	17, // 12: loco.agent.v1.Condition.last_transition_time:type_name -> google.protobuf.Timestamp
-	1,  // 13: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	8,  // 14: loco.agent.v1.AgentService.CommandStream:input_type -> loco.agent.v1.CommandStreamRequest
-	9,  // 15: loco.agent.v1.AgentService.Heartbeat:input_type -> loco.agent.v1.HeartbeatRequest
-	13, // 16: loco.agent.v1.AgentService.ReportStatus:input_type -> loco.agent.v1.ReportStatusRequest
-	2,  // 17: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	3,  // 18: loco.agent.v1.AgentService.CommandStream:output_type -> loco.agent.v1.CommandStreamResponse
-	10, // 19: loco.agent.v1.AgentService.Heartbeat:output_type -> loco.agent.v1.HeartbeatResponse
-	14, // 20: loco.agent.v1.AgentService.ReportStatus:output_type -> loco.agent.v1.ReportStatusResponse
-	17, // [17:21] is the sub-list for method output_type
-	13, // [13:17] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	12, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
+	3,  // 1: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
+	5,  // 2: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
+	6,  // 3: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
+	4,  // 4: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
+	8,  // 5: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	9,  // 6: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	12, // 7: loco.agent.v1.HeartbeatRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
+	13, // 8: loco.agent.v1.HeartbeatRequest.health:type_name -> loco.agent.v1.AgentHealth
+	0,  // 9: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	2,  // 10: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	10, // 11: loco.agent.v1.AgentService.Heartbeat:input_type -> loco.agent.v1.HeartbeatRequest
+	1,  // 12: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	7,  // 13: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	11, // 14: loco.agent.v1.AgentService.Heartbeat:output_type -> loco.agent.v1.HeartbeatResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }
@@ -1273,24 +1067,26 @@ func file_loco_agent_v1_agent_proto_init() {
 		return
 	}
 	file_loco_agent_v1_agent_proto_msgTypes[2].OneofWrappers = []any{
-		(*CommandStreamResponse_Deploy)(nil),
-		(*CommandStreamResponse_Delete)(nil),
-		(*CommandStreamResponse_Scale)(nil),
-		(*CommandStreamResponse_UpdateEnv)(nil),
+		(*SyncRequest_Inventory)(nil),
+		(*SyncRequest_Applied)(nil),
+		(*SyncRequest_Status)(nil),
+	}
+	file_loco_agent_v1_agent_proto_msgTypes[7].OneofWrappers = []any{
+		(*SyncResponse_Apply)(nil),
+		(*SyncResponse_Delete)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_agent_v1_agent_proto_rawDesc), len(file_loco_agent_v1_agent_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   16,
+			NumEnums:      0,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_loco_agent_v1_agent_proto_goTypes,
 		DependencyIndexes: file_loco_agent_v1_agent_proto_depIdxs,
-		EnumInfos:         file_loco_agent_v1_agent_proto_enumTypes,
 		MessageInfos:      file_loco_agent_v1_agent_proto_msgTypes,
 	}.Build()
 	File_loco_agent_v1_agent_proto = out.File
