@@ -254,13 +254,15 @@ export function AppSidebar() {
 												))}
 											</DropdownMenuGroup>
 										))}
+										<DropdownMenuSeparator />
+										<DropdownMenuItem onClick={() => { setCreating("workspace"); }}>
+											<PlusIcon className="size-3.5 text-fg3" />
+											New workspace
+										</DropdownMenuItem>
 									</DropdownMenuSubContent>
 								</DropdownMenuSub>
 								<MenuLink icon={<Building2Icon />} onClick={() => { void navigate("/organizations"); }}>
 									Organizations
-								</MenuLink>
-								<MenuLink icon={<PlusIcon />} onClick={() => { setCreating("workspace"); }}>
-									New workspace
 								</MenuLink>
 								<MenuLink icon={<PlusIcon />} onClick={() => { setCreating("org"); }}>
 									New organization

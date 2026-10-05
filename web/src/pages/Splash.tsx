@@ -44,10 +44,10 @@ export function Splash() {
 
 	return (
 		<div className="min-h-screen overflow-x-hidden bg-background text-foreground">
-			<nav className="sticky top-0 z-50 border-b border-line bg-background">
+			<nav className="sticky top-0 z-50 bg-background">
 				<div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 px-4 md:px-8">
 					<a href="/" className="flex items-center" aria-label="Loco home">
-						<LocoLogo motion="once" className="w-[72px]" />
+						<LocoLogo className="w-[72px]" />
 					</a>
 					<div className="hidden items-center gap-6 lg:flex">
 						{NAV_LINKS.map((link) => (
