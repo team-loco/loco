@@ -148,7 +148,11 @@ func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 
 	ready := func(revision int64) *agentv1.PlacementStatus {
 		return &agentv1.PlacementStatus{
-			PlacementId: p.ID.String(), ObservedRevision: revision, Ready: true, ReadyReplicas: 1, Phase: "Ready",
+			PlacementId:      p.ID.String(),
+			ObservedRevision: revision,
+			Ready:            true,
+			ReadyReplicas:    1,
+			Phase:            testPhaseReady,
 		}
 	}
 

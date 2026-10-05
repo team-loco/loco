@@ -70,7 +70,7 @@ SET status = sqlc.arg(status),
     message = sqlc.arg(message),
     completed_at = CASE
         WHEN sqlc.arg(status)::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
-        ELSE completed_at
+        ELSE NULL
     END,
     updated_at = NOW()
 WHERE id = sqlc.arg(id)

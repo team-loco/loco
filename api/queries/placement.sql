@@ -69,6 +69,17 @@ RETURNING deployment_id, desired_deleted;
 DELETE FROM placements
 WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND desired_deleted;
 
+-- name: AdvancePlacementPastRevision :one
+UPDATE placements
+SET desired_revision = sqlc.arg(observed_revision)::bigint + 1,
+    applied_error = NULL,
+    updated_at = NOW()
+WHERE id = sqlc.arg(id)
+  AND cluster_id = sqlc.arg(cluster_id)
+  AND desired_revision = sqlc.arg(expected_revision)
+  AND sqlc.arg(observed_revision)::bigint >= desired_revision
+RETURNING desired_revision;
+
 -- name: UpdatePlacementStatus :one
 UPDATE placements
 SET observed_revision = sqlc.arg(observed_revision),

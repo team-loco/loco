@@ -214,14 +214,14 @@ const (
 )
 
 func diffInventory(rev placementRevision) inventoryAction {
+	if rev.observed && rev.observedRevision > rev.desiredRevision {
+		return inventoryAhead
+	}
 	if rev.desiredDeleted {
 		return inventorySend
 	}
 	if !rev.observed || rev.observedRevision < rev.desiredRevision {
 		return inventorySend
-	}
-	if rev.observedRevision > rev.desiredRevision {
-		return inventoryAhead
 	}
 	if rev.appliedRevision < rev.desiredRevision {
 		return inventoryMarkApplied
@@ -266,12 +266,24 @@ func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv
 		case inventoryMarkApplied:
 			ss.server.markApplied(ctx, ss.clusterID, row.ID, row.DesiredRevision)
 		case inventoryAhead:
-			slog.WarnContext(ctx, "cluster reports a placement revision newer than desired",
-				"cluster_id", ss.clusterID,
-				"placement_id", row.ID,
-				"observed_revision", observedRevision,
-				"desired_revision", row.DesiredRevision,
+			advanced, advanceErr := ss.server.advancePastRevision(
+				ctx,
+				ss.clusterID,
+				row.ID,
+				row.DesiredRevision,
+				observedRevision,
 			)
+			if advanceErr != nil {
+				slog.ErrorContext(ctx, "failed to advance placement past cluster revision",
+					"cluster_id", ss.clusterID,
+					"placement_id", row.ID,
+					"error", advanceErr,
+				)
+				continue
+			}
+			if advanced {
+				toSend = append(toSend, row.ID)
+			}
 		case inventoryInSync:
 		}
 	}
@@ -300,6 +312,32 @@ func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv
 		}
 	}
 	return nil
+}
+
+func (s *AgentServer) advancePastRevision(
+	ctx context.Context,
+	clusterID, placementID uuid.UUID,
+	expectedRevision, observedRevision int64,
+) (bool, error) {
+	revision, err := s.queries.AdvancePlacementPastRevision(ctx, genDb.AdvancePlacementPastRevisionParams{
+		ObservedRevision: observedRevision,
+		ID:               placementID,
+		ClusterID:        clusterID,
+		ExpectedRevision: expectedRevision,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("advance placement revision: %w", err)
+	}
+	slog.WarnContext(ctx, "cluster held a newer placement revision than desired; advanced past it",
+		"cluster_id", clusterID,
+		"placement_id", placementID,
+		"observed_revision", observedRevision,
+		"desired_revision", revision,
+	)
+	return true, nil
 }
 
 func (s *AgentServer) markApplied(ctx context.Context, clusterID, placementID uuid.UUID, revision int64) {
@@ -492,6 +530,7 @@ func deploymentTransitionForStatus(status *agentv1.PlacementStatus) deploymentTr
 			from: []genDb.DeploymentStatus{
 				genDb.DeploymentStatusPending,
 				genDb.DeploymentStatusDeploying,
+				genDb.DeploymentStatusFailed,
 			},
 		}
 	}

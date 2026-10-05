@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
+	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)

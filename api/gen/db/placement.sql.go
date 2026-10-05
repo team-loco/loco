@@ -11,6 +11,37 @@ import (
 	"github.com/google/uuid"
 )
 
+const advancePlacementPastRevision = `-- name: AdvancePlacementPastRevision :one
+UPDATE placements
+SET desired_revision = $1::bigint + 1,
+    applied_error = NULL,
+    updated_at = NOW()
+WHERE id = $2
+  AND cluster_id = $3
+  AND desired_revision = $4
+  AND $1::bigint >= desired_revision
+RETURNING desired_revision
+`
+
+type AdvancePlacementPastRevisionParams struct {
+	ObservedRevision int64     `json:"observedRevision"`
+	ID               uuid.UUID `json:"id"`
+	ClusterID        uuid.UUID `json:"clusterId"`
+	ExpectedRevision int64     `json:"expectedRevision"`
+}
+
+func (q *Queries) AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error) {
+	row := q.db.QueryRow(ctx, advancePlacementPastRevision,
+		arg.ObservedRevision,
+		arg.ID,
+		arg.ClusterID,
+		arg.ExpectedRevision,
+	)
+	var desired_revision int64
+	err := row.Scan(&desired_revision)
+	return desired_revision, err
+}
+
 const beginClusterSync = `-- name: BeginClusterSync :one
 UPDATE clusters
 SET sync_generation = sync_generation + 1, updated_at = NOW()

@@ -8,6 +8,8 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
+const testPhaseReady = "Ready"
+
 func TestDiffInventory(t *testing.T) {
 	cases := []struct {
 		name string
@@ -43,6 +45,11 @@ func TestDiffInventory(t *testing.T) {
 			name: "deleted and still present",
 			rev:  placementRevision{desiredRevision: 4, desiredDeleted: true, observed: true, observedRevision: 3},
 			want: inventorySend,
+		},
+		{
+			name: "deleted, cluster holds a newer revision",
+			rev:  placementRevision{desiredRevision: 4, desiredDeleted: true, observed: true, observedRevision: 6},
+			want: inventoryAhead,
 		},
 		{
 			name: "deleted and absent",
@@ -101,7 +108,7 @@ func TestDeploymentTransitionForStatus(t *testing.T) {
 		},
 		{
 			name:   "ready",
-			status: &agentv1.PlacementStatus{Phase: "Ready", Ready: true},
+			status: &agentv1.PlacementStatus{Phase: testPhaseReady, Ready: true},
 			want:   genDb.DeploymentStatusRunning,
 		},
 		{

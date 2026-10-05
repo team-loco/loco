@@ -17,7 +17,7 @@ SET status = $1,
     message = $2,
     completed_at = CASE
         WHEN $1::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
-        ELSE completed_at
+        ELSE NULL
     END,
     updated_at = NOW()
 WHERE id = $3
