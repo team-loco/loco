@@ -3,4 +3,4 @@
 #MISE env={_.file=".env"}
 set -euo pipefail
 
-helmfile -e local -l phase=1-networking sync
+helmfile -e local -l phase=1-networking sync --skip-deps

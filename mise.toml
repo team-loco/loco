@@ -176,28 +176,29 @@ run = [
   "helm repo add altinity https://helm.altinity.com",
   "helm repo add grafana https://grafana.github.io/helm-charts",
   "helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts",
-  "helm repo update",
+  "helm repo update jetstack cilium altinity grafana open-telemetry",
 ]
 
 [tasks."helm:deps"]
-description = "Build the helm chart dependencies"
-depends = ["helm:repos"]
+description = "Build the helm chart dependencies; skipped while every chart's dependencies are newer than its Chart.yaml and Chart.lock"
+sources = ["charts/*/Chart.yaml", "charts/*/Chart.lock"]
+outputs = ["charts/*/charts/*.tgz"]
 run = [
-  "helm dependency build ./charts/loco-networking",
-  "helm dependency build ./charts/loco-obs",
-  "helm dependency build ./charts/loco-core",
-  "helm dependency build ./charts/loco-controller",
+  "mise run helm:repos",
+  "helm dependency build --skip-refresh ./charts/loco-networking",
+  "helm dependency build --skip-refresh ./charts/loco-obs",
+  "helm dependency build --skip-refresh ./charts/loco-core",
 ]
 
 [tasks."helm:sync:namespaces"]
 description = "Sync the platform namespaces and their Pod Security labels to the local cluster"
 env = { _.file = ".env" }
-run = "helmfile -e local -l name=loco-namespaces sync"
+run = "helmfile -e local -l name=loco-namespaces sync --skip-deps"
 
 [tasks."helm:sync:cert-manager"]
 description = "Sync cert-manager to the local cluster"
 env = { _.file = ".env" }
-run = "helmfile -e local -l name=cert-manager sync"
+run = "helmfile -e local -l name=cert-manager sync --skip-deps"
 
 [tasks."helm:destroy"]
 description = "Uninstall every release from the local cluster"

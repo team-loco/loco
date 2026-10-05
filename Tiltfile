@@ -18,7 +18,7 @@ if os.environ.get('DOCKER_HOST', '') == '' and os.path.exists(orbstack_sock):
     os.environ['DOCKER_HOST'] = 'unix://' + orbstack_sock
 
 allow_k8s_contexts('kind-loco-cluster-local')
-update_settings(k8s_upsert_timeout_secs=600)
+update_settings(k8s_upsert_timeout_secs=600, max_parallel_updates=5)
 
 # ---------------------------------------------------------------------------
 # Setup: Docker and the pinned tools
@@ -27,6 +27,7 @@ update_settings(k8s_upsert_timeout_secs=600)
 local_resource(
     'doctor',
     cmd='mise run doctor',
+    allow_parallel=True,
     labels=['setup'],
 )
 
@@ -38,6 +39,7 @@ local_resource(
     'kind-cluster',
     cmd='mise run cluster:up',
     resource_deps=['doctor'],
+    allow_parallel=True,
     labels=['setup'],
 )
 
@@ -48,7 +50,16 @@ local_resource(
 local_resource(
     'helm-deps',
     cmd='mise run helm:deps',
-    resource_deps=['kind-cluster'],
+    resource_deps=['doctor'],
+    deps=[
+        'charts/loco-core/Chart.yaml',
+        'charts/loco-core/Chart.lock',
+        'charts/loco-networking/Chart.yaml',
+        'charts/loco-networking/Chart.lock',
+        'charts/loco-obs/Chart.yaml',
+        'charts/loco-obs/Chart.lock',
+    ],
+    allow_parallel=True,
     labels=['setup'],
 )
 
@@ -118,6 +129,7 @@ local_resource(
     cmd='mise run db:migrate',
     resource_deps=['postgres'],
     deps=['api/migrations/', 'api/seed/'],
+    allow_parallel=True,
     labels=['infrastructure'],
 )
 
@@ -128,11 +140,12 @@ local_resource(
 local_resource(
     'helm-networking',
     cmd='mise run helm:sync:networking',
-    resource_deps=['helm-deps'],
+    resource_deps=['kind-cluster', 'helm-deps'],
     deps=[
         'charts/loco-networking/',
         'env/local/networking-chart.yaml.gotmpl',
     ],
+    allow_parallel=True,
     labels=['infra'],
 )
 
@@ -145,6 +158,7 @@ local_resource(
     cmd='mise run helm:sync:namespaces',
     resource_deps=['kind-cluster'],
     deps=['manifests/namespaces/'],
+    allow_parallel=True,
     labels=['infra'],
 )
 
@@ -152,6 +166,7 @@ local_resource(
     'helm-cert-manager',
     cmd='mise run helm:sync:cert-manager',
     resource_deps=['helm-networking'],
+    allow_parallel=True,
     labels=['infra'],
 )
 
@@ -214,6 +229,7 @@ local_resource(
     serve_cmd='api/bin/loco-api',
     deps=['api/', 'gen/go/', 'k8sapi/', 'go.mod', 'go.sum'],
     resource_deps=['db-migrate', 'valkey'],
+    allow_parallel=True,
     labels=['services'],
 )
 
@@ -227,5 +243,6 @@ local_resource(
     'cli',
     cmd='mise run build',
     deps=['main.go', 'cmd/', 'internal/', 'gen/go/', 'go.mod', 'go.sum'],
+    allow_parallel=True,
     labels=['services'],
 )
