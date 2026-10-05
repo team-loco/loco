@@ -5,8 +5,7 @@ import { ObservabilityProxyService } from "@gen/loco/observability/v1/observabil
 import { LogOrder, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
 import { create } from "@bufbuild/protobuf";
 import { TimestampSchema } from "@bufbuild/protobuf/wkt";
-import type { ClusterTransport } from "@/components/observability/ObsProvider";
-import { timeRangeMs, type TimeRange } from "@/components/observability/ObsProvider";
+import { timeRangeMs, type ClusterTransport, type TimeRange } from "@/lib/obs";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 
 export interface LogsPage {

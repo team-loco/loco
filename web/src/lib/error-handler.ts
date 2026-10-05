@@ -39,6 +39,10 @@ export function getErrorMessage(
 	return formatErrorMessage(fallback);
 }
 
+export function isUnimplemented(error: unknown): boolean {
+	return error instanceof ConnectError && error.code === Code.Unimplemented;
+}
+
 export function getRequestIdFromError(error: unknown): string | null {
 	if (error instanceof ConnectError && error.code === Code.Internal) {
 		return error.metadata.get("x-loco-request-id") ?? null;

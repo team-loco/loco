@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createClient } from "@connectrpc/connect";
 import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
 import type { LogEntry } from "@gen/loco/observability/v1/observability_pb";
-import type { ClusterTransport } from "@/components/observability/ObsProvider";
+import type { ClusterTransport } from "@/lib/obs";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 
 const MAX_TAIL_ENTRIES = 500;

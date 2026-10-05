@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import { readStorage, writeStorage } from "./storage";
 import { ThemeContext, type Theme } from "./theme-context";
+
+const THEME_KEY = "loco:theme:v1";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
 	const [theme, setTheme] = useState<Theme>(() => {
-		const stored = localStorage.getItem("theme");
+		const stored = readStorage(THEME_KEY);
 		if (stored === "light" || stored === "dark") {
 			return stored;
 		}
@@ -19,7 +22,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		} else {
 			root.classList.remove("dark");
 		}
-		localStorage.setItem("theme", theme);
+		writeStorage(THEME_KEY, theme);
 	}, [theme]);
 
 	const toggleTheme = () => {

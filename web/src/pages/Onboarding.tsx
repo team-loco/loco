@@ -1,17 +1,38 @@
-import { Card, CardContent } from "@/components/design/Card";
-import { Progress } from "@/components/design/Progress";
-import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
-import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
 import { useQuery } from "@connectrpc/connect-query";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
+import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
+
+import { AuthStatusScreen } from "@/components/AuthStatusScreen";
+import { useAppLoader } from "@/context/AppLoader";
+import { Button } from "@/components/design/Button";
+import { useAutoCreateOrgWorkspace } from "@/hooks/useAutoCreateOrgWorkspace";
+import { workspacePath } from "@/lib/routes";
+
+type OnboardingStep = ReturnType<typeof useAutoCreateOrgWorkspace>["step"];
+
+let autoCreateStarted = false;
+
+function stepLabel(step: OnboardingStep): string {
+	switch (step) {
+		case "creating-org":
+			return "Creating your organization...";
+		case "creating-workspace":
+			return "Creating your workspace...";
+		case "done":
+			return "Ready to go!";
+		case "error":
+			return "Something went wrong";
+		case "idle":
+			return "Setting up your account...";
+	}
+}
+
 export function Onboarding() {
-	const hasStarted = useRef(false);
 	const { data: whoAmIResponse } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
-	const { autoCreate, step, error, shouldAutoCreate, isLoadingOrgs, hasOrgs } =
-		useAutoCreateOrgWorkspace();
+	const { autoCreate, step, error, shouldAutoCreate, isLoadingOrgs, hasOrgs } = useAutoCreateOrgWorkspace();
 	const navigate = useNavigate();
 
 	useEffect(() => {
@@ -19,132 +40,44 @@ export function Onboarding() {
 			return;
 		}
 
-		// User already has an org — redirect to dashboard
 		if (hasOrgs) {
 			void navigate("/dashboard");
 			return;
 		}
 
-		// Only create once
-		if (!shouldAutoCreate || hasStarted.current) {
+		if (!shouldAutoCreate || autoCreateStarted) {
 			return;
 		}
 
-		hasStarted.current = true;
+		autoCreateStarted = true;
 
 		autoCreate(user.email)
 			.then((result) => {
 				setTimeout(() => {
 					if (result.orgId && result.workspaceId) {
-						void navigate(`/org/${result.orgId}/wks/${result.workspaceId}`);
+						void navigate(workspacePath(result.orgId, result.workspaceId));
 					}
 				}, 500);
 			})
-			.catch(() => {
-				// Error is handled in hook state
-			});
+			.catch(() => undefined);
 	}, [user, autoCreate, shouldAutoCreate, hasOrgs, isLoadingOrgs, navigate]);
 
-	if (!user) {
+	const failed = error !== null;
+	useAppLoader(!failed, user === undefined ? undefined : stepLabel(step));
+
+	if (!failed) {
 		return null;
 	}
 
-	const steps = [
-		{ label: "Creating organization", value: 33 },
-		{ label: "Creating workspace", value: 66 },
-		{ label: "Setting up your account", value: 100 },
-	];
-
-	const getProgressValue = () => {
-		switch (step) {
-			case "creating-org":
-				return 33;
-			case "creating-workspace":
-				return 66;
-			case "done":
-				return 100;
-			case "error":
-				return 0;
-			case "idle":
-				return 0;
-		}
-	};
-
-	const getStepLabel = () => {
-		switch (step) {
-			case "creating-org":
-				return "Creating your organization...";
-			case "creating-workspace":
-				return "Creating your workspace...";
-			case "done":
-				return "Ready to go!";
-			case "error":
-				return "Something went wrong";
-			case "idle":
-				return "Setting up your account...";
-		}
-	};
-
 	return (
-		<div className="min-h-screen bg-background flex items-center justify-center px-6">
-			<Card className="max-w-md w-full">
-				<CardContent className="p-8">
-					<div className="text-center mb-8">
-						<div className="w-12 h-12 bg-main rounded-lg flex items-center justify-center text-white font-heading text-lg mx-auto mb-4">
-							L
-						</div>
-						<h1 className="text-2xl font-heading text-foreground mb-2">
-							Welcome to Loco
-						</h1>
-						<p className="text-sm text-muted-foreground">
-							Setting up your account...
-						</p>
-					</div>
-
-					<div className="space-y-4">
-						<div>
-							<p className="text-sm font-medium text-foreground mb-2">
-								{getStepLabel()}
-							</p>
-							<Progress value={getProgressValue()} className="h-2" />
-						</div>
-
-						{error && (
-							<div className="bg-red-50 border border-red-200 rounded p-3">
-								<p className="text-sm text-red-700">Error: {error}</p>
-								<button
-									onClick={() => { window.location.reload(); }}
-									className="text-sm text-red-600 underline mt-2 hover:text-red-700"
-								>
-									Try again
-								</button>
-							</div>
-						)}
-
-						<div className="text-xs text-muted-foreground space-y-1">
-							{steps.map((stepItem, idx) => (
-								<div
-									key={idx}
-									className={`flex items-center gap-2 ${
-										getProgressValue() >= stepItem.value
-											? "text-foreground"
-											: "text-muted-foreground"
-									}`}
-								>
-									<div
-										className={`w-4 h-4 rounded-full border border-border ${
-											getProgressValue() >= stepItem.value
-												? "bg-main text-white"
-												: "bg-transparent"
-										}`}
-									/>
-									<span>{stepItem.label}</span>
-								</div>
-							))}
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
+		<AuthStatusScreen title="We couldn't finish setting up your account" description={error}>
+			<Button
+				onClick={() => {
+					window.location.reload();
+				}}
+			>
+				Try again
+			</Button>
+		</AuthStatusScreen>
 	);
 }
