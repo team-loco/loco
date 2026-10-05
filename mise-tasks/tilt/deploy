@@ -14,7 +14,7 @@ for value in "$@"; do
 	sets+=(--set "$value")
 done
 
-helmfile -e local -l name="$release" sync ${sets[@]+"${sets[@]}"} >&2
+helmfile -e local -l name="$release" sync --skip-deps ${sets[@]+"${sets[@]}"} >&2
 helm get manifest "$release" -n "$namespace" |
 	yq "select(. != null) | .metadata.namespace = (.metadata.namespace // \"$namespace\")" |
 	kubectl get -o yaml -f -

@@ -11,14 +11,14 @@ COPY observability-proxy/go.mod observability-proxy/go.sum ./observability-proxy
 COPY go.mod go.sum ./
 
 WORKDIR /app/observability-proxy
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 WORKDIR /app
 COPY observability-proxy ./observability-proxy
 COPY gen/go ./gen/go
 
 WORKDIR /app/observability-proxy
-RUN --mount=type=cache,target=/root/.cache/go-build go build -o loco-obs-proxy .
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -o loco-obs-proxy .
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
