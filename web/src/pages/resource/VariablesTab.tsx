@@ -56,7 +56,8 @@ export function VariablesTab({
 	const editing = draft !== null;
 	const draftPairs: EnvPair[] = (draft ?? []).map((r) => [r.key.trim(), r.value]);
 	const parsed = parseDotEnv(pasteText);
-	const overwrites = parsed.filter(([k]) => draftPairs.some(([dk]) => dk === k)).length;
+	const draftKeys = new Set(draftPairs.map(([k]) => k));
+	const overwrites = parsed.filter(([k]) => draftKeys.has(k)).length;
 	const pasteSummary =
 		parsed.length > 0
 			? `${parsed.length.toString()} parsed · ${overwrites.toString()} overwrite existing keys`

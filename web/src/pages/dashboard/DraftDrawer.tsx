@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 
 import { DraftForm } from "./DraftForm";
 import { DraftProgress, progressSteps } from "./DraftProgress";
-import type { Draft } from "./drafts";
+import { NAME_RE, type Draft } from "./drafts";
 import { firstError, validateDraft } from "./draftValidation";
 
 function useDebounced<T>(value: T, ms: number): T {
@@ -191,7 +191,7 @@ function DraftDrawerBody({
 
 	const sub = draft.sub.trim();
 	const debouncedSub = useDebounced(sub, 350);
-	const subLooksValid = /^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$/.test(debouncedSub) && !otherSubs.has(debouncedSub);
+	const subLooksValid = NAME_RE.test(debouncedSub) && !otherSubs.has(debouncedSub);
 	const availabilityQuery = useQuery(
 		checkDomainAvailability,
 		{ domain: `${debouncedSub}.${platformDomain}` },

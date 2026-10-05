@@ -137,32 +137,31 @@ export function ResourcesTable({
 	const safePage = Math.min(page, pageCount - 1);
 	const pageItems = visible.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-	const regionNames = regions.map((r) => r.region);
-	for (const it of items) for (const g of it.regions) if (!regionNames.includes(g.region)) regionNames.push(g.region);
+	const regionNames = new Set(regions.map((r) => r.region));
+	const statusCounts = new Map<ResourceStatus, number>();
+	const typeCounts = new Map<ResourceType, number>();
+	const regionCounts = new Map<string, number>();
+	for (const it of items) {
+		statusCounts.set(it.resource.status, (statusCounts.get(it.resource.status) ?? 0) + 1);
+		typeCounts.set(it.resource.type, (typeCounts.get(it.resource.type) ?? 0) + 1);
+		const itemRegions = new Set(it.regions.map((g) => g.region));
+		for (const name of itemRegions) {
+			regionNames.add(name);
+			regionCounts.set(name, (regionCounts.get(name) ?? 0) + 1);
+		}
+	}
 
 	const statusOptions = [
 		{ value: "all", label: "All", count: items.length },
-		...STATUS_OPTIONS.map((o) => ({
-			value: o.value,
-			label: o.label,
-			count: items.filter((it) => it.resource.status === o.status).length,
-		})),
+		...STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: statusCounts.get(o.status) ?? 0 })),
 	];
 	const typeOptions = [
 		{ value: "all", label: "All", count: items.length },
-		...TYPE_OPTIONS.map((o) => ({
-			value: o.value,
-			label: o.label,
-			count: items.filter((it) => it.resource.type === o.type).length,
-		})),
+		...TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label, count: typeCounts.get(o.type) ?? 0 })),
 	];
 	const regionOptions = [
 		{ value: "all", label: "All", count: items.length },
-		...regionNames.map((name) => ({
-			value: name,
-			label: name,
-			count: items.filter((it) => it.regions.some((g) => g.region === name)).length,
-		})),
+		...[...regionNames].map((name) => ({ value: name, label: name, count: regionCounts.get(name) ?? 0 })),
 	];
 
 	const hasFilters = status !== "all" || type !== "all" || region !== "all" || q !== "";

@@ -55,15 +55,13 @@ function byNewest(a: Deployment, b: Deployment): number {
 }
 
 export function buildRegions(resource: Resource, deployments: Deployment[]): RegionView[] {
-	const names: string[] = [];
-	const configured = [...resource.regions].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
-	for (const r of configured) {
-		if (!names.includes(r.region)) names.push(r.region);
-	}
+	const names = new Set<string>();
+	const configured = resource.regions.toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+	for (const r of configured) names.add(r.region);
 	for (const d of deployments) {
-		if (d.region !== "" && !names.includes(d.region)) names.push(d.region);
+		if (d.region !== "") names.add(d.region);
 	}
-	return names.map((name, i) => {
+	return [...names].map((name, i) => {
 		const config = resource.regions.find((r) => r.region === name);
 		const history = deployments.filter((d) => d.region === name).sort(byNewest);
 		const current = history.find((d) => d.isActive) ?? history[0];

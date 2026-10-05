@@ -26,11 +26,9 @@ export interface EnvResource {
 const POLL_MS = 5000;
 
 function regionReplicas(resource: Resource, envDeployments: Deployment[]): RegionReplicas[] {
-	const names = resource.regions.map((r) => r.region);
-	for (const d of envDeployments) {
-		if (!names.includes(d.region)) names.push(d.region);
-	}
-	return names.map((region) => {
+	const names = new Set(resource.regions.map((r) => r.region));
+	for (const d of envDeployments) names.add(d.region);
+	return [...names].map((region) => {
 		const active = envDeployments.find((d) => d.region === region && d.isActive);
 		return {
 			region,

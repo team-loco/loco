@@ -193,7 +193,7 @@ export function DomainsSection({
 	const [host, setHost] = useState("");
 	const [error, setError] = useState<string | undefined>(undefined);
 	const add = useMutation(createResourceDomain);
-	const sorted = [...domains].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+	const sorted = domains.toSorted((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
 
 	const submit = () => {
 		const value = host.trim().toLowerCase();

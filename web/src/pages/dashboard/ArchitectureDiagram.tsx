@@ -93,7 +93,7 @@ export function ArchitectureDiagram({
 		</div>
 	);
 
-	const sorted = [...services].sort(
+	const sorted = services.toSorted(
 		(a, b) =>
 			Number(a.status === "draft") - Number(b.status === "draft") ||
 			Number(a.domain === null) - Number(b.domain === null),
@@ -103,9 +103,9 @@ export function ArchitectureDiagram({
 	sorted.forEach((s, i) => svcY.set(s.key, sy(i)));
 	const total = sorted.length === 0 ? 0 : sy(sorted.length - 1) + H + PAD;
 
-	const regionNames = [...regionOrder];
+	const regionNames = new Set(regionOrder);
 	for (const s of sorted) {
-		for (const g of s.regions) if (!regionNames.includes(g.region)) regionNames.push(g.region);
+		for (const g of s.regions) regionNames.add(g.region);
 	}
 
 	const edges: Edge[] = [];

@@ -58,12 +58,17 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 		{ resourceId, limit: 500 },
 		{ enabled: resourceId !== "", refetchInterval: 30_000 },
 	);
-	const events = [...(data?.events ?? [])].sort((a, b) => (tsMillis(b.timestamp) ?? 0) - (tsMillis(a.timestamp) ?? 0));
+	const events = (data?.events ?? []).toSorted((a, b) => (tsMillis(b.timestamp) ?? 0) - (tsMillis(a.timestamp) ?? 0));
 
 	const q = query.trim().toLowerCase();
 	const base = events.filter((e) => q === "" || `${e.reason} ${e.message} ${e.podName}`.toLowerCase().includes(q));
-	const filtered = base.filter((e) => type === "all" || severityOf(e) === type);
-	const countOf = (t: TypeFilter) => (t === "all" ? base.length : base.filter((e) => severityOf(e) === t).length);
+	const severityCounts: Record<TypeFilter, number> = { all: base.length, error: 0, warning: 0, normal: 0 };
+	const filtered: Event[] = [];
+	for (const e of base) {
+		const severity = severityOf(e);
+		severityCounts[severity]++;
+		if (type === "all" || severity === type) filtered.push(e);
+	}
 	const slice = pageSlice(filtered, page, size);
 	const hasFilters = q !== "" || type !== "all";
 
@@ -122,7 +127,7 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 					{TYPE_FILTERS.map((t) => (
 						<ToggleGroupItem key={t.value} value={t.value} className="h-6! gap-1.5 px-2.5 text-sm">
 							{t.label}
-							<span className="text-xs font-normal text-fg3 tabular-nums">{countOf(t.value)}</span>
+							<span className="text-xs font-normal text-fg3 tabular-nums">{severityCounts[t.value]}</span>
 						</ToggleGroupItem>
 					))}
 				</ToggleGroup>
