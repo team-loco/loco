@@ -11,13 +11,11 @@ import {
 	LayoutDashboardIcon,
 	LifeBuoyIcon,
 	LogOutIcon,
-	MoonIcon,
+	ArrowUpRightIcon,
 	PlusIcon,
 	ScrollTextIcon,
 	SettingsIcon,
 	Settings2Icon,
-	SunIcon,
-	TrainFrontIcon,
 	UserIcon,
 	UsersIcon,
 	WaypointsIcon,
@@ -51,7 +49,9 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useTheme } from "@/lib/use-theme";
 import { observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
 
+import { useSidebarPeek } from "./AppShell";
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
+import { playThemeSound, ThemeIcon } from "./ThemeIcon";
 
 interface NavItem {
 	name: string;
@@ -76,6 +76,7 @@ export function AppSidebar() {
 	const { theme, toggleTheme } = useTheme();
 	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
+	const peek = useSidebarPeek();
 
 	const { data: wsRes } = useQuery(listUserWorkspaces, { userId: user?.id ?? "", pageSize: 200 }, { enabled: !!user });
 	const allWorkspaces = wsRes?.workspaces ?? [];
@@ -139,16 +140,16 @@ export function AppSidebar() {
 	const displayName = user?.name !== undefined && user.name !== "" ? user.name : (user?.email ?? "");
 
 	return (
-		<Sidebar collapsible="icon">
+		<Sidebar collapsible="icon" onMouseEnter={peek.onEnter} onMouseLeave={peek.onLeave}>
 			<SidebarHeader className="p-2">
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<DropdownMenu>
+						<DropdownMenu onOpenChange={peek.lock}>
 							<DropdownMenuTrigger
 								render={<SidebarMenuButton size="lg" className="gap-2.5 aria-expanded:bg-sidebar-accent" />}
 							>
-								<span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background [&_svg]:size-[18px]!">
-									<TrainFrontIcon />
+								<span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-md font-semibold text-background">
+									{(activeOrg?.name[0] ?? "?").toUpperCase()}
 								</span>
 								<span className="flex min-w-0 flex-1 flex-col leading-tight">
 									<span className="truncate text-md font-semibold">{activeWs?.name ?? "Select workspace"}</span>
@@ -240,7 +241,7 @@ export function AppSidebar() {
 			<SidebarFooter className="p-2">
 				<SidebarMenu>
 					<SidebarMenuItem>
-						<DropdownMenu>
+						<DropdownMenu onOpenChange={peek.lock}>
 							<DropdownMenuTrigger
 								render={<SidebarMenuButton size="lg" className="gap-2.5 aria-expanded:bg-sidebar-accent" />}
 							>
@@ -264,14 +265,22 @@ export function AppSidebar() {
 								<MenuLink icon={<KeyRoundIcon />} onClick={() => { void navigate("/tokens?owner=personal"); }}>
 									Personal access tokens
 								</MenuLink>
-								<MenuLink icon={<BookOpenIcon />} onClick={() => { window.open("https://github.com/team-loco/loco", "_blank", "noopener"); }}>
+								<ExternalMenuLink icon={<BookOpenIcon />} href="https://github.com/team-loco/loco">
 									Documentation
-								</MenuLink>
-								<MenuLink icon={<LifeBuoyIcon />} onClick={() => { window.open("https://github.com/team-loco/loco/issues", "_blank", "noopener"); }}>
+								</ExternalMenuLink>
+								<ExternalMenuLink icon={<LifeBuoyIcon />} href="https://github.com/team-loco/loco/issues">
 									Support
-								</MenuLink>
+								</ExternalMenuLink>
 								<DropdownMenuSeparator />
-								<MenuLink icon={theme === "dark" ? <SunIcon /> : <MoonIcon />} onClick={toggleTheme} closeOnClick={false}>
+								<MenuLink
+									icon={<ThemeIcon mode={theme === "dark" ? "sun" : "moon"} />}
+									onClick={() => {
+										const toDark = theme !== "dark";
+										toggleTheme();
+										void playThemeSound(toDark);
+									}}
+									closeOnClick={false}
+								>
 									{theme === "dark" ? "Light mode" : "Dark mode"}
 								</MenuLink>
 								<DropdownMenuSeparator />
@@ -319,6 +328,21 @@ function MenuLink({
 			className="justify-between"
 		>
 			{children}
+			<span className="flex text-fg3 [&_svg]:size-[15px]">{icon}</span>
+		</DropdownMenuItem>
+	);
+}
+
+function ExternalMenuLink({ icon, href, children }: { icon: ReactNode; href: string; children: ReactNode }) {
+	return (
+		<DropdownMenuItem
+			render={<a href={href} target="_blank" rel="noopener noreferrer" />}
+			className="justify-between"
+		>
+			<span className="flex items-center gap-1">
+				{children}
+				<ArrowUpRightIcon className="size-3 text-fg3" />
+			</span>
 			<span className="flex text-fg3 [&_svg]:size-[15px]">{icon}</span>
 		</DropdownMenuItem>
 	);

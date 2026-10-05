@@ -126,6 +126,15 @@
 	--diff-add: #e6f4ea;
 	--diff-del: #fbe3e0;
 	--scrim: rgba(20, 16, 14, 0.35);
+	--sh-identifier: #2a2522;
+	--sh-sign: #8a837b;
+	--sh-property: #1e40af;
+	--sh-string: #1d6b3c;
+	--sh-keyword: #a14f0c;
+	--sh-class: #a63d2a;
+	--sh-entity: #2c4a99;
+	--sh-jsxliterals: #56504a;
+	--sh-comment: #958d84;
 
 	--background: var(--bg);
 	--foreground: var(--fg);
@@ -185,6 +194,15 @@
 	--diff-add: #15301d;
 	--diff-del: #3c1715;
 	--scrim: rgba(0, 0, 0, 0.5);
+	--sh-identifier: #f3efea;
+	--sh-sign: #8f877e;
+	--sh-property: #82a2ec;
+	--sh-string: #93d4a5;
+	--sh-keyword: #f0b070;
+	--sh-class: #f2998a;
+	--sh-entity: #9cc3f5;
+	--sh-jsxliterals: #c9c2ba;
+	--sh-comment: #766e66;
 }
 
 @layer base {

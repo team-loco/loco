@@ -38,7 +38,7 @@ function SidebarProvider({ style, ...props }: React.ComponentProps<typeof Sideba
 function SidebarGroupLabel({ className, ...props }: React.ComponentProps<typeof SidebarGroupLabelBase>) {
 	return (
 		<SidebarGroupLabelBase
-			className={cn("h-[34px] rounded-sm px-2 pt-2.5 text-sm font-normal text-fg3", className)}
+			className={cn("h-[34px] rounded-sm px-2 pt-2.5 text-sm font-normal text-fg3 group-data-[collapsible=icon]:mt-0", className)}
 			{...props}
 		/>
 	)
@@ -48,7 +48,7 @@ function SidebarMenuButton({ className, ...props }: React.ComponentProps<typeof 
 	return (
 		<SidebarMenuButtonBase
 			className={cn(
-				"rounded-sm px-2 text-md data-[size=lg]:rounded-lg data-active:font-medium [&_svg]:size-4",
+				"rounded-sm px-2 text-md data-[size=lg]:rounded-lg data-[size=lg]:group-data-[collapsible=icon]:size-12! data-[size=lg]:group-data-[collapsible=icon]:p-2! data-active:font-medium [&_svg]:size-4",
 				className
 			)}
 			{...props}

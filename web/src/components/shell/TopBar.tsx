@@ -14,13 +14,17 @@ import { SidebarTrigger } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useShellCrumbs } from "@/context/ShellContext";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { cn } from "@/lib/utils";
 import { useQuery } from "@connectrpc/connect-query";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+
+import { useSidebarPeek } from "./AppShell";
 
 export function TopBar() {
 	const { pathname } = useLocation();
 	const { orgs, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const crumbs = useShellCrumbs();
+	const { pinned } = useSidebarPeek();
 	const { active: env } = useEnvironments();
 	const { data: wsRes } = useQuery(
 		getWorkspace,
@@ -39,7 +43,10 @@ export function TopBar() {
 
 	return (
 		<div className="flex h-14 shrink-0 items-center gap-3 px-5 text-md">
-			<SidebarTrigger className="size-7 rounded-sm hover:bg-bg3" />
+			<SidebarTrigger
+				aria-pressed={pinned}
+				className={cn("size-7 rounded-sm hover:bg-bg3", pinned && "bg-info-bg text-primary hover:bg-info-bg hover:text-primary")}
+			/>
 			<span className="h-4 w-px bg-line" />
 			<Breadcrumb className="min-w-0 overflow-hidden">
 				<BreadcrumbList>
