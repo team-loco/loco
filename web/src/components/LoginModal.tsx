@@ -1,16 +1,13 @@
+import { createClient } from "@connectrpc/connect";
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
+
+import { OAuthProvider, OAuthService } from "@gen/loco/oauth/v1/oauth_pb";
+
 import { transport } from "@/auth/connect-transport";
 import { Button } from "@/components/design/Button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/design/Dialog";
-import { OAuthService } from "@gen/loco/oauth/v1/oauth_pb";
-import { createClient } from "@connectrpc/connect";
-import { useState } from "react";
-import Loader from "@/assets/loader.svg?react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/design/Dialog";
+import { SoonTag } from "@/components/design/SoonTag";
 import { getErrorMessage } from "@/lib/error-handler";
 
 interface LoginModalProps {
@@ -18,15 +15,17 @@ interface LoginModalProps {
 	onOpenChange: (open: boolean) => void;
 }
 
+function readStoredOAuthError(): string | null {
+	const oauthError = sessionStorage.getItem("oauth_error");
+	if (oauthError) {
+		sessionStorage.removeItem("oauth_error");
+		return oauthError;
+	}
+	return null;
+}
+
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
-	const [error, setError] = useState<string | null>(() => {
-		const oauthError = sessionStorage.getItem("oauth_error");
-		if (oauthError) {
-			sessionStorage.removeItem("oauth_error");
-			return oauthError;
-		}
-		return null;
-	});
+	const [error, setError] = useState<string | null>(readStoredOAuthError);
 	const [isGithubLoading, setIsGithubLoading] = useState(false);
 
 	const handleGithubLogin = async () => {
@@ -36,7 +35,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 
 			const client = createClient(OAuthService, transport);
 			const data = await client.getOAuthAuthorizationURL({
-				provider: 1,
+				provider: OAuthProvider.GITHUB,
 			});
 			const authUrl = data.authorizationUrl;
 
@@ -64,90 +63,45 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="max-w-sm w-full p-10 rounded-3xl flex! flex-col gap-6 overflow-hidden border-none">
-				{/* Gradient background - scaled to cover rounded corners */}
-				<div className="absolute inset-0 -z-10 rounded-3xl overflow-hidden">
-					<img
-						src="/gradient3.svg"
-						alt=""
-						className="w-full h-full object-cover scale-110"
-					/>
-					{/* Color overlay/tint */}
-					<div className="absolute inset-0 bg-orange-400/20"></div>
+			<DialogContent className="w-[380px] gap-5 px-8 pt-9 pb-6">
+				<div className="flex flex-col items-center gap-3 text-center">
+					<img src="/logo.webp" alt="Loco" className="size-10 rounded-lg" />
+					<DialogTitle className="text-xl font-semibold">Let&apos;s get started</DialogTitle>
+					<DialogDescription className="text-fg3">Sign in to your account</DialogDescription>
 				</div>
-				<style>{`
-					@keyframes swirl {
-						0% {
-							transform: scale(1.2) rotate(0deg);
-						}
-						25% {
-							transform: scale(1.25) rotate(5deg) translateX(10px);
-						}
-						50% {
-							transform: scale(1.2) rotate(0deg) translateY(10px);
-						}
-						75% {
-							transform: scale(1.25) rotate(-5deg) translateX(-10px);
-						}
-						100% {
-							transform: scale(1.2) rotate(0deg);
-						}
-					}
-				`}</style>
 
-				{/* Logo */}
-				<div className="flex justify-center">
-					<div className="w-12 h-12 bg-destructive rounded-lg flex items-center justify-center text-white font-heading text-xl">
-						L
+				{error !== null && (
+					<div role="alert" className="rounded-sm bg-bad-bg px-3 py-2 text-center text-sm text-bad-fg">
+						{error}
 					</div>
-				</div>
+				)}
 
-				{/* Header */}
-				<DialogHeader className="text-center space-y-1">
-					<DialogTitle className="text-3xl text-center text-gray-900">
-						Let&apos;s get started
-					</DialogTitle>
-					<DialogDescription className="hidden">
-						Sign in to your account
-					</DialogDescription>
-				</DialogHeader>
-
-				{/* Error Message Container */}
-				<div className="h-12">
-					{error && (
-						<div className="bg-red-50 border border-red-200 rounded-lg px-1 py-2 text-center">
-							<p className="text-sm text-red-800">{error}</p>
-						</div>
-					)}
-				</div>
-
-				{/* OAuth Buttons */}
-				<div className="mt-4 space-y-3">
+				<div className="flex flex-col gap-2">
 					<Button
+						variant="inverted"
+						size="lg"
+						className="w-full"
 						onClick={() => {
 							void handleGithubLogin();
 						}}
 						disabled={isGithubLoading}
-						className="w-full h-10 bg-black text-white shadow-none! hover:opacity-90! active:translate-x-1 active:translate-y-1 border-0"
 					>
 						{isGithubLoading ? (
-							<Loader className="w-4 h-4" />
+							<Loader2 className="size-4 animate-spin" />
 						) : (
-							<svg viewBox="0 0 1024 1024" fill="none" className="w-4 h-4">
+							<svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
 								<path
 									fillRule="evenodd"
 									clipRule="evenodd"
 									d="M8 0C3.58 0 0 3.58 0 8C0 11.54 2.29 14.53 5.47 15.59C5.87 15.66 6.02 15.42 6.02 15.21C6.02 15.02 6.01 14.39 6.01 13.72C4 14.09 3.48 13.23 3.32 12.78C3.23 12.55 2.84 11.84 2.5 11.65C2.22 11.5 1.82 11.13 2.49 11.12C3.12 11.11 3.57 11.7 3.72 11.94C4.44 13.15 5.59 12.81 6.05 12.6C6.12 12.08 6.33 11.73 6.56 11.53C4.78 11.33 2.92 10.64 2.92 7.58C2.92 6.71 3.23 5.99 3.74 5.43C3.66 5.23 3.38 4.41 3.82 3.31C3.82 3.31 4.49 3.1 6.02 4.13C6.66 3.95 7.34 3.86 8.02 3.86C8.7 3.86 9.38 3.95 10.02 4.13C11.55 3.09 12.22 3.31 12.22 3.31C12.66 4.41 12.38 5.23 12.3 5.43C12.81 5.99 13.12 6.7 13.12 7.58C13.12 10.65 11.25 11.33 9.47 11.53C9.76 11.78 10.01 12.26 10.01 13.01C10.01 14.08 10 14.94 10 15.21C10 15.42 10.15 15.67 10.55 15.59C13.71 14.53 16 11.53 16 8C16 3.58 12.42 0 8 0Z"
-									transform="scale(64)"
-									fill="currentColor"
 								/>
 							</svg>
 						)}
 						{isGithubLoading ? "Redirecting..." : "Continue with GitHub"}
 					</Button>
 
-					<Button className="w-full h-10 bg-black text-white shadow-none! hover:opacity-90! active:translate-x-1 active:translate-y-1 border-0">
-						<svg viewBox="0 0 24 24" className="w-4 h-4">
+					<Button variant="outline" size="lg" className="w-full cursor-not-allowed text-fg4" disabled>
+						<svg viewBox="0 0 24 24" className="size-4 opacity-60" aria-hidden="true">
 							<path
 								d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
 								fill="#4285F4"
@@ -166,14 +120,12 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 							/>
 						</svg>
 						Continue with Google
+						<SoonTag />
 					</Button>
 				</div>
 
-				{/* Spacer */}
-
-				{/* Footer */}
-				<p className="text-center text-xs text-gray-900">
-					<a href="#" className="underline text-gray-700">
+				<p className="m-0 text-center text-sm text-fg3">
+					<a href="#" className="underline hover:text-foreground">
 						Terms of Service
 					</a>
 				</p>

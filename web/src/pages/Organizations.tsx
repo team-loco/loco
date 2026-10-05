@@ -1,120 +1,121 @@
-import { useState } from "react";
-import { Button } from "@/components/design/Button";
-import { useAuth } from "@/auth/AuthProvider";
-import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { useQuery } from "@connectrpc/connect-query";
-import Loader from "@/assets/loader.svg?react";
-import { Plus } from "lucide-react";
-import { OrgCard } from "@/components/org/OrgCard";
-import { CreateOrgDialog } from "@/components/org/CreateOrgDialog";
-import { DeleteOrgDialog } from "@/components/org/DeleteOrgDialog";
-import { useOrgWorkspace } from "@/context/ContextProvider";
+import { Building2, Plus } from "lucide-react";
+import { useState } from "react";
+
+import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 
+import { useAuth } from "@/auth/AuthProvider";
+import { ErrorCard } from "@/components/ErrorCard";
+import { Button } from "@/components/design/Button";
+import { EmptyState } from "@/components/design/EmptyState";
+import { Page, PageHeader, Section } from "@/components/design/Page";
+import { Skeleton } from "@/components/design/Skeleton";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { useBreadcrumbs } from "@/context/ShellContext";
+
+import { CreateOrgDialog } from "./organizations/CreateOrgDialog";
+import { DeleteOrgDialog } from "./organizations/DeleteOrgDialog";
+import { OrgRow } from "./organizations/OrgRow";
+
+function OrgListSkeleton() {
+	return (
+		<div>
+			{[0, 1, 2].map((i) => (
+				<div key={i} className="flex items-center gap-3 border-b border-line px-5 py-3.5 last:border-b-0">
+					<Skeleton className="size-4" />
+					<Skeleton className="h-3.5 w-40" />
+					<div className="flex-1" />
+					<Skeleton className="h-7 w-44" />
+				</div>
+			))}
+		</div>
+	);
+}
+
 export function Organizations() {
+	useBreadcrumbs("Organizations");
 	const { user } = useAuth();
+	const { activeOrgId, setActiveOrg } = useOrgWorkspace();
 	const [createOrgOpen, setCreateOrgOpen] = useState(false);
-	const [deleteOrgId, setDeleteOrgId] = useState<string | null>(null);
-	const [deleteOrgName, setDeleteOrgName] = useState("");
+	const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
 
 	const {
 		data: orgsRes,
-		isLoading: orgsLoading,
+		isLoading,
+		error,
 		refetch: refetchOrgs,
 	} = useQuery(listUserOrgs, user ? { userId: user.id } : undefined, {
 		enabled: !!user,
 	});
 
 	const orgs = orgsRes?.orgs ?? [];
-	const { setActiveOrg } = useOrgWorkspace();
 
-	const handleSwitchOrg = (orgId: string) => {
-		setActiveOrg(orgId);
-	};
-
-	const handleDeleteOrg = (org: Organization) => {
-		setDeleteOrgId(org.id);
-		setDeleteOrgName(org.name);
+	const openCreate = () => {
+		setCreateOrgOpen(true);
 	};
 
 	const handleCreateOrgSuccess = (orgId: string) => {
 		void refetchOrgs();
-		handleSwitchOrg(orgId);
+		setActiveOrg(orgId);
 	};
 
-	const handleDeleteSuccess = () => {
-		void refetchOrgs();
+	const renderBody = () => {
+		if (isLoading) {
+			return <OrgListSkeleton />;
+		}
+		if (error) {
+			return <ErrorCard error={error} fallbackMessage="Failed to load organizations" minHeight="min-h-48" />;
+		}
+		if (orgs.length === 0) {
+			return (
+				<EmptyState
+					icon={<Building2 />}
+					title="No organizations yet"
+					action={
+						<Button onClick={openCreate}>
+							<Plus />
+							Create your first organization
+						</Button>
+					}
+				>
+					Get started by creating your first organization to manage workspaces and deploy resources.
+				</EmptyState>
+			);
+		}
+		return orgs.map((org) => (
+			<OrgRow key={org.id} org={org} active={org.id === activeOrgId} onSwitch={setActiveOrg} onDelete={setDeleteTarget} />
+		));
 	};
 
-	if (orgsLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="text-center flex flex-col gap-2 items-center">
-					<Loader className="w-8 h-8" />
-					<p className="text-foreground font-base">Loading organizations...</p>
-				</div>
-			</div>
-		);
-	}
+	const countLabel = isLoading ? null : <span className="font-normal text-fg3">{orgs.length}</span>;
+	const body = renderBody();
 
 	return (
-		<div className="w-full">
-			<div className="flex items-center justify-end mb-8">
-				<Button onClick={() => { setCreateOrgOpen(true); }}>
-					<Plus className="size-4 mr-2" />
-					Create Organization
-				</Button>
-			</div>
-
-			{orgs.length === 0 ? (
-				<div className="flex flex-col items-center justify-center min-h-96 border-2 border-dashed border-border rounded-lg">
-					<div className="text-center max-w-md">
-						<h3 className="text-xl font-semibold text-foreground mb-2">
-							No organizations yet
-						</h3>
-						<p className="text-muted-foreground mb-6">
-							Get started by creating your first organization to manage
-							workspaces and deploy resources.
-						</p>
-						<Button onClick={() => { setCreateOrgOpen(true); }}>
-							<Plus className="size-4 mr-2" />
-							Create Your First Organization
-						</Button>
-					</div>
-				</div>
-			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-					{orgs.map((org) => (
-						<OrgCard
-							key={org.id}
-							org={org}
-							onSwitch={handleSwitchOrg}
-							onDelete={handleDeleteOrg}
-						/>
-					))}
-				</div>
-			)}
-
-			{/* Dialogs */}
-			<CreateOrgDialog
-				open={createOrgOpen}
-				onOpenChange={setCreateOrgOpen}
-				onSuccess={handleCreateOrgSuccess}
+		<Page className="max-w-[1080px]">
+			<PageHeader
+				title="Organizations"
+				actions={
+					<Button onClick={openCreate}>
+						<Plus />
+						New organization
+					</Button>
+				}
 			/>
-			{deleteOrgId && (
-				<DeleteOrgDialog
-					open
-					onOpenChange={(open) => {
-						if (!open) {
-							setDeleteOrgId(null);
-							setDeleteOrgName("");
-						}
-					}}
-					orgId={deleteOrgId}
-					orgName={deleteOrgName}
-					onSuccess={handleDeleteSuccess}
-				/>
-			)}
-		</div>
+			<Section title={<>Your organizations {countLabel}</>}>{body}</Section>
+
+			<CreateOrgDialog open={createOrgOpen} onOpenChange={setCreateOrgOpen} onSuccess={handleCreateOrgSuccess} />
+			<DeleteOrgDialog
+				org={deleteTarget}
+				onOpenChange={(open) => {
+					if (!open) {
+						setDeleteTarget(null);
+					}
+				}}
+				onSuccess={() => {
+					void refetchOrgs();
+				}}
+			/>
+		</Page>
 	);
 }

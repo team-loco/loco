@@ -1,1 +1,1 @@
-export * from "@/components/ui/progress"
+export { Progress, ProgressIndicator, ProgressLabel, ProgressTrack, ProgressValue } from "@/components/ui/progress"

@@ -5,12 +5,12 @@ import { ObservabilityProxyService } from "@gen/loco/observability/v1/observabil
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { create } from "@bufbuild/protobuf";
 import { TimestampSchema } from "@bufbuild/protobuf/wkt";
-import type { ClusterTransport } from "@/components/observability/ObsProvider";
 import {
 	timeRangeMs,
 	timeRangeIntervalSeconds,
+	type ClusterTransport,
 	type TimeRange,
-} from "@/components/observability/ObsProvider";
+} from "@/lib/obs";
 
 function dateToTimestamp(date: Date) {
 	return create(TimestampSchema, {

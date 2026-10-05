@@ -1,210 +1,89 @@
-import Loader from "@/assets/loader.svg?react";
+import { useQuery } from "@connectrpc/connect-query";
+import type { ReactNode } from "react";
+
+import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
+
 import { useAuth } from "@/auth/AuthProvider";
+import { ErrorCard } from "@/components/ErrorCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar";
 import { Button } from "@/components/design/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/design/Card";
-import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
-import { EntityType } from "@gen/loco/token/v1/token_pb";
-import { deleteUser, whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
-import { toastConnectError } from "@/lib/error-handler";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
-import { ArrowRight } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
-import { toast } from "sonner";
+import { Page, PageHeader, Section } from "@/components/design/Page";
+import { Skeleton } from "@/components/design/Skeleton";
+import { useBreadcrumbs } from "@/context/ShellContext";
+
+import { DeleteAccountSection } from "./profile/DeleteAccountSection";
+import { TokensPreview } from "./profile/TokensPreview";
+
+function Row({ label, children }: { label: string; children: ReactNode }) {
+	return (
+		<div className="grid gap-2 border-b border-line px-5 py-[14px] last:border-b-0 md:grid-cols-[240px_minmax(0,1fr)] md:gap-6">
+			<span className="font-semibold">{label}</span>
+			<div className="min-w-0 text-fg2">{children}</div>
+		</div>
+	);
+}
+
+function ProfileSkeleton() {
+	return (
+		<Page className="max-w-[1080px]">
+			<Skeleton className="h-7 w-32" />
+			<div className="rounded-lg border border-line">
+				{[0, 1, 2].map((i) => (
+					<div key={i} className="flex items-center gap-6 border-b border-line px-5 py-4 last:border-b-0">
+						<Skeleton className="h-3.5 w-24" />
+						<Skeleton className="h-3.5 w-56" />
+					</div>
+				))}
+			</div>
+		</Page>
+	);
+}
 
 export function Profile() {
+	useBreadcrumbs("Profile");
 	const { logout } = useAuth();
-	const navigate = useNavigate();
-	const { data: whoAmIResponse, isLoading } = useQuery(whoAmI, {});
+	const { data: whoAmIResponse, isLoading, error } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
 
-	// Fetch user's tokens
-	const { data: tokensRes, isLoading: isTokensLoading } = useQuery(
-		listTokens,
-		user?.id ? { entityType: EntityType.USER, entityId: user.id } : undefined,
-		{ enabled: !!user?.id },
-	);
-	const tokens = useMemo(() => tokensRes?.tokens ?? [], [tokensRes]);
-
-	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-	const deleteUserMutation = useMutation(deleteUser);
-
 	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center min-h-96">
-				<div className="text-center flex flex-col gap-2 items-center">
-					<Loader className="w-8 h-8" />
-					<p className="text-foreground font-base">Loading...</p>
-				</div>
-			</div>
-		);
+		return <ProfileSkeleton />;
 	}
 
 	if (!user) {
-		return <div>User not found</div>;
+		return <ErrorCard error={error} fallbackMessage="User not found" />;
 	}
 
-	const handleDeleteAccount = async () => {
-		try {
-			await deleteUserMutation.mutateAsync({ userId: user.id });
-			toast.success("Account deleted successfully");
-			void logout();
-			void navigate("/login", { replace: true });
-		} catch (error) {
-			toastConnectError(error);
-			console.error(error);
-		}
-	};
+	const initial = user.name.charAt(0).toUpperCase();
 
 	return (
-		<div className="py-8">
-			<Card className="w-[95%] mx-auto">
-				{/* Account Information */}
-				<CardHeader>
-					<CardTitle className="text-lg">Account Information</CardTitle>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					<div className="flex items-center gap-4">
-						<Avatar className="h-12 w-12">
-							<AvatarImage src={user.avatarUrl} alt="user avatar" />
-							<AvatarFallback>
-								{user.name.charAt(0).toUpperCase()}
-							</AvatarFallback>
-						</Avatar>
-						<div className="flex-1">
-							<div className="flex gap-8">
-								<div>
-									<p className="text-sm text-muted-foreground">Name</p>
-									<p className="text-foreground font-medium">{user.name}</p>
-								</div>
-								<div>
-									<p className="text-sm text-muted-foreground">Email</p>
-									<p className="text-foreground font-medium">{user.email}</p>
-								</div>
-							</div>
-						</div>
-					</div>
-
-					{/* Tokens Section */}
-					<div className="space-y-3">
-						<div className="flex items-center justify-between">
-							<h3 className="font-semibold text-foreground">Tokens</h3>
-							<Button
-								size="sm"
-								onClick={() => {
-									void navigate("/tokens");
-								}}
-							>
-								Manage Tokens
-								<ArrowRight className="h-4 w-4 ml-2" />
-							</Button>
-						</div>
-						{isTokensLoading ? (
-							<div className="flex items-center justify-center py-8">
-								<Loader className="w-5 h-5" />
-							</div>
-						) : tokens.length === 0 ? (
-							<p className="text-sm text-muted-foreground">
-								No tokens yet. Create one on the tokens page.
-							</p>
-						) : (
-							<div className="space-y-2">
-								{tokens.slice(0, 3).map((token) => (
-									<div
-										key={`${token.name}-${token.entityType.toString()}-${token.entityId}`}
-										className="flex items-center justify-between p-3 border border-border rounded-sm bg-muted/20"
-									>
-										<div className="flex-1 min-w-0">
-											<p className="text-sm font-medium text-foreground truncate">
-												{token.name}
-											</p>
-											<p className="text-xs text-muted-foreground">
-												Expires{" "}
-												{token.expiresAt
-													? new Date(
-															typeof token.expiresAt === "object" &&
-																"seconds" in token.expiresAt
-																? Number(
-																		(token.expiresAt as Record<string, unknown>)
-																			.seconds,
-																	) * 1000
-																: token.expiresAt,
-														).toLocaleDateString()
-													: "never"}
-											</p>
-										</div>
-									</div>
-								))}
-								{tokens.length > 3 && (
-									<p className="text-xs text-muted-foreground text-center pt-2">
-										+{tokens.length - 3} more token
-										{tokens.length - 3 !== 1 ? "s" : ""}
-									</p>
-								)}
-							</div>
-						)}
-					</div>
-
-					{/* Account Management Section */}
-					<div className="space-y-3">
-						<div className="flex gap-2 justify-end">
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={() => {
-									void logout();
-								}}
-							>
-								Logout
-							</Button>
-
-							{!showDeleteConfirm ? (
-								<Button
-									variant="destructive"
-									size="sm"
-									onClick={() => {
-										setShowDeleteConfirm(true);
-									}}
-									disabled={deleteUserMutation.isPending}
-								>
-									Delete Account
-								</Button>
-							) : (
-								<div className="space-y-2 p-3 border-2 border-destructive rounded-sm bg-destructive/5">
-									<p className="text-sm text-destructive font-medium">
-										Are you sure? This action cannot be undone.
-									</p>
-									<div className="flex gap-2">
-										<Button
-											variant="secondary"
-											size="sm"
-											className="flex-1"
-											onClick={() => {
-												setShowDeleteConfirm(false);
-											}}
-											disabled={deleteUserMutation.isPending}
-										>
-											Cancel
-										</Button>
-										<Button
-											variant="destructive"
-											size="sm"
-											className="flex-1"
-											onClick={() => {
-												void handleDeleteAccount();
-											}}
-											disabled={deleteUserMutation.isPending}
-										>
-											{deleteUserMutation.isPending ? "Deleting..." : "Delete"}
-										</Button>
-									</div>
-								</div>
-							)}
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
+		<Page className="max-w-[1080px]">
+			<PageHeader
+				title="Profile"
+				actions={
+					<Button
+						variant="outline"
+						onClick={() => {
+							void logout();
+						}}
+					>
+						Log out
+					</Button>
+				}
+			/>
+			<Section title="Account">
+				<Row label="Avatar">
+					<Avatar className="size-10">
+						<AvatarImage src={user.avatarUrl} alt="user avatar" />
+						<AvatarFallback>{initial}</AvatarFallback>
+					</Avatar>
+				</Row>
+				<Row label="Name">
+					<span className="text-foreground">{user.name}</span>
+				</Row>
+				<Row label="Email">{user.email}</Row>
+			</Section>
+			<TokensPreview userId={user.id} />
+			<DeleteAccountSection userId={user.id} />
+		</Page>
 	);
 }
