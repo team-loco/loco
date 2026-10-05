@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -41,38 +42,80 @@ func New(cfg *rest.Config, namespace string) (*Applier, error) {
 	return &Applier{client: c, namespace: namespace}, nil
 }
 
-// ApplyFromJSON server-side applies an Application from a deploy payload.
-func (a *Applier) ApplyFromJSON(ctx context.Context, specJSON []byte) error {
+const (
+	AnnotationPlacementID       = "loco.io/placement-id"
+	AnnotationPlacementRevision = "loco.io/placement-revision"
+)
+
+var ErrStaleRevision = errors.New("revision is older than the one applied")
+
+type Placement struct {
+	ID          string
+	Revision    int64
+	ResourceID  string
+	Application []byte
+}
+
+// ApplyPlacement server-side applies the Application for a placement revision.
+func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error {
 	var payload DeployPayload
-	if err := json.Unmarshal(specJSON, &payload); err != nil {
-		return fmt.Errorf("%w: unmarshal deploy payload: %w", ErrInvalidPayload, err)
+	if err := json.Unmarshal(placement.Application, &payload); err != nil {
+		return fmt.Errorf("%w: unmarshal application: %w", ErrInvalidPayload, err)
 	}
-	if payload.ResourceID == "" {
-		return fmt.Errorf("%w: deploy payload has no resource_id", ErrInvalidPayload)
+	if placement.ID == "" {
+		return fmt.Errorf("%w: placement has no id", ErrInvalidPayload)
+	}
+	if placement.ResourceID == "" {
+		return fmt.Errorf("%w: placement has no resource_id", ErrInvalidPayload)
 	}
 	if payload.AppSpec == nil {
-		return fmt.Errorf("%w: deploy payload has no app_spec", ErrInvalidPayload)
+		return fmt.Errorf("%w: application has no app_spec", ErrInvalidPayload)
 	}
 
-	slog.InfoContext(ctx, "applying application",
-		"resource_id", payload.ResourceID,
-		"resource_name", payload.ResourceName,
-		"namespace", a.namespace,
-	)
+	name := applicationName(placement.ResourceID)
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		resourceVersion, err := a.checkRevision(ctx, name, placement)
+		if err != nil {
+			return err
+		}
+		applyConfig, err := applicationApplyConfiguration(
+			name,
+			a.namespace,
+			resourceVersion,
+			placement,
+			payload.AppSpec,
+		)
+		if err != nil {
+			return err
+		}
+		applyErr := a.client.Apply(ctx, applyConfig, client.FieldOwner(fieldOwner), client.ForceOwnership)
+		if applyErr != nil {
+			return fmt.Errorf("failed to apply Application: %w", applyErr)
+		}
+		slog.InfoContext(ctx, "applied Application",
+			"name", name,
+			"namespace", a.namespace,
+			"placement_id", placement.ID,
+			"revision", placement.Revision,
+		)
+		return nil
+	})
+}
 
-	name := applicationName(payload.ResourceID)
-	applyConfig, err := applicationApplyConfiguration(name, a.namespace, payload.AppSpec)
-	if err != nil {
-		return err
+func (a *Applier) checkRevision(ctx context.Context, name string, placement Placement) (string, error) {
+	live := &locoControllerV1.Application{}
+	key := client.ObjectKey{Namespace: a.namespace, Name: name}
+	if err := a.client.Get(ctx, key, live); err != nil {
+		if client.IgnoreNotFound(err) == nil {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to read Application: %w", err)
 	}
-
-	applyErr := a.client.Apply(ctx, applyConfig, client.FieldOwner(fieldOwner), client.ForceOwnership)
-	if applyErr != nil {
-		return fmt.Errorf("failed to apply Application: %w", applyErr)
+	stored, ok := PlacementOf(live)
+	if ok && stored.ID == placement.ID && stored.Revision > placement.Revision {
+		return "", fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, stored.Revision, placement.Revision)
 	}
-
-	slog.InfoContext(ctx, "applied Application", "name", name, "namespace", a.namespace)
-	return nil
+	return live.ResourceVersion, nil
 }
 
 func applicationName(resourceID string) string {
@@ -80,7 +123,8 @@ func applicationName(resourceID string) string {
 }
 
 func applicationApplyConfiguration(
-	name, namespace string,
+	name, namespace, resourceVersion string,
+	placement Placement,
 	spec *locoControllerV1.ApplicationSpec,
 ) (runtime.ApplyConfiguration, error) {
 	specMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(spec)
@@ -93,6 +137,12 @@ func applicationApplyConfiguration(
 	obj.SetGroupVersionKind(gvk)
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
+	obj.SetResourceVersion(resourceVersion)
+	revision := strconv.FormatInt(placement.Revision, 10)
+	obj.SetAnnotations(map[string]string{
+		AnnotationPlacementID:       placement.ID,
+		AnnotationPlacementRevision: revision,
+	})
 	setErr := unstructured.SetNestedField(obj.Object, specMap, "spec")
 	if setErr != nil {
 		return nil, fmt.Errorf("%w: set spec: %w", ErrInvalidPayload, setErr)
@@ -101,34 +151,72 @@ func applicationApplyConfiguration(
 	return client.ApplyConfigurationFromUnstructured(obj), nil
 }
 
-// DeleteFromJSON deletes an Application by resource ID.
-func (a *Applier) DeleteFromJSON(ctx context.Context, resourceID string) error {
-	slog.InfoContext(ctx, "deleting application", "resource_id", resourceID, "namespace", a.namespace)
-
-	if resourceID == "" {
-		return fmt.Errorf("%w: delete payload has no resource_id", ErrInvalidPayload)
+// DeletePlacement deletes the Application for a placement unless a different placement owns it.
+func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) error {
+	if placement.ResourceID == "" {
+		return fmt.Errorf("%w: delete has no resource_id", ErrInvalidPayload)
 	}
+	name := applicationName(placement.ResourceID)
 
-	app := &locoControllerV1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      applicationName(resourceID),
-			Namespace: a.namespace,
-		},
-	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		live := &locoControllerV1.Application{}
+		key := client.ObjectKey{Namespace: a.namespace, Name: name}
+		if err := a.client.Get(ctx, key, live); err != nil {
+			if client.IgnoreNotFound(err) == nil {
+				return nil
+			}
+			return fmt.Errorf("failed to read Application: %w", err)
+		}
 
-	if err := a.client.Delete(ctx, app); err != nil {
-		if client.IgnoreNotFound(err) != nil {
+		stored, ok := PlacementOf(live)
+		if ok && stored.ID != placement.ID {
+			slog.InfoContext(ctx, "Application belongs to another placement, not deleting",
+				"name", name,
+				"placement_id", placement.ID,
+				"owner_placement_id", stored.ID,
+			)
+			return nil
+		}
+		if ok && stored.Revision > placement.Revision {
+			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, stored.Revision, placement.Revision)
+		}
+
+		precondition := client.Preconditions{ResourceVersion: &live.ResourceVersion}
+		if err := a.client.Delete(ctx, live, precondition); err != nil {
+			if client.IgnoreNotFound(err) == nil {
+				return nil
+			}
 			return fmt.Errorf("failed to delete Application: %w", err)
 		}
-		slog.WarnContext(ctx, "Application not found for deletion", "name", app.Name)
+		slog.InfoContext(
+			ctx,
+			"deleted Application",
+			"name",
+			name,
+			"namespace",
+			a.namespace,
+			"placement_id",
+			placement.ID,
+		)
 		return nil
-	}
-
-	slog.InfoContext(ctx, "deleted Application", "name", app.Name, "namespace", a.namespace)
-	return nil
+	})
 }
 
-// DeployPayload matches the structure sent by the API's DeployCommandPayload.
+// PlacementOf reads the placement annotations of an Application.
+func PlacementOf(app *locoControllerV1.Application) (Placement, bool) {
+	annotations := app.GetAnnotations()
+	id := annotations[AnnotationPlacementID]
+	if id == "" {
+		return Placement{}, false
+	}
+	revision, err := strconv.ParseInt(annotations[AnnotationPlacementRevision], 10, 64)
+	if err != nil {
+		return Placement{}, false
+	}
+	return Placement{ID: id, Revision: revision}, true
+}
+
+// DeployPayload matches the structure sent by the API's ApplicationPayload.
 type DeployPayload struct {
 	DeploymentID string                            `json:"deployment_id"`
 	ResourceID   string                            `json:"resource_id"`

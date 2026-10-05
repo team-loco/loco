@@ -1,4 +1,4 @@
-package main
+package reconciler
 
 import (
 	"errors"
@@ -12,12 +12,14 @@ import (
 	"github.com/team-loco/loco/agent/pkg/applier"
 )
 
+const testGroup = "infra.loco.io"
+
 func TestIsRetryable(t *testing.T) {
-	resource := schema.GroupResource{Group: "infra.loco.io", Resource: "applications"}
+	resource := schema.GroupResource{Group: testGroup, Resource: "applications"}
 	conflictReason := errors.New("modified")
 	conflict := apierrors.NewConflict(resource, "resource-1", conflictReason)
 	wrappedConflict := fmt.Errorf("failed to apply Application: %w", conflict)
-	kind := schema.GroupKind{Group: "infra.loco.io", Kind: "Application"}
+	kind := schema.GroupKind{Group: testGroup, Kind: "Application"}
 	invalid := apierrors.NewInvalid(kind, "resource-1", nil)
 	serverTimeout := apierrors.NewServerTimeout(resource, "patch", 1)
 	tooMany := apierrors.NewTooManyRequests("slow down", 1)
@@ -51,9 +53,9 @@ func TestIsRetryable(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := isRetryable(tc.err)
+			got := IsRetryable(tc.err)
 			if got != tc.want {
-				t.Errorf("isRetryable(%v) = %v, want %v", tc.err, got, tc.want)
+				t.Errorf("IsRetryable(%v) = %v, want %v", tc.err, got, tc.want)
 			}
 		})
 	}
