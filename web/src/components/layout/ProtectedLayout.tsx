@@ -1,10 +1,12 @@
 import { useAuth } from "@/auth/AuthProvider";
+import { ErrorCard } from "@/components/ErrorCard";
 import { RouteFallback } from "@/components/RouteFallback";
 import { AppShell } from "@/components/shell/AppShell";
 import { ContextProvider } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
@@ -36,15 +38,21 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	);
 	const workspaces = workspacesRes?.workspaces ?? [];
 
+	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
+
 	useEffect(() => {
-		if (error) {
+		if (unauthenticated) {
 			void logout();
 			void navigate("/login", { replace: true });
 		}
-	}, [error, logout, navigate]);
+	}, [unauthenticated, logout, navigate]);
 
-	if (isLoading) {
+	if (isLoading || unauthenticated) {
 		return <RouteFallback />;
+	}
+
+	if (error) {
+		return <ErrorCard error={error} fallbackMessage="Could not load your account" minHeight="min-h-screen" />;
 	}
 
 	return (

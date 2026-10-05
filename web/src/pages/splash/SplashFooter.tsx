@@ -1,4 +1,5 @@
 import { FOOTER_COLUMNS } from "./content";
+import { LocoLogo } from "@/components/design/LocoLogo";
 
 const COPYRIGHT_YEAR = new Date().getFullYear();
 
@@ -8,8 +9,7 @@ export function SplashFooter() {
 			<div className="mx-auto mb-8 grid max-w-[1200px] gap-10 sm:grid-cols-2 lg:grid-cols-4">
 				<div className="flex flex-col gap-2.5 sm:col-span-2 lg:col-span-1">
 					<div className="flex items-center gap-2">
-						<img src="/logo.webp" alt="Loco" className="size-6 rounded-sm" />
-						<span className="text-md font-semibold">Loco</span>
+						<LocoLogo className="w-16" />
 					</div>
 					<p className="m-0 text-fg3">Modern infrastructure for a modern world.</p>
 				</div>

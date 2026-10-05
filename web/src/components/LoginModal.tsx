@@ -9,6 +9,7 @@ import { Button } from "@/components/design/Button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/design/Dialog";
 import { SoonTag } from "@/components/design/SoonTag";
 import { getErrorMessage } from "@/lib/error-handler";
+import { LocoLogo } from "@/components/design/LocoLogo";
 
 interface LoginModalProps {
 	open: boolean;
@@ -65,7 +66,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent className="w-[380px] gap-5 px-8 pt-9 pb-6">
 				<div className="flex flex-col items-center gap-3 text-center">
-					<img src="/logo.webp" alt="Loco" className="size-10 rounded-lg" />
+					<LocoLogo motion="once" className="mb-1 w-24" />
 					<DialogTitle className="text-xl font-semibold">Let&apos;s get started</DialogTitle>
 					<DialogDescription className="text-fg3">Sign in to your account</DialogDescription>
 				</div>

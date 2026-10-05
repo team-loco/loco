@@ -13,6 +13,7 @@ import { GitHubIcon } from "./splash/GitHubIcon";
 import { HeroTerminal } from "./splash/HeroTerminal";
 import { ConfigSection, CtaSection, FeaturesSection, OpenSourceSection } from "./splash/sections";
 import { SplashFooter } from "./splash/SplashFooter";
+import { LocoLogo } from "@/components/design/LocoLogo";
 
 const NAV_LINKS = [
 	{ label: "Features", href: "#features" },
@@ -45,9 +46,8 @@ export function Splash() {
 		<div className="min-h-screen overflow-x-hidden bg-background text-foreground">
 			<nav className="sticky top-0 z-50 border-b border-line bg-background">
 				<div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 px-4 md:px-8">
-					<a href="/" className="flex items-center gap-2">
-						<img src="/logo.webp" alt="Loco" className="size-7 rounded-sm" />
-						<span className="text-md font-semibold">Loco</span>
+					<a href="/" className="flex items-center" aria-label="Loco home">
+						<LocoLogo motion="once" className="w-[72px]" />
 					</a>
 					<div className="hidden items-center gap-6 lg:flex">
 						{NAV_LINKS.map((link) => (

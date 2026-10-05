@@ -126,6 +126,7 @@
 	--diff-add: #e6f4ea;
 	--diff-del: #fbe3e0;
 	--scrim: rgba(20, 16, 14, 0.35);
+	--logo: #2455eb;
 	--sh-identifier: #2a2522;
 	--sh-sign: #8a837b;
 	--sh-property: #1e40af;
@@ -194,6 +195,7 @@
 	--diff-add: #15301d;
 	--diff-del: #3c1715;
 	--scrim: rgba(0, 0, 0, 0.5);
+	--logo: #6f8ff2;
 	--sh-identifier: #f3efea;
 	--sh-sign: #8f877e;
 	--sh-property: #82a2ec;
@@ -248,6 +250,42 @@
 [data-slot="sheet-overlay"] {
 	background: rgba(0, 0, 0, 0.5);
 	backdrop-filter: none;
+}
+
+.loco-logo-animated path {
+	stroke-dasharray: 1 1;
+	stroke-dashoffset: 1;
+	visibility: hidden;
+}
+
+@keyframes loco-logo-draw {
+	from {
+		visibility: visible;
+		stroke-dashoffset: 1;
+	}
+	to {
+		visibility: visible;
+		stroke-dashoffset: 0;
+	}
+}
+
+@keyframes loco-logo-cycle {
+	0%,
+	93% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.loco-logo-animated,
+	.loco-logo-animated path {
+		animation: none !important;
+		visibility: visible;
+		stroke-dashoffset: 0;
+	}
 }
 
 @keyframes drawer-in {

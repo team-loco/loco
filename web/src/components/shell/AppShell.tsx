@@ -7,7 +7,7 @@ import { ShellProvider } from "@/context/ShellContext";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 
-const PEEK_DELAY_MS = 120;
+const PEEK_DELAY_MS = 60;
 
 interface SidebarPeek {
 	pinned: boolean;

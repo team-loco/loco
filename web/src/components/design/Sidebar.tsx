@@ -1,5 +1,5 @@
 import {
-	Sidebar,
+	Sidebar as SidebarBase,
 	SidebarContent,
 	SidebarFooter,
 	SidebarGroup,
@@ -26,13 +26,23 @@ import {
 import { useSidebar } from "@/components/ui/use-sidebar"
 import { cn } from "@/lib/utils"
 
-function SidebarProvider({ style, ...props }: React.ComponentProps<typeof SidebarProviderBase>) {
+const motion = "duration-[160ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
+
+function SidebarProvider({ style, className, ...props }: React.ComponentProps<typeof SidebarProviderBase>) {
 	return (
 		<SidebarProviderBase
 			style={{ "--sidebar-width": "16rem", "--sidebar-width-icon": "4rem", ...style } as React.CSSProperties}
+			className={cn(
+				"[&_[data-slot=sidebar-gap]]:duration-[160ms] [&_[data-slot=sidebar-gap]]:ease-[cubic-bezier(0.32,0.72,0,1)]",
+				className
+			)}
 			{...props}
 		/>
 	)
+}
+
+function Sidebar({ className, ...props }: React.ComponentProps<typeof SidebarBase>) {
+	return <SidebarBase className={cn(motion, className)} {...props} />
 }
 
 function SidebarGroupLabel({ className, ...props }: React.ComponentProps<typeof SidebarGroupLabelBase>) {
