@@ -3,6 +3,7 @@ import { listUserWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceSe
 import {
 	BellIcon,
 	BookOpenIcon,
+	Building2Icon,
 	ChartLineIcon,
 	CheckIcon,
 	ChevronsUpDownIcon,
@@ -24,6 +25,7 @@ import { useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { LocoLogo } from "@/components/design/LocoLogo";
 import { SoonTag } from "@/components/design/SoonTag";
 import {
 	DropdownMenu,
@@ -148,8 +150,8 @@ export function AppSidebar() {
 							<DropdownMenuTrigger
 								render={<SidebarMenuButton size="lg" className="gap-2.5 aria-expanded:bg-sidebar-accent" />}
 							>
-								<span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-md font-semibold text-background">
-									{(activeOrg?.name[0] ?? "?").toUpperCase()}
+								<span className="flex h-8 w-14 shrink-0 items-center justify-center group-data-[collapsible=icon]:w-8">
+									<LocoLogo className="h-auto! w-full!" />
 								</span>
 								<span className="flex min-w-0 flex-1 flex-col leading-tight">
 									<span className="truncate text-md font-semibold">{activeWs?.name ?? "Select workspace"}</span>
@@ -187,15 +189,6 @@ export function AppSidebar() {
 										))}
 									</DropdownMenuGroup>
 								))}
-								<DropdownMenuSeparator />
-								<DropdownMenuItem onClick={() => { setCreating("workspace"); }}>
-									<PlusIcon className="size-3.5 text-fg3" />
-									New workspace
-								</DropdownMenuItem>
-								<DropdownMenuItem onClick={() => { setCreating("org"); }}>
-									<PlusIcon className="size-3.5 text-fg3" />
-									New organization
-								</DropdownMenuItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</SidebarMenuItem>
@@ -265,6 +258,17 @@ export function AppSidebar() {
 								<MenuLink icon={<KeyRoundIcon />} onClick={() => { void navigate("/tokens?owner=personal"); }}>
 									Personal access tokens
 								</MenuLink>
+								<DropdownMenuSeparator />
+								<MenuLink icon={<Building2Icon />} onClick={() => { void navigate("/organizations"); }}>
+									Organizations
+								</MenuLink>
+								<MenuLink icon={<PlusIcon />} onClick={() => { setCreating("workspace"); }}>
+									New workspace
+								</MenuLink>
+								<MenuLink icon={<PlusIcon />} onClick={() => { setCreating("org"); }}>
+									New organization
+								</MenuLink>
+								<DropdownMenuSeparator />
 								<ExternalMenuLink icon={<BookOpenIcon />} href="https://github.com/team-loco/loco">
 									Documentation
 								</ExternalMenuLink>
