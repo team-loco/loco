@@ -36,16 +36,16 @@ export function AccessPicker({
 }) {
 	const [q, setQ] = useState("");
 	const [focus, setFocus] = useState(false);
-	const have = new Set(items.map((x) => x.key));
+	const levelByKey = new Map(items.map((x) => [x.key, x.level]));
 	const query = q.trim().toLowerCase();
 
 	const coveredBy = (node: EntityNode, level: Level): string | null => {
 		let p = node.parent;
 		while (p !== null) {
 			const parentKey = p;
-			const it = items.find((x) => x.key === parentKey);
+			const itLevel = levelByKey.get(parentKey);
 			const parent = tree.nodes.get(parentKey);
-			if (it !== undefined && it.level >= level && parent !== undefined) return parent.label;
+			if (itLevel !== undefined && itLevel >= level && parent !== undefined) return parent.label;
 			p = parent?.parent ?? null;
 		}
 		return null;
@@ -53,7 +53,7 @@ export function AccessPicker({
 
 	const pool = tree.order
 		.filter((n) => n.kind !== "system" && (allowUser || n.kind !== "user"))
-		.filter((n) => !have.has(n.key) && (query === "" || n.label.toLowerCase().includes(query)))
+		.filter((n) => !levelByKey.has(n.key) && (query === "" || n.label.toLowerCase().includes(query)))
 		.sort((a, b) => {
 			if (query !== "") {
 				const sa = a.label.toLowerCase().startsWith(query) ? 0 : 1;

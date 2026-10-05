@@ -4,9 +4,11 @@ import { cn } from "@/lib/utils";
 const AV_BG = ["oklch(0.9 0.05 250)", "oklch(0.9 0.06 160)", "oklch(0.9 0.07 60)", "oklch(0.9 0.06 320)", "oklch(0.9 0.05 200)", "oklch(0.9 0.07 30)"];
 const AV_FG = ["oklch(0.4 0.12 250)", "oklch(0.4 0.1 160)", "oklch(0.42 0.1 60)", "oklch(0.4 0.12 320)", "oklch(0.4 0.1 200)", "oklch(0.42 0.12 30)"];
 
+const NAME_SEPARATORS = /[\s@._-]+/;
+
 export function initialsOf(name: string, email: string): string {
 	const source = name.trim() !== "" ? name : email;
-	const parts = source.split(/[\s@._-]+/).filter((s) => s !== "");
+	const parts = source.split(NAME_SEPARATORS).filter((s) => s !== "");
 	return parts
 		.map((s) => s.charAt(0))
 		.join("")

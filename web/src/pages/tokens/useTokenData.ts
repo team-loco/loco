@@ -55,7 +55,7 @@ function buildTree(
 	if (userId !== null) {
 		push({ key: nodeKey(EntityType.USER, userId), kind: "user", entityType: EntityType.USER, id: userId, label: "Your account", parent: null });
 	}
-	const sortedOrgs = [...orgs].sort((a, b) => Number(b.id === activeOrgId) - Number(a.id === activeOrgId));
+	const sortedOrgs = orgs.toSorted((a, b) => Number(b.id === activeOrgId) - Number(a.id === activeOrgId));
 	for (const o of sortedOrgs) {
 		push({ key: nodeKey(EntityType.ORGANIZATION, o.id), kind: "org", entityType: EntityType.ORGANIZATION, id: o.id, label: o.name, parent: null });
 	}

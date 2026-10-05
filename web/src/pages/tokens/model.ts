@@ -202,7 +202,7 @@ const KIND_ORDER: Record<NodeKind, number> = { system: 0, user: 1, org: 2, ws: 3
 
 export function sortKeys(tree: EntityTree, keys: string[]): string[] {
 	const index = new Map(tree.order.map((n, i) => [n.key, i]));
-	return [...keys].sort((a, b) => {
+	return keys.toSorted((a, b) => {
 		const na = resolveNode(tree, a);
 		const nb = resolveNode(tree, b);
 		const kd = KIND_ORDER[na.kind] - KIND_ORDER[nb.kind];

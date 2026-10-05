@@ -37,7 +37,7 @@ function addScope(map: Map<string, ScopeEntry>, base: Omit<ScopeEntry, "scopes">
 }
 
 function sortEntries(entries: ScopeEntry[]): ScopeEntry[] {
-	return [...entries].sort(
+	return entries.toSorted(
 		(a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.parent.localeCompare(b.parent) || a.label.localeCompare(b.label),
 	);
 }
