@@ -1,14 +1,16 @@
-import { listResourceEvents, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
-import type { Event } from "@gen/loco/resource/v1/resource_pb";
+import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQueries } from "@tanstack/react-query";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { useQuery } from "@connectrpc/connect-query";
-import { useMemo } from "react";
+import { listResourceEvents, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import type { Event, Resource } from "@gen/loco/resource/v1/resource_pb";
 
 export interface WorkspaceEventWithResource extends Event {
 	id: string;
 	resourceId: string;
 	resourceName: string;
 }
+
+const EVENTS_PER_RESOURCE = 500;
 
 function getTimestampMs(timestamp: Timestamp | undefined): number {
 	if (!timestamp) return 0;
@@ -17,57 +19,45 @@ function getTimestampMs(timestamp: Timestamp | undefined): number {
 	return seconds * 1000 + Math.floor(nanos / 1000000);
 }
 
-export function useWorkspaceEvents(workspaceId: string) {
+export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[]) {
+	const transport = useTransport();
 	const { data: resourcesData, isLoading: resourcesLoading } = useQuery(
 		listWorkspaceResources,
-		workspaceId ? { workspaceId: workspaceId } : undefined,
-		{
-			enabled: !!workspaceId,
-		},
+		workspaceId ? { workspaceId, pageSize: 200 } : undefined,
+		{ enabled: !!workspaceId && resourceFilter === undefined },
 	);
 
-	const resources = resourcesData?.resources ?? [];
-	const firstResource = resources[0];
+	const resources = resourceFilter ?? resourcesData?.resources ?? [];
 
-	// For now, just fetch events for the first resource
-	// TODO: Implement workspace-level events endpoint on backend
-	const { data: eventsData, isLoading: eventsLoading } = useQuery(
-		listResourceEvents,
-		firstResource ? { resourceId: firstResource.id, limit: 100 } : undefined,
-		{
-			enabled: !!firstResource,
-		},
-	);
+	const queries = useQueries({
+		queries: resources.map((resource) =>
+			createQueryOptions(
+				listResourceEvents,
+				{ resourceId: resource.id, limit: EVENTS_PER_RESOURCE },
+				{ transport },
+			),
+		),
+	});
 
-	const { events, isLoading } = useMemo(() => {
-		const allEvents: WorkspaceEventWithResource[] = [];
-
-		if (eventsData?.events && firstResource) {
-			eventsData.events.forEach((event, idx) => {
-				allEvents.push({
-					...event,
-					id: `${firstResource.id}-${idx.toString()}`,
-					resourceId: firstResource.id,
-					resourceName: firstResource.name,
-				});
+	const events: WorkspaceEventWithResource[] = [];
+	resources.forEach((resource, ri) => {
+		const list = queries[ri]?.data?.events ?? [];
+		list.forEach((event, idx) => {
+			events.push({
+				...event,
+				id: `${resource.id}-${idx.toString()}`,
+				resourceId: resource.id,
+				resourceName: resource.name,
 			});
-		}
-
-		// Sort by timestamp descending (newest first)
-		allEvents.sort((a, b) => {
-			const timeA = getTimestampMs(a.timestamp);
-			const timeB = getTimestampMs(b.timestamp);
-			return timeB - timeA;
 		});
+	});
+	events.sort((a, b) => getTimestampMs(b.timestamp) - getTimestampMs(a.timestamp));
 
-		return {
-			events: allEvents,
-			isLoading: resourcesLoading || eventsLoading,
-		};
-	}, [resourcesLoading, eventsLoading, eventsData, firstResource]);
+	const error = queries.find((q) => q.error !== null)?.error ?? null;
 
 	return {
 		events,
-		isLoading,
+		isLoading: resourcesLoading || queries.some((q) => q.isLoading),
+		error,
 	};
 }
