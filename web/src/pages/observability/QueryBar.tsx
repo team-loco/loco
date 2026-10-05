@@ -43,6 +43,9 @@ interface Group {
 }
 
 const MONO = "font-mono text-[12.5px]";
+const VALUE_WORD_RE = /^(-?)@(\w+):(.*)$/;
+const KEY_WORD_RE = /^(-?)@(\w*)$/;
+const COMPLETED_TOKEN_RE = /(^|\s)(-?)@(\w+):(\S+)\s$/;
 
 export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [string, number][] }) {
 	const { tokens, setTokens, text, setText, setAppliedText, resourceByName } = useObs();
@@ -122,8 +125,8 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 	};
 
 	const groups: Group[] = [];
-	const vm = /^(-?)@(\w+):(.*)$/.exec(cur);
-	const km = /^(-?)@(\w*)$/.exec(cur);
+	const vm = VALUE_WORD_RE.exec(cur);
+	const km = KEY_WORD_RE.exec(cur);
 	const vmKey = vm?.[2] ?? "";
 	if (vm && isFieldKey(vmKey)) {
 		const neg = vm[1] === "-";
@@ -218,7 +221,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 	const noMatches = open && flat.length === 0 && cur !== "";
 
 	const onChange = (v: string) => {
-		const m = /(^|\s)(-?)@(\w+):(\S+)\s$/.exec(v);
+		const m = COMPLETED_TOKEN_RE.exec(v);
 		const key = m?.[3] ?? "";
 		if (m && isFieldKey(key)) {
 			const t: Token = { neg: m[2] === "-", key, value: m[4] ?? "" };

@@ -35,7 +35,8 @@ export function MetricsView() {
 	const { resources, selected } = useObs();
 	const [hidden, setHidden] = useState<string[]>([]);
 	const sel = selectedResources(resources, selected);
-	const visible = sel.filter((r) => !hidden.includes(r.name));
+	const hiddenNames = new Set(hidden);
+	const visible = sel.filter((r) => !hiddenNames.has(r.name));
 
 	return (
 		<>
@@ -49,7 +50,7 @@ export function MetricsView() {
 					<div className="flex flex-wrap items-center gap-3">
 						<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
 							{sel.map((r) => {
-								const off = hidden.includes(r.name);
+								const off = hiddenNames.has(r.name);
 								return (
 									<button
 										key={r.id}
@@ -229,7 +230,10 @@ function ComputeChart({
 		series.push({ name: r.name, color: r.color, points });
 	}
 
-	const peak = Math.max(0, ...series.flatMap((s) => s.points.map((p) => p.v)));
+	let peak = 0;
+	for (const s of series) {
+		for (const p of s.points) if (p.v > peak) peak = p.v;
+	}
 	const max = Math.max(112, peak * 1.15);
 	const lastOf = (s: ChartSeries) => s.points.at(-1)?.v ?? 0;
 	const firstOf = (s: ChartSeries) => s.points[0]?.v ?? 0;

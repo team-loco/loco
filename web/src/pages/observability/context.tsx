@@ -111,7 +111,7 @@ export function ObsProvider({
 	const [logFocusTs, setLogFocusTs] = useState<number | null>(null);
 	const [metricsFocusTs, setMetricsFocusTs] = useState<number | null>(null);
 
-	const sorted = [...(resourcesData?.resources ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
 	const resources: ObsResource[] = sorted.map((r, i) => {
 		const primary = r.regions.find((g) => g.isPrimary) ?? r.regions[0];
 		return {

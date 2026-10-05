@@ -40,7 +40,7 @@ export function LogTable({
 					<div
 						key={l.key}
 						className={cn(
-							"border-b border-l-[3px] border-b-line transition-[background] duration-900 ease-out",
+							"border-b border-l-[3px] border-b-line transition-[background] duration-900 ease-out [contain-intrinsic-block-size:auto_31px] [content-visibility:auto]",
 							open ? "border-l-primary bg-info-bg shadow-[inset_0_0_0_1px_var(--accent)]" : style.bar,
 							!open && fresh && "bg-ok-bg",
 						)}

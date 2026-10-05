@@ -14,6 +14,8 @@ import { CopyButton, DetailPanel, Dot, JumpButton, PanelNav, useCopy } from "./s
 
 type Tab = "details" | "json";
 
+const NUMERIC_RE = /^\d+(\.\d+)?$/;
+
 const ATTR_FIELD: Record<string, FieldKey> = {
 	level: "level",
 	resource: "resource",
@@ -204,7 +206,7 @@ export function LogDetail({
 											<span className="truncate text-fg3" title={k}>
 												{k}
 											</span>
-											<span className={cn("py-[5px] break-all", /^\d+(\.\d+)?$/.test(v) ? "text-info-fg" : "text-foreground")}>
+											<span className={cn("py-[5px] break-all", NUMERIC_RE.test(v) ? "text-info-fg" : "text-foreground")}>
 												{v}
 											</span>
 											<span className="flex gap-0.5">

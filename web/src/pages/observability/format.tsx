@@ -64,10 +64,17 @@ function escapeRe(w: string): string {
 	return w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+let wordsRe: { key: string; re: RegExp } | null = null;
+
+function wordsRegExp(words: string[]): RegExp {
+	const key = words.join("\n");
+	if (wordsRe?.key !== key) wordsRe = { key, re: new RegExp(`(${words.map(escapeRe).join("|")})`, "gi") };
+	return wordsRe.re;
+}
+
 function highlight(s: string, words: string[], keyBase: string): ReactNode[] {
 	if (words.length === 0) return [s];
-	const re = new RegExp(`(${words.map(escapeRe).join("|")})`, "gi");
-	return s.split(re).map((p, i) =>
+	return s.split(wordsRegExp(words)).map((p, i) =>
 		i % 2 === 1 ? (
 			<mark key={`${keyBase}-h${String(i)}`} className="rounded-[2px] bg-[rgba(234,179,8,0.35)] px-px text-inherit">
 				{p}

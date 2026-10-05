@@ -19,18 +19,17 @@ interface FacetValue {
 export function LogFacets({ rows }: { rows: LogRow[] }) {
 	const { tokens, setTokens, resources, clusters } = useObs();
 
-	const countBy = (pick: (r: LogRow) => string) => {
-		const m = new Map<string, number>();
-		for (const r of rows) {
-			const v = pick(r);
-			if (v !== "") m.set(v, (m.get(v) ?? 0) + 1);
-		}
-		return m;
+	const levelCounts = new Map<string, number>();
+	const resCounts = new Map<string, number>();
+	const regionCounts = new Map<string, number>();
+	const bump = (m: Map<string, number>, v: string) => {
+		if (v !== "") m.set(v, (m.get(v) ?? 0) + 1);
 	};
-
-	const levelCounts = countBy((r) => r.level);
-	const resCounts = countBy((r) => r.resourceName);
-	const regionCounts = countBy((r) => r.region);
+	for (const r of rows) {
+		bump(levelCounts, r.level);
+		bump(resCounts, r.resourceName);
+		bump(regionCounts, r.region);
+	}
 	const regions = [...new Set(clusters.map((c) => c.region))];
 
 	const facets: { key: FieldKey; title: string; values: FacetValue[] }[] = [

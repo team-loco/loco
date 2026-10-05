@@ -1,5 +1,6 @@
 import type { ParsedQuery } from "@/lib/obs-query-parser";
 import type { ClusterTransport } from "@/lib/obs";
+import { readStorage, writeStorage } from "@/lib/storage";
 
 import type { ObsResource } from "./context";
 
@@ -135,21 +136,23 @@ export function buildBackendQuery(
 	const levels = levelSet === null ? [] : levelSet.flatMap((l) => LEVEL_VARIANTS[l]);
 
 	const resourceNames = resources.map((r) => r.name);
-	const resSet = narrow(resourceNames, byKey("resource"));
+	const resNames = narrow(resourceNames, byKey("resource"));
+	const resSet = resNames === null ? null : new Set(resNames);
 	const resourceIds =
-		resSet === null ? [] : resources.filter((r) => resSet.includes(r.name)).map((r) => r.id);
+		resSet === null ? [] : resources.filter((r) => resSet.has(r.name)).map((r) => r.id);
 
 	const regions = [...new Set(transports.map((t) => t.cluster.region))];
-	const regionSet = narrow(regions, byKey("region"));
+	const regionNames = narrow(regions, byKey("region"));
+	const regionSet = regionNames === null ? null : new Set(regionNames);
 	const liveTransports =
-		regionSet === null ? transports : transports.filter((t) => regionSet.includes(t.cluster.region));
+		regionSet === null ? transports : transports.filter((t) => regionSet.has(t.cluster.region));
 
 	const labels: Record<string, string> = {};
 	const replica = byKey("replica")[0];
 	if (replica !== undefined) labels["k8s.pod.name"] = replica.value;
 
 	const impossible =
-		levelSet?.length === 0 || resSet?.length === 0 || liveTransports.length === 0;
+		levelSet?.length === 0 || resNames?.length === 0 || liveTransports.length === 0;
 
 	return {
 		parsed: { search: text.trim(), levels, labels },
@@ -159,7 +162,7 @@ export function buildBackendQuery(
 	};
 }
 
-const SAVE_KEY = "loco_log_searches";
+const SAVE_KEY = "loco:log-searches:v1";
 
 export interface SavedSearches {
 	recent: string[];
@@ -172,7 +175,7 @@ function isStringArray(v: unknown): v is string[] {
 
 export function readSaved(): SavedSearches {
 	try {
-		const raw: unknown = JSON.parse(localStorage.getItem(SAVE_KEY) ?? "null");
+		const raw: unknown = JSON.parse(readStorage(SAVE_KEY) ?? "null");
 		if (raw !== null && typeof raw === "object" && "recent" in raw && "pinned" in raw) {
 			const { recent, pinned } = raw;
 			if (isStringArray(recent) && isStringArray(pinned)) return { recent, pinned };
@@ -184,9 +187,5 @@ export function readSaved(): SavedSearches {
 }
 
 export function writeSaved(saved: SavedSearches) {
-	try {
-		localStorage.setItem(SAVE_KEY, JSON.stringify(saved));
-	} catch {
-		return;
-	}
+	writeStorage(SAVE_KEY, JSON.stringify(saved));
 }

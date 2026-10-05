@@ -55,8 +55,13 @@ export function EventsView() {
 		if (q === "") return true;
 		return `${e.reason} ${e.message} pod/${e.podName} ${e.resourceName}`.toLowerCase().includes(q);
 	});
-	const sevCount = (s: Severity) => base.filter((e) => severityOf(e.type, e.reason) === s).length;
-	const filtered = type === "all" ? base : base.filter((e) => severityOf(e.type, e.reason) === type);
+	const sevCounts: Record<Severity, number> = { error: 0, warning: 0, normal: 0 };
+	const filtered: typeof base = [];
+	for (const e of base) {
+		const s = severityOf(e.type, e.reason);
+		sevCounts[s]++;
+		if (type === "all" || s === type) filtered.push(e);
+	}
 	const items = groupEvents(filtered);
 
 	const pages = Math.max(1, Math.ceil(items.length / size));
@@ -168,7 +173,7 @@ export function EventsView() {
 									<span className={cn("size-[7px] rounded-[2px]", t.key === "all" ? "bg-transparent" : severityStyle(t.key).dot)} />
 									{t.label}
 									<span className="text-xs font-normal text-fg3 tabular-nums">
-										{t.key === "all" ? base.length : sevCount(t.key)}
+										{t.key === "all" ? base.length : sevCounts[t.key]}
 									</span>
 								</ToggleGroupItem>
 							))}
@@ -217,7 +222,7 @@ export function EventsView() {
 													select(on ? null : e.key);
 												}}
 												className={cn(
-													"grid min-h-10 cursor-pointer items-center gap-3 border-b border-l-[3px] border-b-line py-1 pr-4 pl-[13px] hover:bg-bg2",
+													"grid min-h-10 cursor-pointer items-center gap-3 border-b border-l-[3px] border-b-line py-1 pr-4 pl-[13px] [contain-intrinsic-block-size:auto_42px] [content-visibility:auto] hover:bg-bg2",
 													on ? "border-l-primary bg-info-bg shadow-[inset_0_0_0_1px_var(--accent)]" : st.bar,
 												)}
 												style={{ gridTemplateColumns: rowCols }}

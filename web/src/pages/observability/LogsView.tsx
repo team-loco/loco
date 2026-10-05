@@ -23,6 +23,7 @@ import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
 import { ObsGate } from "./ObsGate";
 
 const BATCH = 1000;
+const WHITESPACE = /\s+/;
 const BUCKETS = 48;
 
 function nearest(rows: LogRow[], ts: number): LogRow | undefined {
@@ -171,7 +172,7 @@ export function LogsView() {
 
 	const panelOpen = selRow !== undefined;
 	const showFacets = facetsOpen && !panelOpen;
-	const freeWords = appliedText.split(/\s+/).filter(Boolean);
+	const freeWords = appliedText.split(WHITESPACE).filter(Boolean);
 	const rangeLabel = RANGES.find((r) => r.key === range)?.key ?? range;
 	const matched = `${rows.length.toLocaleString()}${truncated ? "+" : ""} lines`;
 	const error = logs.errors[0];
