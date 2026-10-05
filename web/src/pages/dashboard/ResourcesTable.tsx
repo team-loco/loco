@@ -6,7 +6,7 @@ import { Button } from "@/components/design/Button";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Input } from "@/components/design/Input";
 import { Section, SectionFooter } from "@/components/design/Page";
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,10 @@ function compare(key: SortKey, a: EnvResource, b: EnvResource): number {
 		case "name":
 			return a.resource.name.localeCompare(b.resource.name);
 		case "status":
-			return statusRank(a.resource.status) - statusRank(b.resource.status);
+			return (
+				statusRank(effectiveResourceStatus(a.resource.status, !a.neverDeployed)) -
+				statusRank(effectiveResourceStatus(b.resource.status, !b.neverDeployed))
+			);
 		case "regions":
 			return (a.regions[0]?.region ?? "").localeCompare(b.regions[0]?.region ?? "");
 		case "replicas":
@@ -261,7 +264,7 @@ export function ResourcesTable({
 								</TableCell>
 								<TableCell className="py-1.5 pr-3 pl-0">
 									<div className="flex min-w-0 flex-col items-start gap-[3px]">
-										<ResourceStatusBadge status={it.neverDeployed ? ResourceStatus.UNSPECIFIED : resource.status} />
+										<ResourceStatusBadge status={effectiveResourceStatus(resource.status, !it.neverDeployed)} />
 										{note !== "" && <span className="max-w-full truncate text-sm text-fg3">{note}</span>}
 									</div>
 								</TableCell>

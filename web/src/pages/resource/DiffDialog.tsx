@@ -2,6 +2,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Button } from "@/components/design/Button";
+import { Code } from "@/components/design/CodeBlock";
 import { DialogContent, DialogFooter } from "@/components/design/Dialog";
 import {
 	DropdownMenu,
@@ -122,7 +123,7 @@ export function DiffDialogContent({
 				{diff.lines.map((ln, i) => (
 					<div key={i} className={cn("grid grid-cols-[18px_minmax(0,1fr)] pr-4 pl-3", lineClass(ln.sign))}>
 						<span className="text-fg4">{ln.sign}</span>
-						<span className="whitespace-pre">{ln.text}</span>
+						<Code code={ln.text} language="json" className="whitespace-pre" />
 					</div>
 				))}
 			</div>

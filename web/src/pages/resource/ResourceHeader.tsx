@@ -2,7 +2,7 @@ import { ClockIcon, FileCodeIcon, HashIcon, PackageIcon } from "lucide-react";
 import { ResourceStatus, ResourceType, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Badge } from "@/components/design/Badge";
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 
@@ -50,12 +50,15 @@ function healthDotClass(status: ResourceStatus, desired: number): string {
 export function ResourceHeader({
 	resource,
 	regions,
+	hasDeployments,
 	onViewSpec,
 }: {
 	resource: Resource;
 	regions: RegionView[];
+	hasDeployments: boolean;
 	onViewSpec: () => void;
 }) {
+	const status = effectiveResourceStatus(resource.status, hasDeployments);
 	const now = useNow(60_000);
 	const primary = regions.find((r) => r.primary) ?? regions[0];
 	const prim = primary?.current;
@@ -84,7 +87,7 @@ export function ResourceHeader({
 		<div className="flex flex-col gap-1.5">
 			<div className="flex flex-wrap items-center gap-3">
 				<h1 className="m-0 text-2xl font-semibold tracking-[-0.01em]">{resource.name}</h1>
-				<ResourceStatusBadge status={resource.status} />
+				<ResourceStatusBadge status={status} />
 				<Badge tone="outline" size="sm" className="text-sm text-fg3">
 					{typeLabel(resource.type)}
 				</Badge>
@@ -94,7 +97,7 @@ export function ResourceHeader({
 			)}
 			<div className="mt-1.5 flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-fg2">
 				<span className="flex items-center gap-1.5">
-					<span className={cn("size-2 rounded-full", healthDotClass(resource.status, desired))} />
+					<span className={cn("size-2 rounded-full", healthDotClass(status, desired))} />
 					{readyLine}
 				</span>
 				{prim !== undefined && (

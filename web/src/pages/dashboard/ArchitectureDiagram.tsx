@@ -76,11 +76,9 @@ const nodeClass =
 export function ArchitectureDiagram({
 	services,
 	regionOrder,
-	emptyAction,
 }: {
 	services: DiagramService[];
 	regionOrder: string[];
-	emptyAction?: ReactNode;
 }) {
 	const legend = (
 		<div className="flex gap-4 text-sm text-fg3">
@@ -136,7 +134,6 @@ export function ArchitectureDiagram({
 				<div className="flex flex-col items-center justify-center gap-3 rounded-b-xl bg-[radial-gradient(var(--line)_1px,transparent_1px)] bg-size-[16px_16px] px-4 py-14 text-center">
 					<span className="font-semibold">Nothing deployed here yet</span>
 					<span className="max-w-sm text-fg3">Services you deploy to this environment show up here with their routes.</span>
-					{emptyAction}
 				</div>
 			) : (
 				<div className="overflow-x-auto rounded-b-xl bg-[radial-gradient(var(--line)_1px,transparent_1px)] bg-size-[16px_16px]">

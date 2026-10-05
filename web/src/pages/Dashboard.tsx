@@ -1,11 +1,11 @@
-import { PlusIcon } from "lucide-react";
+import { BoxIcon, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
+import { effectiveResourceStatus } from "@/components/design/StatusBadge";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useBreadcrumbs } from "@/context/ShellContext";
 import { useEnvironments } from "@/hooks/useEnvironment";
@@ -110,7 +110,7 @@ export function Dashboard() {
 		...data.envResources.map((it) => ({
 			key: it.resource.id,
 			name: it.resource.name,
-			status: it.neverDeployed ? ResourceStatus.UNSPECIFIED : it.resource.status,
+			status: effectiveResourceStatus(it.resource.status, !it.neverDeployed),
 			domain: it.resource.domains.find((d) => d.isPrimary)?.domain ?? it.resource.domains[0]?.domain ?? null,
 			regions: it.regions.map((g) => ({ region: g.region, replicas: g.replicas })),
 			href: hrefFor(it.resource.id),
@@ -132,6 +132,10 @@ export function Dashboard() {
 	const attention = buildAttention(data.envResources, hrefFor, nowMs);
 	const loading = envsLoading || data.isLoading;
 	const canCreate = active !== undefined && activeWorkspaceId !== null;
+	const isEmpty = data.envResources.length === 0 && visibleDrafts.length === 0;
+	const openNew = () => {
+		setNewOpen(true);
+	};
 
 	const header = (
 		<PageHeader
@@ -139,9 +143,7 @@ export function Dashboard() {
 			actions={
 				<CreateResourceMenu
 					disabled={!canCreate}
-					onService={() => {
-						setNewOpen(true);
-					}}
+					onService={openNew}
 				/>
 			}
 		>
@@ -188,24 +190,25 @@ export function Dashboard() {
 			{header}
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
-			) : (
-				<>
-					<AttentionSection items={attention} />
-					<ArchitectureDiagram
-						services={services}
-						regionOrder={data.regions.map((r) => r.region)}
-						emptyAction={
-							<Button
-								variant="outline"
-								onClick={() => {
-									setNewOpen(true);
-								}}
-							>
+			) : isEmpty ? (
+				<Section>
+					<EmptyState
+						icon={<BoxIcon />}
+						title={`Nothing in ${active.name} yet`}
+						action={
+							<Button onClick={openNew}>
 								<PlusIcon />
 								New service
 							</Button>
 						}
-					/>
+					>
+						Deploy a container image to see its architecture, status and deployments here.
+					</EmptyState>
+				</Section>
+			) : (
+				<>
+					<AttentionSection items={attention} />
+					<ArchitectureDiagram services={services} regionOrder={data.regions.map((r) => r.region)} />
 					<ResourcesTable
 						key={active.id}
 						items={data.envResources}

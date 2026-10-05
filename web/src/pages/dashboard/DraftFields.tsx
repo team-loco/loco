@@ -30,19 +30,36 @@ export function StopSlider({
 				<span className="text-fg2">{label}</span>
 				<span className="font-semibold">{format(value)}</span>
 			</div>
-			<Slider
-				className="py-1"
-				min={0}
-				max={stops.length - 1}
-				step={1}
-				value={[idx]}
-				aria-label={label}
-				onValueChange={(v: number | readonly number[]) => {
-					const next = typeof v === "number" ? v : (v[0] ?? 0);
-					const stop = stops[next];
-					if (stop !== undefined) onChange(stop);
-				}}
-			/>
+			<div className="relative">
+				<Slider
+					className="py-1 [&_[data-slot=slider-thumb]]:z-10"
+					min={0}
+					max={stops.length - 1}
+					step={1}
+					value={[idx]}
+					aria-label={label}
+					onValueChange={(v: number | readonly number[]) => {
+						const next = typeof v === "number" ? v : (v[0] ?? 0);
+						const stop = stops[next];
+						if (stop !== undefined) onChange(stop);
+					}}
+				/>
+				<div aria-hidden className="pointer-events-none absolute inset-x-2.5 inset-y-0">
+					{stops.map((s, i) => {
+						const left = `${pct(i).toString()}%`;
+						return (
+							<span
+								key={s}
+								className={cn(
+									"absolute top-1/2 size-1.5 -translate-1/2 rounded-full",
+									i <= idx ? "bg-white/90" : "bg-line2",
+								)}
+								style={{ left }}
+							/>
+						);
+					})}
+				</div>
+			</div>
 			<div className="relative mx-2.5 h-3.5">
 				{stops.map((s, i) => {
 					const left = `${pct(i).toString()}%`;

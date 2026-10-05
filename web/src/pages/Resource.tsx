@@ -163,6 +163,7 @@ export function Resource() {
 			<ResourceHeader
 				resource={resource}
 				regions={regions}
+				hasDeployments={deployments.length > 0}
 				onViewSpec={() => {
 					setModal({ kind: "spec" });
 				}}

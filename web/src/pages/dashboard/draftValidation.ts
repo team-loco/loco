@@ -39,7 +39,7 @@ export function validateDraft(
 					: takenSubs.has(sub) || availability === "taken"
 						? `${full} is taken`
 						: null,
-		port: !Number.isInteger(port) || port < 1 || port > 65535 ? "Port must be 1–65535" : null,
+		port: !Number.isInteger(port) || port < 1024 || port > 65535 ? "Port must be 1024–65535" : null,
 		cpuTarget:
 			draft.min !== draft.max && (!Number.isInteger(target) || target < 1 || target > 100)
 				? "CPU target must be 1–100%"

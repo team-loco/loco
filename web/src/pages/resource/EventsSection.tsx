@@ -6,11 +6,12 @@ import type { Event } from "@gen/loco/resource/v1/resource_pb";
 
 import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { getErrorMessage } from "@/lib/error-handler";
+import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
 import { formatFullTime, tsMillis } from "./format";
@@ -65,6 +66,24 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 	const countOf = (t: TypeFilter) => (t === "all" ? base.length : base.filter((e) => severityOf(e) === t).length);
 	const slice = pageSlice(filtered, page, size);
 	const hasFilters = q !== "" || type !== "all";
+
+	if (isUnimplemented(error)) {
+		return (
+			<Section
+				className="scroll-mt-4"
+				title={
+					<span id="events" className="flex items-baseline gap-2.5">
+						Events
+						<SoonTag />
+					</span>
+				}
+			>
+				<EmptyState title="Events aren't available yet">
+					Kubernetes events for this resource will show up here once the API supports them.
+				</EmptyState>
+			</Section>
+		);
+	}
 
 	return (
 		<Section

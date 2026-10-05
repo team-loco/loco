@@ -3,6 +3,7 @@ import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
+import { CodeBlock } from "@/components/design/CodeBlock";
 import { DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Input } from "@/components/design/Input";
 
@@ -23,9 +24,13 @@ export function SpecDialogContent({ dep, specVersion }: { dep: Deployment; specV
 	const sub = `${shortId(dep.id)} · ${dep.region} · spec v${(dep.specVersion || specVersion).toString()}`;
 	return (
 		<DialogContent className="w-[640px]" title={<TitleWithSub title="Deployment spec" sub={sub} />}>
-			<pre className="m-0 max-h-[70vh] min-h-0 overflow-auto px-4 py-3 font-mono text-sm leading-[1.6] whitespace-pre text-fg2">
+			<CodeBlock
+				language="json"
+				className="min-h-0 rounded-none border-0 bg-transparent"
+				codeClassName="max-h-[70vh] px-4 py-3 whitespace-pre"
+			>
 				{specText(dep)}
-			</pre>
+			</CodeBlock>
 		</DialogContent>
 	);
 }

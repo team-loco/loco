@@ -160,6 +160,7 @@ export function DraftForm({
 						<Input
 							value={draft.port}
 							placeholder="8000"
+							title="Port between 1024 and 65535"
 							inputMode="numeric"
 							aria-invalid={showPortError}
 							className="h-[34px]"
