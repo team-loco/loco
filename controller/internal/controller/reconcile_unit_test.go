@@ -249,6 +249,29 @@ func TestSetPhaseOnlyTouchesStatusOnChange(t *testing.T) {
 	}
 }
 
+func TestObservePlacementRevision(t *testing.T) {
+	app := testApplication()
+	observePlacementRevision(app)
+	if app.Status.ObservedPlacementRevision != 0 {
+		t.Fatalf("observed revision without annotations = %d, want 0", app.Status.ObservedPlacementRevision)
+	}
+
+	app.Annotations = map[string]string{
+		locov1alpha1.AnnotationPlacementID:       "p1",
+		locov1alpha1.AnnotationPlacementRevision: "7",
+	}
+	observePlacementRevision(app)
+	if app.Status.ObservedPlacementRevision != 7 {
+		t.Fatalf("observed revision = %d, want 7", app.Status.ObservedPlacementRevision)
+	}
+
+	app.Annotations[locov1alpha1.AnnotationPlacementRevision] = "not-a-number"
+	observePlacementRevision(app)
+	if app.Status.ObservedPlacementRevision != 7 {
+		t.Fatal("an unparseable annotation reset the observed revision")
+	}
+}
+
 func TestApplicationForObject(t *testing.T) {
 	app := testApplication()
 	annotations := ownerAnnotations(app)

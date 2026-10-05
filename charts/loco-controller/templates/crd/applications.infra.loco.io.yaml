@@ -280,6 +280,9 @@ spec:
                                 type: integer
                             message:
                                 type: string
+                            observedPlacementRevision:
+                                format: int64
+                                type: integer
                             phase:
                                 enum:
                                     - Idle

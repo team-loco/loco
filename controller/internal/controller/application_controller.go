@@ -132,6 +132,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		slog.ErrorContext(ctx, "invalid Application spec", "error", err)
 		original := locoRes.DeepCopy()
 		message := fmt.Sprintf("validation failed: %v", err)
+		observePlacementRevision(locoRes)
 		setPhase(locoRes, phaseFailed, message)
 		if statusErr := r.patchStatus(ctx, locoRes, original); statusErr != nil {
 			slog.ErrorContext(ctx, "failed to update status after validation error", "error", statusErr)
@@ -146,6 +147,7 @@ func (r *LocoResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	original := locoRes.DeepCopy()
+	observePlacementRevision(locoRes)
 	result, err := r.reconcileResources(ctx, locoRes)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to reconcile application", "error", err)
@@ -231,6 +233,14 @@ func requeueAfter(refreshAt time.Time, ceiling time.Duration) time.Duration {
 		wait = minRequeue
 	}
 	return wait
+}
+
+func observePlacementRevision(locoRes *locov1alpha1.Application) {
+	revision, ok := locoRes.PlacementRevision()
+	if !ok {
+		return
+	}
+	locoRes.Status.ObservedPlacementRevision = revision
 }
 
 func setPhase(locoRes *locov1alpha1.Application, phase, message string) {
@@ -790,7 +800,11 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return fmt.Errorf("missing required gitlab environment variables")
 	}
 
-	applicationPredicates := builder.WithPredicates(predicate.GenerationChangedPredicate{})
+	applicationChanged := predicate.Or[client.Object](
+		predicate.GenerationChangedPredicate{},
+		predicate.AnnotationChangedPredicate{},
+	)
+	applicationPredicates := builder.WithPredicates(applicationChanged)
 	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 

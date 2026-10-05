@@ -42,11 +42,6 @@ func New(cfg *rest.Config, namespace string) (*Applier, error) {
 	return &Applier{client: c, namespace: namespace}, nil
 }
 
-const (
-	AnnotationPlacementID       = "loco.io/placement-id"
-	AnnotationPlacementRevision = "loco.io/placement-revision"
-)
-
 var ErrStaleRevision = errors.New("revision is older than the one applied")
 
 type Placement struct {
@@ -139,8 +134,8 @@ func applicationApplyConfiguration(
 	obj.SetResourceVersion(resourceVersion)
 	revision := strconv.FormatInt(placement.Revision, 10)
 	obj.SetAnnotations(map[string]string{
-		AnnotationPlacementID:       placement.ID,
-		AnnotationPlacementRevision: revision,
+		locoControllerV1.AnnotationPlacementID:       placement.ID,
+		locoControllerV1.AnnotationPlacementRevision: revision,
 	})
 	setErr := unstructured.SetNestedField(obj.Object, specMap, "spec")
 	if setErr != nil {
@@ -201,13 +196,12 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 }
 
 func PlacementOf(app *locoControllerV1.Application) (Placement, bool) {
-	annotations := app.GetAnnotations()
-	id := annotations[AnnotationPlacementID]
+	id := app.PlacementID()
 	if id == "" {
 		return Placement{}, false
 	}
-	revision, err := strconv.ParseInt(annotations[AnnotationPlacementRevision], 10, 64)
-	if err != nil {
+	revision, ok := app.PlacementRevision()
+	if !ok {
 		return Placement{}, false
 	}
 	return Placement{ID: id, Revision: revision}, true

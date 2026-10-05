@@ -2,6 +2,7 @@ package appwatch
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -9,7 +10,6 @@ import (
 	toolscache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/team-loco/loco/agent/pkg/applier"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -19,12 +19,29 @@ const testNamespace = "loco-system"
 func app(name, placementID, revision, phase string) *locoControllerV1.Application {
 	annotations := map[string]string{}
 	if placementID != "" {
-		annotations[applier.AnnotationPlacementID] = placementID
-		annotations[applier.AnnotationPlacementRevision] = revision
+		annotations[locoControllerV1.AnnotationPlacementID] = placementID
+		annotations[locoControllerV1.AnnotationPlacementRevision] = revision
+	}
+	observed, err := strconv.ParseInt(revision, 10, 64)
+	if err != nil {
+		observed = 0
 	}
 	return &locoControllerV1.Application{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace, Annotations: annotations},
-		Status:     locoControllerV1.ApplicationStatus{Phase: phase},
+		Status:     locoControllerV1.ApplicationStatus{Phase: phase, ObservedPlacementRevision: observed},
+	}
+}
+
+func TestStatusReportsTheRevisionTheControllerObserved(t *testing.T) {
+	w := New(nil, testNamespace)
+	lagging := app("resource-a", "p1", "5", "Ready")
+	lagging.Status.ObservedPlacementRevision = 4
+
+	var got []*agentv1.PlacementStatus
+	w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
+	w.Observe(lagging)
+	if len(got) != 1 || got[0].GetObservedRevision() != 4 {
+		t.Fatalf("statuses = %v, want observed revision 4", got)
 	}
 }
 
