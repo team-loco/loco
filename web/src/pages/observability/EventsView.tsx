@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SearchIcon } from "lucide-react";
+import { BellIcon, SearchIcon } from "lucide-react";
 
 import { EmptyState } from "@/components/design/EmptyState";
 import { Input } from "@/components/design/Input";
@@ -100,6 +100,19 @@ export function EventsView() {
 			<TimeRangeMenu maxRange={null} />
 		</div>
 	);
+
+	if (!resourcesLoading && resources.length === 0) {
+		return (
+			<>
+				{toolbar}
+				<section className="rounded-lg border border-dashed border-line2">
+					<EmptyState icon={<BellIcon />} title="No events yet">
+						This workspace has no resources. Deploy one and its Kubernetes events show up here.
+					</EmptyState>
+				</section>
+			</>
+		);
+	}
 
 	if (!loading && unavailable) {
 		return (
