@@ -657,13 +657,6 @@ func (s *ResourceServer) ScaleResource(
 			continue
 		}
 
-		env, envErr := desiredEnv(ctx, s.queries, current.ResourceID, current.ClusterID)
-		if envErr != nil {
-			slog.ErrorContext(ctx, "failed to read desired env", "error", envErr)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
-		}
-		serviceDeploymentSpec.Env = env
-
 		if r.Cpu != nil {
 			serviceDeploymentSpec.Cpu = r.Cpu
 		}
@@ -680,6 +673,8 @@ func (s *ResourceServer) ScaleResource(
 		if planErr != nil {
 			return nil, planErr
 		}
+		envSourceCluster := current.ClusterID
+		plan.envSourceCluster = &envSourceCluster
 		plans = append(plans, plan)
 	}
 
@@ -769,9 +764,10 @@ func (s *ResourceServer) UpdateResourceEnv(
 }
 
 type regionRedeploy struct {
-	params          genDb.CreateDeploymentParams
-	deploymentSpec  *deploymentv1.DeploymentSpec
-	environmentName string
+	params           genDb.CreateDeploymentParams
+	deploymentSpec   *deploymentv1.DeploymentSpec
+	environmentName  string
+	envSourceCluster *uuid.UUID
 }
 
 func (s *ResourceServer) activeDeploymentsForRegions(
@@ -921,6 +917,9 @@ func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		for _, plan := range plans {
+			if inheritErr := inheritDesiredEnv(ctx, qtx, plan); inheritErr != nil {
+				return inheritErr
+			}
 			buildSpec := desiredApplicationSpec(
 				res,
 				resourceSpec,
@@ -939,6 +938,29 @@ func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource
 	if err != nil {
 		return deploymentTxError(ctx, err)
 	}
+	return nil
+}
+
+func inheritDesiredEnv(ctx context.Context, qtx *genDb.Queries, plan regionRedeploy) error {
+	if plan.envSourceCluster == nil {
+		return nil
+	}
+	service := plan.deploymentSpec.GetService()
+	if service == nil {
+		return errors.New("redeploy plan has no service spec")
+	}
+	_, err := qtx.LockResourceRegion(ctx, genDb.LockResourceRegionParams{
+		ResourceID: plan.params.ResourceID,
+		Region:     plan.params.Region,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to lock resource region: %w", err)
+	}
+	env, err := desiredEnv(ctx, qtx, plan.params.ResourceID, *plan.envSourceCluster)
+	if err != nil {
+		return fmt.Errorf("failed to read desired env: %w", err)
+	}
+	service.Env = env
 	return nil
 }
 
