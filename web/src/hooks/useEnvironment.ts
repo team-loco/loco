@@ -4,16 +4,9 @@ import { listEnvironments } from "@gen/loco/environment/v1/environment-Environme
 import { useSearchParams } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { readStorage, writeStorage } from "@/lib/storage";
 
-const storageKey = (workspaceId: string) => `loco_env_${workspaceId}`;
-
-function readStored(workspaceId: string): string | null {
-	try {
-		return localStorage.getItem(storageKey(workspaceId));
-	} catch {
-		return null;
-	}
-}
+const storageKey = (workspaceId: string) => `loco:env:v1:${workspaceId}`;
 
 export function useEnvironments() {
 	const { activeWorkspaceId } = useOrgWorkspace();
@@ -25,20 +18,14 @@ export function useEnvironments() {
 	);
 	const environments = data?.environments ?? [];
 
-	const requested = params.get("env") ?? (activeWorkspaceId !== null ? readStored(activeWorkspaceId) : null);
+	const requested = params.get("env") ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
 	const active: Environment | undefined =
 		environments.find((e) => e.name === requested || e.id === requested) ??
 		environments.find((e) => e.type === EnvironmentType.PRODUCTION) ??
 		environments[0];
 
 	const setActive = (env: Environment) => {
-		if (activeWorkspaceId !== null) {
-			try {
-				localStorage.setItem(storageKey(activeWorkspaceId), env.name);
-			} catch {
-				// storage unavailable
-			}
-		}
+		if (activeWorkspaceId !== null) writeStorage(storageKey(activeWorkspaceId), env.name);
 		const next = new URLSearchParams(params);
 		next.set("env", env.name);
 		setParams(next);

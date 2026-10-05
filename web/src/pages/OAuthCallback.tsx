@@ -8,6 +8,7 @@ import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 
 import { AuthStatusScreen } from "@/components/AuthStatusScreen";
 import { getErrorMessage } from "@/lib/error-handler";
+import { OAUTH_ERROR_KEY, removeStorage, writeStorage } from "@/lib/storage";
 
 export function OAuthCallback() {
 	const navigate = useNavigate();
@@ -47,7 +48,7 @@ export function OAuthCallback() {
 
 	useEffect(() => {
 		const fail = (message: string) => {
-			sessionStorage.setItem("oauth_error", message);
+			writeStorage(OAUTH_ERROR_KEY, message, "session");
 			void navigate("/login");
 		};
 
@@ -77,7 +78,7 @@ export function OAuthCallback() {
 		}
 
 		if (!isLoading && code && state && exchangeRes) {
-			sessionStorage.removeItem("oauth_error");
+			removeStorage(OAUTH_ERROR_KEY, "session");
 		}
 
 		if (!orgsLoading && orgsRes) {

@@ -34,16 +34,9 @@ function LocoLogo({
 	const animated = motion === "loop" || firstDraw
 
 	return (
-		<svg
+		<span
 			key={cycle}
-			viewBox={LOGO_VIEWBOX}
-			role="img"
-			aria-label={title}
-			fill="none"
-			stroke="var(--logo)"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			className={cn("loco-logo h-auto", animated && "loco-logo-animated", className)}
+			className={cn("loco-logo inline-block", animated && "loco-logo-animated", className)}
 			style={
 				motion === "loop"
 					? { animation: `loco-logo-cycle ${total}s linear` }
@@ -53,21 +46,32 @@ function LocoLogo({
 				if (motion === "loop" && e.target === e.currentTarget) setCycle((c) => c + 1)
 			}}
 		>
-			<title>{title}</title>
-			{LOGO_STROKES.map(([d, width, start, duration]) => (
-				<path
-					key={d}
-					d={d}
-					strokeWidth={width}
-					pathLength={1}
-					style={
-						animated
-							? { animation: `loco-logo-draw ${duration / speed}s linear ${start / speed}s forwards` }
-							: undefined
-					}
-				/>
-			))}
-		</svg>
+			<svg
+				viewBox={LOGO_VIEWBOX}
+				role="img"
+				aria-label={title}
+				fill="none"
+				stroke="var(--logo)"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				className="block h-auto w-full"
+			>
+				<title>{title}</title>
+				{LOGO_STROKES.map(([d, width, start, duration]) => (
+					<path
+						key={d}
+						d={d}
+						strokeWidth={width}
+						pathLength={1}
+						style={
+							animated
+								? { animation: `loco-logo-draw ${duration / speed}s linear ${start / speed}s forwards` }
+								: undefined
+						}
+					/>
+				))}
+			</svg>
+		</span>
 	)
 }
 

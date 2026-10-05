@@ -59,6 +59,10 @@ export default defineConfig({
 						return "vendor-recharts";
 					}
 
+					if (id.includes("/sugar-high/")) {
+						return "vendor-sugar-high";
+					}
+
 					// Other node_modules
 					if (id.includes("node_modules")) {
 						return "vendor-other";

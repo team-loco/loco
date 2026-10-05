@@ -3,8 +3,10 @@ import { useParams, useNavigate } from "react-router";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
-const ORG_STORAGE_KEY = "loco_active_org_id";
-const WORKSPACE_STORAGE_KEY = "loco_active_workspace_id";
+import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
+
+const ORG_STORAGE_KEY = "loco:active-org:v1";
+const WORKSPACE_STORAGE_KEY = "loco:active-workspace:v1";
 
 interface OrgWorkspaceContextType {
 	activeOrgId: string | null;
@@ -60,8 +62,7 @@ export function ContextProvider({
 			}
 		}
 
-		// Fallback to localStorage
-		const storedOrgId = localStorage.getItem(ORG_STORAGE_KEY);
+		const storedOrgId = readStorage(ORG_STORAGE_KEY);
 		if (storedOrgId) {
 			if (orgs.length === 0 || orgs.some((org) => org.id === storedOrgId)) {
 				return storedOrgId;
@@ -81,8 +82,7 @@ export function ContextProvider({
 			}
 		}
 
-		// Fallback to localStorage
-		const storedWsId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+		const storedWsId = readStorage(WORKSPACE_STORAGE_KEY);
 		if (storedWsId) {
 			if (workspaces.length === 0 || workspaces.some((ws) => ws.id === storedWsId)) {
 				return storedWsId;
@@ -93,17 +93,15 @@ export function ContextProvider({
 		return workspaces[0]?.id ?? null;
 	}, [workspaceParam, workspaces]);
 
-	// Persist active org to localStorage whenever it changes
 	useEffect(() => {
 		if (activeOrgId) {
-			localStorage.setItem(ORG_STORAGE_KEY, activeOrgId);
+			writeStorage(ORG_STORAGE_KEY, activeOrgId);
 		}
 	}, [activeOrgId]);
 
-	// Persist active workspace to localStorage whenever it changes
 	useEffect(() => {
 		if (activeWorkspaceId) {
-			localStorage.setItem(WORKSPACE_STORAGE_KEY, activeWorkspaceId);
+			writeStorage(WORKSPACE_STORAGE_KEY, activeWorkspaceId);
 		}
 	}, [activeWorkspaceId]);
 
@@ -136,8 +134,8 @@ export function ContextProvider({
 	};
 
 	const clearContext = () => {
-		localStorage.removeItem(ORG_STORAGE_KEY);
-		localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+		removeStorage(ORG_STORAGE_KEY);
+		removeStorage(WORKSPACE_STORAGE_KEY);
 		void navigate("/organizations");
 	};
 

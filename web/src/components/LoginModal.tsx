@@ -9,6 +9,7 @@ import { Button } from "@/components/design/Button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/design/Dialog";
 import { SoonTag } from "@/components/design/SoonTag";
 import { getErrorMessage } from "@/lib/error-handler";
+import { OAUTH_ERROR_KEY, readStorage, removeStorage } from "@/lib/storage";
 import { LocoLogo } from "@/components/design/LocoLogo";
 
 interface LoginModalProps {
@@ -17,9 +18,9 @@ interface LoginModalProps {
 }
 
 function readStoredOAuthError(): string | null {
-	const oauthError = sessionStorage.getItem("oauth_error");
+	const oauthError = readStorage(OAUTH_ERROR_KEY, "session");
 	if (oauthError) {
-		sessionStorage.removeItem("oauth_error");
+		removeStorage(OAUTH_ERROR_KEY, "session");
 		return oauthError;
 	}
 	return null;

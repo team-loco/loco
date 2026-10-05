@@ -1,12 +1,26 @@
 import { FileCode2, MessageSquare } from "lucide-react";
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import { CodeBlock } from "@/components/design/CodeBlock";
 
 import { FEATURES, GITHUB_ISSUES_URL, GITHUB_URL, LOCO_TOML_EXAMPLE, OPEN_STANDARDS } from "./content";
 import { GitHubIcon } from "./GitHubIcon";
+
+const CodeBlock = lazy(async () => ({ default: (await import("@/components/design/CodeBlock")).CodeBlock }));
+
+function CodeBlockFallback({ filename, children }: { filename: string; children: string }) {
+	return (
+		<div className="overflow-hidden rounded-lg border border-line bg-background">
+			<div className="flex h-[37px] items-center border-b border-line bg-bg2 pr-2 pl-4">
+				<span className="font-mono text-sm font-medium text-fg2">{filename}</span>
+			</div>
+			<pre className="m-0 overflow-auto p-4 font-mono text-sm leading-[1.6] text-(--sh-identifier)">
+				<code className="font-mono">{children}</code>
+			</pre>
+		</div>
+	);
+}
 
 function Eyebrow({ children }: { children: ReactNode }) {
 	return <p className="m-0 mb-2 text-xs font-semibold tracking-[0.08em] text-fg3 uppercase">{children}</p>;
@@ -85,9 +99,11 @@ export function ConfigSection() {
 						also configure everything through the UI.
 					</p>
 				</div>
-				<CodeBlock filename="loco.toml" language="toml">
-					{LOCO_TOML_EXAMPLE}
-				</CodeBlock>
+				<Suspense fallback={<CodeBlockFallback filename="loco.toml">{LOCO_TOML_EXAMPLE}</CodeBlockFallback>}>
+					<CodeBlock filename="loco.toml" language="toml">
+						{LOCO_TOML_EXAMPLE}
+					</CodeBlock>
+				</Suspense>
 			</div>
 		</section>
 	);

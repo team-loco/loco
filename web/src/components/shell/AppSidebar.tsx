@@ -51,6 +51,7 @@ import {
 	SidebarMenuItem,
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { pageImporters } from "@/lib/lazy-pages";
 import { useTheme } from "@/lib/use-theme";
 import { observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
 
@@ -64,13 +65,21 @@ interface NavItem {
 	to?: string | undefined;
 	active: boolean;
 	soon?: boolean;
+	preload?: (() => Promise<unknown>) | undefined;
 }
 
+const NAME_SEPARATORS = /[\s._-]+/;
+
 function initials(name: string): string {
-	const parts = name.trim().split(/[\s._-]+/).filter(Boolean);
+	const parts = name.trim().split(NAME_SEPARATORS).filter(Boolean);
 	const first = parts[0]?.[0] ?? "?";
 	const second = parts[1]?.[0] ?? "";
 	return (first + second).toUpperCase();
+}
+
+function preloadPage(load: (() => Promise<unknown>) | undefined) {
+	if (load === undefined) return;
+	load().catch(() => undefined);
 }
 
 export function AppSidebar() {
@@ -107,27 +116,53 @@ export function AppSidebar() {
 					icon: <LayoutDashboardIcon />,
 					to: wsBase !== null ? withEnv(wsBase) : undefined,
 					active: wsBase !== null && (pathname === wsBase || pathname.startsWith(`${wsBase}/resource`)),
+					preload: pageImporters.Dashboard,
 				},
 			],
 		},
 		{
 			label: "Observability",
 			items: [
-				{ name: "Logs", icon: <ScrollTextIcon />, to: obs("logs"), active: onObs && view === "logs" },
-				{ name: "Metrics", icon: <ChartLineIcon />, to: obs("metrics"), active: onObs && view === "metrics" },
+				{
+					name: "Logs",
+					icon: <ScrollTextIcon />,
+					to: obs("logs"),
+					active: onObs && view === "logs",
+					preload: pageImporters.Observability,
+				},
+				{
+					name: "Metrics",
+					icon: <ChartLineIcon />,
+					to: obs("metrics"),
+					active: onObs && view === "metrics",
+					preload: pageImporters.Observability,
+				},
 				{ name: "Traces", icon: <WaypointsIcon />, active: false, soon: true },
-				{ name: "Events", icon: <BellIcon />, to: obs("events"), active: onObs && view === "events" },
+				{
+					name: "Events",
+					icon: <BellIcon />,
+					to: obs("events"),
+					active: onObs && view === "events",
+					preload: pageImporters.Observability,
+				},
 			],
 		},
 		{
 			label: "Manage",
 			items: [
-				{ name: "Tokens", icon: <KeyRoundIcon />, to: "/tokens", active: pathname === "/tokens" },
+				{
+					name: "Tokens",
+					icon: <KeyRoundIcon />,
+					to: "/tokens",
+					active: pathname === "/tokens",
+					preload: pageImporters.Tokens,
+				},
 				{
 					name: "Team",
 					icon: <UsersIcon />,
 					to: activeOrgId !== null ? `/org/${activeOrgId}/team` : undefined,
 					active: pathname.endsWith("/team"),
+					preload: pageImporters.Team,
 				},
 				{ name: "Usage", icon: <GaugeIcon />, active: false, soon: true },
 				{
@@ -135,12 +170,14 @@ export function AppSidebar() {
 					icon: <Settings2Icon />,
 					to: wsBase !== null ? withEnv(`${wsBase}/settings`) : undefined,
 					active: pathname.endsWith("/settings"),
+					preload: pageImporters.Settings,
 				},
 			],
 		},
 	];
 
-	const byOrg = orgs.map((o) => ({ org: o, workspaces: allWorkspaces.filter((w) => w.orgId === o.id) }));
+	const workspacesByOrg = Map.groupBy(allWorkspaces, (w) => w.orgId);
+	const byOrg = orgs.map((o) => ({ org: o, workspaces: workspacesByOrg.get(o.id) ?? [] }));
 	const displayName = user?.name !== undefined && user.name !== "" ? user.name : (user?.email ?? "");
 
 	return (
@@ -169,6 +206,12 @@ export function AppSidebar() {
 											isActive={item.active}
 											tooltip={item.name}
 											render={<Link to={item.to} />}
+											onMouseEnter={() => {
+												preloadPage(item.preload);
+											}}
+											onFocus={() => {
+												preloadPage(item.preload);
+											}}
 										>
 											{item.icon}
 											<span>{item.name}</span>

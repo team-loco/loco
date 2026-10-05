@@ -18,6 +18,7 @@ import { RouteFallback } from "@/components/RouteFallback";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { workspacePath } from "@/lib/routes";
+import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import { pageImporters } from "@/lib/lazy-pages";
 
@@ -47,23 +48,24 @@ const queryClient = new QueryClient({
 	},
 });
 
-// Async wrapper around localStorage for the persister
 const asyncLocalStorage: AsyncStorage = {
-	getItem: async (key: string) => await Promise.resolve(localStorage.getItem(key)),
+	getItem: async (key: string) => await Promise.resolve(readStorage(key)),
 	setItem: async (key: string, value: string) => {
-		localStorage.setItem(key, value);
+		writeStorage(key, value);
 		await Promise.resolve();
 	},
 	removeItem: async (key: string) => {
-		localStorage.removeItem(key);
+		removeStorage(key);
 		await Promise.resolve();
 	},
 };
 
 const persister = createAsyncStoragePersister({
 	storage: asyncLocalStorage,
-	key: "locoCache",
+	key: "loco:query-cache:v1",
 });
+
+const transport = createTransport();
 
 function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const { orgId } = useParams();
@@ -116,7 +118,7 @@ export default function App() {
 	return (
 		<ThemeProvider>
 			<BrowserRouter>
-				<TransportProvider transport={createTransport()}>
+				<TransportProvider transport={transport}>
 					<PersistQueryClientProvider
 						client={queryClient}
 						persistOptions={{ persister }}

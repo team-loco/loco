@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { Check } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
@@ -13,6 +13,8 @@ import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 type OnboardingStep = ReturnType<typeof useAutoCreateOrgWorkspace>["step"];
+
+let autoCreateStarted = false;
 
 const STEPS = [
 	{ label: "Creating organization", value: 33 },
@@ -51,7 +53,6 @@ function stepLabel(step: OnboardingStep): string {
 }
 
 export function Onboarding() {
-	const hasStarted = useRef(false);
 	const { data: whoAmIResponse } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;
 	const { autoCreate, step, error, shouldAutoCreate, isLoadingOrgs, hasOrgs } = useAutoCreateOrgWorkspace();
@@ -67,11 +68,11 @@ export function Onboarding() {
 			return;
 		}
 
-		if (!shouldAutoCreate || hasStarted.current) {
+		if (!shouldAutoCreate || autoCreateStarted) {
 			return;
 		}
 
-		hasStarted.current = true;
+		autoCreateStarted = true;
 
 		autoCreate(user.email)
 			.then((result) => {
