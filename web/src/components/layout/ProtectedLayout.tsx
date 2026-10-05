@@ -1,7 +1,7 @@
 import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
-import { RouteFallback } from "@/components/RouteFallback";
 import { AppShell } from "@/components/shell/AppShell";
+import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
@@ -48,7 +48,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	}, [unauthenticated, logout, navigate]);
 
 	if (isLoading || unauthenticated) {
-		return <RouteFallback />;
+		return <AppLoading />;
 	}
 
 	if (error) {

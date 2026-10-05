@@ -14,7 +14,7 @@ import {
 	type AsyncStorage,
 } from "@tanstack/react-query-persist-client";
 import { lazy, Suspense } from "react";
-import { RouteFallback } from "@/components/RouteFallback";
+import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { workspacePath } from "@/lib/routes";
@@ -80,7 +80,7 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 
 function AppRoutes() {
 	return (
-		<Suspense fallback={<RouteFallback />}>
+		<Suspense fallback={<AppLoading />}>
 			<Routes>
 				{/* Public routes */}
 				<Route path="/" element={<Splash />} />
@@ -123,10 +123,12 @@ export default function App() {
 						client={queryClient}
 						persistOptions={{ persister }}
 					>
-						<AuthProvider>
-							<Toaster />
-							<AppRoutes />
-						</AuthProvider>
+						<AppLoaderProvider>
+							<AuthProvider>
+								<Toaster />
+								<AppRoutes />
+							</AuthProvider>
+						</AppLoaderProvider>
 					</PersistQueryClientProvider>
 				</TransportProvider>
 			</BrowserRouter>

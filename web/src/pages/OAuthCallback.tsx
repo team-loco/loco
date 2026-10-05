@@ -6,7 +6,7 @@ import { exchangeOAuthCode } from "@gen/loco/oauth/v1/oauth-OAuthService_connect
 import { OAuthProvider } from "@gen/loco/oauth/v1/oauth_pb";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 
-import { AuthStatusScreen } from "@/components/AuthStatusScreen";
+import { AppLoading } from "@/context/AppLoader";
 import { getErrorMessage } from "@/lib/error-handler";
 import { OAUTH_ERROR_KEY, removeStorage, writeStorage } from "@/lib/storage";
 
@@ -86,5 +86,5 @@ export function OAuthCallback() {
 		}
 	}, [code, state, error, errorDescription, queryError, isLoading, exchangeRes, orgsLoading, orgsRes, orgsError, navigate]);
 
-	return <AuthStatusScreen title="Authenticating…" />;
+	return <AppLoading message="Signing you in…" />;
 }

@@ -1,7 +1,8 @@
-import { createContext, use, useRef, useState, type ReactNode } from "react";
+import { createContext, Suspense, use, useRef, useState, type ReactNode } from "react";
 
 import { SidebarInset, SidebarProvider } from "@/components/design/Sidebar";
 import { TooltipProvider } from "@/components/design/Tooltip";
+import { AppLoading } from "@/context/AppLoader";
 import { ShellProvider } from "@/context/ShellContext";
 
 import { AppSidebar } from "./AppSidebar";
@@ -83,7 +84,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 						<AppSidebar />
 						<SidebarInset className="min-w-0 bg-background">
 							<TopBar />
-							<main className="flex min-w-0 flex-1 flex-col">{children}</main>
+							<main className="flex min-w-0 flex-1 flex-col">
+								<Suspense fallback={<AppLoading />}>{children}</Suspense>
+							</main>
 						</SidebarInset>
 					</SidebarProvider>
 				</SidebarPeekContext>

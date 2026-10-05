@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
-import { RouteFallback } from "@/components/RouteFallback";
+import { AppLoading } from "@/context/AppLoader";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { workspacePath } from "@/lib/routes";
 
@@ -17,5 +17,5 @@ export function DashboardRedirect() {
 		}
 	}, [isLoading, activeOrgId, activeWorkspaceId, navigate]);
 
-	return <RouteFallback />;
+	return <AppLoading />;
 }
