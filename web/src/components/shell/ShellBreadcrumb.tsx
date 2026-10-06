@@ -68,7 +68,7 @@ function switchWorkspacePath(pathname: string, search: string, orgId: string, wo
 }
 
 const TRIGGER =
-	"flex h-8 min-w-0 items-center gap-2 rounded-sm px-2 text-md text-foreground outline-none hover:bg-bg3 focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-bg3";
+	"flex h-7 min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-md text-foreground outline-none transition-colors duration-150 ease-out hover:bg-bg3 focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-bg3";
 
 function Slash() {
 	return <BreadcrumbSeparator className="px-0.5 text-lg font-light text-line2">/</BreadcrumbSeparator>;
