@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#MISE description="Mark existing platform namespaces as owned by the loco-namespaces release, so it can manage namespaces created before it"
+set -euo pipefail
+
+manifest=manifests/namespaces/namespaces.yaml
+release=loco-namespaces
+release_namespace=kube-system
+
+for name in $(yq -N '.metadata.name' "$manifest"); do
+	if ! kubectl get namespace "$name" >/dev/null 2>&1; then
+		continue
+	fi
+	owner=$(kubectl get namespace "$name" -o jsonpath='{.metadata.annotations.meta\.helm\.sh/release-name}')
+	if [[ "$owner" == "$release" ]]; then
+		continue
+	fi
+	kubectl annotate --overwrite namespace "$name" \
+		meta.helm.sh/release-name="$release" \
+		meta.helm.sh/release-namespace="$release_namespace" >/dev/null
+	kubectl label --overwrite namespace "$name" app.kubernetes.io/managed-by=Helm >/dev/null
+	echo "adopted namespace $name into the $release release"
+done

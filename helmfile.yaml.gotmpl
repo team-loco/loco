@@ -46,6 +46,11 @@ releases:
     namespace: kube-system
     labels:
       phase: "2-core"
+    hooks:
+      - events: ["presync"]
+        showlogs: true
+        command: mise
+        args: ["run", "--quiet", "cluster:adopt-namespaces"]
 
   - name: cert-manager
     chart: jetstack/cert-manager
