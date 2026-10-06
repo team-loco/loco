@@ -43,7 +43,7 @@ loco completion zsh
 
 ## Examples
 
-Every `loco.toml` field, with its default and whether it is required: [`loco_example.toml`](./loco_example.toml)
+Every `loco.toml` field, with its default and whether it is required: [`examples/loco_example.toml`](./examples/loco_example.toml)
 
 Deployable sample apps, each with its own `loco.toml`:
 
