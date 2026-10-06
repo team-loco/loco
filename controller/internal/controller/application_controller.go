@@ -98,11 +98,11 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/finalizers,verbs=update
 // +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;patch;delete
-// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update
-// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update
-// +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update
+// +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
 
 // todo: abuse of power. we should delete based on owner refs, not delete namespace access;
@@ -297,14 +297,14 @@ func (r *LocoResourceReconciler) handleDeletion(
 		return ctrl.Result{}, nil
 	}
 
-	namespace := getNamespace(locoRes)
 	r.revokeCurrentRegistryToken(ctx, locoRes)
 
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
-	if err := r.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
-		return ctrl.Result{}, fmt.Errorf("delete namespace %s: %w", namespace, err)
+	if err := r.deleteAppObjects(ctx, locoRes); err != nil {
+		return ctrl.Result{}, err
 	}
-	slog.InfoContext(ctx, "namespace deleted", "namespace", namespace)
+	if err := r.deleteNamespaceIfUnused(ctx, locoRes); err != nil {
+		return ctrl.Result{}, err
+	}
 
 	original := locoRes.DeepCopy()
 	controllerutil.RemoveFinalizer(locoRes, finalizerSecretRefresher)
@@ -317,6 +317,63 @@ func (r *LocoResourceReconciler) handleDeletion(
 	return ctrl.Result{}, nil
 }
 
+func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *locov1alpha1.Application) error {
+	name := getName(locoRes)
+	namespace := getNamespace(locoRes)
+	routeName := name + "-route"
+	bindingName := name + "-binding"
+	roleName := name + "-role"
+	envSecretName := getEnvSecretName(locoRes)
+	imageSecretName := getImageSecretName(locoRes)
+
+	objects := []client.Object{
+		&v1Gateway.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}},
+		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
+		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
+		&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: bindingName, Namespace: namespace}},
+		&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: roleName, Namespace: namespace}},
+		&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: envSecretName, Namespace: namespace}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: imageSecretName, Namespace: namespace}},
+	}
+	for _, obj := range objects {
+		err := r.Delete(ctx, obj)
+		if err == nil || apierrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+			continue
+		}
+		return fmt.Errorf("delete %T %s/%s: %w", obj, namespace, obj.GetName(), err)
+	}
+	slog.InfoContext(ctx, "app objects deleted", "namespace", namespace, "name", name)
+	return nil
+}
+
+func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+) error {
+	var apps locov1alpha1.ApplicationList
+	if err := r.List(ctx, &apps, client.InNamespace(locoRes.Namespace)); err != nil {
+		return fmt.Errorf("list applications: %w", err)
+	}
+	for i := range apps.Items {
+		other := &apps.Items[i]
+		if other.Name == locoRes.Name || other.DeletionTimestamp != nil {
+			continue
+		}
+		if other.Spec.WorkspaceID == locoRes.Spec.WorkspaceID {
+			return nil
+		}
+	}
+
+	namespace := getNamespace(locoRes)
+	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	if err := r.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
+		return fmt.Errorf("delete namespace %s: %w", namespace, err)
+	}
+	slog.InfoContext(ctx, "namespace deleted", "namespace", namespace)
+	return nil
+}
+
 // getName derives the app name from the Application
 func getName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("resource-%v", locoRes.Spec.ResourceID)
@@ -324,7 +381,7 @@ func getName(locoRes *locov1alpha1.Application) string {
 
 // getNamespace derives the namespace from the Application
 func getNamespace(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("wks-%v-res-%v", locoRes.Spec.WorkspaceID, locoRes.Spec.ResourceID)
+	return fmt.Sprintf("ws-%v", locoRes.Spec.WorkspaceID)
 }
 
 func getImageSecretName(locoRes *locov1alpha1.Application) string {
@@ -364,14 +421,11 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 	slog.DebugContext(ctx, "ensuring namespace", "namespace", namespace)
 
 	labels := map[string]string{
-		"loco.io/app":      "true",
-		labelManagedBy:     managedByValue,
-		labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-		labelResourceID:    locoRes.Spec.ResourceID,
-		labelEnvironmentID: locoRes.Spec.EnvironmentID,
+		"loco.io/app":    "true",
+		labelManagedBy:   managedByValue,
+		labelWorkspaceID: locoRes.Spec.WorkspaceID,
 	}
-	annotations := ownerAnnotations(locoRes)
-	ns := corev1ac.Namespace(namespace).WithLabels(labels).WithAnnotations(annotations)
+	ns := corev1ac.Namespace(namespace).WithLabels(labels)
 
 	opts := applyOptions()
 	if err := kubeClient.Apply(ctx, ns, opts...); err != nil {

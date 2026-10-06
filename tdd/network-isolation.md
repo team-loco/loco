@@ -2,14 +2,14 @@
 
 ## Problem
 
-User app namespaces (`wks-*-res-*`) currently have no network policies applied.
+Workspace namespaces (`ws-*`), which hold every app a workspace runs on a cluster, currently have no network policies applied.
 Any pod can reach any other pod cluster-wide via `.cluster.local` DNS, which means
 a compromised or misbehaving app can freely communicate with other users' apps,
 platform internals, or the Kubernetes API.
 
 ## Goal
 
-- Every app namespace is isolated by default — no inter-namespace traffic unless explicitly allowed
+- Every app is isolated by default: no traffic between namespaces, and none between apps in the same workspace namespace, unless explicitly allowed
 - Platform components can reach into app namespaces only for the flows they actually need
 - Apps within the same workspace can opt in to talk to each other
 - Cross-workspace communication is never allowed
@@ -20,7 +20,7 @@ platform internals, or the Kubernetes API.
 
 | Namespace | Role |
 |---|---|
-| `wks-*-res-*` | user app namespaces |
+| `ws-*` | workspace namespaces, one per workspace per cluster, holding its apps |
 | `envoy-gateway-system` | ingress (Envoy Gateway forwards HTTP to app pods) |
 | `observability` | otel-col-deploy (OTLP receiver), otel-col-daemon (hostNetwork — no netpol needed), grafana, obs-proxy |
 | `loco-system` | agent, controller, UI |
@@ -152,28 +152,29 @@ AllowedPeers []string  // list of resource IDs within the same workspace
 ```
 
 When the controller reconciles an app with `AllowedPeers`, for each peer resource ID
-it creates a targeted policy **in the peer's namespace** allowing ingress from this app:
+it creates a targeted policy in the workspace namespace allowing ingress to the peer's pods from this app's pods:
 
-**allow-peer-{resourceId}** (created in peer's namespace)
+**allow-peer-{sourceResourceId}-{peerResourceId}** (created in the workspace namespace)
 ```yaml
 kind: NetworkPolicy
 metadata:
-  name: allow-peer-<source-resource-id>
-  namespace: wks-<workspaceId>-res-<peerResourceId>
+  name: allow-peer-<source-resource-id>-<peer-resource-id>
+  namespace: ws-<workspaceId>
 spec:
-  podSelector: {}
+  podSelector:
+    matchLabels:
+      app: resource-<peerResourceId>
   policyTypes: [Ingress]
   ingress:
     - from:
-        - namespaceSelector:
+        - podSelector:
             matchLabels:
-              loco.io/workspace-id: <workspaceId>   # enforces same-workspace only
-              loco.io/resource-id: <sourceResourceId>
+              app: resource-<sourceResourceId>
 ```
 
-Cross-workspace is structurally prevented: the `loco.io/workspace-id` label match
-means a policy allowing namespace A can never match namespace B in a different
-workspace, even if someone manually sets `AllowedPeers` to a foreign resource ID.
+Cross-workspace is structurally prevented: a `from` clause with only a `podSelector`
+matches pods in the policy's own namespace, which holds a single workspace, so even a
+foreign resource ID in `AllowedPeers` matches nothing.
 
 The controller also needs to watch peer apps and clean up these policies when:
 - the source app removes a peer from `AllowedPeers`
@@ -181,9 +182,9 @@ The controller also needs to watch peer apps and clean up these policies when:
 
 ### Namespace labels required
 
-The controller already applies `loco.io/workspace-id` to app namespaces (line 335
-in `application_controller.go`). We need to add `loco.io/resource-id` so that
-peer selectors can target individual namespaces precisely.
+The controller already applies `loco.io/workspace-id` to workspace namespaces and the
+`app: resource-<resourceId>` label to every app's pods, which is all the peer
+policies select on.
 
 Platform namespaces (`envoy-gateway-system`, `observability`, `kube-system`) need
 `kubernetes.io/metadata.name` labels — these are automatically added by Kubernetes
