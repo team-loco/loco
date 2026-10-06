@@ -174,7 +174,7 @@ func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) {
 	s := table.Styles{
 		Header: lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(ui.LocoMuted).
+			BorderForeground(ui.Line2).
 			BorderBottom(true).
 			Bold(false),
 		Cell: lipgloss.NewStyle().Padding(0, 1),

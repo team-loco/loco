@@ -33,7 +33,7 @@ func newLogoutCmd(env Env) *cobra.Command {
 
 			t, err := store.Get()
 			if errors.Is(err, keychain.ErrNotFound) {
-				notLoggedIn := lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("You are not logged in.")
+				notLoggedIn := lipgloss.NewStyle().Foreground(ui.Fg2).Render("You are not logged in.")
 				lipgloss.Fprintln(out, notLoggedIn)
 				return nil
 			}
@@ -48,7 +48,7 @@ func newLogoutCmd(env Env) *cobra.Command {
 				cmdutil.LogRequestID(ctx, err, "failed to revoke token on server")
 				if connect.CodeOf(err) != connect.CodeUnauthenticated {
 					warning := lipgloss.NewStyle().
-						Foreground(ui.LocoOrange).
+						Foreground(ui.Warn).
 						Render("Warning: could not revoke the session on the server; the token stays valid until it expires.")
 					errOut := cmd.ErrOrStderr()
 					lipgloss.Fprintln(errOut, warning)
@@ -59,8 +59,8 @@ func newLogoutCmd(env Env) *cobra.Command {
 				return fmt.Errorf("failed to delete token from keychain: %w", err)
 			}
 
-			checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
-			message := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Logged out successfully!")
+			checkmark := lipgloss.NewStyle().Foreground(ui.Ok).Render("✔")
+			message := lipgloss.NewStyle().Bold(true).Foreground(ui.Accent).Render("Logged out successfully!")
 			lipgloss.Fprintf(out, "%s %s\n", checkmark, message)
 			return nil
 		},

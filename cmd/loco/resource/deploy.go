@@ -184,11 +184,11 @@ Examples:
 			if wait {
 				successMsg = "\n🎉 Service deployed!"
 			}
-			s := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoLightGreen).Render(successMsg)
+			s := lipgloss.NewStyle().Bold(true).Foreground(ui.Ok).Render(successMsg)
 			fmt.Fprintln(deps.Stdout, s)
 
 			tip := lipgloss.NewStyle().
-				Foreground(ui.LocoOrange).
+				Foreground(ui.Fg3).
 				Render("\nTip: Keep tabs on your service using `loco resource status " + name + "`")
 			fmt.Fprintln(deps.Stdout, tip)
 

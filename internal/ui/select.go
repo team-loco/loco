@@ -10,12 +10,12 @@ import (
 
 var (
 	titleStyle = lipgloss.NewStyle().
-			Foreground(LocoWhite).
-			Background(LocoGreen).
+			Foreground(OnAccent).
+			Background(Accent).
 			Padding(0, 1)
 
 	selectedStyle = lipgloss.NewStyle().
-			Foreground(LocoGreen)
+			Foreground(Accent)
 )
 
 type selectItem struct {

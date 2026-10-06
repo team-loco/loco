@@ -163,7 +163,7 @@ Examples:
 
 			s := lipgloss.NewStyle().
 				Bold(true).
-				Foreground(ui.LocoLightGreen).
+				Foreground(ui.Ok).
 				Render(fmt.Sprintf("\n🎉 Environment variables synced for service %s", name))
 			fmt.Fprintln(deps.Stdout, s)
 
