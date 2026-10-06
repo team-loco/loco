@@ -3,6 +3,7 @@
 #   - Agent registration
 #   - Heartbeat
 #   - Placement sync
+#   - Controller running in Kind and reconciling the Application
 #
 # These functions are sourced by run.sh and called automatically.
 # lib.sh helpers (assert, assert_contains, e2e_psql, etc.) are available.
@@ -102,6 +103,26 @@ test_agent_applies_placement() {
 
     wait_for "control plane to record the applied revision" 30 placement_applied
     assert "Placement applied revision recorded as 1" placement_applied
+}
+
+application_has_status() {
+    kubectl get application "resource-${e2e_resource_id}" \
+        --namespace "$E2E_LOCO_NAMESPACE" \
+        --context "kind-${E2E_KIND_CLUSTER}" \
+        -o jsonpath='{.status.phase}' | grep -q .
+}
+
+test_controller_running() {
+    assert "Controller Deployment is available in Kind" \
+        kubectl rollout status deployment/controller-loco-manager \
+            --namespace "$E2E_LOCO_NAMESPACE" \
+            --context "kind-${E2E_KIND_CLUSTER}" \
+            --timeout 60s
+}
+
+test_controller_reconciles_application() {
+    wait_for "controller to write the Application status" 60 application_has_status
+    assert "Controller wrote a status on the agent's Application" application_has_status
 }
 
 test_agent_logs_no_errors() {
