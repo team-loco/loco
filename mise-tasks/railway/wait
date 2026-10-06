@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#MISE description="Wait until a Railway service's latest deployment runs an image, failing unless that deployment succeeds"
+#USAGE arg "<service>" help="Railway service name, such as loco::cp-api"
+#USAGE arg "<image>" help="Image reference the deployment must run"
+set -euo pipefail
+
+service=$1
+image=$2
+deadline=$((SECONDS + 900))
+
+while [ "$SECONDS" -lt "$deadline" ]; do
+	latest=$(railway deployment list --service "$service" --json | jq -r 'first | "\(.status) \(.meta.image // "")"')
+	status=${latest%% *}
+	running=${latest#* }
+
+	if [ "$running" != "$image" ]; then
+		echo "$service: waiting for a deployment of $image"
+	elif [ "$status" = "SUCCESS" ]; then
+		echo "$service: $image deployed"
+		exit 0
+	elif [[ "$status" =~ ^(FAILED|CRASHED|REMOVED|SKIPPED)$ ]]; then
+		echo "$service: deployment of $image ended $status" >&2
+		exit 1
+	else
+		echo "$service: $status"
+	fi
+	sleep 10
+done
+
+echo "$service: timed out waiting for $image" >&2
+exit 1

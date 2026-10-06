@@ -85,5 +85,3 @@ e2e/kubeconfig
 v1-report.html
 CLAUDE.md
 clusters/
-.github/workflows/deploy-production.yml
-.github/workflows/deploy-staging.yml

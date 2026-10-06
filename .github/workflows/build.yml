@@ -1,0 +1,69 @@
+name: Build and Deploy to Staging
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Tests
+    uses: ./.github/workflows/test.yml
+
+  push-image:
+    name: Build and Push ${{ matrix.name }} Image
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Controller
+            image: controller
+            dockerfile: ./controller/Dockerfile
+
+          - name: API
+            image: api
+            dockerfile: ./api/Dockerfile
+
+          - name: Agent
+            image: agent
+            dockerfile: ./agent/Dockerfile
+
+          - name: UI
+            image: ui
+            dockerfile: ./web/Dockerfile
+            build_args: |
+              VITE_API_URL=https://api.loco.build
+              VITE_APP_ENV=PRODUCTION
+
+          - name: Staging UI
+            image: ui
+            dockerfile: ./web/Dockerfile
+            tag_suffix: ",suffix=-staging"
+            build_args: |
+              VITE_API_URL=https://api.staging.loco.build
+              VITE_APP_ENV=PRODUCTION
+    uses: ./.github/workflows/build-push.yml
+    with:
+      image_name: ${{ github.repository }}-${{ matrix.image }}
+      context: .
+      dockerfile: ${{ matrix.dockerfile }}
+      tag_suffix: ${{ matrix.tag_suffix || '' }}
+      build_args: ${{ matrix.build_args || '' }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: push-image
+    uses: ./.github/workflows/deploy-railway.yml
+    with:
+      environment: staging
+      commit: ${{ github.sha }}
+    secrets: inherit
