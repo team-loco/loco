@@ -1,0 +1,1243 @@
+{
+	"annotations": {
+		"list": [
+			{
+				"builtIn": 1,
+				"datasource": {
+					"type": "grafana",
+					"uid": "-- Grafana --"
+				},
+				"enable": true,
+				"hide": true,
+				"iconColor": "rgba(0, 211, 255, 1)",
+				"name": "Annotations & Alerts",
+				"type": "dashboard"
+			}
+		]
+	},
+	"editable": true,
+	"fiscalYearStartMonth": 0,
+	"graphTooltip": 1,
+	"id": 0,
+	"links": [],
+	"panels": [
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"barWidthFactor": 0.6,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 1,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"showValues": false,
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "none"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "reqps"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 0
+			},
+			"id": 1,
+			"options": {
+				"legend": {
+					"calcs": ["mean", "lastNotNull", "max"],
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"hideZeros": false,
+					"mode": "multi",
+					"sort": "none"
+				}
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 1,
+					"meta": {},
+					"pluginVersion": "4.11.2",
+					"queryType": "table",
+					"rawSql": "SELECT\n    toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n    -- compute delta of the counter, handle counter resets\n    max(Value) - lagInFrame(max(Value), 1, 0) OVER (ORDER BY time) AS requests,\n    'Total Requests' AS metric\nFROM default.otel_metrics_sum\nWHERE ServiceName = 'envoy'\n  AND MetricName = 'cluster.upstream_rq_total'\n  AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n  AND TimeUnix >= toDateTime64($__from / 1000, 3)\n  AND TimeUnix <= toDateTime64($__to / 1000, 3)\nGROUP BY time\nORDER BY time",
+					"refId": "A"
+				}
+			],
+			"title": "Request Rate",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							},
+							{
+								"color": "yellow",
+								"value": 100
+							},
+							{
+								"color": "red",
+								"value": 500
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 4,
+				"w": 4,
+				"x": 12,
+				"y": 0
+			},
+			"id": 2,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"percentChangeColorMode": "standard",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"showPercentChange": false,
+				"textMode": "auto",
+				"wideLayout": true
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"meta": {},
+					"pluginVersion": "4.11.2",
+					"queryType": "timeseries",
+					"rawSql": "WITH\n    toDateTime64($__from / 1000, 3) AS from_ts,\n    toDateTime64($__to / 1000, 3) AS to_ts\n\nSELECT\n    time,\n    greatest(0, max_val - lagInFrame(max_val, 1, 0) OVER (ORDER BY time)) / 30 AS requests_per_sec\nFROM (\n    SELECT\n        toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n        max(Value) AS max_val\n    FROM default.otel_metrics_sum\n    WHERE ServiceName = 'envoy'\n      AND MetricName = 'cluster.upstream_rq_total'\n      AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n      AND TimeUnix BETWEEN from_ts AND to_ts\n    GROUP BY time\n)\nORDER BY time;",
+					"refId": "A"
+				}
+			],
+			"title": "Total Requests",
+			"type": "stat"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							},
+							{
+								"color": "red",
+								"value": 1
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 4,
+				"w": 4,
+				"x": 16,
+				"y": 0
+			},
+			"id": 3,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"percentChangeColorMode": "standard",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"showPercentChange": false,
+				"textMode": "auto",
+				"wideLayout": true
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"rawSql": "SELECT\n    max(Value) AS errors\nFROM default.otel_metrics_sum\nWHERE ServiceName = 'envoy'\n  AND MetricName = 'cluster.endpoint.rq_error'\n  AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n  AND TimeUnix >= toDateTime64($__from / 1000, 3)\n  AND TimeUnix <= toDateTime64($__to / 1000, 3)",
+					"refId": "A"
+				}
+			],
+			"title": "Request Errors",
+			"type": "stat"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							},
+							{
+								"color": "red",
+								"value": 1
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 4,
+				"w": 4,
+				"x": 20,
+				"y": 0
+			},
+			"id": 4,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"percentChangeColorMode": "standard",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"showPercentChange": false,
+				"textMode": "auto",
+				"wideLayout": true
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"rawSql": "SELECT\n    max(Value) AS timeouts\nFROM default.otel_metrics_sum\nWHERE ServiceName = 'envoy'\n  AND MetricName = 'cluster.endpoint.rq_timeout'\n  AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n  AND TimeUnix >= toDateTime64($__from / 1000, 3)\n  AND TimeUnix <= toDateTime64($__to / 1000, 3)",
+					"refId": "A"
+				}
+			],
+			"title": "Request Timeouts",
+			"type": "stat"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 4,
+				"w": 4,
+				"x": 12,
+				"y": 4
+			},
+			"id": 5,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"percentChangeColorMode": "standard",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"showPercentChange": false,
+				"textMode": "auto",
+				"wideLayout": true
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"rawSql": "SELECT\n    max(Value) AS success\nFROM default.otel_metrics_sum\nWHERE ServiceName = 'envoy'\n  AND MetricName = 'cluster.endpoint.rq_success'\n  AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n  AND TimeUnix >= toDateTime64($__from / 1000, 3)\n  AND TimeUnix <= toDateTime64($__to / 1000, 3)",
+					"refId": "A"
+				}
+			],
+			"title": "Successful Requests",
+			"type": "stat"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"max": 100,
+					"min": 0,
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "red",
+								"value": 0
+							},
+							{
+								"color": "yellow",
+								"value": 95
+							},
+							{
+								"color": "green",
+								"value": 99
+							}
+						]
+					},
+					"unit": "percent"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 4,
+				"w": 4,
+				"x": 16,
+				"y": 4
+			},
+			"id": 6,
+			"options": {
+				"minVizHeight": 75,
+				"minVizWidth": 75,
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"showThresholdLabels": false,
+				"showThresholdMarkers": true,
+				"sizing": "auto"
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"rawSql": "SELECT\n    (max(success.Value) * 100.0 / nullIf(max(total.Value), 0)) AS success_rate\nFROM\n    (SELECT max(Value) AS Value\n     FROM default.otel_metrics_sum\n     WHERE ServiceName = 'envoy'\n       AND MetricName = 'cluster.endpoint.rq_success'\n       AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n       AND TimeUnix >= toDateTime64($__from / 1000, 3)\n       AND TimeUnix <= toDateTime64($__to / 1000, 3)) AS success\nCROSS JOIN\n    (SELECT max(Value) AS Value\n     FROM default.otel_metrics_sum\n     WHERE ServiceName = 'envoy'\n       AND MetricName = 'cluster.upstream_rq_total'\n       AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n       AND TimeUnix >= toDateTime64($__from / 1000, 3)\n       AND TimeUnix <= toDateTime64($__to / 1000, 3)) AS total",
+					"refId": "A"
+				}
+			],
+			"title": "Success Rate",
+			"type": "gauge"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 4,
+				"w": 4,
+				"x": 20,
+				"y": 4
+			},
+			"id": 7,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"percentChangeColorMode": "standard",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"showPercentChange": false,
+				"textMode": "auto",
+				"wideLayout": true
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"meta": {},
+					"pluginVersion": "4.11.2",
+					"queryType": "timeseries",
+					"rawSql": "SELECT\n    toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n    max(Value) AS active_connections\nFROM default.otel_metrics_gauge\nWHERE ServiceName = 'envoy'\n  AND MetricName = 'cluster.upstream_cx_active'\n  AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n  AND TimeUnix BETWEEN toDateTime64($__from / 1000, 3) AND toDateTime64($__to / 1000, 3)\nGROUP BY time\nORDER BY time;",
+					"refId": "A"
+				}
+			],
+			"title": "Active Connections",
+			"type": "stat"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"barWidthFactor": 0.6,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 1,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"showValues": false,
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": [
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "2xx"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "green",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "4xx"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "yellow",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "5xx"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "red",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"__systemRef": "hideSeriesFrom",
+						"matcher": {
+							"id": "byNames",
+							"options": {
+								"mode": "exclude",
+								"names": ["rate 2"],
+								"prefix": "All except:",
+								"readOnly": true
+							}
+						},
+						"properties": [
+							{
+								"id": "custom.hideFrom",
+								"value": {
+									"legend": false,
+									"tooltip": true,
+									"viz": true
+								}
+							}
+						]
+					}
+				]
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 8
+			},
+			"id": 8,
+			"options": {
+				"legend": {
+					"calcs": ["mean", "lastNotNull", "max"],
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"hideZeros": false,
+					"mode": "multi",
+					"sort": "none"
+				}
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"meta": {},
+					"pluginVersion": "4.11.2",
+					"queryType": "timeseries",
+					"rawSql": "SELECT\n    time,\n    greatest(0, max_val - lagInFrame(max_val, 1, 0) OVER (PARTITION BY response_code ORDER BY time)) AS requests_per_30s_bucket,\n    response_code AS response_code\nFROM (\n    SELECT\n        toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n        Attributes['response_code'] AS response_code,\n        max(Value) AS max_val\n    FROM default.otel_metrics_sum\n    WHERE MetricName LIKE 'cluster.external.upstream_rq_%'\n      AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n      AND TimeUnix BETWEEN toDateTime64($__from / 1000, 3) AND toDateTime64($__to / 1000, 3)\n    GROUP BY time, response_code\n)\nORDER BY time, response_code;",
+					"refId": "A"
+				}
+			],
+			"title": "Response Code Distribution",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"barWidthFactor": 0.6,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 1,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"showValues": false,
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "none"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": [
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "Connection Failures"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "red",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "Remote Destroy"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "orange",
+									"mode": "fixed"
+								}
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "Local Destroy"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "yellow",
+									"mode": "fixed"
+								}
+							}
+						]
+					}
+				]
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 8
+			},
+			"id": 11,
+			"options": {
+				"legend": {
+					"calcs": ["mean", "lastNotNull", "max"],
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"hideZeros": false,
+					"mode": "multi",
+					"sort": "none"
+				}
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 1,
+					"rawSql": "SELECT\n    toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n    max(Value) - lagInFrame(max(Value), 1, 0) OVER (PARTITION BY metric ORDER BY time) AS rate,\n    metric\nFROM (\n    SELECT TimeUnix, Value, 'Connection Failures' AS metric\n    FROM default.otel_metrics_sum\n    WHERE ServiceName = 'envoy'\n      AND MetricName = 'cluster.upstream_cx_connect_fail'\n      AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n    UNION ALL\n    SELECT TimeUnix, Value, 'Remote Destroy' AS metric\n    FROM default.otel_metrics_sum\n    WHERE ServiceName = 'envoy'\n      AND MetricName = 'cluster.upstream_cx_destroy_remote'\n      AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n    UNION ALL\n    SELECT TimeUnix, Value, 'Local Destroy' AS metric\n    FROM default.otel_metrics_sum\n    WHERE ServiceName = 'envoy'\n      AND MetricName = 'cluster.upstream_cx_destroy_local'\n      AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n    UNION ALL\n    SELECT TimeUnix, Value, 'Destroy with Active Req' AS metric\n    FROM default.otel_metrics_sum\n    WHERE ServiceName = 'envoy'\n      AND MetricName = 'cluster.upstream_cx_destroy_with_active_rq'\n      AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n)\nWHERE TimeUnix >= toDateTime64($__from / 1000, 3)\n  AND TimeUnix <= toDateTime64($__to / 1000, 3)\nGROUP BY time, metric\nORDER BY time, metric",
+					"refId": "A"
+				}
+			],
+			"title": "Connection Health",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"barWidthFactor": 0.6,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 1,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"showValues": false,
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "none"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "binBps"
+				},
+				"overrides": [
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "TX Bytes"
+						},
+						"properties": [
+							{
+								"id": "custom.transform",
+								"value": "negative-Y"
+							}
+						]
+					}
+				]
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 16
+			},
+			"id": 10,
+			"options": {
+				"legend": {
+					"calcs": ["mean", "lastNotNull", "max"],
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"hideZeros": false,
+					"mode": "multi",
+					"sort": "none"
+				}
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"meta": {},
+					"pluginVersion": "4.11.2",
+					"queryType": "timeseries",
+					"rawSql": "WITH\n  toDateTime64($__from / 1000, 3) AS from_ts,\n  toDateTime64($__to / 1000, 3) AS to_ts\n\nSELECT time, rate, metric\nFROM\n(\n    -- RX bytes\n    SELECT\n        time,\n        greatest(0, max_val - lagInFrame(max_val, 1, 0) OVER (ORDER BY time)) / 30 AS rate,\n        'RX Bytes' AS metric\n    FROM (\n        SELECT\n            toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n            max(Value) AS max_val\n        FROM default.otel_metrics_sum\n        WHERE ServiceName = 'envoy'\n          AND MetricName = 'cluster.upstream_cx_rx_bytes_total'\n          AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n          AND TimeUnix BETWEEN from_ts AND to_ts\n        GROUP BY time\n        ORDER BY time\n    )\n\n    UNION ALL\n\n    -- TX bytes\n    SELECT\n        time,\n        greatest(0, max_val - lagInFrame(max_val, 1, 0) OVER (ORDER BY time)) / 30 AS rate,\n        'TX Bytes' AS metric\n    FROM (\n        SELECT\n            toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n            max(Value) AS max_val\n        FROM default.otel_metrics_sum\n        WHERE ServiceName = 'envoy'\n          AND MetricName = 'cluster.upstream_cx_tx_bytes_total'\n          AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n          AND TimeUnix BETWEEN from_ts AND to_ts\n        GROUP BY time\n        ORDER BY time\n    )\n)\nORDER BY time, metric",
+					"refId": "A"
+				}
+			],
+			"title": "Network Throughput (RX/TX)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"custom": {
+						"align": "auto",
+						"cellOptions": {
+							"type": "auto"
+						},
+						"footer": {
+							"reducers": []
+						},
+						"inspect": false
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					}
+				},
+				"overrides": [
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "response_code"
+						},
+						"properties": [
+							{
+								"id": "custom.width",
+								"value": 150
+							}
+						]
+					},
+					{
+						"matcher": {
+							"id": "byName",
+							"options": "count"
+						},
+						"properties": [
+							{
+								"id": "custom.width"
+							},
+							{
+								"id": "custom.cellOptions",
+								"value": {
+									"mode": "gradient",
+									"type": "color-background"
+								}
+							}
+						]
+					}
+				]
+			},
+			"gridPos": {
+				"h": 6,
+				"w": 7,
+				"x": 12,
+				"y": 16
+			},
+			"id": 13,
+			"options": {
+				"cellHeight": "sm",
+				"footer": {
+					"countRows": false,
+					"fields": "",
+					"reducer": ["sum"],
+					"show": false
+				},
+				"showHeader": true
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 0,
+					"meta": {},
+					"pluginVersion": "4.11.2",
+					"queryType": "timeseries",
+					"rawSql": "SELECT\n    Attributes['envoy.response_code'] AS response_code,\n    max(Value) AS count\nFROM default.otel_metrics_sum\nWHERE ServiceName = 'envoy'\n  AND MetricName = 'cluster.external.upstream_rq'\n  AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n  AND Attributes['envoy.response_code'] != ''\n  AND TimeUnix >= toDateTime64($__from / 1000, 3)\n  AND TimeUnix <= toDateTime64($__to / 1000, 3)\nGROUP BY response_code\nORDER BY count DESC",
+					"refId": "A"
+				}
+			],
+			"title": "Response Codes Breakdown",
+			"type": "table"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"barWidthFactor": 0.6,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 1,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"showValues": false,
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "none"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 24
+			},
+			"id": 12,
+			"options": {
+				"legend": {
+					"calcs": ["mean", "lastNotNull", "max"],
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"hideZeros": false,
+					"mode": "multi",
+					"sort": "none"
+				}
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 1,
+					"rawSql": "SELECT\n    toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n    max(Value) - lagInFrame(max(Value), 1, 0) OVER (ORDER BY time) AS rate,\n    'Completed Requests' AS metric\nFROM default.otel_metrics_sum\nWHERE ServiceName = 'envoy'\n  AND MetricName = 'cluster.upstream_rq_completed'\n  AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n  AND TimeUnix >= toDateTime64($__from / 1000, 3)\n  AND TimeUnix <= toDateTime64($__to / 1000, 3)\nGROUP BY time\nORDER BY time",
+					"refId": "A"
+				}
+			],
+			"title": "Request Completion Rate",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "grafana-clickhouse-datasource",
+				"uid": "PDEE91DDB90597936"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"axisCenteredZero": false,
+						"axisColorMode": "text",
+						"axisLabel": "",
+						"axisPlacement": "auto",
+						"barAlignment": 0,
+						"barWidthFactor": 0.6,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"gradientMode": "none",
+						"hideFrom": {
+							"legend": false,
+							"tooltip": false,
+							"viz": false
+						},
+						"insertNulls": false,
+						"lineInterpolation": "linear",
+						"lineWidth": 1,
+						"pointSize": 5,
+						"scaleDistribution": {
+							"type": "linear"
+						},
+						"showPoints": "never",
+						"showValues": false,
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "none"
+						},
+						"thresholdsStyle": {
+							"mode": "off"
+						}
+					},
+					"mappings": [],
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": 0
+							}
+						]
+					},
+					"unit": "percent"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 32
+			},
+			"id": 14,
+			"options": {
+				"legend": {
+					"calcs": ["mean", "lastNotNull", "max"],
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"hideZeros": false,
+					"mode": "multi",
+					"sort": "none"
+				}
+			},
+			"pluginVersion": "12.2.1",
+			"targets": [
+				{
+					"datasource": {
+						"type": "grafana-clickhouse-datasource",
+						"uid": "PDEE91DDB90597936"
+					},
+					"editorType": "sql",
+					"format": 1,
+					"rawSql": "WITH \n    total AS (\n        SELECT \n            toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n            max(Value) AS total_val\n        FROM default.otel_metrics_sum\n        WHERE ServiceName = 'envoy'\n          AND MetricName = 'cluster.upstream_rq_total'\n          AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n          AND TimeUnix >= toDateTime64($__from / 1000, 3)\n          AND TimeUnix <= toDateTime64($__to / 1000, 3)\n        GROUP BY time\n    ),\n    errors AS (\n        SELECT \n            toStartOfInterval(TimeUnix, INTERVAL 30 SECOND) AS time,\n            max(Value) AS error_val\n        FROM default.otel_metrics_sum\n        WHERE ServiceName = 'envoy'\n          AND MetricName = 'cluster.endpoint.rq_error'\n          AND Attributes['envoy.cluster_name'] LIKE '%backend%'\n          AND TimeUnix >= toDateTime64($__from / 1000, 3)\n          AND TimeUnix <= toDateTime64($__to / 1000, 3)\n        GROUP BY time\n    )\nSELECT \n    t.time,\n    (COALESCE(e.error_val, 0) * 100.0 / nullIf(t.total_val, 0)) AS error_rate\nFROM total t\nLEFT JOIN errors e ON t.time = e.time\nORDER BY t.time",
+					"refId": "A"
+				}
+			],
+			"title": "Error Rate %",
+			"type": "timeseries"
+		}
+	],
+	"preload": false,
+	"refresh": "",
+	"schemaVersion": 42,
+	"tags": ["envoy", "gateway", "http"],
+	"templating": {
+		"list": []
+	},
+	"time": {
+		"from": "now-6h",
+		"to": "now"
+	},
+	"timepicker": {},
+	"timezone": "browser",
+	"title": "Envoy Gateway - App Metrics",
+	"uid": "envoy-app-metrics",
+	"version": 12
+}

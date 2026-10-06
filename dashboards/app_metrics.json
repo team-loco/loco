@@ -1,0 +1,758 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 1,
+    "id": 9,
+    "links": [],
+    "panels": [
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 70
+                            },
+                            {
+                                "color": "red",
+                                "value": 90
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 0,
+                "y": 0
+            },
+            "id": 1,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-clickhouse-datasource",
+                        "uid": "PDEE91DDB90597936"
+                    },
+                    "editorType": "sql",
+                    "format": 0,
+                    "meta": {},
+                    "pluginVersion": "4.11.2",
+                    "queryType": "timeseries",
+                    "rawSql": "SELECT\n    any(Value * 100) AS cpu_utilization,\n    max(TimeUnix) AS latest_time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.cpu_request_utilization'\n  AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND TimeUnix >= now() - INTERVAL 5 MINUTE\nGROUP BY pod\nORDER BY latest_time DESC\nLIMIT 1",
+                    "refId": "A"
+                }
+            ],
+            "title": "CPU Utilization",
+            "transparent": true,
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            },
+                            {
+                                "color": "yellow",
+                                "value": 70
+                            },
+                            {
+                                "color": "red",
+                                "value": 85
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 6,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "minVizHeight": 75,
+                "minVizWidth": 75,
+                "orientation": "auto",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "showThresholdLabels": false,
+                "showThresholdMarkers": true,
+                "sizing": "auto"
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-clickhouse-datasource",
+                        "uid": "PDEE91DDB90597936"
+                    },
+                    "editorType": "sql",
+                    "format": 0,
+                    "meta": {},
+                    "pluginVersion": "4.11.2",
+                    "queryType": "timeseries",
+                    "rawSql": "SELECT\n    any(Value * 100) AS memory_utilization,\n    max(TimeUnix) AS latest_time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.memory_request_utilization'\n  AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n  AND TimeUnix >= now() - INTERVAL 5 MINUTE\nGROUP BY pod\nORDER BY latest_time DESC\nLIMIT 1",
+                    "refId": "A"
+                }
+            ],
+            "title": "Memory Utilization",
+            "transparent": true,
+            "type": "gauge"
+        },
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            },
+            "id": 3,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-clickhouse-datasource",
+                        "uid": "PDEE91DDB90597936"
+                    },
+                    "editorType": "sql",
+                    "format": 0,
+                    "meta": {},
+                    "pluginVersion": "4.11.2",
+                    "queryType": "timeseries",
+                    "rawSql": "SELECT\n    count(DISTINCT ResourceAttributes['k8s.pod.name']) AS pod_count\nFROM default.otel_metrics_gauge\nWHERE\n    ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix >= now() - INTERVAL 5 MINUTE",
+                    "refId": "A"
+                }
+            ],
+            "title": "Active Pods",
+            "transparent": true,
+            "type": "stat"
+        },
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "axisPlacement": "hidden",
+                        "fillOpacity": 100,
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": 3600000,
+                        "lineWidth": 0,
+                        "spanNulls": false
+                    },
+                    "fieldMinMax": false,
+                    "mappings": [
+                        {
+                            "options": {
+                                "pattern": "Pending",
+                                "result": {
+                                    "color": "semi-dark-blue",
+                                    "index": 0,
+                                    "text": "Pending"
+                                }
+                            },
+                            "type": "regex"
+                        },
+                        {
+                            "options": {
+                                "pattern": "2",
+                                "result": {
+                                    "color": "light-blue",
+                                    "index": 1,
+                                    "text": "Running"
+                                }
+                            },
+                            "type": "regex"
+                        }
+                    ],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            }
+                        ]
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "pod_status"
+                        },
+                        "properties": [
+                            {
+                                "id": "mappings",
+                                "value": [
+                                    {
+                                        "options": {
+                                            "pattern": ".*Pending$",
+                                            "result": {
+                                                "color": "semi-dark-yellow",
+                                                "index": 0
+                                            }
+                                        },
+                                        "type": "regex"
+                                    },
+                                    {
+                                        "options": {
+                                            "pattern": ".*Running$",
+                                            "result": {
+                                                "color": "green",
+                                                "index": 1
+                                            }
+                                        },
+                                        "type": "regex"
+                                    },
+                                    {
+                                        "options": {
+                                            "pattern": ".*Succeeded$",
+                                            "result": {
+                                                "color": "dark-green",
+                                                "index": 2
+                                            }
+                                        },
+                                        "type": "regex"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 18,
+                "y": 0
+            },
+            "id": 11,
+            "options": {
+                "alignValue": "left",
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "mergeValues": false,
+                "rowHeight": 1,
+                "showValue": "never",
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "editorType": "sql",
+                    "format": 0,
+                    "meta": {},
+                    "pluginVersion": "4.11.2",
+                    "queryType": "timeseries",
+                    "rawSql": "SELECT\n    TimeUnix AS time,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) || ' - ' ||\n    transform(\n        Value,\n        [1.0, 2.0, 3.0, 4.0, 5.0],\n        ['Pending', 'Running', 'Succeeded', 'Failed', 'Unknown'],\n        'Other'\n    ) || '' AS pod_status\nFROM default.otel_metrics_gauge\nWHERE MetricName = 'k8s.pod.phase'\n  AND CAST(ResourceAttributes['k8s.namespace.name'] AS String) = 'backend-nikumar1206'\n  AND $__timeFilter(TimeUnix)\n  -- ⬇️ Simple Regex Pattern\n  AND match(\n      pod_status,\n      'Pending|Running'\n  )\nORDER BY time DESC",
+                    "refId": "A"
+                }
+            ],
+            "title": "Pod Health Status",
+            "transparent": true,
+            "type": "state-timeline"
+        },
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "CPU (millicores)",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 20,
+                        "gradientMode": "opacity",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "showValues": false,
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            }
+                        ]
+                    },
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 12,
+                "x": 0,
+                "y": 5
+            },
+            "id": 6,
+            "options": {
+                "legend": {
+                    "calcs": ["mean", "max"],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-clickhouse-datasource",
+                        "uid": "PDEE91DDB90597936"
+                    },
+                    "editorType": "sql",
+                    "format": 0,
+                    "queryType": "timeseries",
+                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    avg(Value * 1000) AS cpu_millicores,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE\n    MetricName = 'k8s.pod.cpu_request_utilization'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod\nORDER BY time ASC",
+                    "refId": "A"
+                }
+            ],
+            "title": "CPU Usage by Pod",
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "Memory (%)",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 20,
+                        "gradientMode": "opacity",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "showValues": false,
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            }
+                        ]
+                    },
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 9,
+                "w": 12,
+                "x": 12,
+                "y": 5
+            },
+            "id": 7,
+            "options": {
+                "legend": {
+                    "calcs": ["mean", "max"],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-clickhouse-datasource",
+                        "uid": "PDEE91DDB90597936"
+                    },
+                    "editorType": "sql",
+                    "format": 0,
+                    "queryType": "timeseries",
+                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    avg(Value * 100) AS memory_percent,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod\nFROM default.otel_metrics_gauge\nWHERE\n    MetricName = 'k8s.pod.memory_request_utilization'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod\nORDER BY time ASC",
+                    "refId": "A"
+                }
+            ],
+            "title": "Memory Usage by Pod",
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "Bytes/sec",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 20,
+                        "gradientMode": "opacity",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "smooth",
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "showValues": false,
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            }
+                        ]
+                    },
+                    "unit": "Bps"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": ".*receive.*"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.transform",
+                                "value": "negative-Y"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 14
+            },
+            "id": 10,
+            "options": {
+                "legend": {
+                    "calcs": ["mean", "max"],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-clickhouse-datasource",
+                        "uid": "PDEE91DDB90597936"
+                    },
+                    "editorType": "sql",
+                    "format": 0,
+                    "queryType": "timeseries",
+                    "rawSql": "SELECT\n    toStartOfMinute(TimeUnix) AS time,\n    sum(Value) / 60 AS network_bytes,\n    CAST(ResourceAttributes['k8s.pod.name'] AS String) AS pod,\n    if(Attributes['direction'] = 'receive', 'receive', 'transmit') AS direction\nFROM default.otel_metrics_sum\nWHERE\n    MetricName = 'k8s.pod.network.io'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix BETWEEN parseDateTimeBestEffort('${__from:iso}')\n                     AND parseDateTimeBestEffort('${__to:iso}')\nGROUP BY time, pod, direction\nORDER BY time ASC",
+                    "refId": "A"
+                }
+            ],
+            "title": "Network I/O (Receive/Transmit)",
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": 0
+                            }
+                        ]
+                    },
+                    "unit": "Bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 13,
+                "y": 14
+            },
+            "id": 5,
+            "options": {
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto",
+                "orientation": "auto",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+            },
+            "pluginVersion": "12.2.1",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-clickhouse-datasource",
+                        "uid": "PDEE91DDB90597936"
+                    },
+                    "editorType": "sql",
+                    "format": 0,
+                    "queryType": "table",
+                    "rawSql": "SELECT\n    sum(Value) AS total_network_io\nFROM default.otel_metrics_sum\nWHERE\n    MetricName = 'k8s.pod.network.io'\n    AND ResourceAttributes['k8s.namespace.name'] = 'backend-nikumar1206'\n    AND TimeUnix >= now() - INTERVAL 1 MINUTE",
+                    "refId": "A"
+                }
+            ],
+            "title": "Network I/O",
+            "transparent": true,
+            "type": "stat"
+        }
+    ],
+    "preload": false,
+    "refresh": "",
+    "schemaVersion": 42,
+    "tags": [],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "Application Level Metrics",
+    "uid": "56f9bd62-20bf-428a-980c-1242c05f2010",
+    "version": 45
+}

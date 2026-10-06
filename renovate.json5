@@ -93,5 +93,22 @@
       extractVersionTemplate: "^v(?<version>.*)$",
       versioningTemplate: "loose",
     },
+    {
+      customType: "regex",
+      description: "DOKS control plane version pinned in terraform",
+      managerFilePatterns: ["/^terraform/do/kube\\.tf$/"],
+      matchStrings: ["version\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+-do\\.\\d+)\""],
+      depNameTemplate: "digitalocean/doks",
+      datasourceTemplate: "custom.doks",
+    },
   ],
+  customDatasources: {
+    doks: {
+      defaultRegistryUrlTemplate: "https://api.digitalocean.com/v2/kubernetes/options",
+      format: "json",
+      transformTemplates: [
+        '{"releases": [{"version": $.options.versions[0].slug}], "sourceUrl": "https://docs.digitalocean.com/products/kubernetes/details/changelog/"}',
+      ],
+    },
+  },
 }
