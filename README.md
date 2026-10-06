@@ -16,7 +16,7 @@ Loco is a container orchestration platform that simplifies application deploymen
 1.  **Download the loco cli**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/team-loco/loco/main/install.sh | sh
+curl -fsSL https://loco.build/install.sh | sh
 ```
 
 This installs the latest release to `~/.local/bin` and verifies its checksum. The installer supports Linux and macOS on amd64 and arm64, and accepts either `curl` or `wget` for downloads. Set `LOCO_INSTALL_DIR` or pass `--bin-dir` to choose a different directory. Set `LOCO_VERSION` or pass `--version` to install a specific release tag.
