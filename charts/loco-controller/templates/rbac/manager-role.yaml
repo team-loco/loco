@@ -7,6 +7,7 @@ rules:
         - ""
       resources:
         - namespaces
+        - serviceaccounts
       verbs:
         - create
         - delete
@@ -21,20 +22,11 @@ rules:
         - services
       verbs:
         - create
+        - delete
         - get
         - list
         - patch
         - update
-        - watch
-    - apiGroups:
-        - ""
-      resources:
-        - serviceaccounts
-      verbs:
-        - create
-        - get
-        - list
-        - patch
         - watch
     - apiGroups:
         - apps
@@ -42,6 +34,7 @@ rules:
         - deployments
       verbs:
         - create
+        - delete
         - get
         - list
         - patch
@@ -92,6 +85,7 @@ rules:
         - roles
       verbs:
         - create
+        - delete
         - get
         - list
         - patch
