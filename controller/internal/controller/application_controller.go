@@ -93,6 +93,7 @@ type LocoResourceReconciler struct {
 	gitlabRegistryURL string
 	locoNamespace     string
 	obsNamespace      string
+	workspaceLimits   workspaceLimits
 	httpClient        *http.Client
 }
 
@@ -108,6 +109,7 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=core,resources=resourcequotas;limitranges,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=servicecidrs,verbs=get;list;watch
 
 // todo: abuse of power. we should delete based on owner refs, not delete namespace access;
@@ -178,6 +180,10 @@ func (r *LocoResourceReconciler) reconcileResources(
 	// begin reconcile steps - these functions allocate and ensure Kubernetes resources
 	if err := ensureNamespace(ctx, r.Client, locoRes); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
+	}
+
+	if err := r.ensureWorkspaceQuota(ctx, locoRes); err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure workspace quota: %w", err)
 	}
 
 	if err := r.ensureWorkspaceNetworkPolicies(ctx, locoRes); err != nil {
@@ -882,6 +888,15 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.gitlabRegistryURL = os.Getenv("GITLAB_REGISTRY_URL")
 	r.locoNamespace = os.Getenv("LOCO_NAMESPACE")
 	r.obsNamespace = os.Getenv("LOCO_OBSERVABILITY_NAMESPACE")
+	limits, err := parseWorkspaceLimits(
+		os.Getenv("LOCO_WORKSPACE_CPU"),
+		os.Getenv("LOCO_WORKSPACE_MEMORY"),
+		os.Getenv("LOCO_WORKSPACE_PODS"),
+	)
+	if err != nil {
+		return fmt.Errorf("workspace limits: %w", err)
+	}
+	r.workspaceLimits = limits
 	r.httpClient = &http.Client{Timeout: 10 * time.Second}
 
 	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {

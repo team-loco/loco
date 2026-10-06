@@ -6,7 +6,9 @@ rules:
     - apiGroups:
         - ""
       resources:
+        - limitranges
         - namespaces
+        - resourcequotas
         - secrets
         - services
       verbs:
