@@ -30,7 +30,7 @@ const STEPS: readonly Step[] = [
 	{
 		n: "01",
 		title: "Install the CLI",
-		body: "Loco is a single Go binary. Requires Go 1.27 or newer.",
+		body: "Install the latest Loco release for your platform.",
 		command: INSTALL_COMMAND,
 		output: [],
 	},
