@@ -120,6 +120,12 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(reconciler.ensureWorkspaceNetworkPolicies(ctx, first)).To(Succeed())
 		Expect(policyResourceVersions(namespace)).To(Equal(versions))
 
+		dns := getPolicy(namespace, policyDNSEgress)
+		Expect(dns.Spec.Egress).To(HaveLen(1))
+		Expect(dns.Spec.Egress[0].To).To(BeEmpty())
+		Expect(dns.Spec.Egress[0].Ports).To(HaveLen(2))
+		Expect(dns.Spec.Egress[0].Ports[0].Port.IntValue()).To(Equal(53))
+
 		access := getPolicy(namespace, policyWorkspaceAccess)
 		Expect(access.Spec.PodSelector.MatchLabels).To(BeEmpty())
 		Expect(access.Spec.Ingress).To(HaveLen(1))

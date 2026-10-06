@@ -23,12 +23,9 @@ const (
 	labelGatewayName       = "gateway.envoyproxy.io/owning-gateway-name"
 	labelGatewayNamespace  = "gateway.envoyproxy.io/owning-gateway-namespace"
 	labelAppKubernetesName = "app.kubernetes.io/name"
-	labelK8sApp            = "k8s-app"
 	gatewayName            = "eg"
 	defaultObsNamespace    = "observability"
 	otelCollectorName      = "otel-col-deploy"
-	dnsNamespace           = "kube-system"
-	dnsAppLabel            = "kube-dns"
 	podSecurityLevel       = "restricted"
 	podSecurityVersion     = "latest"
 	policyDefaultDeny      = "default-deny"
@@ -166,10 +163,8 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 		WithIngress(workspaceIngress).
 		WithEgress(workspaceEgress)
 
-	dnsLabels := map[string]string{labelK8sApp: dnsAppLabel}
-	dnsPeer := namespacedPodPeer(dnsNamespace, dnsLabels)
 	dnsPortList := dnsPorts()
-	dnsRule := networkingv1ac.NetworkPolicyEgressRule().WithTo(dnsPeer).WithPorts(dnsPortList...)
+	dnsRule := networkingv1ac.NetworkPolicyEgressRule().WithPorts(dnsPortList...)
 	dnsEgress := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(egress).WithEgress(dnsRule)
 
 	telemetryLabels := map[string]string{labelAppKubernetesName: otelCollectorName}
