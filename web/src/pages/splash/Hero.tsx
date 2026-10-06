@@ -57,7 +57,7 @@ export function Hero() {
 					onClick={() => {
 						copy("install", INSTALL_COMMAND);
 					}}
-					className="h-auto min-h-8 max-w-full gap-2.5 rounded-[7px] px-3 py-1.5 font-mono text-[13px] whitespace-normal text-fg3 hover:text-foreground"
+					className="h-auto min-h-8 max-w-full gap-2.5 rounded-[7px] border-line bg-bg2 px-3 py-1.5 font-mono text-[13px] whitespace-normal text-fg3 hover:border-line2 hover:bg-bg3 hover:text-foreground"
 				>
 					<span className="text-primary">$</span>
 					<span className="min-w-0 text-left">
