@@ -199,6 +199,8 @@ type ApplicationStatus struct {
 
 	DeployedGeneration int64 `json:"deployedGeneration,omitempty"` // tracks spec changes applied
 
+	ObservedPlacementRevision int64 `json:"observedPlacementRevision,omitempty"`
+
 	// +listType=map
 	// +listMapKey=type
 	// +optional

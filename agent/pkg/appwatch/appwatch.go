@@ -137,7 +137,7 @@ func (w *Watcher) Observe(obj any) {
 	}
 	status := &agentv1.PlacementStatus{
 		PlacementId:      placement.ID,
-		ObservedRevision: placement.Revision,
+		ObservedRevision: app.Status.ObservedPlacementRevision,
 		Ready:            app.Status.Phase == phaseReady,
 		Phase:            app.Status.Phase,
 		Message:          app.Status.Message,
