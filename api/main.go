@@ -293,8 +293,7 @@ func main() {
 
 	reflector := grpcreflect.NewStaticReflector(
 		// config service
-		configv1connect.ConfigServiceGetDefaultServiceConfigProcedure,
-		configv1connect.ConfigServiceGetServerInfoProcedure,
+		configv1connect.ConfigServiceGetConfigProcedure,
 
 		// oauth service
 		oauthv1connect.OAuthServiceGetOAuthDetailsProcedure,

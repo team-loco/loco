@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetDefaultServiceConfigRequest, GetDefaultServiceConfigResponse, GetServerInfoRequest, GetServerInfoResponse } from "./config_pb";
+import { GetConfigRequest, GetConfigResponse } from "./config_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,23 +15,12 @@ export const ConfigService = {
   typeName: "loco.config.v1.ConfigService",
   methods: {
     /**
-     * GetDefaultServiceConfig retrieves the default configuration for service deployments.
-     *
-     * @generated from rpc loco.config.v1.ConfigService.GetDefaultServiceConfig
+     * @generated from rpc loco.config.v1.ConfigService.GetConfig
      */
-    getDefaultServiceConfig: {
-      name: "GetDefaultServiceConfig",
-      I: GetDefaultServiceConfigRequest,
-      O: GetDefaultServiceConfigResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc loco.config.v1.ConfigService.GetServerInfo
-     */
-    getServerInfo: {
-      name: "GetServerInfo",
-      I: GetServerInfoRequest,
-      O: GetServerInfoResponse,
+    getConfig: {
+      name: "GetConfig",
+      I: GetConfigRequest,
+      O: GetConfigResponse,
       kind: MethodKind.Unary,
     },
   }

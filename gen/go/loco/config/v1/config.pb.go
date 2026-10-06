@@ -23,26 +23,26 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetServerInfoRequest struct {
+type GetConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetServerInfoRequest) Reset() {
-	*x = GetServerInfoRequest{}
+func (x *GetConfigRequest) Reset() {
+	*x = GetConfigRequest{}
 	mi := &file_loco_config_v1_config_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetServerInfoRequest) String() string {
+func (x *GetConfigRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetServerInfoRequest) ProtoMessage() {}
+func (*GetConfigRequest) ProtoMessage() {}
 
-func (x *GetServerInfoRequest) ProtoReflect() protoreflect.Message {
+func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_config_v1_config_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -54,32 +54,33 @@ func (x *GetServerInfoRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetServerInfoRequest.ProtoReflect.Descriptor instead.
-func (*GetServerInfoRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetConfigRequest) Descriptor() ([]byte, []int) {
 	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{0}
 }
 
-type GetServerInfoResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MinCliVersion string                 `protobuf:"bytes,1,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type GetConfigResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ServiceDefaults *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
+	MinCliVersion   string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
-func (x *GetServerInfoResponse) Reset() {
-	*x = GetServerInfoResponse{}
+func (x *GetConfigResponse) Reset() {
+	*x = GetConfigResponse{}
 	mi := &file_loco_config_v1_config_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetServerInfoResponse) String() string {
+func (x *GetConfigResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetServerInfoResponse) ProtoMessage() {}
+func (*GetConfigResponse) ProtoMessage() {}
 
-func (x *GetServerInfoResponse) ProtoReflect() protoreflect.Message {
+func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_config_v1_config_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -91,98 +92,23 @@ func (x *GetServerInfoResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetServerInfoResponse.ProtoReflect.Descriptor instead.
-func (*GetServerInfoResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetConfigResponse) Descriptor() ([]byte, []int) {
 	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetServerInfoResponse) GetMinCliVersion() string {
+func (x *GetConfigResponse) GetServiceDefaults() *DefaultServiceConfig {
+	if x != nil {
+		return x.ServiceDefaults
+	}
+	return nil
+}
+
+func (x *GetConfigResponse) GetMinCliVersion() string {
 	if x != nil {
 		return x.MinCliVersion
 	}
 	return ""
-}
-
-// GetDefaultServiceConfigRequest is the request to retrieve default service configuration.
-type GetDefaultServiceConfigRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetDefaultServiceConfigRequest) Reset() {
-	*x = GetDefaultServiceConfigRequest{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetDefaultServiceConfigRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetDefaultServiceConfigRequest) ProtoMessage() {}
-
-func (x *GetDefaultServiceConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetDefaultServiceConfigRequest.ProtoReflect.Descriptor instead.
-func (*GetDefaultServiceConfigRequest) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
-}
-
-// GetDefaultServiceConfigResponse contains the default service configuration.
-type GetDefaultServiceConfigResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Config        *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetDefaultServiceConfigResponse) Reset() {
-	*x = GetDefaultServiceConfigResponse{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetDefaultServiceConfigResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetDefaultServiceConfigResponse) ProtoMessage() {}
-
-func (x *GetDefaultServiceConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetDefaultServiceConfigResponse.ProtoReflect.Descriptor instead.
-func (*GetDefaultServiceConfigResponse) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GetDefaultServiceConfigResponse) GetConfig() *DefaultServiceConfig {
-	if x != nil {
-		return x.Config
-	}
-	return nil
 }
 
 // DefaultServiceConfig contains default values for service deployments.
@@ -211,7 +137,7 @@ type DefaultServiceConfig struct {
 
 func (x *DefaultServiceConfig) Reset() {
 	*x = DefaultServiceConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[4]
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -223,7 +149,7 @@ func (x *DefaultServiceConfig) String() string {
 func (*DefaultServiceConfig) ProtoMessage() {}
 
 func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[4]
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -236,7 +162,7 @@ func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefaultServiceConfig.ProtoReflect.Descriptor instead.
 func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{4}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DefaultServiceConfig) GetBuildType() string {
@@ -313,13 +239,11 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
-	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\"\x16\n" +
-	"\x14GetServerInfoRequest\"?\n" +
-	"\x15GetServerInfoResponse\x12&\n" +
-	"\x0fmin_cli_version\x18\x01 \x01(\tR\rminCliVersion\" \n" +
-	"\x1eGetDefaultServiceConfigRequest\"_\n" +
-	"\x1fGetDefaultServiceConfigResponse\x12<\n" +
-	"\x06config\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x06config\"\xc9\x03\n" +
+	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\"\x12\n" +
+	"\x10GetConfigRequest\"\x8c\x01\n" +
+	"\x11GetConfigResponse\x12O\n" +
+	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
+	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\"\xc9\x03\n" +
 	"\x14DefaultServiceConfig\x12\x1d\n" +
 	"\n" +
 	"build_type\x18\x01 \x01(\tR\tbuildType\x12'\n" +
@@ -332,10 +256,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fmax_replicas\x18\b \x01(\x05R\vmaxReplicas\x12K\n" +
 	"\robservability\x18\t \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
 	"\x0fplatform_domain\x18\n" +
-	" \x01(\tR\x0eplatformDomain2\xe9\x01\n" +
-	"\rConfigService\x12z\n" +
-	"\x17GetDefaultServiceConfig\x12..loco.config.v1.GetDefaultServiceConfigRequest\x1a/.loco.config.v1.GetDefaultServiceConfigResponse\x12\\\n" +
-	"\rGetServerInfo\x12$.loco.config.v1.GetServerInfoRequest\x1a%.loco.config.v1.GetServerInfoResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
+	" \x01(\tR\x0eplatformDomain2a\n" +
+	"\rConfigService\x12P\n" +
+	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 
 var (
 	file_loco_config_v1_config_proto_rawDescOnce sync.Once
@@ -349,28 +272,24 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_loco_config_v1_config_proto_rawDescData
 }
 
-var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_loco_config_v1_config_proto_goTypes = []any{
-	(*GetServerInfoRequest)(nil),            // 0: loco.config.v1.GetServerInfoRequest
-	(*GetServerInfoResponse)(nil),           // 1: loco.config.v1.GetServerInfoResponse
-	(*GetDefaultServiceConfigRequest)(nil),  // 2: loco.config.v1.GetDefaultServiceConfigRequest
-	(*GetDefaultServiceConfigResponse)(nil), // 3: loco.config.v1.GetDefaultServiceConfigResponse
-	(*DefaultServiceConfig)(nil),            // 4: loco.config.v1.DefaultServiceConfig
-	(*v1.RoutingConfig)(nil),                // 5: loco.resource.v1.RoutingConfig
-	(*v11.HealthCheckConfig)(nil),           // 6: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil),          // 7: loco.resource.v1.ObservabilityConfig
+	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
+	(*DefaultServiceConfig)(nil),   // 2: loco.config.v1.DefaultServiceConfig
+	(*v1.RoutingConfig)(nil),       // 3: loco.resource.v1.RoutingConfig
+	(*v11.HealthCheckConfig)(nil),  // 4: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil), // 5: loco.resource.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
-	4, // 0: loco.config.v1.GetDefaultServiceConfigResponse.config:type_name -> loco.config.v1.DefaultServiceConfig
-	5, // 1: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
-	6, // 2: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	7, // 3: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
-	2, // 4: loco.config.v1.ConfigService.GetDefaultServiceConfig:input_type -> loco.config.v1.GetDefaultServiceConfigRequest
-	0, // 5: loco.config.v1.ConfigService.GetServerInfo:input_type -> loco.config.v1.GetServerInfoRequest
-	3, // 6: loco.config.v1.ConfigService.GetDefaultServiceConfig:output_type -> loco.config.v1.GetDefaultServiceConfigResponse
-	1, // 7: loco.config.v1.ConfigService.GetServerInfo:output_type -> loco.config.v1.GetServerInfoResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
+	2, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
+	3, // 1: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
+	4, // 2: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	5, // 3: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
+	0, // 4: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1, // 5: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
 	4, // [4:4] is the sub-list for extension extendee
 	0, // [0:4] is the sub-list for field type_name
@@ -387,7 +306,7 @@ func file_loco_config_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_config_v1_config_proto_rawDesc), len(file_loco_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

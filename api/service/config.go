@@ -19,21 +19,13 @@ func NewConfigServer(platformDomain, minCLIVersion string) *ConfigServer {
 	return &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion}
 }
 
-func (s *ConfigServer) GetServerInfo(
+func (s *ConfigServer) GetConfig(
 	_ context.Context,
-	_ *connect.Request[configv1.GetServerInfoRequest],
-) (*connect.Response[configv1.GetServerInfoResponse], error) {
-	return connect.NewResponse(&configv1.GetServerInfoResponse{
+	_ *connect.Request[configv1.GetConfigRequest],
+) (*connect.Response[configv1.GetConfigResponse], error) {
+	return connect.NewResponse(&configv1.GetConfigResponse{
 		MinCliVersion: s.minCLIVersion,
-	}), nil
-}
-
-func (s *ConfigServer) GetDefaultServiceConfig(
-	_ context.Context,
-	_ *connect.Request[configv1.GetDefaultServiceConfigRequest],
-) (*connect.Response[configv1.GetDefaultServiceConfigResponse], error) {
-	return connect.NewResponse(&configv1.GetDefaultServiceConfigResponse{
-		Config: &configv1.DefaultServiceConfig{
+		ServiceDefaults: &configv1.DefaultServiceConfig{
 			BuildType:      "docker",
 			DockerfilePath: "Dockerfile",
 			Routing: &resourcev1.RoutingConfig{

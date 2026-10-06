@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { BoxIcon, CircleAlertIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { getDefaultServiceConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { DeploymentPhase, DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
@@ -179,9 +179,9 @@ function DraftDrawerBody({
 	const [submitting, setSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const { data: configRes } = useQuery(getDefaultServiceConfig, {});
+	const { data: configRes } = useQuery(getConfig, {});
 	const { data: domainsRes } = useQuery(listPlatformDomains, { activeOnly: true });
-	const config = configRes?.config;
+	const config = configRes?.serviceDefaults;
 	const platformDomains = domainsRes?.platformDomains ?? [];
 	const platform = platformDomains.find((d) => d.domain === config?.platformDomain) ?? platformDomains[0];
 	const platformDomain = platform?.domain ?? config?.platformDomain ?? "onloco.app";

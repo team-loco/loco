@@ -9,24 +9,14 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/config/v1;configv1";
 
 // ConfigService provides static configuration values. Clients can query this to show safe defaults.
 service ConfigService {
-  // GetDefaultServiceConfig retrieves the default configuration for service deployments.
-  rpc GetDefaultServiceConfig(GetDefaultServiceConfigRequest) returns (GetDefaultServiceConfigResponse);
-
-  rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse);
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
 }
 
-message GetServerInfoRequest {}
+message GetConfigRequest {}
 
-message GetServerInfoResponse {
-  string min_cli_version = 1;
-}
-
-// GetDefaultServiceConfigRequest is the request to retrieve default service configuration.
-message GetDefaultServiceConfigRequest {}
-
-// GetDefaultServiceConfigResponse contains the default service configuration.
-message GetDefaultServiceConfigResponse {
-  DefaultServiceConfig config = 1;
+message GetConfigResponse {
+  DefaultServiceConfig service_defaults = 1;
+  string min_cli_version = 2;
 }
 
 // DefaultServiceConfig contains default values for service deployments.

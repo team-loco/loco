@@ -51,10 +51,10 @@ func (c *versionCheck) start(cmd *cobra.Command) {
 		ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
 		defer cancel()
 		client := configv1connect.NewConfigServiceClient(httputil.NewHTTPClient(), host)
-		req := connect.NewRequest(&configv1.GetServerInfoRequest{})
-		resp, err := client.GetServerInfo(ctx, req)
+		req := connect.NewRequest(&configv1.GetConfigRequest{})
+		resp, err := client.GetConfig(ctx, req)
 		if err != nil {
-			slog.Debug("could not fetch server info", "error", err)
+			slog.Debug("could not fetch server config", "error", err)
 			return
 		}
 		c.minimum = resp.Msg.GetMinCliVersion()

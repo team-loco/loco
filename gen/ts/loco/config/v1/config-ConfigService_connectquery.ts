@@ -5,13 +5,6 @@
 import { ConfigService } from "./config_pb";
 
 /**
- * GetDefaultServiceConfig retrieves the default configuration for service deployments.
- *
- * @generated from rpc loco.config.v1.ConfigService.GetDefaultServiceConfig
+ * @generated from rpc loco.config.v1.ConfigService.GetConfig
  */
-export const getDefaultServiceConfig = ConfigService.method.getDefaultServiceConfig;
-
-/**
- * @generated from rpc loco.config.v1.ConfigService.GetServerInfo
- */
-export const getServerInfo = ConfigService.method.getServerInfo;
+export const getConfig = ConfigService.method.getConfig;
