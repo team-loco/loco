@@ -30,46 +30,6 @@ export default defineConfig({
 		},
 	},
 	build: {
-		rollupOptions: {
-			output: {
-				manualChunks(id) {
-					if (id.includes("node_modules/react/")) {
-						return "vendor-react-core";
-					}
-					if (id.includes("node_modules/react-dom/")) {
-						return "vendor-react-dom";
-					}
-
-					// Base UI components
-					if (id.includes("@base-ui/react")) {
-						return "vendor-base-ui";
-					}
-
-					// Tanstack libraries
-					if (id.includes("@tanstack")) {
-						return "vendor-tanstack";
-					}
-
-					// Recharts + its d3/victory deps
-					if (
-						id.includes("recharts") ||
-						id.includes("victory-vendor") ||
-						id.includes("d3-")
-					) {
-						return "vendor-recharts";
-					}
-
-					if (id.includes("/sugar-high/")) {
-						return "vendor-sugar-high";
-					}
-
-					// Other node_modules
-					if (id.includes("node_modules")) {
-						return "vendor-other";
-					}
-				},
-			},
-		},
 		chunkSizeWarningLimit: 1000,
 	},
 });
