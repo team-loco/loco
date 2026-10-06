@@ -7,7 +7,7 @@ type BaseVariant = "default" | "outline" | "secondary" | "ghost" | "destructive"
 type BaseSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg"
 
 const buttonVariants = cva(
-	"gap-2 rounded-sm text-base active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:opacity-55 [&_svg:not([class*='size-'])]:size-3.5",
+	"cursor-pointer gap-2 rounded-sm text-base active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-55 [&_svg:not([class*='size-'])]:size-3.5",
 	{
 		variants: {
 			variant: {

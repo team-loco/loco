@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils"
 
 const popup = "rounded-lg border border-line bg-background p-1 text-foreground shadow-popover ring-0"
 const item =
-	"h-8 gap-2 rounded-sm px-2.5 py-0 text-base focus:bg-bg3 focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground data-popup-open:bg-bg3 data-open:bg-bg3 [&_svg:not([class*='size-'])]:size-3.5"
+	"h-8 cursor-pointer gap-2 rounded-sm px-2.5 py-0 text-base data-disabled:pointer-events-auto data-disabled:cursor-not-allowed focus:bg-bg3 focus:text-foreground not-data-[variant=destructive]:focus:**:text-foreground data-popup-open:bg-bg3 data-open:bg-bg3 [&_svg:not([class*='size-'])]:size-3.5"
 
 function DropdownMenuContent({ className, ...props }: React.ComponentProps<typeof DropdownMenuContentBase>) {
 	return <DropdownMenuContentBase className={cn(popup, "min-w-[180px]", className)} {...props} />

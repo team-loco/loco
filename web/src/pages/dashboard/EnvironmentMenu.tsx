@@ -110,9 +110,12 @@ export function EnvironmentMenu({
 			}}
 		>
 			<DropdownMenuTrigger render={<Button variant="outline" className="ml-1 gap-2 px-2.5" />}>
+				<span className="text-fg3">Environment</span>
 				<span className={cn("size-[7px] rounded-full", dot)} />
-				<span className="font-medium">{active?.name ?? "No environment"}</span>
-				{typeLabel !== "" && <span className="text-sm text-fg3">{typeLabel}</span>}
+				<span className="font-medium">{active?.name ?? "None"}</span>
+				{typeLabel !== "" && typeLabel !== active?.name.toLowerCase() && (
+					<span className="text-sm text-fg3">{typeLabel}</span>
+				)}
 				<ChevronDownIcon className="size-3 text-fg3" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-auto min-w-[260px]">
