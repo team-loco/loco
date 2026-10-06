@@ -21,7 +21,7 @@ import (
 
 const (
 	versionCheckTimeout = time.Second
-	installCommand      = "curl -fsSL https://raw.githubusercontent.com/team-loco/loco/main/install.sh | sh"
+	installCommand      = "curl -fsSL https://loco.build/install.sh | sh"
 	releasesURL         = "https://github.com/team-loco/loco/releases"
 )
 
