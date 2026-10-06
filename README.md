@@ -23,6 +23,8 @@ This installs the latest release to `~/.local/bin` and verifies its checksum. Th
 
 If `~/.local/bin` is not already on your `PATH`, the installer prints the command to add it for your shell.
 
+Run `loco update` to replace the installed binary with the latest release.
+
 2. **Log in with `loco login`.** It uses the GitHub device flow.
 3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
 4. **Deploy your app via `loco deploy <app-name>`**
