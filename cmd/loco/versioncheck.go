@@ -32,7 +32,7 @@ type versionCheck struct {
 }
 
 func (c *versionCheck) start(cmd *cobra.Command) {
-	if c == nil || c.done != nil {
+	if c == nil || c.done != nil || cmd.Annotations[skipVersionCheckKey] != "" {
 		return
 	}
 	current := cmd.Root().Version
@@ -72,7 +72,7 @@ func (c *versionCheck) report(w io.Writer) {
 	}
 	style := lipgloss.NewStyle().Foreground(ui.LocoOrange)
 	styled := style.Render(hint)
-	message := fmt.Sprintf("\n%s\n  Upgrade:   %s\n  Changelog: %s\n", styled, installCommand, releasesURL)
+	message := fmt.Sprintf("\n%s\n  Update:    loco update\n  Changelog: %s\n", styled, releasesURL)
 	if _, err := lipgloss.Fprint(w, message); err != nil {
 		slog.Debug("could not print upgrade hint", "error", err)
 	}

@@ -67,6 +67,7 @@ func NewRootCmd(env Env) *cobra.Command {
 		newInitCmd(),
 		newValidateCmd(),
 		newWebCmd(),
+		newUpdateCmd(),
 		config.BuildConfigCmd(),
 	)
 
