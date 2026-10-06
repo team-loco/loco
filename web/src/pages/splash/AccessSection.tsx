@@ -6,7 +6,7 @@ import { GitHubIcon } from "./GitHubIcon";
 
 export function AccessSection() {
 	return (
-		<section id="access" className="relative scroll-mt-[60px] overflow-hidden bg-foreground text-background">
+		<section id="access" className="relative scroll-mt-16 overflow-hidden bg-foreground text-background">
 			<div className="relative mx-auto flex max-w-[680px] flex-col items-center gap-[18px] px-4 py-[120px] text-center sm:px-7">
 				<h2 className="m-0 text-[clamp(36px,4.8vw,56px)] leading-[1.02] font-semibold tracking-[-0.035em]">
 					Get an invite.

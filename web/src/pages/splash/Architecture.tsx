@@ -17,7 +17,7 @@ export function Architecture() {
 	const [highlighted, setHighlighted] = useState(0);
 
 	return (
-		<section id="stack" className="scroll-mt-[60px] border-t border-line">
+		<section id="stack" className="scroll-mt-16 border-t border-line">
 			<Frame className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,380px),1fr))] items-start gap-14 py-28">
 				<CornerMarks />
 				<SectionHeading index="03" eyebrow="Architecture" title="Open source, end to end." className="max-w-[420px]">
@@ -25,7 +25,7 @@ export function Architecture() {
 						Every request passes through these layers, from the edge to the control plane. No proprietary runtime.
 					</p>
 				</SectionHeading>
-				<div className="relative flex flex-col overflow-hidden rounded-[12px] border border-line bg-background">
+				<div className="flex flex-col overflow-hidden rounded-[12px] border border-line bg-background">
 					{STACK.map(({ layer, parts }, i) => {
 						const on = highlighted === i;
 						return (
@@ -63,11 +63,6 @@ export function Architecture() {
 							</div>
 						);
 					})}
-					<div aria-hidden="true" className="pointer-events-none absolute top-0 bottom-0 left-[152px] w-px bg-line" />
-					<div
-						aria-hidden="true"
-						className="pointer-events-none absolute left-[150px] h-[60px] w-[5px] animate-stack-fall rounded-[3px] bg-primary motion-reduce:hidden"
-					/>
 				</div>
 			</Frame>
 		</section>

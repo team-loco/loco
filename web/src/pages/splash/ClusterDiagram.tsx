@@ -28,14 +28,14 @@ function podClass(phase: PodPhase): string {
 	}
 }
 
-function PodRow({ pods }: { pods: readonly PodDot[] }) {
+function PodRow({ pods, className, podClassName }: { pods: readonly PodDot[]; className: string; podClassName: string }) {
 	return (
-		<div className="mt-auto flex flex-wrap gap-[5px]">
+		<div className={cn("flex flex-wrap gap-[5px]", className)}>
 			{pods.map((p) => (
 				<span
 					key={p.id}
 					title={`pod ${p.id} · ${p.phase}`}
-					className={cn("size-4 rounded-[4px] border-[1.5px]", podClass(p.phase))}
+					className={cn("rounded-[4px] border-[1.5px]", podClassName, podClass(p.phase))}
 				/>
 			))}
 		</div>
@@ -173,22 +173,22 @@ export function ClusterDiagram({ rollout }: { rollout: Rollout }) {
 			<NodeCard box={BOX.web} node="web" hovered={hovered} onHover={setHovered}>
 				<CardHead icon={AppWindow} name="web" sub="web:sha-5d02aa" />
 				<CardMeta left="web.onloco.app" right="2/2" />
-				<PodRow pods={WEB_PODS} />
+				<PodRow pods={WEB_PODS} className="mt-auto" podClassName="size-4" />
 			</NodeCard>
 			<NodeCard box={BOX.api} node="api" hovered={hovered} onHover={setHovered}>
 				<CardHead icon={Server} name="api" sub={`api:sha-${rollout.tag}`} />
 				<CardMeta left="api.onloco.app" right={`${ready}/${rollout.target}`} />
-				<PodRow pods={rollout.pods} />
+				<PodRow pods={rollout.pods} className="mt-auto" podClassName="size-4" />
 			</NodeCard>
 			<NodeCard box={BOX.worker} node="wk" hovered={hovered} onHover={setHovered}>
 				<CardHead icon={Cog} name="worker" sub="worker:sha-e09a77" />
 				<CardMeta left="internal" right="1/1" />
-				<PodRow pods={WORKER_PODS} />
+				<PodRow pods={WORKER_PODS} className="mt-auto" podClassName="size-4" />
 			</NodeCard>
 			<NodeCard box={BOX.db} node="db" hovered={hovered} onHover={setHovered}>
 				<CardHead icon={Database} name="postgres" sub="postgres:16" />
 				<CardMeta left="500m · 1Gi" right="1/1" />
-				<PodRow pods={DB_PODS} />
+				<PodRow pods={DB_PODS} className="mt-auto" podClassName="size-4" />
 			</NodeCard>
 			<DiagramLabel x={BOX.cluster.x + 92} y={BOX.cluster.y} className="text-primary">
 				us-east-1 · kubernetes
@@ -201,6 +201,44 @@ export function ClusterDiagram({ rollout }: { rollout: Rollout }) {
 					{e.label}
 				</DiagramLabel>
 			))}
+		</div>
+	);
+}
+
+function StackedCard({ icon: Icon, name, sub, pods }: { icon: LucideIcon; name: string; sub: string; pods?: readonly PodDot[] | undefined }) {
+	return (
+		<div className="min-w-0 rounded-[10px] border border-line bg-background px-3 py-2.5">
+			<div className="flex items-center gap-2">
+				<Icon size={15} strokeWidth={1.6} className="shrink-0 text-foreground" />
+				<span className="text-[13.5px] font-semibold">{name}</span>
+			</div>
+			<div className="mt-0.5 truncate font-mono text-xs text-fg3">{sub}</div>
+			{pods !== undefined && <PodRow pods={pods} className="mt-2" podClassName="size-3.5" />}
+		</div>
+	);
+}
+
+function StackedLink({ children }: { children: string }) {
+	return (
+		<div className="ml-5 flex h-[30px] items-center border-l border-dashed border-line2 pl-[22px] font-mono text-xs whitespace-pre text-fg3">
+			{children}
+		</div>
+	);
+}
+
+export function ClusterDiagramStacked({ rollout }: { rollout: Rollout }) {
+	return (
+		<div className="flex flex-col bg-[radial-gradient(var(--line)_0.9px,transparent_0.9px)] bg-size-[20px_20px] p-4">
+			<StackedCard icon={Globe} name="Internet" sub="clients" />
+			<StackedLink>https · :443</StackedLink>
+			<StackedCard icon={ShieldCheck} name="Gateway" sub="envoy · HTTP/3 · TLS 1.3" />
+			<StackedLink>/  ·  /api</StackedLink>
+			<div className="grid grid-cols-2 gap-2.5">
+				<StackedCard icon={AppWindow} name="web" sub="web:sha-5d02aa" pods={WEB_PODS} />
+				<StackedCard icon={Server} name="api" sub={`api:sha-${rollout.tag}`} pods={rollout.pods} />
+				<StackedCard icon={Cog} name="worker" sub="worker:sha-e09a77" pods={WORKER_PODS} />
+				<StackedCard icon={Database} name="postgres" sub="postgres:16" pods={DB_PODS} />
+			</div>
 		</div>
 	);
 }

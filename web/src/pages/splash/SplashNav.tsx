@@ -1,3 +1,5 @@
+import { ArrowUpRight } from "lucide-react";
+
 import { Button } from "@/components/design/Button";
 import { LocoLogo } from "@/components/design/LocoLogo";
 
@@ -8,7 +10,6 @@ const NAV_LINKS = [
 	{ label: "Product", href: "#product" },
 	{ label: "Get started", href: "#start" },
 	{ label: "Architecture", href: "#stack" },
-	{ label: "Docs", href: DOCS_URL },
 ] as const;
 
 export function SplashNav({ onSignIn }: { onSignIn: () => void }) {
@@ -24,17 +25,28 @@ export function SplashNav({ onSignIn }: { onSignIn: () => void }) {
 							{link.label}
 						</a>
 					))}
+					<a
+						href={DOCS_URL}
+						target="_blank"
+						rel="noopener"
+						title="Opens buf.build in a new tab"
+						className="flex items-center gap-[3px] text-fg2 transition-colors hover:text-primary"
+					>
+						Docs
+						<ArrowUpRight className="size-[13px] text-fg4" />
+					</a>
 				</nav>
 				<div className="flex-1" />
 				<div className="flex items-center gap-1 sm:gap-5">
 					<a
 						href={GITHUB_URL}
 						target="_blank"
-						rel="noreferrer"
+						rel="noopener"
 						className="hidden items-center gap-1.5 text-md text-fg2 transition-colors hover:text-primary sm:flex"
 					>
 						<GitHubIcon className="size-4" />
 						GitHub
+						<ArrowUpRight className="-ml-0.5 size-[13px] text-fg4" />
 					</a>
 					<Button variant="ghost" onClick={onSignIn} className="px-2 text-md text-fg2 hover:text-foreground">
 						Sign in

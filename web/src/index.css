@@ -95,7 +95,7 @@
 	--animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
 	--animate-pod-pop: pod-pop 220ms ease-out;
 	--animate-pod-starting: pod-pop 220ms ease-out, pulse-soft 0.8s 220ms ease-in-out infinite;
-	--animate-stack-fall: stack-fall 3.2s linear infinite;
+	--animate-log-in: log-in 200ms ease-out;
 }
 
 :root {
@@ -222,6 +222,11 @@
 	html.dark {
 		color-scheme: dark;
 	}
+	@media (prefers-reduced-motion: no-preference) {
+		html {
+			scroll-behavior: smooth;
+		}
+	}
 	body {
 		@apply bg-background text-foreground font-sans text-base antialiased;
 		margin: 0;
@@ -343,11 +348,13 @@
 	}
 }
 
-@keyframes stack-fall {
+@keyframes log-in {
 	from {
-		top: -60px;
+		transform: translateY(4px);
+		opacity: 0;
 	}
 	to {
-		top: 100%;
+		transform: none;
+		opacity: 1;
 	}
 }

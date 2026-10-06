@@ -15,8 +15,19 @@ export interface Rollout {
 
 export type MakePod = (tag: string, phase: PodPhase) => Pod;
 
-export const MIN_REPLICAS = 1;
-export const MAX_REPLICAS = 6;
+export type LogTone = "ink" | "body" | "ok" | "muted" | "accent";
+
+export interface LogEvent {
+	msg: string;
+	tone: LogTone;
+}
+
+export interface StepResult {
+	rollout: Rollout;
+	delay: number | null;
+	event: LogEvent | null;
+}
+
 const FIRST_TAG = "7c41e9";
 const SECOND_TAG = "8a03f2";
 
@@ -25,48 +36,65 @@ export function initialRollout(): Rollout {
 	return { pods, target: 3, tag: FIRST_TAG, rolling: false };
 }
 
-export function nextTag(tag: string): string {
-	return tag === FIRST_TAG ? SECOND_TAG : FIRST_TAG;
-}
-
 export function readyCount(rollout: Rollout): number {
 	return rollout.pods.filter((p) => p.phase === "ready" && p.tag === rollout.tag).length;
 }
 
-export function rollStep(rollout: Rollout, makePod: MakePod): { rollout: Rollout; delay: number | null } {
+function podName(pod: Pod): string {
+	return `api-${pod.tag.slice(0, 4)}-${pod.id.slice(1)}`;
+}
+
+export function startRollout(rollout: Rollout): StepResult {
+	const tag = rollout.tag === FIRST_TAG ? SECOND_TAG : FIRST_TAG;
+	return {
+		rollout: { ...rollout, rolling: true, tag },
+		delay: 600,
+		event: { msg: `deploy started  api:sha-${tag}  strategy rolling, surge 1`, tone: "ink" },
+	};
+}
+
+export function rollStep(rollout: Rollout, makePod: MakePod): StepResult {
 	const { pods, tag, target } = rollout;
 	const starting = pods.find((p) => p.phase === "starting");
 	if (starting) {
 		const next = pods.map((p) => (p.id === starting.id ? { ...p, phase: "ready" as const } : p));
-		return { rollout: { ...rollout, pods: next }, delay: 520 };
+		return {
+			rollout: { ...rollout, pods: next },
+			delay: 700,
+			event: { msg: `readiness probe passed  ${podName(starting)}  GET /health 200`, tone: "ok" },
+		};
 	}
 	const terminating = pods.find((p) => p.phase === "terminating");
 	if (terminating) {
-		return { rollout: { ...rollout, pods: pods.filter((p) => p.id !== terminating.id) }, delay: 360 };
+		return {
+			rollout: { ...rollout, pods: pods.filter((p) => p.id !== terminating.id) },
+			delay: 400,
+			event: null,
+		};
 	}
 	const fresh = pods.filter((p) => p.tag === tag).length;
 	if (fresh < target) {
 		const pod = makePod(tag, "starting");
-		return { rollout: { ...rollout, pods: [...pods, pod] }, delay: 900 };
+		return {
+			rollout: { ...rollout, pods: [...pods, pod] },
+			delay: 1100,
+			event: { msg: `pod created  ${podName(pod)}  image api:sha-${tag}`, tone: "body" },
+		};
 	}
 	const stale = pods.find((p) => p.tag !== tag);
 	if (stale) {
 		const next = pods.map((p) => (p.id === stale.id ? { ...p, phase: "terminating" as const } : p));
-		return { rollout: { ...rollout, pods: next }, delay: 700 };
+		return {
+			rollout: { ...rollout, pods: next },
+			delay: 800,
+			event: { msg: `draining  ${podName(stale)}  connections closed`, tone: "muted" },
+		};
 	}
-	return { rollout: { ...rollout, rolling: false }, delay: null };
-}
-
-export function scaleTo(rollout: Rollout, target: number, makePod: MakePod): Rollout {
-	const live = rollout.pods.filter((p) => p.phase !== "terminating");
-	const added = Array.from({ length: Math.max(0, target - live.length) }, () => makePod(rollout.tag, "starting"));
-	const pods = [...live, ...added].map((p, i) => (i >= target ? { ...p, phase: "terminating" as const } : p));
-	return { ...rollout, pods, target, rolling: true };
-}
-
-export function settle(rollout: Rollout): Rollout {
-	const pods = rollout.pods.filter((p) => p.phase !== "terminating").map((p) => ({ ...p, phase: "ready" as const }));
-	return { ...rollout, pods, rolling: false };
+	return {
+		rollout: { ...rollout, rolling: false },
+		delay: null,
+		event: { msg: `rollout complete  ${target}/${target} on sha-${tag}`, tone: "accent" },
+	};
 }
 
 export const VIEW_W = 1000;
@@ -123,12 +151,15 @@ export interface Edge {
 
 const workerDb = `M${BOX.worker.x + BOX.worker.w / 2},${BOX.worker.y + BOX.worker.h} L${BOX.db.x + BOX.db.w / 2},${BOX.db.y}`;
 
+const webApi = `M${BOX.web.x + BOX.web.w / 2},${BOX.web.y + BOX.web.h} L${BOX.api.x + BOX.api.w / 2},${BOX.api.y}`;
+
 export const EDGES: readonly Edge[] = [
 	{ id: "in", ends: ["in"], d: ortho(rightOf(BOX.client), leftOf(BOX.gateway)), label: ":443", lx: 180, ly: 221, packet: true },
 	{ id: "gw-web", ends: ["gw", "web"], d: ortho(rightOf(BOX.gateway), leftOf(BOX.web)), label: "/", lx: 417, ly: 135, packet: true },
 	{ id: "gw-api", ends: ["gw", "api"], d: ortho(rightOf(BOX.gateway), leftOf(BOX.api)), label: "/api", lx: 417, ly: 323, packet: true },
 	{ id: "api-db", ends: ["api", "db"], d: ortho(rightOf(BOX.api), leftOf(BOX.db)), label: ":5432", lx: 704, ly: 321, packet: true },
 	{ id: "wk-db", ends: ["wk", "db"], d: workerDb, label: ":5432", lx: 880, ly: 241, packet: false },
+	{ id: "web-api", ends: ["web", "api"], d: webApi, label: "http · :8000", lx: 600, ly: 241, packet: true },
 ];
 
 export function pctX(v: number): string {
