@@ -101,6 +101,7 @@ func api(env environment) railway.Service {
 		"REGISTRY_TAG",
 	)
 	apiEnv["PORT"] = "8000"
+	apiEnv["RAILWAY_DEPLOYMENT_DRAINING_SECONDS"] = "40"
 	deploy := limits(1, 2000000000)
 	deploy["healthcheckPath"] = "/health"
 	deploy["healthcheckTimeout"] = 300
