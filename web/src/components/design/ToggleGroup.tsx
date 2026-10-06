@@ -36,6 +36,7 @@ function ToggleGroupItem({ className, ...props }: React.ComponentProps<typeof To
 	return (
 		<ToggleGroupItemBase
 			className={cn(
+				"cursor-pointer disabled:pointer-events-auto disabled:cursor-not-allowed data-disabled:pointer-events-auto data-disabled:cursor-not-allowed",
 				segmented &&
 					"h-[30px] rounded-md! border border-transparent px-2.5 text-base font-medium text-fg3 hover:bg-transparent hover:text-foreground aria-pressed:border-line aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-[0_1px_2px_rgba(0,0,0,0.08)] data-pressed:border-line data-pressed:bg-background data-pressed:text-foreground data-pressed:shadow-[0_1px_2px_rgba(0,0,0,0.08)]",
 				className

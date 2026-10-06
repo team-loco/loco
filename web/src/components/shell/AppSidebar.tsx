@@ -1,11 +1,8 @@
-import { useQuery } from "@connectrpc/connect-query";
-import { listUserWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import {
 	BellIcon,
 	BookOpenIcon,
 	Building2Icon,
 	ChartLineIcon,
-	CheckIcon,
 	ChevronsUpDownIcon,
 	GaugeIcon,
 	KeyRoundIcon,
@@ -15,7 +12,6 @@ import {
 	ArrowUpRightIcon,
 	PlusIcon,
 	ScrollTextIcon,
-	SettingsIcon,
 	Settings2Icon,
 	UserIcon,
 	UsersIcon,
@@ -30,13 +26,8 @@ import { SoonTag } from "@/components/design/SoonTag";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
-	DropdownMenuGroup,
 	DropdownMenuItem,
-	DropdownMenuLabel,
 	DropdownMenuSeparator,
-	DropdownMenuSub,
-	DropdownMenuSubContent,
-	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import {
@@ -88,13 +79,10 @@ export function AppSidebar() {
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
 	const { theme, toggleTheme } = useTheme();
-	const { activeOrgId, activeWorkspaceId, orgs } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 	const peek = useSidebarPeek();
 
-	const { data: wsRes } = useQuery(listUserWorkspaces, { userId: user?.id ?? "", pageSize: 200 }, { enabled: !!user });
-	const allWorkspaces = wsRes?.workspaces ?? [];
-	const activeWs = allWorkspaces.find((w) => w.id === activeWorkspaceId);
 
 	const env = params.get("env");
 	const envParams: Record<string, string> = env !== null ? { env } : {};
@@ -176,8 +164,6 @@ export function AppSidebar() {
 		},
 	];
 
-	const workspacesByOrg = Map.groupBy(allWorkspaces, (w) => w.orgId);
-	const byOrg = orgs.map((o) => ({ org: o, workspaces: workspacesByOrg.get(o.id) ?? [] }));
 	const displayName = user?.name !== undefined && user.name !== "" ? user.name : (user?.email ?? "");
 
 	return (
@@ -262,48 +248,6 @@ export function AppSidebar() {
 									Personal access tokens
 								</MenuLink>
 								<DropdownMenuSeparator />
-								<DropdownMenuSub>
-									<DropdownMenuSubTrigger className="gap-2">
-										<span className="flex-1">Workspace</span>
-										<span className="max-w-[110px] truncate text-fg3">{activeWs?.name ?? ""}</span>
-									</DropdownMenuSubTrigger>
-									<DropdownMenuSubContent className="w-[264px]">
-										{byOrg.map(({ org, workspaces }) => (
-											<DropdownMenuGroup key={org.id}>
-												<div className="flex items-center justify-between pt-2 pr-1 pb-1 pl-2.5">
-													<DropdownMenuLabel className="p-0">{org.name}</DropdownMenuLabel>
-													{workspaces[0] !== undefined && (
-														<Link
-															to={`${workspacePath(org.id, workspaces[0].id, "settings")}?tab=org`}
-															title="Organization settings"
-															className="flex size-6 items-center justify-center rounded-sm text-fg3 hover:bg-bg3"
-														>
-															<SettingsIcon className="size-3.5" />
-														</Link>
-													)}
-												</div>
-												{workspaces.map((w) => (
-													<DropdownMenuItem
-														key={w.id}
-														onClick={() => { void navigate(workspacePath(org.id, w.id)); }}
-														className="gap-2"
-													>
-														<span className="flex size-[18px] items-center justify-center rounded-sm bg-bg3 text-[10px] font-semibold text-fg2">
-															{(w.name[0] ?? "?").toUpperCase()}
-														</span>
-														<span className="flex-1">{w.name}</span>
-														{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
-													</DropdownMenuItem>
-												))}
-											</DropdownMenuGroup>
-										))}
-										<DropdownMenuSeparator />
-										<DropdownMenuItem onClick={() => { setCreating("workspace"); }}>
-											<PlusIcon className="size-3.5 text-fg3" />
-											New workspace
-										</DropdownMenuItem>
-									</DropdownMenuSubContent>
-								</DropdownMenuSub>
 								<MenuLink icon={<Building2Icon />} onClick={() => { void navigate("/organizations"); }}>
 									Organizations
 								</MenuLink>

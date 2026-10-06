@@ -235,9 +235,32 @@
 		color: inherit;
 		text-decoration: none;
 	}
-	button:not(:disabled),
-	[role="button"]:not([aria-disabled="true"]) {
+	button,
+	summary,
+	select,
+	label[for],
+	[role="button"],
+	[role="menuitem"],
+	[role="menuitemcheckbox"],
+	[role="menuitemradio"],
+	[role="option"],
+	[role="tab"],
+	[role="switch"],
+	[role="checkbox"],
+	[role="radio"],
+	[role="combobox"] {
 		cursor: pointer;
+	}
+	[data-slot="slider-thumb"] {
+		cursor: grab;
+	}
+	[data-slot="slider-thumb"]:active {
+		cursor: grabbing;
+	}
+	:disabled,
+	[aria-disabled="true"],
+	[data-disabled]:not([data-disabled="false"]) {
+		cursor: not-allowed;
 	}
 }
 
