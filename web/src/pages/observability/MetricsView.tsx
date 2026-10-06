@@ -10,10 +10,10 @@ import { useNow } from "@/hooks/useNow";
 import { useQueryMetrics } from "@/hooks/useQueryMetrics";
 import { getErrorMessage } from "@/lib/error-handler";
 import { timeRangeMs } from "@/lib/obs";
+import { formatClock, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { fitRange, selectedResources, useObs, type ObsResource } from "./context";
-import { fmtClock, tsMs } from "./format";
 import { MetricCard, MetricChart, type ChartMarker, type ChartSeries } from "./MetricChart";
 import { ObsGate } from "./ObsGate";
 import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
@@ -174,7 +174,7 @@ function ComputeSection({ visible }: { visible: ObsResource[] }) {
 	const deployMarkers = useDeployMarkers(visible, from, to);
 	const focus: ChartMarker[] =
 		metricsFocusTs !== null && metricsFocusTs >= from
-			? [{ t: metricsFocusTs, label: `log · ${fmtClock(metricsFocusTs)}`, title: "Selected log", color: "var(--fg)" }]
+			? [{ t: metricsFocusTs, label: `log · ${formatClock(metricsFocusTs)}`, title: "Selected log", color: "var(--fg)" }]
 			: [];
 	return (
 		<div className="flex flex-col gap-2.5">

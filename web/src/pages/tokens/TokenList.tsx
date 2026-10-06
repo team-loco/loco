@@ -1,9 +1,10 @@
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
 import { Skeleton } from "@/components/design/Skeleton";
+import { formatMonthDay, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { accessLines, expiresLabel, fmtDay, LEVEL_BADGE, LEVEL_LABEL, lastUsedLabel, tokenGrants, tokenStatus, tsMillis } from "./model";
+import { accessLines, expiresLabel, LEVEL_BADGE, LEVEL_LABEL, lastUsedLabel, tokenGrants, tokenStatus } from "./model";
 import type { EntityTree } from "./model";
 
 const WIDE_COLS = "grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_120px_120px]";
@@ -91,7 +92,7 @@ function TokenRow({
 	const status = tokenStatus(token, now);
 	const grants = tokenGrants(token);
 	const lines = accessLines(tree, grants);
-	const created = tsMillis(token.createdAt);
+	const created = maybeTsMs(token.createdAt);
 	const used = token.lastUsedAt !== undefined;
 
 	return (
@@ -109,7 +110,7 @@ function TokenRow({
 		>
 			<div className="flex min-w-0 flex-col gap-[3px]">
 				<span className="truncate font-semibold">{token.name}</span>
-				<span className="text-[11.5px] text-fg3">{created === null ? "—" : `Created ${fmtDay(created)}`}</span>
+				<span className="text-[11.5px] text-fg3">{created === undefined ? "—" : `Created ${formatMonthDay(created)}`}</span>
 			</div>
 			<div className="flex min-w-0 flex-col gap-1">
 				{lines.map((l) => (

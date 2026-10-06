@@ -1,5 +1,7 @@
-import { createContext, use, type ReactNode, useState } from "react";
-import { useQuery } from "@connectrpc/connect-query";
+import { createContext, use, type ReactNode } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { whoAmI, logout as logoutMethod } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { User } from "@gen/loco/user/v1/user_pb";
 
@@ -22,24 +24,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		whoAmI,
 		{},
 		{
-			// coming back from oauth we may not have the loco token present.
 			enabled: !window.location.pathname.includes("/oauth/callback"),
 		}
 	);
-	const [isLoggedOut, setIsLoggedOut] = useState(false);
-
-	const { refetch: performLogout } = useQuery(
-		logoutMethod,
-		{},
-		{ enabled: false }
-	);
+	const queryClient = useQueryClient();
+	const { mutateAsync: performLogout } = useMutation(logoutMethod);
+	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
 	const logout = async () => {
 		try {
-			await performLogout();
-			setIsLoggedOut(true);
+			await performLogout({});
 		} catch (err) {
 			console.error("Logout failed:", err);
+		} finally {
+			queryClient.clear();
 		}
 	};
 
@@ -47,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		<AuthContext
 			value={{
 				user: user?.user ?? null,
-				isAuthenticated: !isLoggedOut && !!user?.user,
+				isAuthenticated: !unauthenticated && !!user?.user,
 				isLoading,
 				error: error instanceof Error ? error : null,
 				logout,

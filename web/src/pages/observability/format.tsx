@@ -1,26 +1,12 @@
 import type { ReactNode } from "react";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
 
+import { formatClock, formatSlashDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import type { Level } from "./query";
 
-const pad = (n: number, w = 2) => String(n).padStart(w, "0");
-
-export function tsMs(ts: Timestamp | undefined): number {
-	if (!ts) return 0;
-	return Number(ts.seconds) * 1000 + Math.floor(ts.nanos / 1e6);
-}
-
 export function fmtTs(ms: number, withMs = false): string {
-	const d = new Date(ms);
-	const base = `${String(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-	return withMs ? `${base}.${pad(d.getMilliseconds(), 3)}` : base;
-}
-
-export function fmtClock(ms: number, withMs = false): string {
-	const full = fmtTs(ms, withMs);
-	return full.split(" ").pop() ?? full;
+	return `${formatSlashDate(ms)} ${formatClock(ms, withMs)}`;
 }
 
 export interface LevelStyle {

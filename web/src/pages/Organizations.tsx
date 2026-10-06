@@ -12,7 +12,6 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useBreadcrumbs } from "@/context/ShellContext";
 
 import { CreateOrgDialog } from "./organizations/CreateOrgDialog";
 import { DeleteOrgDialog } from "./organizations/DeleteOrgDialog";
@@ -34,7 +33,6 @@ function OrgListSkeleton() {
 }
 
 export function Organizations() {
-	useBreadcrumbs("Organizations");
 	const { user } = useAuth();
 	const { activeOrgId, setActiveOrg } = useOrgWorkspace();
 	const [createOrgOpen, setCreateOrgOpen] = useState(false);

@@ -5,9 +5,10 @@ import { Button } from "@/components/design/Button";
 import { Input } from "@/components/design/Input";
 import { Slider } from "@/components/design/Slider";
 import { Textarea } from "@/components/design/Textarea";
+import { parseDotEnv } from "@/lib/dotenv";
 import { cn } from "@/lib/utils";
 
-import { parseDotEnv, type DraftVar } from "./drafts";
+import type { DraftVar } from "./drafts";
 
 export function StopSlider({
 	label,
@@ -98,7 +99,7 @@ export function EnvVarsEditor({ vars, onChange }: { vars: DraftVar[]; onChange: 
 	const applyPaste = () => {
 		const merged = new Map<string, string>();
 		for (const v of rows) if (v.key.trim() !== "") merged.set(v.key, v.value);
-		for (const v of parsed) merged.set(v.key, v.value);
+		for (const [key, value] of parsed) merged.set(key, value);
 		const list = [...merged.entries()].map(([key, value]) => ({ key, value }));
 		onChange(list.length > 0 ? list : [{ key: "", value: "" }]);
 		setPasteOpen(false);

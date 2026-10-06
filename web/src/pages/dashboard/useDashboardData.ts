@@ -6,7 +6,9 @@ import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type RegionInfo, type Resource } from "@gen/loco/resource/v1/resource_pb";
 import { listRegions, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
-import { isInFlight, tsMs } from "./format";
+import { tsMs } from "@/lib/time";
+
+import { isInFlight } from "./format";
 
 export interface RegionReplicas {
 	region: string;

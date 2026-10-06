@@ -1,7 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { toast } from "sonner";
 
-export function formatErrorMessage(message: string): string {
+function formatErrorMessage(message: string): string {
 	if (!message) return "An error occurred";
 
 	let formatted = message.trim();
@@ -43,7 +43,7 @@ export function isUnimplemented(error: unknown): boolean {
 	return error instanceof ConnectError && error.code === Code.Unimplemented;
 }
 
-export function getRequestIdFromError(error: unknown): string | null {
+function getRequestIdFromError(error: unknown): string | null {
 	if (error instanceof ConnectError && error.code === Code.Internal) {
 		return error.metadata.get("x-loco-request-id") ?? null;
 	}

@@ -1,8 +1,8 @@
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useState } from "react";
 import { highlight, type LanguageName } from "sugar-high";
 
 import { Button } from "@/components/design/Button";
+import { useCopy } from "@/hooks/useCopy";
 import { cn } from "@/lib/utils";
 
 interface CodeProps {
@@ -25,19 +25,8 @@ interface CodeBlockProps {
 }
 
 function CodeBlock({ children, language, filename, className, codeClassName }: CodeBlockProps) {
-	const [copied, setCopied] = useState(false);
-
-	const copy = async () => {
-		try {
-			await navigator.clipboard.writeText(children);
-			setCopied(true);
-			setTimeout(() => {
-				setCopied(false);
-			}, 2000);
-		} catch {
-			setCopied(false);
-		}
-	};
+	const [copiedKey, copy] = useCopy(2000);
+	const copied = copiedKey !== null;
 
 	return (
 		<div className={cn("overflow-hidden rounded-lg border border-line bg-background", className)}>
@@ -50,7 +39,7 @@ function CodeBlock({ children, language, filename, className, codeClassName }: C
 						aria-label="Copy code"
 						className={copied ? "text-ok-fg" : "text-fg3 hover:text-foreground"}
 						onClick={() => {
-							void copy();
+							copy("code", children);
 						}}
 					>
 						{copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}

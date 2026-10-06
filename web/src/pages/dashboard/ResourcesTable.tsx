@@ -5,13 +5,16 @@ import { ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resourc
 import { Button } from "@/components/design/Button";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Input } from "@/components/design/Input";
-import { Section, SectionFooter } from "@/components/design/Page";
+import { Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
 import { effectiveResourceStatus, ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
+import { pageSlice } from "@/lib/paging";
 import { resourcePath } from "@/lib/routes";
+import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { agoLabel, deploymentImage, imageTag, statusRank, tsMs } from "./format";
+import { agoLabel, deploymentImage, imageTag, statusRank } from "./format";
 import { ResourceRowMenu } from "./ResourceRowMenu";
 import type { EnvResource } from "./useDashboardData";
 
@@ -133,9 +136,7 @@ export function ResourcesTable({
 		)
 		.sort((a, b) => compare(sortKey, a, b) * sortDir);
 
-	const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
-	const safePage = Math.min(page, pageCount - 1);
-	const pageItems = visible.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+	const { rows: pageItems, page: safePage, pages: pageCount } = pageSlice(visible, page, PAGE_SIZE);
 
 	const regionNames = new Set(regions.map((r) => r.region));
 	const statusCounts = new Map<ResourceStatus, number>();
@@ -313,31 +314,13 @@ export function ResourcesTable({
 					})}
 				</TableBody>
 			</Table>
-			<SectionFooter>
-				<span>{rangeLabel}</span>
-				<div className="flex gap-1">
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={safePage === 0}
-						onClick={() => {
-							setPage(safePage - 1);
-						}}
-					>
-						Previous
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						disabled={safePage >= pageCount - 1}
-						onClick={() => {
-							setPage(safePage + 1);
-						}}
-					>
-						Next
-					</Button>
-				</div>
-			</SectionFooter>
+			<Pager
+				label={rangeLabel}
+				buttonSize="sm"
+				className="py-2.5"
+				onPrev={safePage > 0 ? () => { setPage(safePage - 1); } : null}
+				onNext={safePage < pageCount - 1 ? () => { setPage(safePage + 1); } : null}
+			/>
 		</Section>
 	);
 }

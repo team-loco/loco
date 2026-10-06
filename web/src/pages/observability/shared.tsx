@@ -1,9 +1,8 @@
-import { useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, CopyIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { cn } from "@/lib/utils";
 
 export function Dot({ className, color, size = 7 }: { className?: string; color?: string; size?: number }) {
@@ -15,7 +14,7 @@ export function Dot({ className, color, size = 7 }: { className?: string; color?
 	);
 }
 
-export interface HistoSegment {
+interface HistoSegment {
 	value: number;
 	className: string;
 }
@@ -62,21 +61,6 @@ export function Histogram({
 			</div>
 		</div>
 	);
-}
-
-export function useCopy(): [string | null, (key: string, text: string) => void] {
-	const [copied, setCopied] = useState<string | null>(null);
-	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const copy = (key: string, text: string) => {
-		void navigator.clipboard.writeText(text).then(() => {
-			setCopied(key);
-			if (timer.current !== null) clearTimeout(timer.current);
-			timer.current = setTimeout(() => {
-				setCopied(null);
-			}, 1200);
-		});
-	};
-	return [copied, copy];
 }
 
 export function CopyButton({
@@ -178,58 +162,6 @@ export function PanelNav({
 }
 
 export const PAGE_SIZES = [25, 50, 100];
-
-export function PagerFooter({
-	label,
-	size,
-	onSize,
-	prevLabel,
-	nextLabel,
-	onPrev,
-	onNext,
-}: {
-	label: string;
-	size: number;
-	onSize: (n: number) => void;
-	prevLabel: string;
-	nextLabel: string;
-	onPrev: (() => void) | null;
-	onNext: (() => void) | null;
-}) {
-	return (
-		<div className="flex flex-wrap items-center justify-between gap-2 bg-bg2 px-4 py-2 text-sm text-fg3">
-			<div className="flex items-center gap-3">
-				<span className="tabular-nums">{label}</span>
-				<div className="flex items-center gap-1.5">
-					Rows
-					<ToggleGroup
-						variant="segmented"
-						value={[String(size)]}
-						onValueChange={(v: string[]) => {
-							const n = Number(v[0]);
-							if (Number.isFinite(n) && n > 0) onSize(n);
-						}}
-						className="rounded-md p-0.5"
-					>
-						{PAGE_SIZES.map((n) => (
-							<ToggleGroupItem key={n} value={String(n)} className="h-5! rounded-sm! px-2 text-sm font-normal">
-								{n}
-							</ToggleGroupItem>
-						))}
-					</ToggleGroup>
-				</div>
-			</div>
-			<div className="flex gap-1">
-				<Button variant="outline" size="xs" disabled={onPrev === null} onClick={onPrev ?? undefined} className="h-[26px]">
-					{prevLabel}
-				</Button>
-				<Button variant="outline" size="xs" disabled={onNext === null} onClick={onNext ?? undefined} className="h-[26px]">
-					{nextLabel}
-				</Button>
-			</div>
-		</div>
-	);
-}
 
 export function DetailPanel({ header, children }: { header: ReactNode; children: ReactNode }) {
 	return (

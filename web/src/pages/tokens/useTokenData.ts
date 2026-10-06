@@ -22,7 +22,7 @@ export interface Owner {
 	canCreate: boolean;
 }
 
-export interface OwnerTokens {
+interface OwnerTokens {
 	owner: Owner;
 	tokens: Token[];
 	isLoading: boolean;

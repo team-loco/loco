@@ -1,6 +1,6 @@
 import { SearchIcon } from "lucide-react";
 import { Fragment } from "react";
-import { useLocation } from "react-router";
+import { matchPath, useLocation } from "react-router";
 
 import {
 	Breadcrumb,
@@ -12,18 +12,53 @@ import {
 import { Kbd } from "@/components/design/Kbd";
 import { SidebarTrigger } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useShellCrumbs } from "@/context/ShellContext";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@connectrpc/connect-query";
+import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 
 import { useSidebarPeek } from "./AppShell";
 
+const STATIC_CRUMBS: readonly (readonly [string, string])[] = [
+	["/org/:orgId/wks/:workspaceId", "Overview"],
+	["/org/:orgId/wks/:workspaceId/settings", "Settings"],
+	["/org/:orgId/team", "Team"],
+	["/tokens", "Tokens"],
+	["/profile", "Profile"],
+	["/organizations", "Organizations"],
+];
+
+const OBSERVABILITY_CRUMBS = new Map([
+	["logs", "Logs"],
+	["metrics", "Metrics"],
+	["traces", "Traces"],
+	["events", "Events"],
+]);
+
+function observabilityCrumb(search: string): string {
+	const view = new URLSearchParams(search).get("view") ?? "logs";
+	return OBSERVABILITY_CRUMBS.get(view) ?? "Logs";
+}
+
+function staticCrumb(pathname: string, search: string): string | null {
+	if (matchPath("/org/:orgId/wks/:workspaceId/observability", pathname) !== null) return observabilityCrumb(search);
+	for (const [pattern, label] of STATIC_CRUMBS) {
+		if (matchPath(pattern, pathname) !== null) return label;
+	}
+	return null;
+}
+
 export function TopBar() {
-	const { pathname } = useLocation();
+	const { pathname, search } = useLocation();
 	const { orgs, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const crumbs = useShellCrumbs();
+	const resourceId = matchPath("/org/:orgId/wks/:workspaceId/resource/:resourceId", pathname)?.params.resourceId ?? "";
+	const { data: resourceRes } = useQuery(
+		getResource,
+		{ key: { case: "resourceId", value: resourceId } },
+		{ enabled: resourceId !== "" },
+	);
+	const pageCrumb = resourceId !== "" ? resourceRes?.resource?.name : staticCrumb(pathname, search);
 	const { pinned } = useSidebarPeek();
 	const { active: env } = useEnvironments();
 	const { data: wsRes } = useQuery(
@@ -39,7 +74,7 @@ export function TopBar() {
 	if (org !== undefined) trail.push(org.name);
 	if (inWorkspace && wsRes?.workspace !== undefined) trail.push(wsRes.workspace.name);
 	if (showEnv && env !== undefined) trail.push(env.name);
-	trail.push(...crumbs);
+	if (pageCrumb !== undefined && pageCrumb !== null) trail.push(pageCrumb);
 
 	return (
 		<div className="flex h-14 shrink-0 items-center gap-3 px-5 text-md">

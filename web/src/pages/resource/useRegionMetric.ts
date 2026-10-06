@@ -1,13 +1,10 @@
-import { create } from "@bufbuild/protobuf";
-import { TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { useQuery } from "@tanstack/react-query";
 import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
 
 import { createTransport } from "@/auth/connect-transport";
 import { useObsAccess } from "@/hooks/useObsAccess";
-
-import { tsMillis } from "./format";
+import { maybeTsMs, msToTimestamp } from "@/lib/time";
 
 export type MetricRange = "1h" | "6h" | "24h";
 
@@ -33,10 +30,6 @@ function transportFor(url: string): Transport {
 	const t = createTransport(url);
 	transports.set(url, t);
 	return t;
-}
-
-function timestampOf(ms: number) {
-	return create(TimestampSchema, { seconds: BigInt(Math.floor(ms / 1000)), nanos: 0 });
 }
 
 export interface MetricPointPct {
@@ -70,8 +63,8 @@ export function useRegionMetric({
 			const resp = await client.queryMetrics({
 				workspaceId,
 				resourceIds: [resourceId],
-				startTime: timestampOf(now - RANGE_MS[range]),
-				endTime: timestampOf(now),
+				startTime: msToTimestamp(now - RANGE_MS[range]),
+				endTime: msToTimestamp(now),
 				metricName,
 				intervalSeconds: RANGE_INTERVAL[range],
 				aggregation: "avg",
@@ -80,7 +73,7 @@ export function useRegionMetric({
 			for (const s of resp.series) {
 				if (s.resourceId !== "" && s.resourceId !== resourceId) continue;
 				for (const p of s.points) {
-					const time = tsMillis(p.timestamp);
+					const time = maybeTsMs(p.timestamp);
 					if (time !== undefined) points.push({ time, pct: p.value * 100 });
 				}
 			}

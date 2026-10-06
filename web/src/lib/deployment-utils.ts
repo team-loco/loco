@@ -2,8 +2,6 @@ import type {
 	Deployment,
 	ServiceDeploymentSpec,
 } from "@gen/loco/deployment/v1/deployment_pb";
-import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
-import type { ResourceStatusLabel } from "@/lib/app-status";
 
 export function getServiceSpec(
 	deployment: Deployment
@@ -17,43 +15,4 @@ export function getServiceSpec(
 	}
 
 	return undefined;
-}
-
-export function getPhaseTooltip(deployment: Deployment): string {
-	if (deployment.status === DeploymentPhase.RUNNING && deployment.isActive) {
-		const region = deployment.region;
-		return `Live and healthy. App traffic to ${region} points to this deployment.`;
-	}
-
-	const tooltips: Record<DeploymentPhase, string> = {
-		[DeploymentPhase.UNSPECIFIED]: "Unknown status",
-		[DeploymentPhase.PENDING]: "Waiting for the deployment to start.",
-		[DeploymentPhase.DEPLOYING]:
-			"In progress. We're pulling your image, creating pods, and getting everything ready.",
-		[DeploymentPhase.RUNNING]:
-			"Live and healthy. App Traffic points to this deployment.",
-		[DeploymentPhase.SUCCEEDED]:
-			"Completed successfully. The deployment finished without any issues.",
-		[DeploymentPhase.FAILED]:
-			"Hit a snag. Something went wrong during deployment or runtime.",
-		[DeploymentPhase.CANCELED]:
-			"Stopped by you. This deployment was manually cancelled.",
-	};
-	return tooltips[deployment.status] || "Unknown status";
-}
-
-export function getResourceStatusTooltip(
-	statusLabel: ResourceStatusLabel,
-): string {
-	const tooltips: Record<ResourceStatusLabel, string> = {
-		running: "Your app is live and healthy. It's up and serving traffic.",
-		deploying:
-			"Your app is being deployed. We're pulling the image and creating pods.",
-		degraded:
-			"Your app has issues but is still partially operational. Check the logs for details.",
-		unavailable: "Your app is currently unavailable.",
-		suspended: "Your app is suspended and not running.",
-		pending: "Waiting to deploy. Your app is queued.",
-	};
-	return tooltips[statusLabel];
 }

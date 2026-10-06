@@ -3,21 +3,13 @@ import { useQueries } from "@tanstack/react-query";
 import { createClient } from "@connectrpc/connect";
 import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
-import { create } from "@bufbuild/protobuf";
-import { TimestampSchema } from "@bufbuild/protobuf/wkt";
 import {
 	timeRangeMs,
 	timeRangeIntervalSeconds,
 	type ClusterTransport,
 	type TimeRange,
 } from "@/lib/obs";
-
-function dateToTimestamp(date: Date) {
-	return create(TimestampSchema, {
-		seconds: BigInt(Math.floor(date.getTime() / 1000)),
-		nanos: 0,
-	});
-}
+import { msToTimestamp } from "@/lib/time";
 
 export interface MetricResult {
 	metricName: string;
@@ -66,8 +58,8 @@ export function useQueryMetrics({
 				const resp = await client.queryMetrics({
 					workspaceId,
 					resourceIds,
-					startTime: dateToTimestamp(new Date(now - timeRangeMs(timeRange))),
-					endTime: dateToTimestamp(new Date(now)),
+					startTime: msToTimestamp(now - timeRangeMs(timeRange)),
+					endTime: msToTimestamp(now),
 					metricName,
 					intervalSeconds,
 					aggregation,

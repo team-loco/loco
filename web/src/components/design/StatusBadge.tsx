@@ -31,7 +31,7 @@ export function resourceStatusStyle(status: ResourceStatus | undefined): StatusS
 	}
 }
 
-export function deploymentPhaseStyle(phase: DeploymentPhase | undefined): StatusStyle {
+function deploymentPhaseStyle(phase: DeploymentPhase | undefined): StatusStyle {
 	switch (phase) {
 		case DeploymentPhase.PENDING:
 			return { label: "Pending", tone: "neutral" };

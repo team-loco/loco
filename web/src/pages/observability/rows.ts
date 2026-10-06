@@ -1,7 +1,9 @@
 import type { LogEntry } from "@gen/loco/observability/v1/observability_pb";
 
+import { tsMs } from "@/lib/time";
+
 import type { ObsResource } from "./context";
-import { parseJsonMsg, tsMs, type JsonObject } from "./format";
+import { parseJsonMsg, type JsonObject } from "./format";
 import { levelOf, type Level } from "./query";
 
 export interface LogRow {
@@ -25,11 +27,11 @@ function hashString(s: string): string {
 	return (h >>> 0).toString(36);
 }
 
-export function podName(entry: LogEntry): string {
+function podName(entry: LogEntry): string {
 	return entry.resourceAttributes["k8s.pod.name"] ?? "";
 }
 
-export function replicaOf(pod: string): string {
+function replicaOf(pod: string): string {
 	const parts = pod.split("-");
 	return parts.length > 1 ? (parts.at(-1) ?? pod) : pod;
 }

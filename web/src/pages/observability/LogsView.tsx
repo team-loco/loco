@@ -2,11 +2,13 @@ import { useState } from "react";
 import { ArrowUpIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useNow } from "@/hooks/useNow";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { getErrorMessage } from "@/lib/error-handler";
+import { formatCount } from "@/lib/format";
 import { timeRangeMs } from "@/lib/obs";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +20,7 @@ import { LogTable } from "./LogTable";
 import { buildBackendQuery, LEVELS, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, type LogRow } from "./rows";
-import { Histogram, PagerFooter, type HistoBucket } from "./shared";
+import { Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
 import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
 import { ObsGate } from "./ObsGate";
 
@@ -174,7 +176,7 @@ export function LogsView() {
 	const showFacets = facetsOpen && !panelOpen;
 	const freeWords = appliedText.split(WHITESPACE).filter(Boolean);
 	const rangeLabel = RANGES.find((r) => r.key === range)?.key ?? range;
-	const matched = `${rows.length.toLocaleString()}${truncated ? "+" : ""} lines`;
+	const matched = `${formatCount(rows.length)}${truncated ? "+" : ""} lines`;
 	const error = logs.errors[0];
 
 	return (
@@ -276,14 +278,16 @@ export function LogsView() {
 									)}
 								</div>
 							</div>
-							<PagerFooter
+							<Pager
+								className="bg-bg2"
 								label={
 									rows.length > 0
-										? `${(curPage * size + 1).toLocaleString()}–${Math.min(rows.length, (curPage + 1) * size).toLocaleString()} of ${rows.length.toLocaleString()}${truncated ? "+" : ""}`
+										? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""}`
 										: "0"
 								}
-								size={size}
-								onSize={(n) => {
+								pageSizes={PAGE_SIZES}
+								pageSize={size}
+								onPageSize={(n) => {
 									setSize(n);
 									setPage(0);
 								}}

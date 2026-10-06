@@ -12,7 +12,7 @@ import type { ObservabilityView } from "@/lib/routes";
 
 import type { Token } from "./query";
 
-export const RESOURCE_COLORS = ["#1e40af", "#0e7490", "#7c3aed", "#b45309", "#be185d", "#15803d", "#4f46e5", "#a16207"];
+const RESOURCE_COLORS = ["#1e40af", "#0e7490", "#7c3aed", "#b45309", "#be185d", "#15803d", "#4f46e5", "#a16207"];
 
 export interface ObsResource {
 	id: string;

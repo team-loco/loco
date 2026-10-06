@@ -1,6 +1,8 @@
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
+import { Button } from "@/components/design/Button";
+import { useCopy } from "@/hooks/useCopy";
 import { cn } from "@/lib/utils";
 
 export function CopyId({
@@ -14,38 +16,22 @@ export function CopyId({
 	className?: string | undefined;
 	title?: string | undefined;
 }) {
-	const [copied, setCopied] = useState(false);
-
-	useEffect(() => {
-		if (!copied) return;
-		const t = setTimeout(() => {
-			setCopied(false);
-		}, 1500);
-		return () => {
-			clearTimeout(t);
-		};
-	}, [copied]);
-
-	const copy = () => {
-		void navigator.clipboard.writeText(value).then(() => {
-			setCopied(true);
-		});
-	};
+	const [copiedKey, copy] = useCopy(1500);
+	const copied = copiedKey === value;
 
 	return (
-		<button
-			type="button"
-			onClick={copy}
+		<Button
+			variant="ghost"
+			onClick={() => {
+				copy(value, value);
+			}}
 			title={copied ? "Copied" : (title ?? `Copy ${value}`)}
-			className={cn(
-				"flex cursor-pointer items-center gap-1.5 rounded-sm border-0 bg-transparent px-1.5 py-0.5 hover:bg-bg3",
-				className,
-			)}
+			className={cn("h-auto gap-1.5 px-1.5 py-0.5", className)}
 		>
 			{children}
 			<span className="flex font-normal text-fg3">
 				{copied ? <CheckIcon className="size-[13px]" /> : <CopyIcon className="size-[13px]" />}
 			</span>
-		</button>
+		</Button>
 	);
 }

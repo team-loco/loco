@@ -1,6 +1,7 @@
 import { CheckIcon } from "lucide-react";
 
 import { SoonTag } from "@/components/design/SoonTag";
+import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
@@ -82,7 +83,7 @@ export function LogFacets({ rows }: { rows: LogRow[] }) {
 								{v.dotClass !== null && <span className={cn("size-[7px] shrink-0 rounded-[2px]", v.dotClass)} />}
 								{v.dot !== null && <Dot color={v.dot} />}
 								<span className="min-w-0 flex-1 truncate">{v.value}</span>
-								<span className="text-xs text-fg3 tabular-nums">{v.count.toLocaleString()}</span>
+								<span className="text-xs text-fg3 tabular-nums">{formatCount(v.count)}</span>
 							</button>
 						);
 					})}

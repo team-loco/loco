@@ -4,13 +4,15 @@ import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deploy
 
 import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { formatStarted, tsMillis } from "./format";
-import { depTag, startedMs, type RegionView } from "./model";
-import { Pager, pageSlice } from "./Pager";
+import { formatStarted } from "./format";
+import { depTag, PAGE_SIZES, startedMs, type RegionView } from "./model";
 
 const GRID = "grid grid-cols-[130px_104px_100px_100px_70px_minmax(0,1fr)_110px] items-center gap-3 px-4";
 
@@ -54,7 +56,7 @@ export function DeploymentsSection({
 			isCurrent: region.current?.id === dep.id,
 		})),
 	);
-	all.sort((a, b) => (tsMillis(b.dep.createdAt) ?? 0) - (tsMillis(a.dep.createdAt) ?? 0));
+	all.sort((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));
 	const slice = pageSlice(all, page, size);
 
 	return (
@@ -126,15 +128,15 @@ export function DeploymentsSection({
 				</div>
 			</div>
 			<Pager
-				page={slice.page}
-				pages={slice.pages}
-				size={size}
-				total={all.length}
-				onPage={setPage}
-				onSize={(n) => {
+				label={all.length > 0 ? pageRangeLabel(slice.page, size, all.length) : "0 of 0"}
+				pageSizes={PAGE_SIZES}
+				pageSize={size}
+				onPageSize={(n) => {
 					setSize(n);
 					setPage(0);
 				}}
+				onPrev={slice.page > 0 ? () => { setPage(slice.page - 1); } : null}
+				onNext={slice.page < slice.pages - 1 ? () => { setPage(slice.page + 1); } : null}
 			/>
 		</Section>
 	);

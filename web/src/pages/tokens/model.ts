@@ -1,6 +1,8 @@
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { EntityType, Scope } from "@gen/loco/token/v1/token_pb";
 import type { EntityScope, Token } from "@gen/loco/token/v1/token_pb";
+
+import { scopeLevel } from "@/hooks/useMyScopes";
+import { DAY_MS, maybeTsMs } from "@/lib/time";
 
 export type OwnerKey = "org" | "workspace" | "personal";
 export type NodeKind = "org" | "ws" | "res" | "user" | "system";
@@ -43,8 +45,6 @@ export const ALLOWS: Record<NodeKind, string[]> = {
 export const EXPIRY_DAYS = [1, 7, 30] as const;
 export type ExpiryDays = (typeof EXPIRY_DAYS)[number];
 
-export const DAY_MS = 86_400_000;
-
 export interface EntityNode {
 	key: string;
 	kind: NodeKind;
@@ -71,7 +71,7 @@ export function nodeKey(entityType: EntityType, id: string): string {
 	return `${entityType.toString()}:${id}`;
 }
 
-export function kindOf(entityType: EntityType): NodeKind {
+function kindOf(entityType: EntityType): NodeKind {
 	switch (entityType) {
 		case EntityType.ORGANIZATION:
 			return "org";
@@ -103,20 +103,7 @@ export function kindLabel(kind: NodeKind): string {
 	}
 }
 
-export function scopeLevel(scope: Scope): Level | 0 {
-	switch (scope) {
-		case Scope.READ:
-			return 1;
-		case Scope.WRITE:
-			return 2;
-		case Scope.ADMIN:
-			return 3;
-		case Scope.UNSPECIFIED:
-			return 0;
-	}
-}
-
-export function levelScope(level: Level): Scope {
+function levelScope(level: Level): Scope {
 	switch (level) {
 		case 1:
 			return Scope.READ;
@@ -211,7 +198,7 @@ export function sortKeys(tree: EntityTree, keys: string[]): string[] {
 	});
 }
 
-export function summarize(tree: EntityTree, keys: string[]): string {
+function summarize(tree: EntityTree, keys: string[]): string {
 	const nodes = sortKeys(tree, keys).map((k) => resolveNode(tree, k));
 	const parts: string[] = [];
 	for (const n of nodes) {
@@ -270,21 +257,16 @@ export function accessLines(tree: EntityTree, grants: Grants): AccessLine[] {
 
 export type TokenStatus = "active" | "expiring" | "expired";
 
-export function tsMillis(ts: Timestamp | undefined): number | null {
-	if (!ts) return null;
-	return Number(ts.seconds) * 1000;
-}
-
 export function tokenStatus(token: Token, now: number): TokenStatus {
-	const exp = tsMillis(token.expiresAt);
-	if (exp === null) return "active";
+	const exp = maybeTsMs(token.expiresAt);
+	if (exp === undefined) return "active";
 	if (exp < now) return "expired";
 	if (exp - now < 7 * DAY_MS) return "expiring";
 	return "active";
 }
 
 export function daysLeft(token: Token, now: number): number {
-	const exp = tsMillis(token.expiresAt) ?? now;
+	const exp = maybeTsMs(token.expiresAt) ?? now;
 	return Math.ceil((exp - now) / DAY_MS);
 }
 
@@ -302,13 +284,9 @@ export function relAgo(ms: number, now: number): string {
 	return n === 1 ? "yesterday" : `${n.toString()} days ago`;
 }
 
-export function fmtDay(ms: number): string {
-	return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 export function lastUsedLabel(token: Token, now: number): string {
-	const used = tsMillis(token.lastUsedAt);
-	return used === null ? "Never" : relAgo(used, now);
+	const used = maybeTsMs(token.lastUsedAt);
+	return used === undefined ? "Never" : relAgo(used, now);
 }
 
 export function matchesQuery(tree: EntityTree, token: Token, q: string): boolean {

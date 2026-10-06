@@ -5,14 +5,14 @@ import type { Organization } from "@gen/loco/org/v1/org_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { formatMonthDayYear } from "@/lib/time";
 
 function formatCreated(org: Organization): string {
 	const seconds = org.createdAt?.seconds;
 	if (seconds === undefined || seconds === 0n) {
 		return "Unknown";
 	}
-	const date = new Date(Number(seconds) * 1000);
-	return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+	return formatMonthDayYear(Number(seconds) * 1000);
 }
 
 export function OrgRow({

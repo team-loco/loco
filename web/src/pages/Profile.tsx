@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/design/Avatar"
 import { Button } from "@/components/design/Button";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
-import { useBreadcrumbs } from "@/context/ShellContext";
 
 import { DeleteAccountSection } from "./profile/DeleteAccountSection";
 import { TokensPreview } from "./profile/TokensPreview";
@@ -40,7 +39,6 @@ function ProfileSkeleton() {
 }
 
 export function Profile() {
-	useBreadcrumbs("Profile");
 	const { logout } = useAuth();
 	const { data: whoAmIResponse, isLoading, error } = useQuery(whoAmI, {});
 	const user = whoAmIResponse?.user;

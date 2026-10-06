@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 import { listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Event } from "@gen/loco/resource/v1/resource_pb";
@@ -8,14 +8,18 @@ import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
+import { Pager } from "@/components/design/Pager";
+import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
+import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { formatFullTime, tsMillis } from "./format";
-import { Pager, pageSlice } from "./Pager";
+import { formatFullTime } from "./format";
+import { PAGE_SIZES } from "./model";
 
 type Severity = "error" | "warning" | "normal";
 type TypeFilter = "all" | Severity;
@@ -58,7 +62,7 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 		{ resourceId, limit: 500 },
 		{ enabled: resourceId !== "", refetchInterval: 30_000 },
 	);
-	const events = (data?.events ?? []).toSorted((a, b) => (tsMillis(b.timestamp) ?? 0) - (tsMillis(a.timestamp) ?? 0));
+	const events = (data?.events ?? []).toSorted((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));
 
 	const q = query.trim().toLowerCase();
 	const base = events.filter((e) => q === "" || `${e.reason} ${e.message} ${e.podName}`.toLowerCase().includes(q));
@@ -101,18 +105,16 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 			}
 		>
 			<div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
-				<div className="flex h-[30px] w-60 items-center gap-1.5 rounded-sm border border-line bg-background px-2 focus-within:border-fg4">
-					<SearchIcon className="size-[13px] shrink-0 text-fg3" />
-					<input
-						value={query}
-						onChange={(e) => {
-							setQuery(e.target.value);
-							setPage(0);
-						}}
-						placeholder="Search reason, message, replica"
-						className="min-w-0 flex-1 border-0 bg-transparent text-[12.5px] text-foreground outline-none placeholder:text-fg4"
-					/>
-				</div>
+				<SearchInput
+					size="sm"
+					value={query}
+					onChange={(e) => {
+						setQuery(e.target.value);
+						setPage(0);
+					}}
+					placeholder="Search reason, message, replica"
+					className="w-60"
+				/>
 				<ToggleGroup
 					variant="segmented"
 					value={[type]}
@@ -182,7 +184,7 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 					{!isLoading &&
 						slice.rows.map((e, i) => {
 							const sev = severityBadge(severityOf(e));
-							const ms = tsMillis(e.timestamp);
+							const ms = maybeTsMs(e.timestamp);
 							return (
 								<div key={`${String(ms)}-${String(i)}`} className={cn(GRID, "h-[38px] border-b border-line")}>
 									<span className="text-fg3 tabular-nums">{ms === undefined ? "—" : formatFullTime(ms)}</span>
@@ -209,15 +211,15 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 				</div>
 			</div>
 			<Pager
-				page={slice.page}
-				pages={slice.pages}
-				size={size}
-				total={filtered.length}
-				onPage={setPage}
-				onSize={(n) => {
+				label={filtered.length > 0 ? pageRangeLabel(slice.page, size, filtered.length) : "0 of 0"}
+				pageSizes={PAGE_SIZES}
+				pageSize={size}
+				onPageSize={(n) => {
 					setSize(n);
 					setPage(0);
 				}}
+				onPrev={slice.page > 0 ? () => { setPage(slice.page - 1); } : null}
+				onNext={slice.page < slice.pages - 1 ? () => { setPage(slice.page + 1); } : null}
 			/>
 		</Section>
 	);

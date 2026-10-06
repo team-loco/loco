@@ -23,6 +23,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { SheetSection } from "@/components/design/Sheet";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Stepper } from "@/components/design/Stepper";
@@ -136,25 +137,22 @@ export function DraftForm({
 				<div className="grid grid-cols-[minmax(0,1fr)_96px] gap-2">
 					<div className="flex min-w-0 flex-col gap-1.5">
 						<span className="text-sm text-fg3">URL</span>
-						<div
-							className={cn(
-								"flex h-[34px] items-center overflow-hidden rounded-sm border bg-background focus-within:border-fg4",
-								errors.sub !== null && sub !== "" ? "border-bad-fg" : "border-line",
-							)}
-						>
-							<span className="pl-2.5 text-fg3">https://</span>
-							<input
+						<InputGroup className="h-[34px] overflow-hidden has-[>[data-align=inline-end]]:[&>input]:pr-0.5 has-[>[data-align=inline-start]]:[&>input]:pl-0.5">
+							<InputGroupAddon>
+								<InputGroupText>https://</InputGroupText>
+							</InputGroupAddon>
+							<InputGroupInput
 								value={draft.sub}
 								aria-label="Subdomain"
-								className="h-full min-w-0 flex-1 bg-transparent px-0.5 text-foreground outline-none"
+								aria-invalid={errors.sub !== null && sub !== ""}
 								onChange={(e) => {
 									update({ sub: e.target.value.toLowerCase() });
 								}}
 							/>
-							<span className="flex h-full items-center border-l border-line bg-bg2 px-2.5 text-fg2">
+							<InputGroupAddon align="inline-end" className="h-full border-l border-line bg-bg2 px-2.5 py-0 text-fg2">
 								.{platformDomain}
-							</span>
-						</div>
+							</InputGroupAddon>
+						</InputGroup>
 					</div>
 					<Field label="Port">
 						<Input

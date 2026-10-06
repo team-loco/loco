@@ -1,8 +1,8 @@
 import { AlertTriangle, Check, Copy } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
+import { useCopy } from "@/hooks/useCopy";
 import { getErrorMessage } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,8 @@ interface ErrorCardProps {
 }
 
 export function ErrorCard({ error, fallbackMessage = "Failed to load data", minHeight = "min-h-96" }: ErrorCardProps) {
-	const [copied, setCopied] = useState(false);
+	const [copiedKey, copy] = useCopy(2000);
+	const copied = copiedKey !== null;
 	const errorMessage = getErrorMessage(error, fallbackMessage);
 	const match = /^(.+?requestId)\s*(.+?)$/i.exec(errorMessage);
 	const mainMessage = match?.[1] ?? errorMessage;
@@ -21,12 +22,8 @@ export function ErrorCard({ error, fallbackMessage = "Failed to load data", minH
 
 	const handleCopy = () => {
 		if (requestId !== null) {
-			void navigator.clipboard.writeText(requestId);
-			setCopied(true);
+			copy("request", requestId);
 			toast.success("Request ID copied");
-			setTimeout(() => {
-				setCopied(false);
-			}, 2000);
 		}
 	};
 

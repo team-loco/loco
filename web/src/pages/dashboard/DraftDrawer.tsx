@@ -1,4 +1,3 @@
-import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { createClient } from "@connectrpc/connect";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +19,7 @@ import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } 
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { resourcePath } from "@/lib/routes";
+import { maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { DraftForm } from "./DraftForm";
@@ -56,7 +56,7 @@ function useDeploymentWatch(deploymentId: string | undefined) {
 		const run = async () => {
 			try {
 				for await (const ev of client.watchDeployment({ deploymentId }, { signal: controller.signal })) {
-					const at = ev.timestamp !== undefined ? timestampMs(ev.timestamp) : Date.now();
+					const at = maybeTsMs(ev.timestamp) ?? Date.now();
 					setState({ id: deploymentId, phase: ev.status, message: ev.message, at });
 					void queryClient.invalidateQueries();
 					if (ev.status === DeploymentPhase.RUNNING) break;

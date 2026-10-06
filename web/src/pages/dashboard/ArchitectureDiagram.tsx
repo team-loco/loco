@@ -6,9 +6,9 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { Badge } from "@/components/design/Badge";
 import { Section } from "@/components/design/Page";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
+import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import { pluralize } from "./format";
 
 export interface DiagramService {
 	key: string;

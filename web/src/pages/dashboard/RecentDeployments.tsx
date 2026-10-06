@@ -6,8 +6,9 @@ import { Section } from "@/components/design/Page";
 import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { resourcePath } from "@/lib/routes";
+import { tsMs } from "@/lib/time";
 
-import { deploymentImage, imageTag, startedLabel, tsMs } from "./format";
+import { deploymentImage, imageTag, startedLabel } from "./format";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const LIMIT = 10;

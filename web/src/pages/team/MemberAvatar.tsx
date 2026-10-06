@@ -6,7 +6,7 @@ const AV_FG = ["oklch(0.4 0.12 250)", "oklch(0.4 0.1 160)", "oklch(0.42 0.1 60)"
 
 const NAME_SEPARATORS = /[\s@._-]+/;
 
-export function initialsOf(name: string, email: string): string {
+function initialsOf(name: string, email: string): string {
 	const source = name.trim() !== "" ? name : email;
 	const parts = source.split(NAME_SEPARATORS).filter((s) => s !== "");
 	return parts

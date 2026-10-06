@@ -9,11 +9,13 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { toastConnectError } from "@/lib/error-handler";
+import { pluralize } from "@/lib/format";
+import { DAY_MS } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { AccessPicker } from "./AccessPicker";
 import type { AccessItem } from "./AccessPicker";
-import { DAY_MS, EXPIRY_DAYS, grantsToScopes } from "./model";
+import { EXPIRY_DAYS, grantsToScopes } from "./model";
 import type { EntityNode, EntityTree, ExpiryDays, HeldScopes, Level } from "./model";
 import type { Owner } from "./useTokenData";
 
@@ -157,7 +159,7 @@ function CreateTokenForm({
 							>
 								{EXPIRY_DAYS.map((d) => (
 									<ToggleGroupItem key={d} value={d.toString()} className="h-[26px]! text-[12.5px]">
-										{d === 1 ? "1 day" : `${d.toString()} days`}
+										{pluralize(d, "day")}
 									</ToggleGroupItem>
 								))}
 							</ToggleGroup>

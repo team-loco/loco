@@ -24,7 +24,7 @@ function normalize(value: JsonValue): JsonValue {
 	return out;
 }
 
-export function specObject(dep: Deployment): JsonObject {
+function specObject(dep: Deployment): JsonObject {
 	const json = dep.spec === undefined ? {} : toJson(DeploymentSpecSchema, dep.spec);
 	const base = isObject(json) ? json : {};
 	const normalized = normalize({ ...base, region: dep.region, replicas: dep.replicas });

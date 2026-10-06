@@ -13,8 +13,9 @@ import {
 	AlertDialogTitle,
 } from "@/components/design/AlertDialog";
 import { toastConnectError } from "@/lib/error-handler";
+import { maybeTsMs } from "@/lib/time";
 
-import { relAgo, tsMillis } from "./model";
+import { relAgo } from "./model";
 
 export function RevokeDialog({
 	token,
@@ -30,7 +31,7 @@ export function RevokeDialog({
 	const mutation = useMutation(revokeToken);
 	const [shown, setShown] = useState<Token | null>(token);
 	if (token !== null && token !== shown) setShown(token);
-	const used = shown === null ? null : tsMillis(shown.lastUsedAt);
+	const used = maybeTsMs(shown?.lastUsedAt);
 
 	const confirm = async () => {
 		if (shown === null) return;
@@ -57,7 +58,7 @@ export function RevokeDialog({
 					<span>
 						Requests using <span className="font-semibold">{shown?.name ?? ""}</span> will fail immediately.
 					</span>
-					<span className="text-[12.5px] text-fg3">{used === null ? "Never used" : `Last used ${relAgo(used, now)}`}</span>
+					<span className="text-[12.5px] text-fg3">{used === undefined ? "Never used" : `Last used ${relAgo(used, now)}`}</span>
 				</AlertDialogDescription>
 				<AlertDialogFooter>
 					<AlertDialogCancel className="px-3">Cancel</AlertDialogCancel>

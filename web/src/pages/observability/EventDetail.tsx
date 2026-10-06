@@ -2,13 +2,15 @@ import { BoxIcon, ChartLineIcon, ScrollTextIcon } from "lucide-react";
 import { useNavigate } from "react-router";
 
 import { SoonTag } from "@/components/design/SoonTag";
+import { useCopy } from "@/hooks/useCopy";
 import { resourcePath } from "@/lib/routes";
+import { formatClock, formatHourMinute } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { fitRange, useObs } from "./context";
 import { severityStyle, type EventGroup } from "./events";
-import { fmtClock, fmtTs } from "./format";
-import { CopyButton, DetailPanel, JumpButton, PanelNav, useCopy } from "./shared";
+import { fmtTs } from "./format";
+import { CopyButton, DetailPanel, JumpButton, PanelNav } from "./shared";
 
 const OCC_BUCKETS = 24;
 
@@ -89,14 +91,14 @@ export function EventDetail({
 					<JumpButton
 						icon={<ScrollTextIcon />}
 						label={`Logs from ${item.resourceName}`}
-						hint={`around ${fmtClock(item.ts).slice(0, 5)}`}
+						hint={`around ${formatHourMinute(item.ts)}`}
 						onClick={() => {
 							goTo("logs", { range, resource: item.resourceName, focusTs: item.ts });
 						}}
 					/>
 					<JumpButton
 						icon={<ChartLineIcon />}
-						label={`Metrics at ${fmtClock(item.ts)}`}
+						label={`Metrics at ${formatClock(item.ts)}`}
 						hint={item.resourceName}
 						onClick={() => {
 							goTo("metrics", { range, resource: item.resourceName, focusTs: item.ts });
