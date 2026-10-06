@@ -3,7 +3,7 @@ manager:
     pullPolicy: Never
   env:
     - name: GITLAB_URL
-      value: "https://gitlab.invalid"
+      value: "http://gitlab-stub.loco-system.svc.cluster.local:8080"
     - name: GITLAB_PAT
       value: "e2e-placeholder"
     - name: GITLAB_PROJECT_ID
