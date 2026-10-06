@@ -1,0 +1,12 @@
+manager:
+  image:
+    pullPolicy: Never
+  env:
+    - name: GITLAB_URL
+      value: "https://gitlab.invalid"
+    - name: GITLAB_PAT
+      value: "e2e-placeholder"
+    - name: GITLAB_PROJECT_ID
+      value: "0"
+    - name: GITLAB_REGISTRY_URL
+      value: "https://registry.gitlab.invalid"

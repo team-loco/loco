@@ -19,6 +19,7 @@ PG_PASS="loco_e2e_pass"
 PG_DB="loco_e2e"
 API_PORT=8877  # avoid conflict with dev API on 8000
 OBS_PROXY_PORT=8878
+CONTROLLER_IMAGE="loco-controller:e2e"
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 
@@ -58,7 +59,6 @@ teardown() {
     kill_pid_file "$PID_DIR/obs-proxy.pid"
     kill_pid_file "$PID_DIR/api.pid"
     kill_pid_file "$PID_DIR/agent.pid"
-    kill_pid_file "$PID_DIR/controller.pid"
 
     # Remove Kind cluster
     if kind get clusters 2>/dev/null | grep -q "^${KIND_CLUSTER_NAME}$"; then
@@ -88,7 +88,7 @@ check_prerequisites() {
     log_step "Checking prerequisites..."
     local missing=()
 
-    for cmd in kind docker kubectl go; do
+    for cmd in kind docker kubectl helm go; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             missing+=("$cmd")
         fi
@@ -139,18 +139,35 @@ run_migrations() {
     log_ok "Migrations applied and test data seeded"
 }
 
-install_crds() {
-    log_step "Installing CRDs into Kind cluster..."
-    local crd_dir="$ROOT_DIR/controller/config/crd/bases"
-    if [ -d "$crd_dir" ]; then
-        kubectl apply -f "$crd_dir/" --context "kind-${KIND_CLUSTER_NAME}"
-        log_ok "CRDs installed"
-    else
-        log_warn "CRD directory not found at ${crd_dir}, skipping"
-    fi
-
-    # Create the loco namespace
+create_namespace() {
+    log_step "Creating the ${LOCO_NAMESPACE} namespace..."
     kubectl create namespace "$LOCO_NAMESPACE" --context "kind-${KIND_CLUSTER_NAME}" 2>/dev/null || true
+    log_ok "Namespace ready"
+}
+
+build_controller_image() {
+    if [ "$SKIP_BUILD" = true ]; then
+        log_info "Skipping controller image build (--skip-build)"
+    else
+        log_step "Building the controller image..."
+        docker build -q -t "$CONTROLLER_IMAGE" -f "$ROOT_DIR/controller/Dockerfile" "$ROOT_DIR" >/dev/null
+        log_ok "Controller image built"
+    fi
+    kind load docker-image "$CONTROLLER_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
+    log_ok "Controller image loaded into Kind"
+}
+
+install_controller() {
+    log_step "Installing the controller chart..."
+    helm upgrade --install loco-controller "$ROOT_DIR/charts/loco-controller" \
+        --kubeconfig "$KUBECONFIG_FILE" \
+        --kube-context "kind-${KIND_CLUSTER_NAME}" \
+        --namespace "$LOCO_NAMESPACE" \
+        --values "$SCRIPT_DIR/controller-values.yaml" \
+        --set manager.image.repository="${CONTROLLER_IMAGE%%:*}" \
+        --set manager.image.tag="${CONTROLLER_IMAGE##*:}" \
+        --wait --timeout 3m >/dev/null
+    log_ok "Controller running in Kind"
 }
 
 build_binaries() {
@@ -166,9 +183,6 @@ build_binaries() {
 
     log_info "Building Agent..."
     (cd "$ROOT_DIR/agent" && go build -o "$BIN_DIR/loco-agent" .)
-
-    log_info "Building Controller..."
-    (cd "$ROOT_DIR/controller" && go build -o "$BIN_DIR/loco-controller" ./cmd)
 
     log_info "Building Observability Proxy..."
     (cd "$ROOT_DIR/observability-proxy" && go build -o "$BIN_DIR/loco-obs-proxy" .)
@@ -218,19 +232,6 @@ start_agent() {
     else
         log_warn "Agent may not have registered yet (agent_version: '${heartbeat}')"
     fi
-}
-
-start_controller() {
-    log_step "Starting Controller..."
-
-    KUBECONFIG="$KUBECONFIG_FILE" \
-        "$BIN_DIR/loco-controller" \
-        >"$LOG_DIR/controller.log" 2>&1 &
-
-    echo $! > "$PID_DIR/controller.pid"
-
-    sleep 2
-    log_ok "Controller started"
 }
 
 start_obs_proxy() {
@@ -335,11 +336,12 @@ main() {
     setup_kind
     setup_postgres
     run_migrations
-    install_crds
+    create_namespace
+    build_controller_image
+    install_controller
     build_binaries
     start_api
     start_agent
-    start_controller
     start_obs_proxy
 
     echo ""
