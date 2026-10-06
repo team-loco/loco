@@ -22,10 +22,12 @@ import (
 type Env struct {
 	CurrentUser func() (*user.User, error)
 	Tokens      func() (keychain.TokenStore, error)
+
+	versionCheck *versionCheck
 }
 
 func NewEnv() Env {
-	env := Env{CurrentUser: user.Current}
+	env := Env{CurrentUser: user.Current, versionCheck: &versionCheck{}}
 	env.Tokens = func() (keychain.TokenStore, error) {
 		currentUser, err := env.CurrentUser()
 		if err != nil {
@@ -46,6 +48,7 @@ func NewRootCmd(env Env) *cobra.Command {
 			if err := initLogger(cmd); err != nil {
 				return fmt.Errorf("failed to initialize logger: %w", err)
 			}
+			env.versionCheck.start(cmd)
 			return nil
 		},
 		PersistentPostRun: func(cmd *cobra.Command, _ []string) {

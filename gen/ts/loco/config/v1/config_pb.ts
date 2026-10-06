@@ -14,60 +14,62 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIiAKHkdldERlZmF1bHRTZXJ2aWNlQ29uZmlnUmVxdWVzdCJXCh9HZXREZWZhdWx0U2VydmljZUNvbmZpZ1Jlc3BvbnNlEjQKBmNvbmZpZxgBIAEoCzIkLmxvY28uY29uZmlnLnYxLkRlZmF1bHRTZXJ2aWNlQ29uZmlnItICChREZWZhdWx0U2VydmljZUNvbmZpZxISCgpidWlsZF90eXBlGAEgASgJEhcKD2RvY2tlcmZpbGVfcGF0aBgCIAEoCRIwCgdyb3V0aW5nGAMgASgLMh8ubG9jby5yZXNvdXJjZS52MS5Sb3V0aW5nQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgEIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYBSABKAkSDgoGbWVtb3J5GAYgASgJEhQKDG1pbl9yZXBsaWNhcxgHIAEoBRIUCgxtYXhfcmVwbGljYXMYCCABKAUSPAoNb2JzZXJ2YWJpbGl0eRgJIAEoCzIlLmxvY28ucmVzb3VyY2UudjEuT2JzZXJ2YWJpbGl0eUNvbmZpZxIXCg9wbGF0Zm9ybV9kb21haW4YCiABKAkyiwEKDUNvbmZpZ1NlcnZpY2USegoXR2V0RGVmYXVsdFNlcnZpY2VDb25maWcSLi5sb2NvLmNvbmZpZy52MS5HZXREZWZhdWx0U2VydmljZUNvbmZpZ1JlcXVlc3QaLy5sb2NvLmNvbmZpZy52MS5HZXREZWZhdWx0U2VydmljZUNvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QibAoRR2V0Q29uZmlnUmVzcG9uc2USPgoQc2VydmljZV9kZWZhdWx0cxgBIAEoCzIkLmxvY28uY29uZmlnLnYxLkRlZmF1bHRTZXJ2aWNlQ29uZmlnEhcKD21pbl9jbGlfdmVyc2lvbhgCIAEoCSLSAgoURGVmYXVsdFNlcnZpY2VDb25maWcSEgoKYnVpbGRfdHlwZRgBIAEoCRIXCg9kb2NrZXJmaWxlX3BhdGgYAiABKAkSMAoHcm91dGluZxgDIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI7CgxoZWFsdGhfY2hlY2sYBCABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAUgASgJEg4KBm1lbW9yeRgGIAEoCRIUCgxtaW5fcmVwbGljYXMYByABKAUSFAoMbWF4X3JlcGxpY2FzGAggASgFEjwKDW9ic2VydmFiaWxpdHkYCSABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPcGxhdGZvcm1fZG9tYWluGAogASgJMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
- * GetDefaultServiceConfigRequest is the request to retrieve default service configuration.
- *
- * @generated from message loco.config.v1.GetDefaultServiceConfigRequest
+ * @generated from message loco.config.v1.GetConfigRequest
  */
-export type GetDefaultServiceConfigRequest = Message<"loco.config.v1.GetDefaultServiceConfigRequest"> & {
+export type GetConfigRequest = Message<"loco.config.v1.GetConfigRequest"> & {
 };
 
 /**
- * GetDefaultServiceConfigRequest is the request to retrieve default service configuration.
- *
- * @generated from message loco.config.v1.GetDefaultServiceConfigRequest
+ * @generated from message loco.config.v1.GetConfigRequest
  */
-export type GetDefaultServiceConfigRequestJson = {
+export type GetConfigRequestJson = {
 };
 
 /**
- * Describes the message loco.config.v1.GetDefaultServiceConfigRequest.
- * Use `create(GetDefaultServiceConfigRequestSchema)` to create a new message.
+ * Describes the message loco.config.v1.GetConfigRequest.
+ * Use `create(GetConfigRequestSchema)` to create a new message.
  */
-export const GetDefaultServiceConfigRequestSchema: GenMessage<GetDefaultServiceConfigRequest, {jsonType: GetDefaultServiceConfigRequestJson}> = /*@__PURE__*/
+export const GetConfigRequestSchema: GenMessage<GetConfigRequest, {jsonType: GetConfigRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_config_v1_config, 0);
 
 /**
- * GetDefaultServiceConfigResponse contains the default service configuration.
- *
- * @generated from message loco.config.v1.GetDefaultServiceConfigResponse
+ * @generated from message loco.config.v1.GetConfigResponse
  */
-export type GetDefaultServiceConfigResponse = Message<"loco.config.v1.GetDefaultServiceConfigResponse"> & {
+export type GetConfigResponse = Message<"loco.config.v1.GetConfigResponse"> & {
   /**
-   * @generated from field: loco.config.v1.DefaultServiceConfig config = 1;
+   * @generated from field: loco.config.v1.DefaultServiceConfig service_defaults = 1;
    */
-  config?: DefaultServiceConfig | undefined;
+  serviceDefaults?: DefaultServiceConfig | undefined;
+
+  /**
+   * @generated from field: string min_cli_version = 2;
+   */
+  minCliVersion: string;
 };
 
 /**
- * GetDefaultServiceConfigResponse contains the default service configuration.
- *
- * @generated from message loco.config.v1.GetDefaultServiceConfigResponse
+ * @generated from message loco.config.v1.GetConfigResponse
  */
-export type GetDefaultServiceConfigResponseJson = {
+export type GetConfigResponseJson = {
   /**
-   * @generated from field: loco.config.v1.DefaultServiceConfig config = 1;
+   * @generated from field: loco.config.v1.DefaultServiceConfig service_defaults = 1;
    */
-  config?: DefaultServiceConfigJson;
+  serviceDefaults?: DefaultServiceConfigJson;
+
+  /**
+   * @generated from field: string min_cli_version = 2;
+   */
+  minCliVersion?: string;
 };
 
 /**
- * Describes the message loco.config.v1.GetDefaultServiceConfigResponse.
- * Use `create(GetDefaultServiceConfigResponseSchema)` to create a new message.
+ * Describes the message loco.config.v1.GetConfigResponse.
+ * Use `create(GetConfigResponseSchema)` to create a new message.
  */
-export const GetDefaultServiceConfigResponseSchema: GenMessage<GetDefaultServiceConfigResponse, {jsonType: GetDefaultServiceConfigResponseJson}> = /*@__PURE__*/
+export const GetConfigResponseSchema: GenMessage<GetConfigResponse, {jsonType: GetConfigResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_config_v1_config, 1);
 
 /**
@@ -240,14 +242,12 @@ export const DefaultServiceConfigSchema: GenMessage<DefaultServiceConfig, {jsonT
  */
 export const ConfigService: GenService<{
   /**
-   * GetDefaultServiceConfig retrieves the default configuration for service deployments.
-   *
-   * @generated from rpc loco.config.v1.ConfigService.GetDefaultServiceConfig
+   * @generated from rpc loco.config.v1.ConfigService.GetConfig
    */
-  getDefaultServiceConfig: {
+  getConfig: {
     methodKind: "unary";
-    input: typeof GetDefaultServiceConfigRequestSchema;
-    output: typeof GetDefaultServiceConfigResponseSchema;
+    input: typeof GetConfigRequestSchema;
+    output: typeof GetConfigResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_config_v1_config, 0);

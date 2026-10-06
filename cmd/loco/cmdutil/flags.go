@@ -16,16 +16,18 @@ const (
 
 // GetHost resolves the API host from flag > env > config file > default.
 func GetHost(cmd *cobra.Command) (string, error) {
-	host, err := cmd.Flags().GetString("host")
-	if err != nil {
-		return "", fmt.Errorf("error reading host flag: %w", err)
-	}
-	if host != "" {
-		slog.Debug("using host from flag")
-		return host, nil
+	if cmd.Flags().Lookup("host") != nil {
+		host, err := cmd.Flags().GetString("host")
+		if err != nil {
+			return "", fmt.Errorf("error reading host flag: %w", err)
+		}
+		if host != "" {
+			slog.Debug("using host from flag")
+			return host, nil
+		}
 	}
 
-	host = os.Getenv("LOCO_HOST")
+	host := os.Getenv("LOCO_HOST")
 	if host != "" {
 		slog.Debug("using host from environment variable")
 		return host, nil

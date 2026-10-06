@@ -12,18 +12,20 @@ import (
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
 	platformDomain string
+	minCLIVersion  string
 }
 
-func NewConfigServer(platformDomain string) *ConfigServer {
-	return &ConfigServer{platformDomain: platformDomain}
+func NewConfigServer(platformDomain, minCLIVersion string) *ConfigServer {
+	return &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion}
 }
 
-func (s *ConfigServer) GetDefaultServiceConfig(
+func (s *ConfigServer) GetConfig(
 	_ context.Context,
-	_ *connect.Request[configv1.GetDefaultServiceConfigRequest],
-) (*connect.Response[configv1.GetDefaultServiceConfigResponse], error) {
-	return connect.NewResponse(&configv1.GetDefaultServiceConfigResponse{
-		Config: &configv1.DefaultServiceConfig{
+	_ *connect.Request[configv1.GetConfigRequest],
+) (*connect.Response[configv1.GetConfigResponse], error) {
+	return connect.NewResponse(&configv1.GetConfigResponse{
+		MinCliVersion: s.minCLIVersion,
+		ServiceDefaults: &configv1.DefaultServiceConfig{
 			BuildType:      "docker",
 			DockerfilePath: "Dockerfile",
 			Routing: &resourcev1.RoutingConfig{

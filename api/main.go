@@ -42,6 +42,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
+	"golang.org/x/mod/semver"
 )
 
 const envProduction = "PRODUCTION"
@@ -60,6 +61,7 @@ type APIConfig struct {
 	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
+	MinCLIVersion         string
 	PprofAddr             string
 }
 
@@ -100,6 +102,7 @@ func newAPIConfig() *APIConfig {
 		CacheAddr:             os.Getenv("CACHE_ADDR"),
 		CORSAllowedOrigins:    corsOrigins,
 		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
+		MinCLIVersion:         os.Getenv("MIN_CLI_VERSION"),
 		PprofAddr:             os.Getenv("PPROF_ADDR"),
 	}
 }
@@ -165,6 +168,10 @@ func main() {
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
+
+	if ac.MinCLIVersion != "" && !semver.IsValid(ac.MinCLIVersion) {
+		log.Fatalf("MIN_CLI_VERSION %q is not a semantic version like v0.0.61", ac.MinCLIVersion)
+	}
 
 	if err := migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
 		log.Fatal(err)
@@ -250,7 +257,7 @@ func main() {
 	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
-	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain)
+	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion)
 
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
@@ -286,7 +293,7 @@ func main() {
 
 	reflector := grpcreflect.NewStaticReflector(
 		// config service
-		configv1connect.ConfigServiceGetDefaultServiceConfigProcedure,
+		configv1connect.ConfigServiceGetConfigProcedure,
 
 		// oauth service
 		oauthv1connect.OAuthServiceGetOAuthDetailsProcedure,

@@ -33,15 +33,13 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ConfigServiceGetDefaultServiceConfigProcedure is the fully-qualified name of the ConfigService's
-	// GetDefaultServiceConfig RPC.
-	ConfigServiceGetDefaultServiceConfigProcedure = "/loco.config.v1.ConfigService/GetDefaultServiceConfig"
+	// ConfigServiceGetConfigProcedure is the fully-qualified name of the ConfigService's GetConfig RPC.
+	ConfigServiceGetConfigProcedure = "/loco.config.v1.ConfigService/GetConfig"
 )
 
 // ConfigServiceClient is a client for the loco.config.v1.ConfigService service.
 type ConfigServiceClient interface {
-	// GetDefaultServiceConfig retrieves the default configuration for service deployments.
-	GetDefaultServiceConfig(context.Context, *connect.Request[v1.GetDefaultServiceConfigRequest]) (*connect.Response[v1.GetDefaultServiceConfigResponse], error)
+	GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error)
 }
 
 // NewConfigServiceClient constructs a client for the loco.config.v1.ConfigService service. By
@@ -55,10 +53,10 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	configServiceMethods := v1.File_loco_config_v1_config_proto.Services().ByName("ConfigService").Methods()
 	return &configServiceClient{
-		getDefaultServiceConfig: connect.NewClient[v1.GetDefaultServiceConfigRequest, v1.GetDefaultServiceConfigResponse](
+		getConfig: connect.NewClient[v1.GetConfigRequest, v1.GetConfigResponse](
 			httpClient,
-			baseURL+ConfigServiceGetDefaultServiceConfigProcedure,
-			connect.WithSchema(configServiceMethods.ByName("GetDefaultServiceConfig")),
+			baseURL+ConfigServiceGetConfigProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetConfig")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -66,18 +64,17 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // configServiceClient implements ConfigServiceClient.
 type configServiceClient struct {
-	getDefaultServiceConfig *connect.Client[v1.GetDefaultServiceConfigRequest, v1.GetDefaultServiceConfigResponse]
+	getConfig *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
 }
 
-// GetDefaultServiceConfig calls loco.config.v1.ConfigService.GetDefaultServiceConfig.
-func (c *configServiceClient) GetDefaultServiceConfig(ctx context.Context, req *connect.Request[v1.GetDefaultServiceConfigRequest]) (*connect.Response[v1.GetDefaultServiceConfigResponse], error) {
-	return c.getDefaultServiceConfig.CallUnary(ctx, req)
+// GetConfig calls loco.config.v1.ConfigService.GetConfig.
+func (c *configServiceClient) GetConfig(ctx context.Context, req *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error) {
+	return c.getConfig.CallUnary(ctx, req)
 }
 
 // ConfigServiceHandler is an implementation of the loco.config.v1.ConfigService service.
 type ConfigServiceHandler interface {
-	// GetDefaultServiceConfig retrieves the default configuration for service deployments.
-	GetDefaultServiceConfig(context.Context, *connect.Request[v1.GetDefaultServiceConfigRequest]) (*connect.Response[v1.GetDefaultServiceConfigResponse], error)
+	GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error)
 }
 
 // NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -87,16 +84,16 @@ type ConfigServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	configServiceMethods := v1.File_loco_config_v1_config_proto.Services().ByName("ConfigService").Methods()
-	configServiceGetDefaultServiceConfigHandler := connect.NewUnaryHandler(
-		ConfigServiceGetDefaultServiceConfigProcedure,
-		svc.GetDefaultServiceConfig,
-		connect.WithSchema(configServiceMethods.ByName("GetDefaultServiceConfig")),
+	configServiceGetConfigHandler := connect.NewUnaryHandler(
+		ConfigServiceGetConfigProcedure,
+		svc.GetConfig,
+		connect.WithSchema(configServiceMethods.ByName("GetConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/loco.config.v1.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ConfigServiceGetDefaultServiceConfigProcedure:
-			configServiceGetDefaultServiceConfigHandler.ServeHTTP(w, r)
+		case ConfigServiceGetConfigProcedure:
+			configServiceGetConfigHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,6 +103,6 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 // UnimplementedConfigServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedConfigServiceHandler struct{}
 
-func (UnimplementedConfigServiceHandler) GetDefaultServiceConfig(context.Context, *connect.Request[v1.GetDefaultServiceConfigRequest]) (*connect.Response[v1.GetDefaultServiceConfigResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.config.v1.ConfigService.GetDefaultServiceConfig is not implemented"))
+func (UnimplementedConfigServiceHandler) GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.config.v1.ConfigService.GetConfig is not implemented"))
 }
