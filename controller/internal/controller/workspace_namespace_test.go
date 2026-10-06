@@ -43,14 +43,18 @@ func workspaceApp(name, resourceID string) *locov1alpha1.Application {
 func appObjects(app *locov1alpha1.Application) []client.Object {
 	name := getName(app)
 	namespace := getNamespace(app)
+	roleName := getRoleName(app)
+	bindingName := getRoleBindingName(app)
+	envSecretName := getEnvSecretName(app)
+	imageSecretName := getImageSecretName(app)
 	return []client.Object{
 		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
 		&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
-		&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: name + "-role", Namespace: namespace}},
-		&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: name + "-binding", Namespace: namespace}},
-		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: getEnvSecretName(app), Namespace: namespace}},
-		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: getImageSecretName(app), Namespace: namespace}},
+		&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: roleName, Namespace: namespace}},
+		&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: bindingName, Namespace: namespace}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: envSecretName, Namespace: namespace}},
+		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: imageSecretName, Namespace: namespace}},
 	}
 }
 

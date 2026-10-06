@@ -320,9 +320,9 @@ func (r *LocoResourceReconciler) handleDeletion(
 func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-	routeName := name + "-route"
-	bindingName := name + "-binding"
-	roleName := name + "-role"
+	routeName := getRouteName(locoRes)
+	bindingName := getRoleBindingName(locoRes)
+	roleName := getRoleName(locoRes)
 	envSecretName := getEnvSecretName(locoRes)
 	imageSecretName := getImageSecretName(locoRes)
 
@@ -390,6 +390,18 @@ func getImageSecretName(locoRes *locov1alpha1.Application) string {
 
 func getEnvSecretName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-env", getName(locoRes))
+}
+
+func getRoleName(locoRes *locov1alpha1.Application) string {
+	return fmt.Sprintf("%s-role", getName(locoRes))
+}
+
+func getRoleBindingName(locoRes *locov1alpha1.Application) string {
+	return fmt.Sprintf("%s-binding", getName(locoRes))
+}
+
+func getRouteName(locoRes *locov1alpha1.Application) string {
+	return fmt.Sprintf("%s-route", getName(locoRes))
 }
 
 func getInternalDomain(locoRes *locov1alpha1.Application) string {
@@ -496,8 +508,8 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 	slog.DebugContext(ctx, "ensuring role and role binding", "namespace", namespace, "name", name)
 
 	envSecretName := getEnvSecretName(locoRes)
-	roleName := fmt.Sprintf("%s-role", name)
-	roleBindingName := fmt.Sprintf("%s-binding", name)
+	roleName := getRoleName(locoRes)
+	roleBindingName := getRoleBindingName(locoRes)
 	labels := managedLabels(locoRes)
 	annotations := ownerAnnotations(locoRes)
 	opts := applyOptions()
@@ -786,7 +798,7 @@ func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32)
 func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-	routeName := fmt.Sprintf("%s-route", name)
+	routeName := getRouteName(locoRes)
 	routing := locoRes.Spec.ServiceSpec.Routing
 
 	if routing == nil {
