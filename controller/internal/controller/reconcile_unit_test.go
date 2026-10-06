@@ -21,6 +21,8 @@ import (
 const (
 	testAppType   = "SERVICE"
 	testNamespace = "default"
+	testImage     = "registry.example.com/app:v1"
+	testHostName  = "app.example.com"
 )
 
 func testApplication() *locov1alpha1.Application {
@@ -32,7 +34,7 @@ func testApplication() *locov1alpha1.Application {
 			WorkspaceID: "2",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
-					Image: "registry.example.com/app:v1",
+					Image: testImage,
 					Port:  8080,
 					Env: map[string]string{
 						"ZETA":  "1",
@@ -46,7 +48,7 @@ func testApplication() *locov1alpha1.Application {
 					Memory:   "256Mi",
 					Replicas: locov1alpha1.ReplicasSpec{Min: 2, Max: 3},
 				},
-				Routing: &locov1alpha1.RoutingSpec{HostName: "app.example.com"},
+				Routing: &locov1alpha1.RoutingSpec{HostName: testHostName},
 			},
 		},
 	}

@@ -23,6 +23,8 @@ go install github.com/team-loco/loco@latest
 3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
 4. **Deploy your app via `loco deploy <app-name>`**
 
+Apps run under Kubernetes' `restricted` Pod Security profile, so the image must run as a numeric non-root user (for example `USER 10001` in the Dockerfile).
+
 Your app will be available at `https://<app-name>.onloco.app`. `loco deploy` is shorthand for `loco resource deploy`;
 `loco resource` also holds `status`, `logs`, `events`, `env`, `scale` and `destroy`.
 
