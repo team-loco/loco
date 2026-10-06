@@ -433,9 +433,10 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 	slog.DebugContext(ctx, "ensuring namespace", "namespace", namespace)
 
 	labels := map[string]string{
-		"loco.io/app":    "true",
-		labelManagedBy:   managedByValue,
-		labelWorkspaceID: locoRes.Spec.WorkspaceID,
+		"loco.io/app":      "true",
+		labelManagedBy:     managedByValue,
+		labelWorkspaceID:   locoRes.Spec.WorkspaceID,
+		labelEnvironmentID: locoRes.Spec.EnvironmentID,
 	}
 	ns := corev1ac.Namespace(namespace).WithLabels(labels)
 
