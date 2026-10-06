@@ -89,10 +89,10 @@ func newLoginCmd(env Env) *cobra.Command {
 			}
 			if err == nil && t.Host == host {
 				if !t.ExpiresAt.Before(time.Now().Add(1 * time.Hour)) {
-					checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
-					message := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render("Already logged in!")
+					checkmark := lipgloss.NewStyle().Foreground(ui.Ok).Render("✔")
+					message := lipgloss.NewStyle().Bold(true).Foreground(ui.Accent).Render("Already logged in!")
 					subtext := lipgloss.NewStyle().
-						Foreground(ui.LocoLightGray).
+						Foreground(ui.Fg2).
 						Render("You can continue using loco")
 
 					fmt.Printf("%s %s\n%s\n", checkmark, message, subtext)
@@ -357,13 +357,13 @@ func cleanEmail(email string) string {
 }
 
 func printLoginSuccess(title, orgName, workspaceName string) {
-	checkmark := lipgloss.NewStyle().Foreground(ui.LocoGreen).Render("✔")
-	heading := lipgloss.NewStyle().Bold(true).Foreground(ui.LocoOrange).Render(title)
+	checkmark := lipgloss.NewStyle().Foreground(ui.Ok).Render("✔")
+	heading := lipgloss.NewStyle().Bold(true).Foreground(ui.Accent).Render(title)
 	orgLine := lipgloss.NewStyle().
-		Foreground(ui.LocoLightGray).
+		Foreground(ui.Fg2).
 		Render(fmt.Sprintf("  Organization: %s", orgName))
 	wsLine := lipgloss.NewStyle().
-		Foreground(ui.LocoLightGray).
+		Foreground(ui.Fg2).
 		Render(fmt.Sprintf("  Workspace: %s", workspaceName))
 	fmt.Printf("%s %s\n%s\n%s\n", checkmark, heading, orgLine, wsLine)
 }
@@ -549,20 +549,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() tea.View {
 	if m.done {
 		if m.err != nil {
-			errorStyle := lipgloss.NewStyle().Foreground(ui.LocoRed).Bold(true)
+			errorStyle := lipgloss.NewStyle().Foreground(ui.Bad).Bold(true)
 			return tea.NewView(fmt.Sprintf("%s\n%s\n",
 				errorStyle.Render("Authentication failed:"),
-				lipgloss.NewStyle().Foreground(ui.LocoDarkGray).Render(m.err.Error())))
+				lipgloss.NewStyle().Foreground(ui.Fg2).Render(m.err.Error())))
 		}
 		return tea.NewView(
-			lipgloss.NewStyle().Foreground(ui.LocoLightGray).Render("Setting up organization and workspace...") + "\n",
+			lipgloss.NewStyle().Foreground(ui.Fg2).Render("Setting up organization and workspace...") + "\n",
 		)
 	}
 
-	codeStyle := lipgloss.NewStyle().Foreground(ui.LocoOrange).Bold(true).Padding(0, 0)
-	urlStyle := lipgloss.NewStyle().Foreground(ui.LocoOrange).Underline(true)
-	instructionStyle := lipgloss.NewStyle().Foreground(ui.LocoLightGray)
-	spinnerStyle := lipgloss.NewStyle().Foreground(ui.LocoOrange).Bold(true)
+	codeStyle := lipgloss.NewStyle().Foreground(ui.Accent).Bold(true).Padding(0, 0)
+	urlStyle := lipgloss.NewStyle().Foreground(ui.Link).Underline(true)
+	instructionStyle := lipgloss.NewStyle().Foreground(ui.Fg2)
+	spinnerStyle := lipgloss.NewStyle().Foreground(ui.Accent).Bold(true)
 
 	spinner := ""
 	if len(m.loadingFrames) > 0 {
@@ -577,6 +577,6 @@ func (m model) View() tea.View {
 		codeStyle.Render(m.userCode),
 		spinner,
 		instructionStyle.Render("Waiting for authentication..."),
-		lipgloss.NewStyle().Foreground(ui.LocoLightGray).Faint(true).Render("Press 'q' or Ctrl+C to quit"),
+		lipgloss.NewStyle().Foreground(ui.Fg3).Faint(true).Render("Press 'q' or Ctrl+C to quit"),
 	))
 }

@@ -83,7 +83,7 @@ func initCmdFunc(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to create loco.toml: %w", err)
 	}
 
-	style := lipgloss.NewStyle().Foreground(ui.LocoLightGreen).Bold(true)
+	style := lipgloss.NewStyle().Foreground(ui.Ok).Bold(true)
 	fmt.Printf("Created %s in the current directory.\n", style.Render("loco.toml"))
 	fmt.Printf("Edit the file and run %s to validate your configuration.\n",
 		style.Render("loco validate"))

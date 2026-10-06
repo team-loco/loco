@@ -170,7 +170,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 func printSwitched(orgName, workspaceName string) {
 	msg := lipgloss.NewStyle().
-		Foreground(ui.LocoLightGreen).
+		Foreground(ui.Ok).
 		Render(fmt.Sprintf("✓ Switched to %s/%s", orgName, workspaceName))
 	fmt.Println(msg)
 }

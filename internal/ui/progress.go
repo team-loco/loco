@@ -52,11 +52,11 @@ type logMsg struct {
 
 // Styling
 var (
-	stylePending = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFA500")) // orange
-	styleRunning = lipgloss.NewStyle().Foreground(lipgloss.Color("#00BFFF")) // blue
-	styleSuccess = lipgloss.NewStyle().Foreground(lipgloss.Color("#32CD32")) // green
-	styleError   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF4500")) // red
-	styleLog     = lipgloss.NewStyle().Foreground(lipgloss.Color("#999999")).Italic(true)
+	stylePending = lipgloss.NewStyle().Foreground(Fg3)
+	styleRunning = lipgloss.NewStyle().Foreground(Accent)
+	styleSuccess = lipgloss.NewStyle().Foreground(Ok)
+	styleError   = lipgloss.NewStyle().Foreground(Bad)
+	styleLog     = lipgloss.NewStyle().Foreground(Fg3).Italic(true)
 )
 
 var LocoSpinner = spinner.Spinner{
@@ -72,7 +72,7 @@ var LocoSpinner = spinner.Spinner{
 func NewModel(steps []Step) *model {
 	for i := range steps {
 		steps[i].Spinner = spinner.New(spinner.WithSpinner(LocoSpinner))
-		steps[i].Bar = progress.New(progress.WithColors(lipgloss.Color("#00BFFF"), lipgloss.Color("#32CD32")))
+		steps[i].Bar = progress.New(progress.WithColors(Accent, Ok))
 	}
 	return &model{
 		steps: steps,

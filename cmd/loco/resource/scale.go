@@ -151,7 +151,7 @@ Examples:
 			// Success message
 			s := lipgloss.NewStyle().
 				Bold(true).
-				Foreground(ui.LocoLightGreen).
+				Foreground(ui.Ok).
 				Render(fmt.Sprintf("\n🎉 Scaled service %s:", name))
 			fmt.Fprintln(deps.Stdout, s)
 

@@ -132,21 +132,21 @@ Examples:
 
 func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourceStatusResponse) {
 	titleStyle := lipgloss.NewStyle().
-		Foreground(ui.LocoCyan).
+		Foreground(ui.Accent).
 		Bold(true).
 		MarginBottom(1)
 
 	labelStyle := lipgloss.NewStyle().
-		Foreground(ui.LocoDimGrey).
+		Foreground(ui.Fg3).
 		Width(18)
 
 	valueStyle := lipgloss.NewStyle().
-		Foreground(ui.LocoWhite).
+		Foreground(ui.Fg).
 		Bold(true)
 
 	blockStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ui.LocoOrange).
+		BorderForeground(ui.Line2).
 		Padding(1, 2).
 		Margin(1, 2)
 

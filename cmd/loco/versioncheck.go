@@ -70,7 +70,7 @@ func (c *versionCheck) report(w io.Writer) {
 	if hint == "" {
 		return
 	}
-	style := lipgloss.NewStyle().Foreground(ui.LocoOrange)
+	style := lipgloss.NewStyle().Foreground(ui.Warn)
 	styled := style.Render(hint)
 	message := fmt.Sprintf("\n%s\n  Update:    loco update\n  Changelog: %s\n", styled, releasesURL)
 	if _, err := lipgloss.Fprint(w, message); err != nil {

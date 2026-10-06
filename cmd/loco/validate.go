@@ -44,7 +44,7 @@ func validateCmdFunc(cmd *cobra.Command) error {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
 
-	style := lipgloss.NewStyle().Foreground(ui.LocoLightGreen).Bold(true)
+	style := lipgloss.NewStyle().Foreground(ui.Ok).Bold(true)
 	fmt.Printf("\n%s loco.toml is valid!\n\n", style.Render("✓"))
 
 	fmt.Printf("Configuration loaded from: %s\n", loadedCfg.ProjectPath)

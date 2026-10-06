@@ -246,12 +246,12 @@ func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(ui.LocoMuted).
+		BorderForeground(ui.Line2).
 		BorderBottom(true).
 		Bold(false)
 	s.Selected = s.Selected.
-		Foreground(ui.LocoWhite).
-		Background(ui.LocoGreen).
+		Foreground(ui.Fg).
+		Background(ui.Bg3).
 		Bold(false)
 	t.SetStyles(s)
 
@@ -293,7 +293,7 @@ func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error
 
 	m := logModel{
 		table:     t,
-		baseStyle: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(ui.LocoGreyish),
+		baseStyle: lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(ui.Line2),
 		logs:      []table.Row{},
 		logsChan:  logsChan,
 		errChan:   errChan,
@@ -386,7 +386,7 @@ func (m logModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m logModel) View() tea.View {
 	var content string
 	if m.err != nil {
-		content = lipgloss.NewStyle().Foreground(ui.LocoRed).Render(
+		content = lipgloss.NewStyle().Foreground(ui.Bad).Render(
 			fmt.Sprintf("Error: %v", m.err),
 		)
 	} else {

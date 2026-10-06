@@ -125,7 +125,7 @@ Examples:
 			successMsg := fmt.Sprintf("\n🎉 Service '%s' destroyed!", name)
 			s := lipgloss.NewStyle().
 				Bold(true).
-				Foreground(ui.LocoLightGreen).
+				Foreground(ui.Ok).
 				Render(successMsg)
 
 			fmt.Fprintln(deps.Stdout, s)

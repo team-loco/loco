@@ -60,9 +60,9 @@ func newWhoAmICmd(env Env) *cobra.Command {
 }
 
 func renderCardString(usr *userv1.User, currentOrg, currentWorkspace string) string {
-	borderColor := ui.LocoOrange
-	labelColor := lipgloss.Color("#888888")
-	valueColor := lipgloss.Color("#FFFFFF")
+	borderColor := ui.Accent
+	labelColor := ui.Fg3
+	valueColor := ui.Fg
 
 	greeting := lipgloss.NewStyle().
 		Bold(true).
