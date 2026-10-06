@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CommandStreamRequest, CommandStreamResponse, HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse, ReportStatusRequest, ReportStatusResponse } from "./agent_pb";
+import { HeartbeatRequest, HeartbeatResponse, RegisterRequest, RegisterResponse, SyncRequest, SyncResponse } from "./agent_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -26,15 +26,12 @@ export const AgentService = {
       kind: MethodKind.Unary,
     },
     /**
-     * CommandStream is a bidirectional stream for command dispatch.
-     * Control plane sends commands, agent sends acks back.
-     *
-     * @generated from rpc loco.agent.v1.AgentService.CommandStream
+     * @generated from rpc loco.agent.v1.AgentService.Sync
      */
-    commandStream: {
-      name: "CommandStream",
-      I: CommandStreamRequest,
-      O: CommandStreamResponse,
+    sync: {
+      name: "Sync",
+      I: SyncRequest,
+      O: SyncResponse,
       kind: MethodKind.BiDiStreaming,
     },
     /**
@@ -48,17 +45,6 @@ export const AgentService = {
       I: HeartbeatRequest,
       O: HeartbeatResponse,
       kind: MethodKind.BiDiStreaming,
-    },
-    /**
-     * ReportStatus reports deployment status changes from the agent.
-     *
-     * @generated from rpc loco.agent.v1.AgentService.ReportStatus
-     */
-    reportStatus: {
-      name: "ReportStatus",
-      I: ReportStatusRequest,
-      O: ReportStatusResponse,
-      kind: MethodKind.Unary,
     },
   }
 } as const;

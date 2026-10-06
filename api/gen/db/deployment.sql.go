@@ -11,6 +11,37 @@ import (
 	"github.com/google/uuid"
 )
 
+const advanceDeploymentStatus = `-- name: AdvanceDeploymentStatus :exec
+UPDATE deployments
+SET status = $1,
+    message = $2,
+    completed_at = CASE
+        WHEN $1::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
+        ELSE NULL
+    END,
+    updated_at = NOW()
+WHERE id = $3
+  AND is_active = true
+  AND status::text = ANY($4::text[])
+`
+
+type AdvanceDeploymentStatusParams struct {
+	Status       DeploymentStatus `json:"status"`
+	Message      string           `json:"message"`
+	ID           uuid.UUID        `json:"id"`
+	FromStatuses []string         `json:"fromStatuses"`
+}
+
+func (q *Queries) AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error {
+	_, err := q.db.Exec(ctx, advanceDeploymentStatus,
+		arg.Status,
+		arg.Message,
+		arg.ID,
+		arg.FromStatuses,
+	)
+	return err
+}
+
 const createDeployment = `-- name: CreateDeployment :one
 
 INSERT INTO deployments (resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, started_at)
@@ -50,22 +81,6 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
-}
-
-const failDeployment = `-- name: FailDeployment :exec
-UPDATE deployments
-SET status = 'failed', message = $2, completed_at = NOW(), updated_at = NOW()
-WHERE id = $1 AND status NOT IN ('succeeded', 'failed', 'canceled')
-`
-
-type FailDeploymentParams struct {
-	ID      uuid.UUID `json:"id"`
-	Message string    `json:"message"`
-}
-
-func (q *Queries) FailDeployment(ctx context.Context, arg FailDeploymentParams) error {
-	_, err := q.db.Exec(ctx, failDeployment, arg.ID, arg.Message)
-	return err
 }
 
 const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
@@ -351,36 +366,4 @@ type UpdateDeploymentStatusAndActiveParams struct {
 func (q *Queries) UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error {
 	_, err := q.db.Exec(ctx, updateDeploymentStatusAndActive, arg.ID, arg.Status, arg.IsActive)
 	return err
-}
-
-const updateDeploymentStatusFromAgent = `-- name: UpdateDeploymentStatusFromAgent :execrows
-UPDATE deployments
-SET status = $1,
-    message = $2,
-    completed_at = CASE
-        WHEN $1::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
-        ELSE completed_at
-    END,
-    updated_at = NOW()
-WHERE id = $3 AND cluster_id = $4 AND is_active = true
-`
-
-type UpdateDeploymentStatusFromAgentParams struct {
-	Status    DeploymentStatus `json:"status"`
-	Message   string           `json:"message"`
-	ID        uuid.UUID        `json:"id"`
-	ClusterID uuid.UUID        `json:"clusterId"`
-}
-
-func (q *Queries) UpdateDeploymentStatusFromAgent(ctx context.Context, arg UpdateDeploymentStatusFromAgentParams) (int64, error) {
-	result, err := q.db.Exec(ctx, updateDeploymentStatusFromAgent,
-		arg.Status,
-		arg.Message,
-		arg.ID,
-		arg.ClusterID,
-	)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }

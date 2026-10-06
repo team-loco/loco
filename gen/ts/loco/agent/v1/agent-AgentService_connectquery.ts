@@ -10,10 +10,3 @@ import { AgentService } from "./agent_pb";
  * @generated from rpc loco.agent.v1.AgentService.Register
  */
 export const register = AgentService.method.register;
-
-/**
- * ReportStatus reports deployment status changes from the agent.
- *
- * @generated from rpc loco.agent.v1.AgentService.ReportStatus
- */
-export const reportStatus = AgentService.method.reportStatus;

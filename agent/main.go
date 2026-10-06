@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -17,16 +18,21 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
+	"github.com/team-loco/loco/agent/pkg/appwatch"
 	"github.com/team-loco/loco/agent/pkg/cluster"
 	"github.com/team-loco/loco/agent/pkg/kube"
+	"github.com/team-loco/loco/agent/pkg/reconciler"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 )
 
 const (
 	heartbeatInterval           = 30 * time.Second
+	inventoryInterval           = 10 * time.Minute
 	clusterQueryTimeout         = 10 * time.Second
 	defaultControllerDeployment = "controller-loco-manager"
+	reconcileWorkers            = 8
+	outboundBuffer              = 256
 )
 
 type Config struct {
@@ -122,15 +128,23 @@ func main() {
 	}
 
 	inspector := cluster.NewInspector(clientset, cfg.ControllerNamespace, cfg.ControllerDeployment)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	watcher, err := appwatch.Start(ctx, restConfig, cfg.Namespace)
+	if err != nil {
+		slog.Error("failed to watch Applications", "error", err)
+		os.Exit(1)
+	}
+
 	agent := &Agent{
 		cfg:       cfg,
 		client:    client,
 		applier:   kubeApplier,
 		inspector: inspector,
+		watcher:   watcher,
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -152,6 +166,7 @@ type Agent struct {
 	client    agentv1connect.AgentServiceClient
 	applier   *applier.Applier
 	inspector *cluster.Inspector
+	watcher   *appwatch.Watcher
 	clusterID string
 }
 
@@ -164,7 +179,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	errCh := make(chan error, 2)
 
 	go func() {
-		errCh <- a.runCommandStream(ctx)
+		errCh <- a.runSync(ctx)
 	}()
 
 	go func() {
@@ -199,8 +214,8 @@ func (a *Agent) register(ctx context.Context) error {
 	return nil
 }
 
-func (a *Agent) runCommandStream(ctx context.Context) error {
-	return reconnectLoop(ctx, "command stream", a.commandStreamLoop)
+func (a *Agent) runSync(ctx context.Context) error {
+	return reconnectLoop(ctx, "sync stream", a.syncLoop)
 }
 
 func (a *Agent) runHeartbeat(ctx context.Context) error {
@@ -233,42 +248,165 @@ func reconnectLoop(ctx context.Context, name string, attempt func(context.Contex
 	}
 }
 
-func (a *Agent) commandStreamLoop(ctx context.Context) error {
+type syncSession struct {
+	stream   *connect.BidiStreamForClient[agentv1.SyncRequest, agentv1.SyncResponse]
+	outbound chan *agentv1.SyncRequest
+	done     <-chan struct{}
+}
+
+func (ss *syncSession) enqueue(msg *agentv1.SyncRequest) {
+	select {
+	case ss.outbound <- msg:
+	case <-ss.done:
+	}
+}
+
+func (ss *syncSession) sendLoop(ctx context.Context, sendErr chan<- error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg := <-ss.outbound:
+			if err := ss.stream.Send(msg); err != nil {
+				sendErr <- streamError(ss.stream, err)
+				return
+			}
+		}
+	}
+}
+
+func (a *Agent) syncLoop(ctx context.Context) error {
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	stream := a.client.CommandStream(streamCtx)
+	stream := a.client.Sync(streamCtx)
 	stream.RequestHeader().Set("Authorization", "Bearer "+a.cfg.AgentToken)
+
+	session := &syncSession{
+		stream:   stream,
+		outbound: make(chan *agentv1.SyncRequest, outboundBuffer),
+		done:     streamCtx.Done(),
+	}
+	rec := reconciler.New(a.applier, func(applied *agentv1.Applied) {
+		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Applied{Applied: applied}})
+	}, reconcileWorkers)
+
+	var workers sync.WaitGroup
 	defer func() {
 		cancel()
-		closeStream(ctx, "command stream", stream)
+		workers.Wait()
+		closeStream(ctx, "sync stream", stream)
 	}()
 
-	if err := stream.Send(nil); err != nil {
-		openErr := streamError(stream, err)
-		return fmt.Errorf("open command stream: %w", openErr)
+	inventory, err := a.watcher.Inventory(streamCtx)
+	if err != nil {
+		return fmt.Errorf("build inventory: %w", err)
 	}
+	if err := stream.Send(inventoryRequest(inventory)); err != nil {
+		openErr := streamError(stream, err)
+		return fmt.Errorf("open sync stream: %w", openErr)
+	}
+	slog.InfoContext(ctx, "sync stream connected", "inventory", len(inventory.GetEntries()))
 
-	slog.InfoContext(ctx, "command stream connected")
+	sendErr := make(chan error, 1)
+	workers.Go(func() { rec.Run(streamCtx) })
+	workers.Go(func() { session.sendLoop(streamCtx, sendErr) })
+	workers.Go(func() { a.reportInventory(streamCtx, session) })
+	detach := a.watcher.Attach(func(status *agentv1.PlacementStatus) {
+		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Status{Status: status}})
+	})
+	defer detach()
+
+	received := make(chan *agentv1.SyncResponse)
+	recvErr := make(chan error, 1)
+	workers.Go(func() { receiveSync(streamCtx, stream, received, recvErr) })
 
 	for {
-		cmd, err := stream.Receive()
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case err := <-sendErr:
+			return fmt.Errorf("send sync message: %w", err)
+		case err := <-recvErr:
+			return fmt.Errorf("receive sync message: %w", err)
+		case msg := <-received:
+			submitPlacement(streamCtx, rec, msg)
+		}
+	}
+}
+
+func receiveSync(
+	ctx context.Context,
+	stream *connect.BidiStreamForClient[agentv1.SyncRequest, agentv1.SyncResponse],
+	received chan<- *agentv1.SyncResponse,
+	recvErr chan<- error,
+) {
+	for {
+		msg, err := stream.Receive()
 		if err != nil {
-			return fmt.Errorf("receive command: %w", err)
+			recvErr <- err
+			return
 		}
+		select {
+		case received <- msg:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
 
-		slog.InfoContext(streamCtx, "received command",
-			"command_id", cmd.GetCommandId(),
-			"type", cmd.GetType().String(),
-			"cluster_id", cmd.GetClusterId(),
+func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
+	ticker := time.NewTicker(inventoryInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			inventory, err := a.watcher.Inventory(ctx)
+			if err != nil {
+				slog.WarnContext(ctx, "failed to build inventory", "error", err)
+				continue
+			}
+			session.enqueue(inventoryRequest(inventory))
+		}
+	}
+}
+
+func inventoryRequest(inventory *agentv1.Inventory) *agentv1.SyncRequest {
+	return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_Inventory{Inventory: inventory}}
+}
+
+func submitPlacement(ctx context.Context, rec *reconciler.Reconciler, msg *agentv1.SyncResponse) {
+	switch m := msg.GetMessage().(type) {
+	case *agentv1.SyncResponse_Apply:
+		slog.InfoContext(ctx, "received placement",
+			"placement_id", m.Apply.GetPlacementId(),
+			"revision", m.Apply.GetRevision(),
+			"resource_id", m.Apply.GetResourceId(),
 		)
-
-		ack := a.processCommand(streamCtx, cmd)
-
-		if err := stream.Send(ack); err != nil {
-			sendErr := streamError(stream, err)
-			return fmt.Errorf("send ack: %w", sendErr)
-		}
+		rec.Submit(reconciler.Work{Placement: applier.Placement{
+			ID:          m.Apply.GetPlacementId(),
+			Revision:    m.Apply.GetRevision(),
+			ResourceID:  m.Apply.GetResourceId(),
+			Application: m.Apply.GetApplication(),
+		}})
+	case *agentv1.SyncResponse_Delete:
+		slog.InfoContext(ctx, "received placement deletion",
+			"placement_id", m.Delete.GetPlacementId(),
+			"revision", m.Delete.GetRevision(),
+			"resource_id", m.Delete.GetResourceId(),
+		)
+		rec.Submit(reconciler.Work{
+			Placement: applier.Placement{
+				ID:         m.Delete.GetPlacementId(),
+				Revision:   m.Delete.GetRevision(),
+				ResourceID: m.Delete.GetResourceId(),
+			},
+			Delete: true,
+		})
+	default:
+		slog.WarnContext(ctx, "ignoring empty sync message")
 	}
 }
 
@@ -290,61 +428,6 @@ func streamError[Req, Res any](stream *connect.BidiStreamForClient[Req, Res], se
 		return sendErr
 	}
 	return recvErr
-}
-
-// processCommand handles a single command and returns an ack.
-func (a *Agent) processCommand(ctx context.Context, cmd *agentv1.CommandStreamResponse) *agentv1.CommandStreamRequest {
-	var err error
-
-	switch cmd.GetType() {
-	case agentv1.CommandType_COMMAND_TYPE_DEPLOY:
-		err = a.handleDeploy(ctx, cmd)
-	case agentv1.CommandType_COMMAND_TYPE_DELETE:
-		err = a.handleDelete(ctx, cmd)
-	default:
-		err = fmt.Errorf("%w: unknown command type %s", applier.ErrInvalidPayload, cmd.GetType())
-	}
-
-	if err != nil {
-		retry := isRetryable(err)
-		slog.ErrorContext(ctx, "command failed",
-			"command_id", cmd.GetCommandId(),
-			"retry", retry,
-			"error", err,
-		)
-		return &agentv1.CommandStreamRequest{
-			CommandId:    cmd.GetCommandId(),
-			Success:      false,
-			ErrorMessage: err.Error(),
-			Retry:        retry,
-		}
-	}
-
-	slog.InfoContext(ctx, "command succeeded", "command_id", cmd.GetCommandId())
-	return &agentv1.CommandStreamRequest{
-		CommandId: cmd.GetCommandId(),
-		Success:   true,
-	}
-}
-
-// handleDeploy processes a deploy command.
-func (a *Agent) handleDeploy(ctx context.Context, cmd *agentv1.CommandStreamResponse) error {
-	deploy := cmd.GetDeploy()
-	if deploy == nil {
-		return fmt.Errorf("%w: deploy payload is nil", applier.ErrInvalidPayload)
-	}
-
-	return a.applier.ApplyFromJSON(ctx, deploy.GetApplicationSpec())
-}
-
-// handleDelete processes a delete command.
-func (a *Agent) handleDelete(ctx context.Context, cmd *agentv1.CommandStreamResponse) error {
-	del := cmd.GetDelete()
-	if del == nil {
-		return fmt.Errorf("%w: delete payload is nil", applier.ErrInvalidPayload)
-	}
-
-	return a.applier.DeleteFromJSON(ctx, del.GetResourceId())
 }
 
 func (a *Agent) heartbeatLoop(ctx context.Context) error {

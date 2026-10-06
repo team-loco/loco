@@ -64,18 +64,15 @@ UPDATE deployments
 SET is_active = false, updated_at = NOW()
 WHERE id = $1;
 
--- name: FailDeployment :exec
-UPDATE deployments
-SET status = 'failed', message = $2, completed_at = NOW(), updated_at = NOW()
-WHERE id = $1 AND status NOT IN ('succeeded', 'failed', 'canceled');
-
--- name: UpdateDeploymentStatusFromAgent :execrows
+-- name: AdvanceDeploymentStatus :exec
 UPDATE deployments
 SET status = sqlc.arg(status),
     message = sqlc.arg(message),
     completed_at = CASE
         WHEN sqlc.arg(status)::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
-        ELSE completed_at
+        ELSE NULL
     END,
     updated_at = NOW()
-WHERE id = sqlc.arg(id) AND cluster_id = sqlc.arg(cluster_id) AND is_active = true;
+WHERE id = sqlc.arg(id)
+  AND is_active = true
+  AND status::text = ANY(sqlc.arg(from_statuses)::text[]);

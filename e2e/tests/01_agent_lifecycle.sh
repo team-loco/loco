@@ -2,7 +2,7 @@
 # E2E tests for the agent lifecycle:
 #   - Agent registration
 #   - Heartbeat
-#   - Command dispatch and execution
+#   - Placement sync
 #
 # These functions are sourced by run.sh and called automatically.
 # lib.sh helpers (assert, assert_contains, e2e_psql, etc.) are available.
@@ -56,14 +56,25 @@ test_loco_namespace_exists() {
         kubectl get namespace "$E2E_LOCO_NAMESPACE" --context "kind-${E2E_KIND_CLUSTER}"
 }
 
-test_report_status_rpc() {
-    # Test the ReportStatus RPC directly (agent service has no auth interceptor)
-    # First, create a dummy deployment in the DB to update
-    local deploy_id
-    deploy_id=$(e2e_psql "
+e2e_placement_id='00000000-0000-7000-8000-000000000013'
+e2e_resource_id='00000000-0000-7000-8000-000000000010'
+
+placement_applied() {
+    test "$(e2e_psql "SELECT applied_revision FROM placements WHERE id = '${e2e_placement_id}'")" = "1"
+}
+
+application_annotated() {
+    kubectl get application "resource-${e2e_resource_id}" \
+        --namespace "$E2E_LOCO_NAMESPACE" \
+        --context "kind-${E2E_KIND_CLUSTER}" \
+        -o jsonpath='{.metadata.annotations.loco\.io/placement-revision}' | grep -qx 1
+}
+
+test_agent_applies_placement() {
+    e2e_psql "
         INSERT INTO resources (id, workspace_id, name, type, description, status, spec, spec_version)
         VALUES (
-            '00000000-0000-7000-8000-000000000010',
+            '${e2e_resource_id}',
             '00000000-0000-7000-8000-000000000003',
             'e2e-test-resource',
             'service',
@@ -71,62 +82,26 @@ test_report_status_rpc() {
             'deploying',
             '{\"image\": \"nginx:latest\", \"port\": 80}',
             1
-        ) ON CONFLICT (workspace_id, name) DO UPDATE SET status = 'deploying'
-        RETURNING id;
-    ")
-
-    # Create a resource region
-    e2e_psql "
-        INSERT INTO resource_regions (id, resource_id, region, is_primary, status)
-        VALUES (
-            '00000000-0000-7000-8000-000000000011',
-            '00000000-0000-7000-8000-000000000010',
-            'us-east-1',
-            true,
-            'active'
-        ) ON CONFLICT DO NOTHING;
+        ) ON CONFLICT (workspace_id, name) DO NOTHING;
     " >/dev/null
 
-    # Create a deployment
     e2e_psql "
-        INSERT INTO deployments (id, resource_id, resource_region_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, started_at)
+        INSERT INTO placements (id, resource_id, cluster_id, region, desired_spec)
         VALUES (
-            '00000000-0000-7000-8000-000000000012',
-            '00000000-0000-7000-8000-000000000010',
-            '00000000-0000-7000-8000-000000000011',
+            '${e2e_placement_id}',
+            '${e2e_resource_id}',
             '00000000-0000-7000-8000-000000000005',
             'us-east-1',
-            1,
-            'deploying',
-            true,
-            'E2E test deployment',
-            '00000000-0000-7000-8000-000000000004',
-            '{\"image\": \"nginx:latest\"}',
-            1,
-            NOW()
+            '{\"resource_id\": \"${e2e_resource_id}\", \"app_spec\": {\"type\": \"SERVICE\"}}'
         ) ON CONFLICT DO NOTHING;
+        SELECT pg_notify('placements', '00000000-0000-7000-8000-000000000005');
     " >/dev/null
 
-    # Call ReportStatus via Connect RPC (JSON POST)
-    local response
-    response=$(curl -sf \
-        -X POST \
-        -H "Content-Type: application/json" \
-        -H "Authorization: Bearer ${E2E_AGENT_TOKEN}" \
-        "${E2E_API_URL}/loco.agent.v1.AgentService/ReportStatus" \
-        -d '{
-            "cluster_id": "00000000-0000-7000-8000-000000000005",
-            "deployment_id": "00000000-0000-7000-8000-000000000012",
-            "resource_id": "00000000-0000-7000-8000-000000000010",
-            "phase": "DEPLOYMENT_PHASE_RUNNING",
-            "message": "e2e test: deployment running"
-        }' 2>&1) || true
+    wait_for "agent to apply the placement" 30 application_annotated
+    assert "Agent created the Application at placement revision 1" application_annotated
 
-    # Verify the deployment status was updated in DB
-    local status
-    status=$(e2e_psql "SELECT status FROM deployments WHERE id = '00000000-0000-7000-8000-000000000012'")
-    assert "ReportStatus updated deployment to 'running'" \
-        test "$status" = "running"
+    wait_for "control plane to record the applied revision" 30 placement_applied
+    assert "Placement applied revision recorded as 1" placement_applied
 }
 
 test_agent_logs_no_errors() {

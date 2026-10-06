@@ -2,20 +2,16 @@
 // @generated from file loco/agent/v1/agent.proto (package loco.agent.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
-import type { DeploymentPhase, DeploymentPhaseJson } from "../../deployment/v1/deployment_pb";
-import { file_loco_deployment_v1_deployment } from "../../deployment/v1/deployment_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/agent/v1/agent.proto.
  */
 export const file_loco_agent_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIn4KD1JlZ2lzdGVyUmVxdWVzdBIUCgxjbHVzdGVyX25hbWUYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSLgoIY2FwYWNpdHkYBCABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkiJgoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIukCChVDb21tYW5kU3RyZWFtUmVzcG9uc2USEgoKY29tbWFuZF9pZBgBIAEoCRISCgpjbHVzdGVyX2lkGAIgASgJEi4KCmNyZWF0ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEigKBHR5cGUYBCABKA4yGi5sb2NvLmFnZW50LnYxLkNvbW1hbmRUeXBlEi4KBmRlcGxveRgKIAEoCzIcLmxvY28uYWdlbnQudjEuRGVwbG95Q29tbWFuZEgAEi4KBmRlbGV0ZRgLIAEoCzIcLmxvY28uYWdlbnQudjEuRGVsZXRlQ29tbWFuZEgAEiwKBXNjYWxlGAwgASgLMhsubG9jby5hZ2VudC52MS5TY2FsZUNvbW1hbmRIABI1Cgp1cGRhdGVfZW52GA0gASgLMh8ubG9jby5hZ2VudC52MS5VcGRhdGVFbnZDb21tYW5kSABCCQoHcGF5bG9hZCJ+Cg1EZXBsb3lDb21tYW5kEhMKC3Jlc291cmNlX2lkGAEgASgJEhUKDWRlcGxveW1lbnRfaWQYAiABKAkSFAoMd29ya3NwYWNlX2lkGAMgASgJEhEKCW5hbWVzcGFjZRgEIAEoCRIYChBhcHBsaWNhdGlvbl9zcGVjGAUgASgMIjcKDURlbGV0ZUNvbW1hbmQSEwoLcmVzb3VyY2VfaWQYASABKAkSEQoJbmFtZXNwYWNlGAIgASgJIkgKDFNjYWxlQ29tbWFuZBITCgtyZXNvdXJjZV9pZBgBIAEoCRIQCghyZXBsaWNhcxgCIAEoBRIRCgluYW1lc3BhY2UYAyABKAkinQEKEFVwZGF0ZUVudkNvbW1hbmQSEwoLcmVzb3VyY2VfaWQYASABKAkSNQoDZW52GAIgAygLMigubG9jby5hZ2VudC52MS5VcGRhdGVFbnZDb21tYW5kLkVudkVudHJ5EhEKCW5hbWVzcGFjZRgDIAEoCRoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBImEKFENvbW1hbmRTdHJlYW1SZXF1ZXN0EhIKCmNvbW1hbmRfaWQYASABKAkSDwoHc3VjY2VzcxgCIAEoCBIVCg1lcnJvcl9tZXNzYWdlGAMgASgJEg0KBXJldHJ5GAQgASgIIowBChBIZWFydGJlYXRSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEi4KCGNhcGFjaXR5GAIgASgLMhwubG9jby5hZ2VudC52MS5BZ2VudENhcGFjaXR5EioKBmhlYWx0aBgDIAEoCzIaLmxvY28uYWdlbnQudjEuQWdlbnRIZWFsdGgiQwoRSGVhcnRiZWF0UmVzcG9uc2VKBAgBEAJKBAgCEANKBAgDEARSBWRyYWluUg1yZWxvYWRfY29uZmlnUgZyZXN5bmMiqwEKDUFnZW50Q2FwYWNpdHkSHAoUY3B1X21pbGxpY29yZXNfdG90YWwYASABKAMSGwoTY3B1X21pbGxpY29yZXNfdXNlZBgCIAEoAxIaChJtZW1vcnlfYnl0ZXNfdG90YWwYAyABKAMSGQoRbWVtb3J5X2J5dGVzX3VzZWQYBCABKAMSEgoKcG9kc190b3RhbBgFIAEoBRIUCgxwb2RzX3J1bm5pbmcYBiABKAUiVgoLQWdlbnRIZWFsdGgSGgoSa3ViZXJuZXRlc19oZWFsdGh5GAEgASgIEhoKEmNvbnRyb2xsZXJfaGVhbHRoeRgCIAEoCBIPCgdtZXNzYWdlGAMgASgJIuYBChNSZXBvcnRTdGF0dXNSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAIgASgJQgi6SAVyA7ABARIfCg1kZXBsb3ltZW50X2lkGAMgASgJQgi6SAVyA7ABARIyCgVwaGFzZRgEIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGhhc2USDwoHbWVzc2FnZRgFIAEoCRIsCgpjb25kaXRpb25zGAYgAygLMhgubG9jby5hZ2VudC52MS5Db25kaXRpb24iFgoUUmVwb3J0U3RhdHVzUmVzcG9uc2UihAEKCUNvbmRpdGlvbhIMCgR0eXBlGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIOCgZyZWFzb24YAyABKAkSDwoHbWVzc2FnZRgEIAEoCRI4ChRsYXN0X3RyYW5zaXRpb25fdGltZRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAqXQoLQ29tbWFuZFR5cGUSHAoYQ09NTUFORF9UWVBFX1VOU1BFQ0lGSUVEEAASFwoTQ09NTUFORF9UWVBFX0RFUExPWRABEhcKE0NPTU1BTkRfVFlQRV9ERUxFVEUQAjLoAgoMQWdlbnRTZXJ2aWNlEksKCFJlZ2lzdGVyEh4ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlcXVlc3QaHy5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVzcG9uc2USXgoNQ29tbWFuZFN0cmVhbRIjLmxvY28uYWdlbnQudjEuQ29tbWFuZFN0cmVhbVJlcXVlc3QaJC5sb2NvLmFnZW50LnYxLkNvbW1hbmRTdHJlYW1SZXNwb25zZSgBMAESUgoJSGVhcnRiZWF0Eh8ubG9jby5hZ2VudC52MS5IZWFydGJlYXRSZXF1ZXN0GiAubG9jby5hZ2VudC52MS5IZWFydGJlYXRSZXNwb25zZSgBMAESVwoMUmVwb3J0U3RhdHVzEiIubG9jby5hZ2VudC52MS5SZXBvcnRTdGF0dXNSZXF1ZXN0GiMubG9jby5hZ2VudC52MS5SZXBvcnRTdGF0dXNSZXNwb25zZUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FnZW50L3YxO2FnZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_deployment_v1_deployment]);
+  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIn4KD1JlZ2lzdGVyUmVxdWVzdBIUCgxjbHVzdGVyX25hbWUYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSLgoIY2FwYWNpdHkYBCABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkiJgoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIqQBCgtTeW5jUmVxdWVzdBItCglpbnZlbnRvcnkYASABKAsyGC5sb2NvLmFnZW50LnYxLkludmVudG9yeUgAEikKB2FwcGxpZWQYAiABKAsyFi5sb2NvLmFnZW50LnYxLkFwcGxpZWRIABIwCgZzdGF0dXMYAyABKAsyHi5sb2NvLmFnZW50LnYxLlBsYWNlbWVudFN0YXR1c0gAQgkKB21lc3NhZ2UiOwoJSW52ZW50b3J5Ei4KB2VudHJpZXMYASADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUVudHJ5IjgKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAyJSCgdBcHBsaWVkEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxINCgVlcnJvchgDIAEoCRIQCghyZXRyeWluZxgEIAEoCCKJAQoPUGxhY2VtZW50U3RhdHVzEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIZChFvYnNlcnZlZF9yZXZpc2lvbhgCIAEoAxINCgVyZWFkeRgDIAEoCBIWCg5yZWFkeV9yZXBsaWNhcxgEIAEoBRINCgVwaGFzZRgFIAEoCRIPCgdtZXNzYWdlGAYgASgJImkKDFN5bmNSZXNwb25zZRIlCgVhcHBseRgBIAEoCzIULmxvY28uYWdlbnQudjEuQXBwbHlIABInCgZkZWxldGUYAiABKAsyFS5sb2NvLmFnZW50LnYxLkRlbGV0ZUgAQgkKB21lc3NhZ2UiWQoFQXBwbHkSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJEhMKC2FwcGxpY2F0aW9uGAQgASgMIkUKBkRlbGV0ZRIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSEwoLcmVzb3VyY2VfaWQYAyABKAkijAEKEEhlYXJ0YmVhdFJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESLgoIY2FwYWNpdHkYAiABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkSKgoGaGVhbHRoGAMgASgLMhoubG9jby5hZ2VudC52MS5BZ2VudEhlYWx0aCJDChFIZWFydGJlYXRSZXNwb25zZUoECAEQAkoECAIQA0oECAMQBFIFZHJhaW5SDXJlbG9hZF9jb25maWdSBnJlc3luYyKrAQoNQWdlbnRDYXBhY2l0eRIcChRjcHVfbWlsbGljb3Jlc190b3RhbBgBIAEoAxIbChNjcHVfbWlsbGljb3Jlc191c2VkGAIgASgDEhoKEm1lbW9yeV9ieXRlc190b3RhbBgDIAEoAxIZChFtZW1vcnlfYnl0ZXNfdXNlZBgEIAEoAxISCgpwb2RzX3RvdGFsGAUgASgFEhQKDHBvZHNfcnVubmluZxgGIAEoBSJWCgtBZ2VudEhlYWx0aBIaChJrdWJlcm5ldGVzX2hlYWx0aHkYASABKAgSGgoSY29udHJvbGxlcl9oZWFsdGh5GAIgASgIEg8KB21lc3NhZ2UYAyABKAky9AEKDEFnZW50U2VydmljZRJLCghSZWdpc3RlchIeLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlc3BvbnNlEkMKBFN5bmMSGi5sb2NvLmFnZW50LnYxLlN5bmNSZXF1ZXN0GhsubG9jby5hZ2VudC52MS5TeW5jUmVzcG9uc2UoATABElIKCUhlYXJ0YmVhdBIfLmxvY28uYWdlbnQudjEuSGVhcnRiZWF0UmVxdWVzdBogLmxvY28uYWdlbnQudjEuSGVhcnRiZWF0UmVzcG9uc2UoATABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWdlbnQvdjE7YWdlbnR2MWIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * RegisterRequest is sent by the agent on startup to announce itself.
@@ -110,401 +106,405 @@ export const RegisterResponseSchema: GenMessage<RegisterResponse, {jsonType: Reg
   messageDesc(file_loco_agent_v1_agent, 1);
 
 /**
- * CommandStreamResponse represents a unit of work to be executed by an agent.
- *
- * @generated from message loco.agent.v1.CommandStreamResponse
+ * @generated from message loco.agent.v1.SyncRequest
  */
-export type CommandStreamResponse = Message<"loco.agent.v1.CommandStreamResponse"> & {
+export type SyncRequest = Message<"loco.agent.v1.SyncRequest"> & {
   /**
-   * @generated from field: string command_id = 1;
+   * @generated from oneof loco.agent.v1.SyncRequest.message
    */
-  commandId: string;
-
-  /**
-   * @generated from field: string cluster_id = 2;
-   */
-  clusterId: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp created_at = 3;
-   */
-  createdAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: loco.agent.v1.CommandType type = 4;
-   */
-  type: CommandType;
-
-  /**
-   * @generated from oneof loco.agent.v1.CommandStreamResponse.payload
-   */
-  payload: {
+  message: {
     /**
-     * @generated from field: loco.agent.v1.DeployCommand deploy = 10;
+     * @generated from field: loco.agent.v1.Inventory inventory = 1;
      */
-    value: DeployCommand;
-    case: "deploy";
+    value: Inventory;
+    case: "inventory";
   } | {
     /**
-     * @generated from field: loco.agent.v1.DeleteCommand delete = 11;
+     * @generated from field: loco.agent.v1.Applied applied = 2;
      */
-    value: DeleteCommand;
-    case: "delete";
+    value: Applied;
+    case: "applied";
   } | {
     /**
-     * @generated from field: loco.agent.v1.ScaleCommand scale = 12;
+     * @generated from field: loco.agent.v1.PlacementStatus status = 3;
      */
-    value: ScaleCommand;
-    case: "scale";
-  } | {
-    /**
-     * @generated from field: loco.agent.v1.UpdateEnvCommand update_env = 13;
-     */
-    value: UpdateEnvCommand;
-    case: "updateEnv";
+    value: PlacementStatus;
+    case: "status";
   } | { case: undefined; value?: undefined };
 };
 
 /**
- * CommandStreamResponse represents a unit of work to be executed by an agent.
- *
- * @generated from message loco.agent.v1.CommandStreamResponse
+ * @generated from message loco.agent.v1.SyncRequest
  */
-export type CommandStreamResponseJson = {
+export type SyncRequestJson = {
   /**
-   * @generated from field: string command_id = 1;
+   * @generated from field: loco.agent.v1.Inventory inventory = 1;
    */
-  commandId?: string;
+  inventory?: InventoryJson;
 
   /**
-   * @generated from field: string cluster_id = 2;
+   * @generated from field: loco.agent.v1.Applied applied = 2;
    */
-  clusterId?: string;
+  applied?: AppliedJson;
 
   /**
-   * @generated from field: google.protobuf.Timestamp created_at = 3;
+   * @generated from field: loco.agent.v1.PlacementStatus status = 3;
    */
-  createdAt?: TimestampJson;
-
-  /**
-   * @generated from field: loco.agent.v1.CommandType type = 4;
-   */
-  type?: CommandTypeJson;
-
-  /**
-   * @generated from field: loco.agent.v1.DeployCommand deploy = 10;
-   */
-  deploy?: DeployCommandJson;
-
-  /**
-   * @generated from field: loco.agent.v1.DeleteCommand delete = 11;
-   */
-  delete?: DeleteCommandJson;
-
-  /**
-   * @generated from field: loco.agent.v1.ScaleCommand scale = 12;
-   */
-  scale?: ScaleCommandJson;
-
-  /**
-   * @generated from field: loco.agent.v1.UpdateEnvCommand update_env = 13;
-   */
-  updateEnv?: UpdateEnvCommandJson;
+  status?: PlacementStatusJson;
 };
 
 /**
- * Describes the message loco.agent.v1.CommandStreamResponse.
- * Use `create(CommandStreamResponseSchema)` to create a new message.
+ * Describes the message loco.agent.v1.SyncRequest.
+ * Use `create(SyncRequestSchema)` to create a new message.
  */
-export const CommandStreamResponseSchema: GenMessage<CommandStreamResponse, {jsonType: CommandStreamResponseJson}> = /*@__PURE__*/
+export const SyncRequestSchema: GenMessage<SyncRequest, {jsonType: SyncRequestJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 2);
 
 /**
- * DeployCommand instructs the agent to deploy an application.
- *
- * @generated from message loco.agent.v1.DeployCommand
+ * @generated from message loco.agent.v1.Inventory
  */
-export type DeployCommand = Message<"loco.agent.v1.DeployCommand"> & {
+export type Inventory = Message<"loco.agent.v1.Inventory"> & {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: repeated loco.agent.v1.InventoryEntry entries = 1;
    */
-  resourceId: string;
-
-  /**
-   * @generated from field: string deployment_id = 2;
-   */
-  deploymentId: string;
-
-  /**
-   * @generated from field: string workspace_id = 3;
-   */
-  workspaceId: string;
-
-  /**
-   * @generated from field: string namespace = 4;
-   */
-  namespace: string;
-
-  /**
-   * JSON-serialized Application CRD spec
-   *
-   * @generated from field: bytes application_spec = 5;
-   */
-  applicationSpec: Uint8Array;
+  entries: InventoryEntry[];
 };
 
 /**
- * DeployCommand instructs the agent to deploy an application.
- *
- * @generated from message loco.agent.v1.DeployCommand
+ * @generated from message loco.agent.v1.Inventory
  */
-export type DeployCommandJson = {
+export type InventoryJson = {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: repeated loco.agent.v1.InventoryEntry entries = 1;
    */
-  resourceId?: string;
-
-  /**
-   * @generated from field: string deployment_id = 2;
-   */
-  deploymentId?: string;
-
-  /**
-   * @generated from field: string workspace_id = 3;
-   */
-  workspaceId?: string;
-
-  /**
-   * @generated from field: string namespace = 4;
-   */
-  namespace?: string;
-
-  /**
-   * JSON-serialized Application CRD spec
-   *
-   * @generated from field: bytes application_spec = 5;
-   */
-  applicationSpec?: string;
+  entries?: InventoryEntryJson[];
 };
 
 /**
- * Describes the message loco.agent.v1.DeployCommand.
- * Use `create(DeployCommandSchema)` to create a new message.
+ * Describes the message loco.agent.v1.Inventory.
+ * Use `create(InventorySchema)` to create a new message.
  */
-export const DeployCommandSchema: GenMessage<DeployCommand, {jsonType: DeployCommandJson}> = /*@__PURE__*/
+export const InventorySchema: GenMessage<Inventory, {jsonType: InventoryJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 3);
 
 /**
- * DeleteCommand instructs the agent to delete an application.
- *
- * @generated from message loco.agent.v1.DeleteCommand
+ * @generated from message loco.agent.v1.InventoryEntry
  */
-export type DeleteCommand = Message<"loco.agent.v1.DeleteCommand"> & {
+export type InventoryEntry = Message<"loco.agent.v1.InventoryEntry"> & {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: string placement_id = 1;
    */
-  resourceId: string;
+  placementId: string;
 
   /**
-   * @generated from field: string namespace = 2;
+   * @generated from field: int64 revision = 2;
    */
-  namespace: string;
+  revision: bigint;
 };
 
 /**
- * DeleteCommand instructs the agent to delete an application.
- *
- * @generated from message loco.agent.v1.DeleteCommand
+ * @generated from message loco.agent.v1.InventoryEntry
  */
-export type DeleteCommandJson = {
+export type InventoryEntryJson = {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: string placement_id = 1;
    */
-  resourceId?: string;
+  placementId?: string;
 
   /**
-   * @generated from field: string namespace = 2;
+   * @generated from field: int64 revision = 2;
    */
-  namespace?: string;
+  revision?: string;
 };
 
 /**
- * Describes the message loco.agent.v1.DeleteCommand.
- * Use `create(DeleteCommandSchema)` to create a new message.
+ * Describes the message loco.agent.v1.InventoryEntry.
+ * Use `create(InventoryEntrySchema)` to create a new message.
  */
-export const DeleteCommandSchema: GenMessage<DeleteCommand, {jsonType: DeleteCommandJson}> = /*@__PURE__*/
+export const InventoryEntrySchema: GenMessage<InventoryEntry, {jsonType: InventoryEntryJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 4);
 
 /**
- * ScaleCommand instructs the agent to scale an application.
- *
- * @generated from message loco.agent.v1.ScaleCommand
+ * @generated from message loco.agent.v1.Applied
  */
-export type ScaleCommand = Message<"loco.agent.v1.ScaleCommand"> & {
+export type Applied = Message<"loco.agent.v1.Applied"> & {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: string placement_id = 1;
    */
-  resourceId: string;
+  placementId: string;
 
   /**
-   * @generated from field: int32 replicas = 2;
+   * @generated from field: int64 revision = 2;
    */
-  replicas: number;
+  revision: bigint;
 
   /**
-   * @generated from field: string namespace = 3;
+   * @generated from field: string error = 3;
    */
-  namespace: string;
+  error: string;
+
+  /**
+   * @generated from field: bool retrying = 4;
+   */
+  retrying: boolean;
 };
 
 /**
- * ScaleCommand instructs the agent to scale an application.
- *
- * @generated from message loco.agent.v1.ScaleCommand
+ * @generated from message loco.agent.v1.Applied
  */
-export type ScaleCommandJson = {
+export type AppliedJson = {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: string placement_id = 1;
    */
-  resourceId?: string;
+  placementId?: string;
 
   /**
-   * @generated from field: int32 replicas = 2;
+   * @generated from field: int64 revision = 2;
    */
-  replicas?: number;
+  revision?: string;
 
   /**
-   * @generated from field: string namespace = 3;
+   * @generated from field: string error = 3;
    */
-  namespace?: string;
+  error?: string;
+
+  /**
+   * @generated from field: bool retrying = 4;
+   */
+  retrying?: boolean;
 };
 
 /**
- * Describes the message loco.agent.v1.ScaleCommand.
- * Use `create(ScaleCommandSchema)` to create a new message.
+ * Describes the message loco.agent.v1.Applied.
+ * Use `create(AppliedSchema)` to create a new message.
  */
-export const ScaleCommandSchema: GenMessage<ScaleCommand, {jsonType: ScaleCommandJson}> = /*@__PURE__*/
+export const AppliedSchema: GenMessage<Applied, {jsonType: AppliedJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 5);
 
 /**
- * UpdateEnvCommand instructs the agent to update environment variables.
- *
- * @generated from message loco.agent.v1.UpdateEnvCommand
+ * @generated from message loco.agent.v1.PlacementStatus
  */
-export type UpdateEnvCommand = Message<"loco.agent.v1.UpdateEnvCommand"> & {
+export type PlacementStatus = Message<"loco.agent.v1.PlacementStatus"> & {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: string placement_id = 1;
+   */
+  placementId: string;
+
+  /**
+   * @generated from field: int64 observed_revision = 2;
+   */
+  observedRevision: bigint;
+
+  /**
+   * @generated from field: bool ready = 3;
+   */
+  ready: boolean;
+
+  /**
+   * @generated from field: int32 ready_replicas = 4;
+   */
+  readyReplicas: number;
+
+  /**
+   * @generated from field: string phase = 5;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: string message = 6;
+   */
+  message: string;
+};
+
+/**
+ * @generated from message loco.agent.v1.PlacementStatus
+ */
+export type PlacementStatusJson = {
+  /**
+   * @generated from field: string placement_id = 1;
+   */
+  placementId?: string;
+
+  /**
+   * @generated from field: int64 observed_revision = 2;
+   */
+  observedRevision?: string;
+
+  /**
+   * @generated from field: bool ready = 3;
+   */
+  ready?: boolean;
+
+  /**
+   * @generated from field: int32 ready_replicas = 4;
+   */
+  readyReplicas?: number;
+
+  /**
+   * @generated from field: string phase = 5;
+   */
+  phase?: string;
+
+  /**
+   * @generated from field: string message = 6;
+   */
+  message?: string;
+};
+
+/**
+ * Describes the message loco.agent.v1.PlacementStatus.
+ * Use `create(PlacementStatusSchema)` to create a new message.
+ */
+export const PlacementStatusSchema: GenMessage<PlacementStatus, {jsonType: PlacementStatusJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 6);
+
+/**
+ * @generated from message loco.agent.v1.SyncResponse
+ */
+export type SyncResponse = Message<"loco.agent.v1.SyncResponse"> & {
+  /**
+   * @generated from oneof loco.agent.v1.SyncResponse.message
+   */
+  message: {
+    /**
+     * @generated from field: loco.agent.v1.Apply apply = 1;
+     */
+    value: Apply;
+    case: "apply";
+  } | {
+    /**
+     * @generated from field: loco.agent.v1.Delete delete = 2;
+     */
+    value: Delete;
+    case: "delete";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * @generated from message loco.agent.v1.SyncResponse
+ */
+export type SyncResponseJson = {
+  /**
+   * @generated from field: loco.agent.v1.Apply apply = 1;
+   */
+  apply?: ApplyJson;
+
+  /**
+   * @generated from field: loco.agent.v1.Delete delete = 2;
+   */
+  delete?: DeleteJson;
+};
+
+/**
+ * Describes the message loco.agent.v1.SyncResponse.
+ * Use `create(SyncResponseSchema)` to create a new message.
+ */
+export const SyncResponseSchema: GenMessage<SyncResponse, {jsonType: SyncResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 7);
+
+/**
+ * @generated from message loco.agent.v1.Apply
+ */
+export type Apply = Message<"loco.agent.v1.Apply"> & {
+  /**
+   * @generated from field: string placement_id = 1;
+   */
+  placementId: string;
+
+  /**
+   * @generated from field: int64 revision = 2;
+   */
+  revision: bigint;
+
+  /**
+   * @generated from field: string resource_id = 3;
    */
   resourceId: string;
 
   /**
-   * @generated from field: map<string, string> env = 2;
+   * @generated from field: bytes application = 4;
    */
-  env: { [key: string]: string };
-
-  /**
-   * @generated from field: string namespace = 3;
-   */
-  namespace: string;
+  application: Uint8Array;
 };
 
 /**
- * UpdateEnvCommand instructs the agent to update environment variables.
- *
- * @generated from message loco.agent.v1.UpdateEnvCommand
+ * @generated from message loco.agent.v1.Apply
  */
-export type UpdateEnvCommandJson = {
+export type ApplyJson = {
   /**
-   * @generated from field: string resource_id = 1;
+   * @generated from field: string placement_id = 1;
+   */
+  placementId?: string;
+
+  /**
+   * @generated from field: int64 revision = 2;
+   */
+  revision?: string;
+
+  /**
+   * @generated from field: string resource_id = 3;
    */
   resourceId?: string;
 
   /**
-   * @generated from field: map<string, string> env = 2;
+   * @generated from field: bytes application = 4;
    */
-  env?: { [key: string]: string };
-
-  /**
-   * @generated from field: string namespace = 3;
-   */
-  namespace?: string;
+  application?: string;
 };
 
 /**
- * Describes the message loco.agent.v1.UpdateEnvCommand.
- * Use `create(UpdateEnvCommandSchema)` to create a new message.
+ * Describes the message loco.agent.v1.Apply.
+ * Use `create(ApplySchema)` to create a new message.
  */
-export const UpdateEnvCommandSchema: GenMessage<UpdateEnvCommand, {jsonType: UpdateEnvCommandJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 6);
+export const ApplySchema: GenMessage<Apply, {jsonType: ApplyJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 8);
 
 /**
- * CommandStreamRequest is sent by the agent to acknowledge command processing.
- *
- * @generated from message loco.agent.v1.CommandStreamRequest
+ * @generated from message loco.agent.v1.Delete
  */
-export type CommandStreamRequest = Message<"loco.agent.v1.CommandStreamRequest"> & {
+export type Delete = Message<"loco.agent.v1.Delete"> & {
   /**
-   * @generated from field: string command_id = 1;
+   * @generated from field: string placement_id = 1;
    */
-  commandId: string;
+  placementId: string;
 
   /**
-   * @generated from field: bool success = 2;
+   * @generated from field: int64 revision = 2;
    */
-  success: boolean;
+  revision: bigint;
 
   /**
-   * populated if success = false
-   *
-   * @generated from field: string error_message = 3;
+   * @generated from field: string resource_id = 3;
    */
-  errorMessage: string;
-
-  /**
-   * if true and failed, control plane should retry
-   *
-   * @generated from field: bool retry = 4;
-   */
-  retry: boolean;
+  resourceId: string;
 };
 
 /**
- * CommandStreamRequest is sent by the agent to acknowledge command processing.
- *
- * @generated from message loco.agent.v1.CommandStreamRequest
+ * @generated from message loco.agent.v1.Delete
  */
-export type CommandStreamRequestJson = {
+export type DeleteJson = {
   /**
-   * @generated from field: string command_id = 1;
+   * @generated from field: string placement_id = 1;
    */
-  commandId?: string;
+  placementId?: string;
 
   /**
-   * @generated from field: bool success = 2;
+   * @generated from field: int64 revision = 2;
    */
-  success?: boolean;
+  revision?: string;
 
   /**
-   * populated if success = false
-   *
-   * @generated from field: string error_message = 3;
+   * @generated from field: string resource_id = 3;
    */
-  errorMessage?: string;
-
-  /**
-   * if true and failed, control plane should retry
-   *
-   * @generated from field: bool retry = 4;
-   */
-  retry?: boolean;
+  resourceId?: string;
 };
 
 /**
- * Describes the message loco.agent.v1.CommandStreamRequest.
- * Use `create(CommandStreamRequestSchema)` to create a new message.
+ * Describes the message loco.agent.v1.Delete.
+ * Use `create(DeleteSchema)` to create a new message.
  */
-export const CommandStreamRequestSchema: GenMessage<CommandStreamRequest, {jsonType: CommandStreamRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 7);
+export const DeleteSchema: GenMessage<Delete, {jsonType: DeleteJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 9);
 
 /**
  * HeartbeatRequest is sent periodically by the agent.
@@ -555,7 +555,7 @@ export type HeartbeatRequestJson = {
  * Use `create(HeartbeatRequestSchema)` to create a new message.
  */
 export const HeartbeatRequestSchema: GenMessage<HeartbeatRequest, {jsonType: HeartbeatRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 8);
+  messageDesc(file_loco_agent_v1_agent, 10);
 
 /**
  * HeartbeatResponse is the control plane's reply on the heartbeat stream.
@@ -578,7 +578,7 @@ export type HeartbeatResponseJson = {
  * Use `create(HeartbeatResponseSchema)` to create a new message.
  */
 export const HeartbeatResponseSchema: GenMessage<HeartbeatResponse, {jsonType: HeartbeatResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 9);
+  messageDesc(file_loco_agent_v1_agent, 11);
 
 /**
  * AgentCapacity reports cluster resource capacity.
@@ -659,7 +659,7 @@ export type AgentCapacityJson = {
  * Use `create(AgentCapacitySchema)` to create a new message.
  */
 export const AgentCapacitySchema: GenMessage<AgentCapacity, {jsonType: AgentCapacityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 10);
+  messageDesc(file_loco_agent_v1_agent, 12);
 
 /**
  * AgentHealth reports agent and cluster health status.
@@ -710,221 +710,7 @@ export type AgentHealthJson = {
  * Use `create(AgentHealthSchema)` to create a new message.
  */
 export const AgentHealthSchema: GenMessage<AgentHealth, {jsonType: AgentHealthJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 11);
-
-/**
- * ReportStatusRequest is sent by the agent when deployment status changes.
- *
- * @generated from message loco.agent.v1.ReportStatusRequest
- */
-export type ReportStatusRequest = Message<"loco.agent.v1.ReportStatusRequest"> & {
-  /**
-   * @generated from field: string cluster_id = 1;
-   */
-  clusterId: string;
-
-  /**
-   * @generated from field: string resource_id = 2;
-   */
-  resourceId: string;
-
-  /**
-   * @generated from field: string deployment_id = 3;
-   */
-  deploymentId: string;
-
-  /**
-   * @generated from field: loco.deployment.v1.DeploymentPhase phase = 4;
-   */
-  phase: DeploymentPhase;
-
-  /**
-   * @generated from field: string message = 5;
-   */
-  message: string;
-
-  /**
-   * @generated from field: repeated loco.agent.v1.Condition conditions = 6;
-   */
-  conditions: Condition[];
-};
-
-/**
- * ReportStatusRequest is sent by the agent when deployment status changes.
- *
- * @generated from message loco.agent.v1.ReportStatusRequest
- */
-export type ReportStatusRequestJson = {
-  /**
-   * @generated from field: string cluster_id = 1;
-   */
-  clusterId?: string;
-
-  /**
-   * @generated from field: string resource_id = 2;
-   */
-  resourceId?: string;
-
-  /**
-   * @generated from field: string deployment_id = 3;
-   */
-  deploymentId?: string;
-
-  /**
-   * @generated from field: loco.deployment.v1.DeploymentPhase phase = 4;
-   */
-  phase?: DeploymentPhaseJson;
-
-  /**
-   * @generated from field: string message = 5;
-   */
-  message?: string;
-
-  /**
-   * @generated from field: repeated loco.agent.v1.Condition conditions = 6;
-   */
-  conditions?: ConditionJson[];
-};
-
-/**
- * Describes the message loco.agent.v1.ReportStatusRequest.
- * Use `create(ReportStatusRequestSchema)` to create a new message.
- */
-export const ReportStatusRequestSchema: GenMessage<ReportStatusRequest, {jsonType: ReportStatusRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 12);
-
-/**
- * ReportStatusResponse acknowledges the status report.
- *
- * @generated from message loco.agent.v1.ReportStatusResponse
- */
-export type ReportStatusResponse = Message<"loco.agent.v1.ReportStatusResponse"> & {
-};
-
-/**
- * ReportStatusResponse acknowledges the status report.
- *
- * @generated from message loco.agent.v1.ReportStatusResponse
- */
-export type ReportStatusResponseJson = {
-};
-
-/**
- * Describes the message loco.agent.v1.ReportStatusResponse.
- * Use `create(ReportStatusResponseSchema)` to create a new message.
- */
-export const ReportStatusResponseSchema: GenMessage<ReportStatusResponse, {jsonType: ReportStatusResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 13);
-
-/**
- * Condition represents a Kubernetes-style condition.
- *
- * @generated from message loco.agent.v1.Condition
- */
-export type Condition = Message<"loco.agent.v1.Condition"> & {
-  /**
-   * @generated from field: string type = 1;
-   */
-  type: string;
-
-  /**
-   * "True", "False", "Unknown"
-   *
-   * @generated from field: string status = 2;
-   */
-  status: string;
-
-  /**
-   * @generated from field: string reason = 3;
-   */
-  reason: string;
-
-  /**
-   * @generated from field: string message = 4;
-   */
-  message: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp last_transition_time = 5;
-   */
-  lastTransitionTime?: Timestamp | undefined;
-};
-
-/**
- * Condition represents a Kubernetes-style condition.
- *
- * @generated from message loco.agent.v1.Condition
- */
-export type ConditionJson = {
-  /**
-   * @generated from field: string type = 1;
-   */
-  type?: string;
-
-  /**
-   * "True", "False", "Unknown"
-   *
-   * @generated from field: string status = 2;
-   */
-  status?: string;
-
-  /**
-   * @generated from field: string reason = 3;
-   */
-  reason?: string;
-
-  /**
-   * @generated from field: string message = 4;
-   */
-  message?: string;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp last_transition_time = 5;
-   */
-  lastTransitionTime?: TimestampJson;
-};
-
-/**
- * Describes the message loco.agent.v1.Condition.
- * Use `create(ConditionSchema)` to create a new message.
- */
-export const ConditionSchema: GenMessage<Condition, {jsonType: ConditionJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 14);
-
-/**
- * CommandType identifies the type of command.
- *
- * @generated from enum loco.agent.v1.CommandType
- */
-export enum CommandType {
-  /**
-   * @generated from enum value: COMMAND_TYPE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: COMMAND_TYPE_DEPLOY = 1;
-   */
-  DEPLOY = 1,
-
-  /**
-   * @generated from enum value: COMMAND_TYPE_DELETE = 2;
-   */
-  DELETE = 2,
-}
-
-/**
- * CommandType identifies the type of command.
- *
- * @generated from enum loco.agent.v1.CommandType
- */
-export type CommandTypeJson = "COMMAND_TYPE_UNSPECIFIED" | "COMMAND_TYPE_DEPLOY" | "COMMAND_TYPE_DELETE";
-
-/**
- * Describes the enum loco.agent.v1.CommandType.
- */
-export const CommandTypeSchema: GenEnum<CommandType, CommandTypeJson> = /*@__PURE__*/
-  enumDesc(file_loco_agent_v1_agent, 0);
 
 /**
  * AgentService handles communication between the control plane and data plane agents.
@@ -943,15 +729,12 @@ export const AgentService: GenService<{
     output: typeof RegisterResponseSchema;
   },
   /**
-   * CommandStream is a bidirectional stream for command dispatch.
-   * Control plane sends commands, agent sends acks back.
-   *
-   * @generated from rpc loco.agent.v1.AgentService.CommandStream
+   * @generated from rpc loco.agent.v1.AgentService.Sync
    */
-  commandStream: {
+  sync: {
     methodKind: "bidi_streaming";
-    input: typeof CommandStreamRequestSchema;
-    output: typeof CommandStreamResponseSchema;
+    input: typeof SyncRequestSchema;
+    output: typeof SyncResponseSchema;
   },
   /**
    * Heartbeat is a bidirectional stream for agent health reporting.
@@ -963,16 +746,6 @@ export const AgentService: GenService<{
     methodKind: "bidi_streaming";
     input: typeof HeartbeatRequestSchema;
     output: typeof HeartbeatResponseSchema;
-  },
-  /**
-   * ReportStatus reports deployment status changes from the agent.
-   *
-   * @generated from rpc loco.agent.v1.AgentService.ReportStatus
-   */
-  reportStatus: {
-    methodKind: "unary";
-    input: typeof ReportStatusRequestSchema;
-    output: typeof ReportStatusResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_agent_v1_agent, 0);

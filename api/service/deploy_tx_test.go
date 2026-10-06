@@ -16,11 +16,15 @@ import (
 )
 
 type deployFixture struct {
-	pool       *pgxpool.Pool
-	clusterID  uuid.UUID
-	resourceID uuid.UUID
-	envID      uuid.UUID
+	pool         *pgxpool.Pool
+	queries      *genDb.Queries
+	clusterID    uuid.UUID
+	otherCluster uuid.UUID
+	resourceID   uuid.UUID
+	envID        uuid.UUID
 }
+
+const testAgentToken = "test-agent-token"
 
 func newDeployFixture(t *testing.T) *deployFixture {
 	t.Helper()
@@ -68,7 +72,8 @@ func newDeployFixture(t *testing.T) *deployFixture {
 		}
 	})
 
-	f := &deployFixture{pool: pool}
+	f := &deployFixture{pool: pool, queries: genDb.New(pool)}
+	agentTokenHash := hashToken(testAgentToken)
 	row := pool.QueryRow(ctx, `
 WITH u AS (
     INSERT INTO users (external_id, email) VALUES ('github:test', 'test@example.com') RETURNING id
@@ -79,8 +84,11 @@ WITH u AS (
 ), e AS (
     INSERT INTO environments (workspace_id, name, created_by) SELECT w.id, 'prod', u.id FROM w, u RETURNING id
 ), c AS (
+    INSERT INTO clusters (name, region, provider, is_active, is_default, agent_token_hash)
+    VALUES ('c1', 'us-east-1', 'kind', true, true, $1) RETURNING id
+), c2 AS (
     INSERT INTO clusters (name, region, provider, is_active, is_default)
-    VALUES ('c1', 'us-east-1', 'kind', true, true) RETURNING id
+    VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
 ), r AS (
     INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
     SELECT w.id, 'svc', 'service', '', 'healthy', '{}', 1 FROM w RETURNING id
@@ -88,17 +96,17 @@ WITH u AS (
     INSERT INTO resource_regions (resource_id, region, is_primary, status)
     SELECT r.id, 'us-east-1', true, 'active' FROM r RETURNING id
 )
-SELECT c.id, r.id, e.id FROM c, r, e, rr`)
-	if err := row.Scan(&f.clusterID, &f.resourceID, &f.envID); err != nil {
+SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e, rr`, agentTokenHash)
+	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	return f
 }
 
-func (f *deployFixture) params() genDb.CreateDeploymentParams {
+func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentParams {
 	return genDb.CreateDeploymentParams{
 		ResourceID:    f.resourceID,
-		ClusterID:     f.clusterID,
+		ClusterID:     clusterID,
 		Region:        "us-east-1",
 		Replicas:      1,
 		Status:        genDb.DeploymentStatusPending,
@@ -109,15 +117,23 @@ func (f *deployFixture) params() genDb.CreateDeploymentParams {
 	}
 }
 
-func staticPayload(_ uuid.UUID) ([]byte, error) {
-	return []byte(`{}`), nil
+func staticSpec(_ uuid.UUID) ([]byte, error) {
+	return []byte(`{"resource_id":"r"}`), nil
 }
 
-func (f *deployFixture) deploy(ctx context.Context, buildPayload deployPayloadFunc) (uuid.UUID, error) {
+func (f *deployFixture) deploy(ctx context.Context, buildSpec desiredSpecFunc) (uuid.UUID, error) {
+	return f.deployTo(ctx, f.clusterID, buildSpec)
+}
+
+func (f *deployFixture) deployTo(
+	ctx context.Context,
+	clusterID uuid.UUID,
+	buildSpec desiredSpecFunc,
+) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, f.params(), buildPayload)
+		id, deployErr = createDeploymentWithCleanup(ctx, qtx, f.paramsFor(clusterID), buildSpec)
 		return deployErr
 	})
 	return id, err
@@ -132,7 +148,28 @@ func (f *deployFixture) count(t *testing.T, query string) int {
 	return n
 }
 
-func TestConcurrentDeploysLeaveOneActiveDeploymentAndCommand(t *testing.T) {
+func (f *deployFixture) placement(t *testing.T, clusterID uuid.UUID) genDb.Placement {
+	t.Helper()
+	p, err := f.queries.GetPlacementForResourceCluster(context.Background(), genDb.GetPlacementForResourceClusterParams{
+		ResourceID: f.resourceID,
+		ClusterID:  clusterID,
+	})
+	if err != nil {
+		t.Fatalf("get placement: %v", err)
+	}
+	return p
+}
+
+func (f *deployFixture) deploymentStatus(t *testing.T, id uuid.UUID) genDb.DeploymentStatus {
+	t.Helper()
+	d, err := f.queries.GetDeploymentByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("get deployment: %v", err)
+	}
+	return d.Status
+}
+
+func TestConcurrentDeploysLeaveOneActiveDeploymentAndPlacement(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := context.Background()
 
@@ -141,7 +178,7 @@ func TestConcurrentDeploysLeaveOneActiveDeploymentAndCommand(t *testing.T) {
 	errs := make(chan error, deploys)
 	for range deploys {
 		wg.Go(func() {
-			if _, err := f.deploy(ctx, staticPayload); err != nil {
+			if _, err := f.deploy(ctx, staticSpec); err != nil {
 				errs <- err
 			}
 		})
@@ -158,49 +195,71 @@ func TestConcurrentDeploysLeaveOneActiveDeploymentAndCommand(t *testing.T) {
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != deploys {
 		t.Fatalf("%d deployments, want %d", n, deploys)
 	}
-	live := f.count(t, `SELECT count(*) FROM agent_commands
-WHERE resource_id = $1 AND status IN ('pending', 'delivered')`)
-	if live != 1 {
-		t.Fatalf("%d live commands, want 1", live)
+	if n := f.count(t, `SELECT count(*) FROM placements WHERE resource_id = $1`); n != 1 {
+		t.Fatalf("%d placements, want 1", n)
 	}
-	matched := f.count(t, `SELECT count(*) FROM agent_commands c
-JOIN deployments d ON d.id = c.deployment_id
-WHERE c.resource_id = $1 AND c.status = 'pending' AND d.is_active`)
-	if matched != 1 {
-		t.Fatal("the live command does not belong to the active deployment")
+	p := f.placement(t, f.clusterID)
+	if p.DesiredRevision != deploys {
+		t.Fatalf("desired revision = %d, want %d", p.DesiredRevision, deploys)
+	}
+	var active uuid.UUID
+	err := f.pool.QueryRow(ctx, `SELECT id FROM deployments WHERE resource_id = $1 AND is_active`, f.resourceID).
+		Scan(&active)
+	if err != nil {
+		t.Fatalf("active deployment: %v", err)
+	}
+	if p.DeploymentID == nil || *p.DeploymentID != active {
+		t.Fatalf("placement deployment = %v, want the active deployment %v", p.DeploymentID, active)
 	}
 }
 
-func TestDeployRollsBackWhenPayloadFails(t *testing.T) {
+func TestDeployRollsBackWhenSpecFails(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := context.Background()
 
-	firstID, err := f.deploy(ctx, staticPayload)
+	firstID, err := f.deploy(ctx, staticSpec)
 	if err != nil {
 		t.Fatalf("first deploy: %v", err)
 	}
 
 	boom := errors.New("boom")
 	_, err = f.deploy(ctx, func(uuid.UUID) ([]byte, error) { return nil, boom })
-	if !errors.Is(err, errCommandPayload) || !errors.Is(err, boom) {
-		t.Fatalf("err = %v, want a payload error wrapping boom", err)
+	if !errors.Is(err, errDesiredSpec) || !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want a desired spec error wrapping boom", err)
 	}
 
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 1 {
 		t.Fatalf("%d deployments after a failed deploy, want 1", n)
 	}
-	var active uuid.UUID
-	err = f.pool.QueryRow(ctx, `SELECT id FROM deployments WHERE resource_id = $1 AND is_active`, f.resourceID).
-		Scan(&active)
-	if err != nil {
-		t.Fatalf("active deployment: %v", err)
+	p := f.placement(t, f.clusterID)
+	if p.DesiredRevision != 1 || p.DeploymentID == nil || *p.DeploymentID != firstID {
+		t.Fatalf(
+			"placement = rev %d deployment %v, want rev 1 deployment %v",
+			p.DesiredRevision,
+			p.DeploymentID,
+			firstID,
+		)
 	}
-	if active != firstID {
-		t.Fatalf("active deployment = %v, want %v", active, firstID)
+}
+
+func TestDeployToAnotherClusterMarksOldPlacementDeleted(t *testing.T) {
+	f := newDeployFixture(t)
+	ctx := context.Background()
+
+	if _, err := f.deploy(ctx, staticSpec); err != nil {
+		t.Fatalf("deploy: %v", err)
 	}
-	live := f.count(t, `SELECT count(*) FROM agent_commands
-WHERE resource_id = $1 AND status = 'pending'`)
-	if live != 1 {
-		t.Fatalf("%d pending commands after a failed deploy, want 1", live)
+	if _, err := f.deployTo(ctx, f.otherCluster, staticSpec); err != nil {
+		t.Fatalf("deploy to other cluster: %v", err)
+	}
+
+	old := f.placement(t, f.clusterID)
+	if !old.DesiredDeleted || old.DesiredSpec != nil || old.DesiredRevision != 2 {
+		t.Fatalf("old placement = deleted %v spec %q rev %d, want deleted, no spec, rev 2",
+			old.DesiredDeleted, old.DesiredSpec, old.DesiredRevision)
+	}
+	moved := f.placement(t, f.otherCluster)
+	if moved.DesiredDeleted || moved.DesiredRevision != 1 {
+		t.Fatalf("new placement = deleted %v rev %d, want live rev 1", moved.DesiredDeleted, moved.DesiredRevision)
 	}
 }

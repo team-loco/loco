@@ -14,7 +14,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/commandbus"
 	"github.com/team-loco/loco/api/pkg/converter"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
@@ -29,8 +28,7 @@ import (
 
 var ErrDeploymentNotFound = errors.New("deployment not found")
 
-// DeployCommandPayload is the payload sent to agents for deploy commands.
-type DeployCommandPayload struct {
+type ApplicationPayload struct {
 	DeploymentID string                            `json:"deployment_id"`
 	ResourceID   string                            `json:"resource_id"`
 	WorkspaceID  string                            `json:"workspace_id"`
@@ -39,12 +37,6 @@ type DeployCommandPayload struct {
 	Region       string                            `json:"region"`
 	Hostname     string                            `json:"hostname"`
 	AppSpec      *locoControllerV1.ApplicationSpec `json:"app_spec"`
-}
-
-// DeleteCommandPayload is the payload sent to agents for delete commands.
-type DeleteCommandPayload struct {
-	DeploymentID string `json:"deployment_id"`
-	ResourceID   string `json:"resource_id"`
 }
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
@@ -321,7 +313,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("resource region not found"))
 	}
 
-	buildPayload := deployCommandPayload(
+	buildSpec := desiredApplicationSpec(
 		resource,
 		resourceSpec,
 		domain.Domain,
@@ -346,7 +338,7 @@ func (s *DeploymentServer) CreateDeployment(
 			Spec:             specJSON,
 			SpecVersion:      int32(1),
 			EnvironmentID:    environmentID,
-		}, buildPayload)
+		}, buildSpec)
 		return txErr
 	})
 	if err != nil {
@@ -503,35 +495,9 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if deployment.IsActive {
-			payloadJSON, marshalErr := json.Marshal(DeleteCommandPayload{
-				DeploymentID: deployment.ID.String(),
-				ResourceID:   resource.ID.String(),
-			})
-			if marshalErr != nil {
-				return fmt.Errorf("marshal delete command payload: %w", marshalErr)
+			if removeErr := removePlacement(ctx, qtx, resource.ID, deployment.ClusterID); removeErr != nil {
+				return removeErr
 			}
-
-			commandID, enqueueErr := commandbus.Enqueue(ctx, qtx, commandbus.NewCommand{
-				ClusterID:    deployment.ClusterID,
-				ResourceID:   resource.ID,
-				DeploymentID: &deployment.ID,
-				Type:         commandbus.CommandTypeDelete,
-				Payload:      payloadJSON,
-			})
-			if enqueueErr != nil {
-				return fmt.Errorf("enqueue delete command: %w", enqueueErr)
-			}
-
-			slog.InfoContext(
-				ctx,
-				"delete command enqueued",
-				"command_id",
-				commandID,
-				"cluster_id",
-				deployment.ClusterID,
-				"deployment_id",
-				deployment.ID.String(),
-			)
 		}
 
 		if markErr := qtx.MarkDeploymentNotActive(ctx, deploymentID); markErr != nil {
