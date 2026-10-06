@@ -40,7 +40,20 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Controller Helm Chart Tests Changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changes.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: changes
+        uses: ./.github/actions/merge-queue-changes
+
   codegen:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     name: Verify Generated Manifests
     runs-on: ubuntu-latest
     steps:
@@ -61,6 +74,8 @@ jobs:
           fi
 
   helm-chart:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     name: Test Helm Chart
     runs-on: ubuntu-latest
     steps:
