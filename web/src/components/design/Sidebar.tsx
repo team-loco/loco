@@ -58,7 +58,7 @@ function SidebarMenuButton({ className, ...props }: React.ComponentProps<typeof 
 	return (
 		<SidebarMenuButtonBase
 			className={cn(
-				"rounded-sm px-2 text-md data-[size=lg]:rounded-lg data-[size=lg]:group-data-[collapsible=icon]:size-12! data-[size=lg]:group-data-[collapsible=icon]:p-2! data-active:font-medium [&_svg]:size-4",
+				"rounded-sm px-2 text-md transition-[width,height,padding,color,background-color] duration-150 ease-out data-[size=lg]:rounded-lg data-[size=lg]:group-data-[collapsible=icon]:size-12! data-[size=lg]:group-data-[collapsible=icon]:p-2! data-active:font-medium [&_svg]:size-4",
 				className
 			)}
 			{...props}
