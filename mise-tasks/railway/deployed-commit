@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Print the commit whose images a Railway environment runs, read from its loco-api image tag; empty when it runs none"
+#USAGE arg "<environment>" help="Railway environment, such as staging"
+set -euo pipefail
+
+railway environment config --environment "$1" --json |
+	jq -r '.services[].source.image // empty' |
+	sed -n 's|^ghcr\.io/team-loco/loco-api:sha-\([0-9a-f]\{40\}\)$|\1|p'

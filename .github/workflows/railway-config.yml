@@ -2,13 +2,13 @@ name: Railway Config
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened]
     branches:
       - main
-      - staging
     paths:
       - ".railway/**"
       - ".github/workflows/railway-config.yml"
+      - "mise-tasks/railway/**"
       - "mise.toml"
       - "mise.lock"
 
@@ -17,18 +17,24 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.base_ref }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 env:
   NO_COLOR: "1"
 
 jobs:
   plan:
-    name: Railway Plan (${{ github.base_ref == 'main' && 'production' || 'staging' }})
-    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    name: Railway Plan (${{ matrix.environment }})
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
+    environment: ${{ matrix.environment }}
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - staging
+          - production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -40,9 +46,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-          ENVIRONMENT: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
+          ENVIRONMENT: ${{ matrix.environment }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
+
+          DEPLOY_COMMIT=$(mise run railway:deployed-commit "$ENVIRONMENT")
+          if [ -z "$DEPLOY_COMMIT" ]; then
+            DEPLOY_COMMIT=$BASE_SHA
+          fi
+          export DEPLOY_COMMIT
 
           status=0
           railway config plan --detailed-exit-code > plan.txt 2>&1 || status=$?
@@ -70,20 +83,3 @@ jobs:
           if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
             exit "$status"
           fi
-
-  apply:
-    name: Railway Apply (${{ github.base_ref == 'main' && 'production' || 'staging' }})
-    if: github.event.action == 'closed' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
-    environment: ${{ github.base_ref == 'main' && 'production' || 'staging' }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
-
-      - uses: ./.github/actions/setup-tools
-
-      - name: Apply
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway config apply --yes --confirm-destructive

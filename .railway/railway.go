@@ -1,24 +1,39 @@
 package main
 
 import (
+	"os"
+	"regexp"
+	"strconv"
+
 	railway "github.com/railwayapp/railway-go-sdk"
 )
 
 const (
-	repo   = "team-loco/loco"
-	region = "us-east4-eqdc4a"
+	registry = "ghcr.io/team-loco"
+	region   = "us-east4-eqdc4a"
 )
 
+var commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
 type environment struct {
-	branch       string
+	commit       string
 	domainPrefix string
+	uiTagSuffix  string
 }
 
 func environmentFor(ctx railway.Context) environment {
-	if ctx.IsEnvironment("staging") {
-		return environment{branch: "staging", domainPrefix: "staging."}
+	commit := os.Getenv("DEPLOY_COMMIT")
+	if !commitPattern.MatchString(commit) {
+		panic("DEPLOY_COMMIT must be the full commit sha whose images to deploy, got " + strconv.Quote(commit))
 	}
-	return environment{branch: "main", domainPrefix: ""}
+	if ctx.IsEnvironment("staging") {
+		return environment{commit: commit, domainPrefix: "staging.", uiTagSuffix: "-staging"}
+	}
+	return environment{commit: commit, domainPrefix: "", uiTagSuffix: ""}
+}
+
+func image(name string, tag string) map[string]any {
+	return railway.Image(registry + "/" + name + ":" + tag)
 }
 
 func preserved(names ...string) map[string]any {
@@ -66,10 +81,7 @@ func dockerBuild(dockerfile string) map[string]any {
 
 func ui(env environment) railway.Service {
 	return railway.ServiceNamed("loco::cp-ui", railway.ServiceConfig{
-		"source": railway.Github(repo, map[string]any{
-			"branch":      env.branch,
-			"checkSuites": false,
-		}),
+		"source":   image("loco-ui", "sha-"+env.commit+env.uiTagSuffix),
 		"build":    dockerBuild("/web/Dockerfile"),
 		"replicas": map[string]any{region: 2},
 		"deploy":   limits(0.5, 1000000000),
@@ -79,7 +91,6 @@ func ui(env environment) railway.Service {
 				env.domainPrefix + "loco.build": map[string]any{"port": 8080},
 			},
 		},
-		"env": preserved("VITE_API_URL", "VITE_APP_ENV"),
 	})
 }
 
@@ -107,10 +118,7 @@ func api(env environment) railway.Service {
 	deploy["healthcheckPath"] = "/health"
 	deploy["healthcheckTimeout"] = 300
 	return railway.ServiceNamed("loco::cp-api", railway.ServiceConfig{
-		"source": railway.Github(repo, map[string]any{
-			"branch":      env.branch,
-			"checkSuites": false,
-		}),
+		"source":   image("loco-api", "sha-"+env.commit),
 		"build":    dockerBuild("/api/Dockerfile"),
 		"replicas": map[string]any{region: 2},
 		"deploy":   deploy,
