@@ -93,6 +93,9 @@
 	--animate-fade-in: fade-in 140ms ease-out;
 	--animate-pop-in: pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 	--animate-pulse-soft: pulse-soft 1.6s ease-in-out infinite;
+	--animate-pod-pop: pod-pop 220ms ease-out;
+	--animate-pod-starting: pod-pop 220ms ease-out, pulse-soft 0.8s 220ms ease-in-out infinite;
+	--animate-log-in: log-in 200ms ease-out;
 }
 
 :root {
@@ -127,6 +130,7 @@
 	--diff-del: #fbe3e0;
 	--scrim: rgba(20, 16, 14, 0.35);
 	--logo: #2455eb;
+	--logo-inverse: #6f8ff2;
 	--sh-identifier: #2a2522;
 	--sh-sign: #8a837b;
 	--sh-property: #1e40af;
@@ -196,6 +200,7 @@
 	--diff-del: #3c1715;
 	--scrim: rgba(0, 0, 0, 0.5);
 	--logo: #6f8ff2;
+	--logo-inverse: #2455eb;
 	--sh-identifier: #f3efea;
 	--sh-sign: #8f877e;
 	--sh-property: #82a2ec;
@@ -216,6 +221,11 @@
 	}
 	html.dark {
 		color-scheme: dark;
+	}
+	@media (prefers-reduced-motion: no-preference) {
+		html {
+			scroll-behavior: smooth;
+		}
 	}
 	body {
 		@apply bg-background text-foreground font-sans text-base antialiased;
@@ -366,5 +376,27 @@
 	}
 	50% {
 		opacity: 0.3;
+	}
+}
+
+@keyframes pod-pop {
+	from {
+		transform: scale(0);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+@keyframes log-in {
+	from {
+		transform: translateY(4px);
+		opacity: 0;
+	}
+	to {
+		transform: none;
+		opacity: 1;
 	}
 }
