@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetDefaultServiceConfigRequest, GetDefaultServiceConfigResponse } from "./config_pb";
+import { GetDefaultServiceConfigRequest, GetDefaultServiceConfigResponse, GetServerInfoRequest, GetServerInfoResponse } from "./config_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -23,6 +23,15 @@ export const ConfigService = {
       name: "GetDefaultServiceConfig",
       I: GetDefaultServiceConfigRequest,
       O: GetDefaultServiceConfigResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.config.v1.ConfigService.GetServerInfo
+     */
+    getServerInfo: {
+      name: "GetServerInfo",
+      I: GetServerInfoRequest,
+      O: GetServerInfoResponse,
       kind: MethodKind.Unary,
     },
   }

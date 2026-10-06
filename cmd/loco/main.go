@@ -60,11 +60,13 @@ func Cli() {
 	env := NewEnv()
 	ctx := context.Background()
 	root := NewRootCmd(env)
-	if err := fang.Execute(ctx,
+	err := fang.Execute(ctx,
 		root,
 		fang.WithVersion(version),
 		fang.WithColorSchemeFunc(LocoColorScheme()),
-		fang.WithErrorHandler(handleError)); err != nil {
+		fang.WithErrorHandler(handleError))
+	env.versionCheck.report(os.Stderr)
+	if err != nil {
 		os.Exit(1)
 	}
 }

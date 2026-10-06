@@ -36,12 +36,16 @@ const (
 	// ConfigServiceGetDefaultServiceConfigProcedure is the fully-qualified name of the ConfigService's
 	// GetDefaultServiceConfig RPC.
 	ConfigServiceGetDefaultServiceConfigProcedure = "/loco.config.v1.ConfigService/GetDefaultServiceConfig"
+	// ConfigServiceGetServerInfoProcedure is the fully-qualified name of the ConfigService's
+	// GetServerInfo RPC.
+	ConfigServiceGetServerInfoProcedure = "/loco.config.v1.ConfigService/GetServerInfo"
 )
 
 // ConfigServiceClient is a client for the loco.config.v1.ConfigService service.
 type ConfigServiceClient interface {
 	// GetDefaultServiceConfig retrieves the default configuration for service deployments.
 	GetDefaultServiceConfig(context.Context, *connect.Request[v1.GetDefaultServiceConfigRequest]) (*connect.Response[v1.GetDefaultServiceConfigResponse], error)
+	GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error)
 }
 
 // NewConfigServiceClient constructs a client for the loco.config.v1.ConfigService service. By
@@ -61,12 +65,19 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("GetDefaultServiceConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		getServerInfo: connect.NewClient[v1.GetServerInfoRequest, v1.GetServerInfoResponse](
+			httpClient,
+			baseURL+ConfigServiceGetServerInfoProcedure,
+			connect.WithSchema(configServiceMethods.ByName("GetServerInfo")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // configServiceClient implements ConfigServiceClient.
 type configServiceClient struct {
 	getDefaultServiceConfig *connect.Client[v1.GetDefaultServiceConfigRequest, v1.GetDefaultServiceConfigResponse]
+	getServerInfo           *connect.Client[v1.GetServerInfoRequest, v1.GetServerInfoResponse]
 }
 
 // GetDefaultServiceConfig calls loco.config.v1.ConfigService.GetDefaultServiceConfig.
@@ -74,10 +85,16 @@ func (c *configServiceClient) GetDefaultServiceConfig(ctx context.Context, req *
 	return c.getDefaultServiceConfig.CallUnary(ctx, req)
 }
 
+// GetServerInfo calls loco.config.v1.ConfigService.GetServerInfo.
+func (c *configServiceClient) GetServerInfo(ctx context.Context, req *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error) {
+	return c.getServerInfo.CallUnary(ctx, req)
+}
+
 // ConfigServiceHandler is an implementation of the loco.config.v1.ConfigService service.
 type ConfigServiceHandler interface {
 	// GetDefaultServiceConfig retrieves the default configuration for service deployments.
 	GetDefaultServiceConfig(context.Context, *connect.Request[v1.GetDefaultServiceConfigRequest]) (*connect.Response[v1.GetDefaultServiceConfigResponse], error)
+	GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error)
 }
 
 // NewConfigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -93,10 +110,18 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("GetDefaultServiceConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceGetServerInfoHandler := connect.NewUnaryHandler(
+		ConfigServiceGetServerInfoProcedure,
+		svc.GetServerInfo,
+		connect.WithSchema(configServiceMethods.ByName("GetServerInfo")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.config.v1.ConfigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConfigServiceGetDefaultServiceConfigProcedure:
 			configServiceGetDefaultServiceConfigHandler.ServeHTTP(w, r)
+		case ConfigServiceGetServerInfoProcedure:
+			configServiceGetServerInfoHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -108,4 +133,8 @@ type UnimplementedConfigServiceHandler struct{}
 
 func (UnimplementedConfigServiceHandler) GetDefaultServiceConfig(context.Context, *connect.Request[v1.GetDefaultServiceConfigRequest]) (*connect.Response[v1.GetDefaultServiceConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.config.v1.ConfigService.GetDefaultServiceConfig is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.config.v1.ConfigService.GetServerInfo is not implemented"))
 }

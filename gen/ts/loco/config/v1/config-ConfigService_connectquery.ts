@@ -10,3 +10,8 @@ import { ConfigService } from "./config_pb";
  * @generated from rpc loco.config.v1.ConfigService.GetDefaultServiceConfig
  */
 export const getDefaultServiceConfig = ConfigService.method.getDefaultServiceConfig;
+
+/**
+ * @generated from rpc loco.config.v1.ConfigService.GetServerInfo
+ */
+export const getServerInfo = ConfigService.method.getServerInfo;

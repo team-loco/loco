@@ -12,10 +12,20 @@ import (
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
 	platformDomain string
+	minCLIVersion  string
 }
 
-func NewConfigServer(platformDomain string) *ConfigServer {
-	return &ConfigServer{platformDomain: platformDomain}
+func NewConfigServer(platformDomain, minCLIVersion string) *ConfigServer {
+	return &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion}
+}
+
+func (s *ConfigServer) GetServerInfo(
+	_ context.Context,
+	_ *connect.Request[configv1.GetServerInfoRequest],
+) (*connect.Response[configv1.GetServerInfoResponse], error) {
+	return connect.NewResponse(&configv1.GetServerInfoResponse{
+		MinCliVersion: s.minCLIVersion,
+	}), nil
 }
 
 func (s *ConfigServer) GetDefaultServiceConfig(
