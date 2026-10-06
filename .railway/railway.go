@@ -100,6 +100,7 @@ func api(env environment) railway.Service {
 		"LOG_LEVEL",
 		"REGISTRY_TAG",
 	)
+	apiEnv["MIN_CLI_VERSION"] = "v0.0.61"
 	apiEnv["PORT"] = "8000"
 	apiEnv["RAILWAY_DEPLOYMENT_DRAINING_SECONDS"] = "40"
 	deploy := limits(1, 2000000000)
