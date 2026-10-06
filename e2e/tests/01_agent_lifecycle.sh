@@ -3,7 +3,7 @@
 #   - Agent registration
 #   - Heartbeat
 #   - Placement sync
-#   - Controller running in Kind and reconciling the Application
+#   - Controller running in Kind, rolling the app out to Ready
 #
 # These functions are sourced by run.sh and called automatically.
 # lib.sh helpers (assert, assert_contains, e2e_psql, etc.) are available.
@@ -59,6 +59,33 @@ test_loco_namespace_exists() {
 
 e2e_placement_id='00000000-0000-7000-8000-000000000013'
 e2e_resource_id='00000000-0000-7000-8000-000000000010'
+e2e_workspace_id='00000000-0000-7000-8000-000000000003'
+e2e_app_image='nginxinc/nginx-unprivileged:1.31.6-alpine'
+e2e_desired_spec=$(cat <<JSON
+{
+  "resource_id": "${e2e_resource_id}",
+  "workspace_id": "${e2e_workspace_id}",
+  "resource_name": "e2e-test-resource",
+  "resource_type": "service",
+  "region": "us-east-1",
+  "app_spec": {
+    "type": "SERVICE",
+    "resourceId": "${e2e_resource_id}",
+    "workspaceId": "${e2e_workspace_id}",
+    "region": "us-east-1",
+    "environmentName": "production",
+    "serviceSpec": {
+      "deployment": {
+        "image": "${e2e_app_image}",
+        "port": 8080,
+        "healthCheck": {"path": "/", "interval": 5, "timeout": 2, "failThreshold": 3}
+      },
+      "resources": {"cpu": "100m", "memory": "64Mi", "replicas": {"min": 1, "max": 1}}
+    }
+  }
+}
+JSON
+)
 
 placement_applied() {
     test "$(e2e_psql "SELECT applied_revision FROM placements WHERE id = '${e2e_placement_id}'")" = "1"
@@ -93,7 +120,7 @@ test_agent_applies_placement() {
             '${e2e_resource_id}',
             '00000000-0000-7000-8000-000000000005',
             'us-east-1',
-            '{\"resource_id\": \"${e2e_resource_id}\", \"app_spec\": {\"type\": \"SERVICE\"}}'
+            \$spec\$${e2e_desired_spec}\$spec\$
         ) ON CONFLICT DO NOTHING;
         SELECT pg_notify('placements', '00000000-0000-7000-8000-000000000005');
     " >/dev/null
@@ -105,11 +132,23 @@ test_agent_applies_placement() {
     assert "Placement applied revision recorded as 1" placement_applied
 }
 
-application_has_status() {
+application_ready() {
     kubectl get application "resource-${e2e_resource_id}" \
         --namespace "$E2E_LOCO_NAMESPACE" \
         --context "kind-${E2E_KIND_CLUSTER}" \
-        -o jsonpath='{.status.phase}' | grep -q .
+        -o jsonpath='{.status.phase}' | grep -qx Ready
+}
+
+placement_reported_ready() {
+    test "$(e2e_psql "SELECT ready AND observed_revision = 1 FROM placements WHERE id = '${e2e_placement_id}'")" = "t"
+}
+
+test_application_becomes_ready() {
+    wait_for "the app to roll out" 180 application_ready
+    assert "Controller rolled the app out and marked the Application Ready" application_ready
+
+    wait_for "the agent to report the app ready" 30 placement_reported_ready
+    assert "Placement records the app ready at revision 1" placement_reported_ready
 }
 
 test_controller_running() {
@@ -118,11 +157,6 @@ test_controller_running() {
             --namespace "$E2E_LOCO_NAMESPACE" \
             --context "kind-${E2E_KIND_CLUSTER}" \
             --timeout 60s
-}
-
-test_controller_reconciles_application() {
-    wait_for "controller to write the Application status" 60 application_has_status
-    assert "Controller wrote a status on the agent's Application" application_has_status
 }
 
 test_agent_logs_no_errors() {

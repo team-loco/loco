@@ -157,6 +157,18 @@ build_controller_image() {
     log_ok "Controller image loaded into Kind"
 }
 
+install_gitlab_stub() {
+    log_step "Starting the GitLab API stub..."
+    kubectl apply -f "$SCRIPT_DIR/gitlab-stub.yaml" \
+        --namespace "$LOCO_NAMESPACE" \
+        --context "kind-${KIND_CLUSTER_NAME}" >/dev/null
+    kubectl rollout status deployment/gitlab-stub \
+        --namespace "$LOCO_NAMESPACE" \
+        --context "kind-${KIND_CLUSTER_NAME}" \
+        --timeout 3m >/dev/null
+    log_ok "GitLab API stub running in Kind"
+}
+
 install_controller() {
     log_step "Installing the controller chart..."
     helm upgrade --install loco-controller "$ROOT_DIR/charts/loco-controller" \
@@ -338,6 +350,7 @@ main() {
     run_migrations
     create_namespace
     build_controller_image
+    install_gitlab_stub
     install_controller
     build_binaries
     start_api
