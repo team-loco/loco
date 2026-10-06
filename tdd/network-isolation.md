@@ -1,18 +1,23 @@
-# TDD: Namespace Network Isolation
+# TDD: Workspace Network Isolation
 
 ## Problem
 
-Workspace namespaces (`ws-*`), which hold every app a workspace runs on a cluster, currently have no network policies applied.
-Any pod can reach any other pod cluster-wide via `.cluster.local` DNS, which means
-a compromised or misbehaving app can freely communicate with other users' apps,
-platform internals, or the Kubernetes API.
+Without network policies, any pod can reach any other pod cluster-wide via `.cluster.local`
+DNS, so a compromised or misbehaving app could reach other workspaces' apps, platform
+internals, or cloud metadata.
 
-## Goal
+## Model
 
-- Every app is isolated by default: no traffic between namespaces, and none between apps in the same workspace namespace, unless explicitly allowed
-- Platform components can reach into app namespaces only for the flows they actually need
-- Apps within the same workspace can opt in to talk to each other
-- Cross-workspace communication is never allowed
+Each workspace has one namespace per cluster, `ws-<workspaceId>`, holding all of its apps.
+Clusters separate environments, so a namespace is one workspace in one environment.
+
+- Apps in the same workspace namespace can reach each other on any port, by default.
+- Nothing else can reach an app, except the Envoy Gateway proxies on the app's container
+  port when the app has a route.
+- Apps can reach DNS, the telemetry collector's OTLP ports, and public addresses. They
+  cannot reach other workspaces, platform namespaces, private address ranges, or cloud
+  metadata.
+- Cross-workspace traffic is never allowed and has no configuration option.
 
 ---
 
@@ -21,206 +26,98 @@ platform internals, or the Kubernetes API.
 | Namespace | Role |
 |---|---|
 | `ws-*` | workspace namespaces, one per workspace per cluster, holding its apps |
-| `envoy-gateway-system` | ingress (Envoy Gateway forwards HTTP to app pods) |
-| `observability` | otel-col-deploy (OTLP receiver), otel-col-daemon (hostNetwork — no netpol needed), grafana, obs-proxy |
-| `loco-system` | agent, controller, UI |
+| `loco-system` | agent, controller, Envoy Gateway proxies (`gateway.envoyproxy.io/owning-gateway-name=eg`) |
+| `observability` | otel-col-deploy (OTLP receiver), grafana, obs-proxy; configurable with `LOCO_OBSERVABILITY_NAMESPACE` |
 | `kube-system` | kube-dns |
 | `cert-manager` | cert-manager |
 
 ---
 
-## Allowed traffic matrix
+## Allowed traffic
 
-### Ingress into app namespace
+### Ingress into a workspace namespace
 
-| Source namespace | Port | Reason |
+| Source | Port | Reason |
 |---|---|---|
-| `envoy-gateway-system` | app container port | HTTP traffic forwarding |
-| *(nothing else)* | — | — |
+| pods in the same namespace | any | apps of one workspace talking to each other |
+| Envoy Gateway proxies in `loco-system` | the app's container port, routed apps only | HTTP traffic forwarding |
 
-### Egress from app namespace
+### Egress from a workspace namespace
 
 | Destination | Port | Reason |
 |---|---|---|
-| `kube-system` (kube-dns pods) | 53 UDP + TCP | DNS resolution |
-| `observability` (otel-col-deploy) | 4317 (gRPC), 4318 (HTTP) | push traces + metrics |
-| internet (0.0.0.0/0, excluding cluster CIDR) | any | app external API calls |
-| peer app namespace (same workspace, opt-in only) | peer's container port | inter-app communication |
+| pods in the same namespace | any | apps of one workspace talking to each other |
+| `kube-system` kube-dns pods | 53 UDP + TCP | DNS resolution |
+| `otel-col-deploy` in the observability namespace | 4317, 4318 TCP | traces and metrics |
+| `0.0.0.0/0` and `::/0`, except reserved ranges and the cluster's own ranges (below) | any | external APIs |
 
-Everything else is **denied**.
+Everything else is denied.
 
-Note: `loco-system` does not need ingress into app namespaces. The controller
-manages the namespace, not the running pods. The agent is called by apps
-externally, not the other way round.
+### Internet egress exclusions
+
+Loco must work on any Kubernetes cluster, so the internet policy does not assume the
+cluster's addresses are private. It excludes two sets:
+
+- **Reserved ranges**, fixed: `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10`,
+  `169.254.0.0/16` (includes cloud metadata), `172.16.0.0/12`, `192.168.0.0/16`,
+  `198.18.0.0/15`, `224.0.0.0/4`, `240.0.0.0/4`, `64:ff9b::/96` (NAT64, can reach internal
+  IPv4), `fc00::/7`, `fe80::/10`, `ff00::/8`.
+- **The cluster's own ranges**, discovered at reconcile time: every Node's
+  `spec.podCIDRs` (or `spec.podCIDR`), every Node's `InternalIP` as a /32 or /128, and
+  the CIDRs of `networking.k8s.io/v1` `ServiceCIDR` objects. If the ServiceCIDR API is not
+  served, service ranges are skipped. This covers clusters whose pod or node addresses are
+  publicly routable, such as IPv6 global unicast pod ranges.
+
+Each range goes under its family's block (IPv4 under `0.0.0.0/0`, IPv6 under `::/0`).
+Ranges already inside a reserved range are left out, and the lists are deduplicated and
+sorted, so the policy only changes when the cluster's ranges do. The controller watches
+Nodes and, when a node is added, removed, or its pod CIDRs or internal addresses change,
+reconciles one Application per workspace, which re-applies that workspace's policy.
 
 ---
 
 ## Implementation
 
-### Where policies are created
+The controller owns the namespace and creates the policies with server-side apply under
+its field owner, before any workload.
 
-The controller (`application_controller.go`) already owns the namespace lifecycle.
-A new `ensureNetworkPolicies` function is added alongside `ensureNamespace` and
-called in the same reconcile loop. Policies are namespace-scoped, so they are
-automatically garbage-collected when the namespace is deleted.
+### Workspace policies
 
-### Policies created per app namespace
+Fixed names, identical for every app in the namespace, so the apps sharing it apply the
+same object and never overwrite each other. They go away with the namespace when its last
+app is deleted.
 
-**1. default-deny-all**
-```yaml
-kind: NetworkPolicy
-spec:
-  podSelector: {}        # applies to all pods in namespace
-  policyTypes: [Ingress, Egress]
-  # no ingress/egress rules = deny all
-```
+| Policy | Effect |
+|---|---|
+| `default-deny` | all pods, ingress and egress, no rules |
+| `allow-workspace` | all pods, ingress from and egress to `podSelector: {}` (same namespace only) |
+| `allow-dns-egress` | egress to kube-dns on 53 UDP and TCP |
+| `allow-telemetry-egress` | egress to `otel-col-deploy` on 4317 and 4318 |
+| `allow-internet-egress` | egress to public addresses, excluding the ranges above |
 
-**2. allow-dns-egress**
-```yaml
-kind: NetworkPolicy
-spec:
-  podSelector: {}
-  policyTypes: [Egress]
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-        - podSelector:
-            matchLabels:
-              k8s-app: kube-dns
-      ports:
-        - port: 53
-          protocol: UDP
-        - port: 53
-          protocol: TCP
-```
+A `from` or `to` peer with only a `podSelector` matches pods in the policy's own namespace,
+which holds a single workspace, so `allow-workspace` cannot open traffic to another
+workspace.
 
-**3. allow-envoy-ingress**
-```yaml
-kind: NetworkPolicy
-spec:
-  podSelector: {}
-  policyTypes: [Ingress]
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: envoy-gateway-system
-```
+### Per-app gateway policy
 
-**4. allow-otel-egress**
-```yaml
-kind: NetworkPolicy
-spec:
-  podSelector: {}
-  policyTypes: [Egress]
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: observability
-      ports:
-        - port: 4317
-          protocol: TCP
-        - port: 4318
-          protocol: TCP
-```
+`resource-<resourceId>-gateway` selects the app's pods (`app: resource-<resourceId>`) and
+allows ingress from the Envoy Gateway proxy pods in `loco-system` on the app's container
+port. It exists only while the app has a route: the controller deletes it when routing is
+removed and when the app is deleted.
 
-**5. allow-internet-egress**
-```yaml
-kind: NetworkPolicy
-spec:
-  podSelector: {}
-  policyTypes: [Egress]
-  egress:
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            except:
-              - <cluster pod CIDR>     # populated from controller config
-              - <cluster service CIDR> # populated from controller config
-```
+### Pod hardening
 
-### Opt-in inter-app communication
-
-A user declares allowed peers in the Application CRD:
-
-```go
-// added to ApplicationSpec
-AllowedPeers []string  // list of resource IDs within the same workspace
-```
-
-When the controller reconciles an app with `AllowedPeers`, for each peer resource ID
-it creates a targeted policy in the workspace namespace allowing ingress to the peer's pods from this app's pods:
-
-**allow-peer-{sourceResourceId}-{peerResourceId}** (created in the workspace namespace)
-```yaml
-kind: NetworkPolicy
-metadata:
-  name: allow-peer-<source-resource-id>-<peer-resource-id>
-  namespace: ws-<workspaceId>
-spec:
-  podSelector:
-    matchLabels:
-      app: resource-<peerResourceId>
-  policyTypes: [Ingress]
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app: resource-<sourceResourceId>
-```
-
-Cross-workspace is structurally prevented: a `from` clause with only a `podSelector`
-matches pods in the policy's own namespace, which holds a single workspace, so even a
-foreign resource ID in `AllowedPeers` matches nothing.
-
-The controller also needs to watch peer apps and clean up these policies when:
-- the source app removes a peer from `AllowedPeers`
-- the source app is deleted
-
-### Namespace labels required
-
-The controller already applies `loco.io/workspace-id` to workspace namespaces and the
-`app: resource-<resourceId>` label to every app's pods, which is all the peer
-policies select on.
-
-Platform namespaces (`envoy-gateway-system`, `observability`, `kube-system`) need
-`kubernetes.io/metadata.name` labels — these are automatically added by Kubernetes
-1.21+ so no manual labeling needed.
+The namespace enforces, audits and warns the `restricted` Pod Security profile. App pods
+run with `runAsNonRoot`, the `RuntimeDefault` seccomp profile, no privilege escalation and
+all capabilities dropped, and neither the pod nor its ServiceAccount mounts an API token.
+Images must run as a numeric non-root user.
 
 ---
 
-## CRD changes
+## Out of scope
 
-Add to `ApplicationSpec`:
-
-```go
-// AllowedPeers is a list of resource IDs (within the same workspace) that
-// are permitted to send traffic to this application.
-AllowedPeers []string `json:"allowedPeers,omitempty"`
-```
-
-This is intentionally receive-side: an app declares who is allowed to reach it,
-not who it can reach. This is consistent with how NetworkPolicy ingress rules work
-and keeps authorization in the hands of the receiving service.
-
----
-
-## Controller config changes
-
-The internet-egress policy needs the cluster's pod and service CIDRs to exclude
-from the `0.0.0.0/0` block. These should be passed to the controller as environment
-variables or flags (similar to how `locoNamespace` is configured today).
-
----
-
-## What is explicitly out of scope
-
-- L7 / HTTP-level policies (Cilium supports this but unnecessary for now)
-- Cross-workspace communication (structurally blocked, no config option)
-- Egress to `loco-system` from app pods (apps call the API via the external domain,
-  not the internal service address)
-- `cert-manager` ingress (cert-manager uses HTTP-01/DNS-01 challenges externally,
-  it does not reach into app namespaces)
+- Per-app isolation inside a workspace. If needed, an app could opt out of `allow-workspace`
+  with its own deny policy; nothing asks for it yet.
+- L7 / HTTP-level policies.
+- Egress to `loco-system` from app pods: apps call the API through its public domain.

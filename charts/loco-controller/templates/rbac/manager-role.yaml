@@ -7,17 +7,6 @@ rules:
         - ""
       resources:
         - namespaces
-        - serviceaccounts
-      verbs:
-        - create
-        - delete
-        - get
-        - list
-        - patch
-        - watch
-    - apiGroups:
-        - ""
-      resources:
         - secrets
         - services
       verbs:
@@ -27,6 +16,25 @@ rules:
         - list
         - patch
         - update
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - nodes
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
+        - serviceaccounts
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
         - watch
     - apiGroups:
         - apps
@@ -78,6 +86,26 @@ rules:
         - get
         - patch
         - update
+    - apiGroups:
+        - networking.k8s.io
+      resources:
+        - networkpolicies
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+    - apiGroups:
+        - networking.k8s.io
+      resources:
+        - servicecidrs
+      verbs:
+        - get
+        - list
+        - watch
     - apiGroups:
         - rbac.authorization.k8s.io
       resources:

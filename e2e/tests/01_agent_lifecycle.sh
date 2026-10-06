@@ -4,6 +4,7 @@
 #   - Heartbeat
 #   - Placement sync
 #   - Controller running in Kind, rolling the app out to Ready
+#   - Network isolation of the workspace namespace
 #
 # These functions are sourced by run.sh and called automatically.
 # lib.sh helpers (assert, assert_contains, e2e_psql, etc.) are available.
@@ -149,6 +150,49 @@ test_application_becomes_ready() {
 
     wait_for "the agent to report the app ready" 30 placement_reported_ready
     assert "Placement records the app ready at revision 1" placement_reported_ready
+}
+
+probe_reaches_app() {
+    local namespace="$1"
+    local probe="$2"
+    local target="http://resource-${e2e_resource_id}.ws-${e2e_workspace_id}.svc.cluster.local/"
+    kubectl apply --context "kind-${E2E_KIND_CLUSTER}" -f - >/dev/null <<YAML
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ${probe}
+  namespace: ${namespace}
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: probe
+      image: ${e2e_app_image}
+      command: ["wget", "-q", "-T", "5", "-O", "/dev/null", "${target}"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop: ["ALL"]
+YAML
+    kubectl wait "pod/${probe}" \
+        --namespace "$namespace" \
+        --context "kind-${E2E_KIND_CLUSTER}" \
+        --for=jsonpath='{.status.phase}'=Succeeded \
+        --timeout 30s >/dev/null 2>&1
+}
+
+test_network_isolation() {
+    local workspace_namespace="ws-${e2e_workspace_id}"
+    kubectl create namespace e2e-outsider --context "kind-${E2E_KIND_CLUSTER}" >/dev/null 2>&1 || true
+
+    assert "A pod in the app's workspace namespace reaches the app" \
+        probe_reaches_app "$workspace_namespace" e2e-probe-inside
+    assert_fails "A pod in another namespace cannot reach the app" \
+        probe_reaches_app e2e-outsider e2e-probe-outside
 }
 
 test_controller_running() {

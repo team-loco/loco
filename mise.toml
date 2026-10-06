@@ -76,8 +76,8 @@ description = "Generate Go and TypeScript from the protos, and Go from the SQL q
 run = ["buf generate", "cd api && sqlc generate"]
 
 [tasks."controller:gen"]
-description = "Generate the controller's CRDs, RBAC and deepcopy code, and sync the chart's CRD copy"
-run = ["make -C controller manifests generate", "mise run chart:sync-crd"]
+description = "Generate the controller's CRDs, RBAC and deepcopy code, and sync the chart's CRD and RBAC copies"
+run = ["make -C controller manifests generate", "mise run chart:sync-crd", "mise run chart:sync-rbac"]
 
 [tasks.test]
 description = "Run every test suite"

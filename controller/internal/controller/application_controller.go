@@ -26,6 +26,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -91,19 +92,23 @@ type LocoResourceReconciler struct {
 	gitlabProjectID   string
 	gitlabRegistryURL string
 	locoNamespace     string
+	obsNamespace      string
 	httpClient        *http.Client
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications/finalizers,verbs=update
-// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;patch;delete
+// +kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;create;list;watch;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=secrets,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=servicecidrs,verbs=get;list;watch
 
 // todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
@@ -175,6 +180,10 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
 	}
 
+	if err := r.ensureWorkspaceNetworkPolicies(ctx, locoRes); err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure workspace network policies: %w", err)
+	}
+
 	envSecretVersion, err := ensureEnvSecret(ctx, r.Client, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure secrets: %w", err)
@@ -203,6 +212,11 @@ func (r *LocoResourceReconciler) reconcileResources(
 	err = r.ensureService(ctx, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure service: %w", err)
+	}
+
+	err = r.ensureGatewayIngressPolicy(ctx, locoRes)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure gateway ingress policy: %w", err)
 	}
 
 	err = r.ensureHTTPRoute(ctx, locoRes)
@@ -321,6 +335,7 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	routeName := getRouteName(locoRes)
+	gatewayPolicyName := getGatewayPolicyName(locoRes)
 	bindingName := getRoleBindingName(locoRes)
 	roleName := getRoleName(locoRes)
 	envSecretName := getEnvSecretName(locoRes)
@@ -328,6 +343,7 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 
 	objects := []client.Object{
 		&v1Gateway.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}},
+		&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: gatewayPolicyName, Namespace: namespace}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
 		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
 		&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: bindingName, Namespace: namespace}},
@@ -404,6 +420,10 @@ func getRouteName(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s-route", getName(locoRes))
 }
 
+func getGatewayPolicyName(locoRes *locov1alpha1.Application) string {
+	return fmt.Sprintf("%s-gateway", getName(locoRes))
+}
+
 func getInternalDomain(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local", getName(locoRes), getNamespace(locoRes))
 }
@@ -432,12 +452,7 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 	namespace := getNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring namespace", "namespace", namespace)
 
-	labels := map[string]string{
-		"loco.io/app":      "true",
-		labelManagedBy:     managedByValue,
-		labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-		labelEnvironmentID: locoRes.Spec.EnvironmentID,
-	}
+	labels := workspaceNamespaceLabels(locoRes)
 	ns := corev1ac.Namespace(namespace).WithLabels(labels)
 
 	opts := applyOptions()
@@ -493,6 +508,7 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 	sa := corev1ac.ServiceAccount(name, namespace).
 		WithLabels(labels).
 		WithAnnotations(annotations).
+		WithAutomountServiceAccountToken(false).
 		WithImagePullSecrets(pullSecret)
 
 	opts := applyOptions()
@@ -706,13 +722,15 @@ func desiredDeployment(
 		WithName("http").
 		WithContainerPort(containerPort).
 		WithProtocol(corev1.ProtocolTCP)
+	containerSecurity := containerSecurityContext()
 	container := corev1ac.Container().
 		WithName(name).
 		WithImage(spec.Deployment.Image).
 		WithEnvFrom(envFrom).
 		WithEnv(envVars...).
 		WithPorts(port).
-		WithResources(resources)
+		WithResources(resources).
+		WithSecurityContext(containerSecurity)
 
 	if hc := spec.Deployment.HealthCheck; hc != nil {
 		livenessProbe := healthProbe(hc, containerPort)
@@ -727,8 +745,11 @@ func desiredDeployment(
 		labelEnvironmentID: locoRes.Spec.EnvironmentID,
 	}
 	podAnnotations := map[string]string{annotationEnvSecretRV: envSecretVersion}
+	podSecurity := podSecurityContext()
 	podSpec := corev1ac.PodSpec().
 		WithServiceAccountName(name).
+		WithAutomountServiceAccountToken(false).
+		WithSecurityContext(podSecurity).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
 		WithContainers(container)
 	template := corev1ac.PodTemplateSpec().
@@ -860,6 +881,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.gitlabProjectID = os.Getenv("GITLAB_PROJECT_ID")
 	r.gitlabRegistryURL = os.Getenv("GITLAB_REGISTRY_URL")
 	r.locoNamespace = os.Getenv("LOCO_NAMESPACE")
+	r.obsNamespace = os.Getenv("LOCO_OBSERVABILITY_NAMESPACE")
 	r.httpClient = &http.Client{Timeout: 10 * time.Second}
 
 	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {
@@ -873,11 +895,15 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 	applicationPredicates := builder.WithPredicates(applicationChanged)
 	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
+	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
+	nodeChanges := nodeRangesChanged()
+	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
+		Watches(&corev1.Node{}, nodeHandler, nodePredicates).
 		WithOptions(options).
 		Named("application").
 		Complete(r)
