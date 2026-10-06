@@ -12,7 +12,7 @@ export function AccessSection() {
 					Get an invite.
 				</h2>
 				<p className="m-0 max-w-[440px] text-[17px] leading-[1.55] text-balance text-background/65">
-					Access is granted per GitHub account while loco is in beta.
+					Access is granted per GitHub account while Loco is in beta.
 				</p>
 				<div className="mt-2.5 flex w-full max-w-[440px] flex-wrap gap-2">
 					<InputGroup className="h-[46px] min-w-[220px] flex-1 rounded-[9px] border-background/20 bg-background/5 has-disabled:bg-background/5 has-disabled:opacity-75 dark:bg-background/5 dark:has-disabled:bg-background/5">

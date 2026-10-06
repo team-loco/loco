@@ -33,7 +33,7 @@ export function Hero() {
 					not YAML.
 				</h1>
 				<p className="m-0 max-w-[560px] text-[18.5px] leading-[1.55] text-pretty text-fg2">
-					loco turns a Dockerfile into a live HTTPS service on Kubernetes. One command, real infrastructure,
+					Loco turns a Dockerfile into a live HTTPS service on Kubernetes. One command, real infrastructure,
 					nothing to babysit.
 				</p>
 				<div className="mt-1 flex flex-wrap justify-center gap-2.5">
