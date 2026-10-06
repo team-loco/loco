@@ -109,3 +109,7 @@ cd examples/test-api/backend && ../../../bin/loco deploy backend
 ---
 
 **Note:** This project is primarily educational, created so I can learn more about Kubernetes, networking, and security.
+
+## License
+
+Loco is released under the [MIT License](./LICENSE).
