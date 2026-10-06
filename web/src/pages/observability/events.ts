@@ -1,6 +1,6 @@
 import type { WorkspaceEventWithResource } from "@/hooks/useWorkspaceEvents";
+import { tsMs } from "@/lib/time";
 
-import { tsMs } from "./format";
 
 export type Severity = "error" | "warning" | "normal";
 

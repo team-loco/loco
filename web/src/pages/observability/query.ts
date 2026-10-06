@@ -62,7 +62,7 @@ export interface Token {
 
 const TOKEN_RE = /(-?)@(\w+):(\S+)/g;
 
-export function tokStr(t: Token): string {
+function tokStr(t: Token): string {
 	return `${t.neg ? "-" : ""}@${t.key}:${t.value}`;
 }
 

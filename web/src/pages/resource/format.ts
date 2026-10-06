@@ -1,12 +1,7 @@
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { formatClock, formatIsoDate } from "@/lib/time";
 
 export function shortId(id: string): string {
 	return id.slice(0, 8);
-}
-
-export function tsMillis(ts: Timestamp | undefined): number | undefined {
-	if (ts === undefined) return undefined;
-	return Number(ts.seconds) * 1000 + Math.floor(ts.nanos / 1_000_000);
 }
 
 export function imageRef(image: string): string {
@@ -67,14 +62,8 @@ export function formatStarted(ms: number | undefined): string {
 	return startedFormat.format(ms);
 }
 
-function pad(n: number): string {
-	return n.toString().padStart(2, "0");
-}
-
 export function formatFullTime(ms: number): string {
-	const d = new Date(ms);
-	const date = `${d.getFullYear().toString()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-	return `${date} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+	return `${formatIsoDate(ms)} ${formatClock(ms)}`;
 }
 
 export function formatDuration(ms: number): string {

@@ -1,4 +1,3 @@
-import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useQuery } from "@connectrpc/connect-query";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -10,15 +9,17 @@ import { Button } from "@/components/design/Button";
 import { Section, SectionFooter } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { getErrorMessage } from "@/lib/error-handler";
+import { tsMs } from "@/lib/time";
 
 const PREVIEW_COUNT = 3;
+
+const expiryFormat = new Intl.DateTimeFormat();
 
 function expiryLabel(token: Token): string {
 	if (token.expiresAt === undefined) {
 		return "Never expires";
 	}
-	const date = timestampDate(token.expiresAt);
-	return `Expires ${date.toLocaleDateString()}`;
+	return `Expires ${expiryFormat.format(tsMs(token.expiresAt))}`;
 }
 
 export function TokensPreview({ userId }: { userId: string }) {

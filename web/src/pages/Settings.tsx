@@ -6,7 +6,6 @@ import { useParams, useSearchParams } from "react-router";
 
 import { Page, PageHeader } from "@/components/design/Page";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useBreadcrumbs } from "@/context/ShellContext";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
 
@@ -17,7 +16,6 @@ import { SettingsSkeleton, WorkspaceTab } from "./settings/WorkspaceTab";
 type Tab = "ws" | "org";
 
 export function Settings() {
-	useBreadcrumbs("Settings");
 	const { orgId = "", workspaceId = "" } = useParams<{ orgId: string; workspaceId: string }>();
 	const [params, setParams] = useSearchParams();
 	const tab: Tab = params.get("tab") === "org" ? "org" : "ws";

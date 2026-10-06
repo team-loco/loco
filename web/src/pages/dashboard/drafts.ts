@@ -46,7 +46,7 @@ export interface Draft {
 	deployedAt?: number | undefined;
 }
 
-export const IMAGE_RE =
+const IMAGE_RE =
 	/^([a-z0-9][a-z0-9.\-_]*(:[0-9]+)?\/)?[a-z0-9._\-/]+(:[A-Za-z0-9._-]+|@sha256:[a-f0-9]{64})$/;
 const SERVER_IMAGE_RE = /^([a-z0-9\-._]+(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$/;
 export const NAME_RE = /^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -74,23 +74,6 @@ export function uniqueName(base: string, taken: Set<string>): string {
 	let name = root;
 	for (let i = 2; taken.has(name); i++) name = `${root}-${i.toString()}`;
 	return name;
-}
-
-export function parseDotEnv(text: string): DraftVar[] {
-	const out: DraftVar[] = [];
-	for (const raw of text.split(/\r?\n/)) {
-		const line = raw.trim().replace(/^export\s+/, "");
-		if (line === "" || line.startsWith("#")) continue;
-		const eq = line.indexOf("=");
-		if (eq < 1) continue;
-		const key = line.slice(0, eq).trim();
-		let value = line.slice(eq + 1).trim();
-		const quoted =
-			(value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"));
-		if (quoted && value.length >= 2) value = value.slice(1, -1);
-		if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) out.push({ key, value });
-	}
-	return out;
 }
 
 const listeners = new Set<() => void>();

@@ -4,18 +4,16 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/design/Button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
+import { formatMonthDay, formatMonthDayYear, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 export const NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 export function formatDay(ts: Timestamp | undefined): string {
-	if (!ts) return "—";
-	const date = new Date(Number(ts.seconds) * 1000);
-	const sameYear = date.getFullYear() === new Date().getFullYear();
-	const opts: Intl.DateTimeFormatOptions = sameYear
-		? { month: "short", day: "numeric" }
-		: { month: "short", day: "numeric", year: "numeric" };
-	return date.toLocaleDateString("en-US", opts);
+	const ms = maybeTsMs(ts);
+	if (ms === undefined) return "—";
+	const sameYear = new Date(ms).getFullYear() === new Date().getFullYear();
+	return sameYear ? formatMonthDay(ms) : formatMonthDayYear(ms);
 }
 
 export function SettingsCard({ children }: { children: ReactNode }) {

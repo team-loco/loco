@@ -3,30 +3,22 @@ import { useQueries } from "@tanstack/react-query";
 import { createClient } from "@connectrpc/connect";
 import { ObservabilityProxyService } from "@gen/loco/observability/v1/observability_pb";
 import { LogOrder, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
-import { create } from "@bufbuild/protobuf";
-import { TimestampSchema } from "@bufbuild/protobuf/wkt";
 import { timeRangeMs, type ClusterTransport, type TimeRange } from "@/lib/obs";
 import type { ParsedQuery } from "@/lib/obs-query-parser";
+import { msToTimestamp } from "@/lib/time";
 
-export interface LogsPage {
+interface LogsPage {
 	entries: LogEntry[];
 	nextCursor: string;
 	totalMatched: bigint;
 }
 
-export interface ClusterLogs {
+interface ClusterLogs {
 	clusterId: string;
 	region: string;
 	data: LogsPage | undefined;
 	isLoading: boolean;
 	error: Error | null;
-}
-
-function dateToTimestamp(date: Date) {
-	return create(TimestampSchema, {
-		seconds: BigInt(Math.floor(date.getTime() / 1000)),
-		nanos: 0,
-	});
 }
 
 interface UseQueryLogsOptions {
@@ -73,8 +65,8 @@ export function useQueryLogs({
 				const resp = await client.queryLogs({
 					workspaceId,
 					resourceIds,
-					startTime: dateToTimestamp(new Date(now - timeRangeMs(timeRange))),
-					endTime: dateToTimestamp(new Date(now)),
+					startTime: msToTimestamp(now - timeRangeMs(timeRange)),
+					endTime: msToTimestamp(now),
 					search: parsedQuery.search,
 					levels: parsedQuery.levels,
 					labels: parsedQuery.labels,

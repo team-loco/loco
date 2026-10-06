@@ -3,6 +3,7 @@ import { CornerDownRightIcon, HistoryIcon, SearchIcon, StarIcon, TagIcon, XIcon 
 
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
+import { formatCount } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { useObs } from "./context";
@@ -152,7 +153,7 @@ export function QueryBar({ valueCounts }: { valueCounts: (key: FieldKey) => [str
 					pre: `${neg ? "-" : ""}@${vmKey}:`,
 					main: v,
 					post: "",
-					hint: c > 0 ? c.toLocaleString() : "",
+					hint: c > 0 ? formatCount(c) : "",
 					apply: () => {
 						addToken({ neg, key: vmKey, value: v });
 					},

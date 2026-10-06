@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { BellIcon, SearchIcon } from "lucide-react";
+import { BellIcon } from "lucide-react";
 
 import { EmptyState } from "@/components/design/EmptyState";
-import { Input } from "@/components/design/Input";
+import { Pager } from "@/components/design/Pager";
+import { SearchInput } from "@/components/design/SearchInput";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -10,13 +11,15 @@ import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { getErrorMessage } from "@/lib/error-handler";
 import { timeRangeMs } from "@/lib/obs";
+import { pageRangeLabel, pageSlice } from "@/lib/paging";
+import { formatClock, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { selectedResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
 import { groupEvents, severityOf, severityStyle, type Severity } from "./events";
-import { fmtClock, fmtTs, tsMs } from "./format";
-import { Dot, Histogram, PagerFooter, type HistoBucket } from "./shared";
+import { fmtTs } from "./format";
+import { Dot, Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
 import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
 
 type TypeFilter = "all" | Severity;
@@ -64,8 +67,7 @@ export function EventsView() {
 	}
 	const items = groupEvents(filtered);
 
-	const pages = Math.max(1, Math.ceil(items.length / size));
-	const curPage = Math.min(page, pages - 1);
+	const { rows: pageItems, page: curPage, pages } = pageSlice(items, page, size);
 	const selIdx = selKey !== null ? items.findIndex((x) => x.key === selKey) : -1;
 	const selItem = selIdx >= 0 ? items[selIdx] : undefined;
 
@@ -145,18 +147,15 @@ export function EventsView() {
 			<div className="grid items-start gap-5" style={{ gridTemplateColumns: open ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)" }}>
 				<div className="flex min-w-0 flex-col gap-3">
 					<div className="flex flex-wrap items-center gap-2">
-						<div className="relative min-w-[220px] flex-1">
-							<SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-fg3" />
-							<Input
-								value={query}
-								onChange={(e) => {
-									setQuery(e.target.value);
-									setPage(0);
-								}}
-								placeholder="Search reason, object or message"
-								className="h-[34px] rounded-lg pl-8"
-							/>
-						</div>
+						<SearchInput
+							value={query}
+							onChange={(e) => {
+								setQuery(e.target.value);
+								setPage(0);
+							}}
+							placeholder="Search reason, object or message"
+							className="min-w-[220px] flex-1"
+						/>
 						<ToggleGroup
 							variant="segmented"
 							value={[type]}
@@ -211,7 +210,7 @@ export function EventsView() {
 										</div>
 									))}
 								{!loading &&
-									items.slice(curPage * size, curPage * size + size).map((e) => {
+									pageItems.map((e) => {
 										const st = severityStyle(e.severity);
 										const on = e.key === selItem?.key;
 										const res = resourceByName.get(e.resourceName);
@@ -227,7 +226,7 @@ export function EventsView() {
 												)}
 												style={{ gridTemplateColumns: rowCols }}
 											>
-												<span className="whitespace-nowrap text-fg3 tabular-nums">{open ? fmtClock(e.ts) : fmtTs(e.ts)}</span>
+												<span className="whitespace-nowrap text-fg3 tabular-nums">{open ? formatClock(e.ts) : fmtTs(e.ts)}</span>
 												<span className="flex min-w-0 items-center gap-[7px]">
 													<span className={cn("size-[7px] shrink-0 rounded-[2px]", st.dot)} />
 													<span className={cn("truncate font-semibold", st.fg)}>{e.reason}</span>
@@ -259,15 +258,15 @@ export function EventsView() {
 								{!loading && error === null && items.length === 0 && <div className="px-4 py-6 text-fg3">No events match.</div>}
 							</div>
 						</div>
-						<PagerFooter
-							label={items.length > 0 ? `${String(curPage * size + 1)}–${String(Math.min(items.length, (curPage + 1) * size))} of ${String(items.length)}` : "0"}
-							size={size}
-							onSize={(n) => {
+						<Pager
+							className="bg-bg2"
+							label={items.length > 0 ? pageRangeLabel(curPage, size, items.length) : "0"}
+							pageSizes={PAGE_SIZES}
+							pageSize={size}
+							onPageSize={(n) => {
 								setSize(n);
 								setPage(0);
 							}}
-							prevLabel="Previous"
-							nextLabel="Next"
 							onPrev={curPage > 0 ? () => { setPage(curPage - 1); } : null}
 							onNext={curPage < pages - 1 ? () => { setPage(curPage + 1); } : null}
 						/>

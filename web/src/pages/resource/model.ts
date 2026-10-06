@@ -5,8 +5,11 @@ import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_conn
 import { RegionIntentStatus, type RegionConfig, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
+import { maybeTsMs, tsMs } from "@/lib/time";
 
-import { imageRef, imageTag, tsMillis } from "./format";
+import { imageRef, imageTag } from "./format";
+
+export const PAGE_SIZES = [10, 25, 50, 100];
 
 export interface RegionView {
 	name: string;
@@ -29,7 +32,7 @@ export interface Notice {
 }
 
 export function startedMs(dep: Deployment): number | undefined {
-	return tsMillis(dep.startedAt) ?? tsMillis(dep.createdAt);
+	return maybeTsMs(dep.startedAt) ?? maybeTsMs(dep.createdAt);
 }
 
 export function depService(dep: Deployment | undefined): ServiceDeploymentSpec | undefined {
@@ -51,7 +54,7 @@ export function depImageRef(dep: Deployment | undefined): string {
 }
 
 function byNewest(a: Deployment, b: Deployment): number {
-	return (tsMillis(b.createdAt) ?? 0) - (tsMillis(a.createdAt) ?? 0);
+	return tsMs(b.createdAt) - tsMs(a.createdAt);
 }
 
 export function buildRegions(resource: Resource, deployments: Deployment[]): RegionView[] {

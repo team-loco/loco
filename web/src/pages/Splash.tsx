@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useState } from "react";
+import { Navigate, useLocation } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { LoginModal } from "@/components/LoginModal";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
-import { useOrgWorkspace } from "@/context/ContextProvider";
-import { workspacePath } from "@/lib/routes";
 
 import { GITHUB_URL } from "./splash/content";
 import { GitHubIcon } from "./splash/GitHubIcon";
@@ -21,22 +19,20 @@ const NAV_LINKS = [
 	{ label: "Docs", href: "#" },
 ] as const;
 
+function oauthErrorFrom(state: unknown): string | null {
+	if (typeof state !== "object" || state === null || !("oauthError" in state)) return null;
+	return typeof state.oauthError === "string" ? state.oauthError : null;
+}
+
 export function Splash() {
 	const { isAuthenticated } = useAuth();
-	const navigate = useNavigate();
-	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const [loginModalOpen, setLoginModalOpen] = useState(false);
+	const location = useLocation();
+	const oauthError = oauthErrorFrom(location.state);
+	const [loginModalOpen, setLoginModalOpen] = useState(oauthError !== null);
 
-	const dashboardHref =
-		isAuthenticated && activeOrgId !== null && activeWorkspaceId !== null
-			? workspacePath(activeOrgId, activeWorkspaceId)
-			: "/dashboard";
-
-	useEffect(() => {
-		if (isAuthenticated) {
-			void navigate(dashboardHref);
-		}
-	}, [isAuthenticated, dashboardHref, navigate]);
+	if (isAuthenticated) {
+		return <Navigate to="/dashboard" replace />;
+	}
 
 	const openLogin = () => {
 		setLoginModalOpen(true);
@@ -65,20 +61,9 @@ export function Splash() {
 							GitHub
 						</a>
 					</div>
-					{isAuthenticated ? (
-						<Button
-							size="sm"
-							onClick={() => {
-								void navigate(dashboardHref);
-							}}
-						>
-							Dashboard
-						</Button>
-					) : (
-						<Button size="sm" variant="outline" onClick={openLogin}>
-							Sign in
-						</Button>
-					)}
+					<Button size="sm" variant="outline" onClick={openLogin}>
+						Sign in
+					</Button>
 				</div>
 			</nav>
 
@@ -123,7 +108,7 @@ export function Splash() {
 			<CtaSection onStart={openLogin} />
 			<SplashFooter />
 
-			<LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} />
+			<LoginModal open={loginModalOpen} onOpenChange={setLoginModalOpen} initialError={oauthError} />
 		</div>
 	);
 }

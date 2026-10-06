@@ -1,5 +1,5 @@
 import { BoxIcon, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -7,7 +7,6 @@ import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { effectiveResourceStatus } from "@/components/design/StatusBadge";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useBreadcrumbs } from "@/context/ShellContext";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -45,7 +44,6 @@ function DashboardSkeleton() {
 }
 
 export function Dashboard() {
-	useBreadcrumbs("Overview");
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
 	const data = useDashboardData(activeWorkspaceId, active);
@@ -64,15 +62,13 @@ export function Dashboard() {
 	const knownIds = new Set(data.resources.map((r) => r.id));
 	const visibleDrafts = drafts.drafts.filter((d) => d.resourceId === undefined || !knownIds.has(d.resourceId));
 
-	const staleDraftIds = drafts.drafts
-		.filter((d) => d.resourceId !== undefined && knownIds.has(d.resourceId) && !(drawerOpen && d.id === openDraftId))
-		.map((d) => d.id)
-		.join(",");
-	const removeDraft = drafts.remove;
-	useEffect(() => {
-		if (staleDraftIds === "") return;
-		for (const id of staleDraftIds.split(",")) removeDraft(id);
-	}, [staleDraftIds, removeDraft]);
+	const changeDrawerOpen = (open: boolean) => {
+		setDrawerOpen(open);
+		if (open) return;
+		for (const d of drafts.drafts) {
+			if (d.resourceId !== undefined && knownIds.has(d.resourceId)) drafts.remove(d.id);
+		}
+	};
 
 	const openDraft = (id: string) => {
 		setOpenDraftId(id);
@@ -232,7 +228,7 @@ export function Dashboard() {
 				<DraftDrawer
 					draft={openDraftValue}
 					open={drawerOpen}
-					onOpenChange={setDrawerOpen}
+					onOpenChange={changeDrawerOpen}
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={active}

@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -9,16 +9,17 @@ import { createConnectQueryKey } from "@connectrpc/connect-query";
 
 import { Button } from "@/components/design/Button";
 import { Page, PageHeader } from "@/components/design/Page";
+import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { useBreadcrumbs } from "@/context/ShellContext";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
+import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
 import type { CreateDraft } from "./tokens/CreateTokenDialog";
 import { ownerIcon } from "./tokens/icons";
-import { heldLevel, matchesQuery, tokenGrants, tokenStatus, tsMillis } from "./tokens/model";
+import { heldLevel, matchesQuery, tokenGrants, tokenStatus } from "./tokens/model";
 import type { Level, OwnerKey } from "./tokens/model";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { SecretDialog } from "./tokens/SecretDialog";
@@ -36,7 +37,6 @@ function parseOwner(value: string | null): OwnerKey {
 }
 
 export function Tokens() {
-	useBreadcrumbs("Tokens");
 	const [params, setParams] = useSearchParams();
 	const ownerKey = parseOwner(params.get("owner"));
 	const data = useTokenData();
@@ -57,7 +57,7 @@ export function Tokens() {
 			const ea = tokenStatus(a, now) === "expired" ? 1 : 0;
 			const eb = tokenStatus(b, now) === "expired" ? 1 : 0;
 			if (ea !== eb) return ea - eb;
-			return (tsMillis(a.expiresAt) ?? 0) - (tsMillis(b.expiresAt) ?? 0);
+			return tsMs(a.expiresAt) - tsMs(b.expiresAt);
 		});
 	const selectedName = selected?.owner === ownerKey ? selected.name : null;
 	const selectedToken = selectedName === null ? undefined : tokens.find((t) => t.name === selectedName);
@@ -145,18 +145,15 @@ export function Tokens() {
 					})}
 				</ToggleGroup>
 				<div className="flex-1" />
-				<div className="flex h-[34px] w-60 items-center gap-2 rounded-lg border border-line bg-background px-2.5 focus-within:border-fg4">
-					<SearchIcon className="size-3.5 shrink-0 text-fg3" />
-					<input
-						value={q}
-						onChange={(e) => {
-							setQ(e.target.value);
-						}}
-						placeholder="Search"
-						aria-label="Search tokens"
-						className="min-w-0 flex-1 border-0 bg-transparent text-foreground outline-none placeholder:text-fg4"
-					/>
-				</div>
+				<SearchInput
+					value={q}
+					onChange={(e) => {
+						setQ(e.target.value);
+					}}
+					placeholder="Search"
+					aria-label="Search tokens"
+					className="w-60"
+				/>
 			</div>
 			<div
 				className={cn(

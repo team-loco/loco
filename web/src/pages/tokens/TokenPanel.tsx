@@ -3,9 +3,11 @@ import { useState } from "react";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
 import { Button } from "@/components/design/Button";
+import { pluralize } from "@/lib/format";
+import { formatMonthDay, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { ALLOWS, daysLeft, fmtDay, kindLabel, LEVEL_BAR, LEVEL_LABEL, LEVEL_TEXT, LEVELS, lastUsedLabel, resolveNode, sortKeys, tokenGrants, tokenStatus, tsMillis } from "./model";
+import { ALLOWS, daysLeft, kindLabel, LEVEL_BAR, LEVEL_LABEL, LEVEL_TEXT, LEVELS, lastUsedLabel, resolveNode, sortKeys, tokenGrants, tokenStatus } from "./model";
 import type { EntityNode, EntityTree, Level } from "./model";
 import { kindIcon, ownerIcon } from "./icons";
 import type { Owner } from "./useTokenData";
@@ -52,17 +54,17 @@ export function TokenPanel({
 }) {
 	const [expanded, setExpanded] = useState<string | null>(null);
 	const status = tokenStatus(token, now);
-	const created = tsMillis(token.createdAt);
-	const expires = tsMillis(token.expiresAt);
+	const created = maybeTsMs(token.createdAt);
+	const expires = maybeTsMs(token.expiresAt);
 	const groups = groupGrants(tree, token);
 	const canRevoke = owner.canCreate || owner.key === "personal";
 	const ownerLabel = owner.key === "personal" ? owner.label : `${owner.label} · ${owner.noun}`;
 	const expiresText =
-		expires === null
+		expires === undefined
 			? "—"
 			: status === "expired"
-				? `Expired ${fmtDay(expires)}`
-				: `${fmtDay(expires)} · in ${daysLeft(token, now).toString()} days`;
+				? `Expired ${formatMonthDay(expires)}`
+				: `${formatMonthDay(expires)} · in ${daysLeft(token, now).toString()} days`;
 
 	return (
 		<aside className="flex max-h-[calc(100vh-32px)] min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-background xl:sticky xl:top-4">
@@ -86,7 +88,7 @@ export function TokenPanel({
 						<span className="truncate">{ownerLabel}</span>
 					</span>
 					<span className="text-fg3">Created</span>
-					<span>{created === null ? "—" : fmtDay(created)}</span>
+					<span>{created === undefined ? "—" : formatMonthDay(created)}</span>
 					<span className="text-fg3">Expires</span>
 					<span className={cn(status === "expired" && "text-bad-fg", status === "expiring" && "text-warn-fg")}>{expiresText}</span>
 					<span className="text-fg3">Last used</span>
@@ -155,7 +157,7 @@ function GrantRow({
 	const parent = n0.parent === null ? undefined : tree.nodes.get(n0.parent);
 	const total = n0.parent === null ? 0 : (tree.childCount.get(n0.parent) ?? 0);
 	const count = group.nodes.length;
-	const resLabel = `${count.toString()} ${count === 1 ? "resource" : "resources"}${parent === undefined ? "" : ` in ${parent.label}`}`;
+	const resLabel = `${pluralize(count, "resource")}${parent === undefined ? "" : ` in ${parent.label}`}`;
 	const label = isRes ? resLabel : n0.label;
 	const allCurrent = count === total ? "all current" : "";
 	const kind = isRes ? allCurrent : kindLabel(n0.kind);

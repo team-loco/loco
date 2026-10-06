@@ -3,7 +3,6 @@ import { createContext, Suspense, use, useRef, useState, type ReactNode } from "
 import { SidebarInset, SidebarProvider } from "@/components/design/Sidebar";
 import { TooltipProvider } from "@/components/design/Tooltip";
 import { AppLoading } from "@/context/AppLoader";
-import { ShellProvider } from "@/context/ShellContext";
 
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
@@ -72,7 +71,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 	};
 
 	return (
-		<ShellProvider>
 			<TooltipProvider>
 				<SidebarPeekContext value={peek}>
 					<SidebarProvider
@@ -91,6 +89,5 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</SidebarProvider>
 				</SidebarPeekContext>
 			</TooltipProvider>
-		</ShellProvider>
 	);
 }

@@ -1,10 +1,10 @@
 import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { listResourceEvents, listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Event, Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { isUnimplemented } from "@/lib/error-handler";
+import { tsMs } from "@/lib/time";
 
 export interface WorkspaceEventWithResource extends Event {
 	id: string;
@@ -13,13 +13,6 @@ export interface WorkspaceEventWithResource extends Event {
 }
 
 const EVENTS_PER_RESOURCE = 500;
-
-function getTimestampMs(timestamp: Timestamp | undefined): number {
-	if (!timestamp) return 0;
-	const seconds = Number(timestamp.seconds);
-	const nanos = timestamp.nanos || 0;
-	return seconds * 1000 + Math.floor(nanos / 1000000);
-}
 
 export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resource[]) {
 	const transport = useTransport();
@@ -53,7 +46,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 			});
 		});
 	});
-	events.sort((a, b) => getTimestampMs(b.timestamp) - getTimestampMs(a.timestamp));
+	events.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));
 
 	const unavailable = queries.some((q) => isUnimplemented(q.error));
 	const error = queries.find((q) => q.error !== null && !isUnimplemented(q.error))?.error ?? null;

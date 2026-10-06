@@ -8,10 +8,11 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
 import { Textarea } from "@/components/design/Textarea";
+import { parseDotEnv } from "@/lib/dotenv";
 import { toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 
-import { mergeEnv, parseDotEnv, validateEnv, type EnvPair } from "./env";
+import { mergeEnv, validateEnv, type EnvPair } from "./env";
 import type { Notice } from "./model";
 
 interface DraftRow {

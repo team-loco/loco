@@ -1,4 +1,3 @@
-export const OAUTH_ERROR_KEY = "loco:oauth-error:v1";
 
 type StorageArea = "local" | "session";
 

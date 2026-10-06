@@ -1,6 +1,7 @@
+import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { bodyParts, fmtClock, fmtTs, jsonPreview, levelStyle } from "./format";
+import { bodyParts, fmtTs, jsonPreview, levelStyle } from "./format";
 import type { LogRow } from "./rows";
 import { Dot } from "./shared";
 
@@ -52,7 +53,7 @@ export function LogTable({
 							className="grid min-h-[30px] cursor-pointer items-center gap-3 px-4 font-mono text-sm hover:bg-bg2"
 							style={{ gridTemplateColumns: cols }}
 						>
-							<span className="whitespace-nowrap text-fg4">{compact ? fmtClock(l.ts, true) : fmtTs(l.ts, true)}</span>
+							<span className="whitespace-nowrap text-fg4">{compact ? formatClock(l.ts, true) : fmtTs(l.ts, true)}</span>
 							<span
 								className={cn(
 									"inline-flex h-[18px] w-12 items-center justify-center rounded-[3px] text-[10.5px] font-semibold tracking-[0.02em]",

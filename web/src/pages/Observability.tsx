@@ -1,7 +1,6 @@
 import { useSearchParams } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useBreadcrumbs } from "@/context/ShellContext";
 import type { ObservabilityView } from "@/lib/routes";
 
 import { ObsProvider } from "./observability/context";
@@ -27,19 +26,6 @@ function parseView(v: string | null): ObservabilityView {
 	}
 }
 
-function viewTitle(v: ObservabilityView): string {
-	switch (v) {
-		case "logs":
-			return "Logs";
-		case "metrics":
-			return "Metrics";
-		case "traces":
-			return "Traces";
-		case "events":
-			return "Events";
-	}
-}
-
 function ViewBody({ view }: { view: ObservabilityView }) {
 	switch (view) {
 		case "logs":
@@ -57,7 +43,6 @@ export function Observability() {
 	const [params] = useSearchParams();
 	const view = parseView(params.get("view"));
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	useBreadcrumbs(viewTitle(view));
 
 	if (activeOrgId === null || activeWorkspaceId === null) return null;
 

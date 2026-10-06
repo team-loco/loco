@@ -2,24 +2,22 @@ import { useAuth } from "@/auth/AuthProvider";
 import { ErrorCard } from "@/components/ErrorCard";
 import { AppShell } from "@/components/shell/AppShell";
 import { AppLoading } from "@/context/AppLoader";
-import { ContextProvider } from "@/context/ContextProvider";
+import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery } from "@connectrpc/connect-query";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Navigate, useParams } from "react-router";
 
 interface ProtectedLayoutProps {
 	children: ReactNode;
 }
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
-	const navigate = useNavigate();
 	const { orgId: orgParam } = useParams();
-	const { logout, user } = useAuth();
+	const { user } = useAuth();
 	const { isLoading, error } = useQuery(whoAmI, {});
 
 	const { data: orgsRes } = useQuery(
@@ -29,7 +27,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	);
 	const orgs = orgsRes?.orgs ?? [];
 
-	const activeOrgId = orgParam ?? orgs[0]?.id ?? null;
+	const activeOrgId = pickActive(orgs, orgParam, ORG_STORAGE_KEY);
 
 	const { data: workspacesRes } = useQuery(
 		listOrgWorkspaces,
@@ -40,14 +38,11 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
-	useEffect(() => {
-		if (unauthenticated) {
-			void logout();
-			void navigate("/login", { replace: true });
-		}
-	}, [unauthenticated, logout, navigate]);
+	if (unauthenticated) {
+		return <Navigate to="/login" replace />;
+	}
 
-	if (isLoading || unauthenticated) {
+	if (isLoading) {
 		return <AppLoading />;
 	}
 

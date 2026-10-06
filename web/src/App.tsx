@@ -4,7 +4,6 @@ import { Toaster } from "@/components/design/Sonner";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Login } from "@/pages/Login";
 import { OAuthCallback } from "@/pages/OAuthCallback";
-import { Onboarding } from "@/pages/Onboarding";
 import { Splash } from "@/pages/Splash";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -86,7 +85,7 @@ function AppRoutes() {
 				<Route path="/" element={<Splash />} />
 				<Route path="/login" element={<Login />} />
 				<Route path="/oauth/callback" element={<OAuthCallback />} />
-				<Route path="/onboarding" element={<Onboarding />} />
+				<Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
 
 				<Route element={<ProtectedRoute />}>
 					<Route path="/dashboard" element={<DashboardRedirect />} />

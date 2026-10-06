@@ -1,11 +1,12 @@
-import { createContext, use, type ReactNode, useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { createContext, use, useEffect, type ReactNode } from "react";
+import { useNavigate, useParams } from "react-router";
+
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
-const ORG_STORAGE_KEY = "loco:active-org:v1";
+export const ORG_STORAGE_KEY = "loco:active-org:v1";
 const WORKSPACE_STORAGE_KEY = "loco:active-workspace:v1";
 
 interface OrgWorkspaceContextType {
@@ -14,13 +15,27 @@ interface OrgWorkspaceContextType {
 	orgs: Organization[];
 	workspaces: Workspace[];
 	setActiveOrg: (orgId: string) => void;
-	setActiveWorkspace: (workspaceId: string) => void;
-	setOrgs: (orgs: Organization[]) => void;
-	setWorkspaces: (workspaces: Workspace[]) => void;
 	clearContext: () => void;
 }
 
-const OrgWorkspaceContext = createContext<OrgWorkspaceContextType | null>(null);
+const NO_CONTEXT: OrgWorkspaceContextType = {
+	activeOrgId: null,
+	activeWorkspaceId: null,
+	orgs: [],
+	workspaces: [],
+	setActiveOrg: () => undefined,
+	clearContext: () => undefined,
+};
+
+const OrgWorkspaceContext = createContext<OrgWorkspaceContextType>(NO_CONTEXT);
+
+export function pickActive<T extends { id: string }>(items: T[], fromUrl: string | undefined, storageKey: string): string | null {
+	const known = (id: string) => items.length === 0 || items.some((item) => item.id === id);
+	if (fromUrl !== undefined && known(fromUrl)) return fromUrl;
+	const stored = readStorage(storageKey);
+	if (stored !== null && known(stored)) return stored;
+	return items[0]?.id ?? null;
+}
 
 export function ContextProvider({
 	children,
@@ -34,103 +49,18 @@ export function ContextProvider({
 	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
 	const navigate = useNavigate();
 
-	// Manage orgs and workspaces in state
-	const [orgs, setOrgsState] = useState<Organization[]>(availableOrgs);
-	const [workspaces, setWorkspacesState] = useState<Workspace[]>(availableWorkspaces);
-
-	// Re-seed from props when they change. Done during render rather than in an
-	// effect: React re-runs this component before committing, so the stale value
-	// is never painted and there's no second render pass.
-	const [seededOrgs, setSeededOrgs] = useState(availableOrgs);
-	if (seededOrgs !== availableOrgs) {
-		setSeededOrgs(availableOrgs);
-		setOrgsState(availableOrgs);
-	}
-
-	const [seededWorkspaces, setSeededWorkspaces] = useState(availableWorkspaces);
-	if (seededWorkspaces !== availableWorkspaces) {
-		setSeededWorkspaces(availableWorkspaces);
-		setWorkspacesState(availableWorkspaces);
-	}
-
-	// Derive active org ID - URL is canonical source of truth
-	const activeOrgId = useMemo(() => {
-		if (orgParam) {
-			// If we have orgs, verify it exists; otherwise trust the URL
-			if (orgs.length === 0 || orgs.some((org) => org.id === orgParam)) {
-				return orgParam;
-			}
-		}
-
-		const storedOrgId = readStorage(ORG_STORAGE_KEY);
-		if (storedOrgId) {
-			if (orgs.length === 0 || orgs.some((org) => org.id === storedOrgId)) {
-				return storedOrgId;
-			}
-		}
-
-		// Final fallback to first available org
-		return orgs[0]?.id ?? null;
-	}, [orgParam, orgs]);
-
-	// Derive active workspace ID - URL is canonical source of truth
-	const activeWorkspaceId = useMemo(() => {
-		if (workspaceParam) {
-			// If we have workspaces, verify it exists; otherwise trust the URL
-			if (workspaces.length === 0 || workspaces.some((ws) => ws.id === workspaceParam)) {
-				return workspaceParam;
-			}
-		}
-
-		const storedWsId = readStorage(WORKSPACE_STORAGE_KEY);
-		if (storedWsId) {
-			if (workspaces.length === 0 || workspaces.some((ws) => ws.id === storedWsId)) {
-				return storedWsId;
-			}
-		}
-
-		// Final fallback to first available workspace
-		return workspaces[0]?.id ?? null;
-	}, [workspaceParam, workspaces]);
+	const activeOrgId = pickActive(availableOrgs, orgParam, ORG_STORAGE_KEY);
+	const activeWorkspaceId = pickActive(availableWorkspaces, workspaceParam, WORKSPACE_STORAGE_KEY);
 
 	useEffect(() => {
-		if (activeOrgId) {
-			writeStorage(ORG_STORAGE_KEY, activeOrgId);
-		}
-	}, [activeOrgId]);
-
-	useEffect(() => {
-		if (activeWorkspaceId) {
-			writeStorage(WORKSPACE_STORAGE_KEY, activeWorkspaceId);
-		}
-	}, [activeWorkspaceId]);
+		if (activeOrgId !== null) writeStorage(ORG_STORAGE_KEY, activeOrgId);
+		if (activeWorkspaceId !== null) writeStorage(WORKSPACE_STORAGE_KEY, activeWorkspaceId);
+	}, [activeOrgId, activeWorkspaceId]);
 
 	const setActiveOrg = (orgId: string) => {
-		// Navigate to the org with its first available workspace
-		const workspace = workspaces.find(
-			(ws) => ws.orgId === orgId
-		) ?? workspaces[0];
-		if (workspace) {
-			void navigate(`/org/${orgId}/wks/${workspace.id}`);
-		} else {
-			void navigate(`/org/${orgId}/wks/select`);
-		}
-	};
-
-	const setActiveWorkspace = (workspaceId: string) => {
-		if (activeOrgId) {
-			void navigate(
-				`/org/${activeOrgId}/wks/${workspaceId}`
-			);
-		}
-	};
-
-	const setOrgs = (newOrgs: Organization[]) => {
-		setOrgsState(newOrgs);
-	};
-
-	const setWorkspaces = (newWorkspaces: Workspace[]) => {
-		setWorkspacesState(newWorkspaces);
+		writeStorage(ORG_STORAGE_KEY, orgId);
+		removeStorage(WORKSPACE_STORAGE_KEY);
+		void navigate("/dashboard");
 	};
 
 	const clearContext = () => {
@@ -144,12 +74,9 @@ export function ContextProvider({
 			value={{
 				activeOrgId,
 				activeWorkspaceId,
-				orgs,
-				workspaces,
+				orgs: availableOrgs,
+				workspaces: availableWorkspaces,
 				setActiveOrg,
-				setActiveWorkspace,
-				setOrgs,
-				setWorkspaces,
 				clearContext,
 			}}
 		>
@@ -158,31 +85,6 @@ export function ContextProvider({
 	);
 }
 
-export function useOrgWorkspace() {
-	const ctx = use(OrgWorkspaceContext);
-	if (!ctx) {
-		// Return null values when not in provider (e.g., on public pages)
-		return {
-			activeOrgId: null,
-			activeWorkspaceId: null,
-			orgs: [],
-			workspaces: [],
-			setActiveOrg: () => {
-				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
-			},
-			setActiveWorkspace: () => {
-				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
-			},
-			setOrgs: () => {
-				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
-			},
-			setWorkspaces: () => {
-				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
-			},
-			clearContext: () => {
-				console.warn("useOrgWorkspace must be used within OrgWorkspaceProvider");
-			},
-		};
-	}
-	return ctx;
+export function useOrgWorkspace(): OrgWorkspaceContextType {
+	return use(OrgWorkspaceContext);
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/design/Chart";
+import { DAY_MS, formatHourMinute, formatSlashDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { fmtTs } from "./format";
@@ -109,9 +110,7 @@ export function MetricChart({
 	const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => from + f * span);
 	const tickLabel = (v: number) => {
 		if (Math.abs(v - to) < span * 0.01) return "now";
-		const d = new Date(v);
-		if (span > 86_400_000) return `${String(d.getMonth() + 1)}/${String(d.getDate()).padStart(2, "0")}`;
-		return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+		return span > DAY_MS ? formatSlashDate(v) : formatHourMinute(v);
 	};
 	const single = series.length === 1;
 

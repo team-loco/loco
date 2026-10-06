@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
+import { pluralize } from "@/lib/format";
 import { workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -93,7 +94,7 @@ export function WorkspaceTab({
 	const resLabel = resourceCount === undefined ? "—" : `${nRes.toString()}${resourceCount.more ? "+" : ""}`;
 	const subtitle = hasRes
 		? `Delete the ${resLabel} ${nRes === 1 ? "resource" : "resources"} in ${ws.name} first.`
-		: `${resLabel} resources, ${members.toString()} ${members === 1 ? "member" : "members"} with direct access`;
+		: `${resLabel} resources, ${pluralize(members, "member")} with direct access`;
 	const blockedReason = !canAdmin
 		? `Requires Admin on ${ws.name}`
 		: hasRes

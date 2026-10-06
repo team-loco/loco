@@ -1,13 +1,7 @@
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { timestampMs } from "@bufbuild/protobuf/wkt";
 import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
-
-export function tsMs(ts: Timestamp | undefined): number {
-	return ts === undefined ? 0 : timestampMs(ts);
-}
 
 export function imageTag(image: string): string {
 	const digestAt = image.indexOf("@sha256:");
@@ -90,8 +84,4 @@ export function isInFlight(phase: DeploymentPhase): boolean {
 		case DeploymentPhase.CANCELED:
 			return false;
 	}
-}
-
-export function pluralize(n: number, word: string): string {
-	return `${n.toString()} ${word}${n === 1 ? "" : "s"}`;
 }

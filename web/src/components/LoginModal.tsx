@@ -9,25 +9,16 @@ import { Button } from "@/components/design/Button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/design/Dialog";
 import { SoonTag } from "@/components/design/SoonTag";
 import { getErrorMessage } from "@/lib/error-handler";
-import { OAUTH_ERROR_KEY, readStorage, removeStorage } from "@/lib/storage";
 import { LocoLogo } from "@/components/design/LocoLogo";
 
 interface LoginModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	initialError?: string | null | undefined;
 }
 
-function readStoredOAuthError(): string | null {
-	const oauthError = readStorage(OAUTH_ERROR_KEY, "session");
-	if (oauthError) {
-		removeStorage(OAUTH_ERROR_KEY, "session");
-		return oauthError;
-	}
-	return null;
-}
-
-export function LoginModal({ open, onOpenChange }: LoginModalProps) {
-	const [error, setError] = useState<string | null>(readStoredOAuthError);
+export function LoginModal({ open, onOpenChange, initialError }: LoginModalProps) {
+	const [error, setError] = useState<string | null>(initialError ?? null);
 	const [isGithubLoading, setIsGithubLoading] = useState(false);
 
 	const handleGithubLogin = async () => {

@@ -4,8 +4,9 @@ import { RegionIntentStatus, ResourceStatus } from "@gen/loco/resource/v1/resour
 
 import { Section } from "@/components/design/Page";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { tsMs } from "@/lib/time";
 
-import { deploymentImage, imageTag, shortAgo, tsMs } from "./format";
+import { deploymentImage, imageTag, shortAgo } from "./format";
 import type { EnvResource } from "./useDashboardData";
 
 interface AttentionItem {

@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { ChartLineIcon, CheckIcon, CopyIcon, MinusIcon, PlusIcon, ScrollTextIcon, SearchIcon, ServerIcon, WaypointsIcon } from "lucide-react";
+import { ChartLineIcon, CheckIcon, CopyIcon, MinusIcon, PlusIcon, ScrollTextIcon, ServerIcon, WaypointsIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { Code, CodeBlock } from "@/components/design/CodeBlock";
+import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useCopy } from "@/hooks/useCopy";
+import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { fitRange, useObs } from "./context";
-import { bodyParts, flattenJson, fmtClock, fmtTs, levelStyle } from "./format";
+import { bodyParts, flattenJson, fmtTs, levelStyle } from "./format";
 import { sameToken, type FieldKey, type Token } from "./query";
 import type { LogRow } from "./rows";
-import { CopyButton, DetailPanel, Dot, JumpButton, PanelNav, useCopy } from "./shared";
+import { CopyButton, DetailPanel, Dot, JumpButton, PanelNav } from "./shared";
 
 type Tab = "details" | "json";
 
@@ -173,7 +176,7 @@ export function LogDetail({
 							/>
 							<JumpButton
 								icon={<ChartLineIcon />}
-								label={`Metrics at ${fmtClock(row.ts)}`}
+								label={`Metrics at ${formatClock(row.ts)}`}
 								hint={row.resourceName}
 								onClick={() => {
 									goTo("metrics", { range, resource: row.resourceName, focusTs: row.ts });
@@ -181,17 +184,14 @@ export function LogDetail({
 							/>
 						</div>
 						<div className="flex flex-col gap-2">
-							<div className="flex h-[30px] items-center gap-2 rounded-sm border border-line px-2">
-								<SearchIcon className="size-3.5 text-fg3" />
-								<input
-									value={attrQ}
-									onChange={(ev) => {
-										setAttrQ(ev.target.value);
-									}}
-									placeholder="Filter attributes"
-									className="min-w-0 flex-1 border-0 bg-transparent text-[12.5px] text-foreground outline-none placeholder:text-fg4"
-								/>
-							</div>
+							<SearchInput
+								size="sm"
+								value={attrQ}
+								onChange={(ev) => {
+									setAttrQ(ev.target.value);
+								}}
+								placeholder="Filter attributes"
+							/>
 							<div className="flex flex-col overflow-hidden rounded-sm border border-line">
 								{attrs.length === 0 && <div className="px-2.5 py-2 text-sm text-fg3">No attributes match.</div>}
 								{attrs.map(([k, v]) => {

@@ -10,7 +10,6 @@ import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page } from "@/components/design/Page";
 import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useBreadcrumbs } from "@/context/ShellContext";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, workspacePath } from "@/lib/routes";
 import { ErrorBanner, NoticeBanner } from "@/pages/resource/Banners";
@@ -42,8 +41,6 @@ export function Resource() {
 	const [redeploying, setRedeploying] = useState(false);
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
-
-	useBreadcrumbs(resource?.name ?? "");
 
 	const tab = parseTab(params.get("tab"));
 	const setTab = (next: ResourceTab) => {

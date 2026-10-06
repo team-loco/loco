@@ -22,7 +22,7 @@ export function EntityIcon({ kind, className }: { kind: EntityKind; className?: 
 	}
 }
 
-export function EntryChip({ entry }: { entry: ScopeEntry }) {
+function EntryChip({ entry }: { entry: ScopeEntry }) {
 	const label = entry.parent !== "" ? `${entry.parent}/${entry.label}` : entry.label;
 	return (
 		<span className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-sm border border-line bg-background py-0.5 pr-0.5 pl-1.5">
