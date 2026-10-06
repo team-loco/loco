@@ -38,17 +38,23 @@ const (
 	policyInternetEgress   = "allow-internet-egress"
 )
 
-var nonPublicIPv4 = []string{
-	"10.0.0.0/8",
-	"100.64.0.0/10",
-	"169.254.0.0/16",
-	"172.16.0.0/12",
-	"192.168.0.0/16",
+var reservedIPv4 = []string{
+	"0.0.0.0/8",      // rfc 1122 "this network"
+	"10.0.0.0/8",     // rfc 1918 private network
+	"100.64.0.0/10",  // rfc 6598 carrier-grade nat
+	"169.254.0.0/16", // rfc 3927 link-local, includes the cloud metadata endpoint 169.254.169.254
+	"172.16.0.0/12",  // rfc 1918 private network
+	"192.168.0.0/16", // rfc 1918 private network
+	"198.18.0.0/15",  // rfc 2544 benchmarking
+	"224.0.0.0/4",    // multicast
+	"240.0.0.0/4",    // reserved for future use
 }
 
-var nonPublicIPv6 = []string{
-	"fc00::/7",
-	"fe80::/10",
+var reservedIPv6 = []string{
+	"64:ff9b::/96", // rfc 6052 nat64, can translate to internal ipv4
+	"fc00::/7",     // rfc 4193 unique local addresses
+	"fe80::/10",    // rfc 4291 link-local
+	"ff00::/8",     // multicast
 }
 
 func podSecurityLabels() map[string]string {
@@ -130,9 +136,11 @@ func sameNamespacePeer() *networkingv1ac.NetworkPolicyPeerApplyConfiguration {
 	return networkingv1ac.NetworkPolicyPeer().WithPodSelector(allPods)
 }
 
-func publicAddressPeers() []*networkingv1ac.NetworkPolicyPeerApplyConfiguration {
-	ipv4 := networkingv1ac.IPBlock().WithCIDR("0.0.0.0/0").WithExcept(nonPublicIPv4...)
-	ipv6 := networkingv1ac.IPBlock().WithCIDR("::/0").WithExcept(nonPublicIPv6...)
+func publicAddressPeers(
+	exclusions egressExclusionSet,
+) []*networkingv1ac.NetworkPolicyPeerApplyConfiguration {
+	ipv4 := networkingv1ac.IPBlock().WithCIDR("0.0.0.0/0").WithExcept(exclusions.ipv4...)
+	ipv6 := networkingv1ac.IPBlock().WithCIDR("::/0").WithExcept(exclusions.ipv6...)
 	ipv4Peer := networkingv1ac.NetworkPolicyPeer().WithIPBlock(ipv4)
 	ipv6Peer := networkingv1ac.NetworkPolicyPeer().WithIPBlock(ipv6)
 	return []*networkingv1ac.NetworkPolicyPeerApplyConfiguration{ipv4Peer, ipv6Peer}
@@ -140,6 +148,7 @@ func publicAddressPeers() []*networkingv1ac.NetworkPolicyPeerApplyConfiguration 
 
 func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	locoRes *locov1alpha1.Application,
+	exclusions egressExclusionSet,
 ) []*networkingv1ac.NetworkPolicyApplyConfiguration {
 	namespace := getNamespace(locoRes)
 	labels := workspacePolicyLabels(locoRes)
@@ -173,7 +182,7 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 		WithPorts(grpcPort, httpPort)
 	telemetryEgress := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(egress).WithEgress(telemetryRule)
 
-	publicPeers := publicAddressPeers()
+	publicPeers := publicAddressPeers(exclusions)
 	internetRule := networkingv1ac.NetworkPolicyEgressRule().WithTo(publicPeers...)
 	internetEgress := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(egress).WithEgress(internetRule)
 
@@ -203,8 +212,13 @@ func (r *LocoResourceReconciler) ensureWorkspaceNetworkPolicies(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) error {
+	discovered, err := r.clusterAddressRanges(ctx)
+	if err != nil {
+		return fmt.Errorf("discover cluster address ranges: %w", err)
+	}
+	exclusions := egressExclusions(discovered)
 	opts := applyOptions()
-	for _, policy := range r.workspaceNetworkPolicies(locoRes) {
+	for _, policy := range r.workspaceNetworkPolicies(locoRes, exclusions) {
 		if err := r.Apply(ctx, policy, opts...); err != nil {
 			return fmt.Errorf("apply network policy %s/%s: %w", *policy.Namespace, *policy.Name, err)
 		}

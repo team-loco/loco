@@ -20,6 +20,14 @@ rules:
     - apiGroups:
         - ""
       resources:
+        - nodes
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - ""
+      resources:
         - serviceaccounts
       verbs:
         - create
@@ -89,6 +97,14 @@ rules:
         - list
         - patch
         - update
+        - watch
+    - apiGroups:
+        - networking.k8s.io
+      resources:
+        - servicecidrs
+      verbs:
+        - get
+        - list
         - watch
     - apiGroups:
         - rbac.authorization.k8s.io

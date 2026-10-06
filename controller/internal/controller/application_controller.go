@@ -107,6 +107,8 @@ type LocoResourceReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=servicecidrs,verbs=get;list;watch
 
 // todo: abuse of power. we should delete based on owner refs, not delete namespace access;
 
@@ -893,11 +895,15 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	)
 	applicationPredicates := builder.WithPredicates(applicationChanged)
 	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
+	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
+	nodeChanges := nodeRangesChanged()
+	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
+		Watches(&corev1.Node{}, nodeHandler, nodePredicates).
 		WithOptions(options).
 		Named("application").
 		Complete(r)

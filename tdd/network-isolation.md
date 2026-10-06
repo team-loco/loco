@@ -49,9 +49,30 @@ Clusters separate environments, so a namespace is one workspace in one environme
 | pods in the same namespace | any | apps of one workspace talking to each other |
 | `kube-system` kube-dns pods | 53 UDP + TCP | DNS resolution |
 | `otel-col-deploy` in the observability namespace | 4317, 4318 TCP | traces and metrics |
-| `0.0.0.0/0` and `::/0`, except `10/8`, `100.64/10`, `169.254/16`, `172.16/12`, `192.168/16`, `fc00::/7`, `fe80::/10` | any | external APIs; the exclusions cover pod, service and node ranges, CGNAT, and cloud metadata |
+| `0.0.0.0/0` and `::/0`, except reserved ranges and the cluster's own ranges (below) | any | external APIs |
 
 Everything else is denied.
+
+### Internet egress exclusions
+
+Loco must work on any Kubernetes cluster, so the internet policy does not assume the
+cluster's addresses are private. It excludes two sets:
+
+- **Reserved ranges**, fixed: `0.0.0.0/8`, `10.0.0.0/8`, `100.64.0.0/10`,
+  `169.254.0.0/16` (includes cloud metadata), `172.16.0.0/12`, `192.168.0.0/16`,
+  `198.18.0.0/15`, `224.0.0.0/4`, `240.0.0.0/4`, `64:ff9b::/96` (NAT64, can reach internal
+  IPv4), `fc00::/7`, `fe80::/10`, `ff00::/8`.
+- **The cluster's own ranges**, discovered at reconcile time: every Node's
+  `spec.podCIDRs` (or `spec.podCIDR`), every Node's `InternalIP` as a /32 or /128, and
+  the CIDRs of `networking.k8s.io/v1` `ServiceCIDR` objects. If the ServiceCIDR API is not
+  served, service ranges are skipped. This covers clusters whose pod or node addresses are
+  publicly routable, such as IPv6 global unicast pod ranges.
+
+Each range goes under its family's block (IPv4 under `0.0.0.0/0`, IPv6 under `::/0`).
+Ranges already inside a reserved range are left out, and the lists are deduplicated and
+sorted, so the policy only changes when the cluster's ranges do. The controller watches
+Nodes and, when a node is added, removed, or its pod CIDRs or internal addresses change,
+reconciles one Application per workspace, which re-applies that workspace's policy.
 
 ---
 
