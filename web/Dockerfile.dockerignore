@@ -27,8 +27,6 @@ env/
 examples/
 experiments/
 references/
-terraform/
-tdd/
 e2e/
 .github/
 *.go

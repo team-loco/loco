@@ -7,4 +7,4 @@ fix breadcrumb
 done:
 - fix sonner nonsense — ui/sonner.tsx was reading useTheme from next-themes while the app
   uses its own ThemeProvider, so the Toaster was stuck on theme="system" and ignored the
-  toggle. now reads @/lib/use-theme. see the frontend section of ../notes.md.
+  toggle. now reads @/lib/use-theme. see the frontend section of ../docs/notes.md.

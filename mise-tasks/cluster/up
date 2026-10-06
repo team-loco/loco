@@ -7,9 +7,9 @@ if kind get clusters 2>/dev/null | grep -qx "$name"; then
 	if ! kubectl cluster-info --context "kind-$name" >/dev/null 2>&1; then
 		echo "cluster exists but is unreachable, recreating..."
 		kind delete cluster --name "$name"
-		kind create cluster --config local-cluster.yml
+		kind create cluster --config env/local/kind-cluster.yml
 	fi
 else
-	kind create cluster --config local-cluster.yml
+	kind create cluster --config env/local/kind-cluster.yml
 fi
 kind export kubeconfig --name "$name" --kubeconfig "$HOME/.kube/config"

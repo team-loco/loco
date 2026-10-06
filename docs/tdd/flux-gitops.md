@@ -79,7 +79,7 @@ This replaces helmfile's `needs:` and the `phase` labels. A layer that fails sto
 
 ### The CNI is installed before Flux
 
-Flux's controllers are pods, and pods need a CNI. On a cluster created without one (`disableDefaultCNI` in `local-cluster.yml`, and the norm for a self-managed worker), Flux cannot start until Cilium is running. Cilium is therefore installed by the cluster's provisioning step, with the same `loco-networking` chart and values. Flux then adopts the release and owns its configuration from then on. Managed Kubernetes offerings that ship their own CNI skip `loco-networking` entirely, which is a per-cluster decision made in `clusters/<name>/platform.yaml`.
+Flux's controllers are pods, and pods need a CNI. On a cluster created without one (`disableDefaultCNI` in `env/local/kind-cluster.yml`, and the norm for a self-managed worker), Flux cannot start until Cilium is running. Cilium is therefore installed by the cluster's provisioning step, with the same `loco-networking` chart and values. Flux then adopts the release and owns its configuration from then on. Managed Kubernetes offerings that ship their own CNI skip `loco-networking` entirely, which is a per-cluster decision made in `clusters/<name>/platform.yaml`.
 
 ## Charts
 

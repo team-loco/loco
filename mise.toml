@@ -24,7 +24,6 @@ kubectl = "1.37.1"
 kind = "0.33.0"
 tilt = "0.37.8"
 
-terraform = "1.16.4"
 doctl = "1.177.0"
 railway = "5.63.1"
 
