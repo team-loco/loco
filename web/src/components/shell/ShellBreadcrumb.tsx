@@ -15,6 +15,7 @@ import {
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -109,8 +110,10 @@ function CrumbMenu({
 					<ChevronDownIcon className="size-3.5 shrink-0 text-fg4" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent className="w-[260px]" align="start">
-					<DropdownMenuLabel>{heading}</DropdownMenuLabel>
-					{children}
+					<DropdownMenuGroup>
+						<DropdownMenuLabel>{heading}</DropdownMenuLabel>
+						{children}
+					</DropdownMenuGroup>
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</BreadcrumbItem>

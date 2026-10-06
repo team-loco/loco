@@ -13,6 +13,7 @@ import {
 	type AsyncStorage,
 } from "@tanstack/react-query-persist-client";
 import { lazy, Suspense } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -125,7 +126,9 @@ export default function App() {
 						<AppLoaderProvider>
 							<AuthProvider>
 								<Toaster />
-								<AppRoutes />
+								<ErrorBoundary>
+									<AppRoutes />
+								</ErrorBoundary>
 							</AuthProvider>
 						</AppLoaderProvider>
 					</PersistQueryClientProvider>
