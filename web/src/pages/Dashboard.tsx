@@ -137,10 +137,12 @@ export function Dashboard() {
 		<PageHeader
 			title="Overview"
 			actions={
-				<CreateResourceMenu
-					disabled={!canCreate}
-					onService={openNew}
-				/>
+				loading || isEmpty ? undefined : (
+					<CreateResourceMenu
+						disabled={!canCreate}
+						onService={openNew}
+					/>
+				)
 			}
 		>
 			{activeWorkspaceId !== null && (

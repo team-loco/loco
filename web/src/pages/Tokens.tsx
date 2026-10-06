@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusIcon } from "lucide-react";
+import { KeyRoundIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import type { Token } from "@gen/loco/token/v1/token_pb";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 
 import { Button } from "@/components/design/Button";
+import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -99,25 +100,25 @@ export function Tokens() {
 		return tokens.length > 0 ? "No tokens match." : "No tokens yet.";
 	})();
 
+	const ownerEmpty = owner.canList && !current.isLoading && (listError === null || listError === undefined) && tokens.length === 0;
+	const newTokenButton = (
+		<Button
+			size="lg"
+			disabled={!owner.canCreate}
+			title={owner.canCreate ? undefined : `You need write access to ${owner.label} to create tokens`}
+			onClick={() => {
+				setDraft({ name: "", items: [] });
+			}}
+			className="px-3.5"
+		>
+			<PlusIcon />
+			New token
+		</Button>
+	);
+
 	return (
 		<Page className="max-w-[1360px] gap-[18px]">
-			<PageHeader
-				title="Tokens"
-				actions={
-					<Button
-						size="lg"
-						disabled={!owner.canCreate}
-						title={owner.canCreate ? undefined : `You need write access to ${owner.label} to create tokens`}
-						onClick={() => {
-							setDraft({ name: "", items: [] });
-						}}
-						className="px-3.5"
-					>
-						<PlusIcon />
-						New token
-					</Button>
-				}
-			/>
+			<PageHeader title="Tokens" actions={ownerEmpty ? undefined : newTokenButton} />
 			<div className="flex flex-wrap items-center gap-2.5">
 				<ToggleGroup
 					variant="segmented"
@@ -161,17 +162,25 @@ export function Tokens() {
 					selectedToken === undefined ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]",
 				)}
 			>
-				<TokenList
-					tokens={owner.canList ? rows : []}
-					tree={data.tree}
-					now={now}
-					selected={activeName}
-					onSelect={(name) => {
-						setSelected(name === null ? null : { owner: ownerKey, name });
-					}}
-					isLoading={current.isLoading}
-					emptyLabel={emptyLabel}
-				/>
+				{ownerEmpty ? (
+					<section className="rounded-lg border border-line bg-background">
+						<EmptyState icon={<KeyRoundIcon />} title={`No tokens for ${owner.label} yet`} action={newTokenButton}>
+							Tokens let CI, scripts and the CLI call the Loco API with exactly the access you grant.
+						</EmptyState>
+					</section>
+				) : (
+					<TokenList
+						tokens={owner.canList ? rows : []}
+						tree={data.tree}
+						now={now}
+						selected={activeName}
+						onSelect={(name) => {
+							setSelected(name === null ? null : { owner: ownerKey, name });
+						}}
+						isLoading={current.isLoading}
+						emptyLabel={emptyLabel}
+					/>
+				)}
 				{selectedToken !== undefined && (
 					<TokenPanel
 						key={selectedToken.name}
