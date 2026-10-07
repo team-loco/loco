@@ -12,6 +12,7 @@ import (
 	"charm.land/fang/v2"
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/ui"
 )
 
@@ -67,11 +68,17 @@ func Cli() {
 		fang.WithErrorHandler(handleError))
 	env.versionCheck.report(os.Stderr)
 	if err != nil {
+		if code, ok := errors.AsType[*cmdutil.ExitError](err); ok {
+			os.Exit(code.Code)
+		}
 		os.Exit(1)
 	}
 }
 
 func handleError(w io.Writer, styles fang.Styles, err error) {
+	if exit, ok := errors.AsType[*cmdutil.ExitError](err); ok && exit != nil {
+		return
+	}
 	fang.DefaultErrorHandler(w, styles, displayError(err))
 }
 

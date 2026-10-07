@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -26,6 +28,9 @@ func GetCurrentLocoToken(cmd *cobra.Command) (*keychain.UserToken, error) {
 	host, err := GetHost(cmd)
 	if err != nil {
 		return nil, err
+	}
+	if token := strings.TrimSpace(os.Getenv("LOCO_TOKEN")); token != "" {
+		return &keychain.UserToken{Host: host, Token: token}, nil
 	}
 	store, err := keychain.ForCurrentUser()
 	if err != nil {
