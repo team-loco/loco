@@ -106,7 +106,7 @@ type Querier interface {
 	GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
-	GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (User, error)
+	GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (GetUserByIdentityRow, error)
 	GetUserScopes(ctx context.Context, userID uuid.UUID) ([]GetUserScopesRow, error)
 	// what scopes does user x have on entity y?
 	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]GetUserScopesOnEntityRow, error)
@@ -161,6 +161,7 @@ type Querier interface {
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
+	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
@@ -198,6 +199,7 @@ type Querier interface {
 	UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
+	UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error)
 	WorkspaceHasResources(ctx context.Context, workspaceID uuid.UUID) (bool, error)
 }
 

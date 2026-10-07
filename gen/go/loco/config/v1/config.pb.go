@@ -63,6 +63,7 @@ type GetConfigResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	ServiceDefaults *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
 	MinCliVersion   string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
+	Auth            *AuthConfig            `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -111,6 +112,89 @@ func (x *GetConfigResponse) GetMinCliVersion() string {
 	return ""
 }
 
+func (x *GetConfigResponse) GetAuth() *AuthConfig {
+	if x != nil {
+		return x.Auth
+	}
+	return nil
+}
+
+type AuthConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Adapter       string                 `protobuf:"bytes,1,opt,name=adapter,proto3" json:"adapter,omitempty"`
+	Issuer        string                 `protobuf:"bytes,2,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	Url           string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	ClientId      string                 `protobuf:"bytes,4,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	Scopes        string                 `protobuf:"bytes,5,opt,name=scopes,proto3" json:"scopes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AuthConfig) Reset() {
+	*x = AuthConfig{}
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AuthConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AuthConfig) ProtoMessage() {}
+
+func (x *AuthConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AuthConfig.ProtoReflect.Descriptor instead.
+func (*AuthConfig) Descriptor() ([]byte, []int) {
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AuthConfig) GetAdapter() string {
+	if x != nil {
+		return x.Adapter
+	}
+	return ""
+}
+
+func (x *AuthConfig) GetIssuer() string {
+	if x != nil {
+		return x.Issuer
+	}
+	return ""
+}
+
+func (x *AuthConfig) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *AuthConfig) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *AuthConfig) GetScopes() string {
+	if x != nil {
+		return x.Scopes
+	}
+	return ""
+}
+
 // DefaultServiceConfig contains default values for service deployments.
 // These values are used when users don't specify explicit configuration.
 type DefaultServiceConfig struct {
@@ -134,7 +218,7 @@ type DefaultServiceConfig struct {
 
 func (x *DefaultServiceConfig) Reset() {
 	*x = DefaultServiceConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	mi := &file_loco_config_v1_config_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +230,7 @@ func (x *DefaultServiceConfig) String() string {
 func (*DefaultServiceConfig) ProtoMessage() {}
 
 func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[2]
+	mi := &file_loco_config_v1_config_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +243,7 @@ func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefaultServiceConfig.ProtoReflect.Descriptor instead.
 func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DefaultServiceConfig) GetRouting() *v1.RoutingConfig {
@@ -223,10 +307,18 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a#loco/deployment/v1/deployment.proto\x1a\x1floco/resource/v1/resource.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\x8c\x01\n" +
+	"\x10GetConfigRequest\"\xbc\x01\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
-	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\"\xaa\x03\n" +
+	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
+	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\"\x85\x01\n" +
+	"\n" +
+	"AuthConfig\x12\x18\n" +
+	"\aadapter\x18\x01 \x01(\tR\aadapter\x12\x16\n" +
+	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12\x1b\n" +
+	"\tclient_id\x18\x04 \x01(\tR\bclientId\x12\x16\n" +
+	"\x06scopes\x18\x05 \x01(\tR\x06scopes\"\xaa\x03\n" +
 	"\x14DefaultServiceConfig\x129\n" +
 	"\arouting\x18\x03 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
 	"\fhealth_check\x18\x04 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
@@ -253,27 +345,29 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_loco_config_v1_config_proto_rawDescData
 }
 
-var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_loco_config_v1_config_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
 	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
-	(*DefaultServiceConfig)(nil),   // 2: loco.config.v1.DefaultServiceConfig
-	(*v1.RoutingConfig)(nil),       // 3: loco.resource.v1.RoutingConfig
-	(*v11.HealthCheckConfig)(nil),  // 4: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil), // 5: loco.resource.v1.ObservabilityConfig
+	(*AuthConfig)(nil),             // 2: loco.config.v1.AuthConfig
+	(*DefaultServiceConfig)(nil),   // 3: loco.config.v1.DefaultServiceConfig
+	(*v1.RoutingConfig)(nil),       // 4: loco.resource.v1.RoutingConfig
+	(*v11.HealthCheckConfig)(nil),  // 5: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil), // 6: loco.resource.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
-	2, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
-	3, // 1: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
-	4, // 2: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	5, // 3: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
-	0, // 4: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1, // 5: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
+	2, // 1: loco.config.v1.GetConfigResponse.auth:type_name -> loco.config.v1.AuthConfig
+	4, // 2: loco.config.v1.DefaultServiceConfig.routing:type_name -> loco.resource.v1.RoutingConfig
+	5, // 3: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	6, // 4: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.resource.v1.ObservabilityConfig
+	0, // 5: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1, // 6: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }
@@ -287,7 +381,7 @@ func file_loco_config_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_config_v1_config_proto_rawDesc), len(file_loco_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -34,7 +34,7 @@ func (tvm *VendingMachine) Issue(
 		return "", err
 	}
 
-	userScopes, err := tvm.userScopes(ctx, userUUID)
+	userScopes, err := tvm.UserScopes(ctx, userUUID)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error())
 		return "", err

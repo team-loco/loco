@@ -33,7 +33,7 @@ func (tvm *VendingMachine) Exchange(
 		return queries.User{}, "", "", ErrExchange
 	}
 
-	user, err := tvm.queries.GetUserByIdentity(ctx, queries.GetUserByIdentityParams{
+	row, err := tvm.queries.GetUserByIdentity(ctx, queries.GetUserByIdentityParams{
 		Issuer:  identity.Issuer(),
 		Subject: subject,
 	})
@@ -45,6 +45,7 @@ func (tvm *VendingMachine) Exchange(
 		slog.ErrorContext(ctx, "failed to look up user by identity", "error", err)
 		return queries.User{}, "", "", ErrUserLookup
 	}
+	user := row.User
 
 	if err := tvm.queries.TouchIdentity(ctx, queries.TouchIdentityParams{
 		Issuer:        identity.Issuer(),

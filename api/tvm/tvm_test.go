@@ -129,11 +129,12 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 func (tq *TestingQueries) GetUserByIdentity(
 	ctx context.Context,
 	params queries.GetUserByIdentityParams,
-) (queries.User, error) {
+) (queries.GetUserByIdentityRow, error) {
 	if params.Issuer != providers.GithubIssuer || params.Subject == "" {
-		return queries.User{}, pgx.ErrNoRows
+		return queries.GetUserByIdentityRow{}, pgx.ErrNoRows
 	}
-	return tq.GetUserByEmail(ctx, params.Subject+"@loco-testing.com")
+	user, err := tq.GetUserByEmail(ctx, params.Subject+"@loco-testing.com")
+	return queries.GetUserByIdentityRow{User: user}, err
 }
 
 func (*TestingQueries) TouchIdentity(_ context.Context, _ queries.TouchIdentityParams) error {

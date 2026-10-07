@@ -1,0 +1,236 @@
+package auth
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+	genDb "github.com/team-loco/loco/api/gen/db"
+)
+
+var ErrResolve = errors.New("could not resolve the signed-in user")
+
+type Resolver struct {
+	pool    *pgxpool.Pool
+	queries *genDb.Queries
+	policy  SignupPolicy
+}
+
+func NewResolver(pool *pgxpool.Pool, policy SignupPolicy) *Resolver {
+	return &Resolver{pool: pool, queries: genDb.New(pool), policy: policy}
+}
+
+func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error) {
+	user, err := r.existing(ctx, id)
+	if err == nil {
+		return user, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return genDb.User{}, err
+	}
+
+	user, err = r.provision(ctx, id)
+	if isUniqueViolation(err) {
+		return r.existing(ctx, id)
+	}
+	return user, err
+}
+
+func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, error) {
+	row, err := r.queries.GetUserByIdentity(ctx, genDb.GetUserByIdentityParams{
+		Issuer:  id.Issuer,
+		Subject: id.Subject,
+	})
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			slog.ErrorContext(ctx, "failed to look up identity", "error", err)
+			return genDb.User{}, ErrResolve
+		}
+		return genDb.User{}, err
+	}
+	user := row.User
+	email := nullableString(id.Email)
+	storedVerified := row.IdentityEmailVerified && row.IdentityEmail != nil && *row.IdentityEmail == id.Email
+	if id.EmailVerified && email != nil && !storedVerified {
+		return r.recordVerifiedEmail(ctx, user, id)
+	}
+	if err := r.queries.TouchIdentity(ctx, genDb.TouchIdentityParams{
+		Issuer:        id.Issuer,
+		Subject:       id.Subject,
+		Email:         email,
+		EmailVerified: id.EmailVerified,
+	}); err != nil {
+		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", err)
+	}
+	return user, nil
+}
+
+func (r *Resolver) recordVerifiedEmail(ctx context.Context, user genDb.User, id Identity) (genDb.User, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return genDb.User{}, ErrResolve
+	}
+	defer func() {
+		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
+			slog.WarnContext(ctx, "failed to roll back email verification", "error", rbErr)
+		}
+	}()
+	qtx := r.queries.WithTx(tx)
+	if touchErr := qtx.TouchIdentity(ctx, genDb.TouchIdentityParams{
+		Issuer:        id.Issuer,
+		Subject:       id.Subject,
+		Email:         &id.Email,
+		EmailVerified: true,
+	}); touchErr != nil {
+		slog.ErrorContext(ctx, "failed to record the verified email", "error", touchErr, "userId", user.ID)
+		return genDb.User{}, ErrResolve
+	}
+	user, err = moveAccountEmail(ctx, qtx, user, id.Email)
+	if err != nil {
+		return genDb.User{}, err
+	}
+	if commitErr := tx.Commit(ctx); commitErr != nil {
+		slog.ErrorContext(ctx, "failed to commit the verified email", "error", commitErr, "userId", user.ID)
+		return genDb.User{}, ErrResolve
+	}
+	return user, nil
+}
+
+func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, email string) (genDb.User, error) {
+	if user.Email == email {
+		return user, nil
+	}
+	holder, err := qtx.GetUserByEmail(ctx, email)
+	if err == nil {
+		slog.WarnContext(ctx, "kept the account email: the identity's new verified address belongs to another user",
+			"userId", user.ID, "otherUserId", holder.ID)
+		return user, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		slog.ErrorContext(ctx, "failed to look up user by email", "error", err, "userId", user.ID)
+		return genDb.User{}, ErrResolve
+	}
+	moved, err := qtx.MoveAccountEmail(ctx, genDb.MoveAccountEmailParams{UserID: user.ID, Email: email})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return user, nil
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to move the account email", "error", err, "userId", user.ID)
+		return genDb.User{}, ErrResolve
+	}
+	slog.InfoContext(ctx, "moved the account email to the identity's verified address", "userId", user.ID)
+	return moved, nil
+}
+
+func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, error) {
+	if id.Email == "" {
+		return genDb.User{}, ErrEmailMissing
+	}
+	if !id.EmailVerified {
+		return genDb.User{}, ErrEmailUnverified
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
+		return genDb.User{}, ErrResolve
+	}
+	defer func() {
+		if rbErr := tx.Rollback(ctx); rbErr != nil && !errors.Is(rbErr, pgx.ErrTxClosed) {
+			slog.WarnContext(ctx, "failed to roll back provisioning", "error", rbErr)
+		}
+	}()
+	qtx := r.queries.WithTx(tx)
+
+	user, err := qtx.GetUserByEmail(ctx, id.Email)
+	switch {
+	case err == nil:
+		unverified, checkErr := qtx.UserHasUnverifiedIdentity(ctx, user.ID)
+		if checkErr != nil {
+			slog.ErrorContext(ctx, "failed to check the user's identities", "error", checkErr, "userId", user.ID)
+			return genDb.User{}, ErrResolve
+		}
+		if unverified {
+			return genDb.User{}, ErrEmailTaken
+		}
+	case errors.Is(err, pgx.ErrNoRows):
+		if policyErr := r.policy.Check(id); policyErr != nil {
+			return genDb.User{}, policyErr
+		}
+		user, err = createUser(ctx, qtx, id)
+		if err != nil {
+			return genDb.User{}, err
+		}
+	default:
+		slog.ErrorContext(ctx, "failed to look up user by email", "error", err)
+		return genDb.User{}, ErrResolve
+	}
+
+	if _, err := qtx.CreateIdentity(ctx, genDb.CreateIdentityParams{
+		UserID:        user.ID,
+		Issuer:        id.Issuer,
+		Subject:       id.Subject,
+		Email:         nullableString(id.Email),
+		EmailVerified: id.EmailVerified,
+	}); err != nil {
+		if isUniqueViolation(err) {
+			return genDb.User{}, err
+		}
+		slog.ErrorContext(ctx, "failed to create identity", "error", err, "userId", user.ID)
+		return genDb.User{}, ErrResolve
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		if isUniqueViolation(err) {
+			return genDb.User{}, err
+		}
+		slog.ErrorContext(ctx, "failed to commit provisioning", "error", err)
+		return genDb.User{}, ErrResolve
+	}
+	slog.InfoContext(ctx, "provisioned identity", "userId", user.ID, "issuer", id.Issuer)
+	return user, nil
+}
+
+func createUser(ctx context.Context, qtx *genDb.Queries, id Identity) (genDb.User, error) {
+	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
+		Email:     id.Email,
+		Name:      nullableString(id.Name),
+		AvatarUrl: nullableString(id.AvatarURL),
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return genDb.User{}, err
+		}
+		slog.ErrorContext(ctx, "failed to create user", "error", err)
+		return genDb.User{}, ErrResolve
+	}
+	for _, scope := range []genDb.Scope{genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
+		if err := qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
+			UserID:     user.ID,
+			EntityType: genDb.EntityTypeUser,
+			EntityID:   user.ID,
+			Scope:      scope,
+		}); err != nil {
+			slog.ErrorContext(ctx, "failed to grant user scope", "error", err, "userId", user.ID)
+			return genDb.User{}, fmt.Errorf("%w: %w", ErrResolve, err)
+		}
+	}
+	return user, nil
+}
+
+func nullableString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
