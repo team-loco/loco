@@ -40,6 +40,9 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
 
+      - name: Test the service graph
+        run: mise run test:railway
+
       - name: Plan
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

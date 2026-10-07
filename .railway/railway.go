@@ -11,6 +11,7 @@ import (
 const (
 	registry = "ghcr.io/team-loco"
 	region   = "us-east4-eqdc4a"
+	uiPort   = 8080
 )
 
 var commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -80,16 +81,20 @@ func dockerBuild(dockerfile string) map[string]any {
 }
 
 func ui(env environment) railway.Service {
+	uiDomain := env.domainPrefix + "loco.build"
+	docsDomain := "docs." + uiDomain
+	domains := []any{
+		map[string]any{"domain": uiDomain, "port": uiPort},
+		map[string]any{"domain": docsDomain, "port": uiPort},
+	}
 	return railway.ServiceNamed("loco::cp-ui", railway.ServiceConfig{
 		"source":   image("loco-ui", "sha-"+env.commit+env.uiTagSuffix),
+		"domains":  domains,
 		"build":    dockerBuild("/web/Dockerfile"),
 		"replicas": map[string]any{region: 2},
 		"deploy":   limits(0.5, 1000000000),
 		"networking": map[string]any{
 			"privateNetworkEndpoint": "captivating-wisdom",
-			"customDomains": map[string]any{
-				env.domainPrefix + "loco.build": map[string]any{"port": 8080},
-			},
 		},
 	})
 }

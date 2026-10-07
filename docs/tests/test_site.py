@@ -1,5 +1,6 @@
 from html.parser import HTMLParser
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tomllib
@@ -34,6 +35,14 @@ class SiteTests(unittest.TestCase):
                 self.assertIn(f'https://{host}/', (site / 'llms.txt').read_text())
                 self.assertIn('Deployment modes', (site / 'llms-full.txt').read_text())
                 self.assertTrue((site / 'index.md').is_file())
+                web = DOCS.parent / 'web'
+                self.assertEqual((site / 'assets/favicon.svg').read_text(), (web / 'public/favicon.svg').read_text())
+                strokes = re.findall(r'\["([^"]+)", ([\d.]+),', (web / 'src/components/design/logo-strokes.ts').read_text())
+                logo = (DOCS / 'overrides/partials/logo.html').read_text()
+                for path, width in strokes:
+                    self.assertIn(f'<path d="{path}" stroke-width="{width}"/>', logo)
+                self.assertEqual(logo.count('<path '), len(strokes))
+                self.assertIn(logo.strip(), html)
                 self.assertTrue((site / '404.html').is_file())
                 for document in site.rglob('*.html'):
                     links = Links()

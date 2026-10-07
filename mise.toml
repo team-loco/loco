@@ -245,3 +245,12 @@ run = "uv run --frozen --project docs python -m unittest discover -s docs/tests"
 [tasks."docs:check:browser"]
 description = "Check documentation navigation, search, themes and Markdown copying in Chromium"
 run = "uv run --frozen --project docs python docs/tests/browser.py"
+
+[tasks."test:railway"]
+description = "Test the production and staging Railway service graph"
+dir = ".railway"
+run = "go test ./..."
+
+[tasks."docs:check:container"]
+description = "Check combined UI and documentation images in production and staging"
+run = "uv run --frozen --project docs python docs/tests/container.py"

@@ -3,3 +3,6 @@
 site/
 .generated.toml
 __pycache__/
+content/assets/favicon.svg
+overrides/partials/logo.html
+.sws.toml

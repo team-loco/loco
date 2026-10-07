@@ -8,7 +8,8 @@ An environment separates an application's staging and production targets. Select
 | --- | --- | --- |
 | Dashboard | `https://loco.build` | `https://staging.loco.build` |
 | API | `https://api.loco.build` | `https://api.staging.loco.build` |
-| Documentation | `https://docs.loco.build` | `https://docs.staging.loco.build` |
+| Documentation (canonical) | `https://docs.loco.build` | `https://docs.staging.loco.build` |
+| Documentation on the dashboard | `https://loco.build/docs/` | `https://staging.loco.build/docs/` |
 
 The staging docs display a banner and tell search engines not to index them. These endpoints describe Loco's own hosted services; self-hosted installations choose their own domains.
 
@@ -26,6 +27,6 @@ A definition receives the workspace name, environment name, and environment type
 
 Explicit `--workspace` and `--environment` flags override environment variables and a saved link. Prefer IDs for restricted CI credentials.
 
-## Promote the documentation service
+## Promote the dashboard and documentation
 
-Repository merges build separate production and staging documentation images for the same commit. The existing staging workflow deploys that commit automatically. The production workflow promotes the selected commit's production image after staging verification. See [documentation maintenance](../contributing/documentation.md).
+The UI image includes its documentation build. Repository merges build production and staging UI images for the same commit. The existing staging workflow deploys that commit automatically. The production workflow promotes the selected commit's production UI image, including the docs, after staging verification. See [documentation maintenance](../contributing/documentation.md).

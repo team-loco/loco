@@ -13,9 +13,13 @@ jobs:
     name: Run Tests
     uses: ./.github/workflows/test.yml
 
+  docs-check:
+    name: Check Documentation
+    uses: ./.github/workflows/docs.yml
+
   push-image:
     name: Build and Push ${{ matrix.name }} Image
-    needs: test
+    needs: [test, docs-check]
     permissions:
       contents: read
       packages: write
@@ -41,6 +45,7 @@ jobs:
             image: ui
             dockerfile: ./web/Dockerfile
             build_args: |
+              DOCS_ENVIRONMENT=production
               VITE_API_URL=https://api.loco.build
               VITE_APP_ENV=PRODUCTION
 
@@ -49,6 +54,7 @@ jobs:
             dockerfile: ./web/Dockerfile
             tag_suffix: ",suffix=-staging"
             build_args: |
+              DOCS_ENVIRONMENT=staging
               VITE_API_URL=https://api.staging.loco.build
               VITE_APP_ENV=PRODUCTION
     uses: ./.github/workflows/build-push.yml
