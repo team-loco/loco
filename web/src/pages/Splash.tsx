@@ -3,6 +3,7 @@ import { Navigate, useLocation } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { LoginModal } from "@/components/LoginModal";
+import { AppLoading } from "@/context/AppLoader";
 
 import { AccessSection } from "./splash/AccessSection";
 import { Architecture } from "./splash/Architecture";
@@ -19,13 +20,17 @@ function oauthErrorFrom(state: unknown): string | null {
 }
 
 export function Splash() {
-	const { isAuthenticated } = useAuth();
+	const { isAuthenticated, isLoading } = useAuth();
 	const location = useLocation();
 	const oauthError = oauthErrorFrom(location.state);
 	const [loginModalOpen, setLoginModalOpen] = useState(oauthError !== null);
 
 	if (isAuthenticated) {
 		return <Navigate to="/dashboard" replace />;
+	}
+
+	if (isLoading) {
+		return <AppLoading />;
 	}
 
 	const openLogin = () => {

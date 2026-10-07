@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const {
 		data: user,
-		isLoading,
+		isPending,
 		error,
 	} = useQuery(
 		whoAmI,
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			value={{
 				user: user?.user ?? null,
 				isAuthenticated: !unauthenticated && !!user?.user,
-				isLoading,
+				isLoading: isPending,
 				error: error instanceof Error ? error : null,
 				logout,
 			}}
