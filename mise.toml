@@ -229,3 +229,8 @@ description = "Test the Go infrastructure authoring SDK"
 dir = "sdk/go"
 run = "go test ./..."
 
+
+[tasks."test:infra"]
+description = "Test Go infrastructure discovery and evaluation"
+run = "go test ./internal/infra/..."
+
