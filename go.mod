@@ -91,3 +91,7 @@ tool (
 	connectrpc.com/connect/cmd/protoc-gen-connect-go
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
+
+require github.com/team-loco/loco/gen/go v0.1.0
+
+replace github.com/team-loco/loco/gen/go => ./gen/go

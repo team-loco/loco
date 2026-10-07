@@ -10,6 +10,7 @@ on:
       - "**/buf.lock"
       - "**/buf.gen.yaml"
       - "gen/**"
+      - "sdk/go/**"
       - "go.mod"
       - "go.sum"
       - "package.json"
@@ -29,6 +30,7 @@ on:
       - "**/buf.lock"
       - "**/buf.gen.yaml"
       - "gen/**"
+      - "sdk/go/**"
       - "go.mod"
       - "go.sum"
       - "package.json"
@@ -76,11 +78,16 @@ jobs:
       - name: Regenerate Go and TypeScript from the protos
         run: buf generate
 
+      - name: Compile the protobuf module and SDK
+        run: |
+          (cd gen/go && go build ./...)
+          if [ -f sdk/go/go.mod ]; then (cd sdk/go && go build ./...); fi
+
       - name: Fail if anything is out of date
         run: |
-          if [ -n "$(git status --porcelain -- gen)" ]; then
-            git status --short -- gen
-            git diff -- gen
+          if [ -n "$(git status --porcelain -- gen sdk/go)" ]; then
+            git status --short -- gen sdk/go
+            git diff -- gen sdk/go
             echo "::error::Generated code is out of date. Run 'mise run gen' and commit the result."
             exit 1
           fi

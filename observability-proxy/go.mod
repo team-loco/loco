@@ -30,3 +30,7 @@ require (
 )
 
 replace github.com/team-loco/loco => ../
+
+require github.com/team-loco/loco/gen/go v0.1.0
+
+replace github.com/team-loco/loco/gen/go => ../gen/go

@@ -79,3 +79,7 @@ require (
 replace github.com/team-loco/loco => ../
 
 replace github.com/team-loco/loco/k8sapi => ../k8sapi
+
+require github.com/team-loco/loco/gen/go v0.1.0
+
+replace github.com/team-loco/loco/gen/go => ../gen/go

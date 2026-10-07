@@ -1,0 +1,146 @@
+syntax = "proto3";
+
+package loco.infra.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "loco/resource/v1/resource.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/infra/v1;infrav1";
+
+service InfrastructureService {
+  rpc PlanInfrastructure(PlanInfrastructureRequest) returns (PlanInfrastructureResponse);
+  rpc ApplyInfrastructure(ApplyInfrastructureRequest) returns (ApplyInfrastructureResponse);
+  rpc GetStack(GetStackRequest) returns (GetStackResponse);
+  rpc SetSecret(SetSecretRequest) returns (SetSecretResponse);
+}
+
+message AuthoringContext {
+  string workspace = 1;
+  string environment = 2;
+  string environment_type = 3;
+  string project_root = 4;
+}
+
+message EvaluationManifest {
+  uint32 version = 1;
+  StackManifest stack = 2;
+}
+
+message DockerSource {
+  string context = 1;
+  string dockerfile = 2;
+}
+
+message Variable {
+  oneof expression {
+    string literal = 1;
+    string secret = 2;
+    bool preserve = 3;
+  }
+}
+
+message ServiceManifest {
+  string key = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 63
+  }];
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 63
+  }];
+  string description = 3 [(buf.validate.field).string.max_len = 256];
+  resource.v1.ResourceSpec spec = 4 [(buf.validate.field).required = true];
+  string hostname = 5;
+  map<string, Variable> variables = 6;
+  oneof source {
+    DockerSource docker = 7;
+    string image = 8;
+  }
+  string resolved_image = 9;
+}
+
+message StackManifest {
+  uint32 version = 1 [(buf.validate.field).uint32.const = 1];
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 63
+  }];
+  repeated ServiceManifest services = 3;
+}
+
+enum OperationType {
+  OPERATION_TYPE_UNSPECIFIED = 0;
+  OPERATION_TYPE_CREATE = 1;
+  OPERATION_TYPE_UPDATE = 2;
+  OPERATION_TYPE_DELETE = 3;
+}
+
+message Operation {
+  OperationType type = 1;
+  string service_key = 2;
+  repeated string changed_fields = 3;
+  bool deploy = 4;
+  bool destructive = 5;
+  string image_digest = 6;
+}
+
+message Plan {
+  string id = 1;
+  string workspace_id = 2;
+  string environment_id = 3;
+  string stack_name = 4;
+  int64 expected_revision = 5;
+  string source_digest = 6;
+  string manifest_digest = 7;
+  repeated Operation operations = 8;
+  google.protobuf.Timestamp expires_at = 9;
+}
+
+message PlanInfrastructureRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  StackManifest manifest = 3 [(buf.validate.field).required = true];
+  string source_digest = 4 [(buf.validate.field).string.pattern = "^[a-f0-9]{64}$"];
+  string service_key = 5;
+}
+
+message PlanInfrastructureResponse {
+  Plan plan = 1;
+}
+
+message ApplyInfrastructureRequest {
+  string plan_id = 1 [(buf.validate.field).string.uuid = true];
+  string manifest_digest = 2 [(buf.validate.field).string.pattern = "^[a-f0-9]{64}$"];
+  string source_digest = 3 [(buf.validate.field).string.pattern = "^[a-f0-9]{64}$"];
+  bool confirm_destructive = 4;
+  string plan_digest = 5 [(buf.validate.field).string.pattern = "^[a-f0-9]{64}$"];
+}
+
+message ApplyInfrastructureResponse {
+  string apply_id = 1;
+  repeated string deployment_ids = 2;
+}
+
+message GetStackRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  string name = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+message GetStackResponse {
+  StackManifest manifest = 1;
+}
+
+message SetSecretRequest {
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
+  string name = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 63
+  }];
+  bytes value = 3 [(buf.validate.field).bytes.max_len = 65536];
+}
+
+message SetSecretResponse {
+  string version_id = 1;
+}

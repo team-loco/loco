@@ -79,12 +79,12 @@ service ResourceService {
 message RoutingConfig {
   int32 port = 1; // application port
   string path_prefix = 2; // e.g., "/"
-  int32 idle_timeout = 3; // seconds
+  optional int32 idle_timeout = 3; // seconds
 }
 
 // LoggingConfig defines logging configuration.
 message LoggingConfig {
-  bool enabled = 1;
+  optional bool enabled = 1;
   string retention_period = 2; // e.g., "7d", "30d"
   bool structured = 3; // parse as JSON
 }
@@ -99,7 +99,7 @@ message MetricsConfig {
 // TracingConfig defines distributed tracing configuration.
 message TracingConfig {
   bool enabled = 1;
-  double sample_rate = 2; // 0.0 to 1.0
+  optional double sample_rate = 2; // 0.0 to 1.0
   map<string, string> tags = 3;
 }
 

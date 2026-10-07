@@ -212,9 +212,9 @@ func (RegionIntentStatus) EnumDescriptor() ([]byte, []int) {
 // RoutingConfig defines routing configuration for a resource.
 type RoutingConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Port          int32                  `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`                                  // application port
-	PathPrefix    string                 `protobuf:"bytes,2,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`     // e.g., "/"
-	IdleTimeout   int32                  `protobuf:"varint,3,opt,name=idle_timeout,json=idleTimeout,proto3" json:"idle_timeout,omitempty"` // seconds
+	Port          int32                  `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`                                        // application port
+	PathPrefix    string                 `protobuf:"bytes,2,opt,name=path_prefix,json=pathPrefix,proto3" json:"path_prefix,omitempty"`           // e.g., "/"
+	IdleTimeout   *int32                 `protobuf:"varint,3,opt,name=idle_timeout,json=idleTimeout,proto3,oneof" json:"idle_timeout,omitempty"` // seconds
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -264,8 +264,8 @@ func (x *RoutingConfig) GetPathPrefix() string {
 }
 
 func (x *RoutingConfig) GetIdleTimeout() int32 {
-	if x != nil {
-		return x.IdleTimeout
+	if x != nil && x.IdleTimeout != nil {
+		return *x.IdleTimeout
 	}
 	return 0
 }
@@ -273,7 +273,7 @@ func (x *RoutingConfig) GetIdleTimeout() int32 {
 // LoggingConfig defines logging configuration.
 type LoggingConfig struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Enabled         bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Enabled         *bool                  `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
 	RetentionPeriod string                 `protobuf:"bytes,2,opt,name=retention_period,json=retentionPeriod,proto3" json:"retention_period,omitempty"` // e.g., "7d", "30d"
 	Structured      bool                   `protobuf:"varint,3,opt,name=structured,proto3" json:"structured,omitempty"`                                 // parse as JSON
 	unknownFields   protoimpl.UnknownFields
@@ -311,8 +311,8 @@ func (*LoggingConfig) Descriptor() ([]byte, []int) {
 }
 
 func (x *LoggingConfig) GetEnabled() bool {
-	if x != nil {
-		return x.Enabled
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
 	}
 	return false
 }
@@ -396,7 +396,7 @@ func (x *MetricsConfig) GetPort() int32 {
 type TracingConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	SampleRate    float64                `protobuf:"fixed64,2,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate,omitempty"` // 0.0 to 1.0
+	SampleRate    *float64               `protobuf:"fixed64,2,opt,name=sample_rate,json=sampleRate,proto3,oneof" json:"sample_rate,omitempty"` // 0.0 to 1.0
 	Tags          map[string]string      `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -440,8 +440,8 @@ func (x *TracingConfig) GetEnabled() bool {
 }
 
 func (x *TracingConfig) GetSampleRate() float64 {
-	if x != nil {
-		return x.SampleRate
+	if x != nil && x.SampleRate != nil {
+		return *x.SampleRate
 	}
 	return 0
 }
@@ -2634,30 +2634,34 @@ var File_loco_resource_v1_resource_proto protoreflect.FileDescriptor
 
 const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
-	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\"g\n" +
+	"\x1floco/resource/v1/resource.proto\x12\x10loco.resource.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#loco/deployment/v1/deployment.proto\x1a\x1bloco/domain/v1/domain.proto\"}\n" +
 	"\rRoutingConfig\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1f\n" +
 	"\vpath_prefix\x18\x02 \x01(\tR\n" +
-	"pathPrefix\x12!\n" +
-	"\fidle_timeout\x18\x03 \x01(\x05R\vidleTimeout\"t\n" +
-	"\rLoggingConfig\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12)\n" +
+	"pathPrefix\x12&\n" +
+	"\fidle_timeout\x18\x03 \x01(\x05H\x00R\vidleTimeout\x88\x01\x01B\x0f\n" +
+	"\r_idle_timeout\"\x85\x01\n" +
+	"\rLoggingConfig\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12)\n" +
 	"\x10retention_period\x18\x02 \x01(\tR\x0fretentionPeriod\x12\x1e\n" +
 	"\n" +
 	"structured\x18\x03 \x01(\bR\n" +
-	"structured\"Q\n" +
+	"structuredB\n" +
+	"\n" +
+	"\b_enabled\"Q\n" +
 	"\rMetricsConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
-	"\x04port\x18\x03 \x01(\x05R\x04port\"\xc2\x01\n" +
+	"\x04port\x18\x03 \x01(\x05R\x04port\"\xd7\x01\n" +
 	"\rTracingConfig\x12\x18\n" +
-	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1f\n" +
-	"\vsample_rate\x18\x02 \x01(\x01R\n" +
-	"sampleRate\x12=\n" +
+	"\aenabled\x18\x01 \x01(\bR\aenabled\x12$\n" +
+	"\vsample_rate\x18\x02 \x01(\x01H\x00R\n" +
+	"sampleRate\x88\x01\x01\x12=\n" +
 	"\x04tags\x18\x03 \x03(\v2).loco.resource.v1.TracingConfig.TagsEntryR\x04tags\x1a7\n" +
 	"\tTagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc6\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x0e\n" +
+	"\f_sample_rate\"\xc6\x01\n" +
 	"\x13ObservabilityConfig\x129\n" +
 	"\alogging\x18\x01 \x01(\v2\x1f.loco.resource.v1.LoggingConfigR\alogging\x129\n" +
 	"\ametrics\x18\x02 \x01(\v2\x1f.loco.resource.v1.MetricsConfigR\ametrics\x129\n" +
@@ -3020,6 +3024,9 @@ func file_loco_resource_v1_resource_proto_init() {
 	if File_loco_resource_v1_resource_proto != nil {
 		return
 	}
+	file_loco_resource_v1_resource_proto_msgTypes[0].OneofWrappers = []any{}
+	file_loco_resource_v1_resource_proto_msgTypes[1].OneofWrappers = []any{}
+	file_loco_resource_v1_resource_proto_msgTypes[3].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[5].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[6].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[11].OneofWrappers = []any{

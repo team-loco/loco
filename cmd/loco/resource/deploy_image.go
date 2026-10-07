@@ -12,6 +12,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
+	"google.golang.org/protobuf/proto"
 )
 
 // buildAndPushImage builds (or validates a pre-built) Docker image and pushes it to the registry.
@@ -125,12 +126,12 @@ func configToResourceSpecV1(cfg *config.LocoConfig) (*resourcev1.ResourceSpec, e
 	routing := &resourcev1.RoutingConfig{
 		Port:        cfg.Routing.Port,
 		PathPrefix:  cfg.Routing.PathPrefix,
-		IdleTimeout: cfg.Routing.IdleTimeout,
+		IdleTimeout: proto.Int32(cfg.Routing.IdleTimeout),
 	}
 
 	observability := &resourcev1.ObservabilityConfig{
 		Logging: &resourcev1.LoggingConfig{
-			Enabled:         cfg.Obs.Logging.Enabled,
+			Enabled:         proto.Bool(cfg.Obs.Logging.Enabled),
 			RetentionPeriod: cfg.Obs.Logging.RetentionPeriod,
 			Structured:      cfg.Obs.Logging.Structured,
 		},
@@ -141,7 +142,7 @@ func configToResourceSpecV1(cfg *config.LocoConfig) (*resourcev1.ResourceSpec, e
 		},
 		Tracing: &resourcev1.TracingConfig{
 			Enabled:    cfg.Obs.Tracing.Enabled,
-			SampleRate: cfg.Obs.Tracing.SampleRate,
+			SampleRate: proto.Float64(cfg.Obs.Tracing.SampleRate),
 			Tags:       cfg.Obs.Tracing.Tags,
 		},
 	}

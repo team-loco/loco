@@ -9,6 +9,7 @@ WORKDIR /app
 
 COPY observability-proxy/go.mod observability-proxy/go.sum ./observability-proxy/
 COPY go.mod go.sum ./
+COPY gen/go/go.mod gen/go/go.sum ./gen/go/
 
 WORKDIR /app/observability-proxy
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
