@@ -22,7 +22,7 @@ OBS_PROXY_PORT=8878
 CONTROLLER_IMAGE="loco-controller:e2e"
 BUILDER_IMAGE="loco-builder:e2e"
 BUILDKIT_IMAGE="moby/buildkit:v0.33.1-rootless"
-GATEWAY_API_VERSION="v1.6.3"
+GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
 USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
