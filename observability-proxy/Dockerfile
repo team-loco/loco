@@ -10,6 +10,7 @@ WORKDIR /app
 COPY observability-proxy/go.mod observability-proxy/go.sum ./observability-proxy/
 COPY go.mod go.sum ./
 COPY gen/go/go.mod gen/go/go.sum ./gen/go/
+COPY sdk/go/go.mod sdk/go/go.sum ./sdk/go/
 
 WORKDIR /app/observability-proxy
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
@@ -17,6 +18,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 WORKDIR /app
 COPY observability-proxy ./observability-proxy
 COPY gen/go ./gen/go
+COPY sdk/go ./sdk/go
 
 WORKDIR /app/observability-proxy
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build go build -o loco-obs-proxy .

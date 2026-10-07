@@ -3,6 +3,7 @@
 !go.mod
 !go.sum
 !gen/go
+!sdk/go
 **/node_modules
 **/dist
 **/*_test.go

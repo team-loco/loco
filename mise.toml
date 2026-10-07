@@ -223,3 +223,9 @@ run = "./e2e/run.sh --no-teardown"
 description = "Tear down the end-to-end infrastructure"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --teardown-only"
+
+[tasks."test:sdk"]
+description = "Test the Go infrastructure authoring SDK"
+dir = "sdk/go"
+run = "go test ./..."
+

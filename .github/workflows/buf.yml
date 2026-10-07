@@ -81,7 +81,7 @@ jobs:
       - name: Compile the protobuf module and SDK
         run: |
           (cd gen/go && go build ./...)
-          if [ -f sdk/go/go.mod ]; then (cd sdk/go && go build ./...); fi
+          (cd sdk/go && go build ./...)
 
       - name: Fail if anything is out of date
         run: |

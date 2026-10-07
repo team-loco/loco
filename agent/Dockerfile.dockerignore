@@ -3,6 +3,7 @@
 !go.mod
 !go.sum
 !gen/go
+!sdk/go
 !k8sapi
 **/node_modules
 **/dist

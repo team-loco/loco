@@ -7,6 +7,8 @@ on:
     paths:
       - "api/**"
       - "cmd/**"
+      - "internal/**"
+      - "sdk/**"
       - "controller/**"
       - "agent/**"
       - "main.go"
@@ -15,10 +17,13 @@ on:
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
+      - ".github/workflows/test.yml"
   pull_request:
     paths:
       - "api/**"
       - "cmd/**"
+      - "internal/**"
+      - "sdk/**"
       - "controller/**"
       - "agent/**"
       - "main.go"
@@ -27,6 +32,7 @@ on:
       - "mise.toml"
       - "mise.lock"
       - ".github/actions/setup-tools/**"
+      - ".github/workflows/test.yml"
   merge_group:
   workflow_call:
 
@@ -112,6 +118,11 @@ jobs:
           - component: CLI
             working-directory: "."
             test-command: mise run test:cli
+            timeout: 10
+
+          - component: Go SDK
+            working-directory: sdk/go
+            test-command: mise run test:sdk
             timeout: 10
 
           - component: Controller
