@@ -8,8 +8,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -46,6 +48,8 @@ import (
 )
 
 const envProduction = "PRODUCTION"
+
+var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
 
 type APIConfig struct {
 	Env                   string // Environment (e.g., dev, prod)
@@ -123,16 +127,33 @@ func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cach
 	}
 }
 
-func withCORS(allowedOrigins []string) func(http.Handler) http.Handler {
+func isLoopbackOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	return slices.Contains(loopbackHosts, u.Hostname())
+}
+
+func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) http.Handler {
 	exposedHeaders := append(connectcors.ExposedHeaders(), "x-loco-request-id", "server-timing")
+	opts := cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   connectcors.AllowedMethods(),
+		AllowedHeaders:   connectcors.AllowedHeaders(),
+		ExposedHeaders:   exposedHeaders,
+		AllowCredentials: true,
+	}
+	if allowLoopback {
+		opts.AllowOriginFunc = func(origin string) bool {
+			return slices.Contains(allowedOrigins, origin) || isLoopbackOrigin(origin)
+		}
+	}
 	return func(h http.Handler) http.Handler {
-		middleware := cors.New(cors.Options{
-			AllowedOrigins:   allowedOrigins,
-			AllowedMethods:   connectcors.AllowedMethods(),
-			AllowedHeaders:   connectcors.AllowedHeaders(),
-			ExposedHeaders:   exposedHeaders,
-			AllowCredentials: true,
-		})
+		middleware := cors.New(opts)
 		return middleware.Handler(h)
 	}
 }
@@ -402,7 +423,9 @@ func main() {
 	mux.Handle(observabilityAccessPath, observabilityAccessH)
 	mux.Handle(environmentPath, environmentHandler)
 
-	muxWCors := withCORS(ac.CORSAllowedOrigins)(mux)
+	allowLoopback := ac.Env != envProduction
+	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)
+	muxWCors := corsMiddleware(mux)
 
 	// Serve HTTP/1.1 alongside unencrypted HTTP/2 (h2c) using the stdlib
 	// Protocols field; golang.org/x/net/http2/h2c is deprecated as of Go 1.26.
