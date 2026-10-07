@@ -59,7 +59,9 @@ node_modules/
 .DS_Store
 
 # LLM Stuff
-AGENTS.md
+CLAUDE.local.md
+.claude/*
+!.claude/skills
 
 # local helm charts and values
 **/values/local.yaml
@@ -83,5 +85,4 @@ e2e/kubeconfig
 # temp ignores
 .sops.yaml
 v1-report.html
-CLAUDE.md
 clusters/
