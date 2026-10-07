@@ -1,113 +1,25 @@
 package resource
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 
-	"connectrpc.com/connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
-	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/config"
-	"github.com/team-loco/loco/internal/ui"
 )
 
 var errNilConfig = errors.New("config cannot be nil")
 
-// buildAndPushImage builds (or validates a pre-built) Docker image and pushes it to the registry.
-func buildAndPushImage(
-	ctx context.Context,
-	deps deployDeps,
-	registryClient registryv1connect.RegistryServiceClient,
-	authHeader string,
-	orgID, workspaceID, resourceID string,
-	loadedCfg *config.LoadedConfig,
-	imageID string,
-) (string, error) {
-	dockerClient, err := deps.NewDockerClient(loadedCfg)
-	if err != nil {
-		return "", err
+var errSourceBuildsUnavailable = errors.New(
+	"building from source is not available yet: pass --image with a public image reference",
+)
+
+func resolveImage(image string) (string, error) {
+	if image == "" {
+		return "", errSourceBuildsUnavailable
 	}
-	defer dockerClient.Close()
-
-	repoReq := connect.NewRequest(&registryv1.GetImageRepositoryRequest{})
-	repoReq.Header().Set("Authorization", authHeader)
-	repoResp, err := registryClient.GetImageRepository(ctx, repoReq)
-	if err != nil {
-		return "", fmt.Errorf("failed to get the image repository: %w", err)
-	}
-	imageBase := repoResp.Msg.GetRepository()
-	imageName := dockerClient.GenerateImageTag(imageBase, orgID, workspaceID, resourceID)
-	slog.Debug("generated image name", "imageBase", imageBase, "imageName", imageName)
-
-	var steps []ui.Step
-
-	if imageID != "" {
-		steps = append(steps, ui.Step{
-			Title: "Validate and tag Docker image",
-			Run: func(logf func(string)) error {
-				if validateErr := dockerClient.ValidateImage(ctx, imageID, logf); validateErr != nil {
-					return fmt.Errorf("image validation failed: %w", validateErr)
-				}
-				if tagErr := dockerClient.ImageTag(ctx, imageID); tagErr != nil {
-					return fmt.Errorf("failed to tag image: %w", tagErr)
-				}
-				return nil
-			},
-		})
-	} else {
-		steps = append(steps, ui.Step{
-			Title: "Build Docker image",
-			Run: func(logf func(string)) error {
-				if buildErr := dockerClient.BuildImage(ctx, logf); buildErr != nil {
-					return fmt.Errorf("docker build failed: %w", buildErr)
-				}
-				return nil
-			},
-		})
-	}
-
-	steps = append(steps, ui.Step{
-		Title: "Validate image",
-		Run: func(logf func(string)) error {
-			if validateErr := dockerClient.ValidateImage(ctx, imageName, logf); validateErr != nil {
-				return fmt.Errorf("image validation failed: %w", validateErr)
-			}
-			return nil
-		},
-	})
-
-	steps = append(steps, ui.Step{
-		Title: "Push image to registry",
-		Run: func(logf func(string)) error {
-			tokenReq := connect.NewRequest(&registryv1.GetGitlabTokenRequest{})
-			tokenReq.Header().Set("Authorization", authHeader)
-
-			tokenResp, tokenErr := registryClient.GetGitlabToken(ctx, tokenReq)
-			if tokenErr != nil {
-				return fmt.Errorf("failed to fetch registry credentials: %w", tokenErr)
-			}
-
-			if pushErr := dockerClient.PushImage(
-				ctx,
-				logf,
-				tokenResp.Msg.GetUsername(),
-				tokenResp.Msg.GetToken(),
-			); pushErr != nil {
-				return fmt.Errorf("docker push failed: %w", pushErr)
-			}
-			return nil
-		},
-	})
-
-	if err := ui.RunSteps(steps); err != nil {
-		return "", err
-	}
-
-	return imageName, nil
+	return image, nil
 }
 
 // configToResourceSpec converts a LocoConfig to a proto ResourceSpec.

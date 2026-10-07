@@ -2,10 +2,6 @@ package controller
 
 import (
 	"errors"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"sync/atomic"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -24,22 +20,13 @@ var _ = Describe("Application reconcile", func() {
 	It("converges without rewriting unchanged objects and cleans up on delete", func() {
 		Expect(v1Gateway.Install(scheme.Scheme)).To(Succeed())
 
-		var created atomic.Int64
-		var revoked atomic.Int64
-		gitlab := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			switch req.Method {
-			case http.MethodPost:
-				id := created.Add(1)
-				w.WriteHeader(http.StatusCreated)
-				_, _ = fmt.Fprintf(w, `{"id":%d,"username":"deploy","token":"secret"}`, id)
-			case http.MethodDelete:
-				revoked.Add(1)
-				w.WriteHeader(http.StatusNoContent)
-			default:
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		}))
-		defer gitlab.Close()
+		pullSecretName := testPullSecretName
+		pullSecret := &corev1.Secret{
+			Name: pullSecretName, Namespace: testNamespace,
+			Type: corev1.SecretTypeDockerConfigJson,
+			Data: map[string][]byte{corev1.DockerConfigJsonKey: []byte(`{"auths":{}}`)},
+		}
+		Expect(k8sClient.Create(ctx, pullSecret)).To(Succeed())
 
 		app := &locov1alpha1.Application{
 			Name: "converge", Namespace: testNamespace,
@@ -59,20 +46,18 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 		r := &LocoResourceReconciler{
-			Client:            k8sClient,
-			Scheme:            k8sClient.Scheme(),
-			gitlabURL:         gitlab.URL,
-			gitlabPAT:         "pat",
-			gitlabProjectID:   "1",
-			gitlabRegistryURL: "registry.example.com",
-			locoNamespace:     "loco",
-			httpClient:        gitlab.Client(),
+			Client:         k8sClient,
+			Scheme:         k8sClient.Scheme(),
+			locoNamespace:  testNamespace,
+			pullSecretName: pullSecretName,
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
 		depKey := client.ObjectKey{Namespace: getNamespace(app), Name: getName(app)}
 		envSecretName := getEnvSecretName(app)
 		envKey := client.ObjectKey{Namespace: depKey.Namespace, Name: envSecretName}
+		imageSecretName := getImageSecretName(app)
+		imageKey := client.ObjectKey{Namespace: depKey.Namespace, Name: imageSecretName}
 
 		result, err := r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
@@ -81,6 +66,14 @@ var _ = Describe("Application reconcile", func() {
 		dep := &appsv1.Deployment{}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
 		Expect(dep.Spec.Template.Spec.Containers[0].EnvFrom[0].SecretRef.Name).To(Equal(envSecretName))
+		imageSecret := &corev1.Secret{}
+		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
+		Expect(imageSecret.Type).To(Equal(corev1.SecretTypeDockerConfigJson))
+		Expect(imageSecret.Data).To(Equal(pullSecret.Data))
+		Expect(imageSecret.Labels).To(HaveKeyWithValue(labelManagedBy, managedByValue))
+		sa := &corev1.ServiceAccount{}
+		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())
+		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: imageSecretName}))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.Status.Phase).To(Equal(phaseDeploying))
 		Expect(app.Finalizers).To(ContainElement(finalizerSecretRefresher))
@@ -93,7 +86,22 @@ var _ = Describe("Application reconcile", func() {
 		Expect(dep.ResourceVersion).To(Equal(depVersion))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
 		Expect(app.ResourceVersion).To(Equal(appVersion))
-		Expect(created.Load()).To(Equal(int64(1)))
+
+		rotated := []byte(`{"auths":{"registry.example.com":{}}}`)
+		pullSecret.Data = map[string][]byte{corev1.DockerConfigJsonKey: rotated}
+		Expect(k8sClient.Update(ctx, pullSecret)).To(Succeed())
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(k8sClient.Get(ctx, imageKey, imageSecret)).To(Succeed())
+		Expect(imageSecret.Data).To(HaveKeyWithValue(corev1.DockerConfigJsonKey, rotated))
+
+		r.pullSecretName = ""
+		_, err = r.Reconcile(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+		err = k8sClient.Get(ctx, imageKey, imageSecret)
+		Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		Expect(k8sClient.Get(ctx, depKey, sa)).To(Succeed())
+		Expect(sa.ImagePullSecrets).To(BeEmpty())
 
 		app.Spec.ServiceSpec.Deployment.Env = map[string]string{"A": "changed"}
 		Expect(k8sClient.Update(ctx, app)).To(Succeed())
@@ -112,7 +120,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 		err = k8sClient.Get(ctx, appKey, app)
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
-		Expect(revoked.Load()).To(Equal(int64(1)))
+		Expect(k8sClient.Delete(ctx, pullSecret)).To(Succeed())
 	})
 
 	It("marks an invalid spec failed and still lets it be deleted", func() {

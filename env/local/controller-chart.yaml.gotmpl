@@ -1,13 +1,4 @@
 manager:
-  env:
-    - name: GITLAB_URL
-      value: {{ env "GITLAB_URL" | default "https://gitlab.com" | quote }}
-    - name: GITLAB_PAT
-      value: {{ env "GITLAB_PAT" | quote }}
-    - name: GITLAB_PROJECT_ID
-      value: {{ env "GITLAB_PROJECT_ID" | quote }}
-    - name: GITLAB_REGISTRY_URL
-      value: {{ env "GITLAB_REGISTRY_URL" | default "https://registry.gitlab.com" | quote }}
   image:
     repository: loco-controller
     tag: latest

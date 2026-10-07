@@ -27,7 +27,7 @@ Run `loco update` to replace the installed binary with the latest release.
 
 2. **Log in with `loco login`.** It uses the GitHub device flow.
 3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
-4. **Deploy your app via `loco deploy <app-name>`**
+4. **Deploy your app via `loco deploy <app-name> --image <image>`**, where `<image>` is a public image reference. Building from source is not available yet.
 
 Apps run under Kubernetes' `restricted` Pod Security profile, so the image must run as a numeric non-root user (for example `USER 10001` in the Dockerfile).
 
@@ -97,13 +97,13 @@ That installs the pinned tools, the web dependencies and the git hooks, then run
 
 Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
 
-Copy `.env.example` to `.env` and fill in the GitHub OAuth app and GitLab registry credentials. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
+Copy `.env.example` to `.env` and fill in the GitHub OAuth app credentials. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
 
 ```bash
 mise run build
 ./bin/loco login --host http://localhost:8000
 ./bin/loco config set webHost http://localhost:5173
-cd examples/test-api/backend && ../../../bin/loco deploy backend
+cd examples/test-api/backend && ../../../bin/loco deploy backend --image <public image reference>
 ```
 
 ---

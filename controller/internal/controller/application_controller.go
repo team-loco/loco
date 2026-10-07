@@ -18,10 +18,8 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"time"
 
@@ -55,8 +53,6 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-var errGitlabEnvMissing = errors.New("missing required gitlab environment variables")
-
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
 	finalizerSecretRefresher = "loco.io/secret-refresher"
@@ -80,8 +76,12 @@ const (
 	defaultMemoryRequest     = "128Mi"
 	defaultMemoryLimit       = "512Mi"
 	deployingRequeue         = 15 * time.Second
-	minRequeue               = time.Second
 	maxConcurrentReconciles  = 4
+)
+
+const (
+	EnvLocoNamespace          = "LOCO_NAMESPACE"
+	EnvRegistryPullSecretName = "REGISTRY_PULL_SECRET_NAME"
 )
 
 // LocoResourceReconciler reconciles a Application object
@@ -89,14 +89,9 @@ type LocoResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	// needed for refreshing container image token.
-	gitlabURL         string
-	gitlabPAT         string
-	gitlabProjectID   string
-	gitlabRegistryURL string
-	locoNamespace     string
-	obsNamespace      string
-	httpClient        *http.Client
+	locoNamespace  string
+	obsNamespace   string
+	pullSecretName string
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -192,7 +187,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure secrets: %w", err)
 	}
 
-	refreshAt, err := r.ensureImagePullSecret(ctx, locoRes)
+	err = r.ensureImagePullSecret(ctx, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure image pull secret: %w", err)
 	}
@@ -231,25 +226,12 @@ func (r *LocoResourceReconciler) reconcileResources(
 	replicas := desiredReplicas(locoRes.Spec.ServiceSpec)
 	if !deploymentReady(dep, replicas) {
 		setPhase(locoRes, phaseDeploying, "Waiting for pods to be ready...")
-		requeue := requeueAfter(refreshAt, deployingRequeue)
-		return ctrl.Result{RequeueAfter: requeue}, nil
+		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
 
 	locoRes.Status.DeployedGeneration = locoRes.Generation
 	setPhase(locoRes, phaseReady, "Deployment ready")
-	requeue := requeueAfter(refreshAt, 0)
-	return ctrl.Result{RequeueAfter: requeue}, nil
-}
-
-func requeueAfter(refreshAt time.Time, ceiling time.Duration) time.Duration {
-	wait := time.Until(refreshAt)
-	if ceiling > 0 && wait > ceiling {
-		wait = ceiling
-	}
-	if wait < minRequeue {
-		wait = minRequeue
-	}
-	return wait
+	return ctrl.Result{}, nil
 }
 
 func observePlacementRevision(locoRes *locov1alpha1.Application) {
@@ -305,7 +287,7 @@ func (r *LocoResourceReconciler) ensureFinalizer(ctx context.Context, locoRes *l
 	return nil
 }
 
-// handleDeletion revokes the registry token, deletes the namespace, and removes the finalizer
+// handleDeletion deletes the app's objects and namespace, and removes the finalizer
 func (r *LocoResourceReconciler) handleDeletion(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
@@ -313,8 +295,6 @@ func (r *LocoResourceReconciler) handleDeletion(
 	if !controllerutil.ContainsFinalizer(locoRes, finalizerSecretRefresher) {
 		return ctrl.Result{}, nil
 	}
-
-	r.revokeCurrentRegistryToken(ctx, locoRes)
 
 	if err := r.deleteAppObjects(ctx, locoRes); err != nil {
 		return ctrl.Result{}, err
@@ -501,18 +481,20 @@ func ensureEnvSecret(
 func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-	secretName := getImageSecretName(locoRes)
 
 	slog.DebugContext(ctx, "ensuring service account", "namespace", namespace, "name", name)
 
 	labels := managedLabels(locoRes)
 	annotations := ownerAnnotations(locoRes)
-	pullSecret := corev1ac.LocalObjectReference().WithName(secretName)
 	sa := corev1ac.ServiceAccount(name, namespace).
 		WithLabels(labels).
 		WithAnnotations(annotations).
-		WithAutomountServiceAccountToken(false).
-		WithImagePullSecrets(pullSecret)
+		WithAutomountServiceAccountToken(false)
+	if r.pullSecretName != "" {
+		secretName := getImageSecretName(locoRes)
+		pullSecret := corev1ac.LocalObjectReference().WithName(secretName)
+		sa.WithImagePullSecrets(pullSecret)
+	}
 
 	opts := applyOptions()
 	if err := r.Apply(ctx, sa, opts...); err != nil {
@@ -879,17 +861,12 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.gitlabURL = os.Getenv("GITLAB_URL")
-	r.gitlabPAT = os.Getenv("GITLAB_PAT")
-	r.gitlabProjectID = os.Getenv("GITLAB_PROJECT_ID")
-	r.gitlabRegistryURL = os.Getenv("GITLAB_REGISTRY_URL")
-	r.locoNamespace = os.Getenv("LOCO_NAMESPACE")
+	r.locoNamespace = os.Getenv(EnvLocoNamespace)
 	r.obsNamespace = os.Getenv("LOCO_OBSERVABILITY_NAMESPACE")
-	r.httpClient = &http.Client{Timeout: 10 * time.Second}
+	r.pullSecretName = os.Getenv(EnvRegistryPullSecretName)
 
-	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {
-		slog.Error("missing required gitlab environment variables")
-		return errGitlabEnvMissing
+	if r.pullSecretName != "" && r.locoNamespace == "" {
+		return fmt.Errorf("%s requires %s to be set", EnvRegistryPullSecretName, EnvLocoNamespace)
 	}
 
 	applicationChanged := predicate.Or[client.Object](
@@ -903,10 +880,17 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	controllerBuilder := ctrl.NewControllerManagedBy(mgr).
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
-		Watches(&corev1.Node{}, nodeHandler, nodePredicates).
+		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
+	if r.pullSecretName != "" {
+		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.allApplications)
+		pullSecretChanges := r.pullSecretChanged()
+		pullSecretPredicates := builder.WithPredicates(pullSecretChanges)
+		controllerBuilder = controllerBuilder.Watches(&corev1.Secret{}, pullSecretHandler, pullSecretPredicates)
+	}
+	return controllerBuilder.
 		WithOptions(options).
 		Named("application").
 		Complete(r)

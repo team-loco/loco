@@ -104,12 +104,7 @@ func api(env environment) railway.Service {
 		"DATABASE_URL",
 		"GH_OAUTH_CLIENT_ID",
 		"GH_OAUTH_CLIENT_SECRET",
-		"GITLAB_PAT",
-		"GITLAB_PROJECT_ID",
-		"GITLAB_REGISTRY_URL",
-		"GITLAB_URL",
 		"LOG_LEVEL",
-		"REGISTRY_TAG",
 	)
 	apiEnv["MIN_CLI_VERSION"] = "v0.0.61"
 	apiEnv["PORT"] = "8000"

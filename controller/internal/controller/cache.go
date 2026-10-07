@@ -6,6 +6,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -13,16 +14,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func CacheOptions() cache.Options {
+func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 	managedSet := labels.Set{labelManagedBy: managedByValue}
 	managedSelector := labels.SelectorFromSet(managedSet)
 	managed := cache.ByObject{Label: managedSelector}
+	secrets := managed
+	if locoNamespace != "" && pullSecretName != "" {
+		everything := labels.Everything()
+		pullSecretSelector := fields.OneTermEqualSelector("metadata.name", pullSecretName)
+		secrets = cache.ByObject{
+			Label: managedSelector,
+			Namespaces: map[string]cache.Config{
+				locoNamespace:       {LabelSelector: everything, FieldSelector: pullSecretSelector},
+				cache.AllNamespaces: {},
+			},
+		}
+	}
 	stripManagedFields := cache.TransformStripManagedFields()
 	return cache.Options{
 		DefaultTransform: stripManagedFields,
 		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Namespace{}:      managed,
-			&corev1.Secret{}:         managed,
+			&corev1.Secret{}:         secrets,
 			&corev1.Service{}:        managed,
 			&corev1.ServiceAccount{}: managed,
 			&rbacv1.Role{}:           managed,

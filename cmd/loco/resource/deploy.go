@@ -13,12 +13,10 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
-	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/config"
-	"github.com/team-loco/loco/internal/docker"
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
@@ -31,8 +29,6 @@ type deployDeps struct {
 	NewResourceClient   func(host string) resourcev1connect.ResourceServiceClient
 	NewDeploymentClient func(host string) deploymentv1connect.DeploymentServiceClient
 	NewDomainClient     func(host string) domainv1connect.DomainServiceClient
-	NewRegistryClient   func(host string) registryv1connect.RegistryServiceClient
-	NewDockerClient     func(cfg *config.LoadedConfig) (*docker.DockerClient, error)
 	SelectFromList      func(title string, options []ui.SelectOption) (any, error)
 	Stdout              io.Writer
 }
@@ -51,12 +47,8 @@ func BuildDeployCmd() *cobra.Command {
 		NewDomainClient: func(host string) domainv1connect.DomainServiceClient {
 			return domainv1connect.NewDomainServiceClient(httputil.NewHTTPClient(), host)
 		},
-		NewRegistryClient: func(host string) registryv1connect.RegistryServiceClient {
-			return registryv1connect.NewRegistryServiceClient(httputil.NewHTTPClient(), host)
-		},
-		NewDockerClient: docker.NewClient,
-		SelectFromList:  ui.SelectFromList,
-		Stdout:          os.Stdout,
+		SelectFromList: ui.SelectFromList,
+		Stdout:         os.Stdout,
 	}
 	return newDeployCmd(deps)
 }
@@ -70,18 +62,21 @@ func newDeployCmd(deps deployDeps) *cobra.Command {
 Reads loco.toml from the current directory, or from the path given with --config.
 
 Examples:
-  loco deploy myapp
-  loco deploy myapp --config ./loco.toml
-  loco deploy myapp --wait
-  loco deploy myapp --image myregistry/myimage:tag`,
+  loco deploy myapp --image ghcr.io/acme/myapp:v1
+  loco deploy myapp --image ghcr.io/acme/myapp:v1 --config ./loco.toml
+  loco deploy myapp --image ghcr.io/acme/myapp:v1 --wait`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			name := args[0]
 
-			imageID, err := cmd.Flags().GetString("image")
+			imageFlag, err := cmd.Flags().GetString("image")
 			if err != nil {
 				return fmt.Errorf("failed to get image flag: %w", err)
+			}
+			imageName, err := resolveImage(imageFlag)
+			if err != nil {
+				return err
 			}
 			wait, err := cmd.Flags().GetBool("wait")
 			if err != nil {
@@ -102,11 +97,6 @@ Examples:
 
 			// Resolve org and workspace IDs
 			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			orgID, err := resolveOrgID(ctx, cmd, deps.LoadSessionConfig, apiClient)
-			if err != nil {
-				return err
-			}
-
 			workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
 			if err != nil {
 				return err
@@ -134,7 +124,6 @@ Examples:
 			resourceClient := deps.NewResourceClient(host)
 			deploymentClient := deps.NewDeploymentClient(host)
 			domainClient := deps.NewDomainClient(host)
-			registryClient := deps.NewRegistryClient(host)
 
 			// Get or create resource
 			resourceID, err := getOrCreateResource(
@@ -145,22 +134,6 @@ Examples:
 				authHeader,
 				workspaceID,
 				loadedCfg.Config,
-			)
-			if err != nil {
-				return err
-			}
-
-			// Build and push image
-			imageName, err := buildAndPushImage(
-				ctx,
-				deps,
-				registryClient,
-				authHeader,
-				orgID,
-				workspaceID,
-				resourceID,
-				loadedCfg,
-				imageID,
 			)
 			if err != nil {
 				return err
@@ -199,7 +172,7 @@ Examples:
 	cmd.Flags().StringP("config", "c", "", "Path to loco.toml config file (optional)")
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().StringP("image", "i", "", "Use existing image instead of building")
+	cmd.Flags().StringP("image", "i", "", "Public image reference to deploy (required)")
 	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().Bool("wait", false, "Wait for any replicas to fully scale out.")
 
