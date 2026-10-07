@@ -48,6 +48,13 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		checkUploadHeader(ts, api, neg, args)
 	case "deployed":
 		checkDeployed(ts, api, neg, args)
+	case "tag-moves":
+		requireArgs(ts, neg, args, 1, "fakeapi tag-moves")
+		api.mu.Lock()
+		api.platform.tagMoves = true
+		api.mu.Unlock()
+	case "pinned-once":
+		checkPinnedOnce(ts, api, neg, args)
 	case "wait":
 		requireArgs(ts, neg, args, 2, "fakeapi wait <method>")
 		waitForCall(ts, api, args[1])
@@ -165,6 +172,24 @@ func checkDeployed(ts *testscript.TestScript, api *fakeAPI, neg bool, args []str
 		return
 	}
 	ts.Fatalf("fakeapi: no %s deployment to %s in %d deployments", args[2], args[1], len(api.platform.deployments))
+}
+
+func checkPinnedOnce(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	requireArgs(ts, neg, args, 1, "fakeapi pinned-once")
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	pinned := api.platform.pinned
+	if len(pinned) < 2 {
+		ts.Fatalf("fakeapi: %d deployments, want at least 2", len(pinned))
+	}
+	for i, image := range pinned {
+		if image != pinned[0] {
+			ts.Fatalf("fakeapi: deployment %d runs %s, the first runs %s", i, image, pinned[0])
+		}
+	}
+	if api.platform.resolutions > 1 {
+		ts.Fatalf("fakeapi: the image tag was resolved %d times", api.platform.resolutions)
+	}
 }
 
 func waitForCall(ts *testscript.TestScript, api *fakeAPI, method string) {

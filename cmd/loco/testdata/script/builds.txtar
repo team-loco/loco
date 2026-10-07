@@ -1,0 +1,87 @@
+# loco builds lists, shows, prints the logs of and cancels builds.
+fakeapi seed app
+
+exec loco builds list app
+stdout '^ID +STATUS +CREATED +DURATION +IMAGE DIGEST$'
+stdout '^0199b6c4-5d1e-7f00-8000-0000000000b2 +running '
+stdout '^0199b6c4-5d1e-7f00-8000-0000000000b1 +succeeded +2026-10-07T06:00:00Z +42s +sha256:1111'
+
+cd app
+exec loco builds list
+stdout '0199b6c4-5d1e-7f00-8000-0000000000b1'
+cd ..
+
+exec loco builds list app --output json
+stdout '"builds":'
+stdout '"BUILD_STATUS_SUCCEEDED"'
+
+exec loco builds get 0199b6c4-5d1e-7f00-8000-0000000000b1
+stdout '^Status: +succeeded$'
+stdout '^Image digest: +sha256:1111'
+
+exec loco builds get 0199b6c4-5d1e-7f00-8000-0000000000b1 -o json
+stdout '"imageDigest":"sha256:1111'
+
+exec loco builds logs 0199b6c4-5d1e-7f00-8000-0000000000b1
+stdout '^2026-10-07T06:00:00Z  #1 \[internal\] load build definition from Dockerfile$'
+stdout '^2026-10-07T06:00:01Z  #5 DONE 0199b6c4-5d1e-7f00-8000-0000000000b1$'
+! stdout 'tailed line'
+
+exec loco builds cancel 0199b6c4-5d1e-7f00-8000-0000000000b2
+stdout 'Build 0199b6c4-5d1e-7f00-8000-0000000000b2 canceled: canceled by a user'
+fakeapi called CancelBuild 'Bearer test-token'
+
+! exec loco builds list app --output yaml
+stderr '(?i)invalid output format "yaml"'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- app/loco.toml --
+[Metadata]
+ConfigVersion = "0.1"
+Name = "app"
+Type = "SERVICE"
+Region = "us-east-1"
+
+[Build]
+DockerfilePath = "Dockerfile"
+Type = "docker"
+
+[Routing]
+Port = 8080
+PathPrefix = "/"
+IdleTimeout = 60
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+Memory = "256Mi"
+ReplicasMin = 1
+ReplicasMax = 1
+[RegionConfig.eu-west-1]
+CPU = "100m"
+Memory = "256Mi"
+ReplicasMin = 1
+ReplicasMax = 2
+
+[Health]
+Path = "/healthz"
+Interval = 30
+Timeout = 5
+StartupGracePeriod = 0
+FailThreshold = 3
+-- app/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main

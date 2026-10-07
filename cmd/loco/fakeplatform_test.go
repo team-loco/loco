@@ -42,6 +42,7 @@ const (
 	outcomeRunning    = "running"
 	uploadPathPrefix  = "/upload/"
 	sourceTypeUpload  = "upload"
+	sourceTypeImage   = "image"
 )
 
 type fakeUpload struct {
@@ -61,6 +62,9 @@ type fakePlatform struct {
 	sourceLimit  int64
 	uploads      map[string]fakeUpload
 	deployments  []*deploymentv1.CreateDeploymentRequest
+	pinned       []string
+	tagMoves     bool
+	resolutions  int
 	noProxy      bool
 	logQueries   []*observabilityv1.QueryLogsRequest
 }
@@ -405,8 +409,30 @@ func (s *fakeDeploymentService) CreateDeployment(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.platform.deployments = append(f.platform.deployments, req.Msg)
+	requested := req.Msg.GetSpec().GetService().GetBuild()
+	pinned := f.platform.pin(requested)
+	f.platform.pinned = append(f.platform.pinned, pinned.GetImage())
 	id := "dep-" + req.Msg.GetRegion()
-	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: id}), nil
+	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: id, Build: pinned}), nil
+}
+
+func (p *fakePlatform) pin(requested *deploymentv1.BuildSource) *deploymentv1.BuildSource {
+	if requested.GetType() != sourceTypeImage {
+		image := fakeImageRepo + "@" + fakeImageDigest
+		buildID := requested.GetBuildId()
+		return &deploymentv1.BuildSource{Type: requested.GetType(), Image: image, BuildId: &buildID}
+	}
+	image := requested.GetImage()
+	if strings.Contains(image, "@") {
+		return &deploymentv1.BuildSource{Type: sourceTypeImage, Image: image}
+	}
+	repository, _, _ := strings.Cut(image, ":")
+	digest := fakeImageDigest
+	if p.tagMoves {
+		p.resolutions++
+		digest = fmt.Sprintf("sha256:%064d", p.resolutions)
+	}
+	return &deploymentv1.BuildSource{Type: sourceTypeImage, Image: repository + "@" + digest}
 }
 
 func (s *fakeDeploymentService) WatchDeployment(

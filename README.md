@@ -27,12 +27,12 @@ Run `loco update` to replace the installed binary with the latest release.
 
 2. **Log in with `loco login`.** It uses the GitHub device flow.
 3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
-4. **Deploy your app via `loco deploy <app-name> --image <image>`**, where `<image>` is a public image reference. Building from source is not available yet.
+4. **Deploy your app via `loco deploy <app-name>`** from the directory that holds `loco.toml`. The CLI packs that directory into a gzipped tarball, uploads it, and Loco builds it with the Dockerfile named in `loco.toml`; the CLI prints the build's status and logs, then deploys the image to every region in `loco.toml`. The tarball honors `.dockerignore` and never contains `.git`, `.env` or `.env.*`. Ctrl-C during the build detaches without canceling it. `loco deploy <app-name> --image <image>` deploys a public image without building.
 
 Apps run under Kubernetes' `restricted` Pod Security profile, so the image must run as a numeric non-root user (for example `USER 10001` in the Dockerfile).
 
 Your app will be available at `https://<app-name>.onloco.app`. `loco deploy` is shorthand for `loco resource deploy`;
-`loco resource` also holds `status`, `logs`, `events`, `env`, `scale` and `destroy`.
+`loco resource` also holds `status`, `logs`, `events`, `env`, `scale` and `destroy`. `loco builds` lists builds and shows, follows or cancels one: `loco builds list`, `loco builds get <id>`, `loco builds logs <id> -f` and `loco builds cancel <id>`.
 
 See all loco cli commands via `loco help`.
 Loco also generates completions for shells such as bash and zshrc.
@@ -103,7 +103,7 @@ Copy `.env.example` to `.env` and fill in the GitHub OAuth app credentials. `mis
 mise run build
 ./bin/loco login --host http://localhost:8000
 ./bin/loco config set webHost http://localhost:5173
-cd examples/test-api/backend && ../../../bin/loco deploy backend --image <public image reference>
+cd examples/test-api/backend && ../../../bin/loco deploy backend
 ```
 
 Builds push to a local [zot](https://zotregistry.dev) registry and upload sources to a local S3 bucket, both from `compose.yaml`; the `LOCO_REGISTRY_*` and `LOCO_SOURCE_BUCKET_*` values in `.env.example` point the API at them. The registry uses the dev-only accounts in `registry/local/htpasswd`: `builder` (push), `nodes` (pull) and `api` (pull, delete), each with the password `loco-dev-<name>`. `mise run cluster:registry` puts both containers on the `kind` docker network, lets the kind nodes pull from the registry under `localhost:5001` and `loco-registry:5000`, and stores the `nodes` credential as the `loco-registry` pull secret and the `builder` credential as the `loco-registry-push` secret in `loco-system`. The API names images `loco-registry:5000/...`, the address both the build pods and the kind nodes reach.

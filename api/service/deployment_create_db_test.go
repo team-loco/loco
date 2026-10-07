@@ -12,14 +12,19 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-const otherRegionSpec = `{"regions":{"eu-west-1":{"enabled":true,"primary":true,"cpu":"100m",` +
-	`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
+const (
+	otherRegionSpec = `{"regions":{"eu-west-1":{"enabled":true,"primary":true,"cpu":"100m",` +
+		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
+	sameRegionSpec = `{"regions":{"us-east-1":{"enabled":true,"primary":true,"cpu":"100m",` +
+		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
+)
 
 func createDeployment(
 	t *testing.T,
 	f *deployFixture,
 	region string,
-) error {
+	resourceSpec string,
+) (*deploymentv1.CreateDeploymentResponse, error) {
 	t.Helper()
 	ctx := context.Background()
 	setup := `
@@ -30,7 +35,7 @@ WITH r AS (
 )
 INSERT INTO resource_domains (resource_id, domain, domain_source, is_primary)
 SELECT id, 'svc.example.com', 'user_provided', true FROM r`
-	if _, err := f.pool.Exec(ctx, setup, f.resourceID, otherRegionSpec); err != nil {
+	if _, err := f.pool.Exec(ctx, setup, f.resourceID, resourceSpec); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 
@@ -51,15 +56,31 @@ SELECT id, 'svc.example.com', 'user_provided', true FROM r`
 		EnvironmentId: f.envID.String(),
 		Spec:          spec,
 	})
-	_, err := server.CreateDeployment(scoped, req)
-	return err
+	resp, err := server.CreateDeployment(scoped, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
 }
 
 func TestCreateDeploymentRejectsARegionTheResourceDoesNotRunIn(t *testing.T) {
 	f := newDeployFixture(t)
-	err := createDeployment(t, f, "us-east-1")
+	_, err := createDeployment(t, f, "us-east-1", otherRegionSpec)
 	wantCode(t, err, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments after a rejected deploy, want 0", n)
+	}
+}
+
+func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
+	f := newDeployFixture(t)
+	created, err := createDeployment(t, f, "us-east-1", sameRegionSpec)
+	if err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+	build := created.GetBuild()
+	want := "index.docker.io/library/nginx@" + testDigest
+	if build.GetType() != buildSourceTypeImage || build.GetImage() != want {
+		t.Fatalf("build = %v, want image %s", build, want)
 	}
 }

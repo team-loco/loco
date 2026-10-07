@@ -1,0 +1,23 @@
+# loco builds logs --follow prints the build's logs and status until it finishes.
+fakeapi seed app
+exec loco builds logs 0199b6c4-5d1e-7f00-8000-0000000000b2 --follow &follow&
+fakeapi wait TailLogs
+fakeapi build-outcome succeeded
+wait follow
+stdout 'Build 0199b6c4-5d1e-7f00-8000-0000000000b2 running'
+stdout '^2026-10-07T06:00:01Z  #5 DONE 0199b6c4-5d1e-7f00-8000-0000000000b2$'
+stdout '  tailed line$'
+stdout 'Build 0199b6c4-5d1e-7f00-8000-0000000000b2 succeeded'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"

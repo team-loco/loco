@@ -162,6 +162,7 @@ message CreateDeploymentRequest {
 // CreateDeploymentResponse is the response containing the created deployment ID.
 message CreateDeploymentResponse {
   string deployment_id = 1;
+  BuildSource build = 2;
 }
 
 // GetDeploymentRequest is the request to retrieve a deployment.

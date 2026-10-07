@@ -1,0 +1,67 @@
+# Ctrl-C while the build runs detaches: the build is not canceled and nothing is deployed.
+[windows] skip 'sends SIGINT'
+fakeapi build-outcome running
+cd app
+! exec loco deploy app &deploy&
+fakeapi wait TailLogs
+kill -INT deploy
+wait deploy
+stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 running'
+stdout '^Detached. Build 0199b6c4-5d1e-7f00-8000-000000000001 keeps running.$'
+stdout '^  Follow it: loco builds logs 0199b6c4-5d1e-7f00-8000-000000000001 -f$'
+stdout '^  Cancel it: loco builds cancel 0199b6c4-5d1e-7f00-8000-000000000001$'
+stderr '(?i)detached from build 0199b6c4-5d1e-7f00-8000-000000000001'
+! fakeapi called CancelBuild
+! fakeapi called CreateDeployment
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.toml --
+currentScope = "default"
+
+[scopes.default.organization]
+name = "acme"
+id = "1"
+
+[scopes.default.workspace]
+name = "production"
+id = "2"
+-- app/loco.toml --
+[Metadata]
+ConfigVersion = "0.1"
+Name = "app"
+Type = "SERVICE"
+Region = "us-east-1"
+
+[Build]
+DockerfilePath = "Dockerfile"
+Type = "docker"
+
+[Routing]
+Port = 8080
+PathPrefix = "/"
+IdleTimeout = 60
+
+[RegionConfig]
+[RegionConfig.us-east-1]
+CPU = "100m"
+Memory = "256Mi"
+ReplicasMin = 1
+ReplicasMax = 1
+[RegionConfig.eu-west-1]
+CPU = "100m"
+Memory = "256Mi"
+ReplicasMin = 1
+ReplicasMax = 2
+
+[Health]
+Path = "/healthz"
+Interval = 30
+Timeout = 5
+StartupGracePeriod = 0
+FailThreshold = 3
+-- app/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main
