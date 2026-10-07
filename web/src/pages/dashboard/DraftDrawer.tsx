@@ -266,6 +266,7 @@ function DraftDrawerBody({
 				const autoscale = draft.min !== draft.max;
 				const res = await createResourceMutation.mutateAsync({
 					workspaceId,
+                    environmentId: env.id,
 					name: draft.name,
 					type: ResourceType.SERVICE,
 					domain: {

@@ -33,7 +33,7 @@ function healthDotClass(status: ResourceStatus, desired: number): string {
 	if (desired === 0) return "bg-fg4";
 	switch (status) {
 		case ResourceStatus.HEALTHY:
-			return "bg-[#16a34a]";
+			return "bg-ok-fg";
 		case ResourceStatus.DEPLOYING:
 			return "bg-warn";
 		case ResourceStatus.DEGRADED:
@@ -100,6 +100,11 @@ export function ResourceHeader({
 					<span className={cn("size-2 rounded-full", healthDotClass(status, desired))} />
 					{readyLine}
 				</span>
+                {resource.stackName !== "" && (
+                    <Badge size="sm" className="bg-bg3 text-fg2">
+                        Stack {resource.stackName} · {resource.serviceKey}
+                    </Badge>
+                )}
 				{prim !== undefined && (
 					<span className="flex items-center gap-1.5" title={primImage}>
 						<PackageIcon className="size-3.5 text-fg3" />
@@ -123,7 +128,7 @@ export function ResourceHeader({
 					<button
 						type="button"
 						onClick={onViewSpec}
-						className="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-link hover:underline"
+						className="flex items-center gap-1.5 border-0 bg-transparent p-0 text-link hover:underline"
 					>
 						<FileCodeIcon className="size-3.5" />
 						View spec

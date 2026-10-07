@@ -2,6 +2,7 @@ import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-
 import { useQueries } from "@tanstack/react-query";
 import { listWorkspaceResources } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { getScopes, listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
+import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { EntityType } from "@gen/loco/token/v1/token_pb";
 import type { Token } from "@gen/loco/token/v1/token_pb";
 
@@ -43,7 +44,8 @@ function buildTree(
 	orgs: { id: string; name: string }[],
 	activeOrgId: string | null,
 	workspaces: { id: string; name: string; orgId: string }[],
-	resources: { id: string; name: string; workspaceId: string }[],
+	resources: { id: string; name: string; workspaceId: string; environmentId: string }[],
+ environments: { id: string; name: string; workspaceId: string }[],
 	userId: string | null,
 ): EntityTree {
 	const order: EntityNode[] = [];
@@ -69,6 +71,9 @@ function buildTree(
 			parent: nodeKey(EntityType.ORGANIZATION, w.orgId),
 		});
 	}
+ for (const environment of environments) {
+  push({key: nodeKey(EntityType.ENVIRONMENT, environment.id), kind: "env", entityType: EntityType.ENVIRONMENT, id: environment.id, label: environment.name, parent: nodeKey(EntityType.WORKSPACE, environment.workspaceId)});
+ }
 	for (const r of resources) {
 		push({
 			key: nodeKey(EntityType.RESOURCE, r.id),
@@ -76,7 +81,7 @@ function buildTree(
 			entityType: EntityType.RESOURCE,
 			id: r.id,
 			label: r.name,
-			parent: nodeKey(EntityType.WORKSPACE, r.workspaceId),
+			parent: nodeKey(EntityType.ENVIRONMENT, r.environmentId),
 		});
 	}
 	const nodes = new Map(order.map((n) => [n.key, n]));
@@ -97,10 +102,12 @@ export function useTokenData(): TokenData {
 			createQueryOptions(listWorkspaceResources, { workspaceId: w.id, pageSize: 200 }, { transport }),
 		),
 	});
+ const environmentQueries = useQueries({queries: orgWorkspaces.map((workspace) => createQueryOptions(listEnvironments, {workspaceId: workspace.id}, {transport}))});
+ const environments = environmentQueries.flatMap((query) => query.data?.environments ?? []);
 	const resources = resourceQueries.flatMap((q) => q.data?.resources ?? []);
-	const resourcesLoading = resourceQueries.some((q) => q.isLoading);
+	const resourcesLoading = resourceQueries.some((q) => q.isLoading) || environmentQueries.some((q) => q.isLoading);
 
-	const tree = buildTree(orgs, activeOrgId, orgWorkspaces, resources, userId);
+	const tree = buildTree(orgs, activeOrgId, orgWorkspaces, resources, environments, userId);
 	const scopeList = scopesQuery.data?.scopes ?? [];
 	const held = buildHeld(scopeList);
 
