@@ -248,6 +248,9 @@ build_binaries() {
     log_info "Building Observability Proxy..."
     (cd "$ROOT_DIR/observability-proxy" && go build -o "$BIN_DIR/loco-obs-proxy" .)
 
+    log_info "Building the CLI..."
+    (cd "$ROOT_DIR" && go build -o "$BIN_DIR/loco" .)
+
     log_ok "All binaries built"
 }
 
