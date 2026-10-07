@@ -5,13 +5,6 @@
 import { UserService } from "./user_pb";
 
 /**
- * CreateUser creates a new user account.
- *
- * @generated from rpc loco.user.v1.UserService.CreateUser
- */
-export const createUser = UserService.method.createUser;
-
-/**
  * GetUser retrieves a user by ID or email.
  *
  * @generated from rpc loco.user.v1.UserService.GetUser

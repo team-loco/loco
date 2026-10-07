@@ -13,7 +13,6 @@ type Action struct {
 
 // The following actions do not have an Action listed below because they are publicly accessible:
 // - CheckSubdomainAvailability
-// - CreateUser
 // - Logout
 var (
 	// resources

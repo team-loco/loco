@@ -33,8 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// UserServiceCreateUserProcedure is the fully-qualified name of the UserService's CreateUser RPC.
-	UserServiceCreateUserProcedure = "/loco.user.v1.UserService/CreateUser"
 	// UserServiceGetUserProcedure is the fully-qualified name of the UserService's GetUser RPC.
 	UserServiceGetUserProcedure = "/loco.user.v1.UserService/GetUser"
 	// UserServiceWhoAmIProcedure is the fully-qualified name of the UserService's WhoAmI RPC.
@@ -51,8 +49,6 @@ const (
 
 // UserServiceClient is a client for the loco.user.v1.UserService service.
 type UserServiceClient interface {
-	// CreateUser creates a new user account.
-	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// GetUser retrieves a user by ID or email.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// WhoAmI retrieves the current authenticated user.
@@ -78,12 +74,6 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	userServiceMethods := v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods()
 	return &userServiceClient{
-		createUser: connect.NewClient[v1.CreateUserRequest, v1.CreateUserResponse](
-			httpClient,
-			baseURL+UserServiceCreateUserProcedure,
-			connect.WithSchema(userServiceMethods.ByName("CreateUser")),
-			connect.WithClientOptions(opts...),
-		),
 		getUser: connect.NewClient[v1.GetUserRequest, v1.GetUserResponse](
 			httpClient,
 			baseURL+UserServiceGetUserProcedure,
@@ -125,18 +115,12 @@ func NewUserServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // userServiceClient implements UserServiceClient.
 type userServiceClient struct {
-	createUser *connect.Client[v1.CreateUserRequest, v1.CreateUserResponse]
 	getUser    *connect.Client[v1.GetUserRequest, v1.GetUserResponse]
 	whoAmI     *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
 	updateUser *connect.Client[v1.UpdateUserRequest, v1.UpdateUserResponse]
 	listUsers  *connect.Client[v1.ListUsersRequest, v1.ListUsersResponse]
 	deleteUser *connect.Client[v1.DeleteUserRequest, v1.DeleteUserResponse]
 	logout     *connect.Client[v1.LogoutRequest, v1.LogoutResponse]
-}
-
-// CreateUser calls loco.user.v1.UserService.CreateUser.
-func (c *userServiceClient) CreateUser(ctx context.Context, req *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
-	return c.createUser.CallUnary(ctx, req)
 }
 
 // GetUser calls loco.user.v1.UserService.GetUser.
@@ -171,8 +155,6 @@ func (c *userServiceClient) Logout(ctx context.Context, req *connect.Request[v1.
 
 // UserServiceHandler is an implementation of the loco.user.v1.UserService service.
 type UserServiceHandler interface {
-	// CreateUser creates a new user account.
-	CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error)
 	// GetUser retrieves a user by ID or email.
 	GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error)
 	// WhoAmI retrieves the current authenticated user.
@@ -194,12 +176,6 @@ type UserServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	userServiceMethods := v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods()
-	userServiceCreateUserHandler := connect.NewUnaryHandler(
-		UserServiceCreateUserProcedure,
-		svc.CreateUser,
-		connect.WithSchema(userServiceMethods.ByName("CreateUser")),
-		connect.WithHandlerOptions(opts...),
-	)
 	userServiceGetUserHandler := connect.NewUnaryHandler(
 		UserServiceGetUserProcedure,
 		svc.GetUser,
@@ -238,8 +214,6 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 	)
 	return "/loco.user.v1.UserService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case UserServiceCreateUserProcedure:
-			userServiceCreateUserHandler.ServeHTTP(w, r)
 		case UserServiceGetUserProcedure:
 			userServiceGetUserHandler.ServeHTTP(w, r)
 		case UserServiceWhoAmIProcedure:
@@ -260,10 +234,6 @@ func NewUserServiceHandler(svc UserServiceHandler, opts ...connect.HandlerOption
 
 // UnimplementedUserServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedUserServiceHandler struct{}
-
-func (UnimplementedUserServiceHandler) CreateUser(context.Context, *connect.Request[v1.CreateUserRequest]) (*connect.Response[v1.CreateUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.CreateUser is not implemented"))
-}
 
 func (UnimplementedUserServiceHandler) GetUser(context.Context, *connect.Request[v1.GetUserRequest]) (*connect.Response[v1.GetUserResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.user.v1.UserService.GetUser is not implemented"))

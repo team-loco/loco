@@ -414,6 +414,17 @@ type Environment struct {
 	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
+type Identity struct {
+	ID            uuid.UUID `json:"id"`
+	UserID        uuid.UUID `json:"userId"`
+	Issuer        string    `json:"issuer"`
+	Subject       string    `json:"subject"`
+	Email         *string   `json:"email"`
+	EmailVerified bool      `json:"emailVerified"`
+	CreatedAt     time.Time `json:"createdAt"`
+	LastLoginAt   time.Time `json:"lastLoginAt"`
+}
+
 type Organization struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
@@ -501,13 +512,12 @@ type SessionToken struct {
 }
 
 type User struct {
-	ID         uuid.UUID `json:"id"`
-	ExternalID string    `json:"externalId"`
-	Email      string    `json:"email"`
-	Name       *string   `json:"name"`
-	AvatarUrl  *string   `json:"avatarUrl"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	ID        uuid.UUID `json:"id"`
+	Email     string    `json:"email"`
+	Name      *string   `json:"name"`
+	AvatarUrl *string   `json:"avatarUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type UserScope struct {
@@ -516,17 +526,6 @@ type UserScope struct {
 	EntityType EntityType `json:"entityType"`
 	EntityID   uuid.UUID  `json:"entityId"`
 	CreatedAt  time.Time  `json:"createdAt"`
-}
-
-type UserWithScopesView struct {
-	ID         uuid.UUID     `json:"id"`
-	ExternalID string        `json:"externalId"`
-	Email      string        `json:"email"`
-	Name       *string       `json:"name"`
-	AvatarUrl  *string       `json:"avatarUrl"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	UpdatedAt  time.Time     `json:"updatedAt"`
-	Scopes     []EntityScope `json:"scopes"`
 }
 
 type Workspace struct {
