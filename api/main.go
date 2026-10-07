@@ -169,7 +169,7 @@ func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) ht
 	opts := cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   connectcors.AllowedMethods(),
-		AllowedHeaders:   connectcors.AllowedHeaders(),
+		AllowedHeaders:   append(connectcors.AllowedHeaders(), "Authorization"),
 		ExposedHeaders:   exposedHeaders,
 		AllowCredentials: true,
 	}
@@ -182,6 +182,17 @@ func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) ht
 		middleware := cors.New(opts)
 		return middleware.Handler(h)
 	}
+}
+
+func printProviderKeys() {
+	keys, err := auth.GenerateProviderKeys()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("GOTRUE_JWT_KEYS='%s'\n", keys.JWTKeys)
+	fmt.Printf("GOTRUE_JWT_SECRET='%s'\n", keys.JWTSecret)
+	fmt.Printf("GOTRUE_SAML_PRIVATE_KEY='%s'\n", keys.SAMLPrivateKey)
+	fmt.Printf("AUTH_HOOK_SECRET='%s'\n", keys.HookSecret)
 }
 
 func newMailer(ac *APIConfig) (notify.Mailer, error) {
@@ -229,6 +240,11 @@ func newOutboundHTTPClient() *http.Client {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "keys" {
+		printProviderKeys()
+		return
+	}
+
 	ac := newAPIConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})

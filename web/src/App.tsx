@@ -5,6 +5,8 @@ import { Toaster } from "@/components/design/Sonner";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Login } from "@/pages/Login";
 import { OAuthCallback } from "@/pages/OAuthCallback";
+import { AuthCallback } from "@/pages/auth/AuthCallback";
+import { AuthConfirm } from "@/pages/auth/AuthConfirm";
 import { ResourceTitle } from "@/pages/resource/ResourceTitle";
 import { Splash } from "@/pages/Splash";
 import { TransportProvider } from "@connectrpc/connect-query";
@@ -88,6 +90,8 @@ function AppRoutes() {
 				<Route path="/" element={<Splash />} />
 				<Route path="/login" element={<Login />} />
 				<Route path="/oauth/callback" element={<OAuthCallback />} />
+				<Route path="/auth/callback" element={<AuthCallback />} />
+				<Route path="/auth/confirm" element={<AuthConfirm />} />
 				<Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
 
 				<Route element={<ProtectedRoute />}>
@@ -126,12 +130,14 @@ export default function App() {
 						persistOptions={{ persister }}
 					>
 						<AppLoaderProvider>
-							<AuthProvider>
-								<Toaster />
-								<ErrorBoundary>
-									<AppRoutes />
-								</ErrorBoundary>
-							</AuthProvider>
+							<Suspense fallback={<AppLoading />}>
+								<AuthProvider>
+									<Toaster />
+									<ErrorBoundary>
+										<AppRoutes />
+									</ErrorBoundary>
+								</AuthProvider>
+							</Suspense>
 						</AppLoaderProvider>
 					</PersistQueryClientProvider>
 				</TransportProvider>

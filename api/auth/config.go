@@ -8,7 +8,10 @@ import (
 	"strings"
 )
 
-const claimEmail = "email"
+const (
+	claimEmail     = "email"
+	presetSupabase = "supabase"
+)
 
 type WebAdapter string
 
@@ -33,6 +36,7 @@ type WebConfig struct {
 }
 
 type IssuerConfig struct {
+	Preset             string     `json:"preset"`
 	Name               string     `json:"name"`
 	Issuer             string     `json:"issuer"`
 	JWKSURL            string     `json:"jwksUrl"`
@@ -73,6 +77,24 @@ func (ic *IssuerConfig) applyDefaults() error {
 	}
 	if ic.Name == "" {
 		ic.Name = ic.Issuer
+	}
+	switch ic.Preset {
+	case "":
+	case presetSupabase:
+		if ic.Audience == "" {
+			ic.Audience = "authenticated"
+		}
+		if ic.Claims.EmailVerified == "" {
+			ic.Claims.EmailVerified = "user_metadata.email_verified"
+		}
+		if ic.Claims.Name == "" {
+			ic.Claims.Name = "user_metadata.full_name"
+		}
+		if ic.Claims.AvatarURL == "" {
+			ic.Claims.AvatarURL = "user_metadata.avatar_url"
+		}
+	default:
+		return fmt.Errorf("unknown preset %q", ic.Preset)
 	}
 	if ic.JWKSURL == "" {
 		ic.JWKSURL = strings.TrimSuffix(ic.Issuer, "/") + "/.well-known/jwks.json"

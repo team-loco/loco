@@ -17,8 +17,8 @@ interface ProtectedLayoutProps {
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { orgId: orgParam } = useParams();
-	const { user } = useAuth();
-	const { isPending, error } = useQuery(whoAmI, {});
+	const { user, signedOut } = useAuth();
+	const { isPending, error } = useQuery(whoAmI, {}, { enabled: !signedOut });
 
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
@@ -38,7 +38,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
-	if (unauthenticated) {
+	if (signedOut || unauthenticated) {
 		return <Navigate to="/login" replace />;
 	}
 

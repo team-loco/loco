@@ -112,13 +112,16 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
 
 
 # ---------------------------------------------------------------------------
-# Infrastructure: Postgres and Valkey from compose.yaml
+# Infrastructure: Postgres, Valkey, the identity provider and a mail catcher from compose.yaml
 # ---------------------------------------------------------------------------
 
 docker_compose('compose.yaml', project_name='loco-dev')
 
 dc_resource('postgres', resource_deps=['doctor'], labels=['infrastructure'])
 dc_resource('valkey', resource_deps=['doctor'], labels=['infrastructure'])
+dc_resource('auth-db', resource_deps=['postgres'], labels=['infrastructure'])
+dc_resource('auth', resource_deps=['auth-db'], labels=['infrastructure'])
+dc_resource('mailpit', resource_deps=['doctor'], labels=['infrastructure'])
 
 # ---------------------------------------------------------------------------
 # Infrastructure: DB migrations + seed data, applied from a container
@@ -228,7 +231,7 @@ local_resource(
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
     deps=['api/', 'gen/go/', 'k8sapi/', 'go.mod', 'go.sum'],
-    resource_deps=['db-migrate', 'valkey'],
+    resource_deps=['db-migrate', 'valkey', 'auth', 'mailpit'],
     allow_parallel=True,
     labels=['services'],
 )

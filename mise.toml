@@ -37,7 +37,7 @@ GOTOOLCHAIN = "local"
 
 [tasks.setup]
 description = "Install the pinned tools, the web dependencies and the git hooks, then check Docker"
-run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mise run doctor"]
+run = ["mise install", "bun install --frozen-lockfile", "lefthook install", "mise run doctor", "mise run auth:keys"]
 
 [tasks.build]
 description = "Build the loco CLI into bin/loco"
@@ -135,14 +135,14 @@ run = "bun run dev"
 [tasks.tilt]
 description = "Start the full local environment (cluster, infrastructure and services) with Tilt"
 env = { _.file = ".env" }
-run = "tilt up"
+run = ["mise run auth:keys", "tilt up"]
 
 [tasks."infra:up"]
-description = "Start Postgres and Valkey from compose.yaml and wait until both are healthy"
-run = "docker compose up -d --wait postgres valkey"
+description = "Start Postgres, Valkey, the identity provider and the mail catcher from compose.yaml, and wait until they are healthy"
+run = "docker compose up -d --wait postgres valkey auth mailpit"
 
 [tasks."infra:down"]
-description = "Stop Postgres and Valkey; the database is kept in the postgres-data volume"
+description = "Stop the compose services; the database is kept in the postgres-data volume"
 run = "docker compose down"
 
 [tasks."db:migrate"]
