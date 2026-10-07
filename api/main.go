@@ -23,6 +23,7 @@ import (
 	"connectrpc.com/grpcreflect"
 	"connectrpc.com/validate"
 	"github.com/rs/cors"
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
@@ -69,6 +70,9 @@ type APIConfig struct {
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
 	MinCLIVersion         string
 	PprofAddr             string
+	AuthIssuers           string
+	AuthSignupMode        string
+	AuthSignupDomains     string
 }
 
 func newAPIConfig() *APIConfig {
@@ -110,6 +114,9 @@ func newAPIConfig() *APIConfig {
 		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
 		MinCLIVersion:         os.Getenv("MIN_CLI_VERSION"),
 		PprofAddr:             os.Getenv("PPROF_ADDR"),
+		AuthIssuers:           os.Getenv("AUTH_ISSUERS"),
+		AuthSignupMode:        os.Getenv("AUTH_SIGNUP_MODE"),
+		AuthSignupDomains:     os.Getenv("AUTH_SIGNUP_DOMAINS"),
 	}
 }
 
@@ -196,6 +203,15 @@ func main() {
 		log.Fatalf("MIN_CLI_VERSION %q is not a semantic version like v0.0.61", ac.MinCLIVersion)
 	}
 
+	issuers, issuersErr := auth.ParseIssuers(ac.AuthIssuers)
+	if issuersErr != nil {
+		log.Fatalf("AUTH_ISSUERS: %v", issuersErr)
+	}
+	signupPolicy, policyErr := auth.ParseSignupPolicy(ac.AuthSignupMode, ac.AuthSignupDomains)
+	if policyErr != nil {
+		log.Fatalf("AUTH_SIGNUP_MODE: %v", policyErr)
+	}
+
 	if err := migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
 		log.Fatal(err)
 	}
@@ -226,10 +242,13 @@ func main() {
 	baseInterceptors := connect.WithInterceptors(deadlineInterceptor)
 
 	mux := http.NewServeMux()
+	verifier := auth.NewVerifier(newOutboundHTTPClient(), issuers)
+	resolver := auth.NewResolver(pool, signupPolicy)
+
 	httpInterceptors := connect.WithInterceptors(
 		deadlineInterceptor,
 		interceptor.NewContextInterceptor(),
-		interceptor.NewGithubAuthInterceptor(machine),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver),
 		validate.NewInterceptor(),
 	)
 
@@ -280,7 +299,7 @@ func main() {
 	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
-	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion)
+	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion, issuers)
 
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)

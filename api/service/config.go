@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"github.com/team-loco/loco/api/auth"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -13,10 +14,21 @@ import (
 type ConfigServer struct {
 	platformDomain string
 	minCLIVersion  string
+	auth           *configv1.AuthConfig
 }
 
-func NewConfigServer(platformDomain, minCLIVersion string) *ConfigServer {
-	return &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion}
+func NewConfigServer(platformDomain, minCLIVersion string, issuers []auth.IssuerConfig) *ConfigServer {
+	s := &ConfigServer{platformDomain: platformDomain, minCLIVersion: minCLIVersion}
+	if ic, ok := auth.WebIssuer(issuers); ok {
+		s.auth = &configv1.AuthConfig{
+			Adapter:  string(ic.Web.Adapter),
+			Issuer:   ic.Issuer,
+			Url:      ic.Web.URL,
+			ClientId: ic.Web.ClientID,
+			Scopes:   ic.Web.Scopes,
+		}
+	}
+	return s
 }
 
 func (s *ConfigServer) GetConfig(
@@ -25,6 +37,7 @@ func (s *ConfigServer) GetConfig(
 ) (*connect.Response[configv1.GetConfigResponse], error) {
 	return connect.NewResponse(&configv1.GetConfigResponse{
 		MinCliVersion: s.minCLIVersion,
+		Auth:          s.auth,
 		ServiceDefaults: &configv1.DefaultServiceConfig{
 			BuildType:      "docker",
 			DockerfilePath: "Dockerfile",

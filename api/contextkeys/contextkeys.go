@@ -11,4 +11,5 @@ const (
 	PathKey             ContextKey = "path"
 	SourceIPKey         ContextKey = "sourceIp"
 	TokenKey            ContextKey = "token"
+	IdentityKey         ContextKey = "identity"
 )
