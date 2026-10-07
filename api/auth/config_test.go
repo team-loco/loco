@@ -16,7 +16,7 @@ func TestParseIssuersAppliesDefaults(t *testing.T) {
 	if ic.JWKSURL != testIssuerURL+"/.well-known/jwks.json" {
 		t.Errorf("jwks = %q", ic.JWKSURL)
 	}
-	if ic.Claims.Subject != "sub" || ic.Claims.Email != "email" || ic.Claims.EmailVerified != "email_verified" {
+	if ic.Claims.Subject != "sub" || ic.Claims.Email != claimEmail || ic.Claims.EmailVerified != "email_verified" {
 		t.Errorf("claims = %+v", ic.Claims)
 	}
 	if ic.Web.URL != testIssuerURL {
@@ -79,13 +79,13 @@ func TestSignupPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse domains: %v", err)
 	}
-	if err := domains.Check(verified("dev@acme.test")); err != nil {
+	if err := domains.Check(verified(devEmail)); err != nil {
 		t.Errorf("allowed domain rejected: %v", err)
 	}
 	if err := domains.Check(verified("dev@evil.test")); !errors.As(err, &rejectedErr) {
 		t.Errorf("other domain allowed: %v", err)
 	}
-	if err := domains.Check(Identity{Email: "dev@acme.test"}); !errors.As(err, &rejectedErr) {
+	if err := domains.Check(Identity{Email: devEmail}); !errors.As(err, &rejectedErr) {
 		t.Errorf("unverified email allowed: %v", err)
 	}
 	if err := domains.Check(verified("dev@sub.acme.test")); !errors.As(err, &rejectedErr) {

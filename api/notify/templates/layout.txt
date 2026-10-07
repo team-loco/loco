@@ -1,0 +1,11 @@
+{{.Heading}}
+{{range .Paragraphs}}
+{{.}}
+{{end}}{{if .Code}}
+{{.Code}}
+{{end}}{{if .ActionURL}}
+{{.ActionLabel}}: {{.ActionURL}}
+{{end}}{{if .Footnote}}
+{{.Footnote}}
+{{end}}
+Sent to {{.To}}

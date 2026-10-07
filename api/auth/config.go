@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const claimEmail = "email"
+
 type WebAdapter string
 
 const (
@@ -79,7 +81,7 @@ func (ic *IssuerConfig) applyDefaults() error {
 		ic.Claims.Subject = "sub"
 	}
 	if ic.Claims.Email == "" {
-		ic.Claims.Email = "email"
+		ic.Claims.Email = claimEmail
 	}
 	if ic.Claims.EmailVerified == "" {
 		ic.Claims.EmailVerified = "email_verified"
