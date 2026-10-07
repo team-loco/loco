@@ -55,28 +55,28 @@ import (
 
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
-	finalizerSecretRefresher = "loco.io/secret-refresher"
-	labelApp                 = "app"
-	labelWorkspaceID         = "loco.io/workspace-id"
-	labelResourceID          = "loco.io/resource-id"
-	labelEnvironmentID       = "loco.io/environment-id"
-	labelManagedBy           = "app.kubernetes.io/managed-by"
-	managedByValue           = "loco-controller"
-	annotationAppNamespace   = "loco.io/application-namespace"
-	annotationAppName        = "loco.io/application-name"
-	annotationEnvSecretRV    = "loco.io/env-secret-version"
-	fieldOwner               = "loco-controller"
-	phaseDeploying           = "Deploying"
-	phaseFailed              = "Failed"
-	phaseReady               = "Ready"
-	servicePort              = int32(80)
-	defaultContainerPort     = int32(8080)
-	defaultCPURequest        = "100m"
-	defaultCPULimit          = "500m"
-	defaultMemoryRequest     = "128Mi"
-	defaultMemoryLimit       = "512Mi"
-	deployingRequeue         = 15 * time.Second
-	maxConcurrentReconciles  = 4
+	finalizerCleanup        = "loco.io/cleanup"
+	labelApp                = "app"
+	labelWorkspaceID        = "loco.io/workspace-id"
+	labelResourceID         = "loco.io/resource-id"
+	labelEnvironmentID      = "loco.io/environment-id"
+	labelManagedBy          = "app.kubernetes.io/managed-by"
+	managedByValue          = "loco-controller"
+	annotationAppNamespace  = "loco.io/application-namespace"
+	annotationAppName       = "loco.io/application-name"
+	annotationEnvSecretRV   = "loco.io/env-secret-version"
+	fieldOwner              = "loco-controller"
+	phaseDeploying          = "Deploying"
+	phaseFailed             = "Failed"
+	phaseReady              = "Ready"
+	servicePort             = int32(80)
+	defaultContainerPort    = int32(8080)
+	defaultCPURequest       = "100m"
+	defaultCPULimit         = "500m"
+	defaultMemoryRequest    = "128Mi"
+	defaultMemoryLimit      = "512Mi"
+	deployingRequeue        = 15 * time.Second
+	maxConcurrentReconciles = 4
 )
 
 const (
@@ -182,14 +182,13 @@ func (r *LocoResourceReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure workspace network policies: %w", err)
 	}
 
+	if err := r.ensureWorkspacePullSecret(ctx, locoRes); err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure workspace pull secret: %w", err)
+	}
+
 	envSecretVersion, err := ensureEnvSecret(ctx, r.Client, locoRes)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure secrets: %w", err)
-	}
-
-	err = r.ensureImagePullSecret(ctx, locoRes)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("ensure image pull secret: %w", err)
 	}
 
 	err = r.ensureServiceAccount(ctx, locoRes)
@@ -274,16 +273,16 @@ func (r *LocoResourceReconciler) patchStatus(
 }
 
 func (r *LocoResourceReconciler) ensureFinalizer(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	if controllerutil.ContainsFinalizer(locoRes, finalizerSecretRefresher) {
+	if controllerutil.ContainsFinalizer(locoRes, finalizerCleanup) {
 		return nil
 	}
 	original := locoRes.DeepCopy()
-	controllerutil.AddFinalizer(locoRes, finalizerSecretRefresher)
+	controllerutil.AddFinalizer(locoRes, finalizerCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return fmt.Errorf("add finalizer: %w", err)
 	}
-	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerSecretRefresher)
+	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerCleanup)
 	return nil
 }
 
@@ -292,7 +291,7 @@ func (r *LocoResourceReconciler) handleDeletion(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
-	if !controllerutil.ContainsFinalizer(locoRes, finalizerSecretRefresher) {
+	if !controllerutil.ContainsFinalizer(locoRes, finalizerCleanup) {
 		return ctrl.Result{}, nil
 	}
 
@@ -304,12 +303,12 @@ func (r *LocoResourceReconciler) handleDeletion(
 	}
 
 	original := locoRes.DeepCopy()
-	controllerutil.RemoveFinalizer(locoRes, finalizerSecretRefresher)
+	controllerutil.RemoveFinalizer(locoRes, finalizerCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 	}
-	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerSecretRefresher)
+	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerCleanup)
 
 	return ctrl.Result{}, nil
 }
@@ -322,7 +321,6 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 	bindingName := getRoleBindingName(locoRes)
 	roleName := getRoleName(locoRes)
 	envSecretName := getEnvSecretName(locoRes)
-	imageSecretName := getImageSecretName(locoRes)
 
 	objects := []client.Object{
 		&v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace},
@@ -333,7 +331,6 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 		&rbacv1.Role{Name: roleName, Namespace: namespace},
 		&corev1.ServiceAccount{Name: name, Namespace: namespace},
 		&corev1.Secret{Name: envSecretName, Namespace: namespace},
-		&corev1.Secret{Name: imageSecretName, Namespace: namespace},
 	}
 	for _, obj := range objects {
 		err := r.Delete(ctx, obj)
@@ -381,10 +378,6 @@ func getName(locoRes *locov1alpha1.Application) string {
 // getNamespace derives the namespace from the Application
 func getNamespace(locoRes *locov1alpha1.Application) string {
 	return fmt.Sprintf("ws-%v", locoRes.Spec.WorkspaceID)
-}
-
-func getImageSecretName(locoRes *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-image-pull", getName(locoRes))
 }
 
 func getEnvSecretName(locoRes *locov1alpha1.Application) string {
@@ -491,8 +484,7 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 		WithAnnotations(annotations).
 		WithAutomountServiceAccountToken(false)
 	if r.pullSecretName != "" {
-		secretName := getImageSecretName(locoRes)
-		pullSecret := corev1ac.LocalObjectReference().WithName(secretName)
+		pullSecret := corev1ac.LocalObjectReference().WithName(workspacePullSecretName)
 		sa.WithImagePullSecrets(pullSecret)
 	}
 
@@ -885,7 +877,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&appsv1.Deployment{}, deploymentHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
 	if r.pullSecretName != "" {
-		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.allApplications)
+		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
 		pullSecretChanges := r.pullSecretChanged()
 		pullSecretPredicates := builder.WithPredicates(pullSecretChanges)
 		controllerBuilder = controllerBuilder.Watches(&corev1.Secret{}, pullSecretHandler, pullSecretPredicates)

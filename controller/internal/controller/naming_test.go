@@ -29,12 +29,11 @@ func TestNamesFitKubernetesLimitsForRealIDs(t *testing.T) {
 	if errs := validation.IsDNS1123Label(name); len(errs) > 0 {
 		t.Errorf("name %q is not a valid service name: %v", name, errs)
 	}
-	imageSecretName := getImageSecretName(app)
 	envSecretName := getEnvSecretName(app)
 	roleName := getRoleName(app)
 	bindingName := getRoleBindingName(app)
 	routeName := getRouteName(app)
-	for _, objectName := range []string{imageSecretName, envSecretName, roleName, bindingName, routeName} {
+	for _, objectName := range []string{envSecretName, roleName, bindingName, routeName} {
 		if errs := validation.IsDNS1123Subdomain(objectName); len(errs) > 0 {
 			t.Errorf("object name %q is invalid: %v", objectName, errs)
 		}
