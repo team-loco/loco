@@ -31,7 +31,7 @@ const motion = "duration-[160ms] ease-[cubic-bezier(0.32,0.72,0,1)]"
 function SidebarProvider({ style, className, ...props }: React.ComponentProps<typeof SidebarProviderBase>) {
 	return (
 		<SidebarProviderBase
-			style={{ "--sidebar-width": "16rem", "--sidebar-width-icon": "4rem", ...style } as React.CSSProperties}
+			style={{ "--sidebar-width": "236px", "--sidebar-width-icon": "4rem", ...style } as React.CSSProperties}
 			className={cn(
 				"[&_[data-slot=sidebar-gap]]:duration-[160ms] [&_[data-slot=sidebar-gap]]:ease-[cubic-bezier(0.32,0.72,0,1)]",
 				className
@@ -48,7 +48,7 @@ function Sidebar({ className, ...props }: React.ComponentProps<typeof SidebarBas
 function SidebarGroupLabel({ className, ...props }: React.ComponentProps<typeof SidebarGroupLabelBase>) {
 	return (
 		<SidebarGroupLabelBase
-			className={cn("h-[34px] rounded-sm px-2 pt-2.5 text-sm font-normal text-fg3 group-data-[collapsible=icon]:mt-0", className)}
+			className={cn("h-auto rounded-sm px-2 pt-5 pb-1.5 text-[11.5px] font-medium text-fg3 group-data-[collapsible=icon]:mt-0", className)}
 			{...props}
 		/>
 	)
@@ -58,7 +58,7 @@ function SidebarMenuButton({ className, ...props }: React.ComponentProps<typeof 
 	return (
 		<SidebarMenuButtonBase
 			className={cn(
-				"rounded-sm px-2 text-md transition-[width,height,padding,color,background-color] duration-150 ease-out data-[size=lg]:rounded-lg data-[size=lg]:group-data-[collapsible=icon]:size-12! data-[size=lg]:group-data-[collapsible=icon]:p-2! data-active:font-medium [&_svg]:size-4",
+				"h-[30px] gap-2.5 rounded-sm px-2 text-[13.5px] text-fg2 transition-[width,height,padding,color,background-color] duration-150 ease-out hover:bg-bg2 hover:text-fg2 active:bg-bg2 active:text-fg2 data-[size=lg]:rounded-lg data-[size=lg]:group-data-[collapsible=icon]:size-12! data-[size=lg]:group-data-[collapsible=icon]:p-2! data-active:bg-bg3 data-active:font-semibold data-active:text-foreground data-active:hover:bg-bg3 data-active:hover:text-foreground [&_svg]:size-4 [&_svg]:text-fg3 data-active:[&_svg]:text-foreground",
 				className
 			)}
 			{...props}

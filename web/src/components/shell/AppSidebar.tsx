@@ -4,7 +4,6 @@ import {
 	Building2Icon,
 	ChartLineIcon,
 	ChevronsUpDownIcon,
-	GaugeIcon,
 	KeyRoundIcon,
 	LayoutDashboardIcon,
 	LifeBuoyIcon,
@@ -43,6 +42,7 @@ import {
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { pageImporters } from "@/lib/lazy-pages";
+import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
 import { observabilityPath, workspacePath, type ObservabilityView } from "@/lib/routes";
 
@@ -95,9 +95,8 @@ export function AppSidebar() {
 		hasWs ? observabilityPath(activeOrgId, activeWorkspaceId, v, envParams) : undefined;
 	const withEnv = (path: string) => (env !== null ? `${path}?env=${encodeURIComponent(env)}` : path);
 
-	const sections: { label: string; items: NavItem[] }[] = [
+	const sections: { label?: string; items: NavItem[] }[] = [
 		{
-			label: "Platform",
 			items: [
 				{
 					name: "Dashboard",
@@ -152,7 +151,6 @@ export function AppSidebar() {
 					active: pathname.endsWith("/team"),
 					preload: pageImporters.Team,
 				},
-				{ name: "Usage", icon: <GaugeIcon />, active: false, soon: true },
 				{
 					name: "Settings",
 					icon: <Settings2Icon />,
@@ -168,23 +166,21 @@ export function AppSidebar() {
 
 	return (
 		<Sidebar collapsible="icon" onMouseEnter={peek.onEnter} onMouseLeave={peek.onLeave}>
-			<SidebarHeader className="p-2">
+			<SidebarHeader className="h-[52px] shrink-0 justify-center border-b border-line px-5 py-0">
 				<Link
 					to={wsBase ?? "/dashboard"}
 					aria-label="Loco dashboard"
-					className="flex h-12 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+					className="flex w-fit items-center rounded-sm outline-none [--logo:var(--logo-sidebar)] focus-visible:ring-2 focus-visible:ring-sidebar-ring"
 				>
-					<LocoLogo className="w-16 group-data-[collapsible=icon]:w-8" />
+					<LocoLogo className="w-[46px] transition-opacity duration-150 group-data-[collapsible=icon]:opacity-0" />
 				</Link>
 			</SidebarHeader>
 
-			<SidebarContent className="pt-1">
+			<SidebarContent className="gap-0 py-3">
 				{sections.map((section) => (
-					<SidebarGroup key={section.label} className="px-2 py-0">
-						<SidebarGroupLabel className="h-[34px] px-2 pt-2.5 text-sm font-normal text-fg3">
-							{section.label}
-						</SidebarGroupLabel>
-						<SidebarMenu className="gap-px">
+					<SidebarGroup key={section.label ?? "root"} className="px-3 py-0">
+						{section.label !== undefined && <SidebarGroupLabel>{section.label}</SidebarGroupLabel>}
+						<SidebarMenu className="gap-0.5">
 							{section.items.map((item) => (
 								<SidebarMenuItem key={item.name}>
 									{item.to !== undefined && item.soon !== true ? (
@@ -220,14 +216,23 @@ export function AppSidebar() {
 				))}
 			</SidebarContent>
 
-			<SidebarFooter className="p-2">
+			<SidebarFooter className="border-t border-line p-2">
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<DropdownMenu onOpenChange={peek.lock}>
 							<DropdownMenuTrigger
-								render={<SidebarMenuButton size="lg" className="gap-2.5 aria-expanded:bg-sidebar-accent" />}
+								render={
+									<SidebarMenuButton
+										size="lg"
+										className="h-[44px] gap-2.5 text-foreground hover:bg-bg3 hover:text-foreground aria-expanded:bg-bg3"
+									/>
+								}
 							>
-								<UserAvatar name={displayName} src={user?.avatarUrl} />
+								<UserAvatar
+									name={displayName}
+									src={user?.avatarUrl}
+									className="size-[28px] rounded-full border border-line bg-bg3 text-xs text-fg2"
+								/>
 								<span className="flex min-w-0 flex-1 flex-col leading-tight">
 									<span className="truncate text-md font-semibold">{displayName}</span>
 									<span className="truncate text-sm text-fg3">{user?.email ?? ""}</span>
@@ -341,7 +346,10 @@ function ExternalMenuLink({ icon, href, children }: { icon: ReactNode; href: str
 function UserAvatar({ name, src, className }: { name: string; src?: string | undefined; className?: string }) {
 	return (
 		<span
-			className={`flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-line text-sm font-semibold text-foreground ${className ?? ""}`}
+			className={cn(
+				"flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-line text-sm font-semibold text-foreground",
+				className
+			)}
 		>
 			{src !== undefined && src !== "" ? <img src={src} alt="" className="size-full object-cover" /> : initials(name)}
 		</span>
