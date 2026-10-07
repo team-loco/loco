@@ -54,9 +54,6 @@ const (
 	// ResourceServiceListRegionsProcedure is the fully-qualified name of the ResourceService's
 	// ListRegions RPC.
 	ResourceServiceListRegionsProcedure = "/loco.resource.v1.ResourceService/ListRegions"
-	// ResourceServiceWatchLogsProcedure is the fully-qualified name of the ResourceService's WatchLogs
-	// RPC.
-	ResourceServiceWatchLogsProcedure = "/loco.resource.v1.ResourceService/WatchLogs"
 	// ResourceServiceListResourceEventsProcedure is the fully-qualified name of the ResourceService's
 	// ListResourceEvents RPC.
 	ResourceServiceListResourceEventsProcedure = "/loco.resource.v1.ResourceService/ListResourceEvents"
@@ -84,9 +81,6 @@ type ResourceServiceClient interface {
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
-	// Logs
-	// WatchLogs streams resource logs in real-time.
-	WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest]) (*connect.ServerStreamForClient[v1.WatchLogsResponse], error)
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
@@ -150,12 +144,6 @@ func NewResourceServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
 			connect.WithClientOptions(opts...),
 		),
-		watchLogs: connect.NewClient[v1.WatchLogsRequest, v1.WatchLogsResponse](
-			httpClient,
-			baseURL+ResourceServiceWatchLogsProcedure,
-			connect.WithSchema(resourceServiceMethods.ByName("WatchLogs")),
-			connect.WithClientOptions(opts...),
-		),
 		listResourceEvents: connect.NewClient[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse](
 			httpClient,
 			baseURL+ResourceServiceListResourceEventsProcedure,
@@ -186,7 +174,6 @@ type resourceServiceClient struct {
 	listWorkspaceResources *connect.Client[v1.ListWorkspaceResourcesRequest, v1.ListWorkspaceResourcesResponse]
 	getResourceStatus      *connect.Client[v1.GetResourceStatusRequest, v1.GetResourceStatusResponse]
 	listRegions            *connect.Client[v1.ListRegionsRequest, v1.ListRegionsResponse]
-	watchLogs              *connect.Client[v1.WatchLogsRequest, v1.WatchLogsResponse]
 	listResourceEvents     *connect.Client[v1.ListResourceEventsRequest, v1.ListResourceEventsResponse]
 	scaleResource          *connect.Client[v1.ScaleResourceRequest, v1.ScaleResourceResponse]
 	updateResourceEnv      *connect.Client[v1.UpdateResourceEnvRequest, v1.UpdateResourceEnvResponse]
@@ -227,11 +214,6 @@ func (c *resourceServiceClient) ListRegions(ctx context.Context, req *connect.Re
 	return c.listRegions.CallUnary(ctx, req)
 }
 
-// WatchLogs calls loco.resource.v1.ResourceService.WatchLogs.
-func (c *resourceServiceClient) WatchLogs(ctx context.Context, req *connect.Request[v1.WatchLogsRequest]) (*connect.ServerStreamForClient[v1.WatchLogsResponse], error) {
-	return c.watchLogs.CallServerStream(ctx, req)
-}
-
 // ListResourceEvents calls loco.resource.v1.ResourceService.ListResourceEvents.
 func (c *resourceServiceClient) ListResourceEvents(ctx context.Context, req *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {
 	return c.listResourceEvents.CallUnary(ctx, req)
@@ -263,9 +245,6 @@ type ResourceServiceHandler interface {
 	GetResourceStatus(context.Context, *connect.Request[v1.GetResourceStatusRequest]) (*connect.Response[v1.GetResourceStatusResponse], error)
 	// ListRegions lists available regions for resource deployment.
 	ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error)
-	// Logs
-	// WatchLogs streams resource logs in real-time.
-	WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest], *connect.ServerStream[v1.WatchLogsResponse]) error
 	// Events
 	// ListResourceEvents retrieves events for a resource.
 	ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error)
@@ -325,12 +304,6 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 		connect.WithSchema(resourceServiceMethods.ByName("ListRegions")),
 		connect.WithHandlerOptions(opts...),
 	)
-	resourceServiceWatchLogsHandler := connect.NewServerStreamHandler(
-		ResourceServiceWatchLogsProcedure,
-		svc.WatchLogs,
-		connect.WithSchema(resourceServiceMethods.ByName("WatchLogs")),
-		connect.WithHandlerOptions(opts...),
-	)
 	resourceServiceListResourceEventsHandler := connect.NewUnaryHandler(
 		ResourceServiceListResourceEventsProcedure,
 		svc.ListResourceEvents,
@@ -365,8 +338,6 @@ func NewResourceServiceHandler(svc ResourceServiceHandler, opts ...connect.Handl
 			resourceServiceGetResourceStatusHandler.ServeHTTP(w, r)
 		case ResourceServiceListRegionsProcedure:
 			resourceServiceListRegionsHandler.ServeHTTP(w, r)
-		case ResourceServiceWatchLogsProcedure:
-			resourceServiceWatchLogsHandler.ServeHTTP(w, r)
 		case ResourceServiceListResourceEventsProcedure:
 			resourceServiceListResourceEventsHandler.ServeHTTP(w, r)
 		case ResourceServiceScaleResourceProcedure:
@@ -408,10 +379,6 @@ func (UnimplementedResourceServiceHandler) GetResourceStatus(context.Context, *c
 
 func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *connect.Request[v1.ListRegionsRequest]) (*connect.Response[v1.ListRegionsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.ListRegions is not implemented"))
-}
-
-func (UnimplementedResourceServiceHandler) WatchLogs(context.Context, *connect.Request[v1.WatchLogsRequest], *connect.ServerStream[v1.WatchLogsResponse]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("loco.resource.v1.ResourceService.WatchLogs is not implemented"))
 }
 
 func (UnimplementedResourceServiceHandler) ListResourceEvents(context.Context, *connect.Request[v1.ListResourceEventsRequest]) (*connect.Response[v1.ListResourceEventsResponse], error) {

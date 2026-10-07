@@ -43,6 +43,7 @@ func setupScript(env *testscript.Env) error {
 	api := newFakeAPI()
 	srv := httptest.NewServer(api.handler())
 	env.Defer(srv.Close)
+	api.platform.baseURL = srv.URL
 	env.Setenv("LOCO_HOST", srv.URL)
 	env.Values[fakeAPIKey{}] = api
 	return fillCredentialsHost(filepath.Join(home, ".loco", "credentials.json"), srv.URL)
@@ -95,6 +96,6 @@ func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		api.fail(args[1], code)
 	default:
-		ts.Fatalf("fakeapi: unknown subcommand %q", args[0])
+		cmdFakePlatform(ts, api, neg, args)
 	}
 }

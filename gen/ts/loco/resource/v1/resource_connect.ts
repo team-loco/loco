@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse, WatchLogsRequest, WatchLogsResponse } from "./resource_pb";
+import { CreateResourceRequest, CreateResourceResponse, DeleteResourceRequest, DeleteResourceResponse, GetResourceRequest, GetResourceResponse, GetResourceStatusRequest, GetResourceStatusResponse, ListRegionsRequest, ListRegionsResponse, ListResourceEventsRequest, ListResourceEventsResponse, ListWorkspaceResourcesRequest, ListWorkspaceResourcesResponse, ScaleResourceRequest, ScaleResourceResponse, UpdateResourceEnvRequest, UpdateResourceEnvResponse, UpdateResourceRequest, UpdateResourceResponse } from "./resource_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -90,18 +90,6 @@ export const ResourceService = {
       I: ListRegionsRequest,
       O: ListRegionsResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * Logs
-     * WatchLogs streams resource logs in real-time.
-     *
-     * @generated from rpc loco.resource.v1.ResourceService.WatchLogs
-     */
-    watchLogs: {
-      name: "WatchLogs",
-      I: WatchLogsRequest,
-      O: WatchLogsResponse,
-      kind: MethodKind.ServerStreaming,
     },
     /**
      * Events

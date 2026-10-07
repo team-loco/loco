@@ -60,10 +60,6 @@ service ResourceService {
   // ListRegions lists available regions for resource deployment.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
 
-  // Logs
-  // WatchLogs streams resource logs in real-time.
-  rpc WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
-
   // Events
   // ListResourceEvents retrieves events for a resource.
   rpc ListResourceEvents(ListResourceEventsRequest) returns (ListResourceEventsResponse);
@@ -298,28 +294,6 @@ message DeploymentStatus {
 message GetResourceStatusResponse {
   Resource resource = 1;
   DeploymentStatus current_deployment = 2;
-}
-
-// --- Logs ---
-
-// WatchLogsRequest is the request to stream resource logs.
-message WatchLogsRequest {
-  string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  optional int32 limit = 2 [(buf.validate.field).int32 = {
-    gte: 1
-    lte: 10000
-  }];
-  optional bool follow = 3;
-}
-
-// WatchLogsResponse represents a single log line from a pod container within a resource.
-message WatchLogsResponse {
-  string pod_name = 1;
-  string namespace = 2;
-  string container = 3;
-  google.protobuf.Timestamp timestamp = 4;
-  string log = 5;
-  string level = 6;
 }
 
 // --- Events ---
