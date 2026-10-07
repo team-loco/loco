@@ -106,12 +106,13 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 }
 
 const listOrgEvents = `-- name: ListOrgEvents :many
-SELECT seq, id, type, org_id, workspace_id, actor_type, actor_id, subject_type, subject_id, request_id, data, created_at
-FROM events
-WHERE org_id = $1
-  AND ($2::bigint IS NULL OR seq < $2::bigint)
-  AND (cardinality($3::text[]) = 0 OR type = ANY($3::text[]))
-ORDER BY seq DESC
+SELECT e.seq, e.id, e.type, e.org_id, e.workspace_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.data, e.created_at, u.email AS actor_email, u.name AS actor_name
+FROM events e
+LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
+WHERE e.org_id = $1
+  AND ($2::bigint IS NULL OR e.seq < $2::bigint)
+  AND (cardinality($3::text[]) = 0 OR e.type = ANY($3::text[]))
+ORDER BY e.seq DESC
 LIMIT $4
 `
 
@@ -122,7 +123,13 @@ type ListOrgEventsParams struct {
 	MaxRows   int32      `json:"maxRows"`
 }
 
-func (q *Queries) ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]Event, error) {
+type ListOrgEventsRow struct {
+	Event      Event   `json:"event"`
+	ActorEmail *string `json:"actorEmail"`
+	ActorName  *string `json:"actorName"`
+}
+
+func (q *Queries) ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]ListOrgEventsRow, error) {
 	rows, err := q.db.Query(ctx, listOrgEvents,
 		arg.OrgID,
 		arg.BeforeSeq,
@@ -133,22 +140,24 @@ func (q *Queries) ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Event
+	var items []ListOrgEventsRow
 	for rows.Next() {
-		var i Event
+		var i ListOrgEventsRow
 		if err := rows.Scan(
-			&i.Seq,
-			&i.ID,
-			&i.Type,
-			&i.OrgID,
-			&i.WorkspaceID,
-			&i.ActorType,
-			&i.ActorID,
-			&i.SubjectType,
-			&i.SubjectID,
-			&i.RequestID,
-			&i.Data,
-			&i.CreatedAt,
+			&i.Event.Seq,
+			&i.Event.ID,
+			&i.Event.Type,
+			&i.Event.OrgID,
+			&i.Event.WorkspaceID,
+			&i.Event.ActorType,
+			&i.Event.ActorID,
+			&i.Event.SubjectType,
+			&i.Event.SubjectID,
+			&i.Event.RequestID,
+			&i.Event.Data,
+			&i.Event.CreatedAt,
+			&i.ActorEmail,
+			&i.ActorName,
 		); err != nil {
 			return nil, err
 		}
