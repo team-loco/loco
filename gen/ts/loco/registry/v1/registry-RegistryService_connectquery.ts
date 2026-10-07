@@ -5,11 +5,6 @@
 import { RegistryService } from "./registry_pb";
 
 /**
- * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
- */
-export const getGitlabToken = RegistryService.method.getGitlabToken;
-
-/**
  * @generated from rpc loco.registry.v1.RegistryService.GetImageRepository
  */
 export const getImageRepository = RegistryService.method.getImageRepository;

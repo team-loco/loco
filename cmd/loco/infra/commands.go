@@ -32,6 +32,8 @@ func BuildCmd() *cobra.Command {
 		newApplyCmd(),
 		newContextCmd(),
 		newPullCmd(),
+		newExportCmd(),
+		newPublishCmd(),
 		newLinkCmd(),
 	)
 	return cmd
@@ -53,7 +55,7 @@ func newPlanCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "plan", Short: "Preview infrastructure and deployment changes",
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			_, plan, err := createPlan(cmd)
+			_, plan, err := createPlan(cmd, false)
 			if err != nil {
 				return err
 			}
@@ -119,7 +121,7 @@ func evaluateManifest(cmd *cobra.Command, selected *Target) (*loco.Manifest, *de
 	return manifest, module, nil
 }
 
-func createPlan(cmd *cobra.Command) (*Target, *infrav1.Plan, error) {
+func createPlan(cmd *cobra.Command, build bool) (*Target, *infrav1.Plan, error) {
 	selected, err := ResolveTarget(cmd)
 	if err != nil {
 		return nil, nil, err
@@ -169,8 +171,23 @@ func createPlan(cmd *cobra.Command) (*Target, *infrav1.Plan, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	if build {
+		bindings, err = buildImages(cmd, selected, module, manifest, selector)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 	if err = bindManifestImages(graph, bindings, selector); err != nil {
 		return nil, nil, err
+	}
+	if build {
+		after, sourceErr := definition.SourceDigest(cmd.Context(), module.ProjectRoot, excluded, reviewed)
+		if sourceErr != nil {
+			return nil, nil, sourceErr
+		}
+		if after != digest {
+			return nil, nil, fmt.Errorf("source changed while building; create a new plan")
+		}
 	}
 	request := connect.NewRequest(&infrav1.PlanInfrastructureRequest{
 		WorkspaceId: selected.WorkspaceID, EnvironmentId: selected.EnvironmentID,
@@ -251,7 +268,7 @@ func newApplyCmd() *cobra.Command {
 			if path != "" {
 				return applySavedPlan(cmd, path)
 			}
-			selected, plan, err := createPlan(cmd)
+			selected, plan, err := createPlan(cmd, false)
 			if err != nil {
 				return err
 			}

@@ -1,8 +1,7 @@
 exec loco deploy --help
-stdout 'loco deploy myapp'
+stdout 'Go infrastructure entrypoint'
+! stdout 'loco.toml'
 
 exec loco resource deploy --help
-stdout 'loco deploy myapp'
-
-! exec loco deploy
-stderr 'Accepts 1 arg'
+stdout 'Go infrastructure entrypoint'
+! stdout 'loco.toml'

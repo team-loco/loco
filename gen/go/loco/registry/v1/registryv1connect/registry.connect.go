@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// RegistryServiceGetGitlabTokenProcedure is the fully-qualified name of the RegistryService's
-	// GetGitlabToken RPC.
-	RegistryServiceGetGitlabTokenProcedure = "/loco.registry.v1.RegistryService/GetGitlabToken"
 	// RegistryServiceGetImageRepositoryProcedure is the fully-qualified name of the RegistryService's
 	// GetImageRepository RPC.
 	RegistryServiceGetImageRepositoryProcedure = "/loco.registry.v1.RegistryService/GetImageRepository"
@@ -43,7 +40,6 @@ const (
 
 // RegistryServiceClient is a client for the loco.registry.v1.RegistryService service.
 type RegistryServiceClient interface {
-	GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error)
 	GetImageRepository(context.Context, *connect.Request[v1.GetImageRepositoryRequest]) (*connect.Response[v1.GetImageRepositoryResponse], error)
 }
 
@@ -58,12 +54,6 @@ func NewRegistryServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	registryServiceMethods := v1.File_loco_registry_v1_registry_proto.Services().ByName("RegistryService").Methods()
 	return &registryServiceClient{
-		getGitlabToken: connect.NewClient[v1.GetGitlabTokenRequest, v1.GetGitlabTokenResponse](
-			httpClient,
-			baseURL+RegistryServiceGetGitlabTokenProcedure,
-			connect.WithSchema(registryServiceMethods.ByName("GetGitlabToken")),
-			connect.WithClientOptions(opts...),
-		),
 		getImageRepository: connect.NewClient[v1.GetImageRepositoryRequest, v1.GetImageRepositoryResponse](
 			httpClient,
 			baseURL+RegistryServiceGetImageRepositoryProcedure,
@@ -75,13 +65,7 @@ func NewRegistryServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // registryServiceClient implements RegistryServiceClient.
 type registryServiceClient struct {
-	getGitlabToken     *connect.Client[v1.GetGitlabTokenRequest, v1.GetGitlabTokenResponse]
 	getImageRepository *connect.Client[v1.GetImageRepositoryRequest, v1.GetImageRepositoryResponse]
-}
-
-// GetGitlabToken calls loco.registry.v1.RegistryService.GetGitlabToken.
-func (c *registryServiceClient) GetGitlabToken(ctx context.Context, req *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error) {
-	return c.getGitlabToken.CallUnary(ctx, req)
 }
 
 // GetImageRepository calls loco.registry.v1.RegistryService.GetImageRepository.
@@ -91,7 +75,6 @@ func (c *registryServiceClient) GetImageRepository(ctx context.Context, req *con
 
 // RegistryServiceHandler is an implementation of the loco.registry.v1.RegistryService service.
 type RegistryServiceHandler interface {
-	GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error)
 	GetImageRepository(context.Context, *connect.Request[v1.GetImageRepositoryRequest]) (*connect.Response[v1.GetImageRepositoryResponse], error)
 }
 
@@ -102,12 +85,6 @@ type RegistryServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewRegistryServiceHandler(svc RegistryServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	registryServiceMethods := v1.File_loco_registry_v1_registry_proto.Services().ByName("RegistryService").Methods()
-	registryServiceGetGitlabTokenHandler := connect.NewUnaryHandler(
-		RegistryServiceGetGitlabTokenProcedure,
-		svc.GetGitlabToken,
-		connect.WithSchema(registryServiceMethods.ByName("GetGitlabToken")),
-		connect.WithHandlerOptions(opts...),
-	)
 	registryServiceGetImageRepositoryHandler := connect.NewUnaryHandler(
 		RegistryServiceGetImageRepositoryProcedure,
 		svc.GetImageRepository,
@@ -116,8 +93,6 @@ func NewRegistryServiceHandler(svc RegistryServiceHandler, opts ...connect.Handl
 	)
 	return "/loco.registry.v1.RegistryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case RegistryServiceGetGitlabTokenProcedure:
-			registryServiceGetGitlabTokenHandler.ServeHTTP(w, r)
 		case RegistryServiceGetImageRepositoryProcedure:
 			registryServiceGetImageRepositoryHandler.ServeHTTP(w, r)
 		default:
@@ -128,10 +103,6 @@ func NewRegistryServiceHandler(svc RegistryServiceHandler, opts ...connect.Handl
 
 // UnimplementedRegistryServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedRegistryServiceHandler struct{}
-
-func (UnimplementedRegistryServiceHandler) GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.registry.v1.RegistryService.GetGitlabToken is not implemented"))
-}
 
 func (UnimplementedRegistryServiceHandler) GetImageRepository(context.Context, *connect.Request[v1.GetImageRepositoryRequest]) (*connect.Response[v1.GetImageRepositoryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.registry.v1.RegistryService.GetImageRepository is not implemented"))

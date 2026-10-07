@@ -6,15 +6,6 @@ import "buf/validate/validate.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1";
 
-message GetGitlabTokenRequest {}
-
-// GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
-message GetGitlabTokenResponse {
-  string username = 1;
-  string token = 2;
-}
-
-// GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
 message GetImageRepositoryRequest {
   string environment_id = 1 [(buf.validate.field).string.uuid = true];
   string stack_name = 2 [(buf.validate.field).string.pattern = "^[a-z][a-z0-9-]{0,62}$"];
@@ -27,6 +18,5 @@ message GetImageRepositoryResponse {
 }
 
 service RegistryService {
-  rpc GetGitlabToken(GetGitlabTokenRequest) returns (GetGitlabTokenResponse) {}
   rpc GetImageRepository(GetImageRepositoryRequest) returns (GetImageRepositoryResponse);
 }

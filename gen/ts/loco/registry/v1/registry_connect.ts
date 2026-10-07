@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetGitlabTokenRequest, GetGitlabTokenResponse, GetImageRepositoryRequest, GetImageRepositoryResponse } from "./registry_pb";
+import { GetImageRepositoryRequest, GetImageRepositoryResponse } from "./registry_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -12,15 +12,6 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const RegistryService = {
   typeName: "loco.registry.v1.RegistryService",
   methods: {
-    /**
-     * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
-     */
-    getGitlabToken: {
-      name: "GetGitlabToken",
-      I: GetGitlabTokenRequest,
-      O: GetGitlabTokenResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * @generated from rpc loco.registry.v1.RegistryService.GetImageRepository
      */

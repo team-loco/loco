@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -40,6 +41,47 @@ func setupScript(env *testscript.Env) error {
 	env.Setenv("HOME", home)
 	env.Setenv(keychain.StoreEnvVar, "file")
 
+	modulePath := filepath.Join(env.WorkDir, ".loco", "go.mod")
+	if data, err := os.ReadFile(modulePath); err == nil {
+		sdkPath, absErr := filepath.Abs("../../sdk/go")
+		if absErr != nil {
+			return absErr
+		}
+		data = []byte(strings.ReplaceAll(string(data), "SDK_PATH", strconv.Quote(sdkPath)))
+		data = []byte(
+			strings.ReplaceAll(string(data), "PROTO_PATH", strconv.Quote(filepath.Join(sdkPath, "../../gen/go"))),
+		)
+		sdkModule, readModuleErr := os.ReadFile(filepath.Join(sdkPath, "go.mod"))
+		if readModuleErr != nil {
+			return readModuleErr
+		}
+		for _, dependency := range []string{
+			"google.golang.org/protobuf",
+			"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go",
+		} {
+			for _, line := range strings.Split(string(sdkModule), "\n") {
+				if strings.HasPrefix(strings.TrimSpace(line), dependency+" ") {
+					data = append(data, []byte("\nrequire "+strings.TrimSpace(line)+"\n")...)
+				}
+			}
+		}
+		sums, readSumsErr := os.ReadFile(filepath.Join(sdkPath, "go.sum"))
+		if readSumsErr != nil {
+			return readSumsErr
+		}
+		if writeSumsErr := os.WriteFile(
+			filepath.Join(filepath.Dir(modulePath), "go.sum"),
+			sums,
+			0o600,
+		); writeSumsErr != nil {
+			return writeSumsErr
+		}
+		if writeFileErr := os.WriteFile(modulePath, data, 0o600); writeFileErr != nil {
+			return writeFileErr
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	api := newFakeAPI()
 	srv := httptest.NewServer(api.handler())
 	env.Defer(srv.Close)

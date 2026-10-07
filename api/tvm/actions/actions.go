@@ -317,12 +317,6 @@ var (
 
 	// registry
 
-	// GetGitlabToken requires user:read (to access registry).
-	GetGitlabToken = Action{
-		entityType: db.EntityTypeUser,
-		scope:      db.ScopeRead,
-	}
-
 	// Token management actions are dynamically defined.
 )
 

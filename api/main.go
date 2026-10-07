@@ -380,7 +380,6 @@ func main() {
 		tokenv1connect.TokenServiceCheckPermissionProcedure,
 
 		// registry service
-		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
 		registryv1connect.RegistryServiceGetImageRepositoryProcedure,
 		infrav1connect.InfrastructureServicePlanInfrastructureProcedure,
 		infrav1connect.InfrastructureServiceApplyInfrastructureProcedure,

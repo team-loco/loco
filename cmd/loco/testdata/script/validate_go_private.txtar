@@ -1,0 +1,33 @@
+exec loco validate --environment production
+stdout 'Go infrastructure is valid'
+stdout 'Stack: internal-worker'
+stdout 'Services: 1'
+! stdout 'Hostname'
+
+-- .loco/go.mod --
+module test-infra
+
+go 1.24.0
+
+require github.com/team-loco/loco/sdk/go v0.0.0
+require github.com/team-loco/loco/gen/go v0.1.0
+replace github.com/team-loco/loco/sdk/go => SDK_PATH
+replace github.com/team-loco/loco/gen/go => PROTO_PATH
+
+-- .loco/main.go --
+package main
+
+import loco "github.com/team-loco/loco/sdk/go"
+
+func main() {
+ loco.Run(func(ctx *loco.Context) *loco.Stack {
+  return &loco.Stack{Name: "worker", Services: []*loco.Service{{
+   Key: "worker", Source: loco.Image("registry.example.com/worker:latest"),
+   Spec: loco.Config(&loco.ServiceSpec{
+    Routing: &loco.Routing{Port: 8000},
+    Regions: map[string]*loco.Region{"us-east-1": {Enabled: true, Primary: true, Cpu: "100m", Memory: "256Mi", MinReplicas: 1, MaxReplicas: 1}},
+    HealthCheck: &loco.Health{Path: "/health"},
+   }),
+  }}}
+ })
+}
