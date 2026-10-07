@@ -97,12 +97,12 @@ Examples:
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.Resource
-			slog.Debug("fetching service status", "resource_id", resource.Id, "name", name)
+			resource := resourceResp.Msg.GetResource()
+			slog.Debug("fetching service status", "resource_id", resource.GetId(), "name", name)
 
 			// Get resource status
 			statusReq := connect.NewRequest(&resourcev1.GetResourceStatusRequest{
-				ResourceId: resource.Id,
+				ResourceId: resource.GetId(),
 			})
 			statusReq.Header().Set("Authorization", authHeader)
 
@@ -156,8 +156,8 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 		Margin(1, 2)
 
 	var status, replicas string
-	status = resp.CurrentDeployment.Status.String()
-	replicas = fmt.Sprintf("%d", resp.CurrentDeployment.Replicas)
+	status = resp.GetCurrentDeployment().GetStatus().String()
+	replicas = fmt.Sprintf("%d", resp.GetCurrentDeployment().GetReplicas())
 
 	url := "hostname management pending"
 

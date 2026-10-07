@@ -87,7 +87,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			}
 
 			delReq := connect.NewRequest(&orgv1.DeleteOrgRequest{
-				OrgId: getResp.Msg.Organization.Id,
+				OrgId: getResp.Msg.GetOrganization().GetId(),
 			})
 			delReq.Header().Set("Authorization", authHeader)
 

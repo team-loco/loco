@@ -155,7 +155,7 @@ func (s *ResourceServer) CreateResource(
 		specJSON []byte
 		err      error
 	)
-	switch specType := r.GetSpec().Spec.(type) {
+	switch specType := r.GetSpec().GetSpec().(type) {
 	case *resourcev1.ResourceSpec_Service:
 		specJSON, err = protojson.Marshal(specType.Service)
 		if err != nil {
@@ -717,7 +717,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	if len(r.Env) == 0 {
+	if len(r.GetEnv()) == 0 {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
 			errors.New("at least one environment variable must be provided"),
@@ -1069,13 +1069,13 @@ func scaleChangesDeployment(
 	currentReplicas int32,
 ) bool {
 	if r.Cpu != nil {
-		if spec.Cpu == nil || r.GetCpu() != *spec.Cpu {
+		if spec.Cpu == nil || r.GetCpu() != spec.GetCpu() {
 			return true
 		}
 	}
 
 	if r.Memory != nil {
-		if spec.Memory == nil || r.GetMemory() != *spec.Memory {
+		if spec.Memory == nil || r.GetMemory() != spec.GetMemory() {
 			return true
 		}
 	}

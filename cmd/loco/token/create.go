@@ -146,9 +146,9 @@ Tokens can be scoped to different entity types:
 
 			fmt.Fprintln(deps.Output, "Token created successfully!")
 			fmt.Fprintln(deps.Output, "")
-			fmt.Fprintf(deps.Output, "Name: %s\n", resp.Msg.TokenMetadata.Name)
+			fmt.Fprintf(deps.Output, "Name: %s\n", resp.Msg.GetTokenMetadata().GetName())
 			fmt.Fprintf(deps.Output, "Entity: %s (ID: %s)\n", entityTypeStr, entityID)
-			fmt.Fprintf(deps.Output, "Token: %s\n", resp.Msg.Token)
+			fmt.Fprintf(deps.Output, "Token: %s\n", resp.Msg.GetToken())
 			fmt.Fprintln(deps.Output, "")
 			fmt.Fprintln(deps.Output, "Save this token - it won't be shown again!")
 			return nil

@@ -52,12 +52,12 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	orgs, err := apiClient.GetCurrentUserOrgs(ctx, currentUser.Id)
+	orgs, err := apiClient.GetCurrentUserOrgs(ctx, currentUser.GetId())
 	if err != nil {
 		return fmt.Errorf("failed to get organizations: %w", err)
 	}
 
-	workspaces, err := apiClient.GetUserWorkspaces(ctx, currentUser.Id)
+	workspaces, err := apiClient.GetUserWorkspaces(ctx, currentUser.GetId())
 	if err != nil {
 		return fmt.Errorf("failed to get workspaces: %w", err)
 	}
@@ -80,24 +80,24 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 		orgByID := make(map[string]string, len(orgs))
 		for _, o := range orgs {
-			orgByID[o.Id] = o.Name
+			orgByID[o.GetId()] = o.GetName()
 		}
 
 		var options []ui.SelectOption
 		for _, ws := range workspaces {
-			oName, ok := orgByID[ws.OrgId]
+			oName, ok := orgByID[ws.GetOrgId()]
 			if !ok {
 				continue
 			}
-			label := fmt.Sprintf("%s / %s", oName, ws.Name)
+			label := fmt.Sprintf("%s / %s", oName, ws.GetName())
 			options = append(options, ui.SelectOption{
 				Label:       label,
-				Description: fmt.Sprintf("org: %s  workspace: %s", ws.OrgId, ws.Id),
+				Description: fmt.Sprintf("org: %s  workspace: %s", ws.GetOrgId(), ws.GetId()),
 				Value: scopeOption{
-					orgID:         ws.OrgId,
+					orgID:         ws.GetOrgId(),
 					orgName:       oName,
-					workspaceID:   ws.Id,
-					workspaceName: ws.Name,
+					workspaceID:   ws.GetId(),
+					workspaceName: ws.GetName(),
 				},
 			})
 		}
@@ -137,8 +137,8 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 	// direct switch via argument — look up IDs
 	var orgID string
 	for _, o := range orgs {
-		if o.Name == orgName {
-			orgID = o.Id
+		if o.GetName() == orgName {
+			orgID = o.GetId()
 			break
 		}
 	}
@@ -148,8 +148,8 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 	var workspaceID string
 	for _, ws := range workspaces {
-		if ws.Name == workspaceName && ws.OrgId == orgID {
-			workspaceID = ws.Id
+		if ws.GetName() == workspaceName && ws.GetOrgId() == orgID {
+			workspaceID = ws.GetId()
 			break
 		}
 	}

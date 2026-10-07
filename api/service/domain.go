@@ -311,7 +311,7 @@ func (s *DomainServer) CreateResourceDomain(
 	}
 
 	// check if this is the first domain for the resource
-	resourceID := uuid.MustParse(r.ResourceId)
+	resourceID := uuid.MustParse(r.GetResourceId())
 
 	count, err := s.queries.GetResourceDomainCount(ctx, resourceID)
 	if err != nil {
@@ -347,7 +347,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	r := req.Msg
 
 	// get the domain to check its resource
-	domainID := uuid.MustParse(r.DomainId)
+	domainID := uuid.MustParse(r.GetDomainId())
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
 	if err != nil {

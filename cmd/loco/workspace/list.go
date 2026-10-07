@@ -83,7 +83,7 @@ func buildListCmd() *cobra.Command {
 					return fmt.Errorf("failed to list workspaces: %w", err)
 				}
 
-				if len(resp.Msg.Workspaces) == 0 {
+				if len(resp.Msg.GetWorkspaces()) == 0 {
 					_, err = fmt.Fprintln(deps.Output, "No workspaces found in this organization.")
 					return err
 				}
@@ -92,8 +92,8 @@ func buildListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				for _, ws := range resp.Msg.Workspaces {
-					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.Name, ws.Id)
+				for _, ws := range resp.Msg.GetWorkspaces() {
+					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.GetName(), ws.GetId())
 					if err != nil {
 						return err
 					}
@@ -108,7 +108,7 @@ func buildListCmd() *cobra.Command {
 				}
 
 				req := connect.NewRequest(&workspacev1.ListUserWorkspacesRequest{
-					UserId: whoAmIResp.Msg.User.Id,
+					UserId: whoAmIResp.Msg.GetUser().GetId(),
 				})
 				req.Header().Set("Authorization", authHeader)
 
@@ -117,7 +117,7 @@ func buildListCmd() *cobra.Command {
 					return fmt.Errorf("failed to list workspaces: %w", err)
 				}
 
-				if len(resp.Msg.Workspaces) == 0 {
+				if len(resp.Msg.GetWorkspaces()) == 0 {
 					_, err = fmt.Fprintln(deps.Output, "No workspaces found.")
 					return err
 				}
@@ -126,8 +126,8 @@ func buildListCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				for _, ws := range resp.Msg.Workspaces {
-					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.Name, ws.Id)
+				for _, ws := range resp.Msg.GetWorkspaces() {
+					_, err = fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", ws.GetName(), ws.GetId())
 					if err != nil {
 						return err
 					}

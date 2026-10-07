@@ -94,7 +94,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 
 	wsID, err := qtx.CreateWorkspace(ctx, genDb.CreateWorkspaceParams{
 		OrgID:       orgID,
-		Name:        r.Name,
+		Name:        r.GetName(),
 		Description: r.Description,
 		CreatedBy:   entity.ID,
 	})
@@ -388,7 +388,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	}
 
 	_, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-		ID:          uuid.MustParse(r.WorkspaceId),
+		ID:          uuid.MustParse(r.GetWorkspaceId()),
 		Name:        r.Name,
 		Description: r.Description,
 	})

@@ -133,8 +133,8 @@ func streamLogsJSON(cmd *cobra.Command, deps logsDeps, name string) error {
 		return fmt.Errorf("service '%s' not found: %w", name, err)
 	}
 
-	resource := resourceResp.Msg.Resource
-	slog.Debug("streaming logs as json", "resource_id", resource.Id, "name", name)
+	resource := resourceResp.Msg.GetResource()
+	slog.Debug("streaming logs as json", "resource_id", resource.GetId(), "name", name)
 
 	var linesPtr *int32
 	if lines > 0 {
@@ -147,7 +147,7 @@ func streamLogsJSON(cmd *cobra.Command, deps logsDeps, name string) error {
 	}
 
 	logsReq := connect.NewRequest(&resourcev1.WatchLogsRequest{
-		ResourceId: resource.Id,
+		ResourceId: resource.GetId(),
 		Limit:      linesPtr,
 		Follow:     followPtr,
 	})
@@ -227,8 +227,8 @@ func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error
 		return fmt.Errorf("service '%s' not found: %w", name, err)
 	}
 
-	resource := resourceResp.Msg.Resource
-	slog.Debug("streaming logs interactively", "resource_id", resource.Id, "name", name)
+	resource := resourceResp.Msg.GetResource()
+	slog.Debug("streaming logs interactively", "resource_id", resource.GetId(), "name", name)
 
 	columns := []table.Column{
 		{Title: "Time", Width: 20},
@@ -270,7 +270,7 @@ func streamLogsInteractive(cmd *cobra.Command, deps logsDeps, name string) error
 
 	go func() {
 		logsReq := connect.NewRequest(&resourcev1.WatchLogsRequest{
-			ResourceId: resource.Id,
+			ResourceId: resource.GetId(),
 			Limit:      linesPtr,
 			Follow:     followPtr,
 		})
@@ -338,9 +338,9 @@ func (m logModel) waitForLog() tea.Cmd {
 		select {
 		case log := <-m.logsChan:
 			return logMsg{
-				Time:    log.Timestamp.AsTime().Format(time.RFC3339),
-				PodName: log.PodName,
-				Message: log.Log,
+				Time:    log.GetTimestamp().AsTime().Format(time.RFC3339),
+				PodName: log.GetPodName(),
+				Message: log.GetLog(),
 			}
 		case err := <-m.errChan:
 			return errMsg{err}

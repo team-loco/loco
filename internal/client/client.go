@@ -90,7 +90,7 @@ func (c *Client) CreateUser(ctx context.Context, externalID, email, avatarURL st
 
 	// CreateUser now returns only the user ID, so we need to fetch the full user
 	getReq := connect.NewRequest(&userv1.GetUserRequest{
-		Key: &userv1.GetUserRequest_UserId{UserId: resp.Msg.UserId},
+		Key: &userv1.GetUserRequest_UserId{UserId: resp.Msg.GetUserId()},
 	})
 	getReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
@@ -100,7 +100,7 @@ func (c *Client) CreateUser(ctx context.Context, externalID, email, avatarURL st
 		return nil, err
 	}
 
-	return getResp.Msg.User, nil
+	return getResp.Msg.GetUser(), nil
 }
 
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
@@ -113,7 +113,7 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 		return nil, err
 	}
 
-	return resp.Msg.User, nil
+	return resp.Msg.GetUser(), nil
 }
 
 func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv1.Organization, error) {
@@ -129,7 +129,7 @@ func (c *Client) GetCurrentUserOrgs(ctx context.Context, userID string) ([]*orgv
 		return nil, err
 	}
 
-	return resp.Msg.Orgs, nil
+	return resp.Msg.GetOrgs(), nil
 }
 
 func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*workspacev1.Workspace, error) {
@@ -145,7 +145,7 @@ func (c *Client) GetUserWorkspaces(ctx context.Context, userID string) ([]*works
 		return nil, err
 	}
 
-	return resp.Msg.Workspaces, nil
+	return resp.Msg.GetWorkspaces(), nil
 }
 
 func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource, error) {
@@ -160,7 +160,7 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*resourcev1.Resource
 		return nil, err
 	}
 
-	return resp.Msg.Resource, nil
+	return resp.Msg.GetResource(), nil
 }
 
 func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev1.Resource, error) {
@@ -173,7 +173,7 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 		return nil, err
 	}
 
-	return resp.Msg.Resources, nil
+	return resp.Msg.GetResources(), nil
 }
 
 func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName string) (*resourcev1.Resource, error) {
@@ -193,7 +193,7 @@ func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName s
 		return nil, err
 	}
 
-	return resp.Msg.Resource, nil
+	return resp.Msg.GetResource(), nil
 }
 
 func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deploymentv1.Deployment, error) {
@@ -206,7 +206,7 @@ func (c *Client) GetDeployment(ctx context.Context, deploymentID string) (*deplo
 		return nil, err
 	}
 
-	return resp.Msg.Deployment, nil
+	return resp.Msg.GetDeployment(), nil
 }
 
 func (c *Client) StreamDeployment(
@@ -343,5 +343,5 @@ func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*
 		return nil, err
 	}
 
-	return resp.Msg.Events, nil
+	return resp.Msg.GetEvents(), nil
 }

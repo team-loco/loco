@@ -146,11 +146,11 @@ Examples:
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.Resource
-			slog.Debug("updating environment variables", "resource_id", resource.Id, "name", name)
+			resource := resourceResp.Msg.GetResource()
+			slog.Debug("updating environment variables", "resource_id", resource.GetId(), "name", name)
 
 			envReq := connect.NewRequest(&resourcev1.UpdateResourceEnvRequest{
-				ResourceId: resource.Id,
+				ResourceId: resource.GetId(),
 				Env:        envVars,
 			})
 			envReq.Header().Set("Authorization", authHeader)
