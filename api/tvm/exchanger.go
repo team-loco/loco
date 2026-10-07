@@ -22,8 +22,8 @@ func (tvm *VendingMachine) Exchange(
 	ip string,
 	userAgent string,
 ) (queries.User, string, string, error) {
-	externalID, err := identity.ExternalID()
-	if err != nil || externalID == "" {
+	subject, err := identity.Subject()
+	if err != nil || subject == "" {
 		slog.ErrorContext(ctx, "failed to read account id from external provider", "error", err)
 		return queries.User{}, "", "", ErrExchange
 	}
@@ -33,14 +33,26 @@ func (tvm *VendingMachine) Exchange(
 		return queries.User{}, "", "", ErrExchange
 	}
 
-	user, err := tvm.queries.GetUserByExternalID(ctx, externalID)
+	user, err := tvm.queries.GetUserByIdentity(ctx, queries.GetUserByIdentityParams{
+		Issuer:  identity.Issuer(),
+		Subject: subject,
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		slog.DebugContext(ctx, "no user for external id", "externalId", externalID)
+		slog.DebugContext(ctx, "no user for identity", "issuer", identity.Issuer(), "subject", subject)
 		return queries.User{}, "", "", ErrUserNotFound
 	}
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to look up user by external id", "error", err)
+		slog.ErrorContext(ctx, "failed to look up user by identity", "error", err)
 		return queries.User{}, "", "", ErrUserLookup
+	}
+
+	if err := tvm.queries.TouchIdentity(ctx, queries.TouchIdentityParams{
+		Issuer:        identity.Issuer(),
+		Subject:       subject,
+		Email:         &address,
+		EmailVerified: identity.EmailVerified(),
+	}); err != nil {
+		slog.WarnContext(ctx, "failed to record identity login", "userId", user.ID, "error", err)
 	}
 
 	if user.Email != address {

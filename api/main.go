@@ -325,7 +325,6 @@ func main() {
 		oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure,
 
 		// user service
-		userv1connect.UserServiceCreateUserProcedure,
 		userv1connect.UserServiceGetUserProcedure,
 		userv1connect.UserServiceWhoAmIProcedure,
 		userv1connect.UserServiceUpdateUserProcedure,

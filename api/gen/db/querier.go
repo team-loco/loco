@@ -26,6 +26,7 @@ type Querier interface {
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
+	CreateIdentity(ctx context.Context, arg CreateIdentityParams) (Identity, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
@@ -94,8 +95,8 @@ type Querier interface {
 	GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error)
 	GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
-	GetUserByExternalID(ctx context.Context, externalID string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetUserByIdentity(ctx context.Context, arg GetUserByIdentityParams) (User, error)
 	GetUserScopes(ctx context.Context, userID uuid.UUID) ([]GetUserScopesRow, error)
 	// what scopes does user x have on entity y?
 	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]GetUserScopesOnEntityRow, error)
@@ -157,6 +158,7 @@ type Querier interface {
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
+	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error

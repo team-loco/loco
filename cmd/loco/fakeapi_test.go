@@ -45,10 +45,9 @@ func newFakeAPI() *fakeAPI {
 	return &fakeAPI{
 		users: map[string]*userv1.User{
 			fakeAPIToken: {
-				Id:         "1",
-				ExternalId: "gh-1",
-				Email:      "test@loco.build",
-				Name:       "Test User",
+				Id:    "1",
+				Email: "test@loco.build",
+				Name:  "Test User",
 			},
 		},
 		failures: map[string]connect.Code{},

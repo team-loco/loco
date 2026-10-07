@@ -3,7 +3,6 @@
 CREATE TABLE
     IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        external_id TEXT UNIQUE NOT NULL, -- provider:id format (e.g., github:nikumar1206)
         email TEXT UNIQUE NOT NULL,
         name TEXT,
         avatar_url TEXT,
@@ -12,6 +11,21 @@ CREATE TABLE
     );
 
 CREATE INDEX IF NOT EXISTS idx_users_created_at_id_desc ON users (created_at DESC, id DESC);
+
+CREATE TABLE
+    IF NOT EXISTS identities (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        issuer TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        email TEXT,
+        email_verified BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        last_login_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        UNIQUE (issuer, subject)
+    );
+
+CREATE INDEX IF NOT EXISTS idx_identities_user_id ON identities (user_id);
 
 -- Organizations table
 CREATE TABLE
@@ -49,4 +63,5 @@ CREATE INDEX IF NOT EXISTS idx_workspaces_created_at_id_desc ON workspaces (crea
 -- +goose Down
 DROP TABLE IF EXISTS workspaces;
 DROP TABLE IF EXISTS organizations;
+DROP TABLE IF EXISTS identities;
 DROP TABLE IF EXISTS users;

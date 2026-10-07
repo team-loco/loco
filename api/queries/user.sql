@@ -1,39 +1,34 @@
 -- User queries for sqlc
 
 -- name: CreateUser :one
-INSERT INTO users (external_id, email, name, avatar_url)
-VALUES ($1, $2, $3, $4)
-RETURNING id, external_id, email, name, avatar_url, created_at, updated_at;
+INSERT INTO users (email, name, avatar_url)
+VALUES ($1, $2, $3)
+RETURNING id, email, name, avatar_url, created_at, updated_at;
 
 -- name: GetUserByID :one
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE id = $1;
 
 -- name: GetUserByEmail :one
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE email = $1;
-
--- name: GetUserByExternalID :one
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
-FROM users
-WHERE external_id = $1;
 
 -- name: UpdateUserEmail :one
 UPDATE users
 SET email = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, external_id, email, name, avatar_url, created_at, updated_at;
+RETURNING id, email, name, avatar_url, created_at, updated_at;
 
 -- name: UpdateUserAvatarURL :one
 UPDATE users
 SET avatar_url = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, external_id, email, name, avatar_url, created_at, updated_at;
+RETURNING id, email, name, avatar_url, created_at, updated_at;
 
 -- name: ListUsers :many
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE (sqlc.narg('page_token')::text IS NULL
        OR (created_at, id) < (

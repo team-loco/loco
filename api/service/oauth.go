@@ -170,11 +170,19 @@ func (s *OAuthServer) fetchGithubUserData(ctx context.Context, token string) (*G
 // todo: remove the second we have a proper invitation system.
 func (s *OAuthServer) tempCreateUser(
 	ctx context.Context,
-	externalID string,
-	email string,
+	identity providers.EmailResponse,
 	name string,
 	avatarURL string,
 ) (*genDb.User, error) {
+	subject, err := identity.Subject()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get subject: %w", err)
+	}
+	email, err := identity.Address()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get email: %w", err)
+	}
+
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
@@ -190,17 +198,32 @@ func (s *OAuthServer) tempCreateUser(
 	qtx = qtx.WithTx(tx)
 
 	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
-		ExternalID: externalID,
-		Email:      email,
-		Name:       &name,
-		AvatarUrl:  &avatarURL,
+		Email:     email,
+		Name:      &name,
+		AvatarUrl: &avatarURL,
 	})
 	if err != nil {
 		if isPgConstraintViolation(err) {
-			slog.WarnContext(ctx, "email already registered to another account", "externalId", externalID)
+			slog.WarnContext(
+				ctx,
+				"email already registered to another account",
+				"issuer", identity.Issuer(),
+				"subject", subject,
+			)
 			return nil, ErrEmailAlreadyRegistered
 		}
 		slog.ErrorContext(ctx, "failed to create user", "error", err)
+		return nil, ErrDB
+	}
+
+	if _, err := qtx.CreateIdentity(ctx, genDb.CreateIdentityParams{
+		UserID:        user.ID,
+		Issuer:        identity.Issuer(),
+		Subject:       subject,
+		Email:         &email,
+		EmailVerified: identity.EmailVerified(),
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to create identity", "error", err, "userId", user.ID)
 		return nil, ErrDB
 	}
 
@@ -237,22 +260,12 @@ func (s *OAuthServer) exchangeGithubToken(
 		return user, accessToken, refreshToken, err
 	}
 
-	address, err := emailResp.Address()
-	if err != nil {
-		return genDb.User{}, "", "", fmt.Errorf("failed to get email: %w", err)
-	}
-
 	githubUser, err := s.fetchGithubUserData(ctx, githubToken)
 	if err != nil {
 		return genDb.User{}, "", "", fmt.Errorf("failed to fetch github user: %w", err)
 	}
 
-	externalID, err := emailResp.ExternalID()
-	if err != nil {
-		return genDb.User{}, "", "", fmt.Errorf("failed to get external id: %w", err)
-	}
-
-	createdUser, err := s.tempCreateUser(ctx, externalID, address, githubUser.Name, githubUser.Avatar)
+	createdUser, err := s.tempCreateUser(ctx, emailResp, githubUser.Name, githubUser.Avatar)
 	if err != nil {
 		return genDb.User{}, "", "", fmt.Errorf("failed to create user: %w", err)
 	}

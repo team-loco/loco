@@ -1,7 +1,6 @@
 exec loco whoami
 stdout 'Hi, Test User!'
 stdout 'Email: test@loco.build'
-stdout 'External ID: gh-1'
 stdout 'Context: acme/production'
 ! stdout '\x1b\['
 fakeapi called WhoAmI 'Bearer test-token'

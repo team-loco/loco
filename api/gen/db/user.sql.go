@@ -64,30 +64,23 @@ func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganization
 
 const createUser = `-- name: CreateUser :one
 
-INSERT INTO users (external_id, email, name, avatar_url)
-VALUES ($1, $2, $3, $4)
-RETURNING id, external_id, email, name, avatar_url, created_at, updated_at
+INSERT INTO users (email, name, avatar_url)
+VALUES ($1, $2, $3)
+RETURNING id, email, name, avatar_url, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	ExternalID string  `json:"externalId"`
-	Email      string  `json:"email"`
-	Name       *string `json:"name"`
-	AvatarUrl  *string `json:"avatarUrl"`
+	Email     string  `json:"email"`
+	Name      *string `json:"name"`
+	AvatarUrl *string `json:"avatarUrl"`
 }
 
 // User queries for sqlc
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser,
-		arg.ExternalID,
-		arg.Email,
-		arg.Name,
-		arg.AvatarUrl,
-	)
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.Name, arg.AvatarUrl)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.ExternalID,
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
@@ -163,7 +156,7 @@ func (q *Queries) GetOrganizationByName(ctx context.Context, name string) (Organ
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE email = $1
 `
@@ -173,28 +166,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.ExternalID,
-		&i.Email,
-		&i.Name,
-		&i.AvatarUrl,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getUserByExternalID = `-- name: GetUserByExternalID :one
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
-FROM users
-WHERE external_id = $1
-`
-
-func (q *Queries) GetUserByExternalID(ctx context.Context, externalID string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByExternalID, externalID)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.ExternalID,
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
@@ -205,7 +176,7 @@ func (q *Queries) GetUserByExternalID(ctx context.Context, externalID string) (U
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE id = $1
 `
@@ -215,7 +186,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.ExternalID,
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
@@ -239,7 +209,7 @@ func (q *Queries) IsOrganizationNameUnique(ctx context.Context, name string) (bo
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, external_id, email, name, avatar_url, created_at, updated_at
+SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE ($2::text IS NULL
        OR (created_at, id) < (
@@ -266,7 +236,6 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		var i User
 		if err := rows.Scan(
 			&i.ID,
-			&i.ExternalID,
 			&i.Email,
 			&i.Name,
 			&i.AvatarUrl,
@@ -287,7 +256,7 @@ const updateUserAvatarURL = `-- name: UpdateUserAvatarURL :one
 UPDATE users
 SET avatar_url = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, external_id, email, name, avatar_url, created_at, updated_at
+RETURNING id, email, name, avatar_url, created_at, updated_at
 `
 
 type UpdateUserAvatarURLParams struct {
@@ -300,7 +269,6 @@ func (q *Queries) UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarU
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.ExternalID,
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,
@@ -314,7 +282,7 @@ const updateUserEmail = `-- name: UpdateUserEmail :one
 UPDATE users
 SET email = $2, updated_at = NOW()
 WHERE id = $1
-RETURNING id, external_id, email, name, avatar_url, created_at, updated_at
+RETURNING id, email, name, avatar_url, created_at, updated_at
 `
 
 type UpdateUserEmailParams struct {
@@ -327,7 +295,6 @@ func (q *Queries) UpdateUserEmail(ctx context.Context, arg UpdateUserEmailParams
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.ExternalID,
 		&i.Email,
 		&i.Name,
 		&i.AvatarUrl,

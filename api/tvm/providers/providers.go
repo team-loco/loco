@@ -13,48 +13,53 @@ import (
 
 var ErrGithubExchange = errors.New("an issue occurred while exchanging the github token")
 
-func fetchGithubPrimaryEmail(ctx context.Context, client *http.Client, token string) (string, error) {
+const GithubIssuer = "https://github.com"
+
+func fetchGithubPrimaryEmail(ctx context.Context, client *http.Client, token string) (string, bool, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user/emails", nil)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Add("Accept", "application/vnd.github+json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("github emails api returned status %d", resp.StatusCode)
+		return "", false, fmt.Errorf("github emails api returned status %d", resp.StatusCode)
 	}
 
 	type githubEmail struct {
-		Email   string `json:"email"`
-		Primary bool   `json:"primary"`
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
 	}
 	var emails []githubEmail
 
 	err = json.NewDecoder(resp.Body).Decode(&emails)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	for _, email := range emails {
 		if email.Primary {
-			return email.Email, nil
+			return email.Email, email.Verified, nil
 		}
 	}
 
-	return "", errors.New("no primary email found")
+	return "", false, errors.New("no primary email found")
 }
 
 type EmailResponse struct {
-	externalID string
-	address    string
-	err        error
+	issuer   string
+	subject  string
+	address  string
+	verified bool
+	err      error
 }
 
 // not necessary, but we keep it cuz we like it.
@@ -62,35 +67,43 @@ func (e EmailResponse) Address() (string, error) {
 	return e.address, e.err
 }
 
-func (e EmailResponse) ExternalID() (string, error) {
-	return e.externalID, e.err
+func (e EmailResponse) Issuer() string {
+	return e.issuer
 }
 
-func NewEmailResponse(externalID string, address string, err error) EmailResponse {
-	return EmailResponse{externalID: externalID, address: address, err: err}
+func (e EmailResponse) Subject() (string, error) {
+	return e.subject, e.err
 }
 
-func GithubExternalID(id int64) string {
-	return "github:" + strconv.FormatInt(id, 10)
+func (e EmailResponse) EmailVerified() bool {
+	return e.verified
+}
+
+func NewEmailResponse(issuer string, subject string, address string, verified bool, err error) EmailResponse {
+	return EmailResponse{issuer: issuer, subject: subject, address: address, verified: verified, err: err}
+}
+
+func githubResponse(subject string, address string, verified bool, err error) EmailResponse {
+	return NewEmailResponse(GithubIssuer, subject, address, verified, err)
 }
 
 // Github fetches the user's email from GitHub using the provided OAuth token.
 func Github(ctx context.Context, client *http.Client, token string) EmailResponse {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/user", nil)
 	if err != nil {
-		return NewEmailResponse("", "", err)
+		return githubResponse("", "", false, err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Add("Accept", "application/vnd.github+json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return NewEmailResponse("", "", err)
+		return githubResponse("", "", false, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return NewEmailResponse("", "", fmt.Errorf("github user api returned status %d", resp.StatusCode))
+		return githubResponse("", "", false, fmt.Errorf("github user api returned status %d", resp.StatusCode))
 	}
 
 	type githubUserResponse struct {
@@ -102,27 +115,27 @@ func Github(ctx context.Context, client *http.Client, token string) EmailRespons
 	err = json.NewDecoder(resp.Body).Decode(&guResp)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to decode github user response", "err", err)
-		return NewEmailResponse("", "", err)
+		return githubResponse("", "", false, err)
 	}
 	if guResp.ID == 0 {
 		slog.ErrorContext(ctx, "github user response does not contain an account id")
-		return NewEmailResponse("", "", ErrGithubExchange)
+		return githubResponse("", "", false, ErrGithubExchange)
 	}
-	externalID := GithubExternalID(guResp.ID)
+	subject := strconv.FormatInt(guResp.ID, 10)
 	if guResp.Email != "" {
-		return NewEmailResponse(externalID, guResp.Email, nil)
+		return githubResponse(subject, guResp.Email, true, nil)
 	}
 
 	// attempt to fallback to github's emails endpoint
 	slog.InfoContext(ctx, "github user response does not contain email, fetching from emails endpoint")
-	email, err := fetchGithubPrimaryEmail(ctx, client, token)
+	email, verified, err := fetchGithubPrimaryEmail(ctx, client, token)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to fetch primary email from github", "err", err)
-		return NewEmailResponse("", "", ErrGithubExchange)
+		return githubResponse("", "", false, ErrGithubExchange)
 	}
 	if email == "" {
 		slog.ErrorContext(ctx, "github user has no primary email address")
-		return NewEmailResponse("", "", ErrGithubExchange)
+		return githubResponse("", "", false, ErrGithubExchange)
 	}
-	return NewEmailResponse(externalID, email, nil)
+	return githubResponse(subject, email, verified, nil)
 }

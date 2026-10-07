@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateUserRequest, CreateUserResponse, DeleteUserRequest, DeleteUserResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, LogoutRequest, LogoutResponse, UpdateUserRequest, UpdateUserResponse, WhoAmIRequest, WhoAmIResponse } from "./user_pb";
+import { DeleteUserRequest, DeleteUserResponse, GetUserRequest, GetUserResponse, ListUsersRequest, ListUsersResponse, LogoutRequest, LogoutResponse, UpdateUserRequest, UpdateUserResponse, WhoAmIRequest, WhoAmIResponse } from "./user_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -14,17 +14,6 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const UserService = {
   typeName: "loco.user.v1.UserService",
   methods: {
-    /**
-     * CreateUser creates a new user account.
-     *
-     * @generated from rpc loco.user.v1.UserService.CreateUser
-     */
-    createUser: {
-      name: "CreateUser",
-      I: CreateUserRequest,
-      O: CreateUserResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * GetUser retrieves a user by ID or email.
      *
