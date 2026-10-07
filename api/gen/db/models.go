@@ -416,6 +416,22 @@ type Environment struct {
 	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
+type Event struct {
+	Seq         int64      `json:"seq"`
+	Txid        uint64     `json:"txid"`
+	ID          uuid.UUID  `json:"id"`
+	Type        string     `json:"type"`
+	OrgID       *uuid.UUID `json:"orgId"`
+	WorkspaceID *uuid.UUID `json:"workspaceId"`
+	ActorType   string     `json:"actorType"`
+	ActorID     *uuid.UUID `json:"actorId"`
+	SubjectType *string    `json:"subjectType"`
+	SubjectID   *uuid.UUID `json:"subjectId"`
+	RequestID   *string    `json:"requestId"`
+	Data        []byte     `json:"data"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
 type Identity struct {
 	ID            uuid.UUID `json:"id"`
 	UserID        uuid.UUID `json:"userId"`

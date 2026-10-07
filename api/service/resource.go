@@ -6,6 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
+
+	"github.com/team-loco/loco/api/events"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -263,6 +267,16 @@ func (s *ResourceServer) CreateResource(
 		}
 	}
 
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        events.ResourceCreated,
+		WorkspaceID: new(workspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+		Data:        map[string]any{events.FieldName: r.GetName()},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record resource creation", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit resource creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -495,7 +509,17 @@ func (s *ResourceServer) UpdateResource(
 		updateParams.Name = &n
 	}
 
-	_, err := s.queries.UpdateResource(ctx, updateParams)
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, updateErr := qtx.UpdateResource(ctx, updateParams); updateErr != nil {
+			return updateErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.ResourceUpdated,
+			ResourceID:  new(resourceID),
+			SubjectType: events.SubjectResource,
+			SubjectID:   new(resourceID),
+		})
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update resource", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -542,7 +566,13 @@ func (s *ResourceServer) DeleteResource(
 		if deleteErr := qtx.DeleteResource(ctx, resourceID); deleteErr != nil {
 			return fmt.Errorf("delete resource: %w", deleteErr)
 		}
-		return nil
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.ResourceDeleted,
+			WorkspaceID: new(res.WorkspaceID),
+			SubjectType: events.SubjectResource,
+			SubjectID:   new(resourceID),
+			Data:        map[string]any{events.FieldName: res.Name},
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete resource", "error", err)
@@ -719,10 +749,29 @@ func (s *ResourceServer) ScaleResource(
 		)
 	}
 
-	if err := s.redeployRegions(ctx, res, plans); err != nil {
+	scaled := map[string]any{}
+	if r.Replicas != nil {
+		scaled["replicas"] = r.GetReplicas()
+	}
+	if r.Cpu != nil {
+		scaled["cpu"] = r.GetCpu()
+	}
+	if r.Memory != nil {
+		scaled["memory"] = r.GetMemory()
+	}
+	if r.Region != nil {
+		scaled["region"] = r.GetRegion()
+	}
+	scaledEvent := events.Event{
+		Type:        events.ResourceScaled,
+		WorkspaceID: new(res.WorkspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+		Data:        scaled,
+	}
+	if err := s.redeployRegions(ctx, res, plans, scaledEvent); err != nil {
 		return nil, err
 	}
-
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
 }
 
@@ -790,10 +839,17 @@ func (s *ResourceServer) UpdateResourceEnv(
 		plans = append(plans, plan)
 	}
 
-	if err := s.redeployRegions(ctx, res, plans); err != nil {
+	envKeys := slices.Sorted(maps.Keys(r.GetEnv()))
+	envEvent := events.Event{
+		Type:        events.ResourceEnvUpdated,
+		WorkspaceID: new(res.WorkspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+		Data:        map[string]any{"keys": envKeys},
+	}
+	if err := s.redeployRegions(ctx, res, plans, envEvent); err != nil {
 		return nil, err
 	}
-
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
 }
 
@@ -936,7 +992,12 @@ func (s *ResourceServer) planRegionRedeploy(
 	}, nil
 }
 
-func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource, plans []regionRedeploy) error {
+func (s *ResourceServer) redeployRegions(
+	ctx context.Context,
+	res genDb.Resource,
+	plans []regionRedeploy,
+	ev events.Event,
+) error {
 	domain, err := s.queries.GetDomainByResourceId(ctx, res.ID)
 	if err != nil {
 		slog.WarnContext(ctx, "domain not found", "resourceId", res.ID)
@@ -968,7 +1029,7 @@ func (s *ResourceServer) redeployRegions(ctx context.Context, res genDb.Resource
 				return deployErr
 			}
 		}
-		return nil
+		return events.Record(ctx, qtx, ev)
 	})
 	if err != nil {
 		return deploymentTxError(ctx, err)

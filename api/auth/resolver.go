@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -147,6 +148,17 @@ func moveAccountEmail(ctx context.Context, qtx *genDb.Queries, user genDb.User, 
 		slog.ErrorContext(ctx, "failed to move the account email", "error", err, "userId", user.ID)
 		return genDb.User{}, ErrResolve
 	}
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        events.UserUpdated,
+		ActorType:   string(genDb.EntityTypeUser),
+		ActorID:     new(user.ID),
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(user.ID),
+		Data:        map[string]any{"email": email},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record the account email change", "error", err, "userId", user.ID)
+		return genDb.User{}, ErrResolve
+	}
 	slog.InfoContext(ctx, "moved the account email to the identity's verified address", "userId", user.ID)
 	return moved, nil
 }
@@ -203,6 +215,7 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 	}()
 	qtx := r.queries.WithTx(tx)
 
+	created := false
 	user, err := qtx.GetUserByEmail(ctx, id.Email)
 	switch {
 	case err == nil:
@@ -222,8 +235,25 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 		if err != nil {
 			return genDb.User{}, err
 		}
+		created = true
 	default:
 		slog.ErrorContext(ctx, "failed to look up user by email", "error", err)
+		return genDb.User{}, ErrResolve
+	}
+
+	eventType := events.IdentityLinked
+	if created {
+		eventType = events.UserCreated
+	}
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        eventType,
+		ActorType:   string(genDb.EntityTypeUser),
+		ActorID:     new(user.ID),
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(user.ID),
+		Data:        map[string]any{"issuer": id.Issuer, "email": id.Email},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record identity event", "error", err)
 		return genDb.User{}, ErrResolve
 	}
 

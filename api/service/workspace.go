@@ -7,8 +7,11 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -142,6 +145,17 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        events.WorkspaceCreated,
+		OrgID:       new(orgID),
+		WorkspaceID: new(wsID),
+		SubjectType: events.SubjectWorkspace,
+		SubjectID:   new(wsID),
+		Data:        map[string]any{events.FieldName: r.GetName()},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record workspace creation", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -387,14 +401,29 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		}
 	}
 
-	_, err := s.queries.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
-		ID:          uuid.MustParse(r.GetWorkspaceId()),
-		Name:        r.Name,
-		Description: r.Description,
+	wsID := uuid.MustParse(r.GetWorkspaceId())
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		_, updateErr := qtx.UpdateWorkspace(ctx, genDb.UpdateWorkspaceParams{
+			ID:          wsID,
+			Name:        r.Name,
+			Description: r.Description,
+		})
+		if errors.Is(updateErr, pgx.ErrNoRows) {
+			slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
+			return connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
+		}
+		if updateErr != nil {
+			return updateErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.WorkspaceUpdated,
+			WorkspaceID: new(wsID),
+			SubjectType: events.SubjectWorkspace,
+			SubjectID:   new(wsID),
+		})
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "workspace not found", "id", r.GetWorkspaceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
+		return nil, txError(ctx, "failed to update workspace", err)
 	}
 
 	return connect.NewResponse(&workspacev1.UpdateWorkspaceResponse{
@@ -430,7 +459,23 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, err
 	}
 
-	if err := s.queries.RemoveWorkspace(ctx, wsID); err != nil {
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		deletedOrgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(ctx, wsID)
+		if orgErr != nil {
+			return orgErr
+		}
+		if removeErr := qtx.RemoveWorkspace(ctx, wsID); removeErr != nil {
+			return removeErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.WorkspaceDeleted,
+			OrgID:       new(deletedOrgID),
+			WorkspaceID: new(wsID),
+			SubjectType: events.SubjectWorkspace,
+			SubjectID:   new(wsID),
+		})
+	})
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
@@ -499,10 +544,30 @@ func (s *WorkspaceServer) CreateMember(
 		addScopes = append(addScopes, requested)
 	}
 
-	if err := s.machine.UpdateRoles(ctx, r.GetUserId(), addScopes, []genDb.EntityScope{}); err != nil {
-		if isPgForeignKeyViolation(err) {
-			return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+	userID, err := uuid.Parse(r.GetUserId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid user id: %w", err))
+	}
+	grantedScopes := make([]string, len(addScopes))
+	for i, sc := range addScopes {
+		grantedScopes[i] = sc.Scope
+	}
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if applyErr := tvm.ApplyRoles(ctx, qtx, userID, addScopes, nil); applyErr != nil {
+			return applyErr
 		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.MemberAdded,
+			WorkspaceID: new(wsID),
+			SubjectType: events.SubjectUser,
+			SubjectID:   new(userID),
+			Data:        map[string]any{"scopes": grantedScopes},
+		})
+	})
+	if isPgForeignKeyViolation(err) {
+		return nil, connect.NewError(connect.CodeNotFound, ErrUserNotFound)
+	}
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to add workspace member scopes", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
@@ -567,6 +632,15 @@ func (s *WorkspaceServer) DeleteMember(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        events.MemberRemoved,
+		WorkspaceID: new(wsID),
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(userID),
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record member removal", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit member removal", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

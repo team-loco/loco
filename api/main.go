@@ -26,6 +26,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/supabase"
 	"github.com/team-loco/loco/api/db"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
@@ -43,6 +44,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1connect "github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
+	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
@@ -100,6 +102,7 @@ type APIConfig struct {
 	AuthSignupMode        string
 	AuthSignupDomains     string
 	WebURL                string
+	EventsRetentionDays   string
 }
 
 func newAPIConfig() *APIConfig {
@@ -196,6 +199,7 @@ func newAPIConfig() *APIConfig {
 		AuthSignupMode:        os.Getenv("AUTH_SIGNUP_MODE"),
 		AuthSignupDomains:     os.Getenv("AUTH_SIGNUP_DOMAINS"),
 		WebURL:                os.Getenv("WEB_URL"),
+		EventsRetentionDays:   os.Getenv("EVENTS_RETENTION_DAYS"),
 	}
 }
 
@@ -270,6 +274,14 @@ func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) ht
 		middleware := cors.New(opts)
 		return middleware.Handler(h)
 	}
+}
+
+func eventsRetention(days string) time.Duration {
+	n, err := strconv.Atoi(days)
+	if err != nil || n <= 0 {
+		return 90 * 24 * time.Hour
+	}
+	return time.Duration(n) * 24 * time.Hour
 }
 
 func newPprofServer(addr string) *http.Server {
@@ -394,7 +406,9 @@ func main() {
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	secureCookies := ac.Env == envProduction
 	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache, secureCookies)
-	authServiceHandler := service.NewAuthServer(queries, machine, appCache, admins, ac.WebURL)
+	eventServiceHandler := service.NewEventServer(queries, machine)
+	go events.RunRetention(shutdownCtx, queries, eventsRetention(ac.EventsRetentionDays), time.Hour)
+	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
@@ -441,6 +455,7 @@ func main() {
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
 	authPath, authHandler := authv1connect.NewAuthServiceHandler(authServiceHandler, httpInterceptors)
+	eventPath, eventHandler := eventv1connect.NewEventServiceHandler(eventServiceHandler, httpInterceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
 	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(
 		workspaceServiceHandler,
@@ -478,6 +493,8 @@ func main() {
 		oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure,
 
 		// user service
+		eventv1connect.EventServiceListOrgEventsProcedure,
+		eventv1connect.EventServiceStreamEventsProcedure,
 		authv1connect.AuthServiceApproveCLILoginProcedure,
 		authv1connect.AuthServiceExchangeCLICodeProcedure,
 		authv1connect.AuthServiceStartDeviceLoginProcedure,
@@ -575,6 +592,7 @@ func main() {
 	mux.Handle(oauthPath, oauthHandler)
 	mux.Handle(userPath, userHandler)
 	mux.Handle(authPath, authHandler)
+	mux.Handle(eventPath, eventHandler)
 	mux.Handle(orgPath, orgHandler)
 	mux.Handle(workspacePath, workspaceHandler)
 	mux.Handle(resourcePath, resourceHandler)

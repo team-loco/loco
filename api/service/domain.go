@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -21,6 +23,7 @@ import (
 
 var (
 	ErrPlatformDomainNotFound = errors.New("platform domain not found")
+	ErrPlatformDomainUpdate   = errors.New("failed to update platform domain")
 	ErrDomainAlreadyExists    = errors.New("domain already exists")
 	ErrCannotRemovePrimary    = errors.New("cannot remove primary domain")
 	ErrCannotRemoveOnly       = errors.New("cannot remove resource's only domain")
@@ -58,9 +61,22 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	platformDomain, err := s.queries.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
-		Domain:   r.GetDomain(),
-		IsActive: r.GetIsActive(),
+	var platformDomain uuid.UUID
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		created, createErr := qtx.CreatePlatformDomain(ctx, genDb.CreatePlatformDomainParams{
+			Domain:   r.GetDomain(),
+			IsActive: r.GetIsActive(),
+		})
+		if createErr != nil {
+			return createErr
+		}
+		platformDomain = created
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.PlatformDomainChange,
+			SubjectType: events.SubjectPlatformDomain,
+			SubjectID:   new(platformDomain),
+			Data:        map[string]any{events.FieldAction: "created", events.FieldDomain: r.GetDomain()},
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create platform domain", "domain", r.GetDomain(), "error", err)
@@ -168,12 +184,22 @@ func (s *DomainServer) UpdatePlatformDomain(
 
 	// For now, we'll update using the existing deactivate method if is_active is being changed
 	// This is a simplified implementation
-	if !r.GetIsActive() {
-		_, err := s.queries.DeactivatePlatformDomain(ctx, parsedID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update platform domain", "id", r.GetId(), "error", err)
-			return nil, connect.NewError(connect.CodeInternal, errors.New("failed to update platform domain"))
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if !r.GetIsActive() {
+			if _, deactivateErr := qtx.DeactivatePlatformDomain(ctx, parsedID); deactivateErr != nil {
+				return deactivateErr
+			}
 		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.PlatformDomainChange,
+			SubjectType: events.SubjectPlatformDomain,
+			SubjectID:   new(parsedID),
+			Data:        map[string]any{events.FieldAction: "updated"},
+		})
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to update platform domain", "id", r.GetId(), "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrPlatformDomainUpdate)
 	}
 
 	return connect.NewResponse(&domainv1.UpdatePlatformDomainResponse{
@@ -206,7 +232,17 @@ func (s *DomainServer) DeletePlatformDomain(
 	parsedID := uuid.MustParse(r.GetId())
 
 	// Use deactivate for now as delete equivalent
-	_, err := s.queries.DeactivatePlatformDomain(ctx, parsedID)
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, deactivateErr := qtx.DeactivatePlatformDomain(ctx, parsedID); deactivateErr != nil {
+			return deactivateErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.PlatformDomainChange,
+			SubjectType: events.SubjectPlatformDomain,
+			SubjectID:   new(parsedID),
+			Data:        map[string]any{events.FieldAction: "deleted"},
+		})
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete platform domain", "id", r.GetId(), "error", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to delete platform domain"))
@@ -316,20 +352,33 @@ func (s *DomainServer) CreateResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	resourceDomain, err := s.queries.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
-		ResourceID:       resourceID,
-		Domain:           fullDomain,
-		DomainSource:     domainSource,
-		SubdomainLabel:   subdomainLabel,
-		PlatformDomainID: platformDomainID,
-		IsPrimary:        count == 0, // first domain is primary
+	var resourceDomain uuid.UUID
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		created, createErr := qtx.CreateResourceDomain(ctx, genDb.CreateResourceDomainParams{
+			ResourceID:       resourceID,
+			Domain:           fullDomain,
+			DomainSource:     domainSource,
+			SubdomainLabel:   subdomainLabel,
+			PlatformDomainID: platformDomainID,
+			IsPrimary:        count == 0, // first domain is primary
+		})
+		if isPgConstraintViolation(createErr) {
+			return connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+		}
+		if createErr != nil {
+			return createErr
+		}
+		resourceDomain = created
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.DomainCreated,
+			ResourceID:  new(resourceID),
+			SubjectType: events.SubjectDomain,
+			SubjectID:   new(resourceDomain),
+			Data:        map[string]any{events.FieldDomain: fullDomain, events.FieldResourceID: resourceID.String()},
+		})
 	})
 	if err != nil {
-		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
-		}
-		slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to create resource domain", err)
 	}
 
 	return connect.NewResponse(&domainv1.CreateResourceDomainResponse{
@@ -368,7 +417,9 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	// check if new domain is available (unless it's the same domain)
-	if r.GetDomain() != "" && r.GetDomain() != domainRow.Domain {
+	changed := r.GetDomain() != "" && r.GetDomain() != domainRow.Domain
+	var subdomainLabel *string
+	if changed {
 		available, err := s.queries.CheckDomainAvailability(ctx, r.GetDomain())
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -377,7 +428,6 @@ func (s *DomainServer) UpdateResourceDomain(
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
 		}
 
-		var subdomainLabel *string
 		if domainRow.DomainSource == genDb.DomainSourcePlatformProvided {
 			label, labelErr := s.platformSubdomainLabel(ctx, domainRow.PlatformDomainID, r.GetDomain())
 			if labelErr != nil {
@@ -385,19 +435,32 @@ func (s *DomainServer) UpdateResourceDomain(
 			}
 			subdomainLabel = &label
 		}
+	}
 
-		_, err = s.queries.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
-			ID:             domainID,
-			Domain:         r.GetDomain(),
-			SubdomainLabel: subdomainLabel,
-		})
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update resource domain", "id", r.GetDomainId(), "error", err)
-			if isPgConstraintViolation(err) {
-				return nil, connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
+	txErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if changed {
+			_, updateErr := qtx.UpdateResourceDomain(ctx, genDb.UpdateResourceDomainParams{
+				ID:             domainID,
+				Domain:         r.GetDomain(),
+				SubdomainLabel: subdomainLabel,
+			})
+			if isPgConstraintViolation(updateErr) {
+				return connect.NewError(connect.CodeAlreadyExists, ErrDomainAlreadyExists)
 			}
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
+			if updateErr != nil {
+				return updateErr
+			}
 		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.DomainUpdated,
+			ResourceID:  new(domainRow.ResourceID),
+			SubjectType: events.SubjectDomain,
+			SubjectID:   new(domainID),
+			Data:        map[string]any{events.FieldDomain: r.GetDomain()},
+		})
+	})
+	if txErr != nil {
+		return nil, txError(ctx, "failed to update resource domain", txErr)
 	}
 
 	return connect.NewResponse(&domainv1.UpdateResourceDomainResponse{
@@ -489,6 +552,16 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        events.DomainUpdated,
+		ResourceID:  new(resourceID),
+		SubjectType: events.SubjectDomain,
+		SubjectID:   new(domainID),
+		Data:        map[string]any{"primary": true},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record primary domain change", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit primary domain change", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -544,9 +617,20 @@ func (s *DomainServer) DeleteResourceDomain(
 	}
 
 	// delete the domain
-	err = s.queries.DeleteResourceDomain(ctx, domainID)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if deleteErr := qtx.DeleteResourceDomain(ctx, domainID); deleteErr != nil {
+			return deleteErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.DomainDeleted,
+			ResourceID:  new(domainRow.ResourceID),
+			SubjectType: events.SubjectDomain,
+			SubjectID:   new(domainID),
+			Data:        map[string]any{events.FieldDomain: domainRow.Domain},
+		})
+	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to delete resource domain", err)
 	}
 
 	return connect.NewResponse(&domainv1.DeleteResourceDomainResponse{}), nil

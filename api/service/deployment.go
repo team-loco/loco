@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -379,7 +381,19 @@ func (s *DeploymentServer) CreateDeployment(
 			SpecVersion:      int32(1),
 			EnvironmentID:    environmentID,
 		}, buildSpec)
-		return txErr
+		if txErr != nil {
+			return txErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.DeploymentCreated,
+			WorkspaceID: new(resource.WorkspaceID),
+			SubjectType: events.SubjectDeployment,
+			SubjectID:   new(deploymentID),
+			Data: map[string]any{
+				events.FieldResourceID: resourceID.String(),
+				"environmentId":        environmentID.String(),
+			},
+		})
 	})
 	if err != nil {
 		return nil, deploymentTxError(ctx, err)
@@ -546,7 +560,12 @@ func (s *DeploymentServer) DeleteDeployment(
 		if markErr := qtx.MarkDeploymentNotActive(ctx, deploymentID); markErr != nil {
 			return fmt.Errorf("mark deployment not active: %w", markErr)
 		}
-		return nil
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.DeploymentDeleted,
+			WorkspaceID: new(resource.WorkspaceID),
+			SubjectType: events.SubjectDeployment,
+			SubjectID:   new(deploymentID),
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to delete deployment", "error", err)

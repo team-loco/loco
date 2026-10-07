@@ -61,6 +61,12 @@ func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *Vendi
 	}
 }
 
+func (tvm *VendingMachine) WithQueries(q queries.Querier) *VendingMachine {
+	scoped := *tvm
+	scoped.queries = q
+	return &scoped
+}
+
 // Close stops the background cleanup goroutine.
 func (tvm *VendingMachine) Close() {
 	if tvm.cancelFunc != nil {
