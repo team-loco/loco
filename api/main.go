@@ -35,6 +35,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1connect "github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
+	"github.com/team-loco/loco/gen/go/loco/infra/v1/infrav1connect"
 	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
@@ -242,6 +243,11 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
+	infraServiceHandler, infraErr := service.NewInfrastructureServer(pool, machine, ac.InfraEncryptionKey)
+	if infraErr != nil {
+		slog.Error("initialize infrastructure service", "error", infraErr)
+		os.Exit(1)
+	}
 	placementCipher, cipherErr := planner.NewCipher(ac.InfraEncryptionKey)
 	if cipherErr != nil {
 		slog.Error("initialize placement encryption", "error", cipherErr)
@@ -267,6 +273,7 @@ func main() {
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion)
 
+	infraPath, infraHandler := infrav1connect.NewInfrastructureServiceHandler(infraServiceHandler, httpInterceptors)
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
@@ -375,6 +382,10 @@ func main() {
 		// registry service
 		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
 		registryv1connect.RegistryServiceGetImageRepositoryProcedure,
+		infrav1connect.InfrastructureServicePlanInfrastructureProcedure,
+		infrav1connect.InfrastructureServiceApplyInfrastructureProcedure,
+		infrav1connect.InfrastructureServiceGetStackProcedure,
+		infrav1connect.InfrastructureServiceSetSecretProcedure,
 
 		// agent service
 		agentv1connect.AgentServiceRegisterProcedure,
@@ -396,6 +407,7 @@ func main() {
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
+	mux.Handle(infraPath, infraHandler)
 	mux.Handle(configPath, configHandler)
 	mux.Handle(oauthPath, oauthHandler)
 	mux.Handle(userPath, userHandler)
