@@ -1,28 +1,37 @@
 #!/usr/bin/env bash
-#MISE description="Let the kind nodes pull from the compose registry, and store the nodes pull secret and the builder push secret in loco-system"
+#MISE description="Put the compose registry and source bucket on the kind network, let the kind nodes pull from the registry, and store the nodes pull secret and the builder push secret in loco-system"
 set -euo pipefail
 
 cluster=${KIND_CLUSTER:-loco-cluster-local}
 project=${COMPOSE_PROJECT:-loco-dev}
 port=${REGISTRY_PORT:-5001}
 alias=${REGISTRY_ALIAS:-loco-registry}
+s3_alias=${S3_ALIAS:-loco-s3.localhost}
 pull_secret=loco-registry
 push_secret=loco-registry-push
 namespace=loco-system
 
-container=$(docker ps -q \
-	--filter "label=com.docker.compose.project=$project" \
-	--filter "label=com.docker.compose.service=registry")
-if [ -z "$container" ]; then
-	echo "the $project registry container is not running" >&2
-	exit 1
-fi
-if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$container" | yq -p json -e '.kind' >/dev/null 2>&1; then
-	docker network connect --alias "$alias" kind "$container"
-fi
+connect() {
+	local service=$1 service_alias=$2 container networks
+	container=$(docker ps -q \
+		--filter "label=com.docker.compose.project=$project" \
+		--filter "label=com.docker.compose.service=$service")
+	if [ -z "$container" ]; then
+		echo "the $project $service container is not running" >&2
+		exit 1
+	fi
+	networks=$(docker inspect -f '{{json .NetworkSettings.Networks}}' "$container")
+	if ! yq -p json -e '.kind' <<<"$networks" >/dev/null 2>&1; then
+		docker network connect --alias "$service_alias" kind "$container"
+	fi
+}
+
+connect registry "$alias"
+connect s3 "$s3_alias"
 
 for node in $(kind get nodes --name "$cluster"); do
-	if ! docker exec "$node" containerd config dump 2>/dev/null | grep -q "config_path = '/etc/containerd/certs.d'"; then
+	containerd_config=$(docker exec "$node" containerd config dump 2>/dev/null || true)
+	if ! grep -q "config_path = '/etc/containerd/certs.d'" <<<"$containerd_config"; then
 		echo "$node predates the registry config in env/local/kind-cluster.yml; recreate it with: mise run cluster:down && mise run cluster:up" >&2
 		exit 1
 	fi

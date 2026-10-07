@@ -44,10 +44,10 @@ services:
       ROOT_ACCESS_KEY: ${LOCO_SOURCE_BUCKET_ACCESS_KEY_ID:-loco-dev}
       ROOT_SECRET_KEY: ${LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY:-loco-dev-secret}
       VGW_REGION: ${LOCO_SOURCE_BUCKET_REGION:-us-east-1}
-      VGW_VIRTUAL_DOMAIN: localhost
+      VGW_PORT: :${S3_PORT:-9000}
       SOURCE_BUCKET: ${LOCO_SOURCE_BUCKET:-loco-sources}
     ports:
-      - "${S3_PORT:-9000}:7070"
+      - "${S3_PORT:-9000}:${S3_PORT:-9000}"
     volumes:
       - s3-data:/data
     entrypoint: ["sh", "-c"]

@@ -8,6 +8,10 @@ registry:
 builds:
   pushSecretName: loco-registry-push
   insecureRegistry: true
+  privateEgressCIDRs:
+  {{- range exec "mise" (list "run" "--quiet" "cluster:build-egress") | trim | splitList " " }}
+    - {{ . | quote }}
+  {{- end }}
   builderImage:
     repository: loco-builder
     tag: latest

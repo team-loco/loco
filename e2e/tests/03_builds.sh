@@ -19,7 +19,7 @@ s3() {
         -e AWS_DEFAULT_REGION="$LOCO_SOURCE_BUCKET_REGION" \
         -e AWS_CONFIG_FILE=/work/aws-config \
         -v "$builds_dir:/work" \
-        "$E2E_AWS_CLI_IMAGE" --endpoint-url "http://${E2E_S3_ALIAS}:7070" "$@"
+        "$E2E_AWS_CLI_IMAGE" --endpoint-url "$E2E_S3_ENDPOINT" "$@"
 }
 
 upload_source() {

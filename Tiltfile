@@ -132,7 +132,7 @@ dc_resource('s3', resource_deps=['doctor'], labels=['infrastructure'])
 local_resource(
     'cluster-registry',
     cmd='mise run cluster:registry',
-    resource_deps=['kind-cluster', 'registry', 'helm-namespaces'],
+    resource_deps=['kind-cluster', 'registry', 's3', 'helm-namespaces'],
     deps=['mise-tasks/cluster/registry'],
     allow_parallel=True,
     labels=['infrastructure'],
@@ -220,7 +220,7 @@ helm_release(
         'pull_policy': 'builds.builderImage.pullPolicy',
     }],
     values=[],
-    deps=['charts/loco-controller/', 'env/local/controller-chart.yaml.gotmpl'],
+    deps=['charts/loco-controller/', 'env/local/controller-chart.yaml.gotmpl', 'mise-tasks/cluster/build-egress'],
     resource_deps=['loco-core', 'cluster-registry'],
 )
 
