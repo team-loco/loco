@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	workspaceAttr = "ResourceAttributes['k8s.pod.labels.loco.io/workspace-id']"
-	resourceAttr  = "ResourceAttributes['k8s.pod.labels.loco.io/resource-id']"
+	workspaceAttr = "ResourceAttributes['loco.io/workspace-id']"
+	resourceAttr  = "ResourceAttributes['loco.io/resource-id']"
 )
 
 // QueryLogs executes a parameterized log query against the otel_logs table.
@@ -33,6 +33,93 @@ func QueryLogs(
 	order observabilityv1.LogOrder,
 	queryTimeout int,
 ) ([]*observabilityv1.LogEntry, string, error) {
+	query, args := buildLogsQuery(
+		workspaceID,
+		resourceIDs,
+		startTime,
+		endTime,
+		search,
+		levels,
+		labels,
+		limit,
+		cursor,
+		order,
+		queryTimeout,
+	)
+	slog.Debug("executing log query", "query", query)
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return nil, "", fmt.Errorf("clickhouse query: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []*observabilityv1.LogEntry
+	var lastTimestamp time.Time
+
+	for rows.Next() {
+		var (
+			ts            time.Time
+			severity      string
+			body          string
+			resourceID    string
+			traceID       string
+			spanID        string
+			resourceAttrs map[string]string
+			logAttrs      map[string]string
+		)
+
+		if err := rows.Scan(
+			&ts,
+			&severity,
+			&body,
+			&resourceID,
+			&traceID,
+			&spanID,
+			&resourceAttrs,
+			&logAttrs,
+		); err != nil {
+			return nil, "", fmt.Errorf("scan row: %w", err)
+		}
+
+		entries = append(entries, &observabilityv1.LogEntry{
+			Timestamp:          timestamppb.New(ts),
+			Severity:           severity,
+			Body:               body,
+			ResourceId:         resourceID,
+			TraceId:            traceID,
+			SpanId:             spanID,
+			ResourceAttributes: resourceAttrs,
+			LogAttributes:      logAttrs,
+		})
+		lastTimestamp = ts
+	}
+	if err := rows.Err(); err != nil {
+		return nil, "", fmt.Errorf("rows iteration: %w", err)
+	}
+
+	// Determine next cursor
+	var nextCursor string
+	if int32(len(entries)) > limit {
+		entries = entries[:limit]
+		nextCursor = lastTimestamp.Format(time.RFC3339Nano)
+	}
+
+	return entries, nextCursor, nil
+}
+
+func buildLogsQuery(
+	workspaceID string,
+	resourceIDs []string,
+	startTime, endTime time.Time,
+	search string,
+	levels []string,
+	labels map[string]string,
+	limit int32,
+	cursor string,
+	order observabilityv1.LogOrder,
+	queryTimeout int,
+) (string, []any) {
 	// Build query with mandatory filters
 	var queryParts []string
 	var args []any
@@ -117,65 +204,5 @@ func QueryLogs(
 	settingsQuery := fmt.Sprintf("SETTINGS max_execution_time = %d", queryTimeout)
 	queryParts = append(queryParts, settingsQuery)
 
-	query := strings.Join(queryParts, " ")
-	slog.Debug("executing log query", "query", query)
-
-	rows, err := conn.Query(ctx, query, args...)
-	if err != nil {
-		return nil, "", fmt.Errorf("clickhouse query: %w", err)
-	}
-	defer rows.Close()
-
-	var entries []*observabilityv1.LogEntry
-	var lastTimestamp time.Time
-
-	for rows.Next() {
-		var (
-			ts            time.Time
-			severity      string
-			body          string
-			resourceID    string
-			traceID       string
-			spanID        string
-			resourceAttrs map[string]string
-			logAttrs      map[string]string
-		)
-
-		if err := rows.Scan(
-			&ts,
-			&severity,
-			&body,
-			&resourceID,
-			&traceID,
-			&spanID,
-			&resourceAttrs,
-			&logAttrs,
-		); err != nil {
-			return nil, "", fmt.Errorf("scan row: %w", err)
-		}
-
-		entries = append(entries, &observabilityv1.LogEntry{
-			Timestamp:          timestamppb.New(ts),
-			Severity:           severity,
-			Body:               body,
-			ResourceId:         resourceID,
-			TraceId:            traceID,
-			SpanId:             spanID,
-			ResourceAttributes: resourceAttrs,
-			LogAttributes:      logAttrs,
-		})
-		lastTimestamp = ts
-	}
-	if err := rows.Err(); err != nil {
-		return nil, "", fmt.Errorf("rows iteration: %w", err)
-	}
-
-	// Determine next cursor
-	var nextCursor string
-	if int32(len(entries)) > limit {
-		entries = entries[:limit]
-		nextCursor = lastTimestamp.Format(time.RFC3339Nano)
-	}
-
-	return entries, nextCursor, nil
+	return strings.Join(queryParts, " "), args
 }

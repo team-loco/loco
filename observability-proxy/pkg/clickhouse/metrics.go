@@ -23,6 +23,68 @@ func QueryMetrics(
 	aggregation string,
 	queryTimeout int,
 ) ([]*observabilityv1.MetricSeries, error) {
+	query, args := buildMetricsQuery(
+		workspaceID,
+		resourceIDs,
+		startTime,
+		endTime,
+		metricName,
+		intervalSeconds,
+		aggregation,
+		queryTimeout,
+	)
+
+	rows, err := conn.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("clickhouse metrics query: %w", err)
+	}
+	defer rows.Close()
+
+	// Group results by resource_id
+	seriesMap := make(map[string]*observabilityv1.MetricSeries)
+
+	for rows.Next() {
+		var (
+			resourceID string
+			bucket     time.Time
+			value      float64
+		)
+		if err := rows.Scan(&resourceID, &bucket, &value); err != nil {
+			return nil, fmt.Errorf("scan metric row: %w", err)
+		}
+
+		series, ok := seriesMap[resourceID]
+		if !ok {
+			series = &observabilityv1.MetricSeries{
+				ResourceId: resourceID,
+			}
+			seriesMap[resourceID] = series
+		}
+		series.Points = append(series.Points, &observabilityv1.MetricPoint{
+			Timestamp: timestamppb.New(bucket),
+			Value:     value,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration: %w", err)
+	}
+
+	result := make([]*observabilityv1.MetricSeries, 0, len(seriesMap))
+	for _, s := range seriesMap {
+		result = append(result, s)
+	}
+	return result, nil
+}
+
+func buildMetricsQuery(
+	workspaceID string,
+	resourceIDs []string,
+	startTime, endTime time.Time,
+	metricName string,
+	intervalSeconds int32,
+	aggregation string,
+	queryTimeout int,
+) (string, []any) {
 	aggFunc := mapAggregation(aggregation)
 	interval := intervalSeconds
 	if interval <= 0 {
@@ -68,46 +130,7 @@ func QueryMetrics(
 		queryTimeout,
 	)
 
-	rows, err := conn.Query(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("clickhouse metrics query: %w", err)
-	}
-	defer rows.Close()
-
-	// Group results by resource_id
-	seriesMap := make(map[string]*observabilityv1.MetricSeries)
-
-	for rows.Next() {
-		var (
-			resourceID string
-			bucket     time.Time
-			value      float64
-		)
-		if err := rows.Scan(&resourceID, &bucket, &value); err != nil {
-			return nil, fmt.Errorf("scan metric row: %w", err)
-		}
-
-		series, ok := seriesMap[resourceID]
-		if !ok {
-			series = &observabilityv1.MetricSeries{
-				ResourceId: resourceID,
-			}
-			seriesMap[resourceID] = series
-		}
-		series.Points = append(series.Points, &observabilityv1.MetricPoint{
-			Timestamp: timestamppb.New(bucket),
-			Value:     value,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration: %w", err)
-	}
-
-	result := make([]*observabilityv1.MetricSeries, 0, len(seriesMap))
-	for _, s := range seriesMap {
-		result = append(result, s)
-	}
-	return result, nil
+	return query, args
 }
 
 func mapAggregation(agg string) string {
