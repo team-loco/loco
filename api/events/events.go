@@ -50,6 +50,8 @@ const (
 	TokenCreated         = "token.created"
 	TokenRevoked         = "token.revoked"
 	ClusterRegistered    = "cluster.registered"
+	WebhookCreated       = "webhook.created"
+	WebhookDeleted       = "webhook.deleted"
 )
 
 const (
@@ -69,6 +71,7 @@ const (
 	SubjectPlatformDomain = "platform_domain"
 	SubjectToken          = "token"
 	SubjectCluster        = "cluster"
+	SubjectWebhook        = "webhook"
 )
 
 const (

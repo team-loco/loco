@@ -55,6 +55,7 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SOURCE_SWEEP_BUILD_BATCH", "")
 	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", "")
 	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", "")
+	t.Setenv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -213,6 +214,11 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"non-boolean force path style",
 			map[string]string{"LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE": "sometimes"},
 			errInvalidForcePathStyle,
+		},
+		{
+			"non-boolean webhook private networks",
+			map[string]string{"WEBHOOK_ALLOW_PRIVATE_NETWORKS": "sometimes"},
+			errInvalidWebhooksPrivate,
 		},
 		{"invalid default cpu", map[string]string{"LOCO_DEFAULT_CPU": "lots"}, errInvalidServiceDefault},
 		{"invalid default memory", map[string]string{"LOCO_DEFAULT_MEMORY": "-1Gi"}, errInvalidServiceDefault},

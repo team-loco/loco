@@ -22,7 +22,9 @@ type Querier interface {
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
+	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
 	CountDeploymentsByEnvironment(ctx context.Context, environmentID uuid.UUID) (int64, error)
+	CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) (int64, error)
 	// -----------------------------------------------------------------------------
 	// API token queries
 	// -----------------------------------------------------------------------------
@@ -47,6 +49,7 @@ type Querier interface {
 	// User queries for sqlc
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error)
+	CreateWorkspaceWebhook(ctx context.Context, arg CreateWorkspaceWebhookParams) (Webhook, error)
 	DeactivatePlatformDomain(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	DeleteAPIToken(ctx context.Context, id uuid.UUID) error
 	DeleteAPITokenByHash(ctx context.Context, tokenHash string) error
@@ -68,10 +71,12 @@ type Querier interface {
 	DeleteSessionTokensForIdentity(ctx context.Context, identityID *uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
+	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
 	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]uuid.UUID, error)
 	FailMissingClusterBuilds(ctx context.Context, arg FailMissingClusterBuildsParams) ([]FailMissingClusterBuildsRow, error)
 	FailQueuedClusterBuilds(ctx context.Context, arg FailQueuedClusterBuildsParams) ([]FailQueuedClusterBuildsRow, error)
 	FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error)
+	FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) error
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
 	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error)
@@ -120,10 +125,12 @@ type Querier interface {
 	GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]GetUserScopesOnWorkspaceRow, error)
 	// what users have scope z on entity y?
 	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]uuid.UUID, error)
+	GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (GetWebhookDeliveryPayloadRow, error)
 	GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (Workspace, error)
 	GetWorkspaceOrgID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
+	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
 	IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
@@ -161,8 +168,10 @@ type Querier interface {
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
+	ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) ([]Webhook, error)
 	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)

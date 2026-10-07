@@ -1,5 +1,5 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/design/Button";
@@ -99,17 +99,17 @@ export function DangerCard({
 		<Button
 			variant="destructive-outline"
 			size="lg"
-			className="px-3.5"
+			className="max-w-full min-w-0 px-3.5"
 			disabled={blockedReason !== null}
 			onClick={onClick}
 		>
-			{label}
+			<span className="truncate">{label}</span>
 		</Button>
 	);
 	return (
 		<section className="overflow-hidden rounded-lg border border-[color-mix(in_oklab,var(--red)_35%,var(--line))] bg-background">
 			<div className="flex flex-wrap items-center gap-5 px-5 py-[18px]">
-				<div className="flex min-w-0 flex-1 flex-col gap-1">
+				<div className="flex min-w-0 flex-1 basis-60 flex-col gap-1">
 					<span className="font-semibold">{title}</span>
 					<span className={cn("text-[12.5px]", subtitleWarn === true ? "text-warn-fg" : "text-fg3")}>
 						{subtitle}
@@ -125,5 +125,19 @@ export function DangerCard({
 				)}
 			</div>
 		</section>
+	);
+}
+
+export function CopyField({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
+	return (
+		<div className="flex min-w-0 flex-col gap-1">
+			<span className="text-[12px] text-fg3">{label}</span>
+			<div className="flex min-w-0 items-center gap-1.5 rounded-sm border border-line bg-bg2 py-1 pr-1 pl-2.5">
+				<code className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{value}</code>
+				<Button variant="ghost" size="icon-sm" aria-label={`Copy ${label}`} onClick={onCopy}>
+					{copied ? <CheckIcon /> : <CopyIcon />}
+				</Button>
+			</div>
+		</div>
 	);
 }

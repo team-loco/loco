@@ -548,6 +548,29 @@ type UserScope struct {
 	CreatedAt  time.Time  `json:"createdAt"`
 }
 
+type Webhook struct {
+	ID          uuid.UUID  `json:"id"`
+	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	Url         string     `json:"url"`
+	Secret      string     `json:"secret"`
+	EventTypes  []string   `json:"eventTypes"`
+	CreatedBy   *uuid.UUID `json:"createdBy"`
+	CreatedAt   time.Time  `json:"createdAt"`
+}
+
+type WebhookDelivery struct {
+	ID             uuid.UUID  `json:"id"`
+	WebhookID      uuid.UUID  `json:"webhookId"`
+	EventSeq       int64      `json:"eventSeq"`
+	Status         string     `json:"status"`
+	Attempts       int32      `json:"attempts"`
+	NextAttemptAt  time.Time  `json:"nextAttemptAt"`
+	LastStatusCode *int32     `json:"lastStatusCode"`
+	LastError      *string    `json:"lastError"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	DeliveredAt    *time.Time `json:"deliveredAt"`
+}
+
 type Workspace struct {
 	ID          uuid.UUID `json:"id"`
 	OrgID       uuid.UUID `json:"orgId"`

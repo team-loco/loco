@@ -19,11 +19,12 @@ var (
 	errUnknownCacheType   = errors.New("unknown cache type")
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
 
-	errInvalidForcePathStyle = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
-	errInvalidServiceDefault = errors.New("invalid service default")
-	errRegistryAuthPartial   = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
-	errRegistryAuthNoHost    = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
-	errInvalidRegistry       = errors.New("invalid registry configuration")
+	errInvalidForcePathStyle  = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
+	errInvalidServiceDefault  = errors.New("invalid service default")
+	errRegistryAuthPartial    = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
+	errRegistryAuthNoHost     = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
+	errInvalidRegistry        = errors.New("invalid registry configuration")
+	errInvalidWebhooksPrivate = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
 )
 
 const (
@@ -81,6 +82,7 @@ type APIConfig struct {
 	AuthSignupDomains     string
 	WebURL                string
 	EventsRetentionDays   string
+	WebhooksAllowPrivate  bool
 }
 
 func newAPIConfig() *APIConfig {
@@ -98,6 +100,7 @@ func newAPIConfig() *APIConfig {
 		logLevel = slog.LevelInfo
 	}
 	corsOrigins := listEnv("CORS_ALLOWED_ORIGINS")
+	webhooksAllowPrivate := boolEnv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", false, errInvalidWebhooksPrivate)
 
 	return &APIConfig{
 		Version:               buildinfo.Version(version),
@@ -124,6 +127,7 @@ func newAPIConfig() *APIConfig {
 		AuthSignupDomains:     stringEnv("AUTH_SIGNUP_DOMAINS", ""),
 		WebURL:                stringEnv("WEB_URL", ""),
 		EventsRetentionDays:   stringEnv("EVENTS_RETENTION_DAYS", ""),
+		WebhooksAllowPrivate:  webhooksAllowPrivate,
 	}
 }
 

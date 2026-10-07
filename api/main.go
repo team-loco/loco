@@ -34,6 +34,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/imageresolver"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
@@ -47,6 +48,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
+	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"golang.org/x/mod/semver"
 )
@@ -219,6 +221,9 @@ func main() {
 
 	eventServiceHandler := service.NewEventServer(queries, machine)
 	go events.RunRetention(shutdownCtx, queries, eventsRetention(ac.EventsRetentionDays), time.Hour)
+	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
+	webhookClient := webhooks.NewClient(ac.WebhooksAllowPrivate)
+	go webhooks.NewDispatcher(queries, webhookClient).Run(shutdownCtx, webhooks.DefaultPollPeriod)
 	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, admins, ac.WebURL)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, admins)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
@@ -273,6 +278,7 @@ func main() {
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
 	authPath, authHandler := authv1connect.NewAuthServiceHandler(authServiceHandler, httpInterceptors)
 	eventPath, eventHandler := eventv1connect.NewEventServiceHandler(eventServiceHandler, httpInterceptors)
+	webhookPath, webhookHandler := webhookv1connect.NewWebhookServiceHandler(webhookServiceHandler, httpInterceptors)
 	orgPath, orgHandler := orgv1connect.NewOrgServiceHandler(orgServiceHandler, httpInterceptors)
 	workspacePath, workspaceHandler := workspacev1connect.NewWorkspaceServiceHandler(
 		workspaceServiceHandler,
@@ -306,6 +312,10 @@ func main() {
 		// user service
 		eventv1connect.EventServiceListOrgEventsProcedure,
 		eventv1connect.EventServiceStreamEventsProcedure,
+		webhookv1connect.WebhookServiceCreateWebhookProcedure,
+		webhookv1connect.WebhookServiceListWebhooksProcedure,
+		webhookv1connect.WebhookServiceDeleteWebhookProcedure,
+		webhookv1connect.WebhookServiceListWebhookDeliveriesProcedure,
 		authv1connect.AuthServiceApproveCLILoginProcedure,
 		authv1connect.AuthServiceExchangeCLICodeProcedure,
 		authv1connect.AuthServiceStartDeviceLoginProcedure,
@@ -403,6 +413,7 @@ func main() {
 	mux.Handle(userPath, userHandler)
 	mux.Handle(authPath, authHandler)
 	mux.Handle(eventPath, eventHandler)
+	mux.Handle(webhookPath, webhookHandler)
 	mux.Handle(orgPath, orgHandler)
 	mux.Handle(workspacePath, workspaceHandler)
 	mux.Handle(resourcePath, resourceHandler)

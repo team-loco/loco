@@ -256,6 +256,10 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeAdmin,
 	}
+	ManageWorkspaceWebhooks = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeAdmin,
+	}
 	// AddWorkspaceMember requires workspace:write.
 	AddWorkspaceMember = Action{
 		entityType: db.EntityTypeWorkspace,
