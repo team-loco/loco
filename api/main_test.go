@@ -10,7 +10,7 @@ const configuredOrigin = "https://app.loco.build"
 
 func preflightAllowed(t *testing.T, h http.Handler, origin string) bool {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodOptions, "/loco.user.v1.UserService/WhoAmI", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/loco.user.v1.UserService/WhoAmI", nil)
 	req.Header.Set("Origin", origin)
 	req.Header.Set("Access-Control-Request-Method", http.MethodPost)
 	rec := httptest.NewRecorder()
