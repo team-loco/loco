@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -142,6 +144,17 @@ func (s *WorkspaceServer) CreateWorkspace(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.RecordWith(ctx, qtx, events.Event{
+		Type:        events.WorkspaceCreated,
+		OrgID:       new(orgID),
+		WorkspaceID: new(wsID),
+		SubjectType: events.SubjectWorkspace,
+		SubjectID:   new(wsID),
+		Data:        map[string]any{events.FieldName: r.GetName()},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record workspace creation", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit workspace creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -397,6 +410,12 @@ func (s *WorkspaceServer) UpdateWorkspace(
 		return nil, connect.NewError(connect.CodeNotFound, ErrWorkspaceNotFound)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.WorkspaceUpdated,
+		WorkspaceID: new(uuid.MustParse(r.GetWorkspaceId())),
+		SubjectType: events.SubjectWorkspace,
+		SubjectID:   new(uuid.MustParse(r.GetWorkspaceId())),
+	})
 	return connect.NewResponse(&workspacev1.UpdateWorkspaceResponse{
 		WorkspaceId: r.GetWorkspaceId(),
 	}), nil
@@ -430,11 +449,22 @@ func (s *WorkspaceServer) DeleteWorkspace(
 		return nil, err
 	}
 
+	deletedOrgID, orgErr := s.queries.GetOrganizationIDByWorkspaceID(ctx, wsID)
+	if orgErr != nil {
+		slog.WarnContext(ctx, "failed to look up workspace org for event", "error", orgErr)
+	}
 	if err := s.queries.RemoveWorkspace(ctx, wsID); err != nil {
 		slog.ErrorContext(ctx, "failed to delete workspace", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.WorkspaceDeleted,
+		OrgID:       new(deletedOrgID),
+		WorkspaceID: new(wsID),
+		SubjectType: events.SubjectWorkspace,
+		SubjectID:   new(wsID),
+	})
 	return connect.NewResponse(&workspacev1.DeleteWorkspaceResponse{}), nil
 }
 
@@ -507,6 +537,17 @@ func (s *WorkspaceServer) CreateMember(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	grantedScopes := make([]string, len(addScopes))
+	for i, sc := range addScopes {
+		grantedScopes[i] = sc.Scope
+	}
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.MemberAdded,
+		WorkspaceID: new(wsID),
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(uuid.MustParse(r.GetUserId())),
+		Data:        map[string]any{"scopes": grantedScopes},
+	})
 	return connect.NewResponse(&workspacev1.CreateMemberResponse{
 		WorkspaceId: r.GetWorkspaceId(),
 		UserId:      r.GetUserId(),
@@ -567,6 +608,15 @@ func (s *WorkspaceServer) DeleteMember(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.RecordWith(ctx, qtx, events.Event{
+		Type:        events.MemberRemoved,
+		WorkspaceID: new(wsID),
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(userID),
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record member removal", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit member removal", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)

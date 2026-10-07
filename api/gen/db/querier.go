@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -50,6 +51,7 @@ type Querier interface {
 	DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedPlacementParams) (int64, error)
 	DeleteEmptyWorkspacesForOrg(ctx context.Context, orgID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
+	DeleteEventsBefore(ctx context.Context, createdAt time.Time) (int64, error)
 	DeleteExpiredAPITokens(ctx context.Context) error
 	// session is fully dead once the refresh token expires (access expiry alone is not enough)
 	DeleteExpiredSessionTokens(ctx context.Context) error
@@ -111,6 +113,7 @@ type Querier interface {
 	GetWorkspaceOrgID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
+	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
 	IsOrgNameUnique(ctx context.Context, arg IsOrgNameUniqueParams) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
@@ -123,7 +126,9 @@ type Querier interface {
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
+	ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error)
 	ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
+	ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]Event, error)
 	ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]Placement, error)

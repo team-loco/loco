@@ -6,6 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
+
+	"github.com/team-loco/loco/api/events"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -261,6 +265,16 @@ func (s *ResourceServer) CreateResource(
 		}
 	}
 
+	if err := events.RecordWith(ctx, qtx, events.Event{
+		Type:        events.ResourceCreated,
+		WorkspaceID: new(workspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+		Data:        map[string]any{events.FieldName: r.GetName()},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record resource creation", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit resource creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -459,6 +473,12 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.ResourceUpdated,
+		ResourceID:  new(resourceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+	})
 	return connect.NewResponse(&resourcev1.UpdateResourceResponse{ResourceId: r.GetResourceId()}), nil
 }
 
@@ -507,6 +527,13 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.ResourceDeleted,
+		WorkspaceID: new(res.WorkspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+		Data:        map[string]any{events.FieldName: res.Name},
+	})
 	return connect.NewResponse(&resourcev1.DeleteResourceResponse{}), nil
 }
 
@@ -692,6 +719,26 @@ func (s *ResourceServer) ScaleResource(
 		return nil, err
 	}
 
+	scaled := map[string]any{}
+	if r.Replicas != nil {
+		scaled["replicas"] = r.GetReplicas()
+	}
+	if r.Cpu != nil {
+		scaled["cpu"] = r.GetCpu()
+	}
+	if r.Memory != nil {
+		scaled["memory"] = r.GetMemory()
+	}
+	if r.Region != nil {
+		scaled["region"] = r.GetRegion()
+	}
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.ResourceScaled,
+		WorkspaceID: new(res.WorkspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+		Data:        scaled,
+	})
 	return connect.NewResponse(&resourcev1.ScaleResourceResponse{}), nil
 }
 
@@ -763,6 +810,14 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, err
 	}
 
+	envKeys := slices.Sorted(maps.Keys(r.GetEnv()))
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.ResourceEnvUpdated,
+		WorkspaceID: new(res.WorkspaceID),
+		SubjectType: events.SubjectResource,
+		SubjectID:   new(resourceID),
+		Data:        map[string]any{"keys": envKeys},
+	})
 	return connect.NewResponse(&resourcev1.UpdateResourceEnvResponse{}), nil
 }
 

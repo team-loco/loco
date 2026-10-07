@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -83,6 +85,13 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.EnvironmentCreated,
+		WorkspaceID: new(workspaceID),
+		SubjectType: events.SubjectEnvironment,
+		SubjectID:   new(env.ID),
+		Data:        map[string]any{events.FieldName: env.Name},
+	})
 	return connect.NewResponse(&environmentv1.CreateEnvironmentResponse{
 		EnvironmentId: env.ID.String(),
 	}), nil
@@ -222,6 +231,12 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.EnvironmentUpdated,
+		WorkspaceID: new(existing.WorkspaceID),
+		SubjectType: events.SubjectEnvironment,
+		SubjectID:   new(envID),
+	})
 	return connect.NewResponse(&environmentv1.UpdateEnvironmentResponse{
 		EnvironmentId: r.GetEnvironmentId(),
 	}), nil
@@ -279,6 +294,12 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.EnvironmentDeleted,
+		WorkspaceID: new(existing.WorkspaceID),
+		SubjectType: events.SubjectEnvironment,
+		SubjectID:   new(envID),
+	})
 	return connect.NewResponse(&environmentv1.DeleteEnvironmentResponse{}), nil
 }
 

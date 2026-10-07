@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -173,6 +175,11 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.UserUpdated,
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(uuid.MustParse(r.GetUserId())),
+	})
 	return connect.NewResponse(&userv1.UpdateUserResponse{UserId: r.GetUserId()}), nil
 }
 
@@ -305,6 +312,11 @@ func (s *UserServer) DeleteUser(
 		}
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.UserDeleted,
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(userID),
+	})
 	return connect.NewResponse(&userv1.DeleteUserResponse{}), nil
 }
 
