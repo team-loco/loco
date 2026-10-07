@@ -1,0 +1,12 @@
+**
+!docs/
+!docs/pyproject.toml
+!docs/uv.lock
+!docs/zensical.toml
+!docs/Caddyfile
+!docs/scripts/
+!docs/scripts/build.py
+!docs/content/
+!docs/content/**
+!docs/overrides/
+!docs/overrides/**

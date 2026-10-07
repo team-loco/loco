@@ -9,8 +9,17 @@ import (
 )
 
 const (
-	registry = "ghcr.io/team-loco"
-	region   = "us-east4-eqdc4a"
+	registry          = "ghcr.io/team-loco"
+	region            = "us-east4-eqdc4a"
+	docsPort          = 8080
+	docsCPU           = 0.25
+	docsMemoryBytes   = 256000000
+	docsHealthTimeout = 60
+	docsReplicas      = 1
+	buildKey          = "build"
+	deployKey         = "deploy"
+	customDomainsKey  = "customDomains"
+	portKey           = "port"
 )
 
 var commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -18,7 +27,7 @@ var commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 type environment struct {
 	commit       string
 	domainPrefix string
-	uiTagSuffix  string
+	tagSuffix    string
 }
 
 func environmentFor(ctx railway.Context) environment {
@@ -27,9 +36,9 @@ func environmentFor(ctx railway.Context) environment {
 		panic("DEPLOY_COMMIT must be the full commit sha whose images to deploy, got " + strconv.Quote(commit))
 	}
 	if ctx.IsEnvironment("staging") {
-		return environment{commit: commit, domainPrefix: "staging.", uiTagSuffix: "-staging"}
+		return environment{commit: commit, domainPrefix: "staging.", tagSuffix: "-staging"}
 	}
-	return environment{commit: commit, domainPrefix: "", uiTagSuffix: ""}
+	return environment{commit: commit, domainPrefix: "", tagSuffix: ""}
 }
 
 func image(name string, tag string) map[string]any {
@@ -81,7 +90,7 @@ func dockerBuild(dockerfile string) map[string]any {
 
 func ui(env environment) railway.Service {
 	return railway.ServiceNamed("loco::cp-ui", railway.ServiceConfig{
-		"source":   image("loco-ui", "sha-"+env.commit+env.uiTagSuffix),
+		"source":   image("loco-ui", "sha-"+env.commit+env.tagSuffix),
 		"build":    dockerBuild("/web/Dockerfile"),
 		"replicas": map[string]any{region: 2},
 		"deploy":   limits(0.5, 1000000000),
@@ -91,6 +100,27 @@ func ui(env environment) railway.Service {
 				env.domainPrefix + "loco.build": map[string]any{"port": 8080},
 			},
 		},
+	})
+}
+
+func docs(env environment) railway.Service {
+	deploy := limits(docsCPU, docsMemoryBytes)
+	deploy["healthcheckPath"] = "/health"
+	deploy["healthcheckTimeout"] = docsHealthTimeout
+	source := image("loco-docs", "sha-"+env.commit+env.tagSuffix)
+	build := dockerBuild("/docs/Dockerfile")
+	port := strconv.Itoa(docsPort)
+	return railway.ServiceNamed("loco::cp-docs", railway.ServiceConfig{
+		"source":   source,
+		buildKey:   build,
+		"replicas": map[string]any{region: docsReplicas},
+		deployKey:  deploy,
+		"networking": map[string]any{
+			customDomainsKey: map[string]any{
+				"docs." + env.domainPrefix + "loco.build": map[string]any{portKey: docsPort},
+			},
+		},
+		"env": map[string]any{"PORT": port},
 	})
 }
 
@@ -190,7 +220,8 @@ func Railway(ctx railway.Context) railway.Project {
 	env := environmentFor(ctx)
 	cacheData := volume("valkey-volume")
 	dbData := volume("postgres-18-ssl-volume")
-	resources := []any{ui(env), api(env), cache(cacheData), cacheData, dbData}
+	documentation := docs(env)
+	resources := []any{ui(env), api(env), cache(cacheData), cacheData, dbData, documentation}
 	if ctx.IsEnvironment("staging") {
 		resources = append(resources, railway.Postgres("loco::cp-db-staging", map[string]any{"region": region}))
 	} else {

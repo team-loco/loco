@@ -18,6 +18,7 @@ mise run docs:build:staging
 mise run test:docs
 uv run --frozen --project docs playwright install chromium
 mise run docs:check:browser
+mise run docs:check:container
 ```
 
 Builds run in strict mode and fail on warnings. Generated output goes in `docs/site/` and stays out of Git. Python dependencies are pinned in `docs/uv.lock`; the runner and Python versions are pinned by mise.

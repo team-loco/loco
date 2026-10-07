@@ -13,9 +13,13 @@ jobs:
     name: Run Tests
     uses: ./.github/workflows/test.yml
 
+  docs-check:
+    name: Check Documentation
+    uses: ./.github/workflows/docs.yml
+
   push-image:
     name: Build and Push ${{ matrix.name }} Image
-    needs: test
+    needs: [test, docs-check]
     permissions:
       contents: read
       packages: write
@@ -36,6 +40,19 @@ jobs:
           - name: Agent
             image: agent
             dockerfile: ./agent/Dockerfile
+
+          - name: Docs
+            image: docs
+            dockerfile: ./docs/Dockerfile
+            build_args: |
+              DOCS_ENVIRONMENT=production
+
+          - name: Staging Docs
+            image: docs
+            dockerfile: ./docs/Dockerfile
+            tag_suffix: ",suffix=-staging"
+            build_args: |
+              DOCS_ENVIRONMENT=staging
 
           - name: UI
             image: ui
