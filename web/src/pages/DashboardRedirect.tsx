@@ -7,9 +7,9 @@ import { workspacePath } from "@/lib/routes";
 
 export function DashboardRedirect() {
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
-	const { isLoading } = useAuth();
+	const { isPending } = useAuth();
 
-	if (!isLoading && activeOrgId !== null && activeWorkspaceId !== null) {
+	if (!isPending && activeOrgId !== null && activeWorkspaceId !== null) {
 		return <Navigate to={workspacePath(activeOrgId, activeWorkspaceId)} replace />;
 	}
 
