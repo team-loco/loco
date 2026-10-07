@@ -1,0 +1,58 @@
+{
+  "distSpecVersion": "1.1.1",
+  "storage": {
+    "rootDirectory": "/var/lib/registry",
+    "dedupe": false,
+    "gc": true,
+    "gcDelay": "1h",
+    "gcInterval": "6h",
+    "redirectBlobURL": true,
+    "storageDriver": {
+      "name": "s3",
+      "rootdirectory": "/zot",
+      "region": "@S3_REGION@",
+      "bucket": "@S3_BUCKET@",
+      "regionendpoint": "@S3_ENDPOINT@",
+      "forcepathstyle": false,
+      "secure": true
+    }
+  },
+  "http": {
+    "address": "0.0.0.0",
+    "port": "5000",
+    "auth": {
+      "htpasswd": {
+        "path": "/etc/zot/htpasswd"
+      },
+      "failDelay": 1
+    },
+    "accessControl": {
+      "repositories": {
+        "**": {
+          "policies": [
+            {
+              "users": ["builder"],
+              "actions": ["read", "create", "update"]
+            },
+            {
+              "users": ["nodes"],
+              "actions": ["read"]
+            },
+            {
+              "users": ["api"],
+              "actions": ["read", "delete"]
+            }
+          ],
+          "defaultPolicy": []
+        }
+      },
+      "adminPolicy": {
+        "users": [],
+        "actions": []
+      }
+    }
+  },
+  "log": {
+    "level": "info"
+  }
+}

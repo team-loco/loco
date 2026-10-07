@@ -41,6 +41,10 @@ jobs:
             image: agent
             dockerfile: ./agent/Dockerfile
 
+          - name: Registry
+            image: registry
+            dockerfile: ./registry/Dockerfile
+
           - name: UI
             image: ui
             dockerfile: ./web/Dockerfile
