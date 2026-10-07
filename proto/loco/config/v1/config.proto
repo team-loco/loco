@@ -22,9 +22,8 @@ message GetConfigResponse {
 // DefaultServiceConfig contains default values for service deployments.
 // These values are used when users don't specify explicit configuration.
 message DefaultServiceConfig {
-  // Default build configuration
-  string build_type = 1; // e.g., "dockerfile"
-  string dockerfile_path = 2; // e.g., "Dockerfile"
+  reserved 1, 2;
+  reserved "build_type", "dockerfile_path";
 
   // Default routing configuration
   resource.v1.RoutingConfig routing = 3;

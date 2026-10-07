@@ -337,12 +337,12 @@ func (x *Scalers) GetMemoryTarget() int32 {
 
 // BuildSource defines where the code comes from.
 type BuildSource struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Type           string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`   // "dockerfile", "buildpack", "image"
-	Image          string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"` // final image or pre-built
-	DockerfilePath *string                `protobuf:"bytes,3,opt,name=dockerfile_path,json=dockerfilePath,proto3,oneof" json:"dockerfile_path,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`   // "dockerfile" (build_id of a succeeded build) or "image" (public image reference, pinned by digest)
+	Image         string                 `protobuf:"bytes,2,opt,name=image,proto3" json:"image,omitempty"` // final image or pre-built
+	BuildId       *string                `protobuf:"bytes,4,opt,name=build_id,json=buildId,proto3,oneof" json:"build_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BuildSource) Reset() {
@@ -389,9 +389,9 @@ func (x *BuildSource) GetImage() string {
 	return ""
 }
 
-func (x *BuildSource) GetDockerfilePath() string {
-	if x != nil && x.DockerfilePath != nil {
-		return *x.DockerfilePath
+func (x *BuildSource) GetBuildId() string {
+	if x != nil && x.BuildId != nil {
+		return *x.BuildId
 	}
 	return ""
 }
@@ -1428,12 +1428,12 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"cpu_target\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x00R\tcpuTarget\x88\x01\x01\x123\n" +
 	"\rmemory_target\x18\x03 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x00H\x01R\fmemoryTarget\x88\x01\x01B\r\n" +
 	"\v_cpu_targetB\x10\n" +
-	"\x0e_memory_target\"\xd5\x01\n" +
+	"\x0e_memory_target\"\xe2\x01\n" +
 	"\vBuildSource\x12\x1b\n" +
-	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12g\n" +
-	"\x05image\x18\x02 \x01(\tBQ\xbaHNrL\x10\x012H^([a-z0-9\\-._]+(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+|@sha256:[a-f0-9]{64})?$R\x05image\x12,\n" +
-	"\x0fdockerfile_path\x18\x03 \x01(\tH\x00R\x0edockerfilePath\x88\x01\x01B\x12\n" +
-	"\x10_dockerfile_path\"\x9e\x06\n" +
+	"\x04type\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04type\x12h\n" +
+	"\x05image\x18\x02 \x01(\tBR\xbaHO\xd8\x01\x01rJ2H^([a-z0-9\\-._]+(/[a-z0-9\\-._]+)*)(:[a-z0-9\\-._]+|@sha256:[a-f0-9]{64})?$R\x05image\x12(\n" +
+	"\bbuild_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\abuildId\x88\x01\x01B\v\n" +
+	"\t_build_idJ\x04\b\x03\x10\x04R\x0fdockerfile_path\"\x9e\x06\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +

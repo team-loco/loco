@@ -67,12 +67,8 @@ spec:
                                     deployment:
                                         description: Deployment info (current or requested)
                                         properties:
-                                            buildType:
-                                                type: string
                                             cpu:
                                                 description: Deployment-time resource overrides (takes precedence over ResourcesSpec)
-                                                type: string
-                                            dockerfilePath:
                                                 type: string
                                             env:
                                                 additionalProperties:

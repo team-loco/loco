@@ -133,6 +133,23 @@ var (
 		scope:      db.ScopeWrite,
 	}
 
+	CreateBuild = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeWrite,
+	}
+	GetBuild = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeRead,
+	}
+	ListBuilds = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeRead,
+	}
+	CancelBuild = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeWrite,
+	}
+
 	// orgs
 	// ListOrgs requires org:read.
 	ListOrgs = Action{

@@ -13,6 +13,52 @@ import (
 	"github.com/google/uuid"
 )
 
+type BuildStatus string
+
+const (
+	BuildStatusAwaitingUpload BuildStatus = "awaiting_upload"
+	BuildStatusQueued         BuildStatus = "queued"
+	BuildStatusRunning        BuildStatus = "running"
+	BuildStatusSucceeded      BuildStatus = "succeeded"
+	BuildStatusFailed         BuildStatus = "failed"
+	BuildStatusCanceled       BuildStatus = "canceled"
+)
+
+func (e *BuildStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = BuildStatus(s)
+	case string:
+		*e = BuildStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for BuildStatus: %T", src)
+	}
+	return nil
+}
+
+type NullBuildStatus struct {
+	BuildStatus BuildStatus `json:"buildStatus"`
+	Valid       bool        `json:"valid"` // Valid is true if BuildStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullBuildStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.BuildStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.BuildStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullBuildStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.BuildStatus), nil
+}
+
 type DeploymentStatus string
 
 const (
@@ -294,6 +340,25 @@ type ApiToken struct {
 	CreatedAt  time.Time     `json:"createdAt"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 	LastUsedAt *time.Time    `json:"lastUsedAt"`
+}
+
+type Build struct {
+	ID              uuid.UUID   `json:"id"`
+	ResourceID      uuid.UUID   `json:"resourceId"`
+	ClusterID       *uuid.UUID  `json:"clusterId"`
+	Status          BuildStatus `json:"status"`
+	SourceType      string      `json:"sourceType"`
+	SourceKey       string      `json:"sourceKey"`
+	SourceSize      int64       `json:"sourceSize"`
+	DockerfilePath  string      `json:"dockerfilePath"`
+	ImageRepository string      `json:"imageRepository"`
+	ImageDigest     *string     `json:"imageDigest"`
+	Message         string      `json:"message"`
+	CreatedBy       uuid.UUID   `json:"createdBy"`
+	CreatedAt       time.Time   `json:"createdAt"`
+	StartedAt       *time.Time  `json:"startedAt"`
+	FinishedAt      *time.Time  `json:"finishedAt"`
+	SourceDeletedAt *time.Time  `json:"sourceDeletedAt"`
 }
 
 type Cluster struct {

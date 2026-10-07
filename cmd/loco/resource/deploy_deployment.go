@@ -47,9 +47,8 @@ func doCreateDeployment(
 	wait bool,
 ) error {
 	buildSource := &deploymentv1.BuildSource{
-		Type:           cfg.Build.Type,
-		Image:          imageName,
-		DockerfilePath: &cfg.Build.DockerfilePath,
+		Type:  "image",
+		Image: imageName,
 	}
 
 	healthCheck := &deploymentv1.HealthCheckConfig{

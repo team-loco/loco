@@ -13,7 +13,6 @@ Region = "us-east-1"
 
 [Build]
 DockerfilePath = "Dockerfile"
-Type = "docker"
 
 [Routing]
 Port = 8000

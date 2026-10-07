@@ -246,17 +246,15 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 	}
 
 	return &locoControllerV1.ServiceDeploymentSpec{
-		Image:          serviceSpec.GetBuild().GetImage(),
-		Port:           serviceSpec.GetPort(),
-		DockerfilePath: serviceSpec.GetBuild().GetDockerfilePath(),
-		BuildType:      serviceSpec.GetBuild().GetType(),
-		CPU:            serviceSpec.GetCpu(),
-		Memory:         serviceSpec.GetMemory(),
-		MinReplicas:    serviceSpec.GetMinReplicas(),
-		MaxReplicas:    serviceSpec.GetMaxReplicas(),
-		Scalers:        scalers,
-		HealthCheck:    healthCheck,
-		Env:            serviceSpec.GetEnv(),
+		Image:       serviceSpec.GetBuild().GetImage(),
+		Port:        serviceSpec.GetPort(),
+		CPU:         serviceSpec.GetCpu(),
+		Memory:      serviceSpec.GetMemory(),
+		MinReplicas: serviceSpec.GetMinReplicas(),
+		MaxReplicas: serviceSpec.GetMaxReplicas(),
+		Scalers:     scalers,
+		HealthCheck: healthCheck,
+		Env:         serviceSpec.GetEnv(),
 	}
 }
 

@@ -7,7 +7,6 @@ Type = "SERVICE" # App type (SERVICE, DATABASE, FUNCTION, CACHE, QUEUE, BLOB). R
 
 [Build]
 DockerfilePath = "Dockerfile" # Path to the Dockerfile. Required: no. Default: "Dockerfile"
-type = "docker" # Build type. Required: no. Default: "docker"
 
 [Routing]
 IdleTimeout = 60 # Idle timeout in seconds before shutting down a pod. Required: no. Default: 60

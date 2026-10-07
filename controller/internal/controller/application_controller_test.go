@@ -53,14 +53,12 @@ var _ = Describe("Application Controller", func() {
 						Region:      "us-east-1",
 						ServiceSpec: &locov1alpha1.ServiceSpec{
 							Deployment: &locov1alpha1.ServiceDeploymentSpec{
-								Image:          "test:latest",
-								Port:           8080,
-								DockerfilePath: "Dockerfile",
-								BuildType:      "docker",
-								CPU:            "100m",
-								Memory:         "128Mi",
-								MinReplicas:    1,
-								MaxReplicas:    3,
+								Image:       "test:latest",
+								Port:        8080,
+								CPU:         "100m",
+								Memory:      "128Mi",
+								MinReplicas: 1,
+								MaxReplicas: 3,
 								Scalers: &locov1alpha1.ScalersSpec{
 									Enabled:      true,
 									CPUTarget:    80,
