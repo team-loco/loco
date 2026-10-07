@@ -27,6 +27,9 @@ linters:
       - { linters: [lll], source: "^\\s*// \\+kubebuilder:" }
       - { linters: [lll], source: "^\\s*// https?://\\S+$" }
       - { linters: [fatcontext], path: "suite_test\\.go$" }
+      - { linters: [gosec], text: "G306|G703", path: "_test\\.go$" }
+      - { linters: [gosec], text: "G101", path: "internal/controller/" }
+      - { linters: [gosec], text: "G302", path: "cmd/loco/update\\.go$" }
   default: standard
   enable:
     - asasalint
@@ -44,6 +47,7 @@ linters:
     - ginkgolinter
     - gocheckcompilerdirectives
     - gocritic
+    - gosec
     - goconst
     - gocyclo
     - intrange
@@ -104,6 +108,15 @@ linters:
       disabled-checks:
         - exitAfterDefer
         - sloppyReassign
+
+    gosec:
+      excludes:
+        - G104
+        - G115
+        - G117
+        - G204
+        - G304
+        - G706
 
     govet:
       enable-all: true
