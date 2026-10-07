@@ -12,10 +12,11 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
-	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 
 	"github.com/team-loco/loco/api/tvm"
 )
+
+var errNoToken = errors.New("no bearer token provided")
 
 type authInterceptor struct {
 	machine  *tvm.VendingMachine
@@ -65,31 +66,14 @@ func extractToken(header http.Header) (string, error) {
 		return strings.TrimPrefix(authHeader, "Bearer "), nil
 	}
 
-	cookieHeader := header.Get("Cookie")
-	cookies, err := http.ParseCookie(cookieHeader)
-	if err != nil {
-		return "", err
-	}
-
-	for _, cookie := range cookies {
-		if cookie.Name == "loco_token" {
-			return cookie.Value, nil
-		}
-	}
-
-	return "", errors.New("no token provided")
+	return "", errNoToken
 }
 
 var publicProcedures = map[string]struct{}{
-	authv1connect.AuthServiceExchangeCLICodeProcedure:            {},
-	authv1connect.AuthServiceStartDeviceLoginProcedure:           {},
-	authv1connect.AuthServicePollDeviceLoginProcedure:            {},
-	authv1connect.AuthServiceRefreshCLITokenProcedure:            {},
-	oauthv1connect.OAuthServiceGetOAuthDetailsProcedure:          {},
-	oauthv1connect.OAuthServiceGetOAuthAuthorizationURLProcedure: {},
-	oauthv1connect.OAuthServiceExchangeOAuthCodeProcedure:        {},
-	oauthv1connect.OAuthServiceExchangeOAuthTokenProcedure:       {},
-	oauthv1connect.OAuthServiceRefreshTokenProcedure:             {},
+	authv1connect.AuthServiceExchangeCLICodeProcedure:  {},
+	authv1connect.AuthServiceStartDeviceLoginProcedure: {},
+	authv1connect.AuthServicePollDeviceLoginProcedure:  {},
+	authv1connect.AuthServiceRefreshCLITokenProcedure:  {},
 }
 
 func isPublicProcedure(procedure string) bool {

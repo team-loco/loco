@@ -39,6 +39,6 @@ export function AuthStep({ id, run, fallbackError }: { id: string; run: AuthStep
 		case "done":
 			return <Navigate to={outcome.to} replace />;
 		case "failed":
-			return <Navigate to="/login" replace state={{ oauthError: outcome.error }} />;
+			return <Navigate to="/login" replace state={{ signInError: outcome.error }} />;
 	}
 }

@@ -97,7 +97,7 @@ That installs the pinned tools, the web dependencies and the git hooks, then run
 
 Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
 
-Copy `.env.example` to `.env` and fill in the GitHub OAuth app and GitLab registry credentials. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
+Copy `.env.example` to `.env` and fill in the GitLab registry credentials and a GitHub OAuth app for local Supabase Auth, whose callback URL is `http://localhost:9999/callback`. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
 
 ```bash
 mise run build

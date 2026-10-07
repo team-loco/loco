@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 )
 
 func TestAuthenticateSkipsPublicProcedures(t *testing.T) {
 	i := NewAuthInterceptor(nil, nil, nil, nil)
-	ctx, err := i.authenticate(t.Context(), oauthv1connect.OAuthServiceRefreshTokenProcedure, http.Header{})
+	ctx, err := i.authenticate(t.Context(), authv1connect.AuthServiceRefreshCLITokenProcedure, http.Header{})
 	if err != nil {
 		t.Fatalf("authenticate public procedure: %v", err)
 	}

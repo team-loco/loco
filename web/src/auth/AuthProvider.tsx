@@ -1,8 +1,8 @@
 import { createContext, use, useSyncExternalStore, type ReactNode } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { useMutation, useQuery } from "@connectrpc/connect-query";
+import { useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { whoAmI, logout as logoutMethod } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { User } from "@gen/loco/user/v1/user_pb";
 
 import type { AuthAdapter } from "./adapters/types";
@@ -25,16 +25,16 @@ const adapterForUI: Promise<AuthAdapter | null> = authAdapter().catch((err: unkn
 	return null;
 });
 
-const SIGN_IN_PATHS = ["/oauth/callback", "/auth/callback", "/auth/confirm"];
+const SIGN_IN_PATHS = ["/auth/callback", "/auth/confirm"];
 
 const noSubscription = () => () => undefined;
-const alwaysSignedIn = () => true;
+const neverSignedIn = () => false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const adapter = use(adapterForUI);
 	const hasSession = useSyncExternalStore(
 		adapter?.subscribe ?? noSubscription,
-		adapter?.hasSession ?? alwaysSignedIn,
+		adapter?.hasSession ?? neverSignedIn,
 	);
 	const onSignInPage = SIGN_IN_PATHS.some((path) => window.location.pathname.startsWith(path));
 	const {
@@ -43,13 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		error,
 	} = useQuery(whoAmI, {}, { enabled: hasSession && !onSignInPage });
 	const queryClient = useQueryClient();
-	const { mutateAsync: performLogout } = useMutation(logoutMethod);
 	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
 
 	const logout = async () => {
 		try {
-			if (adapter === null) await performLogout({});
-			else await adapter.signOut();
+			await adapter?.signOut();
 		} catch (err) {
 			console.error("Logout failed:", err);
 		} finally {

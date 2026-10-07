@@ -12,6 +12,8 @@ import (
 	"connectrpc.com/connect"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
@@ -58,6 +60,7 @@ func (f *fakeAPI) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(userv1connect.NewUserServiceHandler(f))
 	mux.Handle(authv1connect.NewAuthServiceHandler(&fakeAuthService{api: f}))
+	mux.Handle(configv1connect.NewConfigServiceHandler(&fakeConfigService{api: f}))
 	return mux
 }
 
@@ -153,4 +156,20 @@ func (o *fakeAuthService) RefreshCLIToken(
 		ExpiresIn:    3600,
 	}}
 	return connect.NewResponse(resp), nil
+}
+
+type fakeConfigService struct {
+	configv1connect.UnimplementedConfigServiceHandler
+
+	api *fakeAPI
+}
+
+func (c *fakeConfigService) GetConfig(
+	_ context.Context,
+	req *connect.Request[configv1.GetConfigRequest],
+) (*connect.Response[configv1.GetConfigResponse], error) {
+	if err := c.api.record(req.Spec(), ""); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&configv1.GetConfigResponse{}), nil
 }

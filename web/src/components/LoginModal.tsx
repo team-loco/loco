@@ -1,20 +1,15 @@
-import { createClient } from "@connectrpc/connect";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 
-import { OAuthProvider, OAuthService } from "@gen/loco/oauth/v1/oauth_pb";
-
 import { useAuth } from "@/auth/AuthProvider";
 import type { AuthAdapter, LoginMethod } from "@/auth/adapters/types";
-import { transport } from "@/auth/connect-transport";
 import { forgetNextPath, rememberNextPath } from "@/auth/next";
 import { signInRedirectURL } from "@/auth/runtime";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/design/Dialog";
 import { Input } from "@/components/design/Input";
 import { LocoLogo } from "@/components/design/LocoLogo";
-import { SoonTag } from "@/components/design/SoonTag";
 import { getErrorMessage } from "@/lib/error-handler";
 
 interface LoginModalProps {
@@ -250,59 +245,6 @@ function ProviderLogin({
 	);
 }
 
-function LegacyGithubLogin({ onError }: { onError: (message: string | null) => void }) {
-	const [isGithubLoading, setIsGithubLoading] = useState(false);
-
-	const handleGithubLogin = async () => {
-		try {
-			setIsGithubLoading(true);
-			onError(null);
-
-			const client = createClient(OAuthService, transport);
-			const data = await client.getOAuthAuthorizationURL({
-				provider: OAuthProvider.GITHUB,
-			});
-			const authUrl = data.authorizationUrl;
-
-			if (!authUrl) {
-				throw new Error("No authorization URL returned");
-			}
-
-			const redirectUri = `${window.location.origin}/oauth/callback`;
-			const url = new URL(authUrl);
-			url.searchParams.set("redirect_uri", redirectUri);
-
-			window.location.href = url.toString();
-		} catch (err) {
-			onError(getErrorMessage(err, "Authentication failed"));
-			setIsGithubLoading(false);
-		}
-	};
-
-	return (
-		<div className="flex flex-col gap-2">
-			<Button
-				variant="inverted"
-				size="lg"
-				className="w-full"
-				onClick={() => {
-					void handleGithubLogin();
-				}}
-				disabled={isGithubLoading}
-			>
-				{isGithubLoading ? <Loader2 className="size-4 animate-spin" /> : <GitHubMark className="size-4" />}
-				{isGithubLoading ? "Redirecting..." : "Continue with GitHub"}
-			</Button>
-
-			<Button variant="outline" size="lg" className="w-full cursor-not-allowed text-fg4" disabled>
-				<GoogleMark className="size-4 opacity-60" />
-				Continue with Google
-				<SoonTag />
-			</Button>
-		</div>
-	);
-}
-
 export function LoginModal({ open, onOpenChange, initialError, next }: LoginModalProps) {
 	const { adapter } = useAuth();
 	const [error, setError] = useState<string | null>(initialError ?? null);
@@ -330,7 +272,9 @@ export function LoginModal({ open, onOpenChange, initialError, next }: LoginModa
 				)}
 
 				{adapter === null ? (
-					<LegacyGithubLogin onError={setError} />
+					<div role="alert" className="rounded-sm bg-bad-bg px-3 py-2 text-center text-sm text-bad-fg">
+						Sign-in is unavailable right now. Try again in a moment.
+					</div>
 				) : (
 					<ProviderLogin adapter={adapter} next={next ?? null} onError={setError} />
 				)}

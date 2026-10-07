@@ -10,7 +10,6 @@ const confirmEmailLink: AuthStepRun = async (transport, report) => {
 	const type = params.get("type");
 	if (tokenHash === null || !isEmailLinkType(type)) throw new Error("This email link is incomplete");
 	const adapter = await authAdapter();
-	if (adapter === null) throw new Error("Sign-in is not configured");
 	report(type === "email_change" ? "Confirming your email…" : "Signing you in…");
 	await adapter.verifyEmailLink(tokenHash, type);
 	if (type === "email_change") return "/profile";

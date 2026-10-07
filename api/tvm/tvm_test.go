@@ -8,11 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/providers"
 )
 
 // sessionEntry is the in-memory representation of a session_token row.
@@ -33,8 +31,6 @@ type TestingQueries struct {
 	sessions  map[uuid.UUID]*sessionEntry
 	byAccess  map[string]uuid.UUID
 	byRefresh map[string]uuid.UUID
-
-	updatedEmails []string
 }
 
 func newTestingQueries() *TestingQueries {
@@ -60,25 +56,6 @@ var (
 	res2UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000032")
 	res3UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000033")
 )
-
-func (*TestingQueries) GetUserByEmail(_ context.Context, email string) (queries.User, error) {
-	switch email {
-	case "user1@loco-testing.com":
-		return queries.User{ID: user1UUID, Email: email}, nil
-	case "user2@loco-testing.com":
-		return queries.User{ID: user2UUID, Email: email}, nil
-	case "user3@loco-testing.com":
-		return queries.User{ID: user3UUID, Email: email}, nil
-	case "user4@loco-testing.com":
-		return queries.User{ID: user4UUID, Email: email}, nil
-	case "user5@loco-testing.com":
-		return queries.User{ID: user5UUID, Email: email}, nil
-	case dbErrorEmail:
-		return queries.User{}, errDBUnavailable
-	default:
-		return queries.User{}, pgx.ErrNoRows
-	}
-}
 
 func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]queries.GetUserScopesRow, error) {
 	switch userID {
@@ -122,30 +99,8 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
 		}, nil
 	default:
-		return nil, tvm.ErrUserNotFound
+		return nil, errUnknownUser
 	}
-}
-
-func (tq *TestingQueries) GetUserByIdentity(
-	ctx context.Context,
-	params queries.GetUserByIdentityParams,
-) (queries.User, error) {
-	if params.Issuer != providers.GithubIssuer || params.Subject == "" {
-		return queries.User{}, pgx.ErrNoRows
-	}
-	return tq.GetUserByEmail(ctx, params.Subject+"@loco-testing.com")
-}
-
-func (*TestingQueries) TouchIdentity(_ context.Context, _ queries.TouchIdentityParams) error {
-	return nil
-}
-
-func (tq *TestingQueries) UpdateUserEmail(
-	_ context.Context,
-	params queries.UpdateUserEmailParams,
-) (queries.User, error) {
-	tq.updatedEmails = append(tq.updatedEmails, params.Email)
-	return queries.User{ID: params.ID, Email: params.Email}, nil
 }
 
 func (*TestingQueries) GetUserScopesOnWorkspace(
@@ -350,24 +305,15 @@ func (*TestingQueries) DeleteAPITokenByNameAndEntity(
 
 // --- Test helpers ---
 
-func TestingGithubProvider(_ context.Context, token string) providers.EmailResponse {
-	switch token {
-	case "github-token-user1":
-		return providers.NewEmailResponse(providers.GithubIssuer, "user1", "user1@loco-testing.com", true, nil)
-	case "github-token-user2":
-		return providers.NewEmailResponse(providers.GithubIssuer, "user2", "user2@loco-testing.com", true, nil)
-	case "github-token-user3":
-		return providers.NewEmailResponse(providers.GithubIssuer, "user3", "user3@loco-testing.com", true, nil)
-	case "github-token-user4":
-		return providers.NewEmailResponse(providers.GithubIssuer, "user4", "user4@loco-testing.com", true, nil)
-	case "github-token-user5":
-		return providers.NewEmailResponse(providers.GithubIssuer, "user5", "user5@loco-testing.com", true, nil)
-	case "github-token-unknown":
-		return providers.NewEmailResponse(providers.GithubIssuer, "unknown", "unknown@loco-testing.com", true, nil)
-	case "github-token-db-error":
-		return providers.NewEmailResponse(providers.GithubIssuer, "db-error", dbErrorEmail, true, nil)
+var errUnknownUser = errors.New("unknown test user")
+
+func session(t *testing.T, machine *tvm.VendingMachine, userID uuid.UUID) (string, string) {
+	t.Helper()
+	access, refresh, err := machine.IssueSession(t.Context(), userID, nil, nil, "", "")
+	if err != nil {
+		t.Fatalf("issue session: %v", err)
 	}
-	return providers.NewEmailResponse(providers.GithubIssuer, "", "", false, tvm.ErrUserNotFound)
+	return access, refresh
 }
 
 func testConfig() tvm.Config {
@@ -383,10 +329,7 @@ func testConfig() tvm.Config {
 // user 1 has only self read/write/admin
 func TestUser1Permissions(t *testing.T) {
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user1"), "", "")
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
+	token, _ := session(t, machine, user1UUID)
 
 	t.Run("denied org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
@@ -436,10 +379,7 @@ func TestUser1Permissions(t *testing.T) {
 // user 2 has org 1 r, w, a
 func TestUser2Permissions(t *testing.T) {
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user2"), "", "")
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
+	token, _ := session(t, machine, user2UUID)
 
 	t.Run("granted org 1 admin", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
@@ -522,10 +462,7 @@ func TestUser2Permissions(t *testing.T) {
 // user 3 has org 1 r, w
 func TestUser3Permissions(t *testing.T) {
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user3"), "", "")
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
+	token, _ := session(t, machine, user3UUID)
 
 	t.Run("granted org 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
@@ -630,10 +567,7 @@ func TestUser3Permissions(t *testing.T) {
 // user 4 has r of ws 1
 func TestUser4Permissions(t *testing.T) {
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user4"), "", "")
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
+	token, _ := session(t, machine, user4UUID)
 
 	t.Run("granted workspace 1 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
@@ -727,10 +661,7 @@ func TestUser4Permissions(t *testing.T) {
 // user 5 has r, w, a of wks 3
 func TestUser5Permissions(t *testing.T) {
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, token, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user5"), "", "")
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
+	token, _ := session(t, machine, user5UUID)
 
 	t.Run("granted workspace 3 read", func(t *testing.T) {
 		err := machine.Verify(context.Background(), token, queries.EntityScope{
@@ -865,59 +796,6 @@ func TestUser5Permissions(t *testing.T) {
 	})
 }
 
-const dbErrorEmail = "db-error@loco-testing.com"
-
-var errDBUnavailable = errors.New("connection reset by peer")
-
-func TestExchangeUnknownUser(t *testing.T) {
-	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, _, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-unknown"), "", "")
-	if !errors.Is(err, tvm.ErrUserNotFound) {
-		t.Fatalf("expected ErrUserNotFound, got %v", err)
-	}
-}
-
-func TestExchangeUserLookupFailure(t *testing.T) {
-	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, _, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-db-error"), "", "")
-	if !errors.Is(err, tvm.ErrUserLookup) {
-		t.Fatalf("expected ErrUserLookup, got %v", err)
-	}
-	if errors.Is(err, tvm.ErrUserNotFound) {
-		t.Fatalf("a failed lookup must not read as a missing user")
-	}
-}
-
-func TestExchangeMatchesByIdentityAndSyncsEmail(t *testing.T) {
-	tq := newTestingQueries()
-	machine := tvm.NewVendingMachine(nil, tq, testConfig())
-	identity := providers.NewEmailResponse(providers.GithubIssuer, "user1", "renamed@loco-testing.com", true, nil)
-
-	user, _, _, err := machine.Exchange(t.Context(), identity, "", "")
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
-	if user.ID != user1UUID {
-		t.Fatalf("user id = %s, want %s", user.ID, user1UUID)
-	}
-	if len(tq.updatedEmails) != 1 || tq.updatedEmails[0] != "renamed@loco-testing.com" {
-		t.Fatalf("updated emails = %v, want [renamed@loco-testing.com]", tq.updatedEmails)
-	}
-}
-
-func TestExchangeUnchangedEmailIsNotRewritten(t *testing.T) {
-	tq := newTestingQueries()
-	machine := tvm.NewVendingMachine(nil, tq, testConfig())
-
-	_, _, _, err := machine.Exchange(t.Context(), TestingGithubProvider(t.Context(), "github-token-user2"), "", "")
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
-	if len(tq.updatedEmails) != 0 {
-		t.Fatalf("updated emails = %v, want none", tq.updatedEmails)
-	}
-}
-
 type racingRefreshQueries struct {
 	*TestingQueries
 }
@@ -937,15 +815,7 @@ func (rq racingRefreshQueries) RotateSessionToken(
 
 func TestRefreshRotatesTokens(t *testing.T) {
 	machine := tvm.NewVendingMachine(nil, newTestingQueries(), testConfig())
-	_, _, refreshToken, err := machine.Exchange(
-		t.Context(),
-		TestingGithubProvider(t.Context(), "github-token-user1"),
-		"",
-		"",
-	)
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
+	_, refreshToken := session(t, machine, user1UUID)
 
 	access, newRefresh, err := machine.Refresh(t.Context(), refreshToken)
 	if err != nil {
@@ -963,15 +833,7 @@ func TestRefreshRotatesTokens(t *testing.T) {
 func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 	tq := newTestingQueries()
 	machine := tvm.NewVendingMachine(nil, racingRefreshQueries{tq}, testConfig())
-	_, _, refreshToken, err := machine.Exchange(
-		t.Context(),
-		TestingGithubProvider(t.Context(), "github-token-user1"),
-		"",
-		"",
-	)
-	if err != nil {
-		t.Fatalf("unexpected error during exchange: %v", err)
-	}
+	_, refreshToken := session(t, machine, user1UUID)
 
 	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("losing refresh: got %v, want ErrInvalidExpiredToken", err)

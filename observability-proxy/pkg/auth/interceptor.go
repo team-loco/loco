@@ -18,26 +18,16 @@ func TokenFromContext(ctx context.Context) (string, bool) {
 	return t, ok && t != ""
 }
 
-// extractToken reads the bearer token from Authorization header or loco_token cookie,
-// mirroring the pattern used in api/middleware/githubOauth.go.
+var errNoToken = errors.New("no bearer token provided")
+
+// extractToken reads the bearer token from the Authorization header.
 func extractToken(header http.Header) (string, error) {
 	authHeader := header.Get("Authorization")
 	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 		return strings.TrimPrefix(authHeader, "Bearer "), nil
 	}
 
-	cookieHeader := header.Get("Cookie")
-	cookies, err := http.ParseCookie(cookieHeader)
-	if err != nil {
-		return "", err
-	}
-	for _, c := range cookies {
-		if c.Name == "loco_token" {
-			return c.Value, nil
-		}
-	}
-
-	return "", errors.New("no token provided")
+	return "", errNoToken
 }
 
 // AuthInterceptor extracts the token from the request and injects it into context.
