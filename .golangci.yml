@@ -58,6 +58,7 @@ linters:
     - noctx
     - nolintlint
     - nosprintfhostport
+    - perfsprint
     - prealloc
     - protogetter
     - predeclared
@@ -107,6 +108,10 @@ linters:
 
     nolintlint:
       require-specific: true
+
+    perfsprint:
+      err-error: true
+      strconcat: false
 
     revive:
       rules:

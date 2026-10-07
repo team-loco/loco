@@ -1,6 +1,7 @@
 package org
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"github.com/team-loco/loco/internal/httputil"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
+
+var errNoUpdateFlags = errors.New("at least one update flag is required (e.g., --new-name)")
 
 type updateDeps struct {
 	NewOrgClient func(host string) orgv1connect.OrgServiceClient
@@ -45,7 +48,7 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 				return fmt.Errorf("failed to get new-name flag: %w", err)
 			}
 			if newName == "" {
-				return fmt.Errorf("at least one update flag is required (e.g., --new-name)")
+				return errNoUpdateFlags
 			}
 
 			host, err := cmdutil.GetHost(cmd)

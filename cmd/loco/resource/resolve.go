@@ -19,6 +19,15 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
+var (
+	errOrgNotSpecified = errors.New(
+		"org not specified and no default found. Use --org flag or set LOCO_ORG environment variable",
+	)
+	errWorkspaceNotSpecified = errors.New(
+		"workspace not specified and no default found. Use --workspace flag or set LOCO_WORKSPACE environment variable",
+	)
+)
+
 // resolveOrg resolves organization name from flag > env > config.
 func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, error)) (string, error) {
 	org, err := cmd.Flags().GetString("org")
@@ -39,9 +48,7 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load default config", "error", err)
-		return "", fmt.Errorf(
-			"org not specified and no default found. Use --org flag or set LOCO_ORG environment variable",
-		)
+		return "", errOrgNotSpecified
 	}
 
 	scope, err := cfg.GetScope()
@@ -50,9 +57,7 @@ func resolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 		return scope.Organization.Name, nil
 	}
 
-	return "", fmt.Errorf(
-		"org not specified and no default found. Use --org flag or set LOCO_ORG environment variable",
-	)
+	return "", errOrgNotSpecified
 }
 
 // resolveWorkspace resolves workspace name from flag > env > config.
@@ -75,9 +80,7 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 	cfg, err := loadConfig()
 	if err != nil {
 		slog.Debug("failed to load default config", "error", err)
-		return "", fmt.Errorf(
-			"workspace not specified and no default found. Use --workspace flag or set LOCO_WORKSPACE environment variable",
-		)
+		return "", errWorkspaceNotSpecified
 	}
 
 	scope, err := cfg.GetScope()
@@ -86,9 +89,7 @@ func resolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 		return scope.Workspace.Name, nil
 	}
 
-	return "", fmt.Errorf(
-		"workspace not specified and no default found. Use --workspace flag or set LOCO_WORKSPACE environment variable",
-	)
+	return "", errWorkspaceNotSpecified
 }
 
 // resolveOrgID resolves organization ID, first checking config cache then API.

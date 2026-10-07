@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strconv"
 
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect"
@@ -157,7 +158,7 @@ func renderStatusView(stdout io.Writer, name string, resp *resourcev1.GetResourc
 
 	var status, replicas string
 	status = resp.GetCurrentDeployment().GetStatus().String()
-	replicas = fmt.Sprintf("%d", resp.GetCurrentDeployment().GetReplicas())
+	replicas = strconv.Itoa(int(resp.GetCurrentDeployment().GetReplicas()))
 
 	url := "hostname management pending"
 

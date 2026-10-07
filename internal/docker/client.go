@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -25,6 +26,15 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/moby/go-archive"
 	"github.com/team-loco/loco/internal/config"
+)
+
+var (
+	errDaemonNotResponding = errors.New("Docker daemon is not responding — is Docker running?\n" +
+		"  Start Docker and try again, or skip the build step with: --image <your-image>")
+	errDockerDesktopNotRunning = errors.New("Docker does not appear to be running — please start Docker Desktop\n" +
+		"  Alternatively, build your image separately and deploy with: --image <your-image>")
+	errDockerSocketNotFound = errors.New("Docker socket not found — is the Docker daemon running?\n" +
+		"  Alternatively, build your image separately and deploy with: --image <your-image>")
 )
 
 // MinimumDockerEngineVersion is the lowest allowed docker version.
@@ -53,10 +63,7 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 
 	v, err := cli.ServerVersion(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf(
-			"Docker daemon is not responding — is Docker running?\n" +
-				"  Start Docker and try again, or skip the build step with: --image <your-image>",
-		)
+		return nil, errDaemonNotResponding
 	}
 
 	if v.Version < MinimumDockerEngineVersion {
@@ -93,15 +100,9 @@ func checkDockerAvailable() error {
 	}
 
 	if runtime.GOOS == "darwin" {
-		return fmt.Errorf(
-			"Docker does not appear to be running — please start Docker Desktop\n" +
-				"  Alternatively, build your image separately and deploy with: --image <your-image>",
-		)
+		return errDockerDesktopNotRunning
 	}
-	return fmt.Errorf(
-		"Docker socket not found — is the Docker daemon running?\n" +
-			"  Alternatively, build your image separately and deploy with: --image <your-image>",
-	)
+	return errDockerSocketNotFound
 }
 
 func (c *DockerClient) Close() error {

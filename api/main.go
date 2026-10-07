@@ -47,6 +47,8 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+var errCacheAddrMissing = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
+
 const envProduction = "PRODUCTION"
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
@@ -115,7 +117,7 @@ func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cach
 	switch cacheType {
 	case "valkey":
 		if CacheAddr == "" {
-			return nil, fmt.Errorf("CACHE_ADDR required when CACHE_TYPE=valkey")
+			return nil, errCacheAddrMissing
 		}
 		return cache.NewValkey(CacheAddr, defaultTTL)
 	case "in-memory":

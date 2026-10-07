@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -89,7 +91,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 			} else if entityIDInt == 0 {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 			} else {
-				entityID = fmt.Sprintf("%d", entityIDInt)
+				entityID = strconv.FormatInt(entityIDInt, 10)
 			}
 
 			req := connect.NewRequest(&tokenv1.ListTokensRequest{
@@ -173,9 +175,5 @@ func formatScopes(scopes []*tokenv1.EntityScope) string {
 		return "none"
 	}
 
-	result := scopeNames[0]
-	for i := 1; i < len(scopeNames); i++ {
-		result += ", " + scopeNames[i]
-	}
-	return result
+	return strings.Join(scopeNames, ", ")
 }

@@ -9,7 +9,12 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
-var errWorkspaceIDRequired = errors.New("workspace_id is required")
+var (
+	errMetricNameRequired  = errors.New("metric_name is required")
+	errTimeRangeRequired   = errors.New("start_time and end_time are required")
+	errEndBeforeStart      = errors.New("end_time must be after start_time")
+	errWorkspaceIDRequired = errors.New("workspace_id is required")
+)
 
 // ValidateLogsRequest validates and clamps the query parameters for a logs request.
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Config) error {
@@ -33,7 +38,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 		return errWorkspaceIDRequired
 	}
 	if req.GetMetricName() == "" {
-		return fmt.Errorf("metric_name is required")
+		return errMetricNameRequired
 	}
 
 	start := req.GetStartTime().AsTime()
@@ -72,10 +77,10 @@ func ClampLimit(requested int32, cfg *config.Config) int32 {
 
 func validateTimeRange(start, end time.Time, maxRange time.Duration) error {
 	if start.IsZero() || end.IsZero() {
-		return fmt.Errorf("start_time and end_time are required")
+		return errTimeRangeRequired
 	}
 	if end.Before(start) {
-		return fmt.Errorf("end_time must be after start_time")
+		return errEndBeforeStart
 	}
 	if end.Sub(start) > maxRange {
 		return fmt.Errorf("time range exceeds maximum of %v", maxRange)

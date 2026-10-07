@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
@@ -91,7 +92,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			} else if entityIDInt == 0 {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 			} else {
-				entityID = fmt.Sprintf("%d", entityIDInt)
+				entityID = strconv.FormatInt(entityIDInt, 10)
 			}
 
 			yes, err := cmd.Flags().GetBool("yes")

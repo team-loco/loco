@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -138,7 +139,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() tea.View {
-	s := "\n"
+	var s strings.Builder
+	s.WriteString("\n")
 	indent := "  "
 
 	for i, step := range m.steps {
@@ -161,7 +163,7 @@ func (m *model) View() tea.View {
 			connector = "├─"
 		}
 
-		s += fmt.Sprintf("%s%s %s %s\n", indent, connector, icon, step.Title)
+		fmt.Fprintf(&s, "%s%s %s %s\n", indent, connector, icon, step.Title)
 
 		m.Lock()
 		logs := make([]string, len(m.logs[i]))
@@ -169,19 +171,19 @@ func (m *model) View() tea.View {
 		m.Unlock()
 
 		for _, line := range logs {
-			s += indent + "│   " + styleLog.Render("→ "+line) + "\n"
+			s.WriteString(indent + "│   " + styleLog.Render("→ "+line) + "\n")
 		}
 
 		if i < len(m.steps)-1 {
-			s += indent + "│\n"
+			s.WriteString(indent + "│\n")
 		}
 	}
 
 	if m.quitting {
-		s += "\n" + styleError.Render("Aborted.") + "\n"
+		s.WriteString("\n" + styleError.Render("Aborted.") + "\n")
 	}
 
-	return tea.NewView(s)
+	return tea.NewView(s.String())
 }
 
 // Move runStep to be a method of model so it can access the program

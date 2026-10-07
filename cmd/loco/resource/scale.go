@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -16,6 +17,11 @@ import (
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
+)
+
+var (
+	errNoScaleFlags   = errors.New("at least one of --replicas, --cpu, or --memory must be provided")
+	errReplicasTooLow = errors.New("replicas must be >= 1")
 )
 
 type scaleDeps struct {
@@ -70,11 +76,11 @@ Examples:
 
 			// Validate at least one scaling parameter
 			if replicas == -1 && cpu == "" && memory == "" {
-				return fmt.Errorf("at least one of --replicas, --cpu, or --memory must be provided")
+				return errNoScaleFlags
 			}
 
 			if replicas != -1 && replicas < 1 {
-				return fmt.Errorf("replicas must be >= 1")
+				return errReplicasTooLow
 			}
 
 			// Get host and token

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -53,6 +54,8 @@ import (
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
+
+var errGitlabEnvMissing = errors.New("missing required gitlab environment variables")
 
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
@@ -886,7 +889,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if r.gitlabURL == "" || r.gitlabPAT == "" || r.gitlabProjectID == "" || r.gitlabRegistryURL == "" {
 		slog.Error("missing required gitlab environment variables")
-		return fmt.Errorf("missing required gitlab environment variables")
+		return errGitlabEnvMissing
 	}
 
 	applicationChanged := predicate.Or[client.Object](

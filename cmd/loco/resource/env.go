@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -20,6 +21,8 @@ import (
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
+
+var errNoEnvVars = errors.New("no environment variables to sync. Use positional args (KEY=VALUE), --set, or --env-file")
 
 type envDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
@@ -103,9 +106,7 @@ Examples:
 			}
 
 			if len(envVars) == 0 {
-				return fmt.Errorf(
-					"no environment variables to sync. Use positional args (KEY=VALUE), --set, or --env-file",
-				)
+				return errNoEnvVars
 			}
 
 			// Get host and token

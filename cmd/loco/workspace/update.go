@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,8 @@ import (
 	"github.com/team-loco/loco/internal/httputil"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
+
+var errNoUpdateFlags = errors.New("at least one update flag is required (--name or --description)")
 
 type updateDeps struct {
 	UpdateWorkspace func(
@@ -45,7 +48,7 @@ func buildUpdateCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("invalid workspace ID: %w", err)
 			}
-			id := fmt.Sprintf("%d", idInt)
+			id := strconv.FormatInt(idInt, 10)
 
 			name, err := cmd.Flags().GetString("name")
 			if err != nil {
@@ -57,7 +60,7 @@ func buildUpdateCmd() *cobra.Command {
 			}
 
 			if name == "" && description == "" {
-				return fmt.Errorf("at least one update flag is required (--name or --description)")
+				return errNoUpdateFlags
 			}
 
 			host, err := cmdutil.GetHost(cmd)

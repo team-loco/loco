@@ -13,6 +13,28 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+var (
+	errConfigVersionMissing       = errors.New("metadata.configVersion must be set")
+	errNameMissing                = errors.New("metadata.name must be set")
+	errHostnameMissing            = errors.New("domainConfig.hostname must be set (e.g., 'myapp.onloco.app')")
+	errPathPrefixNoSlash          = errors.New("routing.pathPrefix must start with '/'")
+	errNegativeIdleTimeout        = errors.New("routing.idleTimeout cannot be negative")
+	errNoRegions                  = errors.New("regionConfig must have at least one region configured")
+	errRegionNotConfigured        = errors.New("metadata.region must be set and match one of the configured regions")
+	errHealthPathMissing          = errors.New("health.path must be provided")
+	errHealthPathNoSlash          = errors.New("health.path must start with '/'")
+	errHealthIntervalNotPositive  = errors.New("health.interval must be greater than 0")
+	errHealthTimeoutNotPositive   = errors.New("health.timeout must be greater than 0")
+	errNegativeStartupGracePeriod = errors.New("health.startupGracePeriod cannot be negative")
+	errStartupGracePeriodTooLong  = errors.New("health.startupGracePeriod cannot exceed 300 seconds (5 minutes)")
+	errNegativeFailThreshold      = errors.New("health.failThreshold cannot be negative")
+	errMetricsPathNoSlash         = errors.New("obs.metrics.path must start with '/'")
+	errMetricsPortOutOfRange      = errors.New("obs.metrics.port must be between 1024 and 65535")
+	errSampleRateOutOfRange       = errors.New("obs.tracing.sampleRate must be between 0.0 and 1.0")
+	errConfigNotFound             = errors.New("loco.toml not found. Please run 'loco init' to create the file " +
+		"or run the cmd with --config to specify a custom path")
+)
+
 const DefaultAppDomain = "onloco.app"
 
 const (
@@ -132,7 +154,7 @@ func Validate(cfg *LocoConfig) error {
 
 func validateMetadata(cfg *LocoConfig) error {
 	if cfg.Metadata.ConfigVersion == "" {
-		return fmt.Errorf("metadata.configVersion must be set")
+		return errConfigVersionMissing
 	}
 	if !isAllowedSchemaVersion(cfg.Metadata.ConfigVersion) {
 		return fmt.Errorf(
@@ -143,7 +165,7 @@ func validateMetadata(cfg *LocoConfig) error {
 	}
 
 	if cfg.Metadata.Name == "" {
-		return fmt.Errorf("metadata.name must be set")
+		return errNameMissing
 	}
 
 	return nil
@@ -152,7 +174,7 @@ func validateMetadata(cfg *LocoConfig) error {
 func validateDomain(cfg *LocoConfig) error {
 	if cfg.DomainConfig != nil {
 		if cfg.DomainConfig.Hostname == "" {
-			return fmt.Errorf("domainConfig.hostname must be set (e.g., 'myapp.onloco.app')")
+			return errHostnameMissing
 		}
 		if cfg.DomainConfig.Type != "" && cfg.DomainConfig.Type != domainTypePlatform &&
 			cfg.DomainConfig.Type != "custom" {
@@ -174,11 +196,11 @@ func validateRouting(cfg *LocoConfig) error {
 	if cfg.Routing.PathPrefix == "" {
 		cfg.Routing.PathPrefix = "/"
 	} else if !strings.HasPrefix(cfg.Routing.PathPrefix, "/") {
-		return fmt.Errorf("routing.pathPrefix must start with '/'")
+		return errPathPrefixNoSlash
 	}
 
 	if cfg.Routing.IdleTimeout < 0 {
-		return fmt.Errorf("routing.idleTimeout cannot be negative")
+		return errNegativeIdleTimeout
 	}
 
 	return nil
@@ -201,11 +223,11 @@ func validateBuild(cfg *LocoConfig) error {
 
 func validateRegions(cfg *LocoConfig) error {
 	if len(cfg.RegionConfig) == 0 {
-		return fmt.Errorf("regionConfig must have at least one region configured")
+		return errNoRegions
 	}
 
 	if cfg.Metadata.Region == "" {
-		return fmt.Errorf("metadata.region must be set and match one of the configured regions")
+		return errRegionNotConfigured
 	}
 
 	if _, exists := cfg.RegionConfig[cfg.Metadata.Region]; !exists {
@@ -275,25 +297,25 @@ func validateRegionResources(region string, resources Resources) error {
 
 func validateHealth(cfg *LocoConfig) error {
 	if cfg.Health.Path == "" {
-		return fmt.Errorf("health.path must be provided")
+		return errHealthPathMissing
 	}
 	if !strings.HasPrefix(cfg.Health.Path, "/") {
-		return fmt.Errorf("health.path must start with '/'")
+		return errHealthPathNoSlash
 	}
 	if cfg.Health.Interval <= 0 {
-		return fmt.Errorf("health.interval must be greater than 0")
+		return errHealthIntervalNotPositive
 	}
 	if cfg.Health.Timeout <= 0 {
-		return fmt.Errorf("health.timeout must be greater than 0")
+		return errHealthTimeoutNotPositive
 	}
 	if cfg.Health.StartupGracePeriod < 0 {
-		return fmt.Errorf("health.startupGracePeriod cannot be negative")
+		return errNegativeStartupGracePeriod
 	}
 	if cfg.Health.StartupGracePeriod > 300 {
-		return fmt.Errorf("health.startupGracePeriod cannot exceed 300 seconds (5 minutes)")
+		return errStartupGracePeriodTooLong
 	}
 	if cfg.Health.FailThreshold < 0 {
-		return fmt.Errorf("health.failThreshold cannot be negative")
+		return errNegativeFailThreshold
 	}
 
 	return nil
@@ -315,19 +337,19 @@ func validateObs(cfg *LocoConfig) error {
 			cfg.Obs.Metrics.Path = "/metrics"
 		}
 		if !strings.HasPrefix(cfg.Obs.Metrics.Path, "/") {
-			return fmt.Errorf("obs.metrics.path must start with '/'")
+			return errMetricsPathNoSlash
 		}
 		if cfg.Obs.Metrics.Port <= 0 {
 			cfg.Obs.Metrics.Port = 9090
 		}
 		if cfg.Obs.Metrics.Port <= 1023 || cfg.Obs.Metrics.Port > 65535 {
-			return fmt.Errorf("obs.metrics.port must be between 1024 and 65535")
+			return errMetricsPortOutOfRange
 		}
 	}
 
 	if cfg.Obs.Tracing.Enabled {
 		if cfg.Obs.Tracing.SampleRate < 0 || cfg.Obs.Tracing.SampleRate > 1 {
-			return fmt.Errorf("obs.tracing.sampleRate must be between 0.0 and 1.0")
+			return errSampleRateOutOfRange
 		}
 	}
 
@@ -408,10 +430,7 @@ func Load(cfgPath string) (*LoadedConfig, error) {
 	file, err := os.Open(cfgPathAbs)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf(
-				"loco.toml not found. Please run 'loco init' to create the file " +
-					"or run the cmd with --config to specify a custom path",
-			)
+			return nil, errConfigNotFound
 		}
 
 		return nil, fmt.Errorf("failed to open loco.toml: %w", err)

@@ -2,6 +2,7 @@ package loco
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
@@ -13,6 +14,11 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
+)
+
+var (
+	errFakeUnknownToken        = errors.New("fakeapi: unknown token")
+	errFakeUnknownRefreshToken = errors.New("fakeapi: unknown refresh token")
 )
 
 const (
@@ -92,7 +98,7 @@ func (f *fakeAPI) authenticate(spec connect.Spec, header http.Header) (string, *
 	token := strings.TrimPrefix(authorization, "Bearer ")
 	usr, ok := f.users[token]
 	if !ok {
-		return "", nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("fakeapi: unknown token"))
+		return "", nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownToken)
 	}
 	return token, usr, nil
 }
@@ -139,7 +145,7 @@ func (o *fakeOAuthService) RefreshToken(
 		return nil, err
 	}
 	if req.Msg.GetRefreshToken() != fakeAPIRefreshToken {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("fakeapi: unknown refresh token"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownRefreshToken)
 	}
 	f.users[fakeAPIRefreshedToken] = f.users[fakeAPIToken]
 	resp := &oauthv1.RefreshTokenResponse{

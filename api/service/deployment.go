@@ -26,7 +26,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var ErrDeploymentNotFound = errors.New("deployment not found")
+var (
+	errResourceSpecNotService = errors.New("resource spec missing service configuration")
+	errDatabaseNotImplemented = errors.New("database resource type not yet implemented")
+	errCacheNotImplemented    = errors.New("cache resource type not yet implemented")
+	errQueueNotImplemented    = errors.New("queue resource type not yet implemented")
+	errBlobNotImplemented     = errors.New("blob resource type not yet implemented")
+	errServiceSpecRequired    = errors.New("service spec is required")
+	ErrDeploymentNotFound     = errors.New("deployment not found")
+)
 
 type ApplicationPayload struct {
 	DeploymentID string                            `json:"deployment_id"`
@@ -649,7 +657,7 @@ func buildApplicationSpec(
 	switch resource.Type {
 	case genDb.ResourceTypeService:
 		if resourceSpec.GetService() == nil {
-			return nil, fmt.Errorf("resource spec missing service configuration")
+			return nil, errResourceSpecNotService
 		}
 		appSpec.Type = "SERVICE"
 		resourcesSpec, err := buildResourcesSpec(resourceSpec.GetService(), deploymentSpec, region)
@@ -664,13 +672,13 @@ func buildApplicationSpec(
 		}
 
 	case genDb.ResourceTypeDatabase:
-		return nil, fmt.Errorf("database resource type not yet implemented")
+		return nil, errDatabaseNotImplemented
 	case genDb.ResourceTypeCache:
-		return nil, fmt.Errorf("cache resource type not yet implemented")
+		return nil, errCacheNotImplemented
 	case genDb.ResourceTypeQueue:
-		return nil, fmt.Errorf("queue resource type not yet implemented")
+		return nil, errQueueNotImplemented
 	case genDb.ResourceTypeBlob:
-		return nil, fmt.Errorf("blob resource type not yet implemented")
+		return nil, errBlobNotImplemented
 	default:
 		return nil, fmt.Errorf("unknown resource type: %s", resource.Type)
 	}
@@ -691,7 +699,7 @@ func buildResourcesSpec(
 	targetRegion string,
 ) (*locoControllerV1.ResourcesSpec, error) {
 	if serviceSpec == nil {
-		return nil, fmt.Errorf("service spec is required")
+		return nil, errServiceSpecRequired
 	}
 
 	// Get the target region to extract default resources
