@@ -8,6 +8,7 @@ package orgv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -987,11 +988,591 @@ func (*DeleteOrgResponse) Descriptor() ([]byte, []int) {
 	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{16}
 }
 
+type OrgDomain struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Id                      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Domain                  string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	Verified                bool                   `protobuf:"varint,3,opt,name=verified,proto3" json:"verified,omitempty"`
+	VerificationRecordName  string                 `protobuf:"bytes,4,opt,name=verification_record_name,json=verificationRecordName,proto3" json:"verification_record_name,omitempty"`
+	VerificationRecordValue string                 `protobuf:"bytes,5,opt,name=verification_record_value,json=verificationRecordValue,proto3" json:"verification_record_value,omitempty"`
+	AutoJoinScope           v1.Scope               `protobuf:"varint,6,opt,name=auto_join_scope,json=autoJoinScope,proto3,enum=loco.token.v1.Scope" json:"auto_join_scope,omitempty"`
+	CreatedAt               *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	VerifiedAt              *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=verified_at,json=verifiedAt,proto3" json:"verified_at,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *OrgDomain) Reset() {
+	*x = OrgDomain{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrgDomain) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrgDomain) ProtoMessage() {}
+
+func (x *OrgDomain) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrgDomain.ProtoReflect.Descriptor instead.
+func (*OrgDomain) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *OrgDomain) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *OrgDomain) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *OrgDomain) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
+}
+
+func (x *OrgDomain) GetVerificationRecordName() string {
+	if x != nil {
+		return x.VerificationRecordName
+	}
+	return ""
+}
+
+func (x *OrgDomain) GetVerificationRecordValue() string {
+	if x != nil {
+		return x.VerificationRecordValue
+	}
+	return ""
+}
+
+func (x *OrgDomain) GetAutoJoinScope() v1.Scope {
+	if x != nil {
+		return x.AutoJoinScope
+	}
+	return v1.Scope(0)
+}
+
+func (x *OrgDomain) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *OrgDomain) GetVerifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.VerifiedAt
+	}
+	return nil
+}
+
+type AddOrgDomainRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Domain        string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddOrgDomainRequest) Reset() {
+	*x = AddOrgDomainRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddOrgDomainRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddOrgDomainRequest) ProtoMessage() {}
+
+func (x *AddOrgDomainRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddOrgDomainRequest.ProtoReflect.Descriptor instead.
+func (*AddOrgDomainRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AddOrgDomainRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *AddOrgDomainRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+type AddOrgDomainResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        *OrgDomain             `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddOrgDomainResponse) Reset() {
+	*x = AddOrgDomainResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddOrgDomainResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddOrgDomainResponse) ProtoMessage() {}
+
+func (x *AddOrgDomainResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddOrgDomainResponse.ProtoReflect.Descriptor instead.
+func (*AddOrgDomainResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *AddOrgDomainResponse) GetDomain() *OrgDomain {
+	if x != nil {
+		return x.Domain
+	}
+	return nil
+}
+
+type ListOrgDomainsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListOrgDomainsRequest) Reset() {
+	*x = ListOrgDomainsRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListOrgDomainsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListOrgDomainsRequest) ProtoMessage() {}
+
+func (x *ListOrgDomainsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListOrgDomainsRequest.ProtoReflect.Descriptor instead.
+func (*ListOrgDomainsRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListOrgDomainsRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+type ListOrgDomainsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domains       []*OrgDomain           `protobuf:"bytes,1,rep,name=domains,proto3" json:"domains,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListOrgDomainsResponse) Reset() {
+	*x = ListOrgDomainsResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListOrgDomainsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListOrgDomainsResponse) ProtoMessage() {}
+
+func (x *ListOrgDomainsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListOrgDomainsResponse.ProtoReflect.Descriptor instead.
+func (*ListOrgDomainsResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ListOrgDomainsResponse) GetDomains() []*OrgDomain {
+	if x != nil {
+		return x.Domains
+	}
+	return nil
+}
+
+type VerifyOrgDomainRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyOrgDomainRequest) Reset() {
+	*x = VerifyOrgDomainRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyOrgDomainRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyOrgDomainRequest) ProtoMessage() {}
+
+func (x *VerifyOrgDomainRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyOrgDomainRequest.ProtoReflect.Descriptor instead.
+func (*VerifyOrgDomainRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *VerifyOrgDomainRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *VerifyOrgDomainRequest) GetDomainId() string {
+	if x != nil {
+		return x.DomainId
+	}
+	return ""
+}
+
+type VerifyOrgDomainResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        *OrgDomain             `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyOrgDomainResponse) Reset() {
+	*x = VerifyOrgDomainResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyOrgDomainResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyOrgDomainResponse) ProtoMessage() {}
+
+func (x *VerifyOrgDomainResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyOrgDomainResponse.ProtoReflect.Descriptor instead.
+func (*VerifyOrgDomainResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *VerifyOrgDomainResponse) GetDomain() *OrgDomain {
+	if x != nil {
+		return x.Domain
+	}
+	return nil
+}
+
+type SetOrgDomainAutoJoinRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	Scope         v1.Scope               `protobuf:"varint,3,opt,name=scope,proto3,enum=loco.token.v1.Scope" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetOrgDomainAutoJoinRequest) Reset() {
+	*x = SetOrgDomainAutoJoinRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetOrgDomainAutoJoinRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetOrgDomainAutoJoinRequest) ProtoMessage() {}
+
+func (x *SetOrgDomainAutoJoinRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetOrgDomainAutoJoinRequest.ProtoReflect.Descriptor instead.
+func (*SetOrgDomainAutoJoinRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *SetOrgDomainAutoJoinRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *SetOrgDomainAutoJoinRequest) GetDomainId() string {
+	if x != nil {
+		return x.DomainId
+	}
+	return ""
+}
+
+func (x *SetOrgDomainAutoJoinRequest) GetScope() v1.Scope {
+	if x != nil {
+		return x.Scope
+	}
+	return v1.Scope(0)
+}
+
+type SetOrgDomainAutoJoinResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Domain        *OrgDomain             `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	UsersAdded    int32                  `protobuf:"varint,2,opt,name=users_added,json=usersAdded,proto3" json:"users_added,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetOrgDomainAutoJoinResponse) Reset() {
+	*x = SetOrgDomainAutoJoinResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetOrgDomainAutoJoinResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetOrgDomainAutoJoinResponse) ProtoMessage() {}
+
+func (x *SetOrgDomainAutoJoinResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetOrgDomainAutoJoinResponse.ProtoReflect.Descriptor instead.
+func (*SetOrgDomainAutoJoinResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *SetOrgDomainAutoJoinResponse) GetDomain() *OrgDomain {
+	if x != nil {
+		return x.Domain
+	}
+	return nil
+}
+
+func (x *SetOrgDomainAutoJoinResponse) GetUsersAdded() int32 {
+	if x != nil {
+		return x.UsersAdded
+	}
+	return 0
+}
+
+type DeleteOrgDomainRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	DomainId      string                 `protobuf:"bytes,2,opt,name=domain_id,json=domainId,proto3" json:"domain_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteOrgDomainRequest) Reset() {
+	*x = DeleteOrgDomainRequest{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteOrgDomainRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteOrgDomainRequest) ProtoMessage() {}
+
+func (x *DeleteOrgDomainRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteOrgDomainRequest.ProtoReflect.Descriptor instead.
+func (*DeleteOrgDomainRequest) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DeleteOrgDomainRequest) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *DeleteOrgDomainRequest) GetDomainId() string {
+	if x != nil {
+		return x.DomainId
+	}
+	return ""
+}
+
+type DeleteOrgDomainResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteOrgDomainResponse) Reset() {
+	*x = DeleteOrgDomainResponse{}
+	mi := &file_loco_org_v1_org_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteOrgDomainResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteOrgDomainResponse) ProtoMessage() {}
+
+func (x *DeleteOrgDomainResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_org_v1_org_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteOrgDomainResponse.ProtoReflect.Descriptor instead.
+func (*DeleteOrgDomainResponse) Descriptor() ([]byte, []int) {
+	return file_loco_org_v1_org_proto_rawDescGZIP(), []int{27}
+}
+
 var File_loco_org_v1_org_proto protoreflect.FileDescriptor
 
 const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\n" +
-	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x01\n" +
+	"\x15loco/org/v1/org.proto\x12\vloco.org.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19loco/token/v1/token.proto\"\xc7\x01\n" +
 	"\fOrganization\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -1064,7 +1645,45 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\x06org_id\x18\x01 \x01(\tR\x05orgId\"3\n" +
 	"\x10DeleteOrgRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"\x13\n" +
-	"\x11DeleteOrgResponse2\xc1\x04\n" +
+	"\x11DeleteOrgResponse\"\xfb\x02\n" +
+	"\tOrgDomain\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1a\n" +
+	"\bverified\x18\x03 \x01(\bR\bverified\x128\n" +
+	"\x18verification_record_name\x18\x04 \x01(\tR\x16verificationRecordName\x12:\n" +
+	"\x19verification_record_value\x18\x05 \x01(\tR\x17verificationRecordValue\x12<\n" +
+	"\x0fauto_join_scope\x18\x06 \x01(\x0e2\x14.loco.token.v1.ScopeR\rautoJoinScope\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
+	"\vverified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"verifiedAt\"Z\n" +
+	"\x13AddOrgDomainRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12\"\n" +
+	"\x06domain\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x18\xfd\x01h\x01R\x06domain\"F\n" +
+	"\x14AddOrgDomainResponse\x12.\n" +
+	"\x06domain\x18\x01 \x01(\v2\x16.loco.org.v1.OrgDomainR\x06domain\"8\n" +
+	"\x15ListOrgDomainsRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"J\n" +
+	"\x16ListOrgDomainsResponse\x120\n" +
+	"\adomains\x18\x01 \x03(\v2\x16.loco.org.v1.OrgDomainR\adomains\"`\n" +
+	"\x16VerifyOrgDomainRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12%\n" +
+	"\tdomain_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\"I\n" +
+	"\x17VerifyOrgDomainResponse\x12.\n" +
+	"\x06domain\x18\x01 \x01(\v2\x16.loco.org.v1.OrgDomainR\x06domain\"\x9b\x01\n" +
+	"\x1bSetOrgDomainAutoJoinRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12%\n" +
+	"\tdomain_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\x124\n" +
+	"\x05scope\x18\x03 \x01(\x0e2\x14.loco.token.v1.ScopeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05scope\"o\n" +
+	"\x1cSetOrgDomainAutoJoinResponse\x12.\n" +
+	"\x06domain\x18\x01 \x01(\v2\x16.loco.org.v1.OrgDomainR\x06domain\x12\x1f\n" +
+	"\vusers_added\x18\x02 \x01(\x05R\n" +
+	"usersAdded\"`\n" +
+	"\x16DeleteOrgDomainRequest\x12\x1f\n" +
+	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12%\n" +
+	"\tdomain_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\"\x19\n" +
+	"\x17DeleteOrgDomainResponse2\x9a\b\n" +
 	"\n" +
 	"OrgService\x12J\n" +
 	"\tCreateOrg\x12\x1d.loco.org.v1.CreateOrgRequest\x1a\x1e.loco.org.v1.CreateOrgResponse\x12A\n" +
@@ -1073,7 +1692,12 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\tDeleteOrg\x12\x1d.loco.org.v1.DeleteOrgRequest\x1a\x1e.loco.org.v1.DeleteOrgResponse\x12S\n" +
 	"\fListUserOrgs\x12 .loco.org.v1.ListUserOrgsRequest\x1a!.loco.org.v1.ListUserOrgsResponse\x12S\n" +
 	"\fListOrgUsers\x12 .loco.org.v1.ListOrgUsersRequest\x1a!.loco.org.v1.ListOrgUsersResponse\x12b\n" +
-	"\x11ListOrgWorkspaces\x12%.loco.org.v1.ListOrgWorkspacesRequest\x1a&.loco.org.v1.ListOrgWorkspacesResponseB4Z2github.com/team-loco/loco/gen/go/loco/org/v1;orgv1b\x06proto3"
+	"\x11ListOrgWorkspaces\x12%.loco.org.v1.ListOrgWorkspacesRequest\x1a&.loco.org.v1.ListOrgWorkspacesResponse\x12S\n" +
+	"\fAddOrgDomain\x12 .loco.org.v1.AddOrgDomainRequest\x1a!.loco.org.v1.AddOrgDomainResponse\x12Y\n" +
+	"\x0eListOrgDomains\x12\".loco.org.v1.ListOrgDomainsRequest\x1a#.loco.org.v1.ListOrgDomainsResponse\x12\\\n" +
+	"\x0fVerifyOrgDomain\x12#.loco.org.v1.VerifyOrgDomainRequest\x1a$.loco.org.v1.VerifyOrgDomainResponse\x12k\n" +
+	"\x14SetOrgDomainAutoJoin\x12(.loco.org.v1.SetOrgDomainAutoJoinRequest\x1a).loco.org.v1.SetOrgDomainAutoJoinResponse\x12\\\n" +
+	"\x0fDeleteOrgDomain\x12#.loco.org.v1.DeleteOrgDomainRequest\x1a$.loco.org.v1.DeleteOrgDomainResponseB4Z2github.com/team-loco/loco/gen/go/loco/org/v1;orgv1b\x06proto3"
 
 var (
 	file_loco_org_v1_org_proto_rawDescOnce sync.Once
@@ -1087,56 +1711,86 @@ func file_loco_org_v1_org_proto_rawDescGZIP() []byte {
 	return file_loco_org_v1_org_proto_rawDescData
 }
 
-var file_loco_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_loco_org_v1_org_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_loco_org_v1_org_proto_goTypes = []any{
-	(*Organization)(nil),              // 0: loco.org.v1.Organization
-	(*WorkspaceSummary)(nil),          // 1: loco.org.v1.WorkspaceSummary
-	(*CreateOrgRequest)(nil),          // 2: loco.org.v1.CreateOrgRequest
-	(*CreateOrgResponse)(nil),         // 3: loco.org.v1.CreateOrgResponse
-	(*GetOrgRequest)(nil),             // 4: loco.org.v1.GetOrgRequest
-	(*GetOrgResponse)(nil),            // 5: loco.org.v1.GetOrgResponse
-	(*ListUserOrgsRequest)(nil),       // 6: loco.org.v1.ListUserOrgsRequest
-	(*ListUserOrgsResponse)(nil),      // 7: loco.org.v1.ListUserOrgsResponse
-	(*ListOrgUsersRequest)(nil),       // 8: loco.org.v1.ListOrgUsersRequest
-	(*ListOrgUsersResponse)(nil),      // 9: loco.org.v1.ListOrgUsersResponse
-	(*User)(nil),                      // 10: loco.org.v1.User
-	(*ListOrgWorkspacesRequest)(nil),  // 11: loco.org.v1.ListOrgWorkspacesRequest
-	(*ListOrgWorkspacesResponse)(nil), // 12: loco.org.v1.ListOrgWorkspacesResponse
-	(*UpdateOrgRequest)(nil),          // 13: loco.org.v1.UpdateOrgRequest
-	(*UpdateOrgResponse)(nil),         // 14: loco.org.v1.UpdateOrgResponse
-	(*DeleteOrgRequest)(nil),          // 15: loco.org.v1.DeleteOrgRequest
-	(*DeleteOrgResponse)(nil),         // 16: loco.org.v1.DeleteOrgResponse
-	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),     // 18: google.protobuf.FieldMask
+	(*Organization)(nil),                 // 0: loco.org.v1.Organization
+	(*WorkspaceSummary)(nil),             // 1: loco.org.v1.WorkspaceSummary
+	(*CreateOrgRequest)(nil),             // 2: loco.org.v1.CreateOrgRequest
+	(*CreateOrgResponse)(nil),            // 3: loco.org.v1.CreateOrgResponse
+	(*GetOrgRequest)(nil),                // 4: loco.org.v1.GetOrgRequest
+	(*GetOrgResponse)(nil),               // 5: loco.org.v1.GetOrgResponse
+	(*ListUserOrgsRequest)(nil),          // 6: loco.org.v1.ListUserOrgsRequest
+	(*ListUserOrgsResponse)(nil),         // 7: loco.org.v1.ListUserOrgsResponse
+	(*ListOrgUsersRequest)(nil),          // 8: loco.org.v1.ListOrgUsersRequest
+	(*ListOrgUsersResponse)(nil),         // 9: loco.org.v1.ListOrgUsersResponse
+	(*User)(nil),                         // 10: loco.org.v1.User
+	(*ListOrgWorkspacesRequest)(nil),     // 11: loco.org.v1.ListOrgWorkspacesRequest
+	(*ListOrgWorkspacesResponse)(nil),    // 12: loco.org.v1.ListOrgWorkspacesResponse
+	(*UpdateOrgRequest)(nil),             // 13: loco.org.v1.UpdateOrgRequest
+	(*UpdateOrgResponse)(nil),            // 14: loco.org.v1.UpdateOrgResponse
+	(*DeleteOrgRequest)(nil),             // 15: loco.org.v1.DeleteOrgRequest
+	(*DeleteOrgResponse)(nil),            // 16: loco.org.v1.DeleteOrgResponse
+	(*OrgDomain)(nil),                    // 17: loco.org.v1.OrgDomain
+	(*AddOrgDomainRequest)(nil),          // 18: loco.org.v1.AddOrgDomainRequest
+	(*AddOrgDomainResponse)(nil),         // 19: loco.org.v1.AddOrgDomainResponse
+	(*ListOrgDomainsRequest)(nil),        // 20: loco.org.v1.ListOrgDomainsRequest
+	(*ListOrgDomainsResponse)(nil),       // 21: loco.org.v1.ListOrgDomainsResponse
+	(*VerifyOrgDomainRequest)(nil),       // 22: loco.org.v1.VerifyOrgDomainRequest
+	(*VerifyOrgDomainResponse)(nil),      // 23: loco.org.v1.VerifyOrgDomainResponse
+	(*SetOrgDomainAutoJoinRequest)(nil),  // 24: loco.org.v1.SetOrgDomainAutoJoinRequest
+	(*SetOrgDomainAutoJoinResponse)(nil), // 25: loco.org.v1.SetOrgDomainAutoJoinResponse
+	(*DeleteOrgDomainRequest)(nil),       // 26: loco.org.v1.DeleteOrgDomainRequest
+	(*DeleteOrgDomainResponse)(nil),      // 27: loco.org.v1.DeleteOrgDomainResponse
+	(*timestamppb.Timestamp)(nil),        // 28: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),        // 29: google.protobuf.FieldMask
+	(v1.Scope)(0),                        // 30: loco.token.v1.Scope
 }
 var file_loco_org_v1_org_proto_depIdxs = []int32{
-	17, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
-	17, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
-	17, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
+	28, // 0: loco.org.v1.Organization.created_at:type_name -> google.protobuf.Timestamp
+	28, // 1: loco.org.v1.Organization.updated_at:type_name -> google.protobuf.Timestamp
+	28, // 2: loco.org.v1.WorkspaceSummary.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 3: loco.org.v1.GetOrgResponse.organization:type_name -> loco.org.v1.Organization
 	0,  // 4: loco.org.v1.ListUserOrgsResponse.orgs:type_name -> loco.org.v1.Organization
 	10, // 5: loco.org.v1.ListOrgUsersResponse.users:type_name -> loco.org.v1.User
 	1,  // 6: loco.org.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.org.v1.WorkspaceSummary
-	18, // 7: loco.org.v1.UpdateOrgRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 8: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	4,  // 9: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	13, // 10: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	15, // 11: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	6,  // 12: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
-	8,  // 13: loco.org.v1.OrgService.ListOrgUsers:input_type -> loco.org.v1.ListOrgUsersRequest
-	11, // 14: loco.org.v1.OrgService.ListOrgWorkspaces:input_type -> loco.org.v1.ListOrgWorkspacesRequest
-	3,  // 15: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	5,  // 16: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	14, // 17: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	16, // 18: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	7,  // 19: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
-	9,  // 20: loco.org.v1.OrgService.ListOrgUsers:output_type -> loco.org.v1.ListOrgUsersResponse
-	12, // 21: loco.org.v1.OrgService.ListOrgWorkspaces:output_type -> loco.org.v1.ListOrgWorkspacesResponse
-	15, // [15:22] is the sub-list for method output_type
-	8,  // [8:15] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	29, // 7: loco.org.v1.UpdateOrgRequest.update_mask:type_name -> google.protobuf.FieldMask
+	30, // 8: loco.org.v1.OrgDomain.auto_join_scope:type_name -> loco.token.v1.Scope
+	28, // 9: loco.org.v1.OrgDomain.created_at:type_name -> google.protobuf.Timestamp
+	28, // 10: loco.org.v1.OrgDomain.verified_at:type_name -> google.protobuf.Timestamp
+	17, // 11: loco.org.v1.AddOrgDomainResponse.domain:type_name -> loco.org.v1.OrgDomain
+	17, // 12: loco.org.v1.ListOrgDomainsResponse.domains:type_name -> loco.org.v1.OrgDomain
+	17, // 13: loco.org.v1.VerifyOrgDomainResponse.domain:type_name -> loco.org.v1.OrgDomain
+	30, // 14: loco.org.v1.SetOrgDomainAutoJoinRequest.scope:type_name -> loco.token.v1.Scope
+	17, // 15: loco.org.v1.SetOrgDomainAutoJoinResponse.domain:type_name -> loco.org.v1.OrgDomain
+	2,  // 16: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
+	4,  // 17: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
+	13, // 18: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
+	15, // 19: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
+	6,  // 20: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
+	8,  // 21: loco.org.v1.OrgService.ListOrgUsers:input_type -> loco.org.v1.ListOrgUsersRequest
+	11, // 22: loco.org.v1.OrgService.ListOrgWorkspaces:input_type -> loco.org.v1.ListOrgWorkspacesRequest
+	18, // 23: loco.org.v1.OrgService.AddOrgDomain:input_type -> loco.org.v1.AddOrgDomainRequest
+	20, // 24: loco.org.v1.OrgService.ListOrgDomains:input_type -> loco.org.v1.ListOrgDomainsRequest
+	22, // 25: loco.org.v1.OrgService.VerifyOrgDomain:input_type -> loco.org.v1.VerifyOrgDomainRequest
+	24, // 26: loco.org.v1.OrgService.SetOrgDomainAutoJoin:input_type -> loco.org.v1.SetOrgDomainAutoJoinRequest
+	26, // 27: loco.org.v1.OrgService.DeleteOrgDomain:input_type -> loco.org.v1.DeleteOrgDomainRequest
+	3,  // 28: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
+	5,  // 29: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
+	14, // 30: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
+	16, // 31: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
+	7,  // 32: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
+	9,  // 33: loco.org.v1.OrgService.ListOrgUsers:output_type -> loco.org.v1.ListOrgUsersResponse
+	12, // 34: loco.org.v1.OrgService.ListOrgWorkspaces:output_type -> loco.org.v1.ListOrgWorkspacesResponse
+	19, // 35: loco.org.v1.OrgService.AddOrgDomain:output_type -> loco.org.v1.AddOrgDomainResponse
+	21, // 36: loco.org.v1.OrgService.ListOrgDomains:output_type -> loco.org.v1.ListOrgDomainsResponse
+	23, // 37: loco.org.v1.OrgService.VerifyOrgDomain:output_type -> loco.org.v1.VerifyOrgDomainResponse
+	25, // 38: loco.org.v1.OrgService.SetOrgDomainAutoJoin:output_type -> loco.org.v1.SetOrgDomainAutoJoinResponse
+	27, // 39: loco.org.v1.OrgService.DeleteOrgDomain:output_type -> loco.org.v1.DeleteOrgDomainResponse
+	28, // [28:40] is the sub-list for method output_type
+	16, // [16:28] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_loco_org_v1_org_proto_init() }
@@ -1156,7 +1810,7 @@ func file_loco_org_v1_org_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_org_v1_org_proto_rawDesc), len(file_loco_org_v1_org_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

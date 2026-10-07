@@ -52,3 +52,28 @@ export const listOrgUsers = OrgService.method.listOrgUsers;
  * @generated from rpc loco.org.v1.OrgService.ListOrgWorkspaces
  */
 export const listOrgWorkspaces = OrgService.method.listOrgWorkspaces;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.AddOrgDomain
+ */
+export const addOrgDomain = OrgService.method.addOrgDomain;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.ListOrgDomains
+ */
+export const listOrgDomains = OrgService.method.listOrgDomains;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.VerifyOrgDomain
+ */
+export const verifyOrgDomain = OrgService.method.verifyOrgDomain;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.SetOrgDomainAutoJoin
+ */
+export const setOrgDomainAutoJoin = OrgService.method.setOrgDomainAutoJoin;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.DeleteOrgDomain
+ */
+export const deleteOrgDomain = OrgService.method.deleteOrgDomain;

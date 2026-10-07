@@ -337,6 +337,10 @@ var (
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeAdmin,
 	}
+	ManageOrgDomains = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeAdmin,
+	}
 	StreamEvents = Action{
 		entityType: db.EntityTypeSystem,
 		scope:      db.ScopeAdmin,
