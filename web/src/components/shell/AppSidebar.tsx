@@ -166,7 +166,7 @@ export function AppSidebar() {
 
 	return (
 		<Sidebar collapsible="icon" onMouseEnter={peek.onEnter} onMouseLeave={peek.onLeave}>
-			<SidebarHeader className="h-[52px] shrink-0 justify-center border-b border-line px-5 py-0">
+			<SidebarHeader className="h-[52px] shrink-0 items-center justify-center border-b border-line px-5 py-0">
 				<Link
 					to={wsBase ?? "/dashboard"}
 					aria-label="Loco dashboard"
