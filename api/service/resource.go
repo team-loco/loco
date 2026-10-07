@@ -276,20 +276,25 @@ func (s *ResourceServer) GetResource(
 ) (*connect.Response[resourcev1.GetResourceResponse], error) {
 	r := req.Msg
 
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
+	if !ok {
+		slog.ErrorContext(ctx, "entity scopes not found in context")
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
+	}
+
 	var resourceIDStr string
 	switch key := r.GetKey().(type) {
 	case *resourcev1.GetResourceRequest_ResourceId:
 		resourceIDStr = key.ResourceId
 	case *resourcev1.GetResourceRequest_NameKey:
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("name-based lookup not yet implemented"))
+		nameKey := key.NameKey
+		named, lookupErr := s.resourceIDByName(ctx, scopes, nameKey)
+		if lookupErr != nil {
+			return nil, lookupErr
+		}
+		resourceIDStr = named.String()
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("resource_id or name_key is required"))
-	}
-
-	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
-	if !ok {
-		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -328,6 +333,41 @@ func (s *ResourceServer) GetResource(
 	return connect.NewResponse(&resourcev1.GetResourceResponse{
 		Resource: dbResourceToProto(res, resourceDomains, resourceRegions),
 	}), nil
+}
+
+func (s *ResourceServer) resourceIDByName(
+	ctx context.Context,
+	scopes []genDb.EntityScope,
+	nameKey *resourcev1.GetResourceNameKey,
+) (uuid.UUID, error) {
+	rawWorkspaceID := nameKey.GetWorkspaceId()
+	workspaceID, err := uuid.Parse(rawWorkspaceID)
+	if err != nil {
+		invalid := fmt.Errorf("invalid workspace id: %w", err)
+		return uuid.UUID{}, connect.NewError(connect.CodeInvalidArgument, invalid)
+	}
+	name := nameKey.GetName()
+	res, err := s.queries.GetResourceByNameAndWorkspace(ctx, genDb.GetResourceByNameAndWorkspaceParams{
+		WorkspaceID: workspaceID,
+		Name:        name,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		workspaceRead := genDb.EntityScope{
+			EntityType: genDb.EntityTypeWorkspace,
+			EntityID:   workspaceID,
+			Scope:      genDb.ScopeRead,
+		}
+		if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, workspaceRead); verifyErr != nil {
+			slog.WarnContext(ctx, "unauthorized to look up a resource by name", "workspaceId", workspaceID)
+			return uuid.UUID{}, connect.NewError(connect.CodePermissionDenied, verifyErr)
+		}
+		return uuid.UUID{}, connect.NewError(connect.CodeNotFound, ErrResourceNotFound)
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to look up resource by name", "error", err, "workspaceId", workspaceID)
+		return uuid.UUID{}, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	return res.ID, nil
 }
 
 // ListWorkspaceResources lists all resources in a workspace
