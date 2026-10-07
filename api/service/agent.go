@@ -111,7 +111,7 @@ func (s *AgentServer) Register(
 	slog.InfoContext(ctx, "agent registered",
 		"cluster_id", cluster.ID,
 		"cluster_name", cluster.Name,
-		"region", r.GetRegion(),
+		"region", cluster.Region,
 		"agent_version", r.GetAgentVersion(),
 		"builds_enabled", r.GetBuildsEnabled(),
 	)

@@ -254,7 +254,7 @@ build_binaries() {
     (cd "$ROOT_DIR/api" && go build -o "$BIN_DIR/loco-api" .)
 
     log_info "Building Agent..."
-    (cd "$ROOT_DIR/agent" && go build -o "$BIN_DIR/loco-agent" .)
+    (cd "$ROOT_DIR/agent" && go build -ldflags "-X main.version=e2e-test" -o "$BIN_DIR/loco-agent" .)
 
     log_info "Building Observability Proxy..."
     (cd "$ROOT_DIR/observability-proxy" && go build -o "$BIN_DIR/loco-obs-proxy" .)
@@ -288,11 +288,15 @@ start_api() {
 start_agent() {
     log_step "Starting Agent..."
 
+    local core_values="$ROOT_DIR/charts/loco-core/values.yaml"
     CONTROL_PLANE_URL="$E2E_API_URL" \
     AGENT_TOKEN="$AGENT_TOKEN" \
-    REGION="us-east-1" \
-    AGENT_VERSION="e2e-test" \
     LOCO_NAMESPACE="$LOCO_NAMESPACE" \
+    LOCO_BUILD_NAMESPACE="$(yq '.agent.buildNamespace' "$core_values")" \
+    LOCO_CONTROLLER_DEPLOYMENT="$(yq '.agent.controllerDeployment' "$core_values")" \
+    LOCO_INVENTORY_INTERVAL="$(yq '.agent.inventoryInterval' "$core_values")" \
+    LOCO_BUILD_RETENTION="$(yq '.agent.buildRetention' "$core_values")" \
+    LOCO_BUILD_COLLECT_INTERVAL="$(yq '.agent.buildCollectInterval' "$core_values")" \
     KUBECONFIG="$KUBECONFIG_FILE" \
         "$BIN_DIR/loco-agent" \
         >"$LOG_DIR/agent.log" 2>&1 &

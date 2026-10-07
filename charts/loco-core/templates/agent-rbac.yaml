@@ -20,7 +20,7 @@ rules:
     verbs: ["get", "patch", "update"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    resourceNames: ["loco-controller"]
+    resourceNames: [{{ .Values.agent.controllerDeployment | quote }}]
     verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
