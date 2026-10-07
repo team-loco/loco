@@ -8,22 +8,19 @@ permissions:
   checks: read
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   gate:
     name: CI Gate
+    if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
 
     steps:
       - name: Wait for every other check to finish
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          SHA: ${{ github.event.merge_group.head_sha }}
           SELF: CI Gate
         run: |
           set -euo pipefail
@@ -35,7 +32,7 @@ jobs:
           settled=0
           prev=""
 
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 200); do
             runs=$(gh api --paginate "repos/$REPO/commits/$SHA/check-runs?per_page=100" \
               --jq '.check_runs[] | select(.name != env.SELF) | "\(.name)\t\(.id)\t\(.status)\t\(.conclusion // "")"' \
               | sort -t $'\t' -k1,1 -k2,2nr \
