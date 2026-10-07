@@ -13,8 +13,8 @@ func TestParseIssuersAppliesDefaults(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 	ic := issuers[0]
-	if ic.JWKSURL != testIssuerURL+"/.well-known/jwks.json" {
-		t.Errorf("jwks = %q", ic.JWKSURL)
+	if ic.JWKSURL != "" {
+		t.Errorf("jwks = %q, want discovery", ic.JWKSURL)
 	}
 	if ic.Claims.Subject != "sub" || ic.Claims.Email != claimEmail || ic.Claims.EmailVerified != "email_verified" {
 		t.Errorf("claims = %+v", ic.Claims)

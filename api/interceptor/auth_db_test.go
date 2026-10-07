@@ -35,6 +35,13 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 		MaxAPITokenDuration:         time.Hour,
 	})
 	t.Cleanup(machine.Close)
+	admins, err := auth.NewAdmins(http.DefaultClient, []auth.IssuerConfig{{
+		Issuer: issuer.URL(),
+		Admin:  &auth.AdminConfig{Type: "supabase", URL: issuer.URL(), TokenEnv: "ADMIN_TOKEN"},
+	}}, func(string) string { return "admin-token" })
+	if err != nil {
+		t.Fatalf("admins: %v", err)
+	}
 	verifier := auth.NewVerifier(http.DefaultClient, []auth.IssuerConfig{{
 		Issuer:   issuer.URL(),
 		JWKSURL:  issuer.URL() + "/.well-known/jwks.json",
@@ -44,7 +51,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 			Email:         "email",
 			EmailVerified: "user_metadata.email_verified",
 		},
-	}})
+	}}, admins)
 	return &providerFixture{
 		pool:        pool,
 		queries:     queries,

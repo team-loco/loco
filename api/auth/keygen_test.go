@@ -41,20 +41,9 @@ func TestGenerateProviderKeys(t *testing.T) {
 	}
 }
 
-func TestSupabasePreset(t *testing.T) {
-	issuers, err := ParseIssuers(
-		`[{"issuer":"http://localhost:9999","preset":"supabase","web":{"adapter":"supabase"}}]`,
-	)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	ic := issuers[0]
-	if ic.Audience != "authenticated" || ic.Claims.EmailVerified != "user_metadata.email_verified" ||
-		ic.Claims.Name != "user_metadata.full_name" || ic.Claims.AvatarURL != "user_metadata.avatar_url" {
-		t.Fatalf("preset = %+v", ic)
-	}
-	if _, err := ParseIssuers(`[{"issuer":"http://localhost:9999","preset":"nope"}]`); err == nil {
-		t.Fatal("unknown preset accepted")
+func TestParseIssuersRejectsUnknownFields(t *testing.T) {
+	if _, err := ParseIssuers(`[{"issuer":"http://localhost:9999","preset":"supabase"}]`); err == nil {
+		t.Fatal("unknown field accepted")
 	}
 }
 

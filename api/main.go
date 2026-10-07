@@ -319,7 +319,12 @@ func main() {
 	baseInterceptors := connect.WithInterceptors(deadlineInterceptor)
 
 	mux := http.NewServeMux()
-	verifier := auth.NewVerifier(newOutboundHTTPClient(), issuers)
+	authClient := newOutboundHTTPClient()
+	admins, adminsErr := auth.NewAdmins(authClient, issuers, os.Getenv)
+	if adminsErr != nil {
+		log.Fatalf("AUTH_ISSUERS admin: %v", adminsErr)
+	}
+	verifier := auth.NewVerifier(authClient, issuers, admins)
 	resolver := auth.NewResolver(pool, signupPolicy)
 	if ac.AuthHookSecret != "" {
 		webhook, webhookErr := auth.ParseWebhookSecrets(ac.AuthHookSecret)
@@ -365,10 +370,6 @@ func main() {
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	secureCookies := ac.Env == envProduction
 	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache, secureCookies)
-	admins, adminsErr := auth.NewAdmins(httpClient, issuers, os.Getenv)
-	if adminsErr != nil {
-		log.Fatalf("AUTH_ISSUERS admin: %v", adminsErr)
-	}
 	eventServiceHandler := service.NewEventServer(queries, machine)
 	go events.RunRetention(shutdownCtx, queries, eventsRetention(ac.EventsRetentionDays), time.Hour)
 	authServiceHandler := service.NewAuthServer(queries, machine, appCache, admins, ac.WebURL)

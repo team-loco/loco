@@ -46,7 +46,7 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error)
 }
 
 func (r *Resolver) trustSSOEmail(ctx context.Context, id Identity) (Identity, error) {
-	connection := id.SSOConnection()
+	connection := id.SSOConnection
 	if connection == nil || !id.EmailVerified {
 		return id, nil
 	}

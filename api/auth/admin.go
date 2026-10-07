@@ -46,7 +46,7 @@ func NewAdmins(httpClient *http.Client, issuers []IssuerConfig, getenv func(stri
 			continue
 		}
 		switch ic.Admin.Type {
-		case presetSupabase:
+		case adminTypeSupabase:
 			token := getenv(ic.Admin.TokenEnv)
 			if token == "" {
 				return nil, fmt.Errorf("issuer %s: admin token env %q is empty", ic.Issuer, ic.Admin.TokenEnv)
@@ -144,6 +144,19 @@ type SSOAdmin interface {
 	SetSAMLDomains(ctx context.Context, connectionID string, domains []string) error
 	DeleteSAMLConnection(ctx context.Context, connectionID string) error
 	ServiceProvider() (metadataURL string, acsURL string)
+	LoginConnection(methods []AuthMethod) *string
+}
+
+const supabaseSAMLMethod = "sso/saml"
+
+func (*SupabaseAdmin) LoginConnection(methods []AuthMethod) *string {
+	for _, m := range methods {
+		if m.Method == supabaseSAMLMethod && m.Provider != "" {
+			provider := m.Provider
+			return &provider
+		}
+	}
+	return nil
 }
 
 type ProviderError struct {

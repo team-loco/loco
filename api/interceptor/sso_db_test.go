@@ -102,7 +102,7 @@ func (f *ssoFixture) signIn(t *testing.T, sub string) uuid.UUID {
 }
 
 func samlAMR(connection string) []any {
-	return []any{map[string]any{"method": auth.MethodSAML, "provider": connection, "timestamp": time.Now().Unix()}}
+	return []any{map[string]any{"method": "sso/saml", "provider": connection, "timestamp": time.Now().Unix()}}
 }
 
 func entitiesIn(ctx context.Context, t *testing.T) map[uuid.UUID]bool {

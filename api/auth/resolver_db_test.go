@@ -184,7 +184,7 @@ const samlConnectionID = "conn-1"
 
 func samlIdentity(sub, email, connection string) Identity {
 	id := identity(sub, email, true)
-	id.Methods = []AuthMethod{{Method: MethodSAML, Provider: connection}}
+	id.SSOConnection = &connection
 	return id
 }
 

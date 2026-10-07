@@ -153,7 +153,7 @@ func (i *authInterceptor) authenticateProviderToken(
 	}
 
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID}
-	c, err := i.withCaller(ctx, entity, scopes, identity.SSOConnection(), token)
+	c, err := i.withCaller(ctx, entity, scopes, identity.SSOConnection, token)
 	if err != nil {
 		return nil, err
 	}

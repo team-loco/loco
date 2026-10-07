@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	claimEmail     = "email"
-	presetSupabase = "supabase"
+	claimEmail        = "email"
+	adminTypeSupabase = "supabase"
 )
+
+var errNoJWKSURI = errors.New("discovery document has no jwks_uri")
 
 type WebAdapter string
 
@@ -36,7 +38,6 @@ type WebConfig struct {
 }
 
 type IssuerConfig struct {
-	Preset             string       `json:"preset"`
 	Name               string       `json:"name"`
 	Issuer             string       `json:"issuer"`
 	JWKSURL            string       `json:"jwksUrl"`
@@ -52,7 +53,9 @@ func ParseIssuers(raw string) ([]IssuerConfig, error) {
 		return nil, nil
 	}
 	var issuers []IssuerConfig
-	if err := json.Unmarshal([]byte(raw), &issuers); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&issuers); err != nil {
 		return nil, fmt.Errorf("decode issuers: %w", err)
 	}
 	seen := map[string]bool{}
@@ -78,27 +81,6 @@ func (ic *IssuerConfig) applyDefaults() error {
 	}
 	if ic.Name == "" {
 		ic.Name = ic.Issuer
-	}
-	switch ic.Preset {
-	case "":
-	case presetSupabase:
-		if ic.Audience == "" {
-			ic.Audience = "authenticated"
-		}
-		if ic.Claims.EmailVerified == "" {
-			ic.Claims.EmailVerified = "user_metadata.email_verified"
-		}
-		if ic.Claims.Name == "" {
-			ic.Claims.Name = "user_metadata.full_name"
-		}
-		if ic.Claims.AvatarURL == "" {
-			ic.Claims.AvatarURL = "user_metadata.avatar_url"
-		}
-	default:
-		return fmt.Errorf("unknown preset %q", ic.Preset)
-	}
-	if ic.JWKSURL == "" {
-		ic.JWKSURL = strings.TrimSuffix(ic.Issuer, "/") + "/.well-known/jwks.json"
 	}
 	if ic.Claims.Subject == "" {
 		ic.Claims.Subject = "sub"
