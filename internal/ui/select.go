@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -113,11 +111,11 @@ func SelectFromList(title string, options []SelectOption) (any, error) {
 
 	sm, ok := model.(selectModel)
 	if !ok {
-		return nil, fmt.Errorf("internal error: unexpected model type")
+		return nil, errUnexpectedModel
 	}
 
 	if sm.selected == nil {
-		return nil, fmt.Errorf("no selection made")
+		return nil, ErrNoSelection
 	}
 
 	return sm.selected, sm.err

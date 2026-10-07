@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	"github.com/team-loco/loco/internal/client"
@@ -115,7 +116,7 @@ func resolveOrgID(
 
 	// Fall back to API lookup
 	if apiClient == nil {
-		return "", fmt.Errorf("login required - please run 'loco login'")
+		return "", cmdutil.ErrLoginRequired
 	}
 
 	currentUser, err := apiClient.GetCurrentUser(ctx)
@@ -175,7 +176,7 @@ func resolveWorkspaceID(
 	}
 
 	if apiClient == nil {
-		return "", fmt.Errorf("login required - please run 'loco login'")
+		return "", cmdutil.ErrLoginRequired
 	}
 
 	currentUser, err := apiClient.GetCurrentUser(ctx)

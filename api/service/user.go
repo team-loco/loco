@@ -24,7 +24,6 @@ var (
 	ErrInvalidRequest         = errors.New("invalid request")
 	ErrUserHasActiveResources = errors.New("user owns workspaces with active resources")
 	ErrUserHasOrganizations   = errors.New("user owns organizations")
-	ErrUnauthorized           = errors.New("unauthorized")
 )
 
 // UserServer implements the UserService gRPC server
@@ -93,7 +92,7 @@ func (s *UserServer) CreateUser(
 	qtx, ok := s.queries.(*genDb.Queries)
 	if !ok {
 		slog.ErrorContext(ctx, "failed to cast queries to *genDb.Queries")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error"))
+		return nil, connect.NewError(connect.CodeInternal, errDatabase)
 	}
 	qtx = qtx.WithTx(tx)
 

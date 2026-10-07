@@ -194,7 +194,7 @@ func (s *DeploymentServer) CreateDeployment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
@@ -290,7 +290,7 @@ func (s *DeploymentServer) CreateDeployment(
 	specForDBService, ok := clonedServiceSpec.(*deploymentv1.ServiceDeploymentSpec)
 	if !ok {
 		slog.ErrorContext(ctx, "failed to clone service spec")
-		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to clone service spec"))
+		return nil, connect.NewError(connect.CodeInternal, errCloneServiceSpec)
 	}
 	specForDBService.Env = nil
 
@@ -372,7 +372,7 @@ func (s *DeploymentServer) GetDeployment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	// check if user has permission to get deployment (resource:read)
@@ -400,7 +400,7 @@ func (s *DeploymentServer) ListDeployments(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	// check if requester has permission to list deployments (resource:read)
@@ -481,7 +481,7 @@ func (s *DeploymentServer) DeleteDeployment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
@@ -537,7 +537,7 @@ func (s *DeploymentServer) WatchDeployment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	resourceIDStr := resourceID.String()

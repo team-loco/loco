@@ -229,7 +229,7 @@ func RunSteps(steps []Step) error {
 	}
 
 	if m.quitting {
-		return fmt.Errorf("deployment was canceled")
+		return ErrDeploymentCanceled
 	}
 
 	return err

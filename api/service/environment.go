@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"connectrpc.com/connect"
@@ -47,7 +46,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -107,7 +106,7 @@ func (s *EnvironmentServer) GetEnvironment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -134,7 +133,7 @@ func (s *EnvironmentServer) ListEnvironments(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -182,7 +181,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
@@ -246,7 +245,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if verifyErr := s.machine.VerifyWithGivenEntityScopes(

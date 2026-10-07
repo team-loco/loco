@@ -46,7 +46,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -162,7 +162,7 @@ func (s *WorkspaceServer) GetWorkspace(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -211,7 +211,7 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -279,7 +279,7 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -350,7 +350,7 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -412,7 +412,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -461,7 +461,7 @@ func (s *WorkspaceServer) CreateMember(
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -523,7 +523,7 @@ func (s *WorkspaceServer) DeleteMember(
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -585,7 +585,7 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(

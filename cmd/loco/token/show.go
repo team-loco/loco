@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	"github.com/team-loco/loco/internal/keychain"
 )
 
@@ -48,7 +49,7 @@ func newShowCmd(deps showDeps) *cobra.Command {
 
 			token, err := store.Get()
 			if err != nil {
-				return fmt.Errorf("not logged in - please run 'loco login'")
+				return cmdutil.ErrLoginRequired
 			}
 
 			raw, err := cmd.Flags().GetBool("raw")

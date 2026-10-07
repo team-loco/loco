@@ -36,6 +36,9 @@ var (
 	ErrInvalidResourceType   = errors.New("invalid resource type")
 	ErrInvalidCPU            = errors.New("invalid CPU format")
 	ErrInvalidMemory         = errors.New("invalid memory format")
+
+	errDomainInUse          = errors.New("domain already in use")
+	errOnlyServiceResources = errors.New("only service resources are currently supported")
 )
 
 // protoResourceTypeToDb converts a proto ResourceType to a database ResourceType
@@ -88,7 +91,7 @@ func (s *ResourceServer) CreateResource(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -104,7 +107,7 @@ func (s *ResourceServer) CreateResource(
 	if r.GetSpec().GetService() == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			errors.New("only service resources are currently supported"),
+			errOnlyServiceResources,
 		)
 	}
 
@@ -125,7 +128,7 @@ func (s *ResourceServer) CreateResource(
 			platformDomain, err := s.queries.GetPlatformDomain(ctx, parsedPlatformDomainID)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to get platform domain", "error", err)
-				return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("platform domain not found"))
+				return nil, connect.NewError(connect.CodeInvalidArgument, ErrPlatformDomainNotFound)
 			}
 
 			fullDomain = r.GetDomain().GetSubdomain() + "." + platformDomain.Domain
@@ -143,7 +146,7 @@ func (s *ResourceServer) CreateResource(
 
 		if !available {
 			slog.WarnContext(ctx, "domain already in use", "domain", fullDomain)
-			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
+			return nil, connect.NewError(connect.CodeAlreadyExists, errDomainInUse)
 		}
 	}
 
@@ -252,7 +255,7 @@ func (s *ResourceServer) CreateResource(
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to create resource domain", "error", err)
 			if isPgConstraintViolation(err) {
-				return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("domain already in use"))
+				return nil, connect.NewError(connect.CodeAlreadyExists, errDomainInUse)
 			}
 			return nil, connect.NewError(connect.CodeInternal, ErrDB)
 		}
@@ -286,7 +289,7 @@ func (s *ResourceServer) GetResource(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -339,7 +342,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -427,7 +430,7 @@ func (s *ResourceServer) UpdateResource(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -469,7 +472,7 @@ func (s *ResourceServer) DeleteResource(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -517,7 +520,7 @@ func (s *ResourceServer) GetResourceStatus(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -618,7 +621,7 @@ func (s *ResourceServer) ScaleResource(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -702,7 +705,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -834,7 +837,7 @@ func currentServiceSpec(
 	if serviceDeploymentSpec == nil {
 		return nil, connect.NewError(
 			connect.CodeInvalidArgument,
-			errors.New("only service resources are supported"),
+			errOnlyServiceResources,
 		)
 	}
 
@@ -852,7 +855,7 @@ func (s *ResourceServer) planRegionRedeploy(
 	specForDB, ok := clonedSpec.(*deploymentv1.ServiceDeploymentSpec)
 	if !ok {
 		slog.ErrorContext(ctx, "failed to clone service deployment spec")
-		return regionRedeploy{}, connect.NewError(connect.CodeInternal, errors.New("failed to clone service spec"))
+		return regionRedeploy{}, connect.NewError(connect.CodeInternal, errCloneServiceSpec)
 	}
 	specForDB.Env = nil
 

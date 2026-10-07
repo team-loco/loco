@@ -58,7 +58,7 @@ func (s *OrgServer) CreateOrg(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -183,7 +183,7 @@ func (s *OrgServer) GetOrg(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -217,7 +217,7 @@ func (s *OrgServer) ListUserOrgs(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -284,7 +284,7 @@ func (s *OrgServer) UpdateOrg(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -344,7 +344,7 @@ func (s *OrgServer) DeleteOrg(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -388,7 +388,7 @@ func (s *OrgServer) ListOrgUsers(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -453,7 +453,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	// Check authorization

@@ -1,6 +1,7 @@
 package guardrails
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -8,10 +9,12 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 )
 
+var errWorkspaceIDRequired = errors.New("workspace_id is required")
+
 // ValidateLogsRequest validates and clamps the query parameters for a logs request.
 func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Config) error {
 	if req.GetWorkspaceId() == "" {
-		return fmt.Errorf("workspace_id is required")
+		return errWorkspaceIDRequired
 	}
 
 	start := req.GetStartTime().AsTime()
@@ -27,7 +30,7 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, cfg *config.Conf
 // ValidateMetricsRequest validates and clamps the query parameters for a metrics request.
 func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *config.Config) error {
 	if req.GetWorkspaceId() == "" {
-		return fmt.Errorf("workspace_id is required")
+		return errWorkspaceIDRequired
 	}
 	if req.GetMetricName() == "" {
 		return fmt.Errorf("metric_name is required")
@@ -51,7 +54,7 @@ func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, cfg *confi
 // ValidateTailRequest validates a tail logs request.
 func ValidateTailRequest(req *observabilityv1.TailLogsRequest, _ *config.Config) error {
 	if req.GetWorkspaceId() == "" {
-		return fmt.Errorf("workspace_id is required")
+		return errWorkspaceIDRequired
 	}
 	return nil
 }

@@ -45,6 +45,10 @@ func (c *OAuthStateCache) StoreState(ctx context.Context, state string) error {
 var (
 	errTokenAlreadyExchanged = errors.New("oauth token has already been exchanged")
 	errInvalidState          = errors.New("invalid or expired state")
+
+	errUnsupportedOAuthProvider = errors.New("unsupported oauth provider")
+	errStartSignIn              = errors.New("could not start sign-in")
+	errSignInUnavailable        = errors.New("sign-in is temporarily unavailable")
 )
 
 // MarkTokenExchanged enforces one-time use for ExchangeOAuthToken. Returns errTokenAlreadyExchanged
@@ -181,7 +185,7 @@ func (s *OAuthServer) tempCreateUser(
 	qtx, ok := s.queries.(*genDb.Queries)
 	if !ok {
 		slog.ErrorContext(ctx, "failed to cast queries to *genDb.Queries")
-		return nil, errors.New("database error")
+		return nil, errDatabase
 	}
 	qtx = qtx.WithTx(tx)
 
@@ -284,7 +288,7 @@ func (s *OAuthServer) GetOAuthDetails(
 ) (*connect.Response[oAuth.GetOAuthDetailsResponse], error) {
 	// Currently only GitHub is supported
 	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errUnsupportedOAuthProvider)
 	}
 
 	res := connect.NewResponse(&oAuth.GetOAuthDetailsResponse{
@@ -300,7 +304,7 @@ func (s *OAuthServer) ExchangeOAuthToken(
 ) (*connect.Response[oAuth.ExchangeOAuthTokenResponse], error) {
 	// Currently only GitHub is supported
 	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errUnsupportedOAuthProvider)
 	}
 
 	token := req.Msg.GetToken()
@@ -320,7 +324,7 @@ func (s *OAuthServer) ExchangeOAuthToken(
 	}
 	if markErr != nil {
 		slog.ErrorContext(ctx, "failed to record oauth token exchange", "error", markErr)
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("sign-in is temporarily unavailable"))
+		return nil, connect.NewError(connect.CodeUnavailable, errSignInUnavailable)
 	}
 
 	ip := req.Header().Get("X-Real-IP")
@@ -411,7 +415,7 @@ func (s *OAuthServer) GetOAuthAuthorizationURL(
 ) (*connect.Response[oAuth.GetOAuthAuthorizationURLResponse], error) {
 	// Currently only GitHub is supported
 	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errUnsupportedOAuthProvider)
 	}
 
 	state := req.Msg.GetState()
@@ -420,13 +424,13 @@ func (s *OAuthServer) GetOAuthAuthorizationURL(
 		state, err = generateSecureRandomString(32)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to generate state", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, errors.New("could not start sign-in"))
+			return nil, connect.NewError(connect.CodeInternal, errStartSignIn)
 		}
 	}
 
 	// store state in cache
 	if err := s.stateCache.StoreState(ctx, state); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, errors.New("could not start sign-in"))
+		return nil, connect.NewError(connect.CodeInternal, errStartSignIn)
 	}
 	slog.InfoContext(ctx, "stored state in cache successfully")
 
@@ -449,7 +453,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 ) (*connect.Response[oAuth.ExchangeOAuthCodeResponse], error) {
 	// Currently only GitHub is supported
 	if req.Msg.GetProvider() != oAuth.OAuthProvider_O_AUTH_PROVIDER_GITHUB {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported oauth provider"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errUnsupportedOAuthProvider)
 	}
 
 	code := req.Msg.GetCode()
@@ -472,7 +476,7 @@ func (s *OAuthServer) ExchangeOAuthCode(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid state parameter"))
 	}
 	if verifyErr != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("sign-in is temporarily unavailable"))
+		return nil, connect.NewError(connect.CodeUnavailable, errSignInUnavailable)
 	}
 
 	// exchange authorization code for github access token
