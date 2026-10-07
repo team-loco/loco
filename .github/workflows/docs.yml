@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - "docs/**"
+      - "web/Dockerfile"
       - "web/public/favicon.svg"
       - "web/src/components/design/logo-strokes.ts"
       - "mise.toml"
@@ -15,6 +16,7 @@ on:
   pull_request:
     paths:
       - "docs/**"
+      - "web/Dockerfile"
       - "web/public/favicon.svg"
       - "web/src/components/design/logo-strokes.ts"
       - "mise.toml"

@@ -7,6 +7,7 @@ from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
+RUNTIME_USER = "65532:65532"
 STARTUP_TIMEOUT = 30
 POLL_INTERVAL = 0.1
 REQUEST_TIMEOUT = 5
@@ -26,6 +27,12 @@ def response(url):
 
 
 class ContainerTests(unittest.TestCase):
+    def test_runtime_matches_dashboard(self):
+        def runtime(path):
+            return [line for line in path.read_text().splitlines() if line.startswith('FROM ')][-1]
+
+        self.assertEqual(runtime(ROOT / 'docs/Dockerfile'), runtime(ROOT / 'web/Dockerfile'))
+
     def test_production_and_staging(self):
         for environment, host in [('production', 'docs.loco.build'), ('staging', 'docs.staging.loco.build')]:
             with self.subTest(environment=environment):
@@ -46,8 +53,8 @@ class ContainerTests(unittest.TestCase):
                         if time.monotonic() >= deadline:
                             self.fail(docker('logs', container))
                         time.sleep(POLL_INTERVAL)
-                    self.assertEqual(body, 'ok')
-                    self.assertEqual(docker('inspect', '--format', '{{.Config.User}}', container), '10001:10001')
+                    self.assertEqual(body, 'OK')
+                    self.assertEqual(docker('inspect', '--format', '{{.Config.User}}', container), RUNTIME_USER)
                     status, body = response(url)
                     self.assertEqual(status, 200)
                     self.assertIn(f'https://{host}/', body)

@@ -31,7 +31,7 @@ Desktop navigation remains visible as you scroll, with every section expanded. T
 
 ## Hosting
 
-The `docs/Dockerfile` image serves the static build with Caddy on port 8080. The Railway `loco::cp-docs` service uses a commit-tagged image, with a separate staging image to generate the correct canonical URLs and indexing rules.
+The `docs/Dockerfile` image serves the static build with the same pinned `static-web-server` image as the dashboard on port 8080. The Railway `loco::cp-docs` service uses a commit-tagged image, with a separate staging image to generate the correct canonical URLs and indexing rules.
 
 Main merges build both images and deploy staging. The production workflow promotes the selected commit, matching the API and dashboard release. Production uses `docs.loco.build`; staging uses `docs.staging.loco.build`.
 

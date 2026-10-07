@@ -3,7 +3,7 @@
 !docs/pyproject.toml
 !docs/uv.lock
 !docs/zensical.toml
-!docs/Caddyfile
+!docs/sws.toml
 !docs/scripts/
 !docs/scripts/build.py
 !docs/content/

@@ -14,12 +14,9 @@ COPY web/src/components/design/logo-strokes.ts /app/web/src/components/design/lo
 ARG DOCS_ENVIRONMENT=production
 RUN uv run --frozen --no-dev python scripts/build.py build "$DOCS_ENVIRONMENT"
 
-FROM caddy:2.11.7-alpine
-COPY docs/Caddyfile /etc/caddy/Caddyfile
-COPY --from=build /app/docs/site /srv
-ENV PORT=8080 \
-    XDG_CONFIG_HOME=/tmp/caddy/config \
-    XDG_DATA_HOME=/tmp/caddy/data
-USER 10001:10001
+FROM ghcr.io/static-web-server/static-web-server:2.44.0
+COPY docs/sws.toml /etc/sws.toml
+COPY --from=build /app/docs/site /public
+USER 65532:65532
 EXPOSE 8080
-CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+CMD ["--config-file", "/etc/sws.toml"]

@@ -1,0 +1,21 @@
+[general]
+host = "::"
+port = 8080
+root = "/public"
+page404 = "/public/404.html"
+log-level = "info"
+health = true
+compression = true
+compression-level = "default"
+compression-static = true
+cache-control-headers = false
+security-headers = false
+directory-listing = false
+
+[[advanced.headers]]
+source = "**"
+[advanced.headers.headers]
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Vary = "Accept-Encoding"
+Cache-Control = "no-cache"
