@@ -194,7 +194,7 @@ None of these block anything today; they are the things we knowingly deferred.
     needs to be created separately.
   - Secrets Loco manages: 
     - Terraform Cloud
-    - GitLab, 
+    - the registry's push and pull credentials
     - cloud provider (provisioning),
     - GH OAuth client secret
     - Cloudflare API token (cert-manager)
@@ -251,31 +251,19 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - **Non-interactive deploy** — `loco deploy --non-interactive --token {TOKEN}`. Needed for CI.
   Dependent on TVM being stable.
 
-- **Image builders** — TDD written. Accept `--docker-socket` / `LOCO_DOCKER_SOCKET` to support
-  any OCI-compatible runtime (Podman, nerdctl, etc.) via Docker-compatible socket API. Version
-  check branches on `Platform.Name` — only enforced for Docker Engine. Auto-detect socket if
-  not provided.
-  - Docker preflight check (socket existence + daemon ping) already implemented.
-  - `--image` flag already implemented for skipping local build.
-  - Image IDs for now can only be from public container registries like GHCR.
-  - Still need: validate image is safe, enforce max image size (1GB cap already done).
-  - Respect `.dockerignore` / `.gitignore` when building container images.
-  - Better API verification on builds — size, registry, etc.
+- **Image builders** — `loco deploy` packs the directory that holds loco.toml (respecting
+  `.dockerignore`), uploads it to the source bucket, and the build controller builds it with
+  rootless BuildKit in a Job on a cluster with `builds.enabled`. Users never build or push
+  images themselves. `--image` deploys a public image without a build.
+  - Image IDs passed to `--image` can only come from public registries like GHCR.
+  - Still need: validate image is safe.
 
-- **Container registry** — currently using GitLab registry.
+- **Container registry** — one central zot registry (on Railway in production, from
+  `compose.yaml` locally). Only build pods push, with the `loco-registry-push` credential;
+  nodes pull with a long-lived pull secret that the Application controller copies into each
+  workspace namespace. Deployments pin images by digest.
   - Set lifecycle policy (last 2 images per resource, 6-month max).
-  - Require image prefixing with random hash.
-  - Only allow registry writes from Loco infra, not reads.
   - Set max Docker image size (cluster limited).
-  - GitLab registry token is only fetched at deploy time — if a new node pulls the image
-    later, the token is expired (5 min TTL). Need continuous rotation tied to the image
-    pull secret in the app namespace.
-  - **Goal:** move off GitLab to a container registry hosted in our own cluster. There is no
-    settled approach yet -- the design doc below is a proposal, not a decision. Harbor, zot
-    and plain distribution are all still on the table.
-  - **Design doc:** [`docs/design/tdd-pluggable-dependencies.md`](docs/design/tdd-pluggable-dependencies.md)
-    proposes moving off GitLab to self-hosted zot behind a mode adapter, and covers the
-    credential/TTL problem, tenancy isolation, and the CLI/proto de-vendoring needed first.
 
 - **Deployment flow**
   - `cmd/deploy.go` has become lost in the sauce — needs cleanup. Phase 1 done: split into
@@ -283,10 +271,6 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
     removed a redundant duplicate `ImageTag` call in the push step.
   - Deployment should be async: CLI requests a deployment, gets back a short-lived token
     (TTL 30 min) + deployment ID tied to the request, then polls/streams.
-  - **Revisit**: image tag is currently generated client-side in `buildAndPushImage`
-    (`GenerateImageTag`, needs orgID/workspaceID/resourceID) — feels wrong, should move
-    server-side (e.g. returned from `CreateResource`/`CreateDeployment`) so the CLI doesn't
-    need those IDs just to name an image. Deferred — it's an API contract change, not cleanup.
   - Mark previous deployments as inactive before creating a new one, transactionally — already
     done server-side in `createDeploymentWithCleanup` (`api/service/resource.go`).
   - Cleanup partial resources if deployment fails at any step — simple implementation done.
@@ -449,6 +433,13 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 ### Deploy & Builders
 
 - **Custom domains** — user brings their own domain; Loco provisions cert-manager certificate.
+- **Build cluster** — builds never run on the control plane: it holds every secret, and builds
+  run untrusted code with relaxed seccomp. Today they run on worker clusters with
+  `builds.enabled` in the loco-operator chart, so a single cluster both builds and runs apps.
+  The goal is a dedicated build-only cluster (builds on, no apps) with builds off on every app
+  cluster, the same split as the separate build fleets of Railway, Heroku and Render.
+  - Missing piece: an "accepts apps" switch on clusters, so deployments never land on the
+    build-only cluster. Deployment placement today picks clusters by region and tier only.
 - **Non-HTTP health checks** — allow bash-based or exec-based health checks.
 - **App sleep mode** — auto-sleep after N days of no traffic. Wake on request via path rewrite
   to `/revive-app?app-name=foobar123&og_url=...`, then redirect back. Who sleeps the app, who
