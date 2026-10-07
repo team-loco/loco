@@ -6,6 +6,12 @@ on:
       - main
     paths:
       - "api/auth/**"
+      - "api/interceptor/**"
+      - "api/tvm/**"
+      - "api/service/auth.go"
+      - "api/service/org_domain.go"
+      - "api/service/org_sso.go"
+      - "api/service/sso_conformance_test.go"
       - "env/conformance/**"
       - "env/local/auth-db.sql"
       - "mise-tasks/test/auth-conformance"
@@ -13,6 +19,12 @@ on:
   pull_request:
     paths:
       - "api/auth/**"
+      - "api/interceptor/**"
+      - "api/tvm/**"
+      - "api/service/auth.go"
+      - "api/service/org_domain.go"
+      - "api/service/org_sso.go"
+      - "api/service/sso_conformance_test.go"
       - "env/conformance/**"
       - "env/local/auth-db.sql"
       - "mise-tasks/test/auth-conformance"

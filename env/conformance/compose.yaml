@@ -12,7 +12,7 @@ services:
     volumes:
       - ../local/auth-db.sql:/docker-entrypoint-initdb.d/auth-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U loco_test -d loco_auth"]
+      test: ["CMD-SHELL", "psql -h 127.0.0.1 -U loco_test -d loco_auth -tAc 'select 1'"]
       interval: 1s
       timeout: 3s
       retries: 30
@@ -42,6 +42,8 @@ services:
       GOTRUE_MAILER_AUTOCONFIRM: "true"
       GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "true"
       GOTRUE_RATE_LIMIT_EMAIL_SENT: "1000"
+      GOTRUE_SAML_ENABLED: "true"
+      GOTRUE_SAML_PRIVATE_KEY: ${GOTRUE_SAML_PRIVATE_KEY:?run through mise run test:auth-conformance}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9999/health"]
       interval: 2s
@@ -71,3 +73,14 @@ services:
       - "55556:5556"
     volumes:
       - ./dex.yaml:/etc/dex/config.yaml:ro
+
+  saml-idp:
+    image: kristophjunge/test-saml-idp:1.15
+    platform: linux/amd64
+    ports:
+      - "58081:8080"
+    environment:
+      SIMPLESAMLPHP_SP_ENTITY_ID: http://localhost:59999/sso/saml/metadata
+      SIMPLESAMLPHP_SP_ASSERTION_CONSUMER_SERVICE: http://localhost:59999/sso/saml/acs
+    volumes:
+      - ./saml20-sp-remote.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php:ro
