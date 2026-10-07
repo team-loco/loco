@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateOrgRequest, CreateOrgResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, UpdateOrgRequest, UpdateOrgResponse } from "./org_pb";
+import { AddOrgDomainRequest, AddOrgDomainResponse, CreateOrgRequest, CreateOrgResponse, DeleteOrgDomainRequest, DeleteOrgDomainResponse, DeleteOrgRequest, DeleteOrgResponse, GetOrgRequest, GetOrgResponse, ListOrgDomainsRequest, ListOrgDomainsResponse, ListOrgUsersRequest, ListOrgUsersResponse, ListOrgWorkspacesRequest, ListOrgWorkspacesResponse, ListUserOrgsRequest, ListUserOrgsResponse, SetOrgDomainAutoJoinRequest, SetOrgDomainAutoJoinResponse, UpdateOrgRequest, UpdateOrgResponse, VerifyOrgDomainRequest, VerifyOrgDomainResponse } from "./org_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -89,6 +89,51 @@ export const OrgService = {
       name: "ListOrgWorkspaces",
       I: ListOrgWorkspacesRequest,
       O: ListOrgWorkspacesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.AddOrgDomain
+     */
+    addOrgDomain: {
+      name: "AddOrgDomain",
+      I: AddOrgDomainRequest,
+      O: AddOrgDomainResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.ListOrgDomains
+     */
+    listOrgDomains: {
+      name: "ListOrgDomains",
+      I: ListOrgDomainsRequest,
+      O: ListOrgDomainsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.VerifyOrgDomain
+     */
+    verifyOrgDomain: {
+      name: "VerifyOrgDomain",
+      I: VerifyOrgDomainRequest,
+      O: VerifyOrgDomainResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.SetOrgDomainAutoJoin
+     */
+    setOrgDomainAutoJoin: {
+      name: "SetOrgDomainAutoJoin",
+      I: SetOrgDomainAutoJoinRequest,
+      O: SetOrgDomainAutoJoinResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc loco.org.v1.OrgService.DeleteOrgDomain
+     */
+    deleteOrgDomain: {
+      name: "DeleteOrgDomain",
+      I: DeleteOrgDomainRequest,
+      O: DeleteOrgDomainResponse,
       kind: MethodKind.Unary,
     },
   }

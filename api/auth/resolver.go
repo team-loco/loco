@@ -135,6 +135,13 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 		return genDb.User{}, ErrResolve
 	}
 
+	if id.EmailVerified {
+		if _, joinErr := AutoJoin(ctx, qtx, user.ID, id.Email); joinErr != nil {
+			slog.ErrorContext(ctx, "failed to apply domain auto-join", "error", joinErr, "userId", user.ID)
+			return genDb.User{}, ErrResolve
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		if isUniqueViolation(err) {
 			return genDb.User{}, err

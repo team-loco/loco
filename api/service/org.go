@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 
 	"github.com/team-loco/loco/api/events"
 
@@ -30,14 +31,15 @@ var (
 
 // OrgServer implements the OrgService gRPC server
 type OrgServer struct {
-	db      *pgxpool.Pool
-	queries genDb.Querier
-	machine *tvm.VendingMachine
+	db        *pgxpool.Pool
+	queries   genDb.Querier
+	machine   *tvm.VendingMachine
+	lookupTXT TXTLookup
 }
 
 // NewOrgServer creates a new OrgServer instance
 func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *OrgServer {
-	return &OrgServer{db: db, queries: queries, machine: machine}
+	return &OrgServer{db: db, queries: queries, machine: machine, lookupTXT: net.DefaultResolver.LookupTXT}
 }
 
 // CreateOrg creates a new organization

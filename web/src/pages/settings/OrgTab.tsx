@@ -19,6 +19,7 @@ import { toastConnectError } from "@/lib/error-handler";
 import { workspacePath } from "@/lib/routes";
 
 import { ConfirmDeleteDialog } from "./ConfirmDeleteDialog";
+import { DomainsCard } from "./DomainsCard";
 import { NewWorkspaceDialog } from "./NewWorkspaceDialog";
 import { DangerCard, formatDay, NAME_RE, SavedBar, SaveBar, SettingsCard, SettingsRow } from "./parts";
 import { formatResourceCount, type ResourceCount } from "./useResourceCounts";
@@ -222,6 +223,8 @@ export function OrgTab({
 					);
 				})}
 			</SettingsCard>
+
+			{canAdmin && <DomainsCard orgId={org.id} />}
 
 			<DangerCard
 				title="Delete organization"

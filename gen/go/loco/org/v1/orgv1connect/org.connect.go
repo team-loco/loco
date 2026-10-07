@@ -48,6 +48,20 @@ const (
 	// OrgServiceListOrgWorkspacesProcedure is the fully-qualified name of the OrgService's
 	// ListOrgWorkspaces RPC.
 	OrgServiceListOrgWorkspacesProcedure = "/loco.org.v1.OrgService/ListOrgWorkspaces"
+	// OrgServiceAddOrgDomainProcedure is the fully-qualified name of the OrgService's AddOrgDomain RPC.
+	OrgServiceAddOrgDomainProcedure = "/loco.org.v1.OrgService/AddOrgDomain"
+	// OrgServiceListOrgDomainsProcedure is the fully-qualified name of the OrgService's ListOrgDomains
+	// RPC.
+	OrgServiceListOrgDomainsProcedure = "/loco.org.v1.OrgService/ListOrgDomains"
+	// OrgServiceVerifyOrgDomainProcedure is the fully-qualified name of the OrgService's
+	// VerifyOrgDomain RPC.
+	OrgServiceVerifyOrgDomainProcedure = "/loco.org.v1.OrgService/VerifyOrgDomain"
+	// OrgServiceSetOrgDomainAutoJoinProcedure is the fully-qualified name of the OrgService's
+	// SetOrgDomainAutoJoin RPC.
+	OrgServiceSetOrgDomainAutoJoinProcedure = "/loco.org.v1.OrgService/SetOrgDomainAutoJoin"
+	// OrgServiceDeleteOrgDomainProcedure is the fully-qualified name of the OrgService's
+	// DeleteOrgDomain RPC.
+	OrgServiceDeleteOrgDomainProcedure = "/loco.org.v1.OrgService/DeleteOrgDomain"
 )
 
 // OrgServiceClient is a client for the loco.org.v1.OrgService service.
@@ -66,6 +80,11 @@ type OrgServiceClient interface {
 	ListOrgUsers(context.Context, *connect.Request[v1.ListOrgUsersRequest]) (*connect.Response[v1.ListOrgUsersResponse], error)
 	// ListOrgWorkspaces lists workspaces in an organization.
 	ListOrgWorkspaces(context.Context, *connect.Request[v1.ListOrgWorkspacesRequest]) (*connect.Response[v1.ListOrgWorkspacesResponse], error)
+	AddOrgDomain(context.Context, *connect.Request[v1.AddOrgDomainRequest]) (*connect.Response[v1.AddOrgDomainResponse], error)
+	ListOrgDomains(context.Context, *connect.Request[v1.ListOrgDomainsRequest]) (*connect.Response[v1.ListOrgDomainsResponse], error)
+	VerifyOrgDomain(context.Context, *connect.Request[v1.VerifyOrgDomainRequest]) (*connect.Response[v1.VerifyOrgDomainResponse], error)
+	SetOrgDomainAutoJoin(context.Context, *connect.Request[v1.SetOrgDomainAutoJoinRequest]) (*connect.Response[v1.SetOrgDomainAutoJoinResponse], error)
+	DeleteOrgDomain(context.Context, *connect.Request[v1.DeleteOrgDomainRequest]) (*connect.Response[v1.DeleteOrgDomainResponse], error)
 }
 
 // NewOrgServiceClient constructs a client for the loco.org.v1.OrgService service. By default, it
@@ -121,18 +140,53 @@ func NewOrgServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(orgServiceMethods.ByName("ListOrgWorkspaces")),
 			connect.WithClientOptions(opts...),
 		),
+		addOrgDomain: connect.NewClient[v1.AddOrgDomainRequest, v1.AddOrgDomainResponse](
+			httpClient,
+			baseURL+OrgServiceAddOrgDomainProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("AddOrgDomain")),
+			connect.WithClientOptions(opts...),
+		),
+		listOrgDomains: connect.NewClient[v1.ListOrgDomainsRequest, v1.ListOrgDomainsResponse](
+			httpClient,
+			baseURL+OrgServiceListOrgDomainsProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("ListOrgDomains")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyOrgDomain: connect.NewClient[v1.VerifyOrgDomainRequest, v1.VerifyOrgDomainResponse](
+			httpClient,
+			baseURL+OrgServiceVerifyOrgDomainProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("VerifyOrgDomain")),
+			connect.WithClientOptions(opts...),
+		),
+		setOrgDomainAutoJoin: connect.NewClient[v1.SetOrgDomainAutoJoinRequest, v1.SetOrgDomainAutoJoinResponse](
+			httpClient,
+			baseURL+OrgServiceSetOrgDomainAutoJoinProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("SetOrgDomainAutoJoin")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteOrgDomain: connect.NewClient[v1.DeleteOrgDomainRequest, v1.DeleteOrgDomainResponse](
+			httpClient,
+			baseURL+OrgServiceDeleteOrgDomainProcedure,
+			connect.WithSchema(orgServiceMethods.ByName("DeleteOrgDomain")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // orgServiceClient implements OrgServiceClient.
 type orgServiceClient struct {
-	createOrg         *connect.Client[v1.CreateOrgRequest, v1.CreateOrgResponse]
-	getOrg            *connect.Client[v1.GetOrgRequest, v1.GetOrgResponse]
-	updateOrg         *connect.Client[v1.UpdateOrgRequest, v1.UpdateOrgResponse]
-	deleteOrg         *connect.Client[v1.DeleteOrgRequest, v1.DeleteOrgResponse]
-	listUserOrgs      *connect.Client[v1.ListUserOrgsRequest, v1.ListUserOrgsResponse]
-	listOrgUsers      *connect.Client[v1.ListOrgUsersRequest, v1.ListOrgUsersResponse]
-	listOrgWorkspaces *connect.Client[v1.ListOrgWorkspacesRequest, v1.ListOrgWorkspacesResponse]
+	createOrg            *connect.Client[v1.CreateOrgRequest, v1.CreateOrgResponse]
+	getOrg               *connect.Client[v1.GetOrgRequest, v1.GetOrgResponse]
+	updateOrg            *connect.Client[v1.UpdateOrgRequest, v1.UpdateOrgResponse]
+	deleteOrg            *connect.Client[v1.DeleteOrgRequest, v1.DeleteOrgResponse]
+	listUserOrgs         *connect.Client[v1.ListUserOrgsRequest, v1.ListUserOrgsResponse]
+	listOrgUsers         *connect.Client[v1.ListOrgUsersRequest, v1.ListOrgUsersResponse]
+	listOrgWorkspaces    *connect.Client[v1.ListOrgWorkspacesRequest, v1.ListOrgWorkspacesResponse]
+	addOrgDomain         *connect.Client[v1.AddOrgDomainRequest, v1.AddOrgDomainResponse]
+	listOrgDomains       *connect.Client[v1.ListOrgDomainsRequest, v1.ListOrgDomainsResponse]
+	verifyOrgDomain      *connect.Client[v1.VerifyOrgDomainRequest, v1.VerifyOrgDomainResponse]
+	setOrgDomainAutoJoin *connect.Client[v1.SetOrgDomainAutoJoinRequest, v1.SetOrgDomainAutoJoinResponse]
+	deleteOrgDomain      *connect.Client[v1.DeleteOrgDomainRequest, v1.DeleteOrgDomainResponse]
 }
 
 // CreateOrg calls loco.org.v1.OrgService.CreateOrg.
@@ -170,6 +224,31 @@ func (c *orgServiceClient) ListOrgWorkspaces(ctx context.Context, req *connect.R
 	return c.listOrgWorkspaces.CallUnary(ctx, req)
 }
 
+// AddOrgDomain calls loco.org.v1.OrgService.AddOrgDomain.
+func (c *orgServiceClient) AddOrgDomain(ctx context.Context, req *connect.Request[v1.AddOrgDomainRequest]) (*connect.Response[v1.AddOrgDomainResponse], error) {
+	return c.addOrgDomain.CallUnary(ctx, req)
+}
+
+// ListOrgDomains calls loco.org.v1.OrgService.ListOrgDomains.
+func (c *orgServiceClient) ListOrgDomains(ctx context.Context, req *connect.Request[v1.ListOrgDomainsRequest]) (*connect.Response[v1.ListOrgDomainsResponse], error) {
+	return c.listOrgDomains.CallUnary(ctx, req)
+}
+
+// VerifyOrgDomain calls loco.org.v1.OrgService.VerifyOrgDomain.
+func (c *orgServiceClient) VerifyOrgDomain(ctx context.Context, req *connect.Request[v1.VerifyOrgDomainRequest]) (*connect.Response[v1.VerifyOrgDomainResponse], error) {
+	return c.verifyOrgDomain.CallUnary(ctx, req)
+}
+
+// SetOrgDomainAutoJoin calls loco.org.v1.OrgService.SetOrgDomainAutoJoin.
+func (c *orgServiceClient) SetOrgDomainAutoJoin(ctx context.Context, req *connect.Request[v1.SetOrgDomainAutoJoinRequest]) (*connect.Response[v1.SetOrgDomainAutoJoinResponse], error) {
+	return c.setOrgDomainAutoJoin.CallUnary(ctx, req)
+}
+
+// DeleteOrgDomain calls loco.org.v1.OrgService.DeleteOrgDomain.
+func (c *orgServiceClient) DeleteOrgDomain(ctx context.Context, req *connect.Request[v1.DeleteOrgDomainRequest]) (*connect.Response[v1.DeleteOrgDomainResponse], error) {
+	return c.deleteOrgDomain.CallUnary(ctx, req)
+}
+
 // OrgServiceHandler is an implementation of the loco.org.v1.OrgService service.
 type OrgServiceHandler interface {
 	// CreateOrg creates a new organization.
@@ -186,6 +265,11 @@ type OrgServiceHandler interface {
 	ListOrgUsers(context.Context, *connect.Request[v1.ListOrgUsersRequest]) (*connect.Response[v1.ListOrgUsersResponse], error)
 	// ListOrgWorkspaces lists workspaces in an organization.
 	ListOrgWorkspaces(context.Context, *connect.Request[v1.ListOrgWorkspacesRequest]) (*connect.Response[v1.ListOrgWorkspacesResponse], error)
+	AddOrgDomain(context.Context, *connect.Request[v1.AddOrgDomainRequest]) (*connect.Response[v1.AddOrgDomainResponse], error)
+	ListOrgDomains(context.Context, *connect.Request[v1.ListOrgDomainsRequest]) (*connect.Response[v1.ListOrgDomainsResponse], error)
+	VerifyOrgDomain(context.Context, *connect.Request[v1.VerifyOrgDomainRequest]) (*connect.Response[v1.VerifyOrgDomainResponse], error)
+	SetOrgDomainAutoJoin(context.Context, *connect.Request[v1.SetOrgDomainAutoJoinRequest]) (*connect.Response[v1.SetOrgDomainAutoJoinResponse], error)
+	DeleteOrgDomain(context.Context, *connect.Request[v1.DeleteOrgDomainRequest]) (*connect.Response[v1.DeleteOrgDomainResponse], error)
 }
 
 // NewOrgServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -237,6 +321,36 @@ func NewOrgServiceHandler(svc OrgServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(orgServiceMethods.ByName("ListOrgWorkspaces")),
 		connect.WithHandlerOptions(opts...),
 	)
+	orgServiceAddOrgDomainHandler := connect.NewUnaryHandler(
+		OrgServiceAddOrgDomainProcedure,
+		svc.AddOrgDomain,
+		connect.WithSchema(orgServiceMethods.ByName("AddOrgDomain")),
+		connect.WithHandlerOptions(opts...),
+	)
+	orgServiceListOrgDomainsHandler := connect.NewUnaryHandler(
+		OrgServiceListOrgDomainsProcedure,
+		svc.ListOrgDomains,
+		connect.WithSchema(orgServiceMethods.ByName("ListOrgDomains")),
+		connect.WithHandlerOptions(opts...),
+	)
+	orgServiceVerifyOrgDomainHandler := connect.NewUnaryHandler(
+		OrgServiceVerifyOrgDomainProcedure,
+		svc.VerifyOrgDomain,
+		connect.WithSchema(orgServiceMethods.ByName("VerifyOrgDomain")),
+		connect.WithHandlerOptions(opts...),
+	)
+	orgServiceSetOrgDomainAutoJoinHandler := connect.NewUnaryHandler(
+		OrgServiceSetOrgDomainAutoJoinProcedure,
+		svc.SetOrgDomainAutoJoin,
+		connect.WithSchema(orgServiceMethods.ByName("SetOrgDomainAutoJoin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	orgServiceDeleteOrgDomainHandler := connect.NewUnaryHandler(
+		OrgServiceDeleteOrgDomainProcedure,
+		svc.DeleteOrgDomain,
+		connect.WithSchema(orgServiceMethods.ByName("DeleteOrgDomain")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/loco.org.v1.OrgService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OrgServiceCreateOrgProcedure:
@@ -253,6 +367,16 @@ func NewOrgServiceHandler(svc OrgServiceHandler, opts ...connect.HandlerOption) 
 			orgServiceListOrgUsersHandler.ServeHTTP(w, r)
 		case OrgServiceListOrgWorkspacesProcedure:
 			orgServiceListOrgWorkspacesHandler.ServeHTTP(w, r)
+		case OrgServiceAddOrgDomainProcedure:
+			orgServiceAddOrgDomainHandler.ServeHTTP(w, r)
+		case OrgServiceListOrgDomainsProcedure:
+			orgServiceListOrgDomainsHandler.ServeHTTP(w, r)
+		case OrgServiceVerifyOrgDomainProcedure:
+			orgServiceVerifyOrgDomainHandler.ServeHTTP(w, r)
+		case OrgServiceSetOrgDomainAutoJoinProcedure:
+			orgServiceSetOrgDomainAutoJoinHandler.ServeHTTP(w, r)
+		case OrgServiceDeleteOrgDomainProcedure:
+			orgServiceDeleteOrgDomainHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -288,4 +412,24 @@ func (UnimplementedOrgServiceHandler) ListOrgUsers(context.Context, *connect.Req
 
 func (UnimplementedOrgServiceHandler) ListOrgWorkspaces(context.Context, *connect.Request[v1.ListOrgWorkspacesRequest]) (*connect.Response[v1.ListOrgWorkspacesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.ListOrgWorkspaces is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) AddOrgDomain(context.Context, *connect.Request[v1.AddOrgDomainRequest]) (*connect.Response[v1.AddOrgDomainResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.AddOrgDomain is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) ListOrgDomains(context.Context, *connect.Request[v1.ListOrgDomainsRequest]) (*connect.Response[v1.ListOrgDomainsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.ListOrgDomains is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) VerifyOrgDomain(context.Context, *connect.Request[v1.VerifyOrgDomainRequest]) (*connect.Response[v1.VerifyOrgDomainResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.VerifyOrgDomain is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) SetOrgDomainAutoJoin(context.Context, *connect.Request[v1.SetOrgDomainAutoJoinRequest]) (*connect.Response[v1.SetOrgDomainAutoJoinResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.SetOrgDomainAutoJoin is not implemented"))
+}
+
+func (UnimplementedOrgServiceHandler) DeleteOrgDomain(context.Context, *connect.Request[v1.DeleteOrgDomainRequest]) (*connect.Response[v1.DeleteOrgDomainResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("loco.org.v1.OrgService.DeleteOrgDomain is not implemented"))
 }
