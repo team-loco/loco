@@ -358,8 +358,8 @@ func validateObs(cfg *LocoConfig) error {
 
 // parseRetention parses retention period strings like "7d" or "24h"
 func parseRetention(value string) (time.Duration, error) {
-	if strings.HasSuffix(value, "d") {
-		daysStr := strings.TrimSuffix(value, "d")
+	if before, ok := strings.CutSuffix(value, "d"); ok {
+		daysStr := before
 		days, err := strconv.Atoi(daysStr)
 		if err != nil {
 			return 0, err

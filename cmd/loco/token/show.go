@@ -64,11 +64,12 @@ func newShowCmd(deps showDeps) *cobra.Command {
 
 			fmt.Fprintf(deps.Output, "User: %s\n", currentUser.Username)
 
-			if token.ExpiresAt.IsZero() {
+			switch {
+			case token.ExpiresAt.IsZero():
 				fmt.Fprintln(deps.Output, "Expires: never")
-			} else if token.ExpiresAt.Before(time.Now()) {
+			case token.ExpiresAt.Before(time.Now()):
 				fmt.Fprintf(deps.Output, "Expires: %s (EXPIRED)\n", token.ExpiresAt.Format(time.RFC3339))
-			} else {
+			default:
 				fmt.Fprintf(deps.Output, "Expires: %s\n", token.ExpiresAt.Format(time.RFC3339))
 			}
 

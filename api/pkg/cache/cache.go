@@ -126,8 +126,8 @@ type ValkeyAdapter struct {
 	defaultTTL time.Duration
 }
 
-func NewValkey(CacheAddr string, defaultTTL time.Duration) (*ValkeyAdapter, error) {
-	clientOpts, parseErr := valkey.ParseURL(CacheAddr)
+func NewValkey(cacheAddr string, defaultTTL time.Duration) (*ValkeyAdapter, error) {
+	clientOpts, parseErr := valkey.ParseURL(cacheAddr)
 	if parseErr != nil {
 		return nil, fmt.Errorf("failed to valkey URL: %w", parseErr)
 	}

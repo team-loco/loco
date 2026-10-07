@@ -28,8 +28,7 @@ func (inputModel) Init() tea.Cmd {
 func (m inputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
+	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch msg.String() {
 		case "enter", keyCtrlC, "esc":
 			return m, tea.Quit

@@ -24,8 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -46,10 +44,8 @@ var _ = Describe("Application Controller", func() {
 			err := k8sClient.Get(ctx, typeNamespacedName, application)
 			if err != nil && errors.IsNotFound(err) {
 				resource := &locov1alpha1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
+					Name:      resourceName,
+					Namespace: "default",
 					Spec: locov1alpha1.ApplicationSpec{
 						Type:        "SERVICE",
 						ResourceID:  "1",

@@ -17,7 +17,7 @@ import (
 
 func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Application {
 	return &locov1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "isolation-" + resourceID, Namespace: testNamespace},
+		Name: "isolation-" + resourceID, Namespace: testNamespace,
 		Spec: locov1alpha1.ApplicationSpec{
 			Type:          testAppType,
 			ResourceID:    resourceID,
@@ -87,10 +87,9 @@ var _ = Describe("Workspace isolation", func() {
 
 	It("keeps labels it does not own on an existing namespace", func() {
 		app := isolationTestApplication("ws-existing", "existing")
-		existing := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+		existing := &corev1.Namespace{
 			Name:   getNamespace(app),
-			Labels: map[string]string{"unrelated": "kept"},
-		}}
+			Labels: map[string]string{"unrelated": "kept"}}
 		Expect(k8sClient.Create(ctx, existing)).To(Succeed())
 		Expect(ensureNamespace(ctx, k8sClient, app)).To(Succeed())
 
@@ -189,8 +188,8 @@ var _ = Describe("Workspace isolation", func() {
 
 		templateSpec := deployment.Spec.Template.Spec.DeepCopy()
 		admitted := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{Name: "from-template", Namespace: namespace},
-			Spec:       *templateSpec,
+			Name: "from-template", Namespace: namespace,
+			Spec: *templateSpec,
 		}
 		Expect(k8sClient.Create(ctx, admitted)).To(Succeed())
 

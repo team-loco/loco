@@ -298,8 +298,7 @@ func nextResult(t *testing.T, results <-chan syncResult) syncResult {
 func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
 	f := newDeployFixture(t)
 	client := startSyncServer(t, f)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	first := openSync(ctx, t, client)
 	select {
@@ -334,8 +333,7 @@ func TestSyncStreamDeliversChangesAndYieldsToANewerStream(t *testing.T) {
 func TestSyncStreamRejectsUnknownAgents(t *testing.T) {
 	f := newDeployFixture(t)
 	client := startSyncServer(t, f)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	stream := client.Sync(ctx)
 	stream.RequestHeader().Set("Authorization", "Bearer wrong")

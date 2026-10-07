@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	toolscache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -27,8 +26,8 @@ func app(name, placementID, revision, phase string) *locoControllerV1.Applicatio
 		observed = 0
 	}
 	return &locoControllerV1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace, Annotations: annotations},
-		Status:     locoControllerV1.ApplicationStatus{Phase: phase, ObservedPlacementRevision: observed},
+		Name: name, Namespace: testNamespace, Annotations: annotations,
+		Status: locoControllerV1.ApplicationStatus{Phase: phase, ObservedPlacementRevision: observed},
 	}
 }
 
