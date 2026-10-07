@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "docs/**"
+      - "web/public/favicon.svg"
+      - "web/src/components/design/logo-strokes.ts"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/docs.yml"
@@ -13,6 +15,8 @@ on:
   pull_request:
     paths:
       - "docs/**"
+      - "web/public/favicon.svg"
+      - "web/src/components/design/logo-strokes.ts"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/docs.yml"

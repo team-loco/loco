@@ -10,3 +10,10 @@
 !docs/content/**
 !docs/overrides/
 !docs/overrides/**
+!web/
+!web/public/
+!web/public/favicon.svg
+!web/src/
+!web/src/components/
+!web/src/components/design/
+!web/src/components/design/logo-strokes.ts

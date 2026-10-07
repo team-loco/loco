@@ -39,7 +39,6 @@ variant = "modern"
 custom_dir = "overrides"
 font = false
 favicon = "assets/favicon.svg"
-logo = "assets/logo.svg"
 features = [
   "navigation.sections",
   "navigation.expand",

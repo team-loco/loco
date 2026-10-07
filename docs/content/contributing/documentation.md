@@ -25,7 +25,7 @@ Builds run in strict mode and fail on warnings. Generated output goes in `docs/s
 
 ## Theme and navigation
 
-`docs/content/assets/loco.css` owns the documentation tokens and theme. `docs/overrides/main.html` adds staging metadata and its banner. `docs/DESIGN.md` records the visual contract.
+`docs/content/assets/loco.css` owns the documentation tokens and theme. `docs/overrides/main.html` adds staging metadata and its banner. `docs/DESIGN.md` records the visual contract. The build copies the favicon from `web/public/favicon.svg` and generates the wordmark from `web/src/components/design/logo-strokes.ts`. The generated favicon and `docs/overrides/partials/logo.html` stay ignored; edit the web sources to update both surfaces.
 
 Desktop navigation remains visible as you scroll, with every section expanded. The table of contents also remains visible on wide screens. Narrow viewports use Zensical's navigation drawer. Do not enable navigation pruning, navigation tabs, header auto-hide, or page metadata that hides navigation.
 

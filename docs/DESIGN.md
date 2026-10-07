@@ -52,11 +52,11 @@ The docs are a technical field guide for developers deploying applications and o
 
 Content is English, for the project's developer audience. The user brief defines three deployment modes; the main branch supplies released commands; the infrastructure PR stack supplies the explicitly labeled Go preview. Technical accuracy and readable command examples take precedence over promotional copy.
 
-`content/assets/loco.css` owns runtime tokens and maps them to Zensical's `--md-*` variables. This file records that mapping. Colors mirror `web/src/index.css`; the site is independent of the dashboard bundle. Keep both light and dark palettes coherent with the dashboard. Avoid generic gradients, animated marketing blocks, and tile grids.
+`content/assets/loco.css` owns runtime tokens and maps them to Zensical's `--md-*` variables. This file records that mapping. The favicon comes from `web/public/favicon.svg`, and the inline wordmark comes from `web/src/components/design/logo-strokes.ts` during each build. Generated assets stay out of Git. Colors mirror `web/src/index.css`; the site is independent of the dashboard bundle. Keep both light and dark palettes coherent with the dashboard. Avoid generic gradients, animated marketing blocks, and tile grids.
 
 ## Colors
 
-Background, surface, raised, foreground, secondary, border, strong-border, primary, link, and logo map to `--bg`, `--bg2`, `--bg3`, `--fg`, `--fg2`, `--line`, `--line2`, `--accent`, `--link`, and `--logo`. Dark variants override the same tokens under Zensical's slate scheme. Primary buttons use white text. Keyboard focus uses the link token. Forced colors preserve system scrollbars and button borders.
+Background, surface, raised, foreground, secondary, border, strong-border, primary, link, and logo map to `--bg`, `--bg2`, `--bg3`, `--fg`, `--fg2`, `--line`, `--line2`, `--accent`, `--link`, and `--logo`. Dark variants override the same tokens under Zensical's slate scheme. Primary buttons use white text in light mode and the dark background token in dark mode. Keyboard focus uses the link token. Forced colors preserve system scrollbars and button borders.
 
 ## Typography
 
