@@ -27,6 +27,7 @@ import (
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
+	planner "github.com/team-loco/loco/api/pkg/infra"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -34,6 +35,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
 	environmentv1connect "github.com/team-loco/loco/gen/go/loco/environment/v1/environmentv1connect"
+	"github.com/team-loco/loco/gen/go/loco/infra/v1/infrav1connect"
 	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
@@ -62,6 +64,7 @@ type APIConfig struct {
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
 	MinCLIVersion         string
+	InfraEncryptionKey    string
 	PprofAddr             string
 }
 
@@ -104,6 +107,7 @@ func newAPIConfig() *APIConfig {
 		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
 		MinCLIVersion:         os.Getenv("MIN_CLI_VERSION"),
 		PprofAddr:             os.Getenv("PPROF_ADDR"),
+		InfraEncryptionKey:    os.Getenv("INFRA_ENCRYPTION_KEY"),
 	}
 }
 
@@ -239,26 +243,37 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine)
+	infraServiceHandler, infraErr := service.NewInfrastructureServer(pool, machine, ac.InfraEncryptionKey)
+	if infraErr != nil {
+		slog.Error("initialize infrastructure service", "error", infraErr)
+		os.Exit(1)
+	}
+	placementCipher, cipherErr := planner.NewCipher(ac.InfraEncryptionKey)
+	if cipherErr != nil {
+		slog.Error("initialize placement encryption", "error", cipherErr)
+		os.Exit(1)
+	}
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, placementCipher)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, placementCipher)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,
+		machine,
 		ac.GitlabURL,
 		ac.GitlabPAT,
 		ac.ProjectID,
 		ac.RegistryTag,
 		httpClient,
-		machine,
 	)
 
-	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
+	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, placementCipher)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion)
 
+	infraPath, infraHandler := infrav1connect.NewInfrastructureServiceHandler(infraServiceHandler, httpInterceptors)
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)
 	userPath, userHandler := userv1connect.NewUserServiceHandler(userServiceHandler, httpInterceptors)
@@ -365,8 +380,11 @@ func main() {
 		tokenv1connect.TokenServiceCheckPermissionProcedure,
 
 		// registry service
-		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
 		registryv1connect.RegistryServiceGetImageRepositoryProcedure,
+		infrav1connect.InfrastructureServicePlanInfrastructureProcedure,
+		infrav1connect.InfrastructureServiceApplyInfrastructureProcedure,
+		infrav1connect.InfrastructureServiceGetStackProcedure,
+		infrav1connect.InfrastructureServiceSetSecretProcedure,
 
 		// agent service
 		agentv1connect.AgentServiceRegisterProcedure,
@@ -388,6 +406,8 @@ func main() {
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
+	mux.Handle("/v2/", registryServiceHandler.ProxyHandler())
+	mux.Handle(infraPath, infraHandler)
 	mux.Handle(configPath, configHandler)
 	mux.Handle(oauthPath, oauthHandler)
 	mux.Handle(userPath, userHandler)

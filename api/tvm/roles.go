@@ -97,27 +97,54 @@ func (tvm *VendingMachine) GetRolesByEntity(
 			scopes[i] = queries.EntityScope(row)
 		}
 		return scopes, nil
-	case queries.EntityTypeResource, queries.EntityTypeUser, queries.EntityTypeSystem:
-		// resource or user: only get roles on that entity
-		userID, err := uuid.Parse(userID)
+	case queries.EntityTypeEnvironment:
+		userUUID, err := uuid.Parse(userID)
 		if err != nil {
-			return nil, fmt.Errorf("invalid user id: %w", err)
+			return nil, err
 		}
-		rows, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
-			UserID:     userID,
-			EntityType: entity.Type,
-			EntityID:   entity.ID,
+		rows, err := tvm.queries.GetUserScopesOnEnvironment(ctx, queries.GetUserScopesOnEnvironmentParams{
+			EntityID: entity.ID, UserID: userUUID,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("get user scopes on entity: %w", err)
+			return nil, err
 		}
 		scopes := make([]queries.EntityScope, len(rows))
 		for i, row := range rows {
 			scopes[i] = queries.EntityScope(row)
 		}
 		return scopes, nil
+	case queries.EntityTypeResource:
+		return tvm.rolesOnEntity(ctx, userID, entity)
+	case queries.EntityTypeUser:
+		return tvm.rolesOnEntity(ctx, userID, entity)
+	case queries.EntityTypeSystem:
+		return tvm.rolesOnEntity(ctx, userID, entity)
 	}
 	return nil, ErrEntityNotFound
+}
+
+func (tvm *VendingMachine) rolesOnEntity(
+	ctx context.Context,
+	userID string,
+	entity queries.Entity,
+) ([]queries.EntityScope, error) {
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user id: %w", err)
+	}
+	rows, err := tvm.queries.GetUserScopesOnEntity(ctx, queries.GetUserScopesOnEntityParams{
+		UserID:     userUUID,
+		EntityType: entity.Type,
+		EntityID:   entity.ID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("get user scopes on entity: %w", err)
+	}
+	scopes := make([]queries.EntityScope, len(rows))
+	for i, row := range rows {
+		scopes[i] = queries.EntityScope(row)
+	}
+	return scopes, nil
 }
 
 // UpdateMemberRoles updates the roles for the given user by adding and removing the given scopes.

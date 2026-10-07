@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
+	planner "github.com/team-loco/loco/api/pkg/infra"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
@@ -24,14 +25,21 @@ var (
 
 // AgentServer implements the AgentService for agent communication.
 type AgentServer struct {
+	cipher   *planner.Cipher
 	db       *pgxpool.Pool
 	queries  genDb.Querier
 	notifier *clusternotify.Notifier
 }
 
 // NewAgentServer creates a new AgentServer instance.
-func NewAgentServer(db *pgxpool.Pool, queries genDb.Querier, notifier *clusternotify.Notifier) *AgentServer {
+func NewAgentServer(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	notifier *clusternotify.Notifier,
+	cipher *planner.Cipher,
+) *AgentServer {
 	return &AgentServer{
+		cipher:   cipher,
 		db:       db,
 		queries:  queries,
 		notifier: notifier,

@@ -74,6 +74,8 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 	const usedEnvIds = new Set<string>();
 
 	resources.forEach((resource, i) => {
+        usedEnvIds.add(resource.environmentId);
+        if (resource.environmentId !== envId) return;
 		const all = deploymentQueries[i]?.data?.deployments ?? [];
 		const mine = all
 			.filter((d) => d.environmentId === envId)
@@ -81,7 +83,7 @@ export function useDashboardData(workspaceId: string | null, env: Environment | 
 		for (const d of all) usedEnvIds.add(d.environmentId);
 		for (const d of mine) envDeployments.push({ deployment: d, resource });
 		const neverDeployed = all.length === 0;
-		if (mine.length === 0 && !neverDeployed) return;
+
 		const regions = regionReplicas(resource, mine);
 		envResources.push({
 			resource,

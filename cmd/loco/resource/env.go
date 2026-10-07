@@ -12,26 +12,20 @@ import (
 	"connectrpc.com/connect"
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	"github.com/team-loco/loco/cmd/loco/infra"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/httputil"
-	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
 
 type envDeps struct {
-	LoadSessionConfig func() (*session.SessionConfig, error)
-	NewAPIClient      func(host, token string) *client.Client
 	NewResourceClient func(host string) resourcev1connect.ResourceServiceClient
 	Stdout            io.Writer
 }
 
 func buildEnvCmd() *cobra.Command {
 	deps := envDeps{
-		LoadSessionConfig: session.Load,
-		NewAPIClient:      client.NewClient,
 		NewResourceClient: func(host string) resourcev1connect.ResourceServiceClient {
 			return resourcev1connect.NewResourceServiceClient(httputil.NewHTTPClient(), host)
 		},
@@ -108,34 +102,22 @@ Examples:
 				)
 			}
 
-			// Get host and token
-			host, err := cmdutil.GetHost(cmd)
-			if err != nil {
-				return err
-			}
-
-			locoToken, err := cmdutil.GetCurrentLocoToken(cmd)
-			if err != nil {
-				return err
-			}
-
-			// Resolve workspace ID
-			apiClient := deps.NewAPIClient(host, locoToken.Token)
-			workspaceID, err := resolveWorkspaceID(ctx, cmd, deps.LoadSessionConfig, apiClient)
+			selected, err := infra.ResolveTarget(cmd)
 			if err != nil {
 				return err
 			}
 
 			// Create resource client
-			resourceClient := deps.NewResourceClient(host)
-			authHeader := fmt.Sprintf("Bearer %s", locoToken.Token)
+			resourceClient := deps.NewResourceClient(selected.Host)
+			authHeader := fmt.Sprintf("Bearer %s", selected.Token)
 
 			// Get resource by name
 			getReq := connect.NewRequest(&resourcev1.GetResourceRequest{
 				Key: &resourcev1.GetResourceRequest_NameKey{
 					NameKey: &resourcev1.GetResourceNameKey{
-						WorkspaceId: workspaceID,
-						Name:        name,
+						WorkspaceId:   selected.WorkspaceID,
+						EnvironmentId: selected.EnvironmentID,
+						Name:          name,
 					},
 				},
 			})
@@ -172,7 +154,8 @@ Examples:
 	}
 
 	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
+	cmd.Flags().String("workspace", "", "Workspace name or ID")
+	cmd.Flags().String("environment", "", "Environment name or ID")
 	cmd.Flags().String("env-file", "", "Path to .env file")
 	cmd.Flags().StringSlice("set", []string{}, "Set environment variables (e.g. --set KEY1=VALUE1 --set KEY2=VALUE2)")
 	cmd.Flags().String("host", "", "API host URL")

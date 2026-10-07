@@ -101,7 +101,7 @@ Phase I
 
 [ ] Parametrize all helm charts, no hardcoded values. Separate CRD lifecycle from helm.
 
-[ ] Deploy app entirely without loco.toml.
+[ ] Deploy app entirely without .loco/main.go.
 
 [ ] Full data deletion on user/app deletion.
 
@@ -201,7 +201,7 @@ Phase III
 
 [ ] Canary deployments — for Loco's own services first, then expose to users.
 
-[ ] Kubernetes export — loco export converts loco.toml to Kubernetes YAML.
+[ ] Kubernetes export — loco export converts .loco/main.go to Kubernetes YAML.
 
 [ ] Graduating services — formal path for users to move off Loco to self-managed infra.
 

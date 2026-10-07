@@ -87,6 +87,15 @@ depends = ["test:*"]
 description = "Test the CLI"
 run = "go test -v -coverprofile=coverage.out ./cmd/... ./internal/..."
 
+[tasks."test:sdk"]
+description = "Test the Go infrastructure authoring SDK"
+dir = "sdk/go"
+run = "go test ./..."
+
+[tasks."test:infra"]
+description = "Test Go infrastructure discovery and evaluation"
+run = "go test ./internal/infra/..."
+
 [tasks."test:api"]
 description = "Test the API server"
 dir = "api"
@@ -223,3 +232,8 @@ run = "./e2e/run.sh --no-teardown"
 description = "Tear down the end-to-end infrastructure"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --teardown-only"
+
+[tasks."build:web"]
+description = "Typecheck and build the web UI for production"
+dir = "web"
+run = "bun run build"

@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/mod/semver"
+
 	cerrdefs "github.com/containerd/errdefs"
 
 	json "github.com/goccy/go-json"
@@ -24,7 +26,8 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/client"
 	"github.com/moby/go-archive"
-	"github.com/team-loco/loco/internal/config"
+	"github.com/moby/patternmatcher/ignorefile"
+	"github.com/team-loco/loco/internal/infra"
 )
 
 // MinimumDockerEngineVersion is the lowest allowed docker version.
@@ -36,12 +39,12 @@ const (
 
 type DockerClient struct {
 	dockerClient *client.Client
-	cfg          *config.LoadedConfig
+	cfg          *infra.BuildRequest
 	registryURL  string
 	ImageName    string
 }
 
-func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
+func NewClient(cfg *infra.BuildRequest) (*DockerClient, error) {
 	if err := checkDockerAvailable(); err != nil {
 		return nil, err
 	}
@@ -59,7 +62,7 @@ func NewClient(cfg *config.LoadedConfig) (*DockerClient, error) {
 		)
 	}
 
-	if v.Version < MinimumDockerEngineVersion {
+	if semver.Compare("v"+v.Version, "v"+MinimumDockerEngineVersion) < 0 {
 		return nil, fmt.Errorf(
 			"loco requires minimum Docker engine version of %s. Please update your Docker version",
 			MinimumDockerEngineVersion,
@@ -128,6 +131,12 @@ func printDockerOutput(r io.Reader, logf func(string)) error {
 		var msg Message
 		line := scanner.Text()
 
+		var failure struct {
+			Error string `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(line), &failure); err == nil && failure.Error != "" {
+			return fmt.Errorf("container operation failed: %s", failure.Error)
+		}
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			continue // skip unparseable lines
 		}
@@ -160,14 +169,32 @@ func printDockerOutput(r io.Reader, logf func(string)) error {
 }
 
 func (c *DockerClient) BuildImage(ctx context.Context, logf func(string)) error {
-	buildContext, err := archive.TarWithOptions(c.cfg.ProjectPath, &archive.TarOptions{})
+	if c.cfg == nil {
+		return fmt.Errorf("Docker build request is required")
+	}
+	patterns := make([]string, 0, 4)
+	file, err := os.Open(filepath.Join(c.cfg.Context, ".dockerignore"))
+	if err == nil {
+		patterns, err = ignorefile.ReadAll(file)
+		closeErr := file.Close()
+		if err != nil {
+			return fmt.Errorf("read .dockerignore: %w", err)
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	patterns = append(patterns, ".git", ".loco", ".env", ".env.*")
+	buildContext, err := archive.TarWithOptions(c.cfg.Context, &archive.TarOptions{ExcludePatterns: patterns})
 	if err != nil {
 		return err
 	}
 	defer buildContext.Close()
 
-	slog.Debug("built docker context", slog.String("project", c.cfg.ProjectPath))
-	relDockerfilePath, err := filepath.Rel(c.cfg.ProjectPath, c.cfg.Config.Build.DockerfilePath)
+	slog.Debug("built docker context", slog.String("project", c.cfg.Context))
+	relDockerfilePath, err := filepath.Rel(c.cfg.Context, c.cfg.Dockerfile)
 	if err != nil {
 		return err
 	}
@@ -255,7 +282,7 @@ func (c *DockerClient) ImageTag(ctx context.Context, imageID string) error {
 	return c.dockerClient.ImageTag(ctx, imageID, c.ImageName)
 }
 
-func (*DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appID string) string {
+func (c *DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appID string) string {
 	imageNameBase := imageBase
 	var randSuffix string
 	randBytes := make([]byte, 4)
@@ -268,8 +295,58 @@ func (*DockerClient) GenerateImageTag(imageBase string, orgID, workspaceID, appI
 
 	tag := fmt.Sprintf("org-%s-wks-%s-app-%s-%s", orgID, workspaceID, appID, randSuffix)
 
-	if !strings.Contains(imageNameBase, ":") {
+	if !strings.Contains(imageNameBase[strings.LastIndex(imageNameBase, "/")+1:], ":") {
 		imageNameBase += ":" + tag
 	}
+	c.ImageName = imageNameBase
 	return imageNameBase
+}
+
+func (c *DockerClient) PullImage(ctx context.Context, imageRef string, logf func(string)) error {
+	response, err := c.dockerClient.ImagePull(ctx, imageRef, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("pull image: %w", err)
+	}
+	defer response.Close()
+	return printDockerOutput(response, logf)
+}
+
+func (c *DockerClient) ImageDigest(ctx context.Context, imageRef string) (string, error) {
+	result, err := c.dockerClient.ImageInspect(ctx, imageRef)
+	if err != nil {
+		return "", fmt.Errorf("inspect image digest: %w", err)
+	}
+	repository := imageRef
+	if index := strings.LastIndex(repository, ":"); index > strings.LastIndex(repository, "/") {
+		repository = repository[:index]
+	}
+	for _, digest := range result.RepoDigests {
+		if position := strings.Index(digest, "@sha256:"); position >= 0 && digest[:position] == repository {
+			return digest[position+1:], nil
+		}
+	}
+	return "", fmt.Errorf("image has no published digest")
+}
+
+func (c *DockerClient) SetRegistry(host string) { c.registryURL = host }
+
+func (c *DockerClient) SaveImage(ctx context.Context, output io.Writer) error {
+	stream, err := c.dockerClient.ImageSave(ctx, []string{c.ImageName})
+	if err != nil {
+		return fmt.Errorf("export image: %w", err)
+	}
+	defer stream.Close()
+	if _, err = io.Copy(output, stream); err != nil {
+		return fmt.Errorf("write image archive: %w", err)
+	}
+	return nil
+}
+
+func (c *DockerClient) LoadImage(ctx context.Context, input io.Reader, logf func(string)) error {
+	response, err := c.dockerClient.ImageLoad(ctx, input)
+	if err != nil {
+		return fmt.Errorf("load image archive: %w", err)
+	}
+	defer response.Body.Close()
+	return printDockerOutput(response.Body, logf)
 }

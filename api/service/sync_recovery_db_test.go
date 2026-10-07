@@ -173,7 +173,7 @@ func TestRedeployReadsEnvInsideItsTransaction(t *testing.T) {
 	}
 
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		return inheritDesiredEnv(ctx, qtx, plan)
+		return inheritDesiredEnv(ctx, qtx, plan, f.cipher)
 	})
 	if err != nil {
 		t.Fatalf("inherit env: %v", err)

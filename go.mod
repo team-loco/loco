@@ -2,6 +2,10 @@ module github.com/team-loco/loco
 
 go 1.27.0
 
+replace github.com/team-loco/loco/sdk/go => ./sdk/go
+
+require github.com/team-loco/loco/sdk/go v0.0.0
+
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
 	charm.land/bubbles/v2 v2.2.1

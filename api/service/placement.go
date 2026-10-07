@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	planner "github.com/team-loco/loco/api/pkg/infra"
 )
 
 func placeApplication(
@@ -82,6 +83,7 @@ func desiredEnv(
 	ctx context.Context,
 	q genDb.Querier,
 	resourceID, clusterID uuid.UUID,
+	cipher *planner.Cipher,
 ) (map[string]string, error) {
 	placement, err := q.GetPlacementForResourceCluster(ctx, genDb.GetPlacementForResourceClusterParams{
 		ResourceID: resourceID,
@@ -97,8 +99,12 @@ func desiredEnv(
 		return nil, nil
 	}
 
+	opened, openErr := openPlacementEnv(placement.DesiredSpec, cipher, resourceID, clusterID)
+	if openErr != nil {
+		return nil, openErr
+	}
 	var payload ApplicationPayload
-	if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {
+	if err := json.Unmarshal(opened, &payload); err != nil {
 		return nil, fmt.Errorf("decode desired spec: %w", err)
 	}
 	if payload.AppSpec == nil || payload.AppSpec.ServiceSpec == nil || payload.AppSpec.ServiceSpec.Deployment == nil {

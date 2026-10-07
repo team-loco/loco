@@ -2,29 +2,21 @@ syntax = "proto3";
 
 package loco.registry.v1;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1";
 
-// GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
-message GetGitlabTokenRequest {}
-
-// GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
-message GetGitlabTokenResponse {
-  string username = 1;
-  string token = 2;
+message GetImageRepositoryRequest {
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
+  string stack_name = 2 [(buf.validate.field).string.pattern = "^[a-z][a-z0-9-]{0,62}$"];
+  string service_key = 3 [(buf.validate.field).string.pattern = "^[a-z][a-z0-9-]{0,62}$"];
 }
 
-// GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
-message GetImageRepositoryRequest {}
-
-// GetImageRepositoryResponse names the repository deployment images are pushed to.
 message GetImageRepositoryResponse {
   string repository = 1;
+  string push_repository = 2;
 }
 
-// RegistryService manages container registry access.
 service RegistryService {
-  // GetGitlabToken retrieves GitLab registry credentials.
-  rpc GetGitlabToken(GetGitlabTokenRequest) returns (GetGitlabTokenResponse) {}
-  // GetImageRepository returns the repository the CLI pushes deployment images to.
-  rpc GetImageRepository(GetImageRepositoryRequest) returns (GetImageRepositoryResponse) {}
+  rpc GetImageRepository(GetImageRepositoryRequest) returns (GetImageRepositoryResponse);
 }

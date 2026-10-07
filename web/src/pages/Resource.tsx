@@ -18,7 +18,7 @@ import { DeleteDialogContent, RollbackDialogContent, SpecDialogContent } from "@
 import { DiffDialogContent } from "@/pages/resource/DiffDialog";
 import { EventsSection } from "@/pages/resource/EventsSection";
 import { shortId } from "@/pages/resource/format";
-import { buildRegions, depService, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
+import { buildRegions, depTag, useResourceData, type ModalState, type Notice } from "@/pages/resource/model";
 import { RegionPanel } from "@/pages/resource/RegionPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
@@ -222,7 +222,7 @@ export function Resource() {
 				<VariablesTab
 					resourceId={resourceId}
 					resourceName={resource.name}
-					env={depService(specDep)?.env ?? {}}
+					variableKeys={resource.variableKeys}
 					regionNames={regionNames}
 					hasDeployment={currents.length > 0}
 					onNotice={setNotice}

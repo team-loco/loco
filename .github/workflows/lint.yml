@@ -8,6 +8,8 @@ on:
     paths:
       - "api/**"
       - "cmd/**"
+      - "internal/**"
+      - "sdk/**"
       - "controller/**"
       - "agent/**"
       - "k8sapi/**"
@@ -25,6 +27,8 @@ on:
     paths:
       - "api/**"
       - "cmd/**"
+      - "internal/**"
+      - "sdk/**"
       - "controller/**"
       - "agent/**"
       - "k8sapi/**"
@@ -74,6 +78,9 @@ jobs:
 
           - component: CLI
             working-directory: "."
+
+          - component: Go SDK
+            working-directory: sdk/go
 
           - component: Controller
             working-directory: controller

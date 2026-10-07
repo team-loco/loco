@@ -1,24 +1,25 @@
 -- Resource queries
 
 -- name: CreateResource :one
-INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version, environment_id, stack_id, service_key)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.*
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.*
 FROM resources r
-WHERE r.workspace_id = $1 AND r.name = $2;
+WHERE r.environment_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.type, r.description, r.status, r.spec, r.spec_version, r.created_at, r.updated_at
+SELECT r.*
 FROM resources r
 WHERE r.workspace_id = $1
+   AND (sqlc.narg(environment_id)::uuid IS NULL OR r.environment_id = sqlc.narg(environment_id)::uuid)
    AND (sqlc.narg('page_token')::text IS NULL
         OR (r.created_at, r.id) < (
           (SELECT created_at FROM resources WHERE id = sqlc.narg('page_token')::uuid),
@@ -104,7 +105,9 @@ SET status = $2, updated_at = NOW()
 WHERE id = $1;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
-SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
+SELECT r.workspace_id, r.environment_id, w.org_id, st.name AS stack_name
+FROM resources r JOIN workspaces w ON r.workspace_id = w.id
+JOIN infra_stacks st ON st.id = r.stack_id WHERE r.id = $1;
 
 -- name: LockResourceRegion :one
 SELECT id, resource_id, region, is_primary, status, last_error, created_at, updated_at

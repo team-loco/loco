@@ -14,8 +14,8 @@ import (
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
-	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/httputil"
+	"github.com/team-loco/loco/internal/infra"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
@@ -24,12 +24,12 @@ func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize a new Loco project",
-		Long:  "Create a new loco.toml configuration file in the current directory.",
+		Long:  "Create a Go infrastructure module in .loco/.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return initCmdFunc(cmd)
 		},
 	}
-	cmd.Flags().BoolP("force", "f", false, "Force overwrite of existing loco.toml file")
+	cmd.Flags().BoolP("force", "f", false, "Overwrite the existing Go infrastructure module")
 	cmd.Flags().StringP("name", "n", "", "Application name (skips interactive prompt)")
 	cmd.Flags().String("host", "", "API host URL")
 	return cmd
@@ -40,24 +40,9 @@ func initCmdFunc(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("error reading force flag: %w", err)
 	}
-	// todo: below code is very ugly.
 	appName, err := cmd.Flags().GetString("name")
 	if err != nil {
 		return fmt.Errorf("error reading name flag: %w", err)
-	}
-
-	if _, statErr := os.Stat("loco.toml"); statErr == nil && !force {
-		if appName != "" {
-			return fmt.Errorf("loco.toml already exists. Use --force to overwrite")
-		}
-		overwrite, askErr := ui.AskYesNo("A loco.toml file already exists. Do you want to overwrite it?")
-		if askErr != nil {
-			return fmt.Errorf("failed to prompt user: %w", askErr)
-		}
-		if !overwrite {
-			fmt.Println("Aborted.")
-			return nil
-		}
 	}
 
 	if appName == "" {
@@ -79,13 +64,17 @@ func initCmdFunc(cmd *cobra.Command) error {
 
 	appDomain := fetchPlatformDomain(cmd)
 
-	if err := config.CreateDefault(appName, appDomain); err != nil {
-		return fmt.Errorf("failed to create loco.toml: %w", err)
+	projectRoot, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("get project root: %w", err)
+	}
+	if err := infra.Scaffold(projectRoot, appName, appDomain, force); err != nil {
+		return fmt.Errorf("create Go infrastructure: %w", err)
 	}
 
 	style := lipgloss.NewStyle().Foreground(ui.Ok).Bold(true)
-	fmt.Printf("Created %s in the current directory.\n", style.Render("loco.toml"))
-	fmt.Printf("Edit the file and run %s to validate your configuration.\n",
+	fmt.Printf("Created %s in the current directory.\n", style.Render(".loco/main.go"))
+	fmt.Printf("Install the pinned SDK with `cd .loco && go mod tidy`, then edit the definition and run %s.\n",
 		style.Render("loco validate"))
 
 	return nil
@@ -102,7 +91,7 @@ func fetchPlatformDomain(cmd *cobra.Command) string {
 	host, err := cmdutil.GetHost(cmd)
 	if err != nil {
 		slog.Debug("could not resolve host for config lookup", "error", err)
-		return config.DefaultAppDomain
+		return infra.DefaultPlatformDomain
 	}
 
 	ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
@@ -112,12 +101,12 @@ func fetchPlatformDomain(cmd *cobra.Command) string {
 	resp, err := configClient.GetConfig(ctx, connect.NewRequest(&configv1.GetConfigRequest{}))
 	if err != nil {
 		slog.Debug("could not fetch defaults from API, using built-in default", "error", err)
-		return config.DefaultAppDomain
+		return infra.DefaultPlatformDomain
 	}
 
 	if domain := resp.Msg.GetServiceDefaults().GetPlatformDomain(); domain != "" {
 		return domain
 	}
 
-	return config.DefaultAppDomain
+	return infra.DefaultPlatformDomain
 }

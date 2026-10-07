@@ -85,3 +85,4 @@ e2e/kubeconfig
 v1-report.html
 CLAUDE.md
 clusters/
+**/.loco/link.json

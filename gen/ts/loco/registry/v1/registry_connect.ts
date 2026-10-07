@@ -3,31 +3,16 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetGitlabTokenRequest, GetGitlabTokenResponse, GetImageRepositoryRequest, GetImageRepositoryResponse } from "./registry_pb";
+import { GetImageRepositoryRequest, GetImageRepositoryResponse } from "./registry_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * RegistryService manages container registry access.
- *
  * @generated from service loco.registry.v1.RegistryService
  */
 export const RegistryService = {
   typeName: "loco.registry.v1.RegistryService",
   methods: {
     /**
-     * GetGitlabToken retrieves GitLab registry credentials.
-     *
-     * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
-     */
-    getGitlabToken: {
-      name: "GetGitlabToken",
-      I: GetGitlabTokenRequest,
-      O: GetGitlabTokenResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * GetImageRepository returns the repository the CLI pushes deployment images to.
-     *
      * @generated from rpc loco.registry.v1.RegistryService.GetImageRepository
      */
     getImageRepository: {

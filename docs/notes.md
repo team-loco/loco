@@ -303,7 +303,7 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - **GRPC support** — believe current Envoy Gateway setup allows GRPC passthrough, but needs
   explicit verification.
 
-- **loco.toml** — respect more of the config. Deploy settings like regions, rollback settings,
+- **.loco/main.go** — reconcile Go-defined infrastructure. Deploy settings like regions, rollback settings,
   pre/post deploy scripts.
 
 ### API & Data Model
@@ -486,7 +486,7 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
 - **Umami** — potentially set up for frontend analytics. Loco backend API and umami should
   be configurable from the UI.
 - **Interactivity during login** — introduce interactive login flow.
-- **`loco sync`** — CLI command that diffs local `loco.toml` against what's deployed and
+- **`loco sync`** — CLI command that diffs local `.loco/main.go` against what's deployed and
   shows a nice diff on both CLI and UI.
 - **Secrets integration** — pull from AWS SSM, Vault, etc. Too much for MVP. Users can
   technically do this themselves via their container but getting the initial secret in is
@@ -510,7 +510,7 @@ Basic logs and metrics are working via otel + clickhouse. Still needed:
   remove unused resources. Ensure people are actually using the account, not just creating
   it and leaving stuff there.
 - **Canary deployments** — for Loco's own services first, then expose to users.
-- **Kubernetes export** — `loco export` converts `loco.toml` to Kubernetes YAML. Escape hatch
+- **Kubernetes export** — `loco export` converts `.loco/main.go` to Kubernetes YAML. Escape hatch
   for users who want to self-host or graduate off Loco.
 - **Graduating services** — a formal path for users to graduate from Loco to self-managed infra.
     - perhaps just a way to download their YAMLs

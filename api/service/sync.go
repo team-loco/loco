@@ -144,6 +144,18 @@ func (ss *syncSession) sendPending(ctx context.Context) error {
 }
 
 func (ss *syncSession) send(placement genDb.Placement) error {
+	if !placement.DesiredDeleted {
+		opened, err := openPlacementEnv(
+			placement.DesiredSpec,
+			ss.server.cipher,
+			placement.ResourceID,
+			placement.ClusterID,
+		)
+		if err != nil {
+			return fmt.Errorf("open placement environment: %w", err)
+		}
+		placement.DesiredSpec = opened
+	}
 	msg := placementMessage(placement)
 	if err := ss.sendFn(msg); err != nil {
 		return fmt.Errorf("send placement %s: %w", placement.ID, err)

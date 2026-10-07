@@ -1,0 +1,129 @@
+name: Go infrastructure
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: loco-production
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: .loco/go.mod
+      - name: Install pinned CLI
+        env:
+          CLI_URL: ${{ vars.LOCO_CLI_URL }}
+          CLI_SHA256: ${{ vars.LOCO_CLI_SHA256 }}
+        run: |
+          set -euo pipefail
+          curl --fail --location "$CLI_URL" --output "$RUNNER_TEMP/loco"
+          echo "$CLI_SHA256  $RUNNER_TEMP/loco" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/loco"
+      - name: Evaluate and build without deployment credentials
+        env:
+          WORKSPACE_NAME: ${{ vars.LOCO_WORKSPACE_NAME }}
+          ENVIRONMENT_NAME: ${{ vars.LOCO_ENVIRONMENT_NAME }}
+          ENVIRONMENT_TYPE: ${{ vars.LOCO_ENVIRONMENT_TYPE }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/loco" validate --workspace "$WORKSPACE_NAME" --environment "$ENVIRONMENT_NAME" --environment-type "$ENVIRONMENT_TYPE" --json > "$RUNNER_TEMP/manifest.json"
+          "$RUNNER_TEMP/loco" infra build --manifest "$RUNNER_TEMP/manifest.json" --export-dir "$RUNNER_TEMP/loco-build" --reviewed
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: loco-build-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/manifest.json
+            ${{ runner.temp }}/loco-build
+          retention-days: 1
+  plan:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production-plan
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: loco-build-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/reviewed
+      - name: Install pinned CLI
+        env:
+          CLI_URL: ${{ vars.LOCO_CLI_URL }}
+          CLI_SHA256: ${{ vars.LOCO_CLI_SHA256 }}
+        run: |
+          set -euo pipefail
+          curl --fail --location "$CLI_URL" --output "$RUNNER_TEMP/loco"
+          echo "$CLI_SHA256  $RUNNER_TEMP/loco" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/loco"
+      - name: Publish and save plan
+        env:
+          LOCO_TOKEN: ${{ secrets.LOCO_PLAN_TOKEN }}
+          LOCO_HOST: ${{ vars.LOCO_HOST }}
+          LOCO_WORKSPACE: ${{ vars.LOCO_WORKSPACE_ID }}
+          LOCO_ENVIRONMENT: ${{ vars.LOCO_ENVIRONMENT_ID }}
+          STACK: ${{ vars.LOCO_STACK }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/loco" infra publish --artifact "$RUNNER_TEMP/reviewed/loco-build/build.json" --out "$RUNNER_TEMP/images.json" --stack "$STACK"
+          "$RUNNER_TEMP/loco" infra plan --manifest "$RUNNER_TEMP/reviewed/manifest.json" --images "$RUNNER_TEMP/images.json" --out "$RUNNER_TEMP/plan.json" --stack "$STACK" --reviewed --json > "$RUNNER_TEMP/preview.json"
+          cat "$RUNNER_TEMP/preview.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: loco-plan-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/plan.json
+          retention-days: 1
+  apply:
+    if: github.event.action == 'closed' && github.event.pull_request.merged && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - name: Download reviewed plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          WORKFLOW_PATH: go-infrastructure.yml
+        run: |
+          set -euo pipefail
+          workflow_id=$(gh api "repos/$REPOSITORY/actions/workflows/$WORKFLOW_PATH" --jq '.id')
+          artifact_id=$(gh api --paginate "repos/$REPOSITORY/actions/artifacts?name=loco-plan-$PR_HEAD" --jq '.artifacts[] | select(.expired == false) | .id' | head -n1)
+          test -n "$artifact_id"
+          run_id=$(gh api "repos/$REPOSITORY/actions/artifacts/$artifact_id" --jq '.workflow_run.id')
+          actual_workflow=$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.workflow_id')
+          conclusion=$(gh api "repos/$REPOSITORY/actions/runs/$run_id" --jq '.conclusion')
+          test "$actual_workflow" = "$workflow_id"
+          test "$conclusion" = success
+          gh run download "$run_id" --repo "$REPOSITORY" --name "loco-plan-$PR_HEAD" --dir "$RUNNER_TEMP/reviewed"
+      - name: Install pinned CLI
+        env:
+          CLI_URL: ${{ vars.LOCO_CLI_URL }}
+          CLI_SHA256: ${{ vars.LOCO_CLI_SHA256 }}
+        run: |
+          set -euo pipefail
+          curl --fail --location "$CLI_URL" --output "$RUNNER_TEMP/loco"
+          echo "$CLI_SHA256  $RUNNER_TEMP/loco" | sha256sum --check
+          chmod +x "$RUNNER_TEMP/loco"
+      - name: Apply reviewed infrastructure and images
+        env:
+          LOCO_TOKEN: ${{ secrets.LOCO_APPLY_TOKEN }}
+          LOCO_HOST: ${{ vars.LOCO_HOST }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/loco" infra apply --plan "$RUNNER_TEMP/reviewed/plan.json" --yes --confirm-destructive --wait

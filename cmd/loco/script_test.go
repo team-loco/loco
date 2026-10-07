@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -40,6 +41,19 @@ func setupScript(env *testscript.Env) error {
 	env.Setenv("HOME", home)
 	env.Setenv(keychain.StoreEnvVar, "file")
 
+	modulePath := filepath.Join(env.WorkDir, ".loco", "go.mod")
+	if data, err := os.ReadFile(modulePath); err == nil {
+		sdkPath, absErr := filepath.Abs("../../sdk/go")
+		if absErr != nil {
+			return absErr
+		}
+		data = []byte(strings.ReplaceAll(string(data), "SDK_PATH", strconv.Quote(sdkPath)))
+		if writeFileErr := os.WriteFile(modulePath, data, 0o600); writeFileErr != nil {
+			return writeFileErr
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	api := newFakeAPI()
 	srv := httptest.NewServer(api.handler())
 	env.Defer(srv.Close)

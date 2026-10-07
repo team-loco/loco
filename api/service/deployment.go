@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
+	planner "github.com/team-loco/loco/api/pkg/infra"
 	timeutil "github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/api/tvm/actions"
@@ -29,6 +30,7 @@ import (
 var ErrDeploymentNotFound = errors.New("deployment not found")
 
 type ApplicationPayload struct {
+	SealedEnv    []byte                            `json:"sealed_env,omitempty"`
 	DeploymentID string                            `json:"deployment_id"`
 	ResourceID   string                            `json:"resource_id"`
 	WorkspaceID  string                            `json:"workspace_id"`
@@ -158,6 +160,7 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
+	cipher  *planner.Cipher
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	machine *tvm.VendingMachine
@@ -168,8 +171,10 @@ func NewDeploymentServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
+	cipher *planner.Cipher,
 ) *DeploymentServer {
 	return &DeploymentServer{
+		cipher:  cipher,
 		db:      db,
 		queries: queries,
 		machine: machine,
@@ -218,9 +223,8 @@ func (s *DeploymentServer) CreateDeployment(
 	replicas := serviceSpec.GetMinReplicas()
 
 	domain, err := s.queries.GetDomainByResourceId(ctx, resourceID)
-	if err != nil {
-		slog.WarnContext(ctx, "domain not found", "resourceId", r.GetResourceId())
-		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
 	region := r.GetRegion()
@@ -235,7 +239,7 @@ func (s *DeploymentServer) CreateDeployment(
 		slog.ErrorContext(ctx, "failed to get environment", "error", err, "environmentId", environmentID)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
-	if env.WorkspaceID != resource.WorkspaceID {
+	if env.WorkspaceID != resource.WorkspaceID || env.ID != resource.EnvironmentID {
 		slog.WarnContext(
 			ctx,
 			"environment does not belong to the resource's workspace",
@@ -338,7 +342,7 @@ func (s *DeploymentServer) CreateDeployment(
 			Spec:             specJSON,
 			SpecVersion:      int32(1),
 			EnvironmentID:    environmentID,
-		}, buildSpec)
+		}, buildSpec, s.cipher)
 		return txErr
 	})
 	if err != nil {

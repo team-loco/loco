@@ -33,6 +33,7 @@ const (
 	EntityType_ENTITY_TYPE_WORKSPACE    EntityType = 3
 	EntityType_ENTITY_TYPE_RESOURCE     EntityType = 4
 	EntityType_ENTITY_TYPE_USER         EntityType = 5
+	EntityType_ENTITY_TYPE_ENVIRONMENT  EntityType = 6
 )
 
 // Enum value maps for EntityType.
@@ -44,6 +45,7 @@ var (
 		3: "ENTITY_TYPE_WORKSPACE",
 		4: "ENTITY_TYPE_RESOURCE",
 		5: "ENTITY_TYPE_USER",
+		6: "ENTITY_TYPE_ENVIRONMENT",
 	}
 	EntityType_value = map[string]int32{
 		"ENTITY_TYPE_UNSPECIFIED":  0,
@@ -52,6 +54,7 @@ var (
 		"ENTITY_TYPE_WORKSPACE":    3,
 		"ENTITY_TYPE_RESOURCE":     4,
 		"ENTITY_TYPE_USER":         5,
+		"ENTITY_TYPE_ENVIRONMENT":  6,
 	}
 )
 
@@ -292,6 +295,7 @@ func (x *Token) GetLastUsedAt() *timestamppb.Timestamp {
 // CreateTokenRequest is the request to create a new token.
 type CreateTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	StackName     string                 `protobuf:"bytes,7,opt,name=stack_name,json=stackName,proto3" json:"stack_name,omitempty"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`                                                              // Human-readable token name
 	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"` // Entity type the token is for
 	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`                                      // Entity ID the token is for
@@ -329,6 +333,13 @@ func (x *CreateTokenRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateTokenRequest.ProtoReflect.Descriptor instead.
 func (*CreateTokenRequest) Descriptor() ([]byte, []int) {
 	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CreateTokenRequest) GetStackName() string {
+	if x != nil {
+		return x.StackName
+	}
+	return ""
 }
 
 func (x *CreateTokenRequest) GetName() string {
@@ -957,8 +968,10 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12A\n" +
 	"\flast_used_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampH\x00R\n" +
 	"lastUsedAt\x88\x01\x01B\x0f\n" +
-	"\r_last_used_at\"\x8f\x02\n" +
-	"\x12CreateTokenRequest\x12\x1d\n" +
+	"\r_last_used_at\"\xd0\x02\n" +
+	"\x12CreateTokenRequest\x12?\n" +
+	"\n" +
+	"stack_name\x18\a \x01(\tB \xbaH\x1d\xd8\x01\x01r\x182\x16^[a-z][a-z0-9-]{0,62}$R\tstackName\x12\x1d\n" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dR\x04name\x12F\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
@@ -1006,7 +1019,7 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\ventity_type\x18\x01 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
 	"entityType\x12\x1b\n" +
 	"\tentity_id\x18\x02 \x01(\tR\bentityId\x122\n" +
-	"\x06scopes\x18\x03 \x03(\v2\x1a.loco.token.v1.EntityScopeR\x06scopes*\xaa\x01\n" +
+	"\x06scopes\x18\x03 \x03(\v2\x1a.loco.token.v1.EntityScopeR\x06scopes*\xc7\x01\n" +
 	"\n" +
 	"EntityType\x12\x1b\n" +
 	"\x17ENTITY_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -1014,7 +1027,8 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"\x18ENTITY_TYPE_ORGANIZATION\x10\x02\x12\x19\n" +
 	"\x15ENTITY_TYPE_WORKSPACE\x10\x03\x12\x18\n" +
 	"\x14ENTITY_TYPE_RESOURCE\x10\x04\x12\x14\n" +
-	"\x10ENTITY_TYPE_USER\x10\x05*P\n" +
+	"\x10ENTITY_TYPE_USER\x10\x05\x12\x1b\n" +
+	"\x17ENTITY_TYPE_ENVIRONMENT\x10\x06*P\n" +
 	"\x05Scope\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

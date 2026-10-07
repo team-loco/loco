@@ -1,258 +1,98 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { ClipboardPasteIcon, EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { updateResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
+import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
-import { Textarea } from "@/components/design/Textarea";
-import { parseDotEnv } from "@/lib/dotenv";
 import { toastConnectError } from "@/lib/error-handler";
-import { cn } from "@/lib/utils";
 
-import { mergeEnv, validateEnv, type EnvPair } from "./env";
+import { validateEnv, type EnvPair } from "./env";
 import type { Notice } from "./model";
 
 interface DraftRow {
-	id: number;
-	key: string;
-	value: string;
+ id: number;
+ key: string;
+ value: string;
+ revealed: boolean;
 }
 
 let nextId = 1;
+const newRow = (): DraftRow => ({ id: nextId++, key: "", value: "", revealed: false });
 
-function toRows(pairs: EnvPair[]): DraftRow[] {
-	return pairs.map(([key, value]) => ({ id: nextId++, key, value }));
-}
-
-const ROW = "grid grid-cols-[minmax(160px,260px)_minmax(0,1fr)_32px] items-center gap-3 border-b border-line px-4";
-
-export function VariablesTab({
-	resourceId,
-	resourceName,
-	env,
-	regionNames,
-	hasDeployment,
-	onNotice,
-	onSaved,
-}: {
-	resourceId: string;
-	resourceName: string;
-	env: Record<string, string>;
-	regionNames: string[];
-	hasDeployment: boolean;
-	onNotice: (notice: Notice) => void;
-	onSaved: () => void;
+export function VariablesTab({ resourceId, resourceName, variableKeys, regionNames, hasDeployment, onNotice, onSaved }: {
+ resourceId: string;
+ resourceName: string;
+ variableKeys: string[];
+ regionNames: string[];
+ hasDeployment: boolean;
+ onNotice: (notice: Notice) => void;
+ onSaved: () => void;
 }) {
-	const current: EnvPair[] = Object.entries(env).sort(([a], [b]) => a.localeCompare(b));
-	const [draft, setDraft] = useState<DraftRow[] | null>(null);
-	const [revealed, setRevealed] = useState<Record<string, boolean>>({});
-	const [pasteOpen, setPasteOpen] = useState(false);
-	const [pasteText, setPasteText] = useState("");
-	const [error, setError] = useState<string | undefined>(undefined);
-	const save = useMutation(updateResourceEnv);
-
-	const editing = draft !== null;
-	const draftPairs: EnvPair[] = (draft ?? []).map((r) => [r.key.trim(), r.value]);
-	const parsed = parseDotEnv(pasteText);
-	const draftKeys = new Set(draftPairs.map(([k]) => k));
-	const overwrites = parsed.filter(([k]) => draftKeys.has(k)).length;
-	const pasteSummary =
-		parsed.length > 0
-			? `${parsed.length.toString()} parsed · ${overwrites.toString()} overwrite existing keys`
-			: "Lines must be KEY=value";
-
-	const startEdit = () => {
-		setDraft(toRows(current));
-		setError(undefined);
-	};
-	const cancel = () => {
-		setDraft(null);
-		setPasteOpen(false);
-		setPasteText("");
-		setError(undefined);
-	};
-	const update = (id: number, patch: Partial<DraftRow>) => {
-		setDraft((d) => (d === null ? d : d.map((r) => (r.id === id ? { ...r, ...patch } : r))));
-	};
-	const applyPaste = () => {
-		setDraft(toRows(mergeEnv(draftPairs, parsed)));
-		setPasteOpen(false);
-		setPasteText("");
-	};
-	const submit = () => {
-		const problem = validateEnv(draftPairs);
-		setError(problem);
-		if (problem !== undefined) return;
-		save.mutate(
-			{ resourceId, env: Object.fromEntries(draftPairs) },
-			{
-				onSuccess: () => {
-					cancel();
-					onSaved();
-					onNotice({
-						tone: "info",
-						title: `Updating variables on ${resourceName}`,
-						message: `New deployment created in ${regionNames.join(", ")} with ${draftPairs.length.toString()} variables.`,
-					});
-				},
-				onError: (err) => {
-					toastConnectError(err, "Failed to update variables");
-				},
-			},
-		);
-	};
-
-	return (
-		<Section
-			title="Environment variables"
-			actions={
-				editing ? (
-					<>
-						<Button variant="outline" className="h-[30px]" onClick={cancel} disabled={save.isPending}>
-							Cancel
-						</Button>
-						<Button className="h-[30px]" onClick={submit} disabled={save.isPending}>
-							{save.isPending ? "Saving…" : "Save and redeploy"}
-						</Button>
-					</>
-				) : (
-					<Button
-						variant="outline"
-						className="h-[30px]"
-						onClick={startEdit}
-						disabled={!hasDeployment}
-						title={hasDeployment ? undefined : "Deploy the resource before editing variables"}
-					>
-						Edit
-					</Button>
-				)
-			}
-		>
-			{!editing && current.length === 0 && (
-				<EmptyState title="No environment variables">
-					{hasDeployment
-						? "Variables are injected into every replica. Edit to add some; saving creates a new deployment."
-						: "Variables can be set once the resource has a deployment."}
-				</EmptyState>
-			)}
-			{!editing &&
-				current.map(([k, v]) => {
-					const shown = revealed[k] === true;
-					return (
-						<div key={k} className={cn(ROW, "h-11")}>
-							<span className="truncate font-mono text-sm font-semibold">{k}</span>
-							<span className="truncate font-mono text-sm text-fg2">{shown ? v : "••••••••"}</span>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								className="text-fg3"
-								aria-label={shown ? "Hide value" : "Reveal value"}
-								title={shown ? "Hide value" : "Reveal value"}
-								onClick={() => {
-									setRevealed((r) => ({ ...r, [k]: !shown }));
-								}}
-							>
-								{shown ? <EyeOffIcon className="size-[15px]" /> : <EyeIcon className="size-[15px]" />}
-							</Button>
-						</div>
-					);
-				})}
-			{editing &&
-				draft.map((r) => (
-					<div key={r.id} className={cn(ROW, "h-11")}>
-						<Input
-							value={r.key}
-							aria-label="Name"
-							placeholder="KEY"
-							onChange={(e) => {
-								update(r.id, { key: e.target.value });
-							}}
-							className="h-[30px] font-mono text-sm"
-						/>
-						<Input
-							value={r.value}
-							aria-label="Value"
-							placeholder="value"
-							onChange={(e) => {
-								update(r.id, { value: e.target.value });
-							}}
-							className="h-[30px] font-mono text-sm"
-						/>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							className="text-fg3"
-							aria-label="Remove variable"
-							onClick={() => {
-								setDraft((d) => (d === null ? d : d.filter((x) => x.id !== r.id)));
-							}}
-						>
-							<Trash2Icon />
-						</Button>
-					</div>
-				))}
-			{editing && (
-				<>
-					<div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
-						<Button
-							variant="ghost"
-							size="sm"
-							className="border-dashed border-line2 text-fg2"
-							onClick={() => {
-								setDraft((d) => [...(d ?? []), { id: nextId++, key: "", value: "" }]);
-							}}
-						>
-							<PlusIcon />
-							Add variable
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							className={cn("border-dashed border-line2 text-fg2", pasteOpen && "bg-bg3")}
-							onClick={() => {
-								setPasteOpen((o) => !o);
-								setPasteText("");
-							}}
-						>
-							<ClipboardPasteIcon />
-							Paste .env
-						</Button>
-						{error !== undefined && <span className="text-sm text-bad-fg">{error}</span>}
-					</div>
-					{pasteOpen && (
-						<div className="flex flex-col gap-2 px-4 pb-3.5">
-							<Textarea
-								value={pasteText}
-								onChange={(e) => {
-									setPasteText(e.target.value);
-								}}
-								placeholder="KEY=value"
-								rows={6}
-								className="bg-bg2 p-2.5 font-mono text-sm leading-normal"
-							/>
-							<div className="flex items-center gap-2.5">
-								<span className="flex-1 text-sm text-fg3">{pasteSummary}</span>
-								<Button
-									variant="outline"
-									size="sm"
-									onClick={() => {
-										setPasteOpen(false);
-										setPasteText("");
-									}}
-								>
-									Cancel
-								</Button>
-								<Button variant="inverted" size="sm" disabled={parsed.length === 0} onClick={applyPaste}>
-									Add {parsed.length} variables
-								</Button>
-							</div>
-						</div>
-					)}
-				</>
-			)}
-		</Section>
-	);
+ const [draft, setDraft] = useState<DraftRow[] | null>(null);
+ const [error, setError] = useState<string | undefined>();
+ const [invalid, setInvalid] = useState<number | undefined>();
+ const save = useMutation(updateResourceEnv);
+ const keys = [...variableKeys].sort((a, b) => a.localeCompare(b));
+ const cancel = () => { setDraft(null); setError(undefined); setInvalid(undefined); };
+ const update = (id: number, patch: Partial<DraftRow>) => { setDraft((rows) => rows?.map((row) => row.id === id ? { ...row, ...patch } : row) ?? null); };
+ const submit = (event: React.SubmitEvent<HTMLFormElement>) => {
+  event.preventDefault();
+  if (save.isPending) return;
+  const pairs: EnvPair[] = (draft ?? []).map((row) => [row.key.trim(), row.value]);
+  const problem = validateEnv(pairs);
+  setError(problem);
+  if (problem !== undefined) {
+   const index = pairs.findIndex((_, position) => validateEnv(pairs.slice(0, position + 1)) !== undefined);
+   setInvalid(index);
+   const row = draft?.[index];
+   if (row !== undefined) document.getElementById(`variable-key-${row.id.toString()}`)?.focus();
+   return;
+  }
+  setInvalid(undefined);
+  save.mutate({ resourceId, env: Object.fromEntries(pairs) }, {
+   onSuccess: () => {
+    cancel(); onSaved();
+    onNotice({ tone: "info", title: `Updating variables on ${resourceName}`, message: `New deployments scheduled in ${regionNames.join(", ")}. Existing variables keep their values unless replaced.` });
+   },
+   onError: (failure) => { toastConnectError(failure, "Failed to update variables"); },
+  });
+ };
+ return (
+  <Section title="Environment variables" actions={draft === null ? (
+   <Button variant="outline" className="h-[30px]" disabled={!hasDeployment} title={hasDeployment ? undefined : "Deploy before setting variables here"} onClick={() => { setDraft([newRow()]); }}>Set variables</Button>
+  ) : undefined}>
+   <p className="border-b border-line px-4 py-3 text-sm text-fg3">Values are write only. Set a name again to replace its value. Changes to variables managed by a Go definition appear in the next infrastructure plan.</p>
+   {keys.length === 0 ? <EmptyState title="No environment variables">Declare variables in your Go definition or set them after the first deployment.</EmptyState> : keys.map((key) => (
+    <div key={key} className="grid grid-cols-2 gap-3 border-b border-line px-4 py-3 font-mono text-sm">
+     <span className="break-all font-semibold">{key}</span><span className="text-fg3" aria-label="Value hidden">••••••••</span>
+    </div>
+   ))}
+   {draft !== null && (
+    <form noValidate onSubmit={submit} className="space-y-4 p-4">
+     {draft.map((row, index) => (
+      <div key={row.id} className="flex flex-wrap items-end gap-3">
+       <Field label="Name" className="min-w-0 flex-1">
+        <Input id={`variable-key-${row.id.toString()}`} value={row.key} autoComplete="off" aria-invalid={invalid === index} aria-describedby={invalid === index ? "variable-error" : undefined} onChange={(event) => { update(row.id, { key: event.target.value }); }} />
+       </Field>
+       <Field label="New value" className="min-w-0 flex-1">
+        <Input type={row.revealed ? "text" : "password"} value={row.value} autoComplete="new-password" onChange={(event) => { update(row.id, { value: event.target.value }); }} />
+       </Field>
+       <Button type="button" variant="ghost" size="icon-sm" aria-label={row.revealed ? "Hide new value" : "Show new value"} onClick={() => { update(row.id, { revealed: !row.revealed }); }}>{row.revealed ? <EyeOffIcon /> : <EyeIcon />}</Button>
+       <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove draft variable" onClick={() => { setDraft((rows) => rows?.filter((item) => item.id !== row.id) ?? null); }}><Trash2Icon /></Button>
+      </div>
+     ))}
+     {error !== undefined && <p id="variable-error" role="alert" className="text-sm text-bad-fg">{error}</p>}
+     <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" variant="ghost" onClick={() => { setDraft((rows) => [...(rows ?? []), newRow()]); }}><PlusIcon />Add variable</Button>
+      <Button type="button" variant="outline" disabled={save.isPending} onClick={cancel}>Cancel</Button>
+      <Button type="submit" disabled={save.isPending}>{save.isPending ? "Saving…" : "Save and redeploy"}</Button>
+     </div>
+    </form>
+   )}
+  </Section>
+ );
 }

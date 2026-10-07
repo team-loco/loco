@@ -9,8 +9,10 @@ import (
 )
 
 var (
-	dockerImagePattern = regexp.MustCompile(`^([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$`)
-	envVarNamePattern  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	dockerImagePattern = regexp.MustCompile(
+		`^([a-z0-9\-._]+(:[0-9]+)?/)?([a-z0-9\-._]+(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+|@sha256:[a-f0-9]{64})?$`,
+	)
+	envVarNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 // ValidateApplicationSpec validates the entire ApplicationSpec
@@ -118,16 +120,13 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 	if len(spec.Env) > 100 {
 		return fmt.Errorf("too many environment variables: %d (max 100)", len(spec.Env))
 	}
-	for name, value := range spec.Env {
+	for name := range spec.Env {
 		if !envVarNamePattern.MatchString(name) {
 			return fmt.Errorf(
 				"invalid environment variable name %q "+
 					"(must start with letter or underscore, contain only alphanumeric and underscore)",
 				name,
 			)
-		}
-		if value == "" {
-			return fmt.Errorf("environment variable %q has empty value", name)
 		}
 	}
 

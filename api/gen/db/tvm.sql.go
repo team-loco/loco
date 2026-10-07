@@ -36,8 +36,8 @@ func (q *Queries) AddUserScope(ctx context.Context, arg AddUserScopeParams) erro
 
 const createAPIToken = `-- name: CreateAPIToken :exec
 
-INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at, stack_name)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateAPITokenParams struct {
@@ -49,6 +49,7 @@ type CreateAPITokenParams struct {
 	Scopes     []EntityScope `json:"scopes"`
 	CreatedBy  uuid.UUID     `json:"createdBy"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
+	StackName  string        `json:"stackName"`
 }
 
 // -----------------------------------------------------------------------------
@@ -64,6 +65,7 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 		arg.Scopes,
 		arg.CreatedBy,
 		arg.ExpiresAt,
+		arg.StackName,
 	)
 	return err
 }
@@ -187,7 +189,7 @@ func (q *Queries) DeleteSessionTokenByAccessHash(ctx context.Context, accessToke
 }
 
 const getAPIToken = `-- name: GetAPIToken :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, stack_name
 FROM api_tokens
 WHERE token_hash = $1 AND expires_at > NOW()
 `
@@ -202,6 +204,7 @@ type GetAPITokenRow struct {
 	CreatedAt  time.Time     `json:"createdAt"`
 	ExpiresAt  time.Time     `json:"expiresAt"`
 	LastUsedAt *time.Time    `json:"lastUsedAt"`
+	StackName  string        `json:"stackName"`
 }
 
 func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error) {
@@ -217,6 +220,7 @@ func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPIToke
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
+		&i.StackName,
 	)
 	return i, err
 }
@@ -407,6 +411,45 @@ func (q *Queries) GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOn
 	return items, nil
 }
 
+const getUserScopesOnEnvironment = `-- name: GetUserScopesOnEnvironment :many
+SELECT entity_type, entity_id, scope FROM user_scopes
+WHERE user_id = $2 AND (
+    (entity_type = 'environment' AND entity_id = $1) OR
+    (entity_type = 'resource' AND entity_id IN (SELECT id FROM resources WHERE environment_id = $1))
+)
+`
+
+type GetUserScopesOnEnvironmentParams struct {
+	EntityID uuid.UUID `json:"entityId"`
+	UserID   uuid.UUID `json:"userId"`
+}
+
+type GetUserScopesOnEnvironmentRow struct {
+	EntityType EntityType `json:"entityType"`
+	EntityID   uuid.UUID  `json:"entityId"`
+	Scope      Scope      `json:"scope"`
+}
+
+func (q *Queries) GetUserScopesOnEnvironment(ctx context.Context, arg GetUserScopesOnEnvironmentParams) ([]GetUserScopesOnEnvironmentRow, error) {
+	rows, err := q.db.Query(ctx, getUserScopesOnEnvironment, arg.EntityID, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserScopesOnEnvironmentRow
+	for rows.Next() {
+		var i GetUserScopesOnEnvironmentRow
+		if err := rows.Scan(&i.EntityType, &i.EntityID, &i.Scope); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserScopesOnOrganization = `-- name: GetUserScopesOnOrganization :many
 WITH entity_hierarchy AS (
      SELECT 'organization'::entity_type AS entity_type, o.id AS entity_id
@@ -417,6 +460,12 @@ WITH entity_hierarchy AS (
 
      SELECT 'workspace'::entity_type, w.id
      FROM workspaces w
+     WHERE w.org_id = $1
+
+     UNION ALL
+
+     SELECT 'environment'::entity_type, e.id
+     FROM environments e JOIN workspaces w ON w.id = e.workspace_id
      WHERE w.org_id = $1
 
      UNION ALL
@@ -474,6 +523,11 @@ WITH RECURSIVE entity_hierarchy AS (
          w.name as entity_name
      FROM workspaces w
      WHERE w.id = $1
+
+     UNION ALL
+
+     SELECT 'environment'::entity_type, e.id, e.name
+     FROM environments e WHERE e.workspace_id = $1
 
      UNION ALL
 

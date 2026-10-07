@@ -110,18 +110,22 @@ func (s *EnvironmentServer) GetEnvironment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if verifyWithGivenEntityScopesErr := s.machine.VerifyWithGivenEntityScopes(
 		ctx,
 		scopes,
-		actions.New(actions.GetEnvironment, env.WorkspaceID.String()),
-	); err != nil {
+		actions.New(actions.GetEnvironment, env.ID.String()),
+	); verifyWithGivenEntityScopesErr != nil {
 		slog.WarnContext(ctx, "unauthorized to get environment", "environmentId", r.GetEnvironmentId())
-		return nil, connect.NewError(connect.CodePermissionDenied, err)
+		return nil, connect.NewError(connect.CodePermissionDenied, verifyWithGivenEntityScopesErr)
 	}
 
-	return connect.NewResponse(&environmentv1.GetEnvironmentResponse{
-		Environment: dbEnvToProto(env),
-	}), nil
+	workspace, lookupErr := s.queries.GetWorkspaceByIDQuery(ctx, env.WorkspaceID)
+	if lookupErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
+	result := dbEnvToProto(env)
+	result.WorkspaceName = workspace.Name
+	return connect.NewResponse(&environmentv1.GetEnvironmentResponse{Environment: result}), nil
 }
 
 // ListEnvironments lists all environments in a workspace.
@@ -171,6 +175,12 @@ func (s *EnvironmentServer) UpdateEnvironment(
 ) (*connect.Response[environmentv1.UpdateEnvironmentResponse], error) {
 	r := req.Msg
 
+	if tvm.IsStackRestricted(ctx) {
+		return nil, connect.NewError(
+			connect.CodePermissionDenied,
+			errors.New("stack credentials cannot modify their environment"),
+		)
+	}
 	envID := uuid.MustParse(r.GetEnvironmentId())
 
 	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
@@ -188,7 +198,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
 		ctx,
 		scopes,
-		actions.New(actions.UpdateEnvironment, existing.WorkspaceID.String()),
+		actions.New(actions.UpdateEnvironment, existing.ID.String()),
 	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to update environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
@@ -235,6 +245,12 @@ func (s *EnvironmentServer) DeleteEnvironment(
 ) (*connect.Response[environmentv1.DeleteEnvironmentResponse], error) {
 	r := req.Msg
 
+	if tvm.IsStackRestricted(ctx) {
+		return nil, connect.NewError(
+			connect.CodePermissionDenied,
+			errors.New("stack credentials cannot modify their environment"),
+		)
+	}
 	envID := uuid.MustParse(r.GetEnvironmentId())
 
 	existing, err := s.queries.GetEnvironmentByID(ctx, envID)
@@ -252,7 +268,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 	if verifyErr := s.machine.VerifyWithGivenEntityScopes(
 		ctx,
 		scopes,
-		actions.New(actions.DeleteEnvironment, existing.WorkspaceID.String()),
+		actions.New(actions.DeleteEnvironment, existing.ID.String()),
 	); verifyErr != nil {
 		slog.WarnContext(ctx, "unauthorized to delete environment", "environmentId", r.GetEnvironmentId())
 		return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)
@@ -275,8 +291,8 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
 	}
 
-	if err := s.queries.DeleteEnvironment(ctx, envID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete environment", "error", err)
+	if deleteEnvironmentErr := s.queries.DeleteEnvironment(ctx, envID); deleteEnvironmentErr != nil {
+		slog.ErrorContext(ctx, "failed to delete environment", "error", deleteEnvironmentErr)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 

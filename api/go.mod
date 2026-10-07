@@ -2,6 +2,10 @@ module github.com/team-loco/loco/api
 
 go 1.27.0
 
+require github.com/team-loco/loco/sdk/go v0.0.0
+
+replace github.com/team-loco/loco/sdk/go => ../sdk/go
+
 require (
 	charm.land/log/v2 v2.0.1
 	connectrpc.com/connect v1.21.0

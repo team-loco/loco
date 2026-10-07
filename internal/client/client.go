@@ -180,12 +180,16 @@ func (c *Client) ListApps(ctx context.Context, workspaceID string) ([]*resourcev
 	return resp.Msg.Resources, nil
 }
 
-func (c *Client) GetAppByName(ctx context.Context, workspaceID string, appName string) (*resourcev1.Resource, error) {
+func (c *Client) GetAppByName(
+	ctx context.Context,
+	workspaceID, environmentID, appName string,
+) (*resourcev1.Resource, error) {
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{
 		Key: &resourcev1.GetResourceRequest_NameKey{
 			NameKey: &resourcev1.GetResourceNameKey{
-				WorkspaceId: workspaceID,
-				Name:        appName,
+				WorkspaceId:   workspaceID,
+				EnvironmentId: environmentID,
+				Name:          appName,
 			},
 		},
 	})

@@ -23,7 +23,25 @@ func (tvm *VendingMachine) Issue(
 	entity queries.Entity,
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
+	stack ...string,
 ) (string, error) {
+	if len(stack) > 1 {
+		return "", ErrImproperUsage
+	}
+	stackName := ""
+	if len(stack) == 1 {
+		stackName = stack[0]
+	}
+	if stackName != "" {
+		if entity.Type != queries.EntityTypeEnvironment {
+			return "", ErrImproperUsage
+		}
+		for _, scope := range entityScopes {
+			if scope.EntityType != queries.EntityTypeEnvironment || scope.EntityID != entity.ID {
+				return "", ErrInsufficentPermissions
+			}
+		}
+	}
 	if duration > tvm.Cfg.MaxAPITokenDuration {
 		return "", ErrDurationExceedsMaxAllowed
 	}
@@ -47,7 +65,7 @@ func (tvm *VendingMachine) Issue(
 		}
 	}
 
-	return tvm.issueAPITokenNoCheck(ctx, name, userUUID, entity, entityScopes, duration)
+	return tvm.issueAPITokenNoCheck(ctx, name, userUUID, entity, entityScopes, duration, stackName)
 }
 
 // IssueWithSessionToken issues an API token using a session token for authentication.
@@ -59,6 +77,7 @@ func (tvm *VendingMachine) IssueWithSessionToken(
 	entity queries.Entity,
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
+	stack ...string,
 ) (string, error) {
 	entity2, _, err := tvm.GetToken(ctx, sessionToken)
 	if err != nil {
@@ -67,7 +86,7 @@ func (tvm *VendingMachine) IssueWithSessionToken(
 	if entity2.Type != queries.EntityTypeUser {
 		return "", ErrImproperUsage
 	}
-	return tvm.Issue(ctx, name, entity2.ID.String(), entity, entityScopes, duration)
+	return tvm.Issue(ctx, name, entity2.ID.String(), entity, entityScopes, duration, stack...)
 }
 
 // issueAPITokenNoCheck issues an API token without checking permissions.
@@ -78,6 +97,7 @@ func (tvm *VendingMachine) issueAPITokenNoCheck(
 	entity queries.Entity,
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
+	stackName string,
 ) (string, error) {
 	token, hash := generateToken(prefixAPIKey)
 
@@ -85,6 +105,7 @@ func (tvm *VendingMachine) issueAPITokenNoCheck(
 		ID:         uuid.Must(uuid.NewV7()),
 		TokenHash:  hash,
 		Name:       name,
+		StackName:  stackName,
 		EntityType: entity.Type,
 		EntityID:   entity.ID,
 		Scopes:     entityScopes,

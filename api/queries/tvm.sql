@@ -22,6 +22,12 @@ WITH entity_hierarchy AS (
 
      UNION ALL
 
+     SELECT 'environment'::entity_type, e.id
+     FROM environments e JOIN workspaces w ON w.id = e.workspace_id
+     WHERE w.org_id = $1
+
+     UNION ALL
+
      SELECT 'resource'::entity_type, r.id
      FROM resources r
      INNER JOIN workspaces w ON w.id = r.workspace_id
@@ -43,6 +49,11 @@ WITH RECURSIVE entity_hierarchy AS (
          w.name as entity_name
      FROM workspaces w
      WHERE w.id = $1
+
+     UNION ALL
+
+     SELECT 'environment'::entity_type, e.id, e.name
+     FROM environments e WHERE e.workspace_id = $1
 
      UNION ALL
 
@@ -154,11 +165,11 @@ ORDER BY last_used_at DESC;
 -- -----------------------------------------------------------------------------
 
 -- name: CreateAPIToken :exec
-INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at, stack_name)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: GetAPIToken :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, stack_name
 FROM api_tokens
 WHERE token_hash = $1 AND expires_at > NOW();
 
@@ -190,3 +201,10 @@ WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 
 -- name: DeleteAPITokenByNameAndEntity :exec
 DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
+
+-- name: GetUserScopesOnEnvironment :many
+SELECT entity_type, entity_id, scope FROM user_scopes
+WHERE user_id = $2 AND (
+    (entity_type = 'environment' AND entity_id = $1) OR
+    (entity_type = 'resource' AND entity_id IN (SELECT id FROM resources WHERE environment_id = $1))
+);

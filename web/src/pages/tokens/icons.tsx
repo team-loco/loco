@@ -9,6 +9,8 @@ export function kindIcon(kind: NodeKind): ReactNode {
 			return <Building2Icon />;
 		case "ws":
 			return <LayersIcon />;
+		case "env":
+			return <LayersIcon />;
 		case "res":
 			return <BoxIcon />;
 		case "user":

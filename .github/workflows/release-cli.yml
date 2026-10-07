@@ -7,6 +7,7 @@ on:
     paths:
       - "cmd/**"
       - "internal/**"
+      - "sdk/**"
       - "gen/go/**"
       - "main.go"
       - "go.mod"
@@ -31,6 +32,9 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: test-.
+
+      - name: Run SDK tests
+        run: mise run test:sdk
 
       - name: Run tests
         run: mise run test:cli

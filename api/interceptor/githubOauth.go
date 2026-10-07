@@ -86,6 +86,13 @@ func (i *githubAuthInterceptor) authenticate(
 	})
 	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
 	c = context.WithValue(c, contextkeys.TokenKey, token)
+	restriction, restrictionErr := i.machine.StackRestriction(c, token)
+	if restrictionErr != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, restrictionErr)
+	}
+	if restriction != nil {
+		c = context.WithValue(c, contextkeys.StackRestrictionKey, restriction)
+	}
 
 	slog.DebugContext(
 		c,

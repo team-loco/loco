@@ -7,6 +7,7 @@
 package registryv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,106 +22,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
-type GetGitlabTokenRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetGitlabTokenRequest) Reset() {
-	*x = GetGitlabTokenRequest{}
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetGitlabTokenRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetGitlabTokenRequest) ProtoMessage() {}
-
-func (x *GetGitlabTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetGitlabTokenRequest.ProtoReflect.Descriptor instead.
-func (*GetGitlabTokenRequest) Descriptor() ([]byte, []int) {
-	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{0}
-}
-
-// GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
-type GetGitlabTokenResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	Token         string                 `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetGitlabTokenResponse) Reset() {
-	*x = GetGitlabTokenResponse{}
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetGitlabTokenResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetGitlabTokenResponse) ProtoMessage() {}
-
-func (x *GetGitlabTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetGitlabTokenResponse.ProtoReflect.Descriptor instead.
-func (*GetGitlabTokenResponse) Descriptor() ([]byte, []int) {
-	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *GetGitlabTokenResponse) GetUsername() string {
-	if x != nil {
-		return x.Username
-	}
-	return ""
-}
-
-func (x *GetGitlabTokenResponse) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-// GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
 type GetImageRepositoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	StackName     string                 `protobuf:"bytes,2,opt,name=stack_name,json=stackName,proto3" json:"stack_name,omitempty"`
+	ServiceKey    string                 `protobuf:"bytes,3,opt,name=service_key,json=serviceKey,proto3" json:"service_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetImageRepositoryRequest) Reset() {
 	*x = GetImageRepositoryRequest{}
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[2]
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -132,7 +45,7 @@ func (x *GetImageRepositoryRequest) String() string {
 func (*GetImageRepositoryRequest) ProtoMessage() {}
 
 func (x *GetImageRepositoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[2]
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -145,20 +58,41 @@ func (x *GetImageRepositoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetImageRepositoryRequest.ProtoReflect.Descriptor instead.
 func (*GetImageRepositoryRequest) Descriptor() ([]byte, []int) {
-	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{2}
+	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{0}
 }
 
-// GetImageRepositoryResponse names the repository deployment images are pushed to.
+func (x *GetImageRepositoryRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *GetImageRepositoryRequest) GetStackName() string {
+	if x != nil {
+		return x.StackName
+	}
+	return ""
+}
+
+func (x *GetImageRepositoryRequest) GetServiceKey() string {
+	if x != nil {
+		return x.ServiceKey
+	}
+	return ""
+}
+
 type GetImageRepositoryResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Repository    string                 `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Repository     string                 `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	PushRepository string                 `protobuf:"bytes,2,opt,name=push_repository,json=pushRepository,proto3" json:"push_repository,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetImageRepositoryResponse) Reset() {
 	*x = GetImageRepositoryResponse{}
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[3]
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -170,7 +104,7 @@ func (x *GetImageRepositoryResponse) String() string {
 func (*GetImageRepositoryResponse) ProtoMessage() {}
 
 func (x *GetImageRepositoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_registry_v1_registry_proto_msgTypes[3]
+	mi := &file_loco_registry_v1_registry_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -183,7 +117,7 @@ func (x *GetImageRepositoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetImageRepositoryResponse.ProtoReflect.Descriptor instead.
 func (*GetImageRepositoryResponse) Descriptor() ([]byte, []int) {
-	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{3}
+	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetImageRepositoryResponse) GetRepository() string {
@@ -193,23 +127,31 @@ func (x *GetImageRepositoryResponse) GetRepository() string {
 	return ""
 }
 
+func (x *GetImageRepositoryResponse) GetPushRepository() string {
+	if x != nil {
+		return x.PushRepository
+	}
+	return ""
+}
+
 var File_loco_registry_v1_registry_proto protoreflect.FileDescriptor
 
 const file_loco_registry_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1floco/registry/v1/registry.proto\x12\x10loco.registry.v1\"\x17\n" +
-	"\x15GetGitlabTokenRequest\"J\n" +
-	"\x16GetGitlabTokenResponse\x12\x1a\n" +
-	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token\"\x1b\n" +
-	"\x19GetImageRepositoryRequest\"<\n" +
+	"\x1floco/registry/v1/registry.proto\x12\x10loco.registry.v1\x1a\x1bbuf/validate/validate.proto\"\xca\x01\n" +
+	"\x19GetImageRepositoryRequest\x12/\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12<\n" +
+	"\n" +
+	"stack_name\x18\x02 \x01(\tB\x1d\xbaH\x1ar\x182\x16^[a-z][a-z0-9-]{0,62}$R\tstackName\x12>\n" +
+	"\vservice_key\x18\x03 \x01(\tB\x1d\xbaH\x1ar\x182\x16^[a-z][a-z0-9-]{0,62}$R\n" +
+	"serviceKey\"e\n" +
 	"\x1aGetImageRepositoryResponse\x12\x1e\n" +
 	"\n" +
 	"repository\x18\x01 \x01(\tR\n" +
-	"repository2\xeb\x01\n" +
-	"\x0fRegistryService\x12e\n" +
-	"\x0eGetGitlabToken\x12'.loco.registry.v1.GetGitlabTokenRequest\x1a(.loco.registry.v1.GetGitlabTokenResponse\"\x00\x12q\n" +
-	"\x12GetImageRepository\x12+.loco.registry.v1.GetImageRepositoryRequest\x1a,.loco.registry.v1.GetImageRepositoryResponse\"\x00B>Z<github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1b\x06proto3"
+	"repository\x12'\n" +
+	"\x0fpush_repository\x18\x02 \x01(\tR\x0epushRepository2\x82\x01\n" +
+	"\x0fRegistryService\x12o\n" +
+	"\x12GetImageRepository\x12+.loco.registry.v1.GetImageRepositoryRequest\x1a,.loco.registry.v1.GetImageRepositoryResponseB>Z<github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1b\x06proto3"
 
 var (
 	file_loco_registry_v1_registry_proto_rawDescOnce sync.Once
@@ -223,20 +165,16 @@ func file_loco_registry_v1_registry_proto_rawDescGZIP() []byte {
 	return file_loco_registry_v1_registry_proto_rawDescData
 }
 
-var file_loco_registry_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_loco_registry_v1_registry_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_loco_registry_v1_registry_proto_goTypes = []any{
-	(*GetGitlabTokenRequest)(nil),      // 0: loco.registry.v1.GetGitlabTokenRequest
-	(*GetGitlabTokenResponse)(nil),     // 1: loco.registry.v1.GetGitlabTokenResponse
-	(*GetImageRepositoryRequest)(nil),  // 2: loco.registry.v1.GetImageRepositoryRequest
-	(*GetImageRepositoryResponse)(nil), // 3: loco.registry.v1.GetImageRepositoryResponse
+	(*GetImageRepositoryRequest)(nil),  // 0: loco.registry.v1.GetImageRepositoryRequest
+	(*GetImageRepositoryResponse)(nil), // 1: loco.registry.v1.GetImageRepositoryResponse
 }
 var file_loco_registry_v1_registry_proto_depIdxs = []int32{
-	0, // 0: loco.registry.v1.RegistryService.GetGitlabToken:input_type -> loco.registry.v1.GetGitlabTokenRequest
-	2, // 1: loco.registry.v1.RegistryService.GetImageRepository:input_type -> loco.registry.v1.GetImageRepositoryRequest
-	1, // 2: loco.registry.v1.RegistryService.GetGitlabToken:output_type -> loco.registry.v1.GetGitlabTokenResponse
-	3, // 3: loco.registry.v1.RegistryService.GetImageRepository:output_type -> loco.registry.v1.GetImageRepositoryResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	0, // 0: loco.registry.v1.RegistryService.GetImageRepository:input_type -> loco.registry.v1.GetImageRepositoryRequest
+	1, // 1: loco.registry.v1.RegistryService.GetImageRepository:output_type -> loco.registry.v1.GetImageRepositoryResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -253,7 +191,7 @@ func file_loco_registry_v1_registry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_registry_v1_registry_proto_rawDesc), len(file_loco_registry_v1_registry_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

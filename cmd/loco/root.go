@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/config"
+	"github.com/team-loco/loco/cmd/loco/infra"
 	"github.com/team-loco/loco/cmd/loco/org"
 	"github.com/team-loco/loco/cmd/loco/resource"
 	"github.com/team-loco/loco/cmd/loco/token"
@@ -69,6 +70,8 @@ func NewRootCmd(env Env) *cobra.Command {
 		newWebCmd(),
 		newUpdateCmd(),
 		config.BuildConfigCmd(),
+		infra.BuildCmd(),
+		infra.BuildSecretCmd(),
 	)
 
 	root.AddCommand(resource.BuildDeployCmd())

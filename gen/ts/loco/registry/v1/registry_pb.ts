@@ -4,92 +4,53 @@
 
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/registry/v1/registry.proto.
  */
 export const file_loco_registry_v1_registry: GenFile = /*@__PURE__*/
-  fileDesc("Ch9sb2NvL3JlZ2lzdHJ5L3YxL3JlZ2lzdHJ5LnByb3RvEhBsb2NvLnJlZ2lzdHJ5LnYxIhcKFUdldEdpdGxhYlRva2VuUmVxdWVzdCI5ChZHZXRHaXRsYWJUb2tlblJlc3BvbnNlEhAKCHVzZXJuYW1lGAEgASgJEg0KBXRva2VuGAIgASgJIhsKGUdldEltYWdlUmVwb3NpdG9yeVJlcXVlc3QiMAoaR2V0SW1hZ2VSZXBvc2l0b3J5UmVzcG9uc2USEgoKcmVwb3NpdG9yeRgBIAEoCTLrAQoPUmVnaXN0cnlTZXJ2aWNlEmUKDkdldEdpdGxhYlRva2VuEicubG9jby5yZWdpc3RyeS52MS5HZXRHaXRsYWJUb2tlblJlcXVlc3QaKC5sb2NvLnJlZ2lzdHJ5LnYxLkdldEdpdGxhYlRva2VuUmVzcG9uc2UiABJxChJHZXRJbWFnZVJlcG9zaXRvcnkSKy5sb2NvLnJlZ2lzdHJ5LnYxLkdldEltYWdlUmVwb3NpdG9yeVJlcXVlc3QaLC5sb2NvLnJlZ2lzdHJ5LnYxLkdldEltYWdlUmVwb3NpdG9yeVJlc3BvbnNlIgBCPlo8Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9yZWdpc3RyeS92MTtyZWdpc3RyeXYxYgZwcm90bzM");
+  fileDesc("Ch9sb2NvL3JlZ2lzdHJ5L3YxL3JlZ2lzdHJ5LnByb3RvEhBsb2NvLnJlZ2lzdHJ5LnYxIqQBChlHZXRJbWFnZVJlcG9zaXRvcnlSZXF1ZXN0EiAKDmVudmlyb25tZW50X2lkGAEgASgJQgi6SAVyA7ABARIxCgpzdGFja19uYW1lGAIgASgJQh26SBpyGDIWXlthLXpdW2EtejAtOS1dezAsNjJ9JBIyCgtzZXJ2aWNlX2tleRgDIAEoCUIdukgachgyFl5bYS16XVthLXowLTktXXswLDYyfSQiSQoaR2V0SW1hZ2VSZXBvc2l0b3J5UmVzcG9uc2USEgoKcmVwb3NpdG9yeRgBIAEoCRIXCg9wdXNoX3JlcG9zaXRvcnkYAiABKAkyggEKD1JlZ2lzdHJ5U2VydmljZRJvChJHZXRJbWFnZVJlcG9zaXRvcnkSKy5sb2NvLnJlZ2lzdHJ5LnYxLkdldEltYWdlUmVwb3NpdG9yeVJlcXVlc3QaLC5sb2NvLnJlZ2lzdHJ5LnYxLkdldEltYWdlUmVwb3NpdG9yeVJlc3BvbnNlQj5aPGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vcmVnaXN0cnkvdjE7cmVnaXN0cnl2MWIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
- * GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
- *
- * @generated from message loco.registry.v1.GetGitlabTokenRequest
- */
-export type GetGitlabTokenRequest = Message<"loco.registry.v1.GetGitlabTokenRequest"> & {
-};
-
-/**
- * GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
- *
- * @generated from message loco.registry.v1.GetGitlabTokenRequest
- */
-export type GetGitlabTokenRequestJson = {
-};
-
-/**
- * Describes the message loco.registry.v1.GetGitlabTokenRequest.
- * Use `create(GetGitlabTokenRequestSchema)` to create a new message.
- */
-export const GetGitlabTokenRequestSchema: GenMessage<GetGitlabTokenRequest, {jsonType: GetGitlabTokenRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_registry_v1_registry, 0);
-
-/**
- * GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
- *
- * @generated from message loco.registry.v1.GetGitlabTokenResponse
- */
-export type GetGitlabTokenResponse = Message<"loco.registry.v1.GetGitlabTokenResponse"> & {
-  /**
-   * @generated from field: string username = 1;
-   */
-  username: string;
-
-  /**
-   * @generated from field: string token = 2;
-   */
-  token: string;
-};
-
-/**
- * GetGitlabTokenResponse contains GitLab registry credentials for container image authentication.
- *
- * @generated from message loco.registry.v1.GetGitlabTokenResponse
- */
-export type GetGitlabTokenResponseJson = {
-  /**
-   * @generated from field: string username = 1;
-   */
-  username?: string;
-
-  /**
-   * @generated from field: string token = 2;
-   */
-  token?: string;
-};
-
-/**
- * Describes the message loco.registry.v1.GetGitlabTokenResponse.
- * Use `create(GetGitlabTokenResponseSchema)` to create a new message.
- */
-export const GetGitlabTokenResponseSchema: GenMessage<GetGitlabTokenResponse, {jsonType: GetGitlabTokenResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_registry_v1_registry, 1);
-
-/**
- * GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
- *
  * @generated from message loco.registry.v1.GetImageRepositoryRequest
  */
 export type GetImageRepositoryRequest = Message<"loco.registry.v1.GetImageRepositoryRequest"> & {
+  /**
+   * @generated from field: string environment_id = 1;
+   */
+  environmentId: string;
+
+  /**
+   * @generated from field: string stack_name = 2;
+   */
+  stackName: string;
+
+  /**
+   * @generated from field: string service_key = 3;
+   */
+  serviceKey: string;
 };
 
 /**
- * GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
- *
  * @generated from message loco.registry.v1.GetImageRepositoryRequest
  */
 export type GetImageRepositoryRequestJson = {
+  /**
+   * @generated from field: string environment_id = 1;
+   */
+  environmentId?: string;
+
+  /**
+   * @generated from field: string stack_name = 2;
+   */
+  stackName?: string;
+
+  /**
+   * @generated from field: string service_key = 3;
+   */
+  serviceKey?: string;
 };
 
 /**
@@ -97,11 +58,9 @@ export type GetImageRepositoryRequestJson = {
  * Use `create(GetImageRepositoryRequestSchema)` to create a new message.
  */
 export const GetImageRepositoryRequestSchema: GenMessage<GetImageRepositoryRequest, {jsonType: GetImageRepositoryRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_registry_v1_registry, 2);
+  messageDesc(file_loco_registry_v1_registry, 0);
 
 /**
- * GetImageRepositoryResponse names the repository deployment images are pushed to.
- *
  * @generated from message loco.registry.v1.GetImageRepositoryResponse
  */
 export type GetImageRepositoryResponse = Message<"loco.registry.v1.GetImageRepositoryResponse"> & {
@@ -109,11 +68,14 @@ export type GetImageRepositoryResponse = Message<"loco.registry.v1.GetImageRepos
    * @generated from field: string repository = 1;
    */
   repository: string;
+
+  /**
+   * @generated from field: string push_repository = 2;
+   */
+  pushRepository: string;
 };
 
 /**
- * GetImageRepositoryResponse names the repository deployment images are pushed to.
- *
  * @generated from message loco.registry.v1.GetImageRepositoryResponse
  */
 export type GetImageRepositoryResponseJson = {
@@ -121,6 +83,11 @@ export type GetImageRepositoryResponseJson = {
    * @generated from field: string repository = 1;
    */
   repository?: string;
+
+  /**
+   * @generated from field: string push_repository = 2;
+   */
+  pushRepository?: string;
 };
 
 /**
@@ -128,27 +95,13 @@ export type GetImageRepositoryResponseJson = {
  * Use `create(GetImageRepositoryResponseSchema)` to create a new message.
  */
 export const GetImageRepositoryResponseSchema: GenMessage<GetImageRepositoryResponse, {jsonType: GetImageRepositoryResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_registry_v1_registry, 3);
+  messageDesc(file_loco_registry_v1_registry, 1);
 
 /**
- * RegistryService manages container registry access.
- *
  * @generated from service loco.registry.v1.RegistryService
  */
 export const RegistryService: GenService<{
   /**
-   * GetGitlabToken retrieves GitLab registry credentials.
-   *
-   * @generated from rpc loco.registry.v1.RegistryService.GetGitlabToken
-   */
-  getGitlabToken: {
-    methodKind: "unary";
-    input: typeof GetGitlabTokenRequestSchema;
-    output: typeof GetGitlabTokenResponseSchema;
-  },
-  /**
-   * GetImageRepository returns the repository the CLI pushes deployment images to.
-   *
    * @generated from rpc loco.registry.v1.RegistryService.GetImageRepository
    */
   getImageRepository: {

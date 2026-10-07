@@ -5,7 +5,7 @@ import { scopeLevel } from "@/hooks/useMyScopes";
 import { DAY_MS, maybeTsMs } from "@/lib/time";
 
 export type OwnerKey = "org" | "workspace" | "personal";
-export type NodeKind = "org" | "ws" | "res" | "user" | "system";
+export type NodeKind = "org" | "ws" | "env" | "res" | "user" | "system";
 export type Level = 1 | 2 | 3;
 
 export const LEVELS: Level[] = [1, 2, 3];
@@ -29,6 +29,7 @@ export const ALLOWS: Record<NodeKind, string[]> = {
 		"Create resources and environments, add members",
 		"Delete the workspace or environments, remove members",
 	],
+	env: ["View environment resources and plans", "Publish images and apply plans", "Delete environment resources"],
 	res: [
 		"View status, logs, events and deployments",
 		"Deploy, scale, restart, edit variables and domains",
@@ -77,6 +78,8 @@ function kindOf(entityType: EntityType): NodeKind {
 			return "org";
 		case EntityType.WORKSPACE:
 			return "ws";
+		case EntityType.ENVIRONMENT:
+			return "env";
 		case EntityType.RESOURCE:
 			return "res";
 		case EntityType.USER:
@@ -94,6 +97,8 @@ export function kindLabel(kind: NodeKind): string {
 			return "Organization";
 		case "ws":
 			return "Workspace";
+		case "env":
+			return "Environment";
 		case "res":
 			return "Resource";
 		case "user":
@@ -185,7 +190,7 @@ export function withScopeEntities(tree: EntityTree, scopes: EntityScope[]): Enti
 	return { nodes, order: tree.order, childCount: tree.childCount };
 }
 
-const KIND_ORDER: Record<NodeKind, number> = { system: 0, user: 1, org: 2, ws: 3, res: 4 };
+const KIND_ORDER: Record<NodeKind, number> = { system: 0, user: 1, org: 2, ws: 3, env: 4, res: 5 };
 
 export function sortKeys(tree: EntityTree, keys: string[]): string[] {
 	const index = new Map(tree.order.map((n, i) => [n.key, i]));
@@ -214,6 +219,9 @@ function summarize(tree: EntityTree, keys: string[]): string {
 				break;
 			case "ws":
 				parts.push(`${n.label} (workspace)`);
+				break;
+			case "env":
+				parts.push(`${n.label} (environment)`);
 				break;
 			case "res":
 				break;
