@@ -21,6 +21,20 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Own regressions.** A test that fails after your change is yours to diagnose; don't argue it was already broken without proof.
 - **Evidence over assumptions.** Reproduce a bug before fixing it, and find the root cause instead of patching the symptom.
 - **Fail fast on invalid states.** Assert invariants; don't hide defects behind defensive conditionals.
+- **Clean as you go.** Fix stale code you find in the area you touch (unread fields, outdated
+  comments, unused files) in the same PR.
+- **Features ship with an e2e suite**: one `mise run e2e:<suite>` that builds its own kind
+  cluster from a clean machine and cleans up after itself. Extend `e2e/`.
+
+## Dependencies and Configuration
+
+- **Every version is pinned in a file Renovate tracks** (go.mod, package.json, mise.toml, chart
+  values, Dockerfiles, workflows). Never write a version in code or a script; read it from the
+  tracked file. New pins start at the latest release.
+- **One source per value.** Don't repeat a chart value as a Go default or a script constant.
+- **Read configuration once at startup** into a config struct, like `newAPIConfig()` in
+  `api/main.go`; no `os.Getenv` elsewhere. Invalid configuration panics. Tunable limits,
+  timeouts and defaults are config fields, not literals in the code.
 
 ## Code Style
 
@@ -40,7 +54,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
 - **Switch statements**: never group `case` labels to share a body. Every case gets its own body, even when two cases return the same value — grouped labels are a fallthrough, and a later edit that adds a statement under the first label silently changes the second. Prefer an explicit `case X: return "a"; case Y: return "a";` over `case X: case Y: return "a";`.
 - **Proto Optional Fields**: Always use getter syntax (e.g., `r.GetDescription()`) instead of pointer checks. Never write `r.Description != nil && *r.Description != ""`.
 - **Errors**: don't scatter `errors.New()` / `fmt.Errorf()` through function bodies. Any error with a fixed message is a package-level variable: in the package's `errors.go` when several files use it, otherwise in a `var` block at the top of the file. Reuse an existing sentinel before declaring a new one. Inline is only for errors that wrap or format runtime values (`fmt.Errorf("context: %w", err)`).
-- **Magic numbers**: no unexplained literals in logic (`5 << 20`, `1024`, `65535`, timeouts, limits, ports). Name them as `const`s at the top of the file. Before submitting, check the whole change for any you missed.
+- **Magic numbers**: no unexplained literals in logic (`5 << 20`, `1024`, `65535`, timeouts, limits, ports). Tunable values belong in the config struct; the rest are named `const`s at the top of the file. Before submitting, check the whole change for any you missed.
 - **Names**: never use numbered suffixes (`uniqueJSONErr2`, `uniqueJSONErr3`). Name each value after what it holds.
 - **Nested calls**: name a call's result in a local before passing it to another call or a struct literal.
 
@@ -73,6 +87,8 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   one large PR or hand-rolled branches off each other.
 - **Check PR state before pushing.** A draft can be merged or closed while you work on it.
   Run `gh pr view` before pushing more commits to its branch.
+- **Buf compares against `main`**, so every PR in a stack above a breaking proto change also
+  needs the `break-buf` label.
 - **This repo is public.** Never put exploitable weaknesses — missing auth, forgeable attributes, over-broad credentials,... Never also run a plain `git add .` or `git add -A`, without knowing it is safe. Assume all git issues, notes, comments, code, is visible to everyone in the world.
 
 ## Generated Code
