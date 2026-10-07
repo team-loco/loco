@@ -2,6 +2,8 @@
 
 Implementation branch: `feat/go-infrastructure-as-code`.
 
+The API reset is intentional for a zero-user application. The PR uses the repository’s existing `break-buf` compatibility-check exception.
+
 ## Automated checks
 
 The CLI, API and web production builds pass. The Go SDK and infrastructure evaluation tests pass. Database-backed API tests run against an isolated PostgreSQL 18 container; each fixture creates and drops its own database. Agent tests pass.
@@ -31,7 +33,7 @@ The example Git workflow is checked separately with actionlint. Generated protob
 
 ## Browser evidence
 
-Browser review uses synthetic API fixtures, with no live account or deployment credentials. Screenshots cover light and dark desktop views and a narrow viewport. Fixtures include an undeployed service belonging to another environment to check dashboard isolation.
+Browser review uses synthetic API fixtures, with no live account or deployment credentials. Screenshots cover light and dark desktop views and a narrow viewport. Fixtures include an undeployed service belonging to another environment to check dashboard isolation. Variable editing checks invalid names, masked input, a failed request, retained input and a successful retry.
 
 Before and after screenshots are in [screenshots](./screenshots/). The HTML technical design document is standalone and was reviewed in desktop, mobile and dark layouts.
 
