@@ -25,7 +25,7 @@ const adapterForUI: Promise<AuthAdapter | null> = authAdapter().catch((err: unkn
 	return null;
 });
 
-const SIGN_IN_PATHS = ["/auth/callback", "/auth/confirm"];
+const SIGN_IN_PATHS = ["/auth/callback"];
 
 const noSubscription = () => () => undefined;
 const neverSignedIn = () => false;

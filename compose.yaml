@@ -48,6 +48,8 @@ services:
     depends_on:
       auth-db:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_started
     ports:
       - "${AUTH_PORT:-9999}:9999"
     extra_hosts:
@@ -70,6 +72,21 @@ services:
       GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
       GOTRUE_MAILER_AUTOCONFIRM: "false"
       GOTRUE_SMTP_ADMIN_EMAIL: noreply@loco.local
+      GOTRUE_SMTP_HOST: mailpit
+      GOTRUE_SMTP_PORT: "1025"
+      GOTRUE_SMTP_SENDER_NAME: Loco
+      GOTRUE_MAILER_TEMPLATES_CONFIRMATION: ${AUTH_EMAIL_TEMPLATES:-http://host.docker.internal:5173/email}/confirmation.html
+      GOTRUE_MAILER_SUBJECTS_CONFIRMATION: "Confirm your email for Loco"
+      GOTRUE_MAILER_TEMPLATES_MAGIC_LINK: ${AUTH_EMAIL_TEMPLATES:-http://host.docker.internal:5173/email}/magic-link.html
+      GOTRUE_MAILER_SUBJECTS_MAGIC_LINK: "Your Loco sign-in link"
+      GOTRUE_MAILER_TEMPLATES_RECOVERY: ${AUTH_EMAIL_TEMPLATES:-http://host.docker.internal:5173/email}/recovery.html
+      GOTRUE_MAILER_SUBJECTS_RECOVERY: "Reset your Loco password"
+      GOTRUE_MAILER_TEMPLATES_INVITE: ${AUTH_EMAIL_TEMPLATES:-http://host.docker.internal:5173/email}/invite.html
+      GOTRUE_MAILER_SUBJECTS_INVITE: "You're invited to Loco"
+      GOTRUE_MAILER_TEMPLATES_EMAIL_CHANGE: ${AUTH_EMAIL_TEMPLATES:-http://host.docker.internal:5173/email}/email-change.html
+      GOTRUE_MAILER_SUBJECTS_EMAIL_CHANGE: "Confirm the change of your Loco email"
+      GOTRUE_MAILER_TEMPLATES_REAUTHENTICATION: ${AUTH_EMAIL_TEMPLATES:-http://host.docker.internal:5173/email}/reauthentication.html
+      GOTRUE_MAILER_SUBJECTS_REAUTHENTICATION: "Your Loco verification code"
       GOTRUE_EXTERNAL_GITHUB_ENABLED: ${AUTH_GITHUB_ENABLED:-true}
       GOTRUE_EXTERNAL_GITHUB_CLIENT_ID: ${GH_OAUTH_CLIENT_ID:-}
       GOTRUE_EXTERNAL_GITHUB_SECRET: ${GH_OAUTH_CLIENT_SECRET:-}
@@ -79,9 +96,6 @@ services:
       GOTRUE_HOOK_BEFORE_USER_CREATED_ENABLED: "true"
       GOTRUE_HOOK_BEFORE_USER_CREATED_URI: http://host.docker.internal${APP_PORT:-:8000}/auth/hooks/before-user-created
       GOTRUE_HOOK_BEFORE_USER_CREATED_SECRETS: ${AUTH_HOOK_SECRET:-}
-      GOTRUE_HOOK_SEND_EMAIL_ENABLED: "true"
-      GOTRUE_HOOK_SEND_EMAIL_URI: http://host.docker.internal${APP_PORT:-:8000}/auth/hooks/send-email
-      GOTRUE_HOOK_SEND_EMAIL_SECRETS: ${AUTH_HOOK_SECRET:-}
       GOTRUE_RATE_LIMIT_EMAIL_SENT: "1000"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9999/health"]

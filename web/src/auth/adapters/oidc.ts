@@ -166,9 +166,6 @@ export async function createOIDCAdapter(cfg: OIDCConfig): Promise<AuthAdapter> {
 			);
 			store(fromResponse(res, null));
 		},
-		verifyEmailLink: async () => {
-			await Promise.reject(new Error("Email links are not used with this identity provider"));
-		},
 		signOut: async () => {
 			store(null);
 			await Promise.resolve();

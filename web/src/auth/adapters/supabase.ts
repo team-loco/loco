@@ -2,7 +2,7 @@ import { GoTrueClient, type Provider, type Session, type SupportedStorage } from
 
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
-import type { AuthAdapter, EmailLinkType, LoginMethod } from "./types";
+import type { AuthAdapter, LoginMethod } from "./types";
 
 const STORAGE_KEY = "loco:auth:supabase:v1";
 
@@ -102,9 +102,6 @@ export async function createSupabaseAdapter(url: string): Promise<AuthAdapter> {
 			const code = current.searchParams.get("code");
 			if (code === null) throw new Error("The sign-in link is missing its code");
 			check(await client.exchangeCodeForSession(code));
-		},
-		verifyEmailLink: async (tokenHash: string, type: EmailLinkType) => {
-			check(await client.verifyOtp({ token_hash: tokenHash, type }));
 		},
 		signOut: async () => {
 			const { error } = await client.signOut({ scope: "local" });

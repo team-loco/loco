@@ -19,7 +19,6 @@ require (
 	github.com/team-loco/loco/k8sapi v0.0.0
 	github.com/valkey-io/valkey-go v1.0.78
 	golang.org/x/mod v0.41.0
-	golang.org/x/oauth2 v0.37.0
 	google.golang.org/protobuf v1.36.12
 	k8s.io/apimachinery v0.37.1
 )
@@ -63,6 +62,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
 	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/oauth2 v0.37.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect

@@ -16,6 +16,7 @@ export default defineConfig({
 		svgr(),
 	],
 	server: {
+		allowedHosts: ["host.docker.internal"],
 		fs: {
 			// gen/ts is outside the vite root; allow the dev server to read it.
 			allow: [path.resolve(dirname, ".."), path.resolve(dirname)],

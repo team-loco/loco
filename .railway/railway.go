@@ -149,12 +149,6 @@ func api(env environment) railway.Service {
 		"AUTH_SIGNUP_DOMAINS",
 		"AUTH_SUPABASE_SERVICE_KEY",
 		hookSecret,
-		"SMTP_FROM",
-		"SMTP_HOST",
-		"SMTP_PASSWORD",
-		"SMTP_PORT",
-		"SMTP_TLS",
-		"SMTP_USERNAME",
 	)
 	apiEnv["AUTH_ISSUERS"] = env.authIssuers()
 	apiEnv["WEB_URL"] = env.webURL()
@@ -179,6 +173,20 @@ func api(env environment) railway.Service {
 	})
 }
 
+type emailTemplate struct {
+	file    string
+	subject string
+}
+
+var emailTemplates = map[string]emailTemplate{
+	"CONFIRMATION":     {file: "confirmation.html", subject: "Confirm your email for Loco"},
+	"MAGIC_LINK":       {file: "magic-link.html", subject: "Your Loco sign-in link"},
+	"RECOVERY":         {file: "recovery.html", subject: "Reset your Loco password"},
+	"INVITE":           {file: "invite.html", subject: "You're invited to Loco"},
+	"EMAIL_CHANGE":     {file: "email-change.html", subject: "Confirm the change of your Loco email"},
+	"REAUTHENTICATION": {file: "reauthentication.html", subject: "Your Loco verification code"},
+}
+
 func auth(env environment, api railway.Service, db railway.Resource) railway.Service {
 	authEnv := preserved(
 		"GOTRUE_JWT_KEYS",
@@ -186,8 +194,17 @@ func auth(env environment, api railway.Service, db railway.Resource) railway.Ser
 		"GOTRUE_SAML_PRIVATE_KEY",
 		"GOTRUE_EXTERNAL_GITHUB_CLIENT_ID",
 		"GOTRUE_EXTERNAL_GITHUB_SECRET",
+		"GOTRUE_SMTP_ADMIN_EMAIL",
+		"GOTRUE_SMTP_HOST",
+		"GOTRUE_SMTP_PASS",
+		"GOTRUE_SMTP_PORT",
+		"GOTRUE_SMTP_USER",
 	)
 	hooks := env.apiURL() + "/auth/hooks/"
+	for kind, template := range emailTemplates {
+		authEnv["GOTRUE_MAILER_TEMPLATES_"+kind] = env.webURL() + "/email/" + template.file
+		authEnv["GOTRUE_MAILER_SUBJECTS_"+kind] = template.subject
+	}
 	for name, value := range map[string]any{
 		"API_EXTERNAL_URL":                        env.authURL(),
 		"DATABASE_URL":                            railway.Ref(db, "DATABASE_URL"),
@@ -199,9 +216,6 @@ func auth(env environment, api railway.Service, db railway.Resource) railway.Ser
 		"GOTRUE_HOOK_BEFORE_USER_CREATED_ENABLED": "true",
 		"GOTRUE_HOOK_BEFORE_USER_CREATED_SECRETS": api.Env(hookSecret),
 		"GOTRUE_HOOK_BEFORE_USER_CREATED_URI":     hooks + "before-user-created",
-		"GOTRUE_HOOK_SEND_EMAIL_ENABLED":          "true",
-		"GOTRUE_HOOK_SEND_EMAIL_SECRETS":          api.Env(hookSecret),
-		"GOTRUE_HOOK_SEND_EMAIL_URI":              hooks + "send-email",
 		"GOTRUE_JWT_ADMIN_ROLES":                  "service_role",
 		"GOTRUE_JWT_AUD":                          "authenticated",
 		"GOTRUE_JWT_DEFAULT_GROUP_NAME":           "authenticated",
@@ -209,6 +223,7 @@ func auth(env environment, api railway.Service, db railway.Resource) railway.Ser
 		"GOTRUE_JWT_ISSUER":                       env.authURL(),
 		"GOTRUE_MAILER_AUTOCONFIRM":               "false",
 		"GOTRUE_SAML_ENABLED":                     "true",
+		"GOTRUE_SMTP_SENDER_NAME":                 "Loco",
 		"GOTRUE_SITE_URL":                         env.webURL(),
 		"GOTRUE_URI_ALLOW_LIST":                   env.webURL() + "/**",
 		"PORT":                                    strconv.Itoa(authPort),

@@ -30,7 +30,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
-	"github.com/team-loco/loco/api/notify"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/service"
@@ -79,12 +78,6 @@ type APIConfig struct {
 	AuthSignupDomains     string
 	AuthHookSecret        string
 	WebURL                string
-	SMTPHost              string
-	SMTPPort              string
-	SMTPUsername          string
-	SMTPPassword          string
-	SMTPFrom              string
-	SMTPTLS               string
 	EventsRetentionDays   string
 }
 
@@ -132,12 +125,6 @@ func newAPIConfig() *APIConfig {
 		AuthSignupDomains:     os.Getenv("AUTH_SIGNUP_DOMAINS"),
 		AuthHookSecret:        os.Getenv("AUTH_HOOK_SECRET"),
 		WebURL:                os.Getenv("WEB_URL"),
-		SMTPHost:              os.Getenv("SMTP_HOST"),
-		SMTPPort:              os.Getenv("SMTP_PORT"),
-		SMTPUsername:          os.Getenv("SMTP_USERNAME"),
-		SMTPPassword:          os.Getenv("SMTP_PASSWORD"),
-		SMTPFrom:              os.Getenv("SMTP_FROM"),
-		SMTPTLS:               os.Getenv("SMTP_TLS"),
 		EventsRetentionDays:   os.Getenv("EVENTS_RETENTION_DAYS"),
 	}
 }
@@ -217,24 +204,6 @@ func eventsRetention(days string) time.Duration {
 	return time.Duration(n) * 24 * time.Hour
 }
 
-func newMailer(ac *APIConfig) (notify.Mailer, error) {
-	if ac.SMTPHost == "" {
-		return notify.LogMailer{}, nil
-	}
-	cfg, err := notify.ParseSMTPConfig(
-		ac.SMTPHost,
-		ac.SMTPPort,
-		ac.SMTPUsername,
-		ac.SMTPPassword,
-		ac.SMTPFrom,
-		ac.SMTPTLS,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return notify.NewSMTPMailer(cfg), nil
-}
-
 func newPprofServer(addr string) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -284,11 +253,6 @@ func main() {
 	if policyErr != nil {
 		log.Fatalf("AUTH_SIGNUP_MODE: %v", policyErr)
 	}
-	mailer, mailerErr := newMailer(ac)
-	if mailerErr != nil {
-		log.Fatalf("SMTP: %v", mailerErr)
-	}
-
 	if err := migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
 		log.Fatal(err)
 	}
@@ -331,10 +295,7 @@ func main() {
 		if webhookErr != nil {
 			log.Fatalf("AUTH_HOOK_SECRET: %v", webhookErr)
 		}
-		if ac.WebURL == "" {
-			log.Fatal("WEB_URL is required when AUTH_HOOK_SECRET is set")
-		}
-		auth.NewHooks(webhook, signupPolicy, mailer, ac.WebURL).Register(mux)
+		auth.NewHooks(webhook, signupPolicy).Register(mux)
 	}
 
 	httpInterceptors := connect.WithInterceptors(

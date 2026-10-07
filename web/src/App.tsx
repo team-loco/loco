@@ -5,7 +5,6 @@ import { Toaster } from "@/components/design/Sonner";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Login } from "@/pages/Login";
 import { AuthCallback } from "@/pages/auth/AuthCallback";
-import { AuthConfirm } from "@/pages/auth/AuthConfirm";
 import { CliDevice } from "@/pages/cli/CliDevice";
 import { CliLogin } from "@/pages/cli/CliLogin";
 import { ResourceTitle } from "@/pages/resource/ResourceTitle";
@@ -91,7 +90,6 @@ function AppRoutes() {
 				<Route path="/" element={<Splash />} />
 				<Route path="/login" element={<Login />} />
 				<Route path="/auth/callback" element={<AuthCallback />} />
-				<Route path="/auth/confirm" element={<AuthConfirm />} />
 				<Route path="/cli/login" element={<><PageTitle title="Sign in to the CLI" /><CliLogin /></>} />
 				<Route path="/cli/device" element={<><PageTitle title="Sign in a device" /><CliDevice /></>} />
 				<Route path="/onboarding" element={<Navigate to="/dashboard" replace />} />
