@@ -25,6 +25,11 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.uploadMode = args[1]
 		api.mu.Unlock()
+	case "builds-unavailable":
+		requireArgs(ts, neg, args, 2, "fakeapi builds-unavailable <CreateBuild|StartBuild>")
+		api.mu.Lock()
+		api.platform.buildsUnavailable = args[1]
+		api.mu.Unlock()
 	case "source-limit":
 		requireArgs(ts, neg, args, 2, "fakeapi source-limit <bytes>")
 		limit, err := strconv.ParseInt(args[1], 10, 64)

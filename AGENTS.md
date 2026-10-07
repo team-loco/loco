@@ -97,10 +97,13 @@ Never hand-edit. Regenerate via `mise run gen` after any changes to `proto/`, `a
   `api/migrations/`.
 
 - `k8sapi/**/zz_generated.deepcopy.go`, `controller/config/crd/bases/**`,
-  `controller/config/rbac/role.yaml` and the chart's copy in
-  `charts/loco-controller/templates/crd/applications.infra.loco.io.yaml` —
-  `mise run controller:gen`. CI fails when any of them is out of date. Read the diff:
-  unrelated-looking changes in the chart copy are usually real drift.
+  `controller/config/rbac/role.yaml` (Application controller, from the markers in
+  `controller/internal/controller`), `controller/config/rbac/builds/role.yaml` (build
+  controller, from `controller/internal/builds`) and the `charts/loco-operator` copies of
+  them: `templates/crd/*.infra.loco.io.yaml`, `templates/controller/manager-role.yaml` and
+  `templates/builds/manager-role.yaml` — `mise run controller:gen`. CI fails when any of
+  them is out of date. Read the diff: unrelated-looking changes in the chart copies are
+  usually real drift.
 - The database has no users yet: edit migrations in place instead of adding new ones.
 
 ## Linting

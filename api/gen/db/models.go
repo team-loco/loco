@@ -380,6 +380,7 @@ type Cluster struct {
 	ObservabilityProxyEndpoint *string    `json:"observabilityProxyEndpoint"`
 	GatewayHostname            *string    `json:"gatewayHostname"`
 	SyncGeneration             int64      `json:"syncGeneration"`
+	BuildsEnabled              bool       `json:"buildsEnabled"`
 	Tier                       string     `json:"tier"`
 	CreatedAt                  time.Time  `json:"createdAt"`
 	UpdatedAt                  time.Time  `json:"updatedAt"`

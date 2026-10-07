@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/build/v1/build.proto.
  */
 export const file_loco_build_v1_build: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2J1aWxkL3YxL2J1aWxkLnByb3RvEg1sb2NvLmJ1aWxkLnYxIvgDCgVCdWlsZBIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRIXCgpjbHVzdGVyX2lkGAMgASgJSACIAQESKgoGc3RhdHVzGAQgASgOMhoubG9jby5idWlsZC52MS5CdWlsZFN0YXR1cxITCgtzb3VyY2VfdHlwZRgFIAEoCRISCgpzb3VyY2Vfa2V5GAYgASgJEhMKC3NvdXJjZV9zaXplGAcgASgDEhcKD2RvY2tlcmZpbGVfcGF0aBgIIAEoCRIYChBpbWFnZV9yZXBvc2l0b3J5GAkgASgJEhkKDGltYWdlX2RpZ2VzdBgKIAEoCUgBiAEBEg8KB21lc3NhZ2UYCyABKAkSEgoKY3JlYXRlZF9ieRgMIAEoCRIuCgpjcmVhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCgpzdGFydGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgCiAEBEjQKC2ZpbmlzaGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBQg0KC19jbHVzdGVyX2lkQg8KDV9pbWFnZV9kaWdlc3RCDQoLX3N0YXJ0ZWRfYXRCDgoMX2ZpbmlzaGVkX2F0InYKEkNyZWF0ZUJ1aWxkUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoPZG9ja2VyZmlsZV9wYXRoGAIgASgJQgq6SAdyBRABGIAIEhwKC3NvdXJjZV9zaXplGAMgASgDQge6SAQiAiAAInIKE0NyZWF0ZUJ1aWxkUmVzcG9uc2USEAoIYnVpbGRfaWQYASABKAkSEgoKdXBsb2FkX3VybBgCIAEoCRI1ChF1cGxvYWRfZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLwoRU3RhcnRCdWlsZFJlcXVlc3QSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBIjkKElN0YXJ0QnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQiLQoPR2V0QnVpbGRSZXF1ZXN0EhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASI3ChBHZXRCdWlsZFJlc3BvbnNlEiMKBWJ1aWxkGAEgASgLMhQubG9jby5idWlsZC52MS5CdWlsZCJlChFMaXN0QnVpbGRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiUwoSTGlzdEJ1aWxkc1Jlc3BvbnNlEiQKBmJ1aWxkcxgBIAMoCzIULmxvY28uYnVpbGQudjEuQnVpbGQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIjAKEkNhbmNlbEJ1aWxkUmVxdWVzdBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQEiOgoTQ2FuY2VsQnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQq0AEKC0J1aWxkU3RhdHVzEhwKGEJVSUxEX1NUQVRVU19VTlNQRUNJRklFRBAAEiAKHEJVSUxEX1NUQVRVU19BV0FJVElOR19VUExPQUQQARIXChNCVUlMRF9TVEFUVVNfUVVFVUVEEAISGAoUQlVJTERfU1RBVFVTX1JVTk5JTkcQAxIaChZCVUlMRF9TVEFUVVNfU1VDQ0VFREVEEAQSFwoTQlVJTERfU1RBVFVTX0ZBSUxFRBAFEhkKFUJVSUxEX1NUQVRVU19DQU5DRUxFRBAGMq0DCgxCdWlsZFNlcnZpY2USVAoLQ3JlYXRlQnVpbGQSIS5sb2NvLmJ1aWxkLnYxLkNyZWF0ZUJ1aWxkUmVxdWVzdBoiLmxvY28uYnVpbGQudjEuQ3JlYXRlQnVpbGRSZXNwb25zZRJRCgpTdGFydEJ1aWxkEiAubG9jby5idWlsZC52MS5TdGFydEJ1aWxkUmVxdWVzdBohLmxvY28uYnVpbGQudjEuU3RhcnRCdWlsZFJlc3BvbnNlEksKCEdldEJ1aWxkEh4ubG9jby5idWlsZC52MS5HZXRCdWlsZFJlcXVlc3QaHy5sb2NvLmJ1aWxkLnYxLkdldEJ1aWxkUmVzcG9uc2USUQoKTGlzdEJ1aWxkcxIgLmxvY28uYnVpbGQudjEuTGlzdEJ1aWxkc1JlcXVlc3QaIS5sb2NvLmJ1aWxkLnYxLkxpc3RCdWlsZHNSZXNwb25zZRJUCgtDYW5jZWxCdWlsZBIhLmxvY28uYnVpbGQudjEuQ2FuY2VsQnVpbGRSZXF1ZXN0GiIubG9jby5idWlsZC52MS5DYW5jZWxCdWlsZFJlc3BvbnNlQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYnVpbGQvdjE7YnVpbGR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2J1aWxkL3YxL2J1aWxkLnByb3RvEg1sb2NvLmJ1aWxkLnYxIvgDCgVCdWlsZBIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRIXCgpjbHVzdGVyX2lkGAMgASgJSACIAQESKgoGc3RhdHVzGAQgASgOMhoubG9jby5idWlsZC52MS5CdWlsZFN0YXR1cxITCgtzb3VyY2VfdHlwZRgFIAEoCRISCgpzb3VyY2Vfa2V5GAYgASgJEhMKC3NvdXJjZV9zaXplGAcgASgDEhcKD2RvY2tlcmZpbGVfcGF0aBgIIAEoCRIYChBpbWFnZV9yZXBvc2l0b3J5GAkgASgJEhkKDGltYWdlX2RpZ2VzdBgKIAEoCUgBiAEBEg8KB21lc3NhZ2UYCyABKAkSEgoKY3JlYXRlZF9ieRgMIAEoCRIuCgpjcmVhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCgpzdGFydGVkX2F0GA4gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgCiAEBEjQKC2ZpbmlzaGVkX2F0GA8gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgDiAEBQg0KC19jbHVzdGVyX2lkQg8KDV9pbWFnZV9kaWdlc3RCDQoLX3N0YXJ0ZWRfYXRCDgoMX2ZpbmlzaGVkX2F0IhMKEUJ1aWxkc1VuYXZhaWxhYmxlInYKEkNyZWF0ZUJ1aWxkUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESIwoPZG9ja2VyZmlsZV9wYXRoGAIgASgJQgq6SAdyBRABGIAIEhwKC3NvdXJjZV9zaXplGAMgASgDQge6SAQiAiAAInIKE0NyZWF0ZUJ1aWxkUmVzcG9uc2USEAoIYnVpbGRfaWQYASABKAkSEgoKdXBsb2FkX3VybBgCIAEoCRI1ChF1cGxvYWRfZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLwoRU3RhcnRCdWlsZFJlcXVlc3QSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBIjkKElN0YXJ0QnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQiLQoPR2V0QnVpbGRSZXF1ZXN0EhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASI3ChBHZXRCdWlsZFJlc3BvbnNlEiMKBWJ1aWxkGAEgASgLMhQubG9jby5idWlsZC52MS5CdWlsZCJlChFMaXN0QnVpbGRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiUwoSTGlzdEJ1aWxkc1Jlc3BvbnNlEiQKBmJ1aWxkcxgBIAMoCzIULmxvY28uYnVpbGQudjEuQnVpbGQSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIjAKEkNhbmNlbEJ1aWxkUmVxdWVzdBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQEiOgoTQ2FuY2VsQnVpbGRSZXNwb25zZRIjCgVidWlsZBgBIAEoCzIULmxvY28uYnVpbGQudjEuQnVpbGQq0AEKC0J1aWxkU3RhdHVzEhwKGEJVSUxEX1NUQVRVU19VTlNQRUNJRklFRBAAEiAKHEJVSUxEX1NUQVRVU19BV0FJVElOR19VUExPQUQQARIXChNCVUlMRF9TVEFUVVNfUVVFVUVEEAISGAoUQlVJTERfU1RBVFVTX1JVTk5JTkcQAxIaChZCVUlMRF9TVEFUVVNfU1VDQ0VFREVEEAQSFwoTQlVJTERfU1RBVFVTX0ZBSUxFRBAFEhkKFUJVSUxEX1NUQVRVU19DQU5DRUxFRBAGMq0DCgxCdWlsZFNlcnZpY2USVAoLQ3JlYXRlQnVpbGQSIS5sb2NvLmJ1aWxkLnYxLkNyZWF0ZUJ1aWxkUmVxdWVzdBoiLmxvY28uYnVpbGQudjEuQ3JlYXRlQnVpbGRSZXNwb25zZRJRCgpTdGFydEJ1aWxkEiAubG9jby5idWlsZC52MS5TdGFydEJ1aWxkUmVxdWVzdBohLmxvY28uYnVpbGQudjEuU3RhcnRCdWlsZFJlc3BvbnNlEksKCEdldEJ1aWxkEh4ubG9jby5idWlsZC52MS5HZXRCdWlsZFJlcXVlc3QaHy5sb2NvLmJ1aWxkLnYxLkdldEJ1aWxkUmVzcG9uc2USUQoKTGlzdEJ1aWxkcxIgLmxvY28uYnVpbGQudjEuTGlzdEJ1aWxkc1JlcXVlc3QaIS5sb2NvLmJ1aWxkLnYxLkxpc3RCdWlsZHNSZXNwb25zZRJUCgtDYW5jZWxCdWlsZBIhLmxvY28uYnVpbGQudjEuQ2FuY2VsQnVpbGRSZXF1ZXN0GiIubG9jby5idWlsZC52MS5DYW5jZWxCdWlsZFJlc3BvbnNlQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYnVpbGQvdjE7YnVpbGR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.build.v1.Build
@@ -183,6 +183,25 @@ export const BuildSchema: GenMessage<Build, {jsonType: BuildJson}> = /*@__PURE__
   messageDesc(file_loco_build_v1_build, 0);
 
 /**
+ * @generated from message loco.build.v1.BuildsUnavailable
+ */
+export type BuildsUnavailable = Message<"loco.build.v1.BuildsUnavailable"> & {
+};
+
+/**
+ * @generated from message loco.build.v1.BuildsUnavailable
+ */
+export type BuildsUnavailableJson = {
+};
+
+/**
+ * Describes the message loco.build.v1.BuildsUnavailable.
+ * Use `create(BuildsUnavailableSchema)` to create a new message.
+ */
+export const BuildsUnavailableSchema: GenMessage<BuildsUnavailable, {jsonType: BuildsUnavailableJson}> = /*@__PURE__*/
+  messageDesc(file_loco_build_v1_build, 1);
+
+/**
  * @generated from message loco.build.v1.CreateBuildRequest
  */
 export type CreateBuildRequest = Message<"loco.build.v1.CreateBuildRequest"> & {
@@ -227,7 +246,7 @@ export type CreateBuildRequestJson = {
  * Use `create(CreateBuildRequestSchema)` to create a new message.
  */
 export const CreateBuildRequestSchema: GenMessage<CreateBuildRequest, {jsonType: CreateBuildRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 1);
+  messageDesc(file_loco_build_v1_build, 2);
 
 /**
  * @generated from message loco.build.v1.CreateBuildResponse
@@ -274,7 +293,7 @@ export type CreateBuildResponseJson = {
  * Use `create(CreateBuildResponseSchema)` to create a new message.
  */
 export const CreateBuildResponseSchema: GenMessage<CreateBuildResponse, {jsonType: CreateBuildResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 2);
+  messageDesc(file_loco_build_v1_build, 3);
 
 /**
  * @generated from message loco.build.v1.StartBuildRequest
@@ -301,7 +320,7 @@ export type StartBuildRequestJson = {
  * Use `create(StartBuildRequestSchema)` to create a new message.
  */
 export const StartBuildRequestSchema: GenMessage<StartBuildRequest, {jsonType: StartBuildRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 3);
+  messageDesc(file_loco_build_v1_build, 4);
 
 /**
  * @generated from message loco.build.v1.StartBuildResponse
@@ -328,7 +347,7 @@ export type StartBuildResponseJson = {
  * Use `create(StartBuildResponseSchema)` to create a new message.
  */
 export const StartBuildResponseSchema: GenMessage<StartBuildResponse, {jsonType: StartBuildResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 4);
+  messageDesc(file_loco_build_v1_build, 5);
 
 /**
  * @generated from message loco.build.v1.GetBuildRequest
@@ -355,7 +374,7 @@ export type GetBuildRequestJson = {
  * Use `create(GetBuildRequestSchema)` to create a new message.
  */
 export const GetBuildRequestSchema: GenMessage<GetBuildRequest, {jsonType: GetBuildRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 5);
+  messageDesc(file_loco_build_v1_build, 6);
 
 /**
  * @generated from message loco.build.v1.GetBuildResponse
@@ -382,7 +401,7 @@ export type GetBuildResponseJson = {
  * Use `create(GetBuildResponseSchema)` to create a new message.
  */
 export const GetBuildResponseSchema: GenMessage<GetBuildResponse, {jsonType: GetBuildResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 6);
+  messageDesc(file_loco_build_v1_build, 7);
 
 /**
  * @generated from message loco.build.v1.ListBuildsRequest
@@ -429,7 +448,7 @@ export type ListBuildsRequestJson = {
  * Use `create(ListBuildsRequestSchema)` to create a new message.
  */
 export const ListBuildsRequestSchema: GenMessage<ListBuildsRequest, {jsonType: ListBuildsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 7);
+  messageDesc(file_loco_build_v1_build, 8);
 
 /**
  * @generated from message loco.build.v1.ListBuildsResponse
@@ -466,7 +485,7 @@ export type ListBuildsResponseJson = {
  * Use `create(ListBuildsResponseSchema)` to create a new message.
  */
 export const ListBuildsResponseSchema: GenMessage<ListBuildsResponse, {jsonType: ListBuildsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 8);
+  messageDesc(file_loco_build_v1_build, 9);
 
 /**
  * @generated from message loco.build.v1.CancelBuildRequest
@@ -493,7 +512,7 @@ export type CancelBuildRequestJson = {
  * Use `create(CancelBuildRequestSchema)` to create a new message.
  */
 export const CancelBuildRequestSchema: GenMessage<CancelBuildRequest, {jsonType: CancelBuildRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 9);
+  messageDesc(file_loco_build_v1_build, 10);
 
 /**
  * @generated from message loco.build.v1.CancelBuildResponse
@@ -520,7 +539,7 @@ export type CancelBuildResponseJson = {
  * Use `create(CancelBuildResponseSchema)` to create a new message.
  */
 export const CancelBuildResponseSchema: GenMessage<CancelBuildResponse, {jsonType: CancelBuildResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_build_v1_build, 10);
+  messageDesc(file_loco_build_v1_build, 11);
 
 /**
  * @generated from enum loco.build.v1.BuildStatus

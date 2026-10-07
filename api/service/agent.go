@@ -101,6 +101,7 @@ func (s *AgentServer) Register(
 		AgentVersion:          &agentVersion,
 		CapacityCpuMillicores: &cpuCores,
 		CapacityMemoryBytes:   &memBytes,
+		BuildsEnabled:         r.GetBuildsEnabled(),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update cluster agent info", "error", err, "cluster_id", cluster.ID)
@@ -112,6 +113,7 @@ func (s *AgentServer) Register(
 		"cluster_name", cluster.Name,
 		"region", r.GetRegion(),
 		"agent_version", r.GetAgentVersion(),
+		"builds_enabled", r.GetBuildsEnabled(),
 	)
 
 	return connect.NewResponse(&agentv1.RegisterResponse{
@@ -151,6 +153,7 @@ func (s *AgentServer) Heartbeat(
 			CapacityCpuMillicores: &cpuCores,
 			CapacityMemoryBytes:   &memBytes,
 			HealthStatus:          &healthStatus,
+			BuildsEnabled:         req.GetBuildsEnabled(),
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", cluster.ID)

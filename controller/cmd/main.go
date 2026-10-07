@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/builds"
 	"github.com/team-loco/loco/controller/internal/controller"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -64,6 +65,9 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var reconcilerName string
+	flag.StringVar(&reconcilerName, "reconciler", "",
+		"The reconciler this manager runs: "+reconcilerApplication+" or "+reconcilerBuild+".")
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -174,22 +178,21 @@ func main() {
 
 	locoNamespace := os.Getenv(controller.EnvLocoNamespace)
 	pullSecretName := os.Getenv(controller.EnvRegistryPullSecretName)
-	rawBuildConfig := os.Getenv(controller.EnvBuildConfig)
-	buildConfig, err := controller.ParseBuildConfig(rawBuildConfig)
+	rawBuildConfig := os.Getenv(builds.EnvConfig)
+	setup, err := selectReconciler(reconcilerName, locoNamespace, pullSecretName, rawBuildConfig)
 	if err != nil {
-		setupLog.Error(err, "invalid build configuration")
+		setupLog.Error(err, "invalid reconciler configuration")
 		os.Exit(1)
 	}
-	cacheOptions := controller.CacheOptions(locoNamespace, pullSecretName, buildConfig.Namespace)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		Cache:                  cacheOptions,
+		Cache:                  setup.cache,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		PprofBindAddress:       pprofAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "be6ed5b1.loco.io",
+		LeaderElectionID:       setup.leaderElectionID,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -207,23 +210,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := (&controller.LocoResourceReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Application")
-		os.Exit(1)
-	}
-	apiReader := mgr.GetAPIReader()
-	if err := (&controller.BuildReconciler{
-		Client:         mgr.GetClient(),
-		Scheme:         mgr.GetScheme(),
-		APIReader:      apiReader,
-		Config:         buildConfig,
-		LocoNamespace:  locoNamespace,
-		PullSecretName: pullSecretName,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Build")
+	if err := setup.register(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", reconcilerName)
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
@@ -237,7 +225,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
+	setupLog.Info("starting manager", "reconciler", reconcilerName)
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)

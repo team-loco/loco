@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+    labels:
+        {{- include "loco-operator.controllerLabels" . | nindent 8 }}
+    name: loco-controller
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: loco-controller
+subjects:
+    - kind: ServiceAccount
+      name: loco-controller
+      namespace: {{ .Release.Namespace }}

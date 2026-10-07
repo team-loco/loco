@@ -197,7 +197,7 @@ test_network_isolation() {
 
 test_controller_running() {
     assert "Controller Deployment is available in Kind" \
-        kubectl rollout status deployment/controller-loco-manager \
+        kubectl rollout status deployment/loco-controller \
             --namespace "$E2E_LOCO_NAMESPACE" \
             --context "kind-${E2E_KIND_CLUSTER}" \
             --timeout 60s

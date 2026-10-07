@@ -168,7 +168,7 @@ local_resource(
 )
 
 # ---------------------------------------------------------------------------
-# Phase 2: Core (cert-manager + Envoy Gateway + loco-core + loco-controller)
+# Phase 2: Core (cert-manager + Envoy Gateway + loco-core + loco-operator)
 # ---------------------------------------------------------------------------
 
 local_resource(
@@ -206,13 +206,13 @@ helm_release(
 )
 
 helm_release(
-    'loco-controller',
+    'loco-operator',
     'loco-system',
     images=[{
         'name': 'loco-controller',
-        'repository': 'manager.image.repository',
-        'tag': 'manager.image.tag',
-        'pull_policy': 'manager.image.pullPolicy',
+        'repository': 'controller.image.repository',
+        'tag': 'controller.image.tag',
+        'pull_policy': 'controller.image.pullPolicy',
     }, {
         'name': 'loco-builder',
         'repository': 'builds.builderImage.repository',
@@ -220,7 +220,7 @@ helm_release(
         'pull_policy': 'builds.builderImage.pullPolicy',
     }],
     values=[],
-    deps=['charts/loco-controller/', 'env/local/controller-chart.yaml.gotmpl', 'mise-tasks/cluster/build-egress'],
+    deps=['charts/loco-operator/', 'env/local/operator-chart.yaml.gotmpl', 'mise-tasks/cluster/build-egress'],
     resource_deps=['loco-core', 'cluster-registry'],
 )
 

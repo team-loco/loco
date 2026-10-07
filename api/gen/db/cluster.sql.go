@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const getClusterBuildsEnabled = `-- name: GetClusterBuildsEnabled :one
+SELECT builds_enabled FROM clusters WHERE id = $1
+`
+
+func (q *Queries) GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, getClusterBuildsEnabled, id)
+	var builds_enabled bool
+	err := row.Scan(&builds_enabled)
+	return builds_enabled, err
+}
+
 const getClusterByAgentToken = `-- name: GetClusterByAgentToken :one
 
 SELECT id, name, region, provider, is_active, is_default, endpoint, health_status,
@@ -225,6 +236,7 @@ UPDATE clusters
 SET agent_version = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
+    builds_enabled = $5,
     updated_at = NOW()
 WHERE id = $1
 `
@@ -234,6 +246,7 @@ type UpdateClusterAgentInfoParams struct {
 	AgentVersion          *string   `json:"agentVersion"`
 	CapacityCpuMillicores *int64    `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64    `json:"capacityMemoryBytes"`
+	BuildsEnabled         bool      `json:"buildsEnabled"`
 }
 
 func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error {
@@ -242,6 +255,7 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 		arg.AgentVersion,
 		arg.CapacityCpuMillicores,
 		arg.CapacityMemoryBytes,
+		arg.BuildsEnabled,
 	)
 	return err
 }
@@ -252,6 +266,7 @@ SET last_heartbeat = $2,
     capacity_cpu_millicores = $3,
     capacity_memory_bytes = $4,
     health_status = $5,
+    builds_enabled = $6,
     updated_at = NOW()
 WHERE id = $1
 `
@@ -262,6 +277,7 @@ type UpdateClusterHeartbeatParams struct {
 	CapacityCpuMillicores *int64     `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64     `json:"capacityMemoryBytes"`
 	HealthStatus          *string    `json:"healthStatus"`
+	BuildsEnabled         bool       `json:"buildsEnabled"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
@@ -271,6 +287,7 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.CapacityCpuMillicores,
 		arg.CapacityMemoryBytes,
 		arg.HealthStatus,
+		arg.BuildsEnabled,
 	)
 	return err
 }

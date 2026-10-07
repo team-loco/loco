@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if [ "${E2E_BUILDS_ENABLED:-true}" = false ]; then
+    E2E_SKIP_REASON="builds are disabled"
+fi
+
 dispatch_ctx="kind-${E2E_KIND_CLUSTER}"
 dispatch_ns="$E2E_BUILD_NAMESPACE"
 dispatch_dir="$E2E_BUILD_WORK_DIR/dispatch"

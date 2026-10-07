@@ -43,7 +43,7 @@ func pod(name string, phase corev1.PodPhase, cpu, memory string) *corev1.Pod {
 
 func controller(ready int32) *appsv1.Deployment {
 	return &appsv1.Deployment{
-		Name: "controller-loco-manager", Namespace: "loco-system",
+		Name: "loco-controller", Namespace: "loco-system",
 		Status: appsv1.DeploymentStatus{ReadyReplicas: ready},
 	}
 }
@@ -55,7 +55,7 @@ func TestCapacity(t *testing.T) {
 	pending := pod("pending", corev1.PodPending, "250m", "512Mi")
 	succeeded := pod("done", corev1.PodSucceeded, "1", "1Gi")
 	client := fake.NewClientset(nodeA, nodeB, running, pending, succeeded)
-	inspector := NewInspector(client, "loco-system", "controller-loco-manager")
+	inspector := NewInspector(client, "loco-system", "loco-controller")
 
 	capacity, err := inspector.Capacity(context.Background())
 	if err != nil {
@@ -99,7 +99,7 @@ func TestHealth(t *testing.T) {
 			if tc.deployment != nil {
 				client = fake.NewClientset(tc.deployment)
 			}
-			inspector := NewInspector(client, "loco-system", "controller-loco-manager")
+			inspector := NewInspector(client, "loco-system", "loco-controller")
 
 			health := inspector.Health(context.Background())
 

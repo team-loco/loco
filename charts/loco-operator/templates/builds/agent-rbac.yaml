@@ -1,0 +1,38 @@
+{{- if .Values.builds.enabled }}
+{{- with .Values.builds.agentServiceAccount }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+    labels:
+        {{- include "loco-operator.buildControllerLabels" $ | nindent 8 }}
+    name: loco-agent-builds
+    namespace: {{ $.Values.builds.namespace }}
+rules:
+    - apiGroups:
+        - infra.loco.io
+      resources:
+        - builds
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+    labels:
+        {{- include "loco-operator.buildControllerLabels" $ | nindent 8 }}
+    name: loco-agent-builds
+    namespace: {{ $.Values.builds.namespace }}
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: loco-agent-builds
+subjects:
+    - kind: ServiceAccount
+      name: {{ .name }}
+      namespace: {{ .namespace | default $.Release.Namespace }}
+{{- end }}
+{{- end }}

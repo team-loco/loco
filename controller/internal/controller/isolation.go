@@ -13,8 +13,8 @@ import (
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
 	networkingv1ac "k8s.io/client-go/applyconfigurations/networking/v1"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
+	"github.com/team-loco/loco/controller/internal/isolation"
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -29,31 +29,9 @@ const (
 	otelCollectorName      = "otel-col-deploy"
 	podSecurityLevel       = "restricted"
 	podSecurityVersion     = "latest"
-	policyDefaultDeny      = "default-deny"
 	policyWorkspaceAccess  = "allow-workspace"
-	policyDNSEgress        = "allow-dns-egress"
 	policyTelemetryEgress  = "allow-telemetry-egress"
-	policyInternetEgress   = "allow-internet-egress"
 )
-
-var reservedIPv4 = []string{
-	"0.0.0.0/8",      // rfc 1122 "this network"
-	"10.0.0.0/8",     // rfc 1918 private network
-	"100.64.0.0/10",  // rfc 6598 carrier-grade nat
-	"169.254.0.0/16", // rfc 3927 link-local, includes the cloud metadata endpoint 169.254.169.254
-	"172.16.0.0/12",  // rfc 1918 private network
-	"192.168.0.0/16", // rfc 1918 private network
-	"198.18.0.0/15",  // rfc 2544 benchmarking
-	"224.0.0.0/4",    // multicast
-	"240.0.0.0/4",    // reserved for future use
-}
-
-var reservedIPv6 = []string{
-	"64:ff9b::/96", // rfc 6052 nat64, can translate to internal ipv4
-	"fc00::/7",     // rfc 4193 unique local addresses
-	"fe80::/10",    // rfc 4291 link-local
-	"ff00::/8",     // multicast
-}
 
 func podSecurityLabels() map[string]string {
 	return map[string]string{
@@ -69,16 +47,16 @@ func podSecurityLabels() map[string]string {
 func workspaceNamespaceLabels(locoRes *locov1alpha1.Application) map[string]string {
 	labels := podSecurityLabels()
 	labels[labelLocoApp] = "true"
-	labels[labelManagedBy] = managedByValue
-	labels[labelWorkspaceID] = locoRes.Spec.WorkspaceID
+	labels[managed.LabelManagedBy] = managed.ManagedByValue
+	labels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
 	labels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
 	return labels
 }
 
 func workspaceObjectLabels(locoRes *locov1alpha1.Application) map[string]string {
 	return map[string]string{
-		labelManagedBy:   managedByValue,
-		labelWorkspaceID: locoRes.Spec.WorkspaceID,
+		managed.LabelManagedBy:   managed.ManagedByValue,
+		managed.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
 	}
 }
 
@@ -110,13 +88,6 @@ func tcpPort(port int32) *networkingv1ac.NetworkPolicyPortApplyConfiguration {
 		WithPort(value)
 }
 
-func dnsPorts() []*networkingv1ac.NetworkPolicyPortApplyConfiguration {
-	value := intstr.FromInt32(53)
-	udp := networkingv1ac.NetworkPolicyPort().WithProtocol(corev1.ProtocolUDP).WithPort(value)
-	tcp := networkingv1ac.NetworkPolicyPort().WithProtocol(corev1.ProtocolTCP).WithPort(value)
-	return []*networkingv1ac.NetworkPolicyPortApplyConfiguration{udp, tcp}
-}
-
 func namespacedPodPeer(
 	namespace string,
 	podLabels map[string]string,
@@ -134,47 +105,16 @@ func sameNamespacePeer() *networkingv1ac.NetworkPolicyPeerApplyConfiguration {
 	return networkingv1ac.NetworkPolicyPeer().WithPodSelector(allPods)
 }
 
-func publicAddressPeers(
-	exclusions egressExclusionSet,
-) []*networkingv1ac.NetworkPolicyPeerApplyConfiguration {
-	ipv4 := networkingv1ac.IPBlock().WithCIDR("0.0.0.0/0").WithExcept(exclusions.ipv4...)
-	ipv6 := networkingv1ac.IPBlock().WithCIDR("::/0").WithExcept(exclusions.ipv6...)
-	ipv4Peer := networkingv1ac.NetworkPolicyPeer().WithIPBlock(ipv4)
-	ipv6Peer := networkingv1ac.NetworkPolicyPeer().WithIPBlock(ipv6)
-	return []*networkingv1ac.NetworkPolicyPeerApplyConfiguration{ipv4Peer, ipv6Peer}
-}
-
-func denyAllSpec() *networkingv1ac.NetworkPolicySpecApplyConfiguration {
-	return networkingv1ac.NetworkPolicySpec().
-		WithPolicyTypes(networkingv1.PolicyTypeIngress, networkingv1.PolicyTypeEgress)
-}
-
-func dnsEgressSpec() *networkingv1ac.NetworkPolicySpecApplyConfiguration {
-	dnsPortList := dnsPorts()
-	dnsRule := networkingv1ac.NetworkPolicyEgressRule().WithPorts(dnsPortList...)
-	return networkingv1ac.NetworkPolicySpec().
-		WithPolicyTypes(networkingv1.PolicyTypeEgress).
-		WithEgress(dnsRule)
-}
-
-func internetEgressSpec(exclusions egressExclusionSet) *networkingv1ac.NetworkPolicySpecApplyConfiguration {
-	publicPeers := publicAddressPeers(exclusions)
-	internetRule := networkingv1ac.NetworkPolicyEgressRule().WithTo(publicPeers...)
-	return networkingv1ac.NetworkPolicySpec().
-		WithPolicyTypes(networkingv1.PolicyTypeEgress).
-		WithEgress(internetRule)
-}
-
 func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	locoRes *locov1alpha1.Application,
-	exclusions egressExclusionSet,
+	exclusions isolation.EgressExclusions,
 ) []*networkingv1ac.NetworkPolicyApplyConfiguration {
 	namespace := getNamespace(locoRes)
 	labels := workspaceObjectLabels(locoRes)
 	ingress := networkingv1.PolicyTypeIngress
 	egress := networkingv1.PolicyTypeEgress
 
-	denyAll := denyAllSpec()
+	denyAll := isolation.DenyAllSpec()
 
 	workspaceIngressPeer := sameNamespacePeer()
 	workspaceEgressPeer := sameNamespacePeer()
@@ -185,7 +125,7 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 		WithIngress(workspaceIngress).
 		WithEgress(workspaceEgress)
 
-	dnsEgress := dnsEgressSpec()
+	dnsEgress := isolation.DNSEgressSpec()
 
 	telemetryLabels := map[string]string{labelAppKubernetesName: otelCollectorName}
 	obsNamespace := r.telemetryNamespace()
@@ -197,54 +137,27 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 		WithPorts(grpcPort, httpPort)
 	telemetryEgress := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(egress).WithEgress(telemetryRule)
 
-	internetEgress := internetEgressSpec(exclusions)
+	internetEgress := isolation.InternetEgressSpec(exclusions)
 
 	return []*networkingv1ac.NetworkPolicyApplyConfiguration{
-		namespacePolicy(policyDefaultDeny, namespace, labels, denyAll),
-		namespacePolicy(policyWorkspaceAccess, namespace, labels, workspaceAccess),
-		namespacePolicy(policyDNSEgress, namespace, labels, dnsEgress),
-		namespacePolicy(policyTelemetryEgress, namespace, labels, telemetryEgress),
-		namespacePolicy(policyInternetEgress, namespace, labels, internetEgress),
+		isolation.NamespacePolicy(isolation.PolicyDefaultDeny, namespace, labels, denyAll),
+		isolation.NamespacePolicy(policyWorkspaceAccess, namespace, labels, workspaceAccess),
+		isolation.NamespacePolicy(isolation.PolicyDNSEgress, namespace, labels, dnsEgress),
+		isolation.NamespacePolicy(policyTelemetryEgress, namespace, labels, telemetryEgress),
+		isolation.NamespacePolicy(isolation.PolicyInternetEgress, namespace, labels, internetEgress),
 	}
-}
-
-func namespacePolicy(
-	name string,
-	namespace string,
-	labels map[string]string,
-	spec *networkingv1ac.NetworkPolicySpecApplyConfiguration,
-) *networkingv1ac.NetworkPolicyApplyConfiguration {
-	allPods := metav1ac.LabelSelector()
-	spec.WithPodSelector(allPods)
-	return networkingv1ac.NetworkPolicy(name, namespace).
-		WithLabels(labels).
-		WithSpec(spec)
-}
-
-func applyPolicies(
-	ctx context.Context,
-	kubeClient client.Client,
-	policies []*networkingv1ac.NetworkPolicyApplyConfiguration,
-) error {
-	opts := applyOptions()
-	for _, policy := range policies {
-		if err := kubeClient.Apply(ctx, policy, opts...); err != nil {
-			return fmt.Errorf("apply network policy %s/%s: %w", *policy.Namespace, *policy.Name, err)
-		}
-	}
-	return nil
 }
 
 func (r *LocoResourceReconciler) ensureWorkspaceNetworkPolicies(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) error {
-	exclusions, err := discoverEgressExclusions(ctx, r.Client)
+	exclusions, err := isolation.DiscoverEgressExclusions(ctx, r.Client)
 	if err != nil {
 		return err
 	}
 	policies := r.workspaceNetworkPolicies(locoRes, exclusions)
-	return applyPolicies(ctx, r.Client, policies)
+	return isolation.ApplyPolicies(ctx, r.Client, policies)
 }
 
 func (r *LocoResourceReconciler) gatewayIngressPolicy(
@@ -294,7 +207,7 @@ func (r *LocoResourceReconciler) ensureGatewayIngressPolicy(
 
 	slog.DebugContext(ctx, "ensuring gateway ingress policy", "namespace", namespace, "name", policyName)
 	policy := r.gatewayIngressPolicy(locoRes)
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, policy, opts...); err != nil {
 		return fmt.Errorf("apply network policy %s/%s: %w", namespace, policyName, err)
 	}

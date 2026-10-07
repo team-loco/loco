@@ -31,7 +31,7 @@ const (
 	heartbeatInterval           = 30 * time.Second
 	inventoryInterval           = 10 * time.Minute
 	clusterQueryTimeout         = 10 * time.Second
-	defaultControllerDeployment = "controller-loco-manager"
+	defaultControllerDeployment = "loco-controller"
 	reconcileWorkers            = 8
 	outboundBuffer              = 256
 	buildQueueSize              = 64
@@ -39,6 +39,8 @@ const (
 	buildCollectInterval        = 5 * time.Minute
 	defaultBuildNamespace       = "loco-builds"
 )
+
+var errBuildSupportChanged = errors.New("the cluster's build support changed; restarting to pick it up")
 
 type Config struct {
 	ControlPlaneURL      string
@@ -146,20 +148,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	builds, err := buildwatch.Start(ctx, restConfig, cfg.BuildNamespace, buildRetention)
+	buildsEnabled, err := inspector.BuildsEnabled(ctx)
+	if err != nil {
+		slog.Error("failed to check whether the cluster runs builds", "error", err)
+		os.Exit(1)
+	}
+	startWatcher := func() (buildRunner, error) {
+		return buildwatch.Start(ctx, restConfig, cfg.BuildNamespace, buildRetention)
+	}
+	builds, err := startBuilds(buildsEnabled, startWatcher)
 	if err != nil {
 		slog.Error("failed to watch Builds", "error", err)
 		os.Exit(1)
 	}
+	slog.Info("build support detected", "builds_enabled", buildsEnabled)
 	go builds.RunCollector(ctx, buildCollectInterval)
 
 	agent := &Agent{
-		cfg:       cfg,
-		client:    client,
-		applier:   kubeApplier,
-		inspector: inspector,
-		watcher:   watcher,
-		builds:    builds,
+		cfg:           cfg,
+		client:        client,
+		applier:       kubeApplier,
+		inspector:     inspector,
+		watcher:       watcher,
+		builds:        builds,
+		buildsEnabled: buildsEnabled,
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -176,15 +188,34 @@ func main() {
 	}
 }
 
+type buildRunner interface {
+	Attach(sink buildwatch.Sink) func()
+	WithInventory(ctx context.Context, fn func([]*agentv1.InventoryBuild) error) error
+	Handle(ctx context.Context, msg *agentv1.SyncResponse, report buildwatch.Sink)
+	RunCollector(ctx context.Context, interval time.Duration)
+}
+
+type buildsDetector interface {
+	BuildsEnabled(ctx context.Context) (bool, error)
+}
+
+func startBuilds(enabled bool, start func() (buildRunner, error)) (buildRunner, error) {
+	if !enabled {
+		return buildwatch.Disabled{}, nil
+	}
+	return start()
+}
+
 // Agent represents the loco agent that runs in each cluster.
 type Agent struct {
-	cfg       *Config
-	client    agentv1connect.AgentServiceClient
-	applier   *applier.Applier
-	inspector *cluster.Inspector
-	watcher   *appwatch.Watcher
-	builds    *buildwatch.Watcher
-	clusterID string
+	cfg           *Config
+	client        agentv1connect.AgentServiceClient
+	applier       *applier.Applier
+	inspector     *cluster.Inspector
+	watcher       *appwatch.Watcher
+	builds        buildRunner
+	buildsEnabled bool
+	clusterID     string
 }
 
 // Run starts the agent's main loop.
@@ -193,7 +224,7 @@ func (a *Agent) Run(ctx context.Context) error {
 		return fmt.Errorf("registration failed: %w", err)
 	}
 
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 3)
 
 	go func() {
 		errCh <- a.runSync(ctx)
@@ -201,6 +232,10 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	go func() {
 		errCh <- a.runHeartbeat(ctx)
+	}()
+
+	go func() {
+		errCh <- watchBuildSupport(ctx, a.inspector, a.buildsEnabled, heartbeatInterval)
 	}()
 
 	select {
@@ -215,9 +250,10 @@ func (a *Agent) Run(ctx context.Context) error {
 func (a *Agent) register(ctx context.Context) error {
 	capacity := a.getCapacity(ctx)
 	req := connect.NewRequest(&agentv1.RegisterRequest{
-		Region:       a.cfg.Region,
-		AgentVersion: a.cfg.AgentVersion,
-		Capacity:     capacity,
+		Region:        a.cfg.Region,
+		AgentVersion:  a.cfg.AgentVersion,
+		Capacity:      capacity,
+		BuildsEnabled: a.buildsEnabled,
 	})
 	req.Header().Set("Authorization", "Bearer "+a.cfg.AgentToken)
 
@@ -589,9 +625,10 @@ func (a *Agent) sendHeartbeat(
 	capacity := a.getCapacity(ctx)
 	health := a.getHealth(ctx)
 	req := &agentv1.HeartbeatRequest{
-		ClusterId: a.clusterID,
-		Capacity:  capacity,
-		Health:    health,
+		ClusterId:     a.clusterID,
+		Capacity:      capacity,
+		Health:        health,
+		BuildsEnabled: a.buildsEnabled,
 	}
 
 	if err := stream.Send(req); err != nil {
@@ -615,4 +652,29 @@ func (a *Agent) getHealth(ctx context.Context) *agentv1.AgentHealth {
 		slog.WarnContext(ctx, "cluster unhealthy", "message", health.GetMessage())
 	}
 	return health
+}
+
+func watchBuildSupport(
+	ctx context.Context,
+	detector buildsDetector,
+	started bool,
+	interval time.Duration,
+) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			enabled, err := detector.BuildsEnabled(ctx)
+			if err != nil {
+				slog.WarnContext(ctx, "failed to check whether the cluster runs builds", "error", err)
+				continue
+			}
+			if enabled != started {
+				return fmt.Errorf("%w: builds_enabled went from %t to %t", errBuildSupportChanged, started, enabled)
+			}
+		}
+	}
 }

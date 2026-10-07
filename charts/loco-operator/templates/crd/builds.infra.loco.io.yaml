@@ -1,0 +1,126 @@
+{{- if and .Values.crd.enable .Values.builds.enabled }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+    annotations:
+        controller-gen.kubebuilder.io/version: v0.22.0
+    name: builds.infra.loco.io
+spec:
+    group: infra.loco.io
+    names:
+        kind: Build
+        listKind: BuildList
+        plural: builds
+        singular: build
+    scope: Namespaced
+    versions:
+        - additionalPrinterColumns:
+            - jsonPath: .status.phase
+              name: Phase
+              type: string
+            - jsonPath: .status.imageDigest
+              name: Image
+              priority: 1
+              type: string
+            - jsonPath: .metadata.creationTimestamp
+              name: Age
+              type: date
+          name: v1alpha1
+          schema:
+            openAPIV3Schema:
+                properties:
+                    apiVersion:
+                        description: |-
+                            APIVersion defines the versioned schema of this representation of an object.
+                            Servers should convert recognized schemas to the latest internal value, and
+                            may reject unrecognized values.
+                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+                        type: string
+                    kind:
+                        description: |-
+                            Kind is a string value representing the REST resource this object represents.
+                            Servers may infer this from the endpoint the client submits requests to.
+                            Cannot be updated.
+                            In CamelCase.
+                            More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+                        type: string
+                    metadata:
+                        type: object
+                    spec:
+                        properties:
+                            buildId:
+                                maxLength: 63
+                                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                                type: string
+                            cacheRef:
+                                maxLength: 330
+                                pattern: ^[a-z0-9]([-a-z0-9.]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]+([._-][a-z0-9]+)*)+@sha256:[a-f0-9]{64}$
+                                type: string
+                            dockerfilePath:
+                                maxLength: 1024
+                                minLength: 1
+                                type: string
+                                x-kubernetes-validations:
+                                    - message: dockerfilePath must be a relative path inside the build context
+                                      rule: '!self.startsWith(''/'') && !self.endsWith(''/'') && !self.split(''/'').exists(p, p == ''..'' || p == ''.'' || p == '''')'
+                            imageRepository:
+                                maxLength: 255
+                                pattern: ^[a-z0-9]([-a-z0-9.]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]+([._-][a-z0-9]+)*)+$
+                                type: string
+                            resourceId:
+                                maxLength: 63
+                                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                                type: string
+                            sourceURL:
+                                maxLength: 4096
+                                pattern: ^https?://
+                                type: string
+                            workspaceId:
+                                maxLength: 63
+                                pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                                type: string
+                        required:
+                            - buildId
+                            - dockerfilePath
+                            - imageRepository
+                            - resourceId
+                            - sourceURL
+                            - workspaceId
+                        type: object
+                        x-kubernetes-validations:
+                            - message: spec is immutable
+                              rule: self == oldSelf
+                    status:
+                        properties:
+                            cacheDigest:
+                                type: string
+                            finishedAt:
+                                format: date-time
+                                type: string
+                            imageDigest:
+                                type: string
+                            message:
+                                type: string
+                            phase:
+                                enum:
+                                    - Pending
+                                    - Running
+                                    - Succeeded
+                                    - Failed
+                                    - Canceled
+                                type: string
+                            startedAt:
+                                format: date-time
+                                type: string
+                        type: object
+                required:
+                    - spec
+                type: object
+                x-kubernetes-validations:
+                    - message: metadata.name must be at most 63 characters
+                      rule: self.metadata.name.size() <= 63
+          served: true
+          storage: true
+          subresources:
+            status: {}
+{{- end }}

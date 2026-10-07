@@ -45,7 +45,9 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	"$(CONTROLLER_GEN)" rbac:roleName=manager-role crd webhook paths="./..." paths="../k8sapi/..." output:crd:artifacts:config=config/crd/bases
+	"$(CONTROLLER_GEN)" crd webhook paths="../k8sapi/..." output:crd:artifacts:config=config/crd/bases
+	"$(CONTROLLER_GEN)" rbac:roleName=manager-role paths="./internal/controller/..." output:rbac:artifacts:config=config/rbac
+	"$(CONTROLLER_GEN)" rbac:roleName=build-manager-role paths="./internal/builds/..." output:rbac:artifacts:config=config/rbac/builds
 
 .PHONY: generate
 generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
@@ -108,11 +110,11 @@ lint-config: ## Verify golangci-lint linter configuration
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+	go build -o bin/manager ./cmd
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+	go run ./cmd --reconciler=application
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.

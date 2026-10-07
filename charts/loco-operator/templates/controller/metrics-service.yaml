@@ -1,0 +1,17 @@
+{{- if .Values.metrics.enable }}
+apiVersion: v1
+kind: Service
+metadata:
+    labels:
+        {{- include "loco-operator.controllerLabels" . | nindent 8 }}
+    name: loco-controller-metrics
+    namespace: {{ .Release.Namespace }}
+spec:
+    ports:
+        - name: https
+          port: {{ .Values.metrics.port }}
+          protocol: TCP
+          targetPort: {{ .Values.metrics.port }}
+    selector:
+        app.kubernetes.io/name: loco-controller
+{{- end }}

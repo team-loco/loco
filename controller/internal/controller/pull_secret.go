@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -54,7 +55,7 @@ func (r *LocoResourceReconciler) ensureWorkspacePullSecret(
 		WithType(corev1.SecretTypeDockerConfigJson).
 		WithData(data)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, secret, opts...); err != nil {
 		return fmt.Errorf("apply workspace pull secret %s: %w", key, err)
 	}

@@ -50,6 +50,8 @@ import (
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayac "sigs.k8s.io/gateway-api/applyconfiguration/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/isolation"
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -57,15 +59,10 @@ import (
 const (
 	finalizerCleanup        = "loco.io/cleanup"
 	labelApp                = "app"
-	labelWorkspaceID        = "loco.io/workspace-id"
-	labelResourceID         = "loco.io/resource-id"
 	labelEnvironmentID      = "loco.io/environment-id"
-	labelManagedBy          = "app.kubernetes.io/managed-by"
-	managedByValue          = "loco-controller"
 	annotationAppNamespace  = "loco.io/application-namespace"
 	annotationAppName       = "loco.io/application-name"
 	annotationEnvSecretRV   = "loco.io/env-secret-version"
-	fieldOwner              = "loco-controller"
 	phaseDeploying          = "Deploying"
 	phaseFailed             = "Failed"
 	phaseReady              = "Ready"
@@ -407,8 +404,8 @@ func getInternalDomain(locoRes *locov1alpha1.Application) string {
 func managedLabels(locoRes *locov1alpha1.Application) map[string]string {
 	name := getName(locoRes)
 	return map[string]string{
-		labelApp:       name,
-		labelManagedBy: managedByValue,
+		labelApp:               name,
+		managed.LabelManagedBy: managed.ManagedByValue,
 	}
 }
 
@@ -419,10 +416,6 @@ func ownerAnnotations(locoRes *locov1alpha1.Application) map[string]string {
 	}
 }
 
-func applyOptions() []client.ApplyOption {
-	return []client.ApplyOption{client.FieldOwner(fieldOwner), client.ForceOwnership}
-}
-
 // ensureNamespace ensures the application namespace exists and is configured
 func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *locov1alpha1.Application) error {
 	namespace := getNamespace(locoRes)
@@ -431,7 +424,7 @@ func ensureNamespace(ctx context.Context, kubeClient client.Client, locoRes *loc
 	labels := workspaceNamespaceLabels(locoRes)
 	ns := corev1ac.Namespace(namespace).WithLabels(labels)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := kubeClient.Apply(ctx, ns, opts...); err != nil {
 		return fmt.Errorf("apply namespace %s: %w", namespace, err)
 	}
@@ -462,7 +455,7 @@ func ensureEnvSecret(
 		WithType(corev1.SecretTypeOpaque).
 		WithData(secretData)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := kubeClient.Apply(ctx, envSecret, opts...); err != nil {
 		return "", fmt.Errorf("apply env secret %s/%s: %w", namespace, envSecretName, err)
 	}
@@ -488,7 +481,7 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 		sa.WithImagePullSecrets(pullSecret)
 	}
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, sa, opts...); err != nil {
 		return fmt.Errorf("apply service account %s/%s: %w", namespace, name, err)
 	}
@@ -506,7 +499,7 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 	roleBindingName := getRoleBindingName(locoRes)
 	labels := managedLabels(locoRes)
 	annotations := ownerAnnotations(locoRes)
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 
 	rule := rbacv1ac.PolicyRule().
 		WithAPIGroups("").
@@ -567,7 +560,7 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 		WithAnnotations(annotations).
 		WithSpec(spec)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, svc, opts...); err != nil {
 		return fmt.Errorf("apply service %s/%s: %w", namespace, name, err)
 	}
@@ -716,10 +709,10 @@ func desiredDeployment(
 	}
 
 	podLabels := map[string]string{
-		labelApp:           name,
-		labelWorkspaceID:   locoRes.Spec.WorkspaceID,
-		labelResourceID:    locoRes.Spec.ResourceID,
-		labelEnvironmentID: locoRes.Spec.EnvironmentID,
+		labelApp:                 name,
+		managed.LabelWorkspaceID: locoRes.Spec.WorkspaceID,
+		managed.LabelResourceID:  locoRes.Spec.ResourceID,
+		labelEnvironmentID:       locoRes.Spec.EnvironmentID,
 	}
 	podAnnotations := map[string]string{annotationEnvSecretRV: envSecretVersion}
 	podSecurity := podSecurityContext()
@@ -748,8 +741,8 @@ func desiredDeployment(
 		WithTemplate(template)
 
 	depLabels := managedLabels(locoRes)
-	depLabels[labelWorkspaceID] = locoRes.Spec.WorkspaceID
-	depLabels[labelResourceID] = locoRes.Spec.ResourceID
+	depLabels[managed.LabelWorkspaceID] = locoRes.Spec.WorkspaceID
+	depLabels[managed.LabelResourceID] = locoRes.Spec.ResourceID
 	depLabels[labelEnvironmentID] = locoRes.Spec.EnvironmentID
 	annotations := ownerAnnotations(locoRes)
 
@@ -775,7 +768,7 @@ func (r *LocoResourceReconciler) ensureDeployment(
 	namespace := getNamespace(locoRes)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, dep, opts...); err != nil {
 		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, err)
 	}
@@ -844,7 +837,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 		WithAnnotations(annotations).
 		WithSpec(spec)
 
-	opts := applyOptions()
+	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, route, opts...); err != nil {
 		return fmt.Errorf("apply HTTPRoute %s/%s: %w", namespace, routeName, err)
 	}
@@ -868,7 +861,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	applicationPredicates := builder.WithPredicates(applicationChanged)
 	deploymentHandler := handler.EnqueueRequestsFromMapFunc(applicationForObject)
 	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
-	nodeChanges := nodeRangesChanged()
+	nodeChanges := isolation.NodeRangesChanged()
 	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}
 

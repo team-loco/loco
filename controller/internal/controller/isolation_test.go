@@ -12,6 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/team-loco/loco/controller/internal/isolation"
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -80,9 +82,9 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/audit", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/warn", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue(labelLocoApp, "true"))
-		Expect(ns.Labels).To(HaveKeyWithValue(labelWorkspaceID, "ws-labels"))
+		Expect(ns.Labels).To(HaveKeyWithValue(managed.LabelWorkspaceID, "ws-labels"))
 		Expect(ns.Labels).To(HaveKeyWithValue(labelEnvironmentID, "env-production"))
-		Expect(ns.Labels).NotTo(HaveKey(labelResourceID))
+		Expect(ns.Labels).NotTo(HaveKey(managed.LabelResourceID))
 	})
 
 	It("keeps labels it does not own on an existing namespace", func() {
@@ -109,17 +111,17 @@ var _ = Describe("Workspace isolation", func() {
 
 		versions := policyResourceVersions(namespace)
 		Expect(versions).To(HaveLen(5))
-		Expect(versions).To(HaveKey(policyDefaultDeny))
+		Expect(versions).To(HaveKey(isolation.PolicyDefaultDeny))
 		Expect(versions).To(HaveKey(policyWorkspaceAccess))
-		Expect(versions).To(HaveKey(policyDNSEgress))
+		Expect(versions).To(HaveKey(isolation.PolicyDNSEgress))
 		Expect(versions).To(HaveKey(policyTelemetryEgress))
-		Expect(versions).To(HaveKey(policyInternetEgress))
+		Expect(versions).To(HaveKey(isolation.PolicyInternetEgress))
 
 		Expect(reconciler.ensureWorkspaceNetworkPolicies(ctx, second)).To(Succeed())
 		Expect(reconciler.ensureWorkspaceNetworkPolicies(ctx, first)).To(Succeed())
 		Expect(policyResourceVersions(namespace)).To(Equal(versions))
 
-		dns := getPolicy(namespace, policyDNSEgress)
+		dns := getPolicy(namespace, isolation.PolicyDNSEgress)
 		Expect(dns.Spec.Egress).To(HaveLen(1))
 		Expect(dns.Spec.Egress[0].To).To(BeEmpty())
 		Expect(dns.Spec.Egress[0].Ports).To(HaveLen(2))
@@ -137,7 +139,7 @@ var _ = Describe("Workspace isolation", func() {
 		telemetryNamespace := telemetry.Spec.Egress[0].To[0].NamespaceSelector.MatchLabels
 		Expect(telemetryNamespace).To(HaveKeyWithValue(labelNamespaceName, defaultObsNamespace))
 
-		internet := getPolicy(namespace, policyInternetEgress)
+		internet := getPolicy(namespace, isolation.PolicyInternetEgress)
 		Expect(internet.Spec.Egress[0].To[0].IPBlock.Except).To(ContainElement("169.254.0.0/16"))
 	})
 

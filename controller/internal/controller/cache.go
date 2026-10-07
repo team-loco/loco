@@ -2,9 +2,9 @@ package controller
 
 import (
 	"context"
+	"log/slog"
 
 	appsv1 "k8s.io/api/apps/v1"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -14,14 +14,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-func CacheOptions(locoNamespace, pullSecretName, buildNamespace string) cache.Options {
-	managedSet := labels.Set{labelManagedBy: managedByValue}
+func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
+	managedSet := labels.Set(managed.Labels())
 	managedSelector := labels.SelectorFromSet(managedSet)
-	managed := cache.ByObject{Label: managedSelector}
-	secrets := managed
+	managedObjects := cache.ByObject{Label: managedSelector}
+	secrets := managedObjects
 	if locoNamespace != "" && pullSecretName != "" {
 		everything := labels.Everything()
 		pullSecretSelector := fields.OneTermEqualSelector("metadata.name", pullSecretName)
@@ -33,23 +34,17 @@ func CacheOptions(locoNamespace, pullSecretName, buildNamespace string) cache.Op
 			},
 		}
 	}
-	buildNamespaceOnly := map[string]cache.Config{buildNamespace: {}}
-	buildObjects := cache.ByObject{Label: managedSelector, Namespaces: buildNamespaceOnly}
-	builds := cache.ByObject{Namespaces: buildNamespaceOnly}
 	stripManagedFields := cache.TransformStripManagedFields()
 	return cache.Options{
 		DefaultTransform: stripManagedFields,
 		ByObject: map[client.Object]cache.ByObject{
-			&corev1.Namespace{}:      managed,
+			&corev1.Namespace{}:      managedObjects,
 			&corev1.Secret{}:         secrets,
-			&corev1.Service{}:        managed,
-			&corev1.ServiceAccount{}: managed,
-			&rbacv1.Role{}:           managed,
-			&rbacv1.RoleBinding{}:    managed,
-			&appsv1.Deployment{}:     managed,
-			&batchv1.Job{}:           buildObjects,
-			&corev1.Pod{}:            buildObjects,
-			&locov1alpha1.Build{}:    builds,
+			&corev1.Service{}:        managedObjects,
+			&corev1.ServiceAccount{}: managedObjects,
+			&rbacv1.Role{}:           managedObjects,
+			&rbacv1.RoleBinding{}:    managedObjects,
+			&appsv1.Deployment{}:     managedObjects,
 		},
 	}
 }
@@ -66,4 +61,27 @@ func applicationForObject(_ context.Context, obj client.Object) []reconcile.Requ
 	}
 	key := types.NamespacedName{Namespace: namespace, Name: name}
 	return []reconcile.Request{{NamespacedName: key}}
+}
+
+func (r *LocoResourceReconciler) applicationPerWorkspace(ctx context.Context, _ client.Object) []reconcile.Request {
+	var apps locov1alpha1.ApplicationList
+	if err := r.List(ctx, &apps); err != nil {
+		slog.WarnContext(ctx, "failed to list applications for a workspace-wide change", "error", err)
+		return nil
+	}
+	seen := make(map[string]bool, len(apps.Items))
+	var requests []reconcile.Request
+	for i := range apps.Items {
+		app := &apps.Items[i]
+		if seen[app.Spec.WorkspaceID] || !app.DeletionTimestamp.IsZero() {
+			continue
+		}
+		if err := app.Spec.Validate(); err != nil {
+			continue
+		}
+		seen[app.Spec.WorkspaceID] = true
+		key := client.ObjectKeyFromObject(app)
+		requests = append(requests, reconcile.Request{NamespacedName: key})
+	}
+	return requests
 }
