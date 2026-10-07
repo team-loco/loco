@@ -67,7 +67,7 @@ var _ = Describe("Workspace isolation", func() {
 		reconciler = &LocoResourceReconciler{
 			Client:        k8sClient,
 			Scheme:        scheme.Scheme,
-			locoNamespace: testLocoNamespace,
+			LocoNamespace: testLocoNamespace,
 		}
 	})
 

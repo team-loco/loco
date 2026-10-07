@@ -21,8 +21,8 @@ const (
 func pullSecretReconciler(kubeClient client.Client) *LocoResourceReconciler {
 	return &LocoResourceReconciler{
 		Client:         kubeClient,
-		locoNamespace:  testLocoNamespace,
-		pullSecretName: testPullSecretName,
+		LocoNamespace:  testLocoNamespace,
+		PullSecretName: testPullSecretName,
 	}
 }
 
@@ -80,7 +80,7 @@ func TestPullSecretChangedMatchesOnlyTheConfiguredSecret(t *testing.T) {
 func TestApplicationPerWorkspaceEnqueuesOneLiveAppPerWorkspace(t *testing.T) {
 	scheme := workspaceTestScheme(t)
 	deleting := workspaceApp("deleting", "1")
-	deleting.Finalizers = []string{finalizerCleanup}
+	deleting.Finalizers = []string{finalizerAppResourcesCleanup}
 	deletedAt := metav1.Now()
 	deleting.DeletionTimestamp = &deletedAt
 	invalid := workspaceApp("invalid", "2")

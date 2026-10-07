@@ -24,11 +24,11 @@ func (r *LocoResourceReconciler) ensureWorkspacePullSecret(
 	namespace := getNamespace(locoRes)
 	key := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
 
-	if r.pullSecretName == "" {
+	if r.PullSecretName == "" {
 		return r.deleteWorkspacePullSecret(ctx, key)
 	}
 
-	sourceKey := client.ObjectKey{Namespace: r.locoNamespace, Name: r.pullSecretName}
+	sourceKey := client.ObjectKey{Namespace: r.LocoNamespace, Name: r.PullSecretName}
 	source := &corev1.Secret{}
 	if err := r.Get(ctx, sourceKey, source); err != nil {
 		return fmt.Errorf("get registry pull secret %s: %w", sourceKey, err)
@@ -78,7 +78,7 @@ func (r *LocoResourceReconciler) deleteWorkspacePullSecret(ctx context.Context, 
 }
 
 func (r *LocoResourceReconciler) isPullSecret(obj client.Object) bool {
-	return obj.GetNamespace() == r.locoNamespace && obj.GetName() == r.pullSecretName
+	return obj.GetNamespace() == r.LocoNamespace && obj.GetName() == r.PullSecretName
 }
 
 func (r *LocoResourceReconciler) pullSecretChanged() predicate.Predicate {

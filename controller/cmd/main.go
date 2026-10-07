@@ -36,8 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"github.com/team-loco/loco/controller/internal/builds"
-	"github.com/team-loco/loco/controller/internal/controller"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
@@ -176,10 +174,8 @@ func main() {
 		metricsServerOptions.KeyName = metricsCertKey
 	}
 
-	locoNamespace := os.Getenv(controller.EnvLocoNamespace)
-	pullSecretName := os.Getenv(controller.EnvRegistryPullSecretName)
-	rawBuildConfig := os.Getenv(builds.EnvConfig)
-	setup, err := selectReconciler(reconcilerName, locoNamespace, pullSecretName, rawBuildConfig)
+	operator := newOperatorConfig()
+	setup, err := selectReconciler(reconcilerName, operator)
 	if err != nil {
 		setupLog.Error(err, "invalid reconciler configuration")
 		os.Exit(1)

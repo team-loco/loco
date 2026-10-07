@@ -21,7 +21,10 @@ func cachedTypes(options cache.Options) []string {
 }
 
 func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
-	setup, err := selectReconciler(reconcilerApplication, "loco-system", "registry-pull", "")
+	setup, err := selectReconciler(
+		reconcilerApplication,
+		operatorConfig{LocoNamespace: "loco-system", PullSecretName: "registry-pull"},
+	)
 	if err != nil {
 		t.Fatalf("selectReconciler: %v", err)
 	}
@@ -42,7 +45,10 @@ func TestBuildReconcilerCachesOnlyBuildObjectsInTheBuildNamespace(t *testing.T) 
 	if err != nil {
 		t.Fatalf("read the chart's build values: %v", err)
 	}
-	setup, err := selectReconciler(reconcilerBuild, "loco-system", "", rawBuildConfig)
+	setup, err := selectReconciler(
+		reconcilerBuild,
+		operatorConfig{LocoNamespace: "loco-system", RawBuildConfig: rawBuildConfig},
+	)
 	if err != nil {
 		t.Fatalf("selectReconciler: %v", err)
 	}
@@ -63,14 +69,14 @@ func TestBuildReconcilerCachesOnlyBuildObjectsInTheBuildNamespace(t *testing.T) 
 
 func TestSelectReconcilerRejectsUnknownNames(t *testing.T) {
 	for _, name := range []string{"", "all", "application,build"} {
-		if _, err := selectReconciler(name, "", "", ""); err == nil {
+		if _, err := selectReconciler(name, operatorConfig{}); err == nil {
 			t.Errorf("selectReconciler(%q) succeeded", name)
 		}
 	}
 }
 
 func TestBuildReconcilerRequiresTheChartBuildConfig(t *testing.T) {
-	if _, err := selectReconciler(reconcilerBuild, "", "", ""); err == nil {
+	if _, err := selectReconciler(reconcilerBuild, operatorConfig{}); err == nil {
 		t.Fatal("selectReconciler started a build reconciler without build settings")
 	}
 }

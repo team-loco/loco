@@ -75,8 +75,8 @@ func containerSecurityContext() *corev1ac.SecurityContextApplyConfiguration {
 }
 
 func (r *LocoResourceReconciler) telemetryNamespace() string {
-	if r.obsNamespace != "" {
-		return r.obsNamespace
+	if r.ObservabilityNamespace != "" {
+		return r.ObservabilityNamespace
 	}
 	return defaultObsNamespace
 }
@@ -173,9 +173,9 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 	appSelector := metav1ac.LabelSelector().WithMatchLabels(appLabels)
 	gatewayLabels := map[string]string{
 		labelGatewayName:      gatewayName,
-		labelGatewayNamespace: r.locoNamespace,
+		labelGatewayNamespace: r.LocoNamespace,
 	}
-	gatewayPeer := namespacedPodPeer(r.locoNamespace, gatewayLabels)
+	gatewayPeer := namespacedPodPeer(r.LocoNamespace, gatewayLabels)
 	containerPort := appPort(locoRes)
 	port := tcpPort(containerPort)
 	rule := networkingv1ac.NetworkPolicyIngressRule().WithFrom(gatewayPeer).WithPorts(port)

@@ -18,9 +18,9 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -57,38 +57,35 @@ import (
 
 // todo: finalize on the domain we wanna use inside kubernetes.
 const (
-	finalizerCleanup        = "loco.io/cleanup"
-	labelApp                = "app"
-	labelEnvironmentID      = "loco.io/environment-id"
-	annotationAppNamespace  = "loco.io/application-namespace"
-	annotationAppName       = "loco.io/application-name"
-	annotationEnvSecretRV   = "loco.io/env-secret-version"
-	phaseDeploying          = "Deploying"
-	phaseFailed             = "Failed"
-	phaseReady              = "Ready"
-	servicePort             = int32(80)
-	defaultContainerPort    = int32(8080)
-	defaultCPURequest       = "100m"
-	defaultCPULimit         = "500m"
-	defaultMemoryRequest    = "128Mi"
-	defaultMemoryLimit      = "512Mi"
-	deployingRequeue        = 15 * time.Second
-	maxConcurrentReconciles = 4
+	finalizerAppResourcesCleanup = "infra.loco.io/app-resources-cleanup"
+	labelApp                     = "app"
+	labelEnvironmentID           = "loco.io/environment-id"
+	annotationAppNamespace       = "loco.io/application-namespace"
+	annotationAppName            = "loco.io/application-name"
+	annotationEnvSecretRV        = "loco.io/env-secret-version"
+	phaseDeploying               = "Deploying"
+	phaseFailed                  = "Failed"
+	phaseReady                   = "Ready"
+	servicePort                  = int32(80)
+	defaultContainerPort         = int32(8080)
+	defaultCPURequest            = "100m"
+	defaultCPULimit              = "500m"
+	defaultMemoryRequest         = "128Mi"
+	defaultMemoryLimit           = "512Mi"
+	deployingRequeue             = 15 * time.Second
+	maxConcurrentReconciles      = 4
 )
 
-const (
-	EnvLocoNamespace          = "LOCO_NAMESPACE"
-	EnvRegistryPullSecretName = "REGISTRY_PULL_SECRET_NAME"
-)
+var errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
 
 // LocoResourceReconciler reconciles a Application object
 type LocoResourceReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	locoNamespace  string
-	obsNamespace   string
-	pullSecretName string
+	LocoNamespace          string
+	ObservabilityNamespace string
+	PullSecretName         string
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -270,16 +267,16 @@ func (r *LocoResourceReconciler) patchStatus(
 }
 
 func (r *LocoResourceReconciler) ensureFinalizer(ctx context.Context, locoRes *locov1alpha1.Application) error {
-	if controllerutil.ContainsFinalizer(locoRes, finalizerCleanup) {
+	if controllerutil.ContainsFinalizer(locoRes, finalizerAppResourcesCleanup) {
 		return nil
 	}
 	original := locoRes.DeepCopy()
-	controllerutil.AddFinalizer(locoRes, finalizerCleanup)
+	controllerutil.AddFinalizer(locoRes, finalizerAppResourcesCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return fmt.Errorf("add finalizer: %w", err)
 	}
-	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerCleanup)
+	slog.DebugContext(ctx, "added finalizer", "finalizer", finalizerAppResourcesCleanup)
 	return nil
 }
 
@@ -288,7 +285,7 @@ func (r *LocoResourceReconciler) handleDeletion(
 	ctx context.Context,
 	locoRes *locov1alpha1.Application,
 ) (ctrl.Result, error) {
-	if !controllerutil.ContainsFinalizer(locoRes, finalizerCleanup) {
+	if !controllerutil.ContainsFinalizer(locoRes, finalizerAppResourcesCleanup) {
 		return ctrl.Result{}, nil
 	}
 
@@ -300,12 +297,12 @@ func (r *LocoResourceReconciler) handleDeletion(
 	}
 
 	original := locoRes.DeepCopy()
-	controllerutil.RemoveFinalizer(locoRes, finalizerCleanup)
+	controllerutil.RemoveFinalizer(locoRes, finalizerAppResourcesCleanup)
 	patch := client.MergeFrom(original)
 	if err := r.Patch(ctx, locoRes, patch); err != nil {
 		return ctrl.Result{}, fmt.Errorf("remove finalizer: %w", err)
 	}
-	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerCleanup)
+	slog.InfoContext(ctx, "removed finalizer", "finalizer", finalizerAppResourcesCleanup)
 
 	return ctrl.Result{}, nil
 }
@@ -476,7 +473,7 @@ func (r *LocoResourceReconciler) ensureServiceAccount(ctx context.Context, locoR
 		WithLabels(labels).
 		WithAnnotations(annotations).
 		WithAutomountServiceAccountToken(false)
-	if r.pullSecretName != "" {
+	if r.PullSecretName != "" {
 		pullSecret := corev1ac.LocalObjectReference().WithName(workspacePullSecretName)
 		sa.WithImagePullSecrets(pullSecret)
 	}
@@ -810,7 +807,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 	}
 
 	// todo: remove the hardooded gateway name and namespace.
-	gatewayNamespace := v1Gateway.Namespace(r.locoNamespace)
+	gatewayNamespace := v1Gateway.Namespace(r.LocoNamespace)
 	parentRef := gatewayac.ParentReference().
 		WithName("eg").
 		WithNamespace(gatewayNamespace)
@@ -846,12 +843,8 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.locoNamespace = os.Getenv(EnvLocoNamespace)
-	r.obsNamespace = os.Getenv("LOCO_OBSERVABILITY_NAMESPACE")
-	r.pullSecretName = os.Getenv(EnvRegistryPullSecretName)
-
-	if r.pullSecretName != "" && r.locoNamespace == "" {
-		return fmt.Errorf("%s requires %s to be set", EnvRegistryPullSecretName, EnvLocoNamespace)
+	if r.PullSecretName != "" && r.LocoNamespace == "" {
+		return errPullSecretWithoutNamespace
 	}
 
 	applicationChanged := predicate.Or[client.Object](
@@ -869,7 +862,7 @@ func (r *LocoResourceReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, deploymentHandler).
 		Watches(&corev1.Node{}, nodeHandler, nodePredicates)
-	if r.pullSecretName != "" {
+	if r.PullSecretName != "" {
 		pullSecretHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
 		pullSecretChanges := r.pullSecretChanged()
 		pullSecretPredicates := builder.WithPredicates(pullSecretChanges)

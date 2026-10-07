@@ -23,12 +23,12 @@ type reconcilerSetup struct {
 	register         func(ctrl.Manager) error
 }
 
-func selectReconciler(name, locoNamespace, pullSecretName, rawBuildConfig string) (reconcilerSetup, error) {
+func selectReconciler(name string, operator operatorConfig) (reconcilerSetup, error) {
 	switch name {
 	case reconcilerApplication:
-		return applicationSetup(locoNamespace, pullSecretName), nil
+		return applicationSetup(operator), nil
 	case reconcilerBuild:
-		return buildSetup(locoNamespace, pullSecretName, rawBuildConfig)
+		return buildSetup(operator)
 	default:
 		return reconcilerSetup{}, fmt.Errorf(
 			"--reconciler must be %q or %q, got %q",
@@ -39,12 +39,15 @@ func selectReconciler(name, locoNamespace, pullSecretName, rawBuildConfig string
 	}
 }
 
-func applicationSetup(locoNamespace, pullSecretName string) reconcilerSetup {
-	cacheOptions := controller.CacheOptions(locoNamespace, pullSecretName)
+func applicationSetup(operator operatorConfig) reconcilerSetup {
+	cacheOptions := controller.CacheOptions(operator.LocoNamespace, operator.PullSecretName)
 	register := func(mgr ctrl.Manager) error {
 		reconciler := &controller.LocoResourceReconciler{
-			Client: mgr.GetClient(),
-			Scheme: mgr.GetScheme(),
+			Client:                 mgr.GetClient(),
+			Scheme:                 mgr.GetScheme(),
+			LocoNamespace:          operator.LocoNamespace,
+			ObservabilityNamespace: operator.ObservabilityNamespace,
+			PullSecretName:         operator.PullSecretName,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}
@@ -55,8 +58,8 @@ func applicationSetup(locoNamespace, pullSecretName string) reconcilerSetup {
 	}
 }
 
-func buildSetup(locoNamespace, pullSecretName, rawBuildConfig string) (reconcilerSetup, error) {
-	buildConfig, err := builds.ParseConfig(rawBuildConfig)
+func buildSetup(operator operatorConfig) (reconcilerSetup, error) {
+	buildConfig, err := builds.ParseConfig(operator.RawBuildConfig)
 	if err != nil {
 		return reconcilerSetup{}, fmt.Errorf("build configuration: %w", err)
 	}
@@ -67,8 +70,8 @@ func buildSetup(locoNamespace, pullSecretName, rawBuildConfig string) (reconcile
 			Scheme:         mgr.GetScheme(),
 			APIReader:      mgr.GetAPIReader(),
 			Config:         buildConfig,
-			LocoNamespace:  locoNamespace,
-			PullSecretName: pullSecretName,
+			LocoNamespace:  operator.LocoNamespace,
+			PullSecretName: operator.PullSecretName,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}
