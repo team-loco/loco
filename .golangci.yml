@@ -22,8 +22,6 @@ linters:
     rules:
       - { linters: [errcheck], source: "^\\s*defer\\s+" }
       - { linters: [govet], text: "fieldalignment" }
-      # ST1005 flags capitalized error strings; "Docker" is a proper noun here.
-      - { linters: [staticcheck], text: "ST1005", path: "internal/docker/" }
       - { linters: [lll], source: "^\\s*// \\+kubebuilder:" }
       - { linters: [lll], source: "^\\s*// https?://\\S+$" }
       - { linters: [fatcontext], path: "suite_test\\.go$" }

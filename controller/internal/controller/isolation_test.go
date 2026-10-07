@@ -65,7 +65,7 @@ var _ = Describe("Workspace isolation", func() {
 		reconciler = &LocoResourceReconciler{
 			Client:        k8sClient,
 			Scheme:        scheme.Scheme,
-			locoNamespace: "loco-system",
+			locoNamespace: testLocoNamespace,
 		}
 	})
 
@@ -154,7 +154,7 @@ var _ = Describe("Workspace isolation", func() {
 		gatewayPods := policy.Spec.Ingress[0].From[0].PodSelector.MatchLabels
 		Expect(gatewayPods).To(HaveKeyWithValue(labelGatewayName, gatewayName))
 		gatewayNamespace := policy.Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels
-		Expect(gatewayNamespace).To(HaveKeyWithValue(labelNamespaceName, "loco-system"))
+		Expect(gatewayNamespace).To(HaveKeyWithValue(labelNamespaceName, testLocoNamespace))
 
 		app.Spec.ServiceSpec.Routing = nil
 		Expect(reconciler.ensureGatewayIngressPolicy(ctx, app)).To(Succeed())

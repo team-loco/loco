@@ -1,0 +1,2 @@
+! exec loco deploy myapp
+stderr 'Building from source is not available yet: pass --image with a public image reference'

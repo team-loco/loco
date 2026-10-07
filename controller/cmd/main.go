@@ -172,7 +172,9 @@ func main() {
 		metricsServerOptions.KeyName = metricsCertKey
 	}
 
-	cacheOptions := controller.CacheOptions()
+	locoNamespace := os.Getenv(controller.EnvLocoNamespace)
+	pullSecretName := os.Getenv(controller.EnvRegistryPullSecretName)
+	cacheOptions := controller.CacheOptions(locoNamespace, pullSecretName)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Cache:                  cacheOptions,

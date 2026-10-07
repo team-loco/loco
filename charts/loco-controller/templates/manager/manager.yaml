@@ -40,6 +40,10 @@ spec:
                       valueFrom:
                         fieldRef:
                           fieldPath: metadata.namespace
+                    {{- with .Values.registry.pullSecretName }}
+                    - name: REGISTRY_PULL_SECRET_NAME
+                      value: {{ . | quote }}
+                    {{- end }}
                     {{- if .Values.manager.env }}
                     {{- toYaml .Values.manager.env | nindent 20 }}
                     {{- end }}

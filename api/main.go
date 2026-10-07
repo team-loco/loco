@@ -39,7 +39,6 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
-	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
@@ -55,14 +54,9 @@ var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
 
 type APIConfig struct {
 	Env                   string // Environment (e.g., dev, prod)
-	ProjectID             string // GitLab project ID
-	GitlabURL             string // Container registry URL
-	RegistryURL           string // Container registry URL
-	GitlabPAT             string // GitLab Personal Access Token
 	DatabaseURL           string // PostgreSQL connection string
 	LogLevel              slog.Level
 	Port                  string
-	RegistryTag           string
 	CacheType             string   // Cache backend type: "in-memory" or "valkey"
 	CacheAddr             string   // Valkey address (when CacheType is "valkey")
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
@@ -96,14 +90,9 @@ func newAPIConfig() *APIConfig {
 
 	return &APIConfig{
 		Env:                   os.Getenv("APP_ENV"),
-		ProjectID:             os.Getenv("GITLAB_PROJECT_ID"),
-		GitlabURL:             os.Getenv("GITLAB_URL"),
-		RegistryURL:           os.Getenv("GITLAB_REGISTRY_URL"),
-		GitlabPAT:             os.Getenv("GITLAB_PAT"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		Port:                  os.Getenv("APP_PORT"),
 		LogLevel:              logLevel,
-		RegistryTag:           os.Getenv("REGISTRY_TAG"),
 		CacheType:             cacheType,
 		CacheAddr:             os.Getenv("CACHE_ADDR"),
 		CORSAllowedOrigins:    corsOrigins,
@@ -266,17 +255,6 @@ func main() {
 	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
-	registryServiceHandler := service.NewRegistryServer(
-		pool,
-		queries,
-		ac.GitlabURL,
-		ac.GitlabPAT,
-		ac.ProjectID,
-		ac.RegistryTag,
-		httpClient,
-		machine,
-	)
-
 	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
@@ -300,10 +278,6 @@ func main() {
 	)
 	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, httpInterceptors)
 	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, httpInterceptors)
-	registryPath, registryHandler := registryv1connect.NewRegistryServiceHandler(
-		registryServiceHandler,
-		httpInterceptors,
-	)
 	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler, baseInterceptors)
 	observabilityAccessPath, observabilityAccessH := observabilityv1connect.NewObservabilityAccessServiceHandler(
 		observabilityAccessHandler,
@@ -387,10 +361,6 @@ func main() {
 		tokenv1connect.TokenServiceGetScopesProcedure,
 		tokenv1connect.TokenServiceCheckPermissionProcedure,
 
-		// registry service
-		registryv1connect.RegistryServiceGetGitlabTokenProcedure,
-		registryv1connect.RegistryServiceGetImageRepositoryProcedure,
-
 		// agent service
 		agentv1connect.AgentServiceRegisterProcedure,
 		agentv1connect.AgentServiceSyncProcedure,
@@ -420,7 +390,6 @@ func main() {
 	mux.Handle(deploymentPath, deploymentHandler)
 	mux.Handle(domainPath, domainHandler)
 	mux.Handle(tokenPath, tokenHandler)
-	mux.Handle(registryPath, registryHandler)
 	mux.Handle(agentPath, agentHandler)
 	mux.Handle(observabilityAccessPath, observabilityAccessH)
 	mux.Handle(environmentPath, environmentHandler)
