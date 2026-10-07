@@ -14,7 +14,7 @@ nobuild_image_dir="$nobuild_dir/image-app"
 nobuild_source_dir="$nobuild_dir/source-app"
 nobuild_image_app="e2e-public-image"
 nobuild_source_app="e2e-no-builds-source"
-nobuild_public_image='nginxinc/nginx-unprivileged:1.31.6-alpine'
+nobuild_public_image="$E2E_PUBLIC_IMAGE"
 
 nk() {
     kubectl --context "$nobuild_ctx" "$@"

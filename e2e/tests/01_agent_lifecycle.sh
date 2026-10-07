@@ -61,7 +61,7 @@ test_loco_namespace_exists() {
 e2e_placement_id='00000000-0000-7000-8000-000000000013'
 e2e_resource_id='00000000-0000-7000-8000-000000000010'
 e2e_workspace_id='00000000-0000-7000-8000-000000000003'
-e2e_app_image='nginxinc/nginx-unprivileged:1.31.6-alpine'
+e2e_app_image="$E2E_PUBLIC_IMAGE"
 e2e_desired_spec=$(cat <<JSON
 {
   "resource_id": "${e2e_resource_id}",
