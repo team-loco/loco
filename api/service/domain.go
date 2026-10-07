@@ -119,9 +119,7 @@ func (s *DomainServer) ListPlatformDomains(
 	if r.GetActiveOnly() {
 		results, err = s.queries.ListActivePlatformDomains(ctx)
 	} else {
-		// If we need to list all domains, we'd need a new query
-		// For now, fall back to active only
-		results, err = s.queries.ListActivePlatformDomains(ctx)
+		results, err = s.queries.ListPlatformDomains(ctx, nil)
 	}
 
 	if err != nil {

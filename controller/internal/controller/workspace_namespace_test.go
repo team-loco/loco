@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,13 +47,13 @@ func appObjects(app *locov1alpha1.Application) []client.Object {
 	envSecretName := getEnvSecretName(app)
 	imageSecretName := getImageSecretName(app)
 	return []client.Object{
-		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
-		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
-		&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
-		&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: roleName, Namespace: namespace}},
-		&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: bindingName, Namespace: namespace}},
-		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: envSecretName, Namespace: namespace}},
-		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: imageSecretName, Namespace: namespace}},
+		&appsv1.Deployment{Name: name, Namespace: namespace},
+		&corev1.Service{Name: name, Namespace: namespace},
+		&corev1.ServiceAccount{Name: name, Namespace: namespace},
+		&rbacv1.Role{Name: roleName, Namespace: namespace},
+		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
+		&corev1.Secret{Name: envSecretName, Namespace: namespace},
+		&corev1.Secret{Name: imageSecretName, Namespace: namespace},
 	}
 }
 
@@ -86,7 +85,7 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	scheme := workspaceTestScheme(t)
 	deleted := workspaceApp("first", "1")
 	remaining := workspaceApp("second", "3")
-	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: getNamespace(deleted)}}
+	namespace := &corev1.Namespace{Name: getNamespace(deleted)}
 	deletedObjects := appObjects(deleted)
 	remainingObjects := appObjects(remaining)
 
@@ -113,7 +112,7 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 			t.Errorf("%T %s of another app was deleted", obj, obj.GetName())
 		}
 	}
-	if !objectExists(t, kubeClient, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace.Name}}) {
+	if !objectExists(t, kubeClient, &corev1.Namespace{Name: namespace.Name}) {
 		t.Error("workspace namespace deleted while another app still uses it")
 	}
 }
@@ -123,7 +122,7 @@ func TestDeletingTheLastAppRemovesTheWorkspaceNamespace(t *testing.T) {
 	app := workspaceApp("only", "1")
 	other := workspaceApp("elsewhere", "5")
 	other.Spec.WorkspaceID = "9"
-	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: getNamespace(app)}}
+	namespace := &corev1.Namespace{Name: getNamespace(app)}
 
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(namespace, app, other).Build()
 	r := &LocoResourceReconciler{Client: kubeClient}
@@ -131,7 +130,7 @@ func TestDeletingTheLastAppRemovesTheWorkspaceNamespace(t *testing.T) {
 	if err := r.deleteNamespaceIfUnused(context.Background(), app); err != nil {
 		t.Fatalf("deleteNamespaceIfUnused: %v", err)
 	}
-	if objectExists(t, kubeClient, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace.Name}}) {
+	if objectExists(t, kubeClient, &corev1.Namespace{Name: namespace.Name}) {
 		t.Error("workspace namespace kept after its last app was deleted")
 	}
 }

@@ -31,9 +31,7 @@ Examples:
   loco use                        # interactive picker
   loco use my-org/my-workspace    # switch directly`,
 		Args: cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return useCmdFunc(cmd, args)
-		},
+		RunE: useCmdFunc,
 	}
 	cmd.Flags().String("host", "", "API host URL")
 	return cmd

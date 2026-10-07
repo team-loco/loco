@@ -68,7 +68,7 @@ func (*contextInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 
 		if err == nil && resp != nil {
 			resp.Header().Set("X-Loco-Request-Id", rid)
-			resp.Header().Set("Server-Timing", fmt.Sprintf(`rid;desc="%s";dur=%.2f`, rid, durMilli))
+			resp.Header().Set("Server-Timing", fmt.Sprintf(`rid;desc=%q;dur=%.2f`, rid, durMilli))
 		}
 
 		return resp, err
@@ -123,7 +123,7 @@ func (*contextInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFun
 			)
 		}
 
-		conn.ResponseTrailer().Set("Server-Timing", fmt.Sprintf(`rid;desc="%s";dur=%.2f`, rid, durMilli))
+		conn.ResponseTrailer().Set("Server-Timing", fmt.Sprintf(`rid;desc=%q;dur=%.2f`, rid, durMilli))
 
 		return err
 	})

@@ -12,7 +12,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -43,7 +42,7 @@ var _ = Describe("Application reconcile", func() {
 		defer gitlab.Close()
 
 		app := &locov1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "converge", Namespace: testNamespace},
+			Name: "converge", Namespace: testNamespace,
 			Spec: locov1alpha1.ApplicationSpec{
 				Type:        testAppType,
 				ResourceID:  "converge",
@@ -118,12 +117,10 @@ var _ = Describe("Application reconcile", func() {
 
 	It("marks an invalid spec failed and still lets it be deleted", func() {
 		app := &locov1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "invalid",
-				Namespace:  testNamespace,
-				Finalizers: []string{finalizerSecretRefresher},
-			},
-			Spec: locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws"},
+			Name:       "invalid",
+			Namespace:  testNamespace,
+			Finalizers: []string{finalizerSecretRefresher},
+			Spec:       locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws"},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 

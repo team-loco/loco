@@ -43,6 +43,7 @@ linters:
     - fatcontext
     - ginkgolinter
     - gocheckcompilerdirectives
+    - gocritic
     - goconst
     - gocyclo
     - intrange
@@ -51,6 +52,7 @@ linters:
     - makezero
     - mirror
     - misspell
+    - modernize
     - musttag
     - nakedret
     - nilerr
@@ -95,6 +97,13 @@ linters:
 
     errchkjson:
       report-no-exported: true
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+      disabled-checks:
+        - exitAfterDefer
+        - sloppyReassign
 
     govet:
       enable-all: true

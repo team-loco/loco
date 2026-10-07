@@ -7,7 +7,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	"k8s.io/utils/ptr"
@@ -27,7 +26,7 @@ const (
 
 func testApplication() *locov1alpha1.Application {
 	return &locov1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "loco"},
+		Name: "app", Namespace: "loco",
 		Spec: locov1alpha1.ApplicationSpec{
 			Type:        testAppType,
 			ResourceID:  "1",
@@ -212,7 +211,7 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 	app.Spec.ServiceSpec.Routing = nil
 	namespace := getNamespace(app)
 	routeName := getRouteName(app)
-	existing := &v1Gateway.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}}
+	existing := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 	r := &LocoResourceReconciler{Client: kubeClient}
 
@@ -277,7 +276,7 @@ func TestObservePlacementRevision(t *testing.T) {
 func TestApplicationForObject(t *testing.T) {
 	app := testApplication()
 	annotations := ownerAnnotations(app)
-	obj := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Annotations: annotations}}
+	obj := &corev1.Secret{Annotations: annotations}
 	testCtx := context.Background()
 
 	requests := applicationForObject(testCtx, obj)

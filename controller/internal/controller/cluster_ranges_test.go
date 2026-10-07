@@ -2,12 +2,12 @@ package controller
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -32,9 +32,9 @@ func testNode(name string, podCIDRs []string, internalIPs ...string) *corev1.Nod
 	}
 	addresses = append(addresses, corev1.NodeAddress{Type: corev1.NodeExternalIP, Address: "198.51.100.200"})
 	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Spec:       corev1.NodeSpec{PodCIDRs: podCIDRs},
-		Status:     corev1.NodeStatus{Addresses: addresses},
+		Name:   name,
+		Spec:   corev1.NodeSpec{PodCIDRs: podCIDRs},
+		Status: corev1.NodeStatus{Addresses: addresses},
 	}
 }
 
@@ -88,8 +88,8 @@ func TestClusterAddressRangesReadsNodesAndServiceCIDRs(t *testing.T) {
 	legacy.Spec.PodCIDR = "100.96.3.0/24"
 	dual := testNode("dual", []string{podCIDRB, "2600:1f18::/64"}, "203.0.113.5", "2600:1f18::5")
 	serviceCIDR := &networkingv1.ServiceCIDR{
-		ObjectMeta: metav1.ObjectMeta{Name: "kubernetes"},
-		Spec:       networkingv1.ServiceCIDRSpec{CIDRs: []string{serviceCIDRv4, serviceCIDRv6}},
+		Name: "kubernetes",
+		Spec: networkingv1.ServiceCIDRSpec{CIDRs: []string{serviceCIDRv4, serviceCIDRv6}},
 	}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(legacy, dual, serviceCIDR).Build()
 	r := &LocoResourceReconciler{Client: kubeClient}
@@ -168,12 +168,7 @@ func assertStrings(t *testing.T, name string, got, want []string) {
 }
 
 func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, want)
 }
 
 func updateEvent(oldNode, newNode *corev1.Node) event.UpdateEvent {

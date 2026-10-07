@@ -82,16 +82,9 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return err
 			}
 
-			var entityID string
-			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInt == 0 {
-				entityID, err = getCurrentUserID(ctx, userClient, authHeader)
-				if err != nil {
-					return err
-				}
-			} else if entityIDInt == 0 {
-				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
-			} else {
-				entityID = strconv.FormatInt(entityIDInt, 10)
+			entityID, err := resolveEntityID(ctx, userClient, authHeader, entityType, entityTypeStr, entityIDInt)
+			if err != nil {
+				return err
 			}
 
 			req := connect.NewRequest(&tokenv1.ListTokensRequest{
@@ -137,6 +130,24 @@ func newListCmd(deps listDeps) *cobra.Command {
 	cmd.Flags().Int64("entity-id", 0, "Entity ID (defaults to current user for user type)")
 
 	return cmd
+}
+
+func resolveEntityID(
+	ctx context.Context,
+	userClient userv1connect.UserServiceClient,
+	authHeader string,
+	entityType tokenv1.EntityType,
+	entityTypeStr string,
+	entityIDInt int64,
+) (string, error) {
+	switch {
+	case entityIDInt != 0:
+		return strconv.FormatInt(entityIDInt, 10), nil
+	case entityType == tokenv1.EntityType_ENTITY_TYPE_USER:
+		return getCurrentUserID(ctx, userClient, authHeader)
+	default:
+		return "", fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
+	}
 }
 
 func getCurrentUserID(

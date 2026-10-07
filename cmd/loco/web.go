@@ -41,9 +41,7 @@ settings, org-settings, profile, tokens, organizations, team`,
 			"organizations",
 			"team",
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return webCmdFunc(cmd, args)
-		},
+		RunE: webCmdFunc,
 	}
 	cmd.Flags().String("web-host", "", "Web UI URL")
 	return cmd

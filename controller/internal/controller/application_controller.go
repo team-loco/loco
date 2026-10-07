@@ -345,15 +345,15 @@ func (r *LocoResourceReconciler) deleteAppObjects(ctx context.Context, locoRes *
 	imageSecretName := getImageSecretName(locoRes)
 
 	objects := []client.Object{
-		&v1Gateway.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}},
-		&networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: gatewayPolicyName, Namespace: namespace}},
-		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
-		&appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
-		&rbacv1.RoleBinding{ObjectMeta: metav1.ObjectMeta{Name: bindingName, Namespace: namespace}},
-		&rbacv1.Role{ObjectMeta: metav1.ObjectMeta{Name: roleName, Namespace: namespace}},
-		&corev1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace}},
-		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: envSecretName, Namespace: namespace}},
-		&corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: imageSecretName, Namespace: namespace}},
+		&v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace},
+		&networkingv1.NetworkPolicy{Name: gatewayPolicyName, Namespace: namespace},
+		&corev1.Service{Name: name, Namespace: namespace},
+		&appsv1.Deployment{Name: name, Namespace: namespace},
+		&rbacv1.RoleBinding{Name: bindingName, Namespace: namespace},
+		&rbacv1.Role{Name: roleName, Namespace: namespace},
+		&corev1.ServiceAccount{Name: name, Namespace: namespace},
+		&corev1.Secret{Name: envSecretName, Namespace: namespace},
+		&corev1.Secret{Name: imageSecretName, Namespace: namespace},
 	}
 	for _, obj := range objects {
 		err := r.Delete(ctx, obj)
@@ -385,7 +385,7 @@ func (r *LocoResourceReconciler) deleteNamespaceIfUnused(
 	}
 
 	namespace := getNamespace(locoRes)
-	ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	ns := &corev1.Namespace{Name: namespace}
 	if err := r.Delete(ctx, ns); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("delete namespace %s: %w", namespace, err)
 	}
@@ -827,7 +827,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 	routing := locoRes.Spec.ServiceSpec.Routing
 
 	if routing == nil {
-		route := &v1Gateway.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: namespace}}
+		route := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
 		err := r.Delete(ctx, route)
 		if err != nil && !apierrors.IsNotFound(err) && !meta.IsNoMatchError(err) {
 			return fmt.Errorf("delete HTTPRoute %s/%s: %w", namespace, routeName, err)

@@ -7,13 +7,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 func node(name, cpu, memory, pods string) *corev1.Node {
 	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Name: name,
 		Status: corev1.NodeStatus{
 			Allocatable: corev1.ResourceList{
 				corev1.ResourceCPU:    resource.MustParse(cpu),
@@ -26,7 +25,7 @@ func node(name, cpu, memory, pods string) *corev1.Node {
 
 func pod(name string, phase corev1.PodPhase, cpu, memory string) *corev1.Pod {
 	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+		Name: name, Namespace: "default",
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{
 				Name: "app",
@@ -44,8 +43,8 @@ func pod(name string, phase corev1.PodPhase, cpu, memory string) *corev1.Pod {
 
 func controller(ready int32) *appsv1.Deployment {
 	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: "controller-loco-manager", Namespace: "loco-system"},
-		Status:     appsv1.DeploymentStatus{ReadyReplicas: ready},
+		Name: "controller-loco-manager", Namespace: "loco-system",
+		Status: appsv1.DeploymentStatus{ReadyReplicas: ready},
 	}
 }
 

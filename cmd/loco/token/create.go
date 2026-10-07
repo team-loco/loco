@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -93,16 +92,9 @@ Tokens can be scoped to different entity types:
 				return err
 			}
 
-			var entityID string
-			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInt == 0 {
-				entityID, err = getCurrentUserID(ctx, userClient, authHeader)
-				if err != nil {
-					return err
-				}
-			} else if entityIDInt == 0 {
-				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
-			} else {
-				entityID = strconv.FormatInt(entityIDInt, 10)
+			entityID, err := resolveEntityID(ctx, userClient, authHeader, entityType, entityTypeStr, entityIDInt)
+			if err != nil {
+				return err
 			}
 
 			scopeStrs, err := cmd.Flags().GetStringSlice("scope")

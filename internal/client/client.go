@@ -65,9 +65,8 @@ func logRequestID(ctx context.Context, err error, msg string) {
 
 	const requestIDHeaderName = "X-Loco-Request-Id"
 	var headerValue string
-	var cErr *connect.Error
 
-	if errors.As(err, &cErr) {
+	if cErr, ok := errors.AsType[*connect.Error](err); ok {
 		headerValue = cErr.Meta().Get(requestIDHeaderName)
 	}
 

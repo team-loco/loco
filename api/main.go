@@ -113,13 +113,13 @@ func newAPIConfig() *APIConfig {
 	}
 }
 
-func newCache(cacheType, CacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
+func newCache(cacheType, cacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
 	switch cacheType {
 	case "valkey":
-		if CacheAddr == "" {
+		if cacheAddr == "" {
 			return nil, errCacheAddrMissing
 		}
-		return cache.NewValkey(CacheAddr, defaultTTL)
+		return cache.NewValkey(cacheAddr, defaultTTL)
 	case "in-memory":
 		return cache.NewMemory(defaultTTL)
 	case "":

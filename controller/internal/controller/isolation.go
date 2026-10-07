@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
@@ -259,7 +258,7 @@ func (r *LocoResourceReconciler) ensureGatewayIngressPolicy(
 	policyName := getGatewayPolicyName(locoRes)
 
 	if locoRes.Spec.ServiceSpec.Routing == nil {
-		existing := &networkingv1.NetworkPolicy{ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: namespace}}
+		existing := &networkingv1.NetworkPolicy{Name: policyName, Namespace: namespace}
 		if err := r.Delete(ctx, existing); err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("delete network policy %s/%s: %w", namespace, policyName, err)
 		}
