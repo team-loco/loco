@@ -92,9 +92,7 @@ func TestClusterAddressRangesReadsNodesAndServiceCIDRs(t *testing.T) {
 		Spec: networkingv1.ServiceCIDRSpec{CIDRs: []string{serviceCIDRv4, serviceCIDRv6}},
 	}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(legacy, dual, serviceCIDR).Build()
-	r := &LocoResourceReconciler{Client: kubeClient}
-
-	ranges, err := r.clusterAddressRanges(context.Background())
+	ranges, err := clusterAddressRanges(context.Background(), kubeClient)
 	if err != nil {
 		t.Fatalf("clusterAddressRanges: %v", err)
 	}
@@ -128,9 +126,7 @@ func TestClusterAddressRangesWithoutServiceCIDRAPI(t *testing.T) {
 	}
 	funcs := interceptor.Funcs{List: listWithoutServiceCIDRs}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(node).WithInterceptorFuncs(funcs).Build()
-	r := &LocoResourceReconciler{Client: kubeClient}
-
-	ranges, err := r.clusterAddressRanges(context.Background())
+	ranges, err := clusterAddressRanges(context.Background(), kubeClient)
 	if err != nil {
 		t.Fatalf("clusterAddressRanges without ServiceCIDR API: %v", err)
 	}

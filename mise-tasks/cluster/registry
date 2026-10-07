@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
-#MISE description="Let the kind nodes pull from the compose registry at localhost:$REGISTRY_PORT, and store the nodes pull secret in loco-system"
+#MISE description="Let the kind nodes pull from the compose registry, and store the nodes pull secret and the builder push secret in loco-system"
 set -euo pipefail
 
 cluster=${KIND_CLUSTER:-loco-cluster-local}
 project=${COMPOSE_PROJECT:-loco-dev}
 port=${REGISTRY_PORT:-5001}
-alias=loco-registry
-secret=loco-registry
+alias=${REGISTRY_ALIAS:-loco-registry}
+pull_secret=loco-registry
+push_secret=loco-registry-push
 namespace=loco-system
-username=nodes
-password=loco-dev-nodes
 
 container=$(docker ps -q \
 	--filter "label=com.docker.compose.project=$project" \
@@ -18,24 +17,39 @@ if [ -z "$container" ]; then
 	echo "the $project registry container is not running" >&2
 	exit 1
 fi
-if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$container" | jq -e '.kind' >/dev/null; then
+if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$container" | yq -p json -e '.kind' >/dev/null 2>&1; then
 	docker network connect --alias "$alias" kind "$container"
 fi
 
-hosts_dir="/etc/containerd/certs.d/localhost:$port"
 for node in $(kind get nodes --name "$cluster"); do
 	if ! docker exec "$node" containerd config dump 2>/dev/null | grep -q "config_path = '/etc/containerd/certs.d'"; then
 		echo "$node predates the registry config in env/local/kind-cluster.yml; recreate it with: mise run cluster:down && mise run cluster:up" >&2
 		exit 1
 	fi
-	docker exec "$node" mkdir -p "$hosts_dir"
-	printf '[host."http://%s:5000"]\n  capabilities = ["pull", "resolve"]\n' "$alias" |
-		docker exec -i "$node" tee "$hosts_dir/hosts.toml" >/dev/null
+	for host in "localhost:$port" "$alias:5000"; do
+		docker exec "$node" mkdir -p "/etc/containerd/certs.d/$host"
+		printf '[host."http://%s:5000"]\n  capabilities = ["pull", "resolve"]\n' "$alias" |
+			docker exec -i "$node" tee "/etc/containerd/certs.d/$host/hosts.toml" >/dev/null
+	done
 done
 
-kubectl --context "kind-$cluster" -n "$namespace" create secret docker-registry "$secret" \
-	--docker-server="localhost:$port" \
-	--docker-username="$username" \
-	--docker-password="$password" \
-	--dry-run=client -o yaml |
-	kubectl --context "kind-$cluster" apply -f -
+docker_config() {
+	local auth
+	auth=$(printf '%s:%s' "$1" "$2" | base64 | tr -d '\n')
+	AUTH=$auth LOCAL_HOST="localhost:$port" CLUSTER_HOST="$alias:5000" yq -n -o json -I 0 \
+		'.auths[strenv(LOCAL_HOST)].auth = strenv(AUTH) | .auths[strenv(CLUSTER_HOST)].auth = strenv(AUTH)'
+}
+
+store_secret() {
+	local name=$1 config=$2
+	kubectl --context "kind-$cluster" -n "$namespace" create secret generic "$name" \
+		--type=kubernetes.io/dockerconfigjson \
+		--from-literal=.dockerconfigjson="$config" \
+		--dry-run=client -o yaml |
+		kubectl --context "kind-$cluster" apply -f -
+}
+
+nodes_config=$(docker_config nodes loco-dev-nodes)
+builder_config=$(docker_config builder loco-dev-builder)
+store_secret "$pull_secret" "$nodes_config"
+store_secret "$push_secret" "$builder_config"

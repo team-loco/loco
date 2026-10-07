@@ -20,6 +20,8 @@ PG_DB="loco_e2e"
 API_PORT=8877  # avoid conflict with dev API on 8000
 OBS_PROXY_PORT=8878
 CONTROLLER_IMAGE="loco-controller:e2e"
+BUILDER_IMAGE="loco-builder:e2e"
+BUILDKIT_IMAGE="moby/buildkit:v0.33.1-rootless"
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 
@@ -32,6 +34,18 @@ export E2E_AGENT_TOKEN="$AGENT_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
 export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
+export REGISTRY_PORT=5011 S3_PORT=9011
+export LOCO_SOURCE_BUCKET="loco-e2e-sources"
+export LOCO_SOURCE_BUCKET_ACCESS_KEY_ID="loco-e2e"
+export LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY="loco-e2e-secret"
+export LOCO_SOURCE_BUCKET_REGION="us-east-1"
+export E2E_REGISTRY_PORT="$REGISTRY_PORT"
+export E2E_REGISTRY_ALIAS="loco-e2e-registry"
+export E2E_REGISTRY_HOST="${E2E_REGISTRY_ALIAS}:5000"
+export E2E_S3_ALIAS="loco-e2e-s3"
+export E2E_BUILD_NAMESPACE="loco-builds"
+export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
+export E2E_AWS_CLI_IMAGE="amazon/aws-cli:2.37.10"
 
 source "$SCRIPT_DIR/lib.sh"
 
@@ -145,6 +159,47 @@ create_namespace() {
     log_ok "Namespace ready"
 }
 
+compose_container_ip() {
+    local container
+    container=$(e2e_compose ps -q "$1")
+    docker inspect -f '{{(index .NetworkSettings.Networks "kind").IPAddress}}' "$container"
+}
+
+setup_registry() {
+    log_step "Starting the registry and the source bucket..."
+    e2e_compose up -d --wait registry s3
+    local s3_container
+    s3_container=$(e2e_compose ps -q s3)
+    if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$s3_container" | yq -p json -e '.kind' >/dev/null 2>&1; then
+        docker network connect --alias "$E2E_S3_ALIAS" kind "$s3_container"
+    fi
+    KIND_CLUSTER="$KIND_CLUSTER_NAME" \
+    COMPOSE_PROJECT="$E2E_COMPOSE_PROJECT" \
+    REGISTRY_ALIAS="$E2E_REGISTRY_ALIAS" \
+        mise run cluster:registry >/dev/null
+    REGISTRY_IP=$(compose_container_ip registry)
+    S3_IP=$(compose_container_ip s3)
+    log_ok "Registry at ${E2E_REGISTRY_HOST} (${REGISTRY_IP}), source bucket at ${E2E_S3_ALIAS}:7070 (${S3_IP})"
+}
+
+build_builder_images() {
+    if [ "$SKIP_BUILD" = true ]; then
+        log_info "Skipping builder image build (--skip-build)"
+    else
+        log_step "Building the builder image..."
+        docker build -q -t "$BUILDER_IMAGE" -f "$ROOT_DIR/builder/Dockerfile" "$ROOT_DIR" >/dev/null
+        log_ok "Builder image built"
+    fi
+    local image
+    for image in "$BUILDKIT_IMAGE" "$E2E_AWS_CLI_IMAGE"; do
+        if ! docker image inspect "$image" >/dev/null 2>&1; then
+            docker pull -q "$image" >/dev/null
+        fi
+    done
+    kind load docker-image "$BUILDER_IMAGE" "$BUILDKIT_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
+    log_ok "Builder and BuildKit images loaded into Kind"
+}
+
 build_controller_image() {
     if [ "$SKIP_BUILD" = true ]; then
         log_info "Skipping controller image build (--skip-build)"
@@ -166,6 +221,11 @@ install_controller() {
         --values "$SCRIPT_DIR/controller-values.yaml" \
         --set manager.image.repository="${CONTROLLER_IMAGE%%:*}" \
         --set manager.image.tag="${CONTROLLER_IMAGE##*:}" \
+        --set builds.builderImage.repository="${BUILDER_IMAGE%%:*}" \
+        --set builds.builderImage.tag="${BUILDER_IMAGE##*:}" \
+        --set builds.buildkitImage.repository="${BUILDKIT_IMAGE%%:*}" \
+        --set builds.buildkitImage.tag="${BUILDKIT_IMAGE##*:}" \
+        --set "builds.privateEgressCIDRs={${REGISTRY_IP}/32,${S3_IP}/32}" \
         --wait --timeout 3m >/dev/null
     log_ok "Controller running in Kind"
 }
@@ -337,6 +397,8 @@ main() {
     setup_postgres
     run_migrations
     create_namespace
+    setup_registry
+    build_builder_images
     build_controller_image
     install_controller
     build_binaries

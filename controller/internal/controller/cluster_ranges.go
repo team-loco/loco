@@ -46,9 +46,9 @@ func nodeAddressRanges(node *corev1.Node) []string {
 	return ranges
 }
 
-func (r *LocoResourceReconciler) clusterAddressRanges(ctx context.Context) ([]string, error) {
+func clusterAddressRanges(ctx context.Context, reader client.Reader) ([]string, error) {
 	var nodes corev1.NodeList
-	if err := r.List(ctx, &nodes); err != nil {
+	if err := reader.List(ctx, &nodes); err != nil {
 		return nil, fmt.Errorf("list nodes: %w", err)
 	}
 	var ranges []string
@@ -58,7 +58,7 @@ func (r *LocoResourceReconciler) clusterAddressRanges(ctx context.Context) ([]st
 	}
 
 	var serviceCIDRs networkingv1.ServiceCIDRList
-	err := r.List(ctx, &serviceCIDRs)
+	err := reader.List(ctx, &serviceCIDRs)
 	if meta.IsNoMatchError(err) || apierrors.IsNotFound(err) {
 		slog.DebugContext(ctx, "ServiceCIDR API not served, skipping service ranges", "error", err)
 		return ranges, nil
@@ -115,6 +115,14 @@ func prefixStrings(prefixes []netip.Prefix) []string {
 		out = append(out, prefix.String())
 	}
 	return out
+}
+
+func discoverEgressExclusions(ctx context.Context, reader client.Reader) (egressExclusionSet, error) {
+	discovered, err := clusterAddressRanges(ctx, reader)
+	if err != nil {
+		return egressExclusionSet{}, fmt.Errorf("discover cluster address ranges: %w", err)
+	}
+	return egressExclusions(discovered), nil
 }
 
 func egressExclusions(discovered []string) egressExclusionSet {

@@ -103,6 +103,7 @@ jobs:
           add '"controller"' '^(controller/|k8sapi/)'
           add '"api"' '^(api/|gen/go/|go\.mod$|go\.sum$|k8sapi/)'
           add '"agent"' '^(agent/|gen/go/|go\.mod$|go\.sum$|k8sapi/)'
+          add '"builder"' '^builder/'
           add '"observability-proxy"' '^(observability-proxy/|gen/go/|go\.mod$|go\.sum$)'
           add '"ui"' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
 

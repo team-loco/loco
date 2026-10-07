@@ -76,16 +76,26 @@ rules:
         - infra.loco.io
       resources:
         - applications/finalizers
+        - builds/finalizers
       verbs:
         - update
     - apiGroups:
         - infra.loco.io
       resources:
         - applications/status
+        - builds/status
       verbs:
         - get
         - patch
         - update
+    - apiGroups:
+        - infra.loco.io
+      resources:
+        - builds
+      verbs:
+        - get
+        - list
+        - watch
     - apiGroups:
         - networking.k8s.io
       resources:
