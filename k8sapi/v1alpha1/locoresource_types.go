@@ -129,10 +129,8 @@ type ServiceSpec struct {
 // ServiceDeploymentSpec contains service deployment-specific configuration
 // Includes deployment-time resource overrides that take precedence over ResourcesSpec
 type ServiceDeploymentSpec struct {
-	Image          string `json:"image,omitempty"`
-	Port           int32  `json:"port,omitempty"`
-	DockerfilePath string `json:"dockerfilePath,omitempty"`
-	BuildType      string `json:"buildType,omitempty"` // docker, buildpack, etc
+	Image string `json:"image,omitempty"`
+	Port  int32  `json:"port,omitempty"`
 
 	// Deployment-time resource overrides (takes precedence over ResourcesSpec)
 	CPU         string       `json:"cpu,omitempty"`

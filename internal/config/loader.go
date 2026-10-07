@@ -39,7 +39,6 @@ const DefaultAppDomain = "onloco.app"
 
 const (
 	defaultRegion      = "us-east-1"
-	buildTypeDocker    = "docker"
 	domainTypePlatform = "platform"
 )
 
@@ -59,7 +58,6 @@ var Default = &LocoConfig{
 	},
 	Build: Build{
 		DockerfilePath: "Dockerfile",
-		Type:           buildTypeDocker,
 	},
 	Routing: Routing{
 		IdleTimeout: 60,
@@ -99,9 +97,6 @@ var Default = &LocoConfig{
 func FillSensibleDefaults(cfg *LocoConfig) {
 	if cfg.Build.DockerfilePath == "" {
 		cfg.Build.DockerfilePath = Default.Build.DockerfilePath
-	}
-	if cfg.Build.Type == "" {
-		cfg.Build.Type = Default.Build.Type
 	}
 
 	if cfg.Routing.PathPrefix == "" {
@@ -209,13 +204,6 @@ func validateRouting(cfg *LocoConfig) error {
 func validateBuild(cfg *LocoConfig) error {
 	if cfg.Build.DockerfilePath == "" {
 		cfg.Build.DockerfilePath = "Dockerfile"
-	}
-
-	if cfg.Build.Type == "" {
-		cfg.Build.Type = buildTypeDocker
-	}
-	if cfg.Build.Type != buildTypeDocker {
-		return fmt.Errorf("build.type %q is not supported. only 'docker' is allowed", cfg.Build.Type)
 	}
 
 	return nil

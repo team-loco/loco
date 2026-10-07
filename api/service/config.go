@@ -26,8 +26,6 @@ func (s *ConfigServer) GetConfig(
 	return connect.NewResponse(&configv1.GetConfigResponse{
 		MinCliVersion: s.minCLIVersion,
 		ServiceDefaults: &configv1.DefaultServiceConfig{
-			BuildType:      "docker",
-			DockerfilePath: "Dockerfile",
 			Routing: &resourcev1.RoutingConfig{
 				Port:        8000,
 				PathPrefix:  "/",

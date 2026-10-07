@@ -28,6 +28,15 @@ CREATE TYPE resource_type AS ENUM (
     'blob'
 );
 
+CREATE TYPE build_status AS ENUM (
+    'awaiting_upload',
+    'queued',
+    'running',
+    'succeeded',
+    'failed',
+    'canceled'
+);
+
 -- Domain source enum (who manages the domain)
 CREATE TYPE domain_source AS ENUM ('platform_provided', 'user_provided');
 
@@ -254,7 +263,47 @@ CREATE INDEX idx_placements_cluster_id ON placements (cluster_id);
 
 CREATE INDEX idx_placements_deployment_id ON placements (deployment_id);
 
+CREATE TABLE
+    builds (
+        id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+        cluster_id UUID REFERENCES clusters (id) ON DELETE SET NULL,
+        status build_status NOT NULL,
+        source_type TEXT NOT NULL CHECK (source_type IN ('upload')),
+        source_key TEXT NOT NULL UNIQUE,
+        source_size BIGINT NOT NULL,
+        dockerfile_path TEXT NOT NULL,
+        image_repository TEXT NOT NULL,
+        image_digest TEXT,
+        message TEXT NOT NULL DEFAULT '',
+        created_by UUID NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        started_at TIMESTAMPTZ,
+        finished_at TIMESTAMPTZ,
+        source_deleted_at TIMESTAMPTZ,
+        CHECK (
+            status <> 'succeeded'
+            OR image_digest IS NOT NULL
+        )
+    );
+
+CREATE INDEX idx_builds_resource_created_at ON builds (resource_id, created_at DESC);
+
+CREATE INDEX idx_builds_cluster_active ON builds (cluster_id)
+WHERE
+    status IN ('queued', 'running');
+
+CREATE INDEX idx_builds_awaiting_upload ON builds (created_at)
+WHERE
+    status = 'awaiting_upload';
+
+CREATE INDEX idx_builds_source_undeleted ON builds (finished_at, id)
+WHERE
+    source_deleted_at IS NULL
+    AND status IN ('succeeded', 'failed', 'canceled');
+
 -- +goose Down
+DROP TABLE IF EXISTS builds;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS resource_domains;
@@ -265,6 +314,7 @@ DROP TABLE IF EXISTS clusters;
 DROP TABLE IF EXISTS environments;
 DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;
+DROP TYPE IF EXISTS build_status;
 DROP TYPE IF EXISTS resource_type;
 DROP TYPE IF EXISTS resource_status;
 DROP TYPE IF EXISTS deployment_status;

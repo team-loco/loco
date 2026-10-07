@@ -7,7 +7,6 @@ Type = "SERVICE"
 
 [Build]
 DockerfilePath = "Dockerfile"
-Type = "docker"
 
 [Routing]
 IdleTimeout = 60

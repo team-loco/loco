@@ -15,6 +15,8 @@ type Querier interface {
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) error
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
+	CancelBuild(ctx context.Context, arg CancelBuildParams) (int64, error)
+	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) error
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -23,6 +25,7 @@ type Querier interface {
 	// API token queries
 	// -----------------------------------------------------------------------------
 	CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) error
+	CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error)
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
@@ -60,10 +63,13 @@ type Querier interface {
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
+	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]uuid.UUID, error)
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
 	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
+	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
+	GetBuildCluster(ctx context.Context) (uuid.UUID, error)
 	// Cluster queries for agent operations
 	GetClusterByAgentToken(ctx context.Context, agentTokenHash *string) (GetClusterByAgentTokenRow, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
@@ -111,11 +117,13 @@ type Querier interface {
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	IsWorkspaceNameUniqueInOrg(ctx context.Context, arg IsWorkspaceNameUniqueInOrgParams) (bool, error)
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
+	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
 	ListActiveDeploymentsByResourceID(ctx context.Context, resourceID uuid.UUID) ([]DeploymentStatus, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListActivePlatformDomains(ctx context.Context) ([]PlatformDomain, error)
 	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
+	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
 	ListClustersActive(ctx context.Context) ([]ListClustersActiveRow, error)
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
@@ -130,13 +138,16 @@ type Querier interface {
 	ListResourceRegionsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
+	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
+	LockResourceForBuild(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
+	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
 	MarkDeploymentNotActive(ctx context.Context, id uuid.UUID) error
 	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (*uuid.UUID, error)
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
@@ -144,6 +155,7 @@ type Querier interface {
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
+	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
 	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
@@ -158,6 +170,8 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error
+	TryLockSourceSweep(ctx context.Context, lockKey int64) (bool, error)
+	UnlockSourceSweep(ctx context.Context, lockKey int64) (bool, error)
 	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
 	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error

@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QibAoRR2V0Q29uZmlnUmVzcG9uc2USPgoQc2VydmljZV9kZWZhdWx0cxgBIAEoCzIkLmxvY28uY29uZmlnLnYxLkRlZmF1bHRTZXJ2aWNlQ29uZmlnEhcKD21pbl9jbGlfdmVyc2lvbhgCIAEoCSLSAgoURGVmYXVsdFNlcnZpY2VDb25maWcSEgoKYnVpbGRfdHlwZRgBIAEoCRIXCg9kb2NrZXJmaWxlX3BhdGgYAiABKAkSMAoHcm91dGluZxgDIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI7CgxoZWFsdGhfY2hlY2sYBCABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAUgASgJEg4KBm1lbW9yeRgGIAEoCRIUCgxtaW5fcmVwbGljYXMYByABKAUSFAoMbWF4X3JlcGxpY2FzGAggASgFEjwKDW9ic2VydmFiaWxpdHkYCSABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPcGxhdGZvcm1fZG9tYWluGAogASgJMmEKDUNvbmZpZ1NlcnZpY2USUAoJR2V0Q29uZmlnEiAubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVxdWVzdBohLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vY29uZmlnL3YxO2NvbmZpZ3YxYgZwcm90bzM", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3QibAoRR2V0Q29uZmlnUmVzcG9uc2USPgoQc2VydmljZV9kZWZhdWx0cxgBIAEoCzIkLmxvY28uY29uZmlnLnYxLkRlZmF1bHRTZXJ2aWNlQ29uZmlnEhcKD21pbl9jbGlfdmVyc2lvbhgCIAEoCSLOAgoURGVmYXVsdFNlcnZpY2VDb25maWcSMAoHcm91dGluZxgDIAEoCzIfLmxvY28ucmVzb3VyY2UudjEuUm91dGluZ0NvbmZpZxI7CgxoZWFsdGhfY2hlY2sYBCABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWcSCwoDY3B1GAUgASgJEg4KBm1lbW9yeRgGIAEoCRIUCgxtaW5fcmVwbGljYXMYByABKAUSFAoMbWF4X3JlcGxpY2FzGAggASgFEjwKDW9ic2VydmFiaWxpdHkYCSABKAsyJS5sb2NvLnJlc291cmNlLnYxLk9ic2VydmFiaWxpdHlDb25maWcSFwoPcGxhdGZvcm1fZG9tYWluGAogASgJSgQIARACSgQIAhADUgpidWlsZF90eXBlUg9kb2NrZXJmaWxlX3BhdGgyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_loco_deployment_v1_deployment, file_loco_resource_v1_resource]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -80,22 +80,6 @@ export const GetConfigResponseSchema: GenMessage<GetConfigResponse, {jsonType: G
  */
 export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"> & {
   /**
-   * Default build configuration
-   *
-   * e.g., "dockerfile"
-   *
-   * @generated from field: string build_type = 1;
-   */
-  buildType: string;
-
-  /**
-   * e.g., "Dockerfile"
-   *
-   * @generated from field: string dockerfile_path = 2;
-   */
-  dockerfilePath: string;
-
-  /**
    * Default routing configuration
    *
    * @generated from field: loco.resource.v1.RoutingConfig routing = 3;
@@ -157,22 +141,6 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
  * @generated from message loco.config.v1.DefaultServiceConfig
  */
 export type DefaultServiceConfigJson = {
-  /**
-   * Default build configuration
-   *
-   * e.g., "dockerfile"
-   *
-   * @generated from field: string build_type = 1;
-   */
-  buildType?: string;
-
-  /**
-   * e.g., "Dockerfile"
-   *
-   * @generated from field: string dockerfile_path = 2;
-   */
-  dockerfilePath?: string;
-
   /**
    * Default routing configuration
    *

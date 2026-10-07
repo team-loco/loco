@@ -32,7 +32,6 @@ type Resources struct {
 
 type Build struct {
 	DockerfilePath string `json:"dockerfilePath" toml:"DockerfilePath"`
-	Type           string `json:"type"           toml:"Type"`
 }
 
 type Routing struct {

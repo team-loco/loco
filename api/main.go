@@ -29,9 +29,12 @@ import (
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
+	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
+	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	"github.com/team-loco/loco/gen/go/loco/domain/v1/domainv1connect"
@@ -46,9 +49,19 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var errCacheAddrMissing = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
+var (
+	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
+	errUnknownCacheType   = errors.New("unknown cache type")
+	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
+)
 
-const envProduction = "PRODUCTION"
+const (
+	envProduction         = "PRODUCTION"
+	cacheTypeValkey       = "valkey"
+	cacheTypeMemory       = "in-memory"
+	defaultSourceMaxBytes = 200 * 1024 * 1024
+	imageResolveTimeout   = 15 * time.Second
+)
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
 
@@ -63,6 +76,10 @@ type APIConfig struct {
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
 	MinCLIVersion         string
 	PprofAddr             string
+	SourceBucket          sourcebucket.Config
+	SourceMaxBytes        int64
+	RegistryHost          string
+	RegistryPrefix        string
 }
 
 func newAPIConfig() *APIConfig {
@@ -76,7 +93,14 @@ func newAPIConfig() *APIConfig {
 
 	cacheType := os.Getenv("CACHE_TYPE")
 	if cacheType == "" {
-		cacheType = "in-memory"
+		cacheType = cacheTypeMemory
+	}
+	cacheAddr := os.Getenv("CACHE_ADDR")
+	if cacheType != cacheTypeValkey && cacheType != cacheTypeMemory {
+		panic(fmt.Errorf("%w: %q", errUnknownCacheType, cacheType))
+	}
+	if cacheType == cacheTypeValkey && cacheAddr == "" {
+		panic(errCacheAddrMissing)
 	}
 
 	corsOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
@@ -88,33 +112,66 @@ func newAPIConfig() *APIConfig {
 		}
 	}
 
+	sourceMaxBytes := int64(defaultSourceMaxBytes)
+	if raw := os.Getenv("LOCO_SOURCE_MAX_BYTES"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed <= 0 {
+			panic(fmt.Errorf("%w: %q", errInvalidSourceBytes, raw))
+		}
+		sourceMaxBytes = parsed
+	}
+
+	sourceBucket := sourcebucket.Config{
+		Endpoint:        os.Getenv("LOCO_SOURCE_BUCKET_ENDPOINT"),
+		Bucket:          os.Getenv("LOCO_SOURCE_BUCKET"),
+		Region:          os.Getenv("LOCO_SOURCE_BUCKET_REGION"),
+		AccessKeyID:     os.Getenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID"),
+		SecretAccessKey: os.Getenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"),
+	}
+	if sourceBucket.Bucket != "" {
+		if err := sourceBucket.Validate(); err != nil {
+			panic(err)
+		}
+	}
+
 	return &APIConfig{
 		Env:                   os.Getenv("APP_ENV"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
 		Port:                  os.Getenv("APP_PORT"),
 		LogLevel:              logLevel,
 		CacheType:             cacheType,
-		CacheAddr:             os.Getenv("CACHE_ADDR"),
+		CacheAddr:             cacheAddr,
 		CORSAllowedOrigins:    corsOrigins,
 		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
 		MinCLIVersion:         os.Getenv("MIN_CLI_VERSION"),
 		PprofAddr:             os.Getenv("PPROF_ADDR"),
+		SourceBucket:          sourceBucket,
+		SourceMaxBytes:        sourceMaxBytes,
+		RegistryHost:          os.Getenv("LOCO_REGISTRY_HOST"),
+		RegistryPrefix:        os.Getenv("LOCO_REGISTRY_PREFIX"),
 	}
+}
+
+func newSourceBucket(cfg sourcebucket.Config) (service.SourceBucket, error) {
+	if cfg.Bucket == "" {
+		slog.Warn("LOCO_SOURCE_BUCKET is not set; builds are disabled")
+		return nil, nil
+	}
+	bucket, err := sourcebucket.New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("source bucket: %w", err)
+	}
+	return bucket, nil
 }
 
 func newCache(cacheType, cacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
 	switch cacheType {
-	case "valkey":
-		if cacheAddr == "" {
-			return nil, errCacheAddrMissing
-		}
+	case cacheTypeValkey:
 		return cache.NewValkey(cacheAddr, defaultTTL)
-	case "in-memory":
-		return cache.NewMemory(defaultTTL)
-	case "":
+	case cacheTypeMemory:
 		return cache.NewMemory(defaultTTL)
 	default:
-		return nil, fmt.Errorf("unknown cache type: %s", cacheType)
+		return nil, fmt.Errorf("%w: %q", errUnknownCacheType, cacheType)
 	}
 }
 
@@ -252,7 +309,25 @@ func main() {
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
 	resourceServiceHandler := service.NewResourceServer(pool, queries, machine)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine)
+	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
+	if bucketErr != nil {
+		log.Fatal(bucketErr)
+	}
+	if ac.RegistryHost == "" {
+		slog.Warn("LOCO_REGISTRY_HOST is not set; builds are disabled")
+	}
+	if sourceBucket != nil {
+		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket)
+		go sourceSweeper.Run(shutdownCtx)
+	}
+	imageResolver := imageresolver.New(imageResolveTimeout)
+
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, imageResolver, ac.RegistryHost)
+	buildServiceHandler := service.NewBuildServer(pool, queries, machine, sourceBucket, service.BuildConfig{
+		RegistryHost:   ac.RegistryHost,
+		RegistryPrefix: ac.RegistryPrefix,
+		SourceMaxBytes: ac.SourceMaxBytes,
+	})
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
@@ -276,6 +351,7 @@ func main() {
 		deploymentServiceHandler,
 		httpInterceptors,
 	)
+	buildPath, buildHandler := buildv1connect.NewBuildServiceHandler(buildServiceHandler, httpInterceptors)
 	domainPath, domainHandler := domainv1connect.NewDomainServiceHandler(domainServiceHandler, httpInterceptors)
 	tokenPath, tokenHandler := tokenv1connect.NewTokenServiceHandler(tokenServiceHandler, httpInterceptors)
 	agentPath, agentHandler := agentv1connect.NewAgentServiceHandler(agentServiceHandler, baseInterceptors)
@@ -340,6 +416,12 @@ func main() {
 		deploymentv1connect.DeploymentServiceListDeploymentsProcedure,
 		deploymentv1connect.DeploymentServiceWatchDeploymentProcedure,
 
+		buildv1connect.BuildServiceCreateBuildProcedure,
+		buildv1connect.BuildServiceStartBuildProcedure,
+		buildv1connect.BuildServiceGetBuildProcedure,
+		buildv1connect.BuildServiceListBuildsProcedure,
+		buildv1connect.BuildServiceCancelBuildProcedure,
+
 		// domain service
 		domainv1connect.DomainServiceCreatePlatformDomainProcedure,
 		domainv1connect.DomainServiceGetPlatformDomainProcedure,
@@ -388,6 +470,7 @@ func main() {
 	mux.Handle(workspacePath, workspaceHandler)
 	mux.Handle(resourcePath, resourceHandler)
 	mux.Handle(deploymentPath, deploymentHandler)
+	mux.Handle(buildPath, buildHandler)
 	mux.Handle(domainPath, domainHandler)
 	mux.Handle(tokenPath, tokenHandler)
 	mux.Handle(agentPath, agentHandler)

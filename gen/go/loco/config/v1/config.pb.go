@@ -115,9 +115,6 @@ func (x *GetConfigResponse) GetMinCliVersion() string {
 // These values are used when users don't specify explicit configuration.
 type DefaultServiceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Default build configuration
-	BuildType      string `protobuf:"bytes,1,opt,name=build_type,json=buildType,proto3" json:"build_type,omitempty"`                // e.g., "dockerfile"
-	DockerfilePath string `protobuf:"bytes,2,opt,name=dockerfile_path,json=dockerfilePath,proto3" json:"dockerfile_path,omitempty"` // e.g., "Dockerfile"
 	// Default routing configuration
 	Routing *v1.RoutingConfig `protobuf:"bytes,3,opt,name=routing,proto3" json:"routing,omitempty"`
 	// Default health check configuration
@@ -163,20 +160,6 @@ func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DefaultServiceConfig.ProtoReflect.Descriptor instead.
 func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
 	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *DefaultServiceConfig) GetBuildType() string {
-	if x != nil {
-		return x.BuildType
-	}
-	return ""
-}
-
-func (x *DefaultServiceConfig) GetDockerfilePath() string {
-	if x != nil {
-		return x.DockerfilePath
-	}
-	return ""
 }
 
 func (x *DefaultServiceConfig) GetRouting() *v1.RoutingConfig {
@@ -243,11 +226,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x10GetConfigRequest\"\x8c\x01\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
-	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\"\xc9\x03\n" +
-	"\x14DefaultServiceConfig\x12\x1d\n" +
-	"\n" +
-	"build_type\x18\x01 \x01(\tR\tbuildType\x12'\n" +
-	"\x0fdockerfile_path\x18\x02 \x01(\tR\x0edockerfilePath\x129\n" +
+	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\"\xaa\x03\n" +
+	"\x14DefaultServiceConfig\x129\n" +
 	"\arouting\x18\x03 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12H\n" +
 	"\fhealth_check\x18\x04 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
 	"\x03cpu\x18\x05 \x01(\tR\x03cpu\x12\x16\n" +
@@ -256,7 +236,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fmax_replicas\x18\b \x01(\x05R\vmaxReplicas\x12K\n" +
 	"\robservability\x18\t \x01(\v2%.loco.resource.v1.ObservabilityConfigR\robservability\x12'\n" +
 	"\x0fplatform_domain\x18\n" +
-	" \x01(\tR\x0eplatformDomain2a\n" +
+	" \x01(\tR\x0eplatformDomainJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\n" +
+	"build_typeR\x0fdockerfile_path2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 

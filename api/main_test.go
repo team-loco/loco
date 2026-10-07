@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -45,5 +47,78 @@ func TestWithCORS(t *testing.T) {
 				t.Errorf("origin %q allowed = %v, want %v", tt.origin, got, tt.want)
 			}
 		})
+	}
+}
+
+func panicValue(t *testing.T, fn func()) error {
+	t.Helper()
+	var recovered any
+	func() {
+		defer func() { recovered = recover() }()
+		fn()
+	}()
+	if recovered == nil {
+		t.Fatal("expected a panic")
+	}
+	err, ok := recovered.(error)
+	if !ok {
+		t.Fatalf("panic value %v is not an error", recovered)
+	}
+	return err
+}
+
+func clearAPIConfigEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("CACHE_TYPE", "")
+	t.Setenv("CACHE_ADDR", "")
+	t.Setenv("LOCO_SOURCE_MAX_BYTES", "")
+	t.Setenv("LOCO_SOURCE_BUCKET", "")
+	t.Setenv("LOCO_SOURCE_BUCKET_REGION", "")
+	t.Setenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", "")
+	t.Setenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY", "")
+}
+
+func TestNewAPIConfigDefaults(t *testing.T) {
+	clearAPIConfigEnv(t)
+	ac := newAPIConfig()
+	if ac.CacheType != cacheTypeMemory {
+		t.Errorf("cache type = %q, want %q", ac.CacheType, cacheTypeMemory)
+	}
+	if ac.SourceMaxBytes != defaultSourceMaxBytes {
+		t.Errorf("source max bytes = %d, want %d", ac.SourceMaxBytes, defaultSourceMaxBytes)
+	}
+}
+
+func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
+	tests := []struct {
+		name string
+		env  map[string]string
+		want error
+	}{
+		{"valkey without address", map[string]string{"CACHE_TYPE": cacheTypeValkey}, errCacheAddrMissing},
+		{"unknown cache type", map[string]string{"CACHE_TYPE": "redis"}, errUnknownCacheType},
+		{"non-numeric source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "lots"}, errInvalidSourceBytes},
+		{"zero source max bytes", map[string]string{"LOCO_SOURCE_MAX_BYTES": "0"}, errInvalidSourceBytes},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearAPIConfigEnv(t)
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+			err := panicValue(t, func() { newAPIConfig() })
+			if !errors.Is(err, tt.want) {
+				t.Errorf("panic = %v, want %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewAPIConfigPanicsOnPartialSourceBucket(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_SOURCE_BUCKET", "loco-sources")
+	err := panicValue(t, func() { newAPIConfig() })
+	if !strings.Contains(err.Error(), "source bucket") {
+		t.Errorf("panic = %v, want a source bucket error", err)
 	}
 }

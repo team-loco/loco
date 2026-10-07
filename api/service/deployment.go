@@ -166,9 +166,11 @@ func deploymentToProto(d genDb.Deployment, resourceType string) *deploymentv1.De
 
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
-	db      *pgxpool.Pool
-	queries genDb.Querier
-	machine *tvm.VendingMachine
+	db           *pgxpool.Pool
+	queries      genDb.Querier
+	machine      *tvm.VendingMachine
+	resolver     ImageResolver
+	registryHost string
 }
 
 // NewDeploymentServer creates a new DeploymentServer instance
@@ -176,11 +178,15 @@ func NewDeploymentServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	machine *tvm.VendingMachine,
+	resolver ImageResolver,
+	registryHost string,
 ) *DeploymentServer {
 	return &DeploymentServer{
-		db:      db,
-		queries: queries,
-		machine: machine,
+		db:           db,
+		queries:      queries,
+		machine:      machine,
+		resolver:     resolver,
+		registryHost: registryHost,
 	}
 }
 
@@ -277,6 +283,20 @@ func (s *DeploymentServer) CreateDeployment(
 		)
 	}
 
+	requestedBuild := serviceSpec.GetBuild()
+	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
+	if err != nil {
+		return nil, err
+	}
+	originalSpec := r.GetSpec()
+	clonedSpec := proto.Clone(originalSpec)
+	requestSpec, ok := clonedSpec.(*deploymentv1.DeploymentSpec)
+	if !ok {
+		slog.ErrorContext(ctx, "failed to clone deployment spec")
+		return nil, connect.NewError(connect.CodeInternal, errCloneDeploymentSpec)
+	}
+	requestSpec.GetService().Build = pinnedBuild
+
 	// deserialize resource spec and merge with request spec
 	resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 	if deserializeErr != nil {
@@ -284,7 +304,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("invalid resource spec: %w", deserializeErr))
 	}
 
-	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, r.GetSpec(), region)
+	mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region)
 	if mergeErr != nil {
 		slog.ErrorContext(ctx, mergeErr.Error())
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("merge error: %w", mergeErr))

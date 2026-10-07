@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package loco.build.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/team-loco/loco/gen/go/loco/build/v1;buildv1";
+
+enum BuildStatus {
+  BUILD_STATUS_UNSPECIFIED = 0;
+  BUILD_STATUS_AWAITING_UPLOAD = 1;
+  BUILD_STATUS_QUEUED = 2;
+  BUILD_STATUS_RUNNING = 3;
+  BUILD_STATUS_SUCCEEDED = 4;
+  BUILD_STATUS_FAILED = 5;
+  BUILD_STATUS_CANCELED = 6;
+}
+
+service BuildService {
+  rpc CreateBuild(CreateBuildRequest) returns (CreateBuildResponse);
+  rpc StartBuild(StartBuildRequest) returns (StartBuildResponse);
+  rpc GetBuild(GetBuildRequest) returns (GetBuildResponse);
+  rpc ListBuilds(ListBuildsRequest) returns (ListBuildsResponse);
+  rpc CancelBuild(CancelBuildRequest) returns (CancelBuildResponse);
+}
+
+message Build {
+  string id = 1;
+  string resource_id = 2;
+  optional string cluster_id = 3;
+  BuildStatus status = 4;
+  string source_type = 5;
+  string source_key = 6;
+  int64 source_size = 7;
+  string dockerfile_path = 8;
+  string image_repository = 9;
+  optional string image_digest = 10;
+  string message = 11;
+  string created_by = 12;
+  google.protobuf.Timestamp created_at = 13;
+  optional google.protobuf.Timestamp started_at = 14;
+  optional google.protobuf.Timestamp finished_at = 15;
+}
+
+message CreateBuildRequest {
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  string dockerfile_path = 2 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 1024
+  }];
+  int64 source_size = 3 [(buf.validate.field).int64.gt = 0];
+}
+
+message CreateBuildResponse {
+  string build_id = 1;
+  string upload_url = 2;
+  google.protobuf.Timestamp upload_expires_at = 3;
+}
+
+message StartBuildRequest {
+  string build_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message StartBuildResponse {
+  Build build = 1;
+}
+
+message GetBuildRequest {
+  string build_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetBuildResponse {
+  Build build = 1;
+}
+
+message ListBuildsRequest {
+  string resource_id = 1 [(buf.validate.field).string.uuid = true];
+  int32 page_size = 2 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  string page_token = 3;
+}
+
+message ListBuildsResponse {
+  repeated Build builds = 1;
+  string next_page_token = 2;
+}
+
+message CancelBuildRequest {
+  string build_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message CancelBuildResponse {
+  Build build = 1;
+}
