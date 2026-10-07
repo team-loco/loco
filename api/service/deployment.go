@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -373,6 +375,13 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, deploymentTxError(ctx, err)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.DeploymentCreated,
+		WorkspaceID: new(resource.WorkspaceID),
+		SubjectType: events.SubjectDeployment,
+		SubjectID:   new(deploymentID),
+		Data:        map[string]any{"resourceId": resourceID.String(), "environmentId": environmentID.String()},
+	})
 	return connect.NewResponse(&deploymentv1.CreateDeploymentResponse{DeploymentId: deploymentID.String()}), nil
 }
 
@@ -538,6 +547,12 @@ func (s *DeploymentServer) DeleteDeployment(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.DeploymentDeleted,
+		WorkspaceID: new(resource.WorkspaceID),
+		SubjectType: events.SubjectDeployment,
+		SubjectID:   new(deploymentID),
+	})
 	return connect.NewResponse(&deploymentv1.DeleteDeploymentResponse{}), nil
 }
 

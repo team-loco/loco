@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -157,6 +159,7 @@ func (s *TokenServer) CreateToken(
 		targetEntity.ID,
 	)
 
+	events.Record(ctx, s.queries, tokenEvent(events.TokenCreated, targetEntity, r.GetName()))
 	return connect.NewResponse(&tokenv1.CreateTokenResponse{
 		Token: token,
 		TokenMetadata: apiTokenRowToProto(
@@ -398,6 +401,7 @@ func (s *TokenServer) RevokeToken(
 		targetEntity.ID.String(),
 	)
 
+	events.Record(ctx, s.queries, tokenEvent(events.TokenRevoked, targetEntity, r.GetName()))
 	return connect.NewResponse(&tokenv1.RevokeTokenResponse{}), nil
 }
 
@@ -559,4 +563,27 @@ func dbScopeToProto(s genDb.Scope) tokenv1.Scope {
 	default:
 		return tokenv1.Scope_SCOPE_UNSPECIFIED
 	}
+}
+
+func tokenEvent(eventType string, target genDb.Entity, name string) events.Event {
+	ev := events.Event{
+		Type:        eventType,
+		SubjectType: events.SubjectToken,
+		Data: map[string]any{
+			events.FieldName: name,
+			"entityType":     string(target.Type),
+			"entityId":       target.ID.String(),
+		},
+	}
+	switch target.Type {
+	case genDb.EntityTypeOrganization:
+		ev.OrgID = new(target.ID)
+	case genDb.EntityTypeWorkspace:
+		ev.WorkspaceID = new(target.ID)
+	case genDb.EntityTypeResource:
+		ev.ResourceID = new(target.ID)
+	case genDb.EntityTypeUser:
+	case genDb.EntityTypeSystem:
+	}
+	return ev
 }

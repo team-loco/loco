@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -107,6 +109,14 @@ func (s *AgentServer) Register(
 		"agent_version", r.GetAgentVersion(),
 	)
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.ClusterRegistered,
+		ActorType:   "agent",
+		ActorID:     new(cluster.ID),
+		SubjectType: events.SubjectCluster,
+		SubjectID:   new(cluster.ID),
+		Data:        map[string]any{events.FieldName: cluster.Name},
+	})
 	return connect.NewResponse(&agentv1.RegisterResponse{
 		ClusterId: cluster.ID.String(),
 	}), nil

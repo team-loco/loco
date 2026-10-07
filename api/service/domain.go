@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -67,6 +69,12 @@ func (s *DomainServer) CreatePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to create platform domain"))
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.PlatformDomainChange,
+		SubjectType: events.SubjectPlatformDomain,
+		SubjectID:   new(platformDomain),
+		Data:        map[string]any{events.FieldAction: "created", events.FieldDomain: r.GetDomain()},
+	})
 	return connect.NewResponse(&domainv1.CreatePlatformDomainResponse{
 		Id: platformDomain.String(),
 	}), nil
@@ -176,6 +184,12 @@ func (s *DomainServer) UpdatePlatformDomain(
 		}
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.PlatformDomainChange,
+		SubjectType: events.SubjectPlatformDomain,
+		SubjectID:   new(parsedID),
+		Data:        map[string]any{events.FieldAction: "updated"},
+	})
 	return connect.NewResponse(&domainv1.UpdatePlatformDomainResponse{
 		Id: r.GetId(),
 	}), nil
@@ -212,6 +226,12 @@ func (s *DomainServer) DeletePlatformDomain(
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to delete platform domain"))
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.PlatformDomainChange,
+		SubjectType: events.SubjectPlatformDomain,
+		SubjectID:   new(parsedID),
+		Data:        map[string]any{events.FieldAction: "deleted"},
+	})
 	return connect.NewResponse(&domainv1.DeletePlatformDomainResponse{}), nil
 }
 
@@ -332,6 +352,13 @@ func (s *DomainServer) CreateResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.DomainCreated,
+		ResourceID:  new(resourceID),
+		SubjectType: events.SubjectDomain,
+		SubjectID:   new(resourceDomain),
+		Data:        map[string]any{events.FieldDomain: fullDomain, "resourceId": resourceID.String()},
+	})
 	return connect.NewResponse(&domainv1.CreateResourceDomainResponse{
 		DomainId: resourceDomain.String(),
 	}), nil
@@ -400,6 +427,13 @@ func (s *DomainServer) UpdateResourceDomain(
 		}
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.DomainUpdated,
+		ResourceID:  new(domainRow.ResourceID),
+		SubjectType: events.SubjectDomain,
+		SubjectID:   new(domainID),
+		Data:        map[string]any{events.FieldDomain: r.GetDomain()},
+	})
 	return connect.NewResponse(&domainv1.UpdateResourceDomainResponse{
 		DomainId: r.GetDomainId(),
 	}), nil
@@ -489,6 +523,16 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.RecordWith(ctx, qtx, events.Event{
+		Type:        events.DomainUpdated,
+		ResourceID:  new(resourceID),
+		SubjectType: events.SubjectDomain,
+		SubjectID:   new(domainID),
+		Data:        map[string]any{"primary": true},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record primary domain change", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit primary domain change", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -549,6 +593,13 @@ func (s *DomainServer) DeleteResourceDomain(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.DomainDeleted,
+		ResourceID:  new(domainRow.ResourceID),
+		SubjectType: events.SubjectDomain,
+		SubjectID:   new(domainID),
+		Data:        map[string]any{events.FieldDomain: domainRow.Domain},
+	})
 	return connect.NewResponse(&domainv1.DeleteResourceDomainResponse{}), nil
 }
 

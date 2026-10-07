@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -167,6 +169,14 @@ func (s *AuthServer) issue(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, ErrAuthStoreAvailable)
 	}
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.CLILoginCompleted,
+		ActorType:   string(genDb.EntityTypeUser),
+		ActorID:     new(grant.UserID),
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(grant.UserID),
+		Data:        map[string]any{"ip": ip, "userAgent": ua},
+	})
 	return &authv1.CLITokens{
 		AccessToken:  access,
 		RefreshToken: refresh,
@@ -196,6 +206,12 @@ func (s *AuthServer) ApproveCLILogin(
 		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "approved cli login", "userId", grant.UserID)
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.CLILoginApproved,
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(grant.UserID),
+		Data:        map[string]any{"flow": "loopback"},
+	})
 	return connect.NewResponse(&authv1.ApproveCLILoginResponse{Code: code}), nil
 }
 
@@ -312,6 +328,12 @@ func (s *AuthServer) ApproveDeviceLogin(
 		return nil, connect.NewError(connect.CodeUnavailable, ErrAuthStoreAvailable)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.CLILoginApproved,
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(grant.UserID),
+		Data:        map[string]any{"flow": "device"},
+	})
 	return connect.NewResponse(&authv1.ApproveDeviceLoginResponse{}), nil
 }
 
@@ -400,6 +422,13 @@ func (s *AuthServer) checkIdentity(ctx context.Context, session genDb.GetSession
 	if revokeErr := s.machine.RevokeIdentitySessions(ctx, session.IdentityID); revokeErr != nil {
 		slog.ErrorContext(ctx, "failed to revoke sessions of a disabled identity", "error", revokeErr)
 	}
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.IdentityRevoked,
+		ActorType:   events.ActorSystem,
+		SubjectType: events.SubjectUser,
+		SubjectID:   new(session.UserID),
+		Data:        map[string]any{"issuer": session.Issuer, "reason": "disabled at identity provider"},
+	})
 	slog.InfoContext(ctx, "refresh refused for a disabled identity", "userId", session.UserID, "issuer", session.Issuer)
 	return connect.NewError(connect.CodeUnauthenticated, ErrSignInRevoked)
 }

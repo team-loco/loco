@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -140,6 +142,16 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.RecordWith(ctx, qtx, events.Event{
+		Type:        events.OrgCreated,
+		OrgID:       new(org.ID),
+		SubjectType: events.SubjectOrg,
+		SubjectID:   new(org.ID),
+		Data:        map[string]any{events.FieldName: org.Name},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record org creation", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit organization creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -329,6 +341,12 @@ func (s *OrgServer) UpdateOrg(
 		}
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.OrgUpdated,
+		OrgID:       new(uuid.MustParse(r.GetOrgId())),
+		SubjectType: events.SubjectOrg,
+		SubjectID:   new(uuid.MustParse(r.GetOrgId())),
+	})
 	return connect.NewResponse(&orgv1.UpdateOrgResponse{
 		OrgId: r.GetOrgId(),
 	}), nil
@@ -375,6 +393,12 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	events.Record(ctx, s.queries, events.Event{
+		Type:        events.OrgDeleted,
+		OrgID:       new(orgID),
+		SubjectType: events.SubjectOrg,
+		SubjectID:   new(orgID),
+	})
 	return connect.NewResponse(&orgv1.DeleteOrgResponse{}), nil
 }
 
