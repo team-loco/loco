@@ -19,6 +19,7 @@ import (
 
 	"github.com/team-loco/loco/agent/pkg/applier"
 	"github.com/team-loco/loco/agent/pkg/appwatch"
+	"github.com/team-loco/loco/agent/pkg/buildwatch"
 	"github.com/team-loco/loco/agent/pkg/cluster"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	"github.com/team-loco/loco/agent/pkg/reconciler"
@@ -33,6 +34,10 @@ const (
 	defaultControllerDeployment = "controller-loco-manager"
 	reconcileWorkers            = 8
 	outboundBuffer              = 256
+	buildQueueSize              = 64
+	buildRetention              = time.Hour
+	buildCollectInterval        = 5 * time.Minute
+	defaultBuildNamespace       = "loco-builds"
 )
 
 type Config struct {
@@ -43,6 +48,7 @@ type Config struct {
 	Namespace            string
 	ControllerNamespace  string
 	ControllerDeployment string
+	BuildNamespace       string
 }
 
 func newConfig() *Config {
@@ -55,6 +61,7 @@ func newConfig() *Config {
 		Namespace:            namespace,
 		ControllerNamespace:  getEnvOrDefault("LOCO_CONTROLLER_NAMESPACE", namespace),
 		ControllerDeployment: getEnvOrDefault("LOCO_CONTROLLER_DEPLOYMENT", defaultControllerDeployment),
+		BuildNamespace:       getEnvOrDefault("LOCO_BUILD_NAMESPACE", defaultBuildNamespace),
 	}
 }
 
@@ -91,6 +98,7 @@ func main() {
 		"namespace", cfg.Namespace,
 		"controller_namespace", cfg.ControllerNamespace,
 		"controller_deployment", cfg.ControllerDeployment,
+		"build_namespace", cfg.BuildNamespace,
 	)
 	transport := &http.Transport{}
 	transport.Protocols = new(http.Protocols)
@@ -138,12 +146,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	builds, err := buildwatch.Start(ctx, restConfig, cfg.BuildNamespace, buildRetention)
+	if err != nil {
+		slog.Error("failed to watch Builds", "error", err)
+		os.Exit(1)
+	}
+	go builds.RunCollector(ctx, buildCollectInterval)
+
 	agent := &Agent{
 		cfg:       cfg,
 		client:    client,
 		applier:   kubeApplier,
 		inspector: inspector,
 		watcher:   watcher,
+		builds:    builds,
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -167,6 +183,7 @@ type Agent struct {
 	applier   *applier.Applier
 	inspector *cluster.Inspector
 	watcher   *appwatch.Watcher
+	builds    *buildwatch.Watcher
 	clusterID string
 }
 
@@ -298,24 +315,36 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		closeStream(ctx, "sync stream", stream)
 	}()
 
-	inventory, err := a.watcher.Inventory(streamCtx)
+	err := a.sendInventory(streamCtx, func(inventory *agentv1.Inventory) error {
+		request := inventoryRequest(inventory)
+		if sendErr := stream.Send(request); sendErr != nil {
+			openErr := streamError(stream, sendErr)
+			return fmt.Errorf("open sync stream: %w", openErr)
+		}
+		slog.InfoContext(ctx, "sync stream connected",
+			"inventory", len(inventory.GetEntries()),
+			"builds", len(inventory.GetBuilds()),
+		)
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("build inventory: %w", err)
+		return err
 	}
-	if err := stream.Send(inventoryRequest(inventory)); err != nil {
-		openErr := streamError(stream, err)
-		return fmt.Errorf("open sync stream: %w", openErr)
-	}
-	slog.InfoContext(ctx, "sync stream connected", "inventory", len(inventory.GetEntries()))
 
+	buildOps := make(chan *agentv1.SyncResponse, buildQueueSize)
 	sendErr := make(chan error, 1)
 	workers.Go(func() { rec.Run(streamCtx) })
 	workers.Go(func() { session.sendLoop(streamCtx, sendErr) })
 	workers.Go(func() { a.reportInventory(streamCtx, session) })
+	workers.Go(func() { a.runBuildOps(streamCtx, buildOps, session.enqueue) })
 	detach := a.watcher.Attach(func(status *agentv1.PlacementStatus) {
 		session.enqueue(&agentv1.SyncRequest{Message: &agentv1.SyncRequest_Status{Status: status}})
 	})
 	defer detach()
+	detachBuilds := a.builds.Attach(func(status *agentv1.BuildStatus) {
+		session.enqueue(buildStatusRequest(status))
+	})
+	defer detachBuilds()
 
 	received := make(chan *agentv1.SyncResponse)
 	recvErr := make(chan error, 1)
@@ -330,6 +359,14 @@ func (a *Agent) syncLoop(ctx context.Context) error {
 		case err := <-recvErr:
 			return fmt.Errorf("receive sync message: %w", err)
 		case msg := <-received:
+			if isBuildMessage(msg) {
+				select {
+				case buildOps <- msg:
+				case <-streamCtx.Done():
+					return streamCtx.Err()
+				}
+				continue
+			}
 			submitPlacement(streamCtx, rec, msg)
 		}
 	}
@@ -363,12 +400,59 @@ func (a *Agent) reportInventory(ctx context.Context, session *syncSession) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			inventory, err := a.watcher.Inventory(ctx)
+			err := a.sendInventory(ctx, func(inventory *agentv1.Inventory) error {
+				request := inventoryRequest(inventory)
+				session.enqueue(request)
+				return nil
+			})
 			if err != nil {
 				slog.WarnContext(ctx, "failed to build inventory", "error", err)
-				continue
 			}
-			session.enqueue(inventoryRequest(inventory))
+		}
+	}
+}
+
+func (a *Agent) sendInventory(ctx context.Context, send func(*agentv1.Inventory) error) error {
+	return a.builds.WithInventory(ctx, func(builds []*agentv1.InventoryBuild) error {
+		inventory, err := a.watcher.Inventory(ctx)
+		if err != nil {
+			return fmt.Errorf("build inventory: %w", err)
+		}
+		inventory.Builds = builds
+		return send(inventory)
+	})
+}
+
+func buildStatusRequest(status *agentv1.BuildStatus) *agentv1.SyncRequest {
+	return &agentv1.SyncRequest{Message: &agentv1.SyncRequest_BuildStatus{BuildStatus: status}}
+}
+
+func isBuildMessage(msg *agentv1.SyncResponse) bool {
+	switch msg.GetMessage().(type) {
+	case *agentv1.SyncResponse_StartBuild:
+		return true
+	case *agentv1.SyncResponse_CancelBuild:
+		return true
+	default:
+		return false
+	}
+}
+
+func (a *Agent) runBuildOps(
+	ctx context.Context,
+	ops <-chan *agentv1.SyncResponse,
+	enqueue func(*agentv1.SyncRequest),
+) {
+	report := func(status *agentv1.BuildStatus) {
+		request := buildStatusRequest(status)
+		enqueue(request)
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case msg := <-ops:
+			a.builds.Handle(ctx, msg, report)
 		}
 	}
 }

@@ -3,6 +3,7 @@ module github.com/team-loco/loco/api
 go 1.27.0
 
 require (
+	buf.build/go/protovalidate v1.4.0
 	charm.land/log/v2 v2.0.1
 	connectrpc.com/connect v1.21.0
 	connectrpc.com/cors v0.1.0
@@ -28,7 +29,6 @@ require (
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2 // indirect
-	buf.build/go/protovalidate v1.4.0 // indirect
 	cel.dev/cel-go v0.32.0 // indirect
 	cel.dev/expr v0.25.3 // indirect
 	charm.land/lipgloss/v2 v2.0.6 // indirect

@@ -44,6 +44,7 @@ var (
 
 type SourceBucket interface {
 	PresignPut(ctx context.Context, key string, size int64, ttl time.Duration) (string, error)
+	PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error)
 	ObjectSize(ctx context.Context, key string) (int64, error)
 	Delete(ctx context.Context, key string) error
 	List(ctx context.Context, prefix, startAfter string, limit int32) ([]sourcebucket.Object, bool, error)
@@ -241,13 +242,15 @@ func (s *BuildServer) StartBuild(
 		return nil, err
 	}
 
-	if txErr := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID); txErr != nil {
+	superseded, txErr := queueBuild(ctx, s.db, build.ID, build.ResourceID, clusterID)
+	if txErr != nil {
 		if errors.Is(txErr, errBuildNotQueueable) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, txErr)
 		}
 		slog.ErrorContext(ctx, "failed to queue build", "error", txErr, "buildId", build.ID)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
+	deleteBuildSources(ctx, s.queries, s.bucket, superseded...)
 
 	queued, err := s.getBuild(ctx, rawBuildID)
 	if err != nil {
@@ -269,19 +272,33 @@ func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
 	return clusterID, nil
 }
 
-func queueBuild(ctx context.Context, pool *pgxpool.Pool, buildID, resourceID, clusterID uuid.UUID) error {
+func queueBuild(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	buildID, resourceID, clusterID uuid.UUID,
+) ([]buildSource, error) {
 	supersededMessage := "superseded by build " + buildID.String()
-	return withTx(ctx, pool, func(qtx *genDb.Queries) error {
+	var supersededSources []buildSource
+	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
+		supersededSources = nil
 		if _, lockErr := qtx.LockResourceForBuild(ctx, resourceID); lockErr != nil {
 			return fmt.Errorf("lock resource: %w", lockErr)
 		}
 
-		if cancelErr := qtx.CancelOtherActiveBuilds(ctx, genDb.CancelOtherActiveBuildsParams{
+		superseded, cancelErr := qtx.CancelOtherActiveBuilds(ctx, genDb.CancelOtherActiveBuildsParams{
 			Message:    supersededMessage,
 			ResourceID: resourceID,
 			ID:         buildID,
-		}); cancelErr != nil {
+		})
+		if cancelErr != nil {
 			return fmt.Errorf("cancel superseded builds: %w", cancelErr)
+		}
+		notify := map[uuid.UUID]struct{}{clusterID: {}}
+		for _, row := range superseded {
+			supersededSources = append(supersededSources, buildSource{id: row.ID, key: row.SourceKey})
+			if row.ClusterID != nil {
+				notify[*row.ClusterID] = struct{}{}
+			}
 		}
 
 		rows, queueErr := qtx.QueueBuild(ctx, genDb.QueueBuildParams{
@@ -295,8 +312,41 @@ func queueBuild(ctx context.Context, pool *pgxpool.Pool, buildID, resourceID, cl
 		if rows == 0 {
 			return errBuildNotQueueable
 		}
+		for id := range notify {
+			if notifyErr := notifyCluster(ctx, qtx, id); notifyErr != nil {
+				return notifyErr
+			}
+		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	return supersededSources, nil
+}
+
+func notifyCluster(ctx context.Context, qtx *genDb.Queries, clusterID uuid.UUID) error {
+	clusterIDText := clusterID.String()
+	if err := qtx.NotifyClusterPlacements(ctx, clusterIDText); err != nil {
+		return fmt.Errorf("notify cluster %s: %w", clusterID, err)
+	}
+	return nil
+}
+
+type buildSource struct {
+	id  uuid.UUID
+	key string
+}
+
+func deleteBuildSources(ctx context.Context, queries genDb.Querier, bucket SourceBucket, sources ...buildSource) {
+	if bucket == nil {
+		return
+	}
+	for _, source := range sources {
+		if err := deleteBuildSource(ctx, queries, bucket, source.id, source.key); err != nil {
+			slog.WarnContext(ctx, "failed to delete build source", "buildId", source.id, "error", err)
+		}
+	}
 }
 
 func (s *BuildServer) GetBuild(
@@ -389,7 +439,7 @@ func (s *BuildServer) CancelBuild(
 		return nil, authErr
 	}
 
-	if cancelErr := cancelBuild(ctx, s.queries, build.ID); cancelErr != nil {
+	if cancelErr := cancelBuild(ctx, s.db, s.queries, s.bucket, build.ID); cancelErr != nil {
 		if errors.Is(cancelErr, errBuildNotCancelable) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, cancelErr)
 		}
@@ -405,17 +455,35 @@ func (s *BuildServer) CancelBuild(
 	return connect.NewResponse(&buildv1.CancelBuildResponse{Build: canceledProto}), nil
 }
 
-func cancelBuild(ctx context.Context, queries genDb.Querier, buildID uuid.UUID) error {
-	rows, err := queries.CancelBuild(ctx, genDb.CancelBuildParams{
-		Message: "canceled",
-		ID:      buildID,
+func cancelBuild(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	queries genDb.Querier,
+	bucket SourceBucket,
+	buildID uuid.UUID,
+) error {
+	var source buildSource
+	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
+		row, cancelErr := qtx.CancelBuild(ctx, genDb.CancelBuildParams{
+			Message: "canceled",
+			ID:      buildID,
+		})
+		if errors.Is(cancelErr, pgx.ErrNoRows) {
+			return errBuildNotCancelable
+		}
+		if cancelErr != nil {
+			return fmt.Errorf("cancel build: %w", cancelErr)
+		}
+		source = buildSource{id: row.ID, key: row.SourceKey}
+		if row.ClusterID == nil {
+			return nil
+		}
+		return notifyCluster(ctx, qtx, *row.ClusterID)
 	})
 	if err != nil {
-		return fmt.Errorf("cancel build: %w", err)
+		return err
 	}
-	if rows == 0 {
-		return errBuildNotCancelable
-	}
+	deleteBuildSources(ctx, queries, bucket, source)
 	return nil
 }
 

@@ -12,13 +12,14 @@ import (
 	"github.com/google/uuid"
 )
 
-const cancelBuild = `-- name: CancelBuild :execrows
+const cancelBuild = `-- name: CancelBuild :one
 UPDATE builds
 SET status = 'canceled',
     message = $1,
     finished_at = NOW()
 WHERE id = $2
   AND status IN ('awaiting_upload', 'queued', 'running')
+RETURNING id, cluster_id, source_key
 `
 
 type CancelBuildParams struct {
@@ -26,15 +27,20 @@ type CancelBuildParams struct {
 	ID      uuid.UUID `json:"id"`
 }
 
-func (q *Queries) CancelBuild(ctx context.Context, arg CancelBuildParams) (int64, error) {
-	result, err := q.db.Exec(ctx, cancelBuild, arg.Message, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+type CancelBuildRow struct {
+	ID        uuid.UUID  `json:"id"`
+	ClusterID *uuid.UUID `json:"clusterId"`
+	SourceKey string     `json:"sourceKey"`
 }
 
-const cancelOtherActiveBuilds = `-- name: CancelOtherActiveBuilds :exec
+func (q *Queries) CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error) {
+	row := q.db.QueryRow(ctx, cancelBuild, arg.Message, arg.ID)
+	var i CancelBuildRow
+	err := row.Scan(&i.ID, &i.ClusterID, &i.SourceKey)
+	return i, err
+}
+
+const cancelOtherActiveBuilds = `-- name: CancelOtherActiveBuilds :many
 UPDATE builds
 SET status = 'canceled',
     message = $1,
@@ -42,6 +48,7 @@ SET status = 'canceled',
 WHERE resource_id = $2
   AND id <> $3
   AND status IN ('awaiting_upload', 'queued', 'running')
+RETURNING id, cluster_id, source_key
 `
 
 type CancelOtherActiveBuildsParams struct {
@@ -50,15 +57,36 @@ type CancelOtherActiveBuildsParams struct {
 	ID         uuid.UUID `json:"id"`
 }
 
-func (q *Queries) CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) error {
-	_, err := q.db.Exec(ctx, cancelOtherActiveBuilds, arg.Message, arg.ResourceID, arg.ID)
-	return err
+type CancelOtherActiveBuildsRow struct {
+	ID        uuid.UUID  `json:"id"`
+	ClusterID *uuid.UUID `json:"clusterId"`
+	SourceKey string     `json:"sourceKey"`
+}
+
+func (q *Queries) CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error) {
+	rows, err := q.db.Query(ctx, cancelOtherActiveBuilds, arg.Message, arg.ResourceID, arg.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CancelOtherActiveBuildsRow
+	for rows.Next() {
+		var i CancelOtherActiveBuildsRow
+		if err := rows.Scan(&i.ID, &i.ClusterID, &i.SourceKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const createBuild = `-- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, created_by)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8)
-RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at
+RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at
 `
 
 type CreateBuildParams struct {
@@ -95,6 +123,7 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		&i.DockerfilePath,
 		&i.ImageRepository,
 		&i.ImageDigest,
+		&i.CacheDigest,
 		&i.Message,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -147,8 +176,91 @@ func (q *Queries) ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwai
 	return items, nil
 }
 
+const failMissingClusterBuilds = `-- name: FailMissingClusterBuilds :many
+UPDATE builds
+SET status = 'failed',
+    message = $1,
+    finished_at = NOW()
+WHERE cluster_id = $2
+  AND status = 'running'
+  AND NOT (id = ANY($3::uuid[]))
+RETURNING id, source_key
+`
+
+type FailMissingClusterBuildsParams struct {
+	Message   string      `json:"message"`
+	ClusterID *uuid.UUID  `json:"clusterId"`
+	Held      []uuid.UUID `json:"held"`
+}
+
+type FailMissingClusterBuildsRow struct {
+	ID        uuid.UUID `json:"id"`
+	SourceKey string    `json:"sourceKey"`
+}
+
+func (q *Queries) FailMissingClusterBuilds(ctx context.Context, arg FailMissingClusterBuildsParams) ([]FailMissingClusterBuildsRow, error) {
+	rows, err := q.db.Query(ctx, failMissingClusterBuilds, arg.Message, arg.ClusterID, arg.Held)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FailMissingClusterBuildsRow
+	for rows.Next() {
+		var i FailMissingClusterBuildsRow
+		if err := rows.Scan(&i.ID, &i.SourceKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const finishBuild = `-- name: FinishBuild :one
+UPDATE builds
+SET status = $1,
+    image_digest = $2,
+    cache_digest = $3,
+    message = $4,
+    finished_at = NOW()
+WHERE id = $5
+  AND cluster_id = $6
+  AND status IN ('queued', 'running')
+RETURNING id, source_key
+`
+
+type FinishBuildParams struct {
+	Status      BuildStatus `json:"status"`
+	ImageDigest *string     `json:"imageDigest"`
+	CacheDigest *string     `json:"cacheDigest"`
+	Message     string      `json:"message"`
+	ID          uuid.UUID   `json:"id"`
+	ClusterID   *uuid.UUID  `json:"clusterId"`
+}
+
+type FinishBuildRow struct {
+	ID        uuid.UUID `json:"id"`
+	SourceKey string    `json:"sourceKey"`
+}
+
+func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error) {
+	row := q.db.QueryRow(ctx, finishBuild,
+		arg.Status,
+		arg.ImageDigest,
+		arg.CacheDigest,
+		arg.Message,
+		arg.ID,
+		arg.ClusterID,
+	)
+	var i FinishBuildRow
+	err := row.Scan(&i.ID, &i.SourceKey)
+	return i, err
+}
+
 const getBuildByID = `-- name: GetBuildByID :one
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at FROM builds WHERE id = $1
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at FROM builds WHERE id = $1
 `
 
 func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -165,6 +277,7 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 		&i.DockerfilePath,
 		&i.ImageRepository,
 		&i.ImageDigest,
+		&i.CacheDigest,
 		&i.Message,
 		&i.CreatedBy,
 		&i.CreatedAt,
@@ -215,8 +328,39 @@ func (q *Queries) ListActiveBuildSourceKeys(ctx context.Context, keys []string) 
 	return items, nil
 }
 
+const listBuildStatesByIDs = `-- name: ListBuildStatesByIDs :many
+SELECT id, cluster_id, status FROM builds
+WHERE id = ANY($1::uuid[])
+`
+
+type ListBuildStatesByIDsRow struct {
+	ID        uuid.UUID   `json:"id"`
+	ClusterID *uuid.UUID  `json:"clusterId"`
+	Status    BuildStatus `json:"status"`
+}
+
+func (q *Queries) ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, listBuildStatesByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBuildStatesByIDsRow
+	for rows.Next() {
+		var i ListBuildStatesByIDsRow
+		if err := rows.Scan(&i.ID, &i.ClusterID, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBuildsForResource = `-- name: ListBuildsForResource :many
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at FROM builds b
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at FROM builds b
 WHERE b.resource_id = $1
   AND ($3::text IS NULL
        OR (b.created_at, b.id) < (
@@ -253,12 +397,74 @@ func (q *Queries) ListBuildsForResource(ctx context.Context, arg ListBuildsForRe
 			&i.DockerfilePath,
 			&i.ImageRepository,
 			&i.ImageDigest,
+			&i.CacheDigest,
 			&i.Message,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.StartedAt,
 			&i.FinishedAt,
 			&i.SourceDeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listQueuedClusterBuilds = `-- name: ListQueuedClusterBuilds :many
+SELECT b.id,
+       b.resource_id,
+       r.workspace_id,
+       b.source_key,
+       b.dockerfile_path,
+       b.image_repository,
+       COALESCE((
+         SELECT p.image_repository || '@' || p.cache_digest
+         FROM builds p
+         WHERE p.resource_id = b.resource_id
+           AND p.status = 'succeeded'
+           AND p.cache_digest IS NOT NULL
+           AND p.image_repository = b.image_repository
+         ORDER BY p.finished_at DESC, p.id DESC
+         LIMIT 1
+       ), '')::text AS cache_ref
+FROM builds b
+JOIN resources r ON r.id = b.resource_id
+WHERE b.cluster_id = $1 AND b.status = 'queued'
+ORDER BY b.created_at, b.id
+`
+
+type ListQueuedClusterBuildsRow struct {
+	ID              uuid.UUID `json:"id"`
+	ResourceID      uuid.UUID `json:"resourceId"`
+	WorkspaceID     uuid.UUID `json:"workspaceId"`
+	SourceKey       string    `json:"sourceKey"`
+	DockerfilePath  string    `json:"dockerfilePath"`
+	ImageRepository string    `json:"imageRepository"`
+	CacheRef        string    `json:"cacheRef"`
+}
+
+func (q *Queries) ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.UUID) ([]ListQueuedClusterBuildsRow, error) {
+	rows, err := q.db.Query(ctx, listQueuedClusterBuilds, clusterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListQueuedClusterBuildsRow
+	for rows.Next() {
+		var i ListQueuedClusterBuildsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.WorkspaceID,
+			&i.SourceKey,
+			&i.DockerfilePath,
+			&i.ImageRepository,
+			&i.CacheRef,
 		); err != nil {
 			return nil, err
 		}
@@ -312,6 +518,30 @@ func (q *Queries) LockResourceForBuild(ctx context.Context, id uuid.UUID) (uuid.
 	var id_2 uuid.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const markBuildRunning = `-- name: MarkBuildRunning :execrows
+UPDATE builds
+SET status = 'running',
+    started_at = COALESCE(started_at, NOW()),
+    message = $1
+WHERE id = $2
+  AND cluster_id = $3
+  AND status IN ('queued', 'running')
+`
+
+type MarkBuildRunningParams struct {
+	Message   string     `json:"message"`
+	ID        uuid.UUID  `json:"id"`
+	ClusterID *uuid.UUID `json:"clusterId"`
+}
+
+func (q *Queries) MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markBuildRunning, arg.Message, arg.ID, arg.ClusterID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const markBuildSourceDeleted = `-- name: MarkBuildSourceDeleted :exec
@@ -369,4 +599,26 @@ func (q *Queries) UnlockSourceSweep(ctx context.Context, lockKey int64) (bool, e
 	var pg_advisory_unlock bool
 	err := row.Scan(&pg_advisory_unlock)
 	return pg_advisory_unlock, err
+}
+
+const updateQueuedBuildMessage = `-- name: UpdateQueuedBuildMessage :execrows
+UPDATE builds
+SET message = $1
+WHERE id = $2
+  AND cluster_id = $3
+  AND status = 'queued'
+`
+
+type UpdateQueuedBuildMessageParams struct {
+	Message   string     `json:"message"`
+	ID        uuid.UUID  `json:"id"`
+	ClusterID *uuid.UUID `json:"clusterId"`
+}
+
+func (q *Queries) UpdateQueuedBuildMessage(ctx context.Context, arg UpdateQueuedBuildMessageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateQueuedBuildMessage, arg.Message, arg.ID, arg.ClusterID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

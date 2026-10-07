@@ -111,6 +111,7 @@ type syncSession struct {
 	clusterID uuid.UUID
 	sendFn    func(*agentv1.SyncResponse) error
 	sent      map[uuid.UUID]int64
+	builds    buildTracker
 }
 
 func newSyncSession(
@@ -123,10 +124,18 @@ func newSyncSession(
 		clusterID: clusterID,
 		sendFn:    sendFn,
 		sent:      make(map[uuid.UUID]int64),
+		builds:    newBuildTracker(),
 	}
 }
 
 func (ss *syncSession) sendPending(ctx context.Context) error {
+	if err := ss.sendPendingPlacements(ctx); err != nil {
+		return err
+	}
+	return ss.reconcileBuilds(ctx)
+}
+
+func (ss *syncSession) sendPendingPlacements(ctx context.Context) error {
 	pending, err := ss.server.queries.ListPendingPlacements(ctx, ss.clusterID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list pending placements", "cluster_id", ss.clusterID, "error", err)
@@ -188,6 +197,8 @@ func (ss *syncSession) handle(ctx context.Context, msg *agentv1.SyncRequest) err
 	case *agentv1.SyncRequest_Status:
 		ss.server.recordStatus(ctx, ss.clusterID, m.Status)
 		return nil
+	case *agentv1.SyncRequest_BuildStatus:
+		return ss.handleBuildStatus(ctx, m.BuildStatus)
 	default:
 		slog.WarnContext(ctx, "ignoring empty sync message", "cluster_id", ss.clusterID)
 		return nil
@@ -229,6 +240,14 @@ func diffInventory(rev placementRevision) inventoryAction {
 }
 
 func (ss *syncSession) reconcileInventory(ctx context.Context, inventory *agentv1.Inventory) error {
+	if err := ss.reconcilePlacementInventory(ctx, inventory); err != nil {
+		return err
+	}
+	builds := inventory.GetBuilds()
+	return ss.reconcileBuildInventory(ctx, builds)
+}
+
+func (ss *syncSession) reconcilePlacementInventory(ctx context.Context, inventory *agentv1.Inventory) error {
 	observed := make(map[uuid.UUID]int64, len(inventory.GetEntries()))
 	for _, entry := range inventory.GetEntries() {
 		id, err := uuid.Parse(entry.GetPlacementId())

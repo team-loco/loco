@@ -44,6 +44,7 @@ agent:
     repository: ghcr.io/team-loco/loco-agent
     tag: latest
   imagePullPolicy: Always
+  buildNamespace: loco-builds
 
 secrets:
   cloudflareToken: ""

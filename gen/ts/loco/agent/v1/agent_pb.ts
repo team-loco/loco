@@ -2,8 +2,8 @@
 // @generated from file loco/agent/v1/agent.proto (package loco.agent.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Message } from "@bufbuild/protobuf";
 
@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/agent/v1/agent.proto.
  */
 export const file_loco_agent_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIn4KD1JlZ2lzdGVyUmVxdWVzdBIUCgxjbHVzdGVyX25hbWUYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSLgoIY2FwYWNpdHkYBCABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkiJgoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJIqQBCgtTeW5jUmVxdWVzdBItCglpbnZlbnRvcnkYASABKAsyGC5sb2NvLmFnZW50LnYxLkludmVudG9yeUgAEikKB2FwcGxpZWQYAiABKAsyFi5sb2NvLmFnZW50LnYxLkFwcGxpZWRIABIwCgZzdGF0dXMYAyABKAsyHi5sb2NvLmFnZW50LnYxLlBsYWNlbWVudFN0YXR1c0gAQgkKB21lc3NhZ2UiOwoJSW52ZW50b3J5Ei4KB2VudHJpZXMYASADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUVudHJ5IjgKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAyJSCgdBcHBsaWVkEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxINCgVlcnJvchgDIAEoCRIQCghyZXRyeWluZxgEIAEoCCKJAQoPUGxhY2VtZW50U3RhdHVzEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIZChFvYnNlcnZlZF9yZXZpc2lvbhgCIAEoAxINCgVyZWFkeRgDIAEoCBIWCg5yZWFkeV9yZXBsaWNhcxgEIAEoBRINCgVwaGFzZRgFIAEoCRIPCgdtZXNzYWdlGAYgASgJImkKDFN5bmNSZXNwb25zZRIlCgVhcHBseRgBIAEoCzIULmxvY28uYWdlbnQudjEuQXBwbHlIABInCgZkZWxldGUYAiABKAsyFS5sb2NvLmFnZW50LnYxLkRlbGV0ZUgAQgkKB21lc3NhZ2UiWQoFQXBwbHkSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJEhMKC2FwcGxpY2F0aW9uGAQgASgMIkUKBkRlbGV0ZRIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSEwoLcmVzb3VyY2VfaWQYAyABKAkijAEKEEhlYXJ0YmVhdFJlcXVlc3QSHAoKY2x1c3Rlcl9pZBgBIAEoCUIIukgFcgOwAQESLgoIY2FwYWNpdHkYAiABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkSKgoGaGVhbHRoGAMgASgLMhoubG9jby5hZ2VudC52MS5BZ2VudEhlYWx0aCJDChFIZWFydGJlYXRSZXNwb25zZUoECAEQAkoECAIQA0oECAMQBFIFZHJhaW5SDXJlbG9hZF9jb25maWdSBnJlc3luYyKrAQoNQWdlbnRDYXBhY2l0eRIcChRjcHVfbWlsbGljb3Jlc190b3RhbBgBIAEoAxIbChNjcHVfbWlsbGljb3Jlc191c2VkGAIgASgDEhoKEm1lbW9yeV9ieXRlc190b3RhbBgDIAEoAxIZChFtZW1vcnlfYnl0ZXNfdXNlZBgEIAEoAxISCgpwb2RzX3RvdGFsGAUgASgFEhQKDHBvZHNfcnVubmluZxgGIAEoBSJWCgtBZ2VudEhlYWx0aBIaChJrdWJlcm5ldGVzX2hlYWx0aHkYASABKAgSGgoSY29udHJvbGxlcl9oZWFsdGh5GAIgASgIEg8KB21lc3NhZ2UYAyABKAky9AEKDEFnZW50U2VydmljZRJLCghSZWdpc3RlchIeLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXF1ZXN0Gh8ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlc3BvbnNlEkMKBFN5bmMSGi5sb2NvLmFnZW50LnYxLlN5bmNSZXF1ZXN0GhsubG9jby5hZ2VudC52MS5TeW5jUmVzcG9uc2UoATABElIKCUhlYXJ0YmVhdBIfLmxvY28uYWdlbnQudjEuSGVhcnRiZWF0UmVxdWVzdBogLmxvY28uYWdlbnQudjEuSGVhcnRiZWF0UmVzcG9uc2UoATABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYWdlbnQvdjE7YWdlbnR2MWIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIn4KD1JlZ2lzdGVyUmVxdWVzdBIUCgxjbHVzdGVyX25hbWUYASABKAkSDgoGcmVnaW9uGAIgASgJEhUKDWFnZW50X3ZlcnNpb24YAyABKAkSLgoIY2FwYWNpdHkYBCABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkiJgoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJItgBCgtTeW5jUmVxdWVzdBItCglpbnZlbnRvcnkYASABKAsyGC5sb2NvLmFnZW50LnYxLkludmVudG9yeUgAEikKB2FwcGxpZWQYAiABKAsyFi5sb2NvLmFnZW50LnYxLkFwcGxpZWRIABIwCgZzdGF0dXMYAyABKAsyHi5sb2NvLmFnZW50LnYxLlBsYWNlbWVudFN0YXR1c0gAEjIKDGJ1aWxkX3N0YXR1cxgEIAEoCzIaLmxvY28uYWdlbnQudjEuQnVpbGRTdGF0dXNIAEIJCgdtZXNzYWdlImoKCUludmVudG9yeRIuCgdlbnRyaWVzGAEgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlFbnRyeRItCgZidWlsZHMYAiADKAsyHS5sb2NvLmFnZW50LnYxLkludmVudG9yeUJ1aWxkIjgKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAyJgCg5JbnZlbnRvcnlCdWlsZBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQESMgoFcGhhc2UYAiABKA4yGS5sb2NvLmFnZW50LnYxLkJ1aWxkUGhhc2VCCLpIBYIBAhABIugBCgtCdWlsZFN0YXR1cxIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQESNAoFcGhhc2UYAiABKA4yGS5sb2NvLmFnZW50LnYxLkJ1aWxkUGhhc2VCCrpIB4IBBBABIAASNQoMaW1hZ2VfZGlnZXN0GAMgASgJQh+6SBxyGjIYXihzaGEyNTY6W2EtZjAtOV17NjR9KT8kEjUKDGNhY2hlX2RpZ2VzdBgEIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBIZCgdtZXNzYWdlGAUgASgJQgi6SAVyAxiAICJSCgdBcHBsaWVkEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxINCgVlcnJvchgDIAEoCRIQCghyZXRyeWluZxgEIAEoCCKJAQoPUGxhY2VtZW50U3RhdHVzEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIZChFvYnNlcnZlZF9yZXZpc2lvbhgCIAEoAxINCgVyZWFkeRgDIAEoCBIWCg5yZWFkeV9yZXBsaWNhcxgEIAEoBRINCgVwaGFzZRgFIAEoCRIPCgdtZXNzYWdlGAYgASgJIs8BCgxTeW5jUmVzcG9uc2USJQoFYXBwbHkYASABKAsyFC5sb2NvLmFnZW50LnYxLkFwcGx5SAASJwoGZGVsZXRlGAIgASgLMhUubG9jby5hZ2VudC52MS5EZWxldGVIABIwCgtzdGFydF9idWlsZBgDIAEoCzIZLmxvY28uYWdlbnQudjEuU3RhcnRCdWlsZEgAEjIKDGNhbmNlbF9idWlsZBgEIAEoCzIaLmxvY28uYWdlbnQudjEuQ2FuY2VsQnVpbGRIAEIJCgdtZXNzYWdlIlkKBUFwcGx5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxITCgtyZXNvdXJjZV9pZBgDIAEoCRITCgthcHBsaWNhdGlvbhgEIAEoDCJFCgZEZWxldGUSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJIt0BCgpTdGFydEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARIeCgx3b3Jrc3BhY2VfaWQYAiABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAMgASgJQgi6SAVyA7ABARIcCgpzb3VyY2VfdXJsGAQgASgJQgi6SAVyA4gBARIgCg9kb2NrZXJmaWxlX3BhdGgYBSABKAlCB7pIBHICEAESIQoQaW1hZ2VfcmVwb3NpdG9yeRgGIAEoCUIHukgEcgIQARIRCgljYWNoZV9yZWYYByABKAkiKQoLQ2FuY2VsQnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBIowBChBIZWFydGJlYXRSZXF1ZXN0EhwKCmNsdXN0ZXJfaWQYASABKAlCCLpIBXIDsAEBEi4KCGNhcGFjaXR5GAIgASgLMhwubG9jby5hZ2VudC52MS5BZ2VudENhcGFjaXR5EioKBmhlYWx0aBgDIAEoCzIaLmxvY28uYWdlbnQudjEuQWdlbnRIZWFsdGgiQwoRSGVhcnRiZWF0UmVzcG9uc2VKBAgBEAJKBAgCEANKBAgDEARSBWRyYWluUg1yZWxvYWRfY29uZmlnUgZyZXN5bmMiqwEKDUFnZW50Q2FwYWNpdHkSHAoUY3B1X21pbGxpY29yZXNfdG90YWwYASABKAMSGwoTY3B1X21pbGxpY29yZXNfdXNlZBgCIAEoAxIaChJtZW1vcnlfYnl0ZXNfdG90YWwYAyABKAMSGQoRbWVtb3J5X2J5dGVzX3VzZWQYBCABKAMSEgoKcG9kc190b3RhbBgFIAEoBRIUCgxwb2RzX3J1bm5pbmcYBiABKAUiVgoLQWdlbnRIZWFsdGgSGgoSa3ViZXJuZXRlc19oZWFsdGh5GAEgASgIEhoKEmNvbnRyb2xsZXJfaGVhbHRoeRgCIAEoCBIPCgdtZXNzYWdlGAMgASgJKqgBCgpCdWlsZFBoYXNlEhsKF0JVSUxEX1BIQVNFX1VOU1BFQ0lGSUVEEAASFwoTQlVJTERfUEhBU0VfUEVORElORxABEhcKE0JVSUxEX1BIQVNFX1JVTk5JTkcQAhIZChVCVUlMRF9QSEFTRV9TVUNDRUVERUQQAxIWChJCVUlMRF9QSEFTRV9GQUlMRUQQBBIYChRCVUlMRF9QSEFTRV9DQU5DRUxFRBAFMvQBCgxBZ2VudFNlcnZpY2USSwoIUmVnaXN0ZXISHi5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVxdWVzdBofLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXNwb25zZRJDCgRTeW5jEhoubG9jby5hZ2VudC52MS5TeW5jUmVxdWVzdBobLmxvY28uYWdlbnQudjEuU3luY1Jlc3BvbnNlKAEwARJSCglIZWFydGJlYXQSHy5sb2NvLmFnZW50LnYxLkhlYXJ0YmVhdFJlcXVlc3QaIC5sb2NvLmFnZW50LnYxLkhlYXJ0YmVhdFJlc3BvbnNlKAEwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FnZW50L3YxO2FnZW50djFiBnByb3RvMw", [file_buf_validate_validate]);
 
 /**
  * RegisterRequest is sent by the agent on startup to announce itself.
@@ -130,6 +130,12 @@ export type SyncRequest = Message<"loco.agent.v1.SyncRequest"> & {
      */
     value: PlacementStatus;
     case: "status";
+  } | {
+    /**
+     * @generated from field: loco.agent.v1.BuildStatus build_status = 4;
+     */
+    value: BuildStatus;
+    case: "buildStatus";
   } | { case: undefined; value?: undefined };
 };
 
@@ -151,6 +157,11 @@ export type SyncRequestJson = {
    * @generated from field: loco.agent.v1.PlacementStatus status = 3;
    */
   status?: PlacementStatusJson;
+
+  /**
+   * @generated from field: loco.agent.v1.BuildStatus build_status = 4;
+   */
+  buildStatus?: BuildStatusJson;
 };
 
 /**
@@ -168,6 +179,11 @@ export type Inventory = Message<"loco.agent.v1.Inventory"> & {
    * @generated from field: repeated loco.agent.v1.InventoryEntry entries = 1;
    */
   entries: InventoryEntry[];
+
+  /**
+   * @generated from field: repeated loco.agent.v1.InventoryBuild builds = 2;
+   */
+  builds: InventoryBuild[];
 };
 
 /**
@@ -178,6 +194,11 @@ export type InventoryJson = {
    * @generated from field: repeated loco.agent.v1.InventoryEntry entries = 1;
    */
   entries?: InventoryEntryJson[];
+
+  /**
+   * @generated from field: repeated loco.agent.v1.InventoryBuild builds = 2;
+   */
+  builds?: InventoryBuildJson[];
 };
 
 /**
@@ -223,6 +244,110 @@ export type InventoryEntryJson = {
  */
 export const InventoryEntrySchema: GenMessage<InventoryEntry, {jsonType: InventoryEntryJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 4);
+
+/**
+ * @generated from message loco.agent.v1.InventoryBuild
+ */
+export type InventoryBuild = Message<"loco.agent.v1.InventoryBuild"> & {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId: string;
+
+  /**
+   * @generated from field: loco.agent.v1.BuildPhase phase = 2;
+   */
+  phase: BuildPhase;
+};
+
+/**
+ * @generated from message loco.agent.v1.InventoryBuild
+ */
+export type InventoryBuildJson = {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId?: string;
+
+  /**
+   * @generated from field: loco.agent.v1.BuildPhase phase = 2;
+   */
+  phase?: BuildPhaseJson;
+};
+
+/**
+ * Describes the message loco.agent.v1.InventoryBuild.
+ * Use `create(InventoryBuildSchema)` to create a new message.
+ */
+export const InventoryBuildSchema: GenMessage<InventoryBuild, {jsonType: InventoryBuildJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 5);
+
+/**
+ * @generated from message loco.agent.v1.BuildStatus
+ */
+export type BuildStatus = Message<"loco.agent.v1.BuildStatus"> & {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId: string;
+
+  /**
+   * @generated from field: loco.agent.v1.BuildPhase phase = 2;
+   */
+  phase: BuildPhase;
+
+  /**
+   * @generated from field: string image_digest = 3;
+   */
+  imageDigest: string;
+
+  /**
+   * @generated from field: string cache_digest = 4;
+   */
+  cacheDigest: string;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message: string;
+};
+
+/**
+ * @generated from message loco.agent.v1.BuildStatus
+ */
+export type BuildStatusJson = {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId?: string;
+
+  /**
+   * @generated from field: loco.agent.v1.BuildPhase phase = 2;
+   */
+  phase?: BuildPhaseJson;
+
+  /**
+   * @generated from field: string image_digest = 3;
+   */
+  imageDigest?: string;
+
+  /**
+   * @generated from field: string cache_digest = 4;
+   */
+  cacheDigest?: string;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message?: string;
+};
+
+/**
+ * Describes the message loco.agent.v1.BuildStatus.
+ * Use `create(BuildStatusSchema)` to create a new message.
+ */
+export const BuildStatusSchema: GenMessage<BuildStatus, {jsonType: BuildStatusJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 6);
 
 /**
  * @generated from message loco.agent.v1.Applied
@@ -279,7 +404,7 @@ export type AppliedJson = {
  * Use `create(AppliedSchema)` to create a new message.
  */
 export const AppliedSchema: GenMessage<Applied, {jsonType: AppliedJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 5);
+  messageDesc(file_loco_agent_v1_agent, 7);
 
 /**
  * @generated from message loco.agent.v1.PlacementStatus
@@ -356,7 +481,7 @@ export type PlacementStatusJson = {
  * Use `create(PlacementStatusSchema)` to create a new message.
  */
 export const PlacementStatusSchema: GenMessage<PlacementStatus, {jsonType: PlacementStatusJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 6);
+  messageDesc(file_loco_agent_v1_agent, 8);
 
 /**
  * @generated from message loco.agent.v1.SyncResponse
@@ -377,6 +502,18 @@ export type SyncResponse = Message<"loco.agent.v1.SyncResponse"> & {
      */
     value: Delete;
     case: "delete";
+  } | {
+    /**
+     * @generated from field: loco.agent.v1.StartBuild start_build = 3;
+     */
+    value: StartBuild;
+    case: "startBuild";
+  } | {
+    /**
+     * @generated from field: loco.agent.v1.CancelBuild cancel_build = 4;
+     */
+    value: CancelBuild;
+    case: "cancelBuild";
   } | { case: undefined; value?: undefined };
 };
 
@@ -393,6 +530,16 @@ export type SyncResponseJson = {
    * @generated from field: loco.agent.v1.Delete delete = 2;
    */
   delete?: DeleteJson;
+
+  /**
+   * @generated from field: loco.agent.v1.StartBuild start_build = 3;
+   */
+  startBuild?: StartBuildJson;
+
+  /**
+   * @generated from field: loco.agent.v1.CancelBuild cancel_build = 4;
+   */
+  cancelBuild?: CancelBuildJson;
 };
 
 /**
@@ -400,7 +547,7 @@ export type SyncResponseJson = {
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema: GenMessage<SyncResponse, {jsonType: SyncResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 7);
+  messageDesc(file_loco_agent_v1_agent, 9);
 
 /**
  * @generated from message loco.agent.v1.Apply
@@ -457,7 +604,7 @@ export type ApplyJson = {
  * Use `create(ApplySchema)` to create a new message.
  */
 export const ApplySchema: GenMessage<Apply, {jsonType: ApplyJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 8);
+  messageDesc(file_loco_agent_v1_agent, 10);
 
 /**
  * @generated from message loco.agent.v1.Delete
@@ -504,7 +651,121 @@ export type DeleteJson = {
  * Use `create(DeleteSchema)` to create a new message.
  */
 export const DeleteSchema: GenMessage<Delete, {jsonType: DeleteJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 9);
+  messageDesc(file_loco_agent_v1_agent, 11);
+
+/**
+ * @generated from message loco.agent.v1.StartBuild
+ */
+export type StartBuild = Message<"loco.agent.v1.StartBuild"> & {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId: string;
+
+  /**
+   * @generated from field: string workspace_id = 2;
+   */
+  workspaceId: string;
+
+  /**
+   * @generated from field: string resource_id = 3;
+   */
+  resourceId: string;
+
+  /**
+   * @generated from field: string source_url = 4;
+   */
+  sourceUrl: string;
+
+  /**
+   * @generated from field: string dockerfile_path = 5;
+   */
+  dockerfilePath: string;
+
+  /**
+   * @generated from field: string image_repository = 6;
+   */
+  imageRepository: string;
+
+  /**
+   * @generated from field: string cache_ref = 7;
+   */
+  cacheRef: string;
+};
+
+/**
+ * @generated from message loco.agent.v1.StartBuild
+ */
+export type StartBuildJson = {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId?: string;
+
+  /**
+   * @generated from field: string workspace_id = 2;
+   */
+  workspaceId?: string;
+
+  /**
+   * @generated from field: string resource_id = 3;
+   */
+  resourceId?: string;
+
+  /**
+   * @generated from field: string source_url = 4;
+   */
+  sourceUrl?: string;
+
+  /**
+   * @generated from field: string dockerfile_path = 5;
+   */
+  dockerfilePath?: string;
+
+  /**
+   * @generated from field: string image_repository = 6;
+   */
+  imageRepository?: string;
+
+  /**
+   * @generated from field: string cache_ref = 7;
+   */
+  cacheRef?: string;
+};
+
+/**
+ * Describes the message loco.agent.v1.StartBuild.
+ * Use `create(StartBuildSchema)` to create a new message.
+ */
+export const StartBuildSchema: GenMessage<StartBuild, {jsonType: StartBuildJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 12);
+
+/**
+ * @generated from message loco.agent.v1.CancelBuild
+ */
+export type CancelBuild = Message<"loco.agent.v1.CancelBuild"> & {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId: string;
+};
+
+/**
+ * @generated from message loco.agent.v1.CancelBuild
+ */
+export type CancelBuildJson = {
+  /**
+   * @generated from field: string build_id = 1;
+   */
+  buildId?: string;
+};
+
+/**
+ * Describes the message loco.agent.v1.CancelBuild.
+ * Use `create(CancelBuildSchema)` to create a new message.
+ */
+export const CancelBuildSchema: GenMessage<CancelBuild, {jsonType: CancelBuildJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 13);
 
 /**
  * HeartbeatRequest is sent periodically by the agent.
@@ -555,7 +816,7 @@ export type HeartbeatRequestJson = {
  * Use `create(HeartbeatRequestSchema)` to create a new message.
  */
 export const HeartbeatRequestSchema: GenMessage<HeartbeatRequest, {jsonType: HeartbeatRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 10);
+  messageDesc(file_loco_agent_v1_agent, 14);
 
 /**
  * HeartbeatResponse is the control plane's reply on the heartbeat stream.
@@ -578,7 +839,7 @@ export type HeartbeatResponseJson = {
  * Use `create(HeartbeatResponseSchema)` to create a new message.
  */
 export const HeartbeatResponseSchema: GenMessage<HeartbeatResponse, {jsonType: HeartbeatResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 11);
+  messageDesc(file_loco_agent_v1_agent, 15);
 
 /**
  * AgentCapacity reports cluster resource capacity.
@@ -659,7 +920,7 @@ export type AgentCapacityJson = {
  * Use `create(AgentCapacitySchema)` to create a new message.
  */
 export const AgentCapacitySchema: GenMessage<AgentCapacity, {jsonType: AgentCapacityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 12);
+  messageDesc(file_loco_agent_v1_agent, 16);
 
 /**
  * AgentHealth reports agent and cluster health status.
@@ -710,7 +971,53 @@ export type AgentHealthJson = {
  * Use `create(AgentHealthSchema)` to create a new message.
  */
 export const AgentHealthSchema: GenMessage<AgentHealth, {jsonType: AgentHealthJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 13);
+  messageDesc(file_loco_agent_v1_agent, 17);
+
+/**
+ * @generated from enum loco.agent.v1.BuildPhase
+ */
+export enum BuildPhase {
+  /**
+   * @generated from enum value: BUILD_PHASE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: BUILD_PHASE_PENDING = 1;
+   */
+  PENDING = 1,
+
+  /**
+   * @generated from enum value: BUILD_PHASE_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: BUILD_PHASE_SUCCEEDED = 3;
+   */
+  SUCCEEDED = 3,
+
+  /**
+   * @generated from enum value: BUILD_PHASE_FAILED = 4;
+   */
+  FAILED = 4,
+
+  /**
+   * @generated from enum value: BUILD_PHASE_CANCELED = 5;
+   */
+  CANCELED = 5,
+}
+
+/**
+ * @generated from enum loco.agent.v1.BuildPhase
+ */
+export type BuildPhaseJson = "BUILD_PHASE_UNSPECIFIED" | "BUILD_PHASE_PENDING" | "BUILD_PHASE_RUNNING" | "BUILD_PHASE_SUCCEEDED" | "BUILD_PHASE_FAILED" | "BUILD_PHASE_CANCELED";
+
+/**
+ * Describes the enum loco.agent.v1.BuildPhase.
+ */
+export const BuildPhaseSchema: GenEnum<BuildPhase, BuildPhaseJson> = /*@__PURE__*/
+  enumDesc(file_loco_agent_v1_agent, 0);
 
 /**
  * AgentService handles communication between the control plane and data plane agents.

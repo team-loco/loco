@@ -275,6 +275,7 @@ CREATE TABLE
         dockerfile_path TEXT NOT NULL,
         image_repository TEXT NOT NULL,
         image_digest TEXT,
+        cache_digest TEXT,
         message TEXT NOT NULL DEFAULT '',
         created_by UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),

@@ -42,6 +42,9 @@ registry:
 
 builds:
   namespace: loco-builds
+  agentServiceAccount:
+    name: loco-core-agent
+    namespace: ""
   pushSecretName: ""
   builderImage:
     repository: ghcr.io/team-loco/loco-builder

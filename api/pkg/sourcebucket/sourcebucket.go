@@ -27,6 +27,7 @@ type Config struct {
 	Region          string
 	AccessKeyID     string
 	SecretAccessKey string
+	ForcePathStyle  bool
 }
 
 func (c Config) Validate() error {
@@ -65,7 +66,7 @@ func New(cfg Config) (*Bucket, error) {
 	client := s3.New(s3.Options{
 		Region:                     cfg.Region,
 		Credentials:                creds,
-		UsePathStyle:               false,
+		UsePathStyle:               cfg.ForcePathStyle,
 		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 		ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
 	}, func(o *s3.Options) {
@@ -93,6 +94,20 @@ func (b *Bucket) PresignPut(ctx context.Context, key string, size int64, ttl tim
 	req, err := b.presigner.PresignPutObject(ctx, input, expires)
 	if err != nil {
 		return "", fmt.Errorf("presign put %s: %w", key, err)
+	}
+	return req.URL, nil
+}
+
+func (b *Bucket) PresignGet(ctx context.Context, key string, ttl time.Duration) (string, error) {
+	bucket := b.bucket
+	input := &s3.GetObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	}
+	expires := s3.WithPresignExpires(ttl)
+	req, err := b.presigner.PresignGetObject(ctx, input, expires)
+	if err != nil {
+		return "", fmt.Errorf("presign get %s: %w", key, err)
 	}
 	return req.URL, nil
 }
