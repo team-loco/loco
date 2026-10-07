@@ -106,18 +106,24 @@ func (r *Resolver) recordVerifiedEmail(ctx context.Context, user genDb.User, id 
 		}
 	}()
 	qtx := r.queries.WithTx(tx)
-	if touchErr := qtx.TouchIdentity(ctx, genDb.TouchIdentityParams{
-		Issuer:        id.Issuer,
-		Subject:       id.Subject,
-		Email:         &id.Email,
-		EmailVerified: true,
-	}); touchErr != nil {
-		slog.ErrorContext(ctx, "failed to record the verified email", "error", touchErr, "userId", user.ID)
+	marked, err := qtx.MarkIdentityEmailVerified(ctx, genDb.MarkIdentityEmailVerifiedParams{
+		Email:   &id.Email,
+		Issuer:  id.Issuer,
+		Subject: id.Subject,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to record the verified email", "error", err, "userId", user.ID)
 		return genDb.User{}, ErrResolve
 	}
-	user, err = moveAccountEmail(ctx, qtx, user, id.Email)
-	if err != nil {
-		return genDb.User{}, err
+	if marked > 0 {
+		user, err = moveAccountEmail(ctx, qtx, user, id.Email)
+		if err != nil {
+			return genDb.User{}, err
+		}
+		if _, joinErr := AutoJoin(ctx, qtx, user.ID, id.Email); joinErr != nil {
+			slog.ErrorContext(ctx, "failed to apply domain auto-join", "error", joinErr, "userId", user.ID)
+			return genDb.User{}, ErrResolve
+		}
 	}
 	if commitErr := tx.Commit(ctx); commitErr != nil {
 		slog.ErrorContext(ctx, "failed to commit the verified email", "error", commitErr, "userId", user.ID)
@@ -269,6 +275,13 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, erro
 		}
 		slog.ErrorContext(ctx, "failed to create identity", "error", err, "userId", user.ID)
 		return genDb.User{}, ErrResolve
+	}
+
+	if id.EmailVerified {
+		if _, joinErr := AutoJoin(ctx, qtx, user.ID, id.Email); joinErr != nil {
+			slog.ErrorContext(ctx, "failed to apply domain auto-join", "error", joinErr, "userId", user.ID)
+			return genDb.User{}, ErrResolve
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {

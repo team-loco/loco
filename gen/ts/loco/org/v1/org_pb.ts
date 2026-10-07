@@ -7,13 +7,15 @@ import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { FieldMask, FieldMaskJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_field_mask, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { Scope, ScopeJson } from "../../token/v1/token_pb";
+import { file_loco_token_v1_token } from "../../token/v1/token_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/org/v1/org.proto.
  */
 export const file_loco_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIpwBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInAKEFdvcmtzcGFjZVN1bW1hcnkSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIk8KDUdldE9yZ1JlcXVlc3QSGgoGb3JnX2lkGAEgASgJQgi6SAVyA7ABAUgAEhsKCG9yZ19uYW1lGAIgASgJQge6SARyAhABSABCBQoDa2V5IkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJjChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImIKE0xpc3RPcmdVc2Vyc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJRChRMaXN0T3JnVXNlcnNSZXNwb25zZRIgCgV1c2VycxgBIAMoCzIRLmxvY28ub3JnLnYxLlVzZXISFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIkMKBFVzZXISCgoCaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEbmFtZRgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJImcKGExpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJImcKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMQoKd29ya3NwYWNlcxgBIAMoCzIdLmxvY28ub3JnLnYxLldvcmtzcGFjZVN1bW1hcnkSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIoQBChBVcGRhdGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhwKBG5hbWUYAyABKAlCCbpIBnIEEAEYZEgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoCSIsChBEZWxldGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiEwoRRGVsZXRlT3JnUmVzcG9uc2UywQQKCk9yZ1NlcnZpY2USSgoJQ3JlYXRlT3JnEh0ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1Jlc3BvbnNlEkEKBkdldE9yZxIaLmxvY28ub3JnLnYxLkdldE9yZ1JlcXVlc3QaGy5sb2NvLm9yZy52MS5HZXRPcmdSZXNwb25zZRJKCglVcGRhdGVPcmcSHS5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVzcG9uc2USSgoJRGVsZXRlT3JnEh0ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1Jlc3BvbnNlElMKDExpc3RVc2VyT3JncxIgLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXNwb25zZRJTCgxMaXN0T3JnVXNlcnMSIC5sb2NvLm9yZy52MS5MaXN0T3JnVXNlcnNSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdE9yZ1VzZXJzUmVzcG9uc2USYgoRTGlzdE9yZ1dvcmtzcGFjZXMSJS5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QaJi5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlQjRaMmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIpwBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInAKEFdvcmtzcGFjZVN1bW1hcnkSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIk8KDUdldE9yZ1JlcXVlc3QSGgoGb3JnX2lkGAEgASgJQgi6SAVyA7ABAUgAEhsKCG9yZ19uYW1lGAIgASgJQge6SARyAhABSABCBQoDa2V5IkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJjChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImIKE0xpc3RPcmdVc2Vyc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJRChRMaXN0T3JnVXNlcnNSZXNwb25zZRIgCgV1c2VycxgBIAMoCzIRLmxvY28ub3JnLnYxLlVzZXISFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIkMKBFVzZXISCgoCaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEbmFtZRgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJImcKGExpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJImcKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMQoKd29ya3NwYWNlcxgBIAMoCzIdLmxvY28ub3JnLnYxLldvcmtzcGFjZVN1bW1hcnkSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIoQBChBVcGRhdGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhwKBG5hbWUYAyABKAlCCbpIBnIEEAEYZEgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoCSIsChBEZWxldGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiEwoRRGVsZXRlT3JnUmVzcG9uc2UijgIKCU9yZ0RvbWFpbhIKCgJpZBgBIAEoCRIOCgZkb21haW4YAiABKAkSEAoIdmVyaWZpZWQYAyABKAgSIAoYdmVyaWZpY2F0aW9uX3JlY29yZF9uYW1lGAQgASgJEiEKGXZlcmlmaWNhdGlvbl9yZWNvcmRfdmFsdWUYBSABKAkSLQoPYXV0b19qb2luX3Njb3BlGAYgASgOMhQubG9jby50b2tlbi52MS5TY29wZRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgt2ZXJpZmllZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiSwoTQWRkT3JnRG9tYWluUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhoKBmRvbWFpbhgCIAEoCUIKukgHcgUY/QFoASI+ChRBZGRPcmdEb21haW5SZXNwb25zZRImCgZkb21haW4YASABKAsyFi5sb2NvLm9yZy52MS5PcmdEb21haW4iMQoVTGlzdE9yZ0RvbWFpbnNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiQQoWTGlzdE9yZ0RvbWFpbnNSZXNwb25zZRInCgdkb21haW5zGAEgAygLMhYubG9jby5vcmcudjEuT3JnRG9tYWluIk8KFlZlcmlmeU9yZ0RvbWFpblJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIkEKF1ZlcmlmeU9yZ0RvbWFpblJlc3BvbnNlEiYKBmRvbWFpbhgBIAEoCzIWLmxvY28ub3JnLnYxLk9yZ0RvbWFpbiKDAQobU2V0T3JnRG9tYWluQXV0b0pvaW5SZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGwoJZG9tYWluX2lkGAIgASgJQgi6SAVyA7ABARItCgVzY29wZRgDIAEoDjIULmxvY28udG9rZW4udjEuU2NvcGVCCLpIBYIBAhABIlsKHFNldE9yZ0RvbWFpbkF1dG9Kb2luUmVzcG9uc2USJgoGZG9tYWluGAEgASgLMhYubG9jby5vcmcudjEuT3JnRG9tYWluEhMKC3VzZXJzX2FkZGVkGAIgASgFIk8KFkRlbGV0ZU9yZ0RvbWFpblJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIhkKF0RlbGV0ZU9yZ0RvbWFpblJlc3BvbnNlMpoICgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRJBCgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhsubG9jby5vcmcudjEuR2V0T3JnUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJTCgxMaXN0VXNlck9yZ3MSIC5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVzcG9uc2USUwoMTGlzdE9yZ1VzZXJzEiAubG9jby5vcmcudjEuTGlzdE9yZ1VzZXJzUmVxdWVzdBohLmxvY28ub3JnLnYxLkxpc3RPcmdVc2Vyc1Jlc3BvbnNlEmIKEUxpc3RPcmdXb3Jrc3BhY2VzEiUubG9jby5vcmcudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXF1ZXN0GiYubG9jby5vcmcudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXNwb25zZRJTCgxBZGRPcmdEb21haW4SIC5sb2NvLm9yZy52MS5BZGRPcmdEb21haW5SZXF1ZXN0GiEubG9jby5vcmcudjEuQWRkT3JnRG9tYWluUmVzcG9uc2USWQoOTGlzdE9yZ0RvbWFpbnMSIi5sb2NvLm9yZy52MS5MaXN0T3JnRG9tYWluc1JlcXVlc3QaIy5sb2NvLm9yZy52MS5MaXN0T3JnRG9tYWluc1Jlc3BvbnNlElwKD1ZlcmlmeU9yZ0RvbWFpbhIjLmxvY28ub3JnLnYxLlZlcmlmeU9yZ0RvbWFpblJlcXVlc3QaJC5sb2NvLm9yZy52MS5WZXJpZnlPcmdEb21haW5SZXNwb25zZRJrChRTZXRPcmdEb21haW5BdXRvSm9pbhIoLmxvY28ub3JnLnYxLlNldE9yZ0RvbWFpbkF1dG9Kb2luUmVxdWVzdBopLmxvY28ub3JnLnYxLlNldE9yZ0RvbWFpbkF1dG9Kb2luUmVzcG9uc2USXAoPRGVsZXRlT3JnRG9tYWluEiMubG9jby5vcmcudjEuRGVsZXRlT3JnRG9tYWluUmVxdWVzdBokLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ0RvbWFpblJlc3BvbnNlQjRaMmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_token_v1_token]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -798,6 +800,425 @@ export const DeleteOrgResponseSchema: GenMessage<DeleteOrgResponse, {jsonType: D
   messageDesc(file_loco_org_v1_org, 16);
 
 /**
+ * @generated from message loco.org.v1.OrgDomain
+ */
+export type OrgDomain = Message<"loco.org.v1.OrgDomain"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string domain = 2;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: bool verified = 3;
+   */
+  verified: boolean;
+
+  /**
+   * @generated from field: string verification_record_name = 4;
+   */
+  verificationRecordName: string;
+
+  /**
+   * @generated from field: string verification_record_value = 5;
+   */
+  verificationRecordValue: string;
+
+  /**
+   * @generated from field: loco.token.v1.Scope auto_join_scope = 6;
+   */
+  autoJoinScope: Scope;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp verified_at = 8;
+   */
+  verifiedAt?: Timestamp | undefined;
+};
+
+/**
+ * @generated from message loco.org.v1.OrgDomain
+ */
+export type OrgDomainJson = {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id?: string;
+
+  /**
+   * @generated from field: string domain = 2;
+   */
+  domain?: string;
+
+  /**
+   * @generated from field: bool verified = 3;
+   */
+  verified?: boolean;
+
+  /**
+   * @generated from field: string verification_record_name = 4;
+   */
+  verificationRecordName?: string;
+
+  /**
+   * @generated from field: string verification_record_value = 5;
+   */
+  verificationRecordValue?: string;
+
+  /**
+   * @generated from field: loco.token.v1.Scope auto_join_scope = 6;
+   */
+  autoJoinScope?: ScopeJson;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
+   */
+  createdAt?: TimestampJson;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp verified_at = 8;
+   */
+  verifiedAt?: TimestampJson;
+};
+
+/**
+ * Describes the message loco.org.v1.OrgDomain.
+ * Use `create(OrgDomainSchema)` to create a new message.
+ */
+export const OrgDomainSchema: GenMessage<OrgDomain, {jsonType: OrgDomainJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 17);
+
+/**
+ * @generated from message loco.org.v1.AddOrgDomainRequest
+ */
+export type AddOrgDomainRequest = Message<"loco.org.v1.AddOrgDomainRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string domain = 2;
+   */
+  domain: string;
+};
+
+/**
+ * @generated from message loco.org.v1.AddOrgDomainRequest
+ */
+export type AddOrgDomainRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string domain = 2;
+   */
+  domain?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.AddOrgDomainRequest.
+ * Use `create(AddOrgDomainRequestSchema)` to create a new message.
+ */
+export const AddOrgDomainRequestSchema: GenMessage<AddOrgDomainRequest, {jsonType: AddOrgDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 18);
+
+/**
+ * @generated from message loco.org.v1.AddOrgDomainResponse
+ */
+export type AddOrgDomainResponse = Message<"loco.org.v1.AddOrgDomainResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.OrgDomain domain = 1;
+   */
+  domain?: OrgDomain | undefined;
+};
+
+/**
+ * @generated from message loco.org.v1.AddOrgDomainResponse
+ */
+export type AddOrgDomainResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgDomain domain = 1;
+   */
+  domain?: OrgDomainJson;
+};
+
+/**
+ * Describes the message loco.org.v1.AddOrgDomainResponse.
+ * Use `create(AddOrgDomainResponseSchema)` to create a new message.
+ */
+export const AddOrgDomainResponseSchema: GenMessage<AddOrgDomainResponse, {jsonType: AddOrgDomainResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 19);
+
+/**
+ * @generated from message loco.org.v1.ListOrgDomainsRequest
+ */
+export type ListOrgDomainsRequest = Message<"loco.org.v1.ListOrgDomainsRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+};
+
+/**
+ * @generated from message loco.org.v1.ListOrgDomainsRequest
+ */
+export type ListOrgDomainsRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.ListOrgDomainsRequest.
+ * Use `create(ListOrgDomainsRequestSchema)` to create a new message.
+ */
+export const ListOrgDomainsRequestSchema: GenMessage<ListOrgDomainsRequest, {jsonType: ListOrgDomainsRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 20);
+
+/**
+ * @generated from message loco.org.v1.ListOrgDomainsResponse
+ */
+export type ListOrgDomainsResponse = Message<"loco.org.v1.ListOrgDomainsResponse"> & {
+  /**
+   * @generated from field: repeated loco.org.v1.OrgDomain domains = 1;
+   */
+  domains: OrgDomain[];
+};
+
+/**
+ * @generated from message loco.org.v1.ListOrgDomainsResponse
+ */
+export type ListOrgDomainsResponseJson = {
+  /**
+   * @generated from field: repeated loco.org.v1.OrgDomain domains = 1;
+   */
+  domains?: OrgDomainJson[];
+};
+
+/**
+ * Describes the message loco.org.v1.ListOrgDomainsResponse.
+ * Use `create(ListOrgDomainsResponseSchema)` to create a new message.
+ */
+export const ListOrgDomainsResponseSchema: GenMessage<ListOrgDomainsResponse, {jsonType: ListOrgDomainsResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 21);
+
+/**
+ * @generated from message loco.org.v1.VerifyOrgDomainRequest
+ */
+export type VerifyOrgDomainRequest = Message<"loco.org.v1.VerifyOrgDomainRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string domain_id = 2;
+   */
+  domainId: string;
+};
+
+/**
+ * @generated from message loco.org.v1.VerifyOrgDomainRequest
+ */
+export type VerifyOrgDomainRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string domain_id = 2;
+   */
+  domainId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.VerifyOrgDomainRequest.
+ * Use `create(VerifyOrgDomainRequestSchema)` to create a new message.
+ */
+export const VerifyOrgDomainRequestSchema: GenMessage<VerifyOrgDomainRequest, {jsonType: VerifyOrgDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 22);
+
+/**
+ * @generated from message loco.org.v1.VerifyOrgDomainResponse
+ */
+export type VerifyOrgDomainResponse = Message<"loco.org.v1.VerifyOrgDomainResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.OrgDomain domain = 1;
+   */
+  domain?: OrgDomain | undefined;
+};
+
+/**
+ * @generated from message loco.org.v1.VerifyOrgDomainResponse
+ */
+export type VerifyOrgDomainResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgDomain domain = 1;
+   */
+  domain?: OrgDomainJson;
+};
+
+/**
+ * Describes the message loco.org.v1.VerifyOrgDomainResponse.
+ * Use `create(VerifyOrgDomainResponseSchema)` to create a new message.
+ */
+export const VerifyOrgDomainResponseSchema: GenMessage<VerifyOrgDomainResponse, {jsonType: VerifyOrgDomainResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 23);
+
+/**
+ * @generated from message loco.org.v1.SetOrgDomainAutoJoinRequest
+ */
+export type SetOrgDomainAutoJoinRequest = Message<"loco.org.v1.SetOrgDomainAutoJoinRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string domain_id = 2;
+   */
+  domainId: string;
+
+  /**
+   * @generated from field: loco.token.v1.Scope scope = 3;
+   */
+  scope: Scope;
+};
+
+/**
+ * @generated from message loco.org.v1.SetOrgDomainAutoJoinRequest
+ */
+export type SetOrgDomainAutoJoinRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string domain_id = 2;
+   */
+  domainId?: string;
+
+  /**
+   * @generated from field: loco.token.v1.Scope scope = 3;
+   */
+  scope?: ScopeJson;
+};
+
+/**
+ * Describes the message loco.org.v1.SetOrgDomainAutoJoinRequest.
+ * Use `create(SetOrgDomainAutoJoinRequestSchema)` to create a new message.
+ */
+export const SetOrgDomainAutoJoinRequestSchema: GenMessage<SetOrgDomainAutoJoinRequest, {jsonType: SetOrgDomainAutoJoinRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 24);
+
+/**
+ * @generated from message loco.org.v1.SetOrgDomainAutoJoinResponse
+ */
+export type SetOrgDomainAutoJoinResponse = Message<"loco.org.v1.SetOrgDomainAutoJoinResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.OrgDomain domain = 1;
+   */
+  domain?: OrgDomain | undefined;
+
+  /**
+   * @generated from field: int32 users_added = 2;
+   */
+  usersAdded: number;
+};
+
+/**
+ * @generated from message loco.org.v1.SetOrgDomainAutoJoinResponse
+ */
+export type SetOrgDomainAutoJoinResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgDomain domain = 1;
+   */
+  domain?: OrgDomainJson;
+
+  /**
+   * @generated from field: int32 users_added = 2;
+   */
+  usersAdded?: number;
+};
+
+/**
+ * Describes the message loco.org.v1.SetOrgDomainAutoJoinResponse.
+ * Use `create(SetOrgDomainAutoJoinResponseSchema)` to create a new message.
+ */
+export const SetOrgDomainAutoJoinResponseSchema: GenMessage<SetOrgDomainAutoJoinResponse, {jsonType: SetOrgDomainAutoJoinResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 25);
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgDomainRequest
+ */
+export type DeleteOrgDomainRequest = Message<"loco.org.v1.DeleteOrgDomainRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string domain_id = 2;
+   */
+  domainId: string;
+};
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgDomainRequest
+ */
+export type DeleteOrgDomainRequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string domain_id = 2;
+   */
+  domainId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.DeleteOrgDomainRequest.
+ * Use `create(DeleteOrgDomainRequestSchema)` to create a new message.
+ */
+export const DeleteOrgDomainRequestSchema: GenMessage<DeleteOrgDomainRequest, {jsonType: DeleteOrgDomainRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 26);
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgDomainResponse
+ */
+export type DeleteOrgDomainResponse = Message<"loco.org.v1.DeleteOrgDomainResponse"> & {
+};
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgDomainResponse
+ */
+export type DeleteOrgDomainResponseJson = {
+};
+
+/**
+ * Describes the message loco.org.v1.DeleteOrgDomainResponse.
+ * Use `create(DeleteOrgDomainResponseSchema)` to create a new message.
+ */
+export const DeleteOrgDomainResponseSchema: GenMessage<DeleteOrgDomainResponse, {jsonType: DeleteOrgDomainResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 27);
+
+/**
  * OrgService manages organizations.
  *
  * @generated from service loco.org.v1.OrgService
@@ -872,6 +1293,46 @@ export const OrgService: GenService<{
     methodKind: "unary";
     input: typeof ListOrgWorkspacesRequestSchema;
     output: typeof ListOrgWorkspacesResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.AddOrgDomain
+   */
+  addOrgDomain: {
+    methodKind: "unary";
+    input: typeof AddOrgDomainRequestSchema;
+    output: typeof AddOrgDomainResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.ListOrgDomains
+   */
+  listOrgDomains: {
+    methodKind: "unary";
+    input: typeof ListOrgDomainsRequestSchema;
+    output: typeof ListOrgDomainsResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.VerifyOrgDomain
+   */
+  verifyOrgDomain: {
+    methodKind: "unary";
+    input: typeof VerifyOrgDomainRequestSchema;
+    output: typeof VerifyOrgDomainResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.SetOrgDomainAutoJoin
+   */
+  setOrgDomainAutoJoin: {
+    methodKind: "unary";
+    input: typeof SetOrgDomainAutoJoinRequestSchema;
+    output: typeof SetOrgDomainAutoJoinResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.DeleteOrgDomain
+   */
+  deleteOrgDomain: {
+    methodKind: "unary";
+    input: typeof DeleteOrgDomainRequestSchema;
+    output: typeof DeleteOrgDomainResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_org_v1_org, 0);

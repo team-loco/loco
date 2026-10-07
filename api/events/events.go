@@ -50,6 +50,10 @@ const (
 	TokenCreated         = "token.created"
 	TokenRevoked         = "token.revoked"
 	ClusterRegistered    = "cluster.registered"
+	OrgDomainAdded       = "org_domain.added"
+	OrgDomainVerified    = "org_domain.verified"
+	OrgDomainAutoJoin    = "org_domain.auto_join_changed"
+	OrgDomainRemoved     = "org_domain.removed"
 )
 
 const (

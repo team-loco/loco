@@ -32,6 +32,7 @@ type Querier interface {
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
 	CreateIdentity(ctx context.Context, arg CreateIdentityParams) (Identity, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
+	CreateOrgDomain(ctx context.Context, arg CreateOrgDomainParams) (OrgDomain, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
 	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (uuid.UUID, error)
@@ -59,6 +60,7 @@ type Querier interface {
 	// session is fully dead once the refresh token expires (access expiry alone is not enough)
 	DeleteExpiredSessionTokens(ctx context.Context) error
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
+	DeleteOrgDomain(ctx context.Context, arg DeleteOrgDomainParams) (int64, error)
 	DeleteOrganization(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
@@ -75,6 +77,7 @@ type Querier interface {
 	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveClusterByRegionAndTier(ctx context.Context, arg GetActiveClusterByRegionAndTierParams) (GetActiveClusterByRegionAndTierRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
+	GetAutoJoinForDomain(ctx context.Context, domain string) (GetAutoJoinForDomainRow, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context) (uuid.UUID, error)
 	GetClusterBuildsEnabled(ctx context.Context, id uuid.UUID) (bool, error)
@@ -94,6 +97,7 @@ type Querier interface {
 	GetObservabilityClustersForWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]GetObservabilityClustersForWorkspaceRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
+	GetOrgDomain(ctx context.Context, arg GetOrgDomainParams) (OrgDomain, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
@@ -141,6 +145,7 @@ type Querier interface {
 	ListDeploymentsForResource(ctx context.Context, arg ListDeploymentsForResourceParams) ([]Deployment, error)
 	ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error)
 	ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
+	ListOrgDomains(ctx context.Context, orgID uuid.UUID) ([]OrgDomain, error)
 	ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]Event, error)
 	ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
@@ -156,16 +161,20 @@ type Querier interface {
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	ListUsersWithVerifiedEmailDomain(ctx context.Context, email *string) ([]uuid.UUID, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]Workspace, error)
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
+	LockOrg(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockResourceForBuild(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
 	MarkDeploymentNotActive(ctx context.Context, id uuid.UUID) error
+	MarkIdentityEmailVerified(ctx context.Context, arg MarkIdentityEmailVerifiedParams) (int64, error)
+	MarkOrgDomainVerified(ctx context.Context, arg MarkOrgDomainVerifiedParams) (OrgDomain, error)
 	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (*uuid.UUID, error)
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
@@ -184,6 +193,7 @@ type Querier interface {
 	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
+	SetOrgDomainAutoJoin(ctx context.Context, arg SetOrgDomainAutoJoinParams) (OrgDomain, error)
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error

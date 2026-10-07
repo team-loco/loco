@@ -144,6 +144,27 @@ func (q *Queries) ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) (
 	return items, nil
 }
 
+const markIdentityEmailVerified = `-- name: MarkIdentityEmailVerified :execrows
+UPDATE identities
+SET email = $1, email_verified = TRUE, last_login_at = NOW()
+WHERE issuer = $2 AND subject = $3
+    AND NOT (email_verified AND email IS NOT DISTINCT FROM $1)
+`
+
+type MarkIdentityEmailVerifiedParams struct {
+	Email   *string `json:"email"`
+	Issuer  string  `json:"issuer"`
+	Subject string  `json:"subject"`
+}
+
+func (q *Queries) MarkIdentityEmailVerified(ctx context.Context, arg MarkIdentityEmailVerifiedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markIdentityEmailVerified, arg.Email, arg.Issuer, arg.Subject)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const touchIdentity = `-- name: TouchIdentity :exec
 UPDATE identities
 SET email = $3, email_verified = $4, last_login_at = NOW()

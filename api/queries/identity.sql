@@ -14,6 +14,11 @@ UPDATE identities
 SET email = $3, email_verified = $4, last_login_at = NOW()
 WHERE issuer = $1 AND subject = $2;
 
+-- name: MarkIdentityEmailVerified :execrows
+UPDATE identities
+SET email = sqlc.arg('email'), email_verified = TRUE, last_login_at = NOW()
+WHERE issuer = sqlc.arg('issuer') AND subject = sqlc.arg('subject')
+    AND NOT (email_verified AND email IS NOT DISTINCT FROM sqlc.arg('email'));
 
 -- name: GetIdentity :one
 SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at

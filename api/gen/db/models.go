@@ -443,6 +443,17 @@ type Identity struct {
 	LastLoginAt   time.Time `json:"lastLoginAt"`
 }
 
+type OrgDomain struct {
+	ID                uuid.UUID  `json:"id"`
+	OrgID             uuid.UUID  `json:"orgId"`
+	Domain            string     `json:"domain"`
+	VerificationToken string     `json:"verificationToken"`
+	VerifiedAt        *time.Time `json:"verifiedAt"`
+	AutoJoinScope     *string    `json:"autoJoinScope"`
+	CreatedBy         *uuid.UUID `json:"createdBy"`
+	CreatedAt         time.Time  `json:"createdAt"`
+}
+
 type Organization struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`

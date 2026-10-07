@@ -234,3 +234,16 @@ func (tvm *VendingMachine) UserScopes(ctx context.Context, userID uuid.UUID) ([]
 	}
 	return scopes, nil
 }
+
+func ScopesUpTo(s queries.Scope) []queries.Scope {
+	switch s {
+	case queries.ScopeRead:
+		return []queries.Scope{queries.ScopeRead}
+	case queries.ScopeWrite:
+		return []queries.Scope{queries.ScopeRead, queries.ScopeWrite}
+	case queries.ScopeAdmin:
+		return []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin}
+	default:
+		return nil
+	}
+}

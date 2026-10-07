@@ -5,6 +5,7 @@ package loco.org.v1;
 import "buf/validate/validate.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
+import "loco/token/v1/token.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/org/v1;orgv1";
 
@@ -25,6 +26,12 @@ service OrgService {
   rpc ListOrgUsers(ListOrgUsersRequest) returns (ListOrgUsersResponse);
   // ListOrgWorkspaces lists workspaces in an organization.
   rpc ListOrgWorkspaces(ListOrgWorkspacesRequest) returns (ListOrgWorkspacesResponse);
+
+  rpc AddOrgDomain(AddOrgDomainRequest) returns (AddOrgDomainResponse);
+  rpc ListOrgDomains(ListOrgDomainsRequest) returns (ListOrgDomainsResponse);
+  rpc VerifyOrgDomain(VerifyOrgDomainRequest) returns (VerifyOrgDomainResponse);
+  rpc SetOrgDomainAutoJoin(SetOrgDomainAutoJoinRequest) returns (SetOrgDomainAutoJoinResponse);
+  rpc DeleteOrgDomain(DeleteOrgDomainRequest) returns (DeleteOrgDomainResponse);
 }
 
 // Organization represents a top-level organization container for users, workspaces, and resources.
@@ -148,3 +155,61 @@ message DeleteOrgRequest {
 
 // DeleteOrgResponse is the response after deleting an organization.
 message DeleteOrgResponse {}
+
+message OrgDomain {
+  string id = 1;
+  string domain = 2;
+  bool verified = 3;
+  string verification_record_name = 4;
+  string verification_record_value = 5;
+  loco.token.v1.Scope auto_join_scope = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp verified_at = 8;
+}
+
+message AddOrgDomainRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string domain = 2 [(buf.validate.field).string = {
+    hostname: true
+    max_len: 253
+  }];
+}
+
+message AddOrgDomainResponse {
+  OrgDomain domain = 1;
+}
+
+message ListOrgDomainsRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message ListOrgDomainsResponse {
+  repeated OrgDomain domains = 1;
+}
+
+message VerifyOrgDomainRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string domain_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message VerifyOrgDomainResponse {
+  OrgDomain domain = 1;
+}
+
+message SetOrgDomainAutoJoinRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string domain_id = 2 [(buf.validate.field).string.uuid = true];
+  loco.token.v1.Scope scope = 3 [(buf.validate.field).enum.defined_only = true];
+}
+
+message SetOrgDomainAutoJoinResponse {
+  OrgDomain domain = 1;
+  int32 users_added = 2;
+}
+
+message DeleteOrgDomainRequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  string domain_id = 2 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteOrgDomainResponse {}
