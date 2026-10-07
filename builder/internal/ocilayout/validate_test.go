@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -149,7 +150,8 @@ func TestValidateRejectsTampering(t *testing.T) {
 			name: "fifo",
 			tamper: func(t *testing.T, dir string) {
 				t.Helper()
-				if err := mkfifo(filepath.Join(dir, "pipe")); err != nil {
+				pipe := filepath.Join(dir, "pipe")
+				if err := syscall.Mkfifo(pipe, 0o600); err != nil {
 					t.Skipf("mkfifo: %v", err)
 				}
 			},
