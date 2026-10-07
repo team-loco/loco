@@ -15,10 +15,6 @@ var (
 	ErrTokenNotFound       = errors.New("token not found")
 	ErrInvalidExpiredToken = errors.New("invalid or expired token")
 
-	ErrExchange = errors.New("exchange with external provider failed")
-
-	ErrUserNotFound   = errors.New("user not found")
-	ErrUserLookup     = errors.New("unable to look up user")
 	ErrEntityNotFound = errors.New("entity not found or invalid entity")
 
 	ErrIssueToken = errors.New("unable to issue token")

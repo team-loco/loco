@@ -15,12 +15,6 @@ SELECT id, email, name, avatar_url, created_at, updated_at
 FROM users
 WHERE email = $1;
 
--- name: UpdateUserEmail :one
-UPDATE users
-SET email = $2, updated_at = NOW()
-WHERE id = $1
-RETURNING id, email, name, avatar_url, created_at, updated_at;
-
 -- name: MoveAccountEmail :one
 UPDATE users u
 SET email = sqlc.arg('email'), updated_at = NOW()

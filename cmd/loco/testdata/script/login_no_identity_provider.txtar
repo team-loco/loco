@@ -1,0 +1,4 @@
+# login stops when the server has no identity provider to sign in with.
+! exec loco login
+stderr 'this Loco server has no identity provider configured'
+fakeapi called GetConfig ''

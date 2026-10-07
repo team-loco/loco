@@ -8,10 +8,10 @@ import type { AuthAdapter } from "./adapters/types";
 
 const BASE_URL = nonEmpty(import.meta.env.VITE_API_URL, "http://localhost:8000");
 
-async function loadAdapter(): Promise<AuthAdapter | null> {
+async function loadAdapter(): Promise<AuthAdapter> {
 	const transport = createConnectTransport({ baseUrl: BASE_URL, useBinaryFormat: false });
 	const { auth } = await createClient(ConfigService, transport).getConfig({});
-	if (auth === undefined) return null;
+	if (auth === undefined) throw new Error("This Loco server has no identity provider configured");
 	switch (auth.adapter) {
 		case "supabase": {
 			const { createSupabaseAdapter } = await import("./adapters/supabase");
@@ -26,9 +26,9 @@ async function loadAdapter(): Promise<AuthAdapter | null> {
 	}
 }
 
-let adapterPromise: Promise<AuthAdapter | null> | null = null;
+let adapterPromise: Promise<AuthAdapter> | null = null;
 
-export async function authAdapter(): Promise<AuthAdapter | null> {
+export async function authAdapter(): Promise<AuthAdapter> {
 	adapterPromise ??= loadAdapter().catch((err: unknown) => {
 		adapterPromise = null;
 		throw err;

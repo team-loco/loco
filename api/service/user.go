@@ -31,11 +31,10 @@ var (
 
 // UserServer implements the UserService gRPC server
 type UserServer struct {
-	db            *pgxpool.Pool
-	queries       genDb.Querier
-	tvm           *tvm.VendingMachine
-	secureCookies bool
-	admins        auth.Admins
+	db      *pgxpool.Pool
+	queries genDb.Querier
+	tvm     *tvm.VendingMachine
+	admins  auth.Admins
 }
 
 // NewUserServer creates a new UserServer instance
@@ -43,10 +42,9 @@ func NewUserServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
 	vendingMachine *tvm.VendingMachine,
-	secureCookies bool,
 	admins auth.Admins,
 ) *UserServer {
-	return &UserServer{db: db, queries: queries, tvm: vendingMachine, secureCookies: secureCookies, admins: admins}
+	return &UserServer{db: db, queries: queries, tvm: vendingMachine, admins: admins}
 }
 
 // GetUser retrieves a user by ID or email
@@ -329,15 +327,12 @@ func (s *UserServer) DeleteUser(
 	return connect.NewResponse(&userv1.DeleteUserResponse{}), nil
 }
 
-// Logout logs out the user by clearing the session cookie
+// Logout revokes the caller's Loco session token. Provider tokens are left to the provider.
 func (s *UserServer) Logout(
 	ctx context.Context,
 	_ *connect.Request[userv1.LogoutRequest],
 ) (*connect.Response[userv1.LogoutResponse], error) {
 	res := connect.NewResponse(&userv1.LogoutResponse{})
-	res.Header().Add("Set-Cookie", "loco_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag(s.secureCookies))
-	res.Header().
-		Add("Set-Cookie", "loco_refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"+secureFlag(s.secureCookies))
 
 	token, ok := ctx.Value(contextkeys.TokenKey).(string)
 	if !ok {

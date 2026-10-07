@@ -24,7 +24,12 @@ import (
 
 const loopbackTimeout = 5 * time.Minute
 
-var errLoginTimedOut = errors.New("timed out waiting for the browser; run loco login again")
+var (
+	errLoginTimedOut = errors.New("timed out waiting for the browser; run loco login again")
+	errLoginCanceled = errors.New("login canceled")
+
+	errNoIdentityProvider = errors.New("this Loco server has no identity provider configured")
+)
 
 func randomURLToken() (string, error) {
 	b := make([]byte, 32)
@@ -194,9 +199,8 @@ func deviceLogin(ctx context.Context, authClient authv1connect.AuthServiceClient
 	pollCtx, cancelPoll := context.WithTimeout(ctx, time.Duration(msg.GetExpiresIn())*time.Second)
 	defer cancelPoll()
 
-	tokenChan := make(chan AuthTokenResponse, 1)
+	tokenChan := make(chan *authv1.CLITokens, 1)
 	errorChan := make(chan error, 1)
-	var tokens *authv1.CLITokens
 	go func() {
 		got, pollErr := pollDeviceLogin(
 			pollCtx,
@@ -209,8 +213,7 @@ func deviceLogin(ctx context.Context, authClient authv1connect.AuthServiceClient
 			errorChan <- pollErr
 			return
 		}
-		tokens = got
-		tokenChan <- AuthTokenResponse{AccessToken: got.GetAccessToken()}
+		tokenChan <- got
 	}()
 
 	fm, err := tea.NewProgram(initialModel(msg.GetUserCode(), msg.GetVerificationUri(), tokenChan, errorChan)).Run()
@@ -224,8 +227,8 @@ func deviceLogin(ctx context.Context, authClient authv1connect.AuthServiceClient
 	if finalM.err != nil {
 		return nil, finalM.err
 	}
-	if finalM.tokenResp == nil || tokens == nil {
-		return nil, errors.New("login canceled")
+	if finalM.tokens == nil {
+		return nil, errLoginCanceled
 	}
-	return tokens, nil
+	return finalM.tokens, nil
 }
