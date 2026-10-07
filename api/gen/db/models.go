@@ -438,6 +438,7 @@ type SessionToken struct {
 	AccessTokenHash  string      `json:"accessTokenHash"`
 	RefreshTokenHash string      `json:"refreshTokenHash"`
 	UserID           uuid.UUID   `json:"userId"`
+	IdentityID       *uuid.UUID  `json:"identityId"`
 	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	LastUsedAt       time.Time   `json:"lastUsedAt"`

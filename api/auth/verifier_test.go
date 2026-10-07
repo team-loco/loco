@@ -60,7 +60,7 @@ func TestVerifyRejectsBadTokens(t *testing.T) {
 		token string
 		want  error
 	}{
-		{"expired", ti.Sign("k1", expired), ErrInvalidToken},
+		{stateExpired, ti.Sign("k1", expired), ErrInvalidToken},
 		{"wrong audience", ti.Sign("k1", wrongAud), ErrInvalidToken},
 		{"untrusted issuer", other.Sign("k1", other.Claims("u", "u@example.test", true)), ErrUnknownIssuer},
 		{"signed by another issuer's key", other.Sign("k1", forgedIss), ErrInvalidToken},

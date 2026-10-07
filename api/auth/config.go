@@ -36,14 +36,15 @@ type WebConfig struct {
 }
 
 type IssuerConfig struct {
-	Preset             string     `json:"preset"`
-	Name               string     `json:"name"`
-	Issuer             string     `json:"issuer"`
-	JWKSURL            string     `json:"jwksUrl"`
-	Audience           string     `json:"audience"`
-	Claims             ClaimPaths `json:"claims"`
-	EmailAuthoritative bool       `json:"emailAuthoritative"`
-	Web                *WebConfig `json:"web,omitempty"`
+	Preset             string       `json:"preset"`
+	Name               string       `json:"name"`
+	Issuer             string       `json:"issuer"`
+	JWKSURL            string       `json:"jwksUrl"`
+	Audience           string       `json:"audience"`
+	Claims             ClaimPaths   `json:"claims"`
+	EmailAuthoritative bool         `json:"emailAuthoritative"`
+	Web                *WebConfig   `json:"web,omitempty"`
+	Admin              *AdminConfig `json:"admin,omitempty"`
 }
 
 func ParseIssuers(raw string) ([]IssuerConfig, error) {
@@ -114,6 +115,9 @@ func (ic *IssuerConfig) applyDefaults() error {
 	if ic.Claims.AvatarURL == "" {
 		ic.Claims.AvatarURL = "picture"
 	}
+	if ic.Admin != nil && ic.Admin.URL == "" {
+		ic.Admin.URL = ic.Issuer
+	}
 	if ic.Web != nil {
 		switch ic.Web.Adapter {
 		case WebAdapterSupabase:
@@ -136,6 +140,9 @@ func (ic *IssuerConfig) applyDefaults() error {
 
 func WebIssuer(issuers []IssuerConfig) (IssuerConfig, bool) {
 	for _, ic := range issuers {
+		if ic.Admin != nil && ic.Admin.URL == "" {
+			ic.Admin.URL = ic.Issuer
+		}
 		if ic.Web != nil {
 			return ic, true
 		}

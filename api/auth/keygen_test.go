@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/go-jose/go-jose/v4"
@@ -54,5 +55,22 @@ func TestSupabasePreset(t *testing.T) {
 	}
 	if _, err := ParseIssuers(`[{"issuer":"http://localhost:9999","preset":"nope"}]`); err == nil {
 		t.Fatal("unknown preset accepted")
+	}
+}
+
+func TestServiceRoleKeyFromJWKs(t *testing.T) {
+	keys, err := GenerateProviderKeys()
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	token, err := ServiceRoleKeyFromJWKs(keys.JWTKeys)
+	if err != nil {
+		t.Fatalf("mint: %v", err)
+	}
+	if strings.Count(token, ".") != 2 {
+		t.Fatalf("token = %q", token)
+	}
+	if _, err := ServiceRoleKeyFromJWKs("[]"); err == nil {
+		t.Fatal("minted without a key")
 	}
 }

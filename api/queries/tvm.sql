@@ -91,8 +91,8 @@ DELETE FROM user_scopes WHERE user_id = $1;
 -- -----------------------------------------------------------------------------
 
 -- name: CreateSessionToken :exec
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: GetSessionWithScopesByAccessToken :one
 SELECT
@@ -190,3 +190,12 @@ WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 
 -- name: DeleteAPITokenByNameAndEntity :exec
 DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
+
+-- name: GetSessionIdentityByRefreshHash :one
+SELECT st.id, st.user_id, i.id AS identity_id, i.issuer, i.subject
+FROM session_tokens st
+JOIN identities i ON i.id = st.identity_id
+WHERE st.refresh_token_hash = $1;
+
+-- name: DeleteSessionTokensForIdentity :exec
+DELETE FROM session_tokens WHERE identity_id = $1;

@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
-	oauthv1 "github.com/team-loco/loco/gen/go/loco/oauth/v1"
-	"github.com/team-loco/loco/gen/go/loco/oauth/v1/oauthv1connect"
+	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
@@ -57,7 +57,7 @@ func newFakeAPI() *fakeAPI {
 func (f *fakeAPI) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle(userv1connect.NewUserServiceHandler(f))
-	mux.Handle(oauthv1connect.NewOAuthServiceHandler(&fakeOAuthService{api: f}))
+	mux.Handle(authv1connect.NewAuthServiceHandler(&fakeAuthService{api: f}))
 	return mux
 }
 
@@ -127,16 +127,16 @@ func (f *fakeAPI) Logout(
 	return connect.NewResponse(&userv1.LogoutResponse{}), nil
 }
 
-type fakeOAuthService struct {
-	oauthv1connect.UnimplementedOAuthServiceHandler
+type fakeAuthService struct {
+	authv1connect.UnimplementedAuthServiceHandler
 
 	api *fakeAPI
 }
 
-func (o *fakeOAuthService) RefreshToken(
+func (o *fakeAuthService) RefreshCLIToken(
 	_ context.Context,
-	req *connect.Request[oauthv1.RefreshTokenRequest],
-) (*connect.Response[oauthv1.RefreshTokenResponse], error) {
+	req *connect.Request[authv1.RefreshCLITokenRequest],
+) (*connect.Response[authv1.RefreshCLITokenResponse], error) {
 	f := o.api
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -147,10 +147,10 @@ func (o *fakeOAuthService) RefreshToken(
 		return nil, connect.NewError(connect.CodeUnauthenticated, errFakeUnknownRefreshToken)
 	}
 	f.users[fakeAPIRefreshedToken] = f.users[fakeAPIToken]
-	resp := &oauthv1.RefreshTokenResponse{
-		LocoToken:    fakeAPIRefreshedToken,
+	resp := &authv1.RefreshCLITokenResponse{Tokens: &authv1.CLITokens{
+		AccessToken:  fakeAPIRefreshedToken,
 		RefreshToken: fakeAPIRefreshToken,
 		ExpiresIn:    3600,
-	}
+	}}
 	return connect.NewResponse(resp), nil
 }

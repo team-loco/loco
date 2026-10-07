@@ -5,6 +5,8 @@ import { WorkspaceService } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { workspacePath } from "@/lib/routes";
 
+import { takeNextPath } from "./next";
+
 function alreadyExists(err: unknown): boolean {
 	return err instanceof ConnectError && err.code === Code.AlreadyExists;
 }
@@ -46,12 +48,13 @@ export async function landingPath(
 	const userId = knownUserId ?? user?.id;
 	if (userId === undefined) throw new Error("Your account could not be loaded");
 
+	const next = takeNextPath();
 	const { orgs } = await createClient(OrgService, transport).listUserOrgs({ userId });
-	if (orgs.length > 0) return "/dashboard";
+	if (orgs.length > 0) return next ?? "/dashboard";
 
 	report("Creating your organization…");
 	const orgId = await ensureDefaultOrg(transport, userId, user?.email ?? userId);
 	report("Creating your workspace…");
 	const workspaceId = await ensureDefaultWorkspace(transport, orgId);
-	return workspacePath(orgId, workspaceId);
+	return next ?? workspacePath(orgId, workspaceId);
 }

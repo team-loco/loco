@@ -8,6 +8,7 @@ import { OAuthProvider, OAuthService } from "@gen/loco/oauth/v1/oauth_pb";
 import { useAuth } from "@/auth/AuthProvider";
 import type { AuthAdapter, LoginMethod } from "@/auth/adapters/types";
 import { transport } from "@/auth/connect-transport";
+import { forgetNextPath, rememberNextPath } from "@/auth/next";
 import { signInRedirectURL } from "@/auth/runtime";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/design/Dialog";
@@ -20,6 +21,7 @@ interface LoginModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	initialError?: string | null | undefined;
+	next?: string | null | undefined;
 }
 
 function GitHubMark({ className }: { className?: string }) {
@@ -70,7 +72,15 @@ function emailDomain(email: string): string | null {
 
 type Pending = { kind: "oauth"; provider: string } | { kind: "email" } | { kind: "sso" } | { kind: "redirect" } | null;
 
-function ProviderLogin({ adapter, onError }: { adapter: AuthAdapter; onError: (message: string | null) => void }) {
+function ProviderLogin({
+	adapter,
+	next,
+	onError,
+}: {
+	adapter: AuthAdapter;
+	next: string | null;
+	onError: (message: string | null) => void;
+}) {
 	const [pending, setPending] = useState<Pending>(null);
 	const [email, setEmail] = useState("");
 	const [sentTo, setSentTo] = useState<string | null>(null);
@@ -82,9 +92,11 @@ function ProviderLogin({ adapter, onError }: { adapter: AuthAdapter; onError: (m
 		gcTime: 0,
 	});
 
-	const attempt = async (next: Pending, action: () => Promise<void>) => {
-		setPending(next);
+	const attempt = async (step: Pending, action: () => Promise<void>) => {
+		setPending(step);
 		onError(null);
+		if (next === null) forgetNextPath();
+		else rememberNextPath(next);
 		try {
 			await action();
 		} catch (err) {
@@ -291,7 +303,7 @@ function LegacyGithubLogin({ onError }: { onError: (message: string | null) => v
 	);
 }
 
-export function LoginModal({ open, onOpenChange, initialError }: LoginModalProps) {
+export function LoginModal({ open, onOpenChange, initialError, next }: LoginModalProps) {
 	const { adapter } = useAuth();
 	const [error, setError] = useState<string | null>(initialError ?? null);
 
@@ -320,7 +332,7 @@ export function LoginModal({ open, onOpenChange, initialError }: LoginModalProps
 				{adapter === null ? (
 					<LegacyGithubLogin onError={setError} />
 				) : (
-					<ProviderLogin adapter={adapter} onError={setError} />
+					<ProviderLogin adapter={adapter} next={next ?? null} onError={setError} />
 				)}
 
 				<p className="m-0 text-center text-sm text-fg3">

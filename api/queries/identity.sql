@@ -14,3 +14,14 @@ UPDATE identities
 SET email = $3, email_verified = $4, last_login_at = NOW()
 WHERE issuer = $1 AND subject = $2;
 
+
+-- name: GetIdentity :one
+SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at
+FROM identities
+WHERE issuer = $1 AND subject = $2;
+
+-- name: ListIdentitiesForUser :many
+SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at
+FROM identities
+WHERE user_id = $1
+ORDER BY created_at;
