@@ -67,7 +67,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 			}
 
 			req := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-				UserId: whoAmIResp.Msg.User.Id,
+				UserId: whoAmIResp.Msg.GetUser().GetId(),
 			})
 			req.Header().Set("Authorization", authHeader)
 
@@ -76,14 +76,14 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return fmt.Errorf("unable to list organizations: %w", err)
 			}
 
-			if len(resp.Msg.Orgs) == 0 {
+			if len(resp.Msg.GetOrgs()) == 0 {
 				fmt.Fprintln(deps.Output, "No organizations found.")
 				return nil
 			}
 
 			fmt.Fprintln(deps.Output, "Organizations:")
-			for _, org := range resp.Msg.Orgs {
-				fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", org.Name, org.Id)
+			for _, org := range resp.Msg.GetOrgs() {
+				fmt.Fprintf(deps.Output, "  - %s (ID: %s)\n", org.GetName(), org.GetId())
 			}
 
 			return nil

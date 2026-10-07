@@ -59,6 +59,7 @@ linters:
     - nolintlint
     - nosprintfhostport
     - prealloc
+    - protogetter
     - predeclared
     - reassign
     - recvcheck

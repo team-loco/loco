@@ -115,8 +115,8 @@ Examples:
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.Resource
-			slog.Debug("scaling service", "resource_id", resource.Id, "name", name)
+			resource := resourceResp.Msg.GetResource()
+			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name)
 
 			// Build scale request
 			var replicasPtr *int32
@@ -135,7 +135,7 @@ Examples:
 			}
 
 			scaleReq := connect.NewRequest(&resourcev1.ScaleResourceRequest{
-				ResourceId: resource.Id,
+				ResourceId: resource.GetId(),
 				Replicas:   replicasPtr,
 				Cpu:        cpuPtr,
 				Memory:     memoryPtr,

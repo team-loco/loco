@@ -90,7 +90,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				confirm, confirmErr := deps.AskYesNo(
 					fmt.Sprintf(
 						"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
-						getResp.Msg.Workspace.Name,
+						getResp.Msg.GetWorkspace().GetName(),
 						id,
 					),
 				)
@@ -114,7 +114,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 				return fmt.Errorf("failed to delete workspace: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Workspace %q deleted successfully.\n", getResp.Msg.Workspace.Name)
+			fmt.Fprintf(deps.Output, "Workspace %q deleted successfully.\n", getResp.Msg.GetWorkspace().GetName())
 			return nil
 		},
 	}

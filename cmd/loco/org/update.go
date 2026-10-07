@@ -73,7 +73,7 @@ func newUpdateCmd(deps updateDeps) *cobra.Command {
 			}
 
 			updateReq := connect.NewRequest(&orgv1.UpdateOrgRequest{
-				OrgId:      getResp.Msg.Organization.Id,
+				OrgId:      getResp.Msg.GetOrganization().GetId(),
 				UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"name"}},
 				Name:       &newName,
 			})

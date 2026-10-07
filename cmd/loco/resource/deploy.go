@@ -248,8 +248,14 @@ func getOrCreateResource(
 
 	resp, err := resourceClient.GetResource(ctx, getReq)
 	if err == nil {
-		slog.Debug("found existing resource", "resource_id", resp.Msg.Resource.Id, "name", resp.Msg.Resource.Name)
-		return resp.Msg.Resource.Id, nil
+		slog.Debug(
+			"found existing resource",
+			"resource_id",
+			resp.Msg.GetResource().GetId(),
+			"name",
+			resp.Msg.GetResource().GetName(),
+		)
+		return resp.Msg.GetResource().GetId(), nil
 	}
 
 	if connect.CodeOf(err) != connect.CodeNotFound {
@@ -285,6 +291,6 @@ func getOrCreateResource(
 		return "", fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	slog.Debug("created resource", "resourceId", createResp.Msg.ResourceId)
-	return createResp.Msg.ResourceId, nil
+	slog.Debug("created resource", "resourceId", createResp.Msg.GetResourceId())
+	return createResp.Msg.GetResourceId(), nil
 }

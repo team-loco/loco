@@ -113,10 +113,10 @@ func newLoginCmd(env Env) *cobra.Command {
 				cmdutil.LogRequestID(ctx, err, "failed to get oAuth details")
 				return fmt.Errorf("login to %s failed: %w", host, err)
 			}
-			slog.Debug("retrieved oauth details", "client_id", resp.Msg.ClientId)
+			slog.Debug("retrieved oauth details", "client_id", resp.Msg.GetClientId())
 
 			payload := DeviceCodeRequest{
-				ClientID: resp.Msg.ClientId,
+				ClientID: resp.Msg.GetClientId(),
 				Scope:    "read:user user:email",
 			}
 
@@ -232,7 +232,7 @@ func setupLoginScope(
 		}
 	}
 
-	org, workspace, err := resolveLoginScope(ctx, httpClient, host, exchange.LocoToken)
+	org, workspace, err := resolveLoginScope(ctx, httpClient, host, exchange.GetLocoToken())
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func resolveLoginScope(
 	}
 
 	orgRequest := connect.NewRequest(&orgv1.ListUserOrgsRequest{
-		UserId:   currentUserResp.Msg.User.Id,
+		UserId:   currentUserResp.Msg.GetUser().GetId(),
 		PageSize: 100,
 	})
 	orgRequest.Header().Set("Authorization", authorization)
@@ -283,7 +283,7 @@ func resolveLoginScope(
 	if len(orgs) > 0 {
 		selectedOrg := orgs[0]
 		wsReq := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
-			OrgId:    selectedOrg.Id,
+			OrgId:    selectedOrg.GetId(),
 			PageSize: 100,
 		})
 		wsReq.Header().Set("Authorization", authorization)
@@ -295,15 +295,15 @@ func resolveLoginScope(
 		if len(workspaces) == 0 {
 			return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
 				"organization %q has no workspaces",
-				selectedOrg.Name,
+				selectedOrg.GetName(),
 			)
 		}
-		org := session.SimpleOrg{ID: selectedOrg.Id, Name: selectedOrg.Name}
-		workspace := session.SimpleWorkspace{ID: workspaces[0].Id, Name: workspaces[0].Name}
+		org := session.SimpleOrg{ID: selectedOrg.GetId(), Name: selectedOrg.GetName()}
+		workspace := session.SimpleWorkspace{ID: workspaces[0].GetId(), Name: workspaces[0].GetName()}
 		return org, workspace, nil
 	}
 
-	email := currentUserResp.Msg.User.GetEmail()
+	email := currentUserResp.Msg.GetUser().GetEmail()
 	orgName := fmt.Sprintf("%s-org", cleanEmail(email))
 	createOrgReq := connect.NewRequest(&orgv1.CreateOrgRequest{Name: &orgName})
 	createOrgReq.Header().Set("Authorization", authorization)
@@ -313,7 +313,7 @@ func resolveLoginScope(
 	}
 
 	getOrgReq := connect.NewRequest(&orgv1.GetOrgRequest{
-		Key: &orgv1.GetOrgRequest_OrgId{OrgId: createOrgResp.Msg.OrgId},
+		Key: &orgv1.GetOrgRequest_OrgId{OrgId: createOrgResp.Msg.GetOrgId()},
 	})
 	getOrgReq.Header().Set("Authorization", authorization)
 	getOrgResp, err := orgClient.GetOrg(ctx, getOrgReq)
@@ -325,7 +325,7 @@ func resolveLoginScope(
 	}
 
 	createWSReq := connect.NewRequest(&workspacev1.CreateWorkspaceRequest{
-		OrgId: createOrgResp.Msg.OrgId,
+		OrgId: createOrgResp.Msg.GetOrgId(),
 		Name:  "default",
 	})
 	createWSReq.Header().Set("Authorization", authorization)
@@ -335,7 +335,7 @@ func resolveLoginScope(
 	}
 
 	getWSReq := connect.NewRequest(&workspacev1.GetWorkspaceRequest{
-		WorkspaceId: createWSResp.Msg.WorkspaceId,
+		WorkspaceId: createWSResp.Msg.GetWorkspaceId(),
 	})
 	getWSReq.Header().Set("Authorization", authorization)
 	getWSResp, err := wsClient.GetWorkspace(ctx, getWSReq)
@@ -343,8 +343,14 @@ func resolveLoginScope(
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to get created workspace: %w", err)
 	}
 
-	org := session.SimpleOrg{ID: getOrgResp.Msg.Organization.Id, Name: getOrgResp.Msg.Organization.Name}
-	workspace := session.SimpleWorkspace{ID: getWSResp.Msg.Workspace.Id, Name: getWSResp.Msg.Workspace.Name}
+	org := session.SimpleOrg{
+		ID:   getOrgResp.Msg.GetOrganization().GetId(),
+		Name: getOrgResp.Msg.GetOrganization().GetName(),
+	}
+	workspace := session.SimpleWorkspace{
+		ID:   getWSResp.Msg.GetWorkspace().GetId(),
+		Name: getWSResp.Msg.GetWorkspace().GetName(),
+	}
 	return org, workspace, nil
 }
 

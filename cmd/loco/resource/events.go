@@ -104,8 +104,8 @@ Examples:
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.Resource
-			slog.Debug("fetching events", "resource_id", resource.Id, "name", name)
+			resource := resourceResp.Msg.GetResource()
+			slog.Debug("fetching events", "resource_id", resource.GetId(), "name", name)
 
 			var limitPtr *int32
 			if limit > 0 {
@@ -113,7 +113,7 @@ Examples:
 			}
 
 			eventsReq := connect.NewRequest(&resourcev1.ListResourceEventsRequest{
-				ResourceId: resource.Id,
+				ResourceId: resource.GetId(),
 				Limit:      limitPtr,
 			})
 			eventsReq.Header().Set("Authorization", authHeader)
@@ -127,10 +127,10 @@ Examples:
 			if output == outputJSON {
 				encoder := json.NewEncoder(deps.Stdout)
 				encoder.SetIndent("", "  ")
-				return encoder.Encode(resp.Msg.Events)
+				return encoder.Encode(resp.Msg.GetEvents())
 			}
 
-			renderEventsTable(deps.Stdout, resp.Msg.Events)
+			renderEventsTable(deps.Stdout, resp.Msg.GetEvents())
 			return nil
 		},
 	}
@@ -159,9 +159,9 @@ func renderEventsTable(stdout io.Writer, events []*resourcev1.Event) {
 	var rows []table.Row
 	for _, event := range events {
 		rows = append(rows, table.Row{
-			event.Timestamp.AsTime().Format(time.RFC3339),
-			event.Reason,
-			simplifyMessage(event.Message),
+			event.GetTimestamp().AsTime().Format(time.RFC3339),
+			event.GetReason(),
+			simplifyMessage(event.GetMessage()),
 		})
 	}
 

@@ -125,16 +125,16 @@ func resolveOrgID(
 		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	orgs, err := apiClient.GetCurrentUserOrgs(ctx, currentUser.Id)
+	orgs, err := apiClient.GetCurrentUserOrgs(ctx, currentUser.GetId())
 	if err != nil {
 		slog.Debug("failed to get organizations", "error", err)
 		return "", fmt.Errorf("failed to get organizations: %w", err)
 	}
 
 	for _, org := range orgs {
-		if org.Name == orgName {
-			slog.Debug("found org id from api", "orgId", org.Id)
-			return org.Id, nil
+		if org.GetName() == orgName {
+			slog.Debug("found org id from api", "orgId", org.GetId())
+			return org.GetId(), nil
 		}
 	}
 
@@ -185,16 +185,16 @@ func resolveWorkspaceID(
 		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	workspaces, err := apiClient.GetUserWorkspaces(ctx, currentUser.Id)
+	workspaces, err := apiClient.GetUserWorkspaces(ctx, currentUser.GetId())
 	if err != nil {
 		slog.Debug("failed to get workspaces", "error", err)
 		return "", fmt.Errorf("failed to get workspaces: %w", err)
 	}
 
 	for _, ws := range workspaces {
-		if ws.Name == workspaceName && ws.OrgId == orgID {
-			slog.Debug("found workspace id from api", "workspaceId", ws.Id)
-			return ws.Id, nil
+		if ws.GetName() == workspaceName && ws.GetOrgId() == orgID {
+			slog.Debug("found workspace id from api", "workspaceId", ws.GetId())
+			return ws.GetId(), nil
 		}
 	}
 
@@ -237,17 +237,17 @@ func resolveDomainInput(
 
 	// Find matching platform domain
 	var foundDomainID string
-	for _, pd := range resp.Msg.PlatformDomains {
-		if strings.HasSuffix(cfg.DomainConfig.Hostname, pd.Domain) {
-			foundDomainID = pd.Id
+	for _, pd := range resp.Msg.GetPlatformDomains() {
+		if strings.HasSuffix(cfg.DomainConfig.Hostname, pd.GetDomain()) {
+			foundDomainID = pd.GetId()
 			slog.Info(
 				"matched platform domain",
 				"hostname",
 				cfg.DomainConfig.Hostname,
 				"platform_domain",
-				pd.Domain,
+				pd.GetDomain(),
 				"id",
-				pd.Id,
+				pd.GetId(),
 			)
 			break
 		}
@@ -255,12 +255,12 @@ func resolveDomainInput(
 
 	if foundDomainID == "" {
 		// Interactive selection as fallback
-		options := make([]ui.SelectOption, len(resp.Msg.PlatformDomains))
-		for i, domain := range resp.Msg.PlatformDomains {
+		options := make([]ui.SelectOption, len(resp.Msg.GetPlatformDomains()))
+		for i, domain := range resp.Msg.GetPlatformDomains() {
 			options[i] = ui.SelectOption{
-				Label:       domain.Domain,
-				Description: fmt.Sprintf("ID: %s", domain.Id),
-				Value:       domain.Id,
+				Label:       domain.GetDomain(),
+				Description: fmt.Sprintf("ID: %s", domain.GetId()),
+				Value:       domain.GetId(),
 			}
 		}
 

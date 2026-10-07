@@ -138,19 +138,19 @@ func MergeDeploymentSpec(
 	}
 
 	// find requested region in resource spec
-	regionTarget, ok := resourceServiceSpec.Regions[region]
+	regionTarget, ok := resourceServiceSpec.GetRegions()[region]
 	if !ok {
 		return nil, fmt.Errorf("region %s not found in resource spec", region)
 	}
-	if !regionTarget.Enabled {
+	if !regionTarget.GetEnabled() {
 		return nil, fmt.Errorf("region %s is not enabled", region)
 	}
 
 	// merge build (from request, always required)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Build: requestServiceSpec.Build,
-		Port:  requestServiceSpec.Port,
-		Env:   requestServiceSpec.Env,
+		Build: requestServiceSpec.GetBuild(),
+		Port:  requestServiceSpec.GetPort(),
+		Env:   requestServiceSpec.GetEnv(),
 	}
 
 	// merge CPU (request > resource default)
@@ -183,16 +183,16 @@ func MergeDeploymentSpec(
 
 	// merge Scalers (request > resource default)
 	if requestServiceSpec.GetScalers() != nil {
-		mergedServiceSpec.Scalers = requestServiceSpec.Scalers
-	} else if regionTarget.Scalers != nil {
-		mergedServiceSpec.Scalers = regionTarget.Scalers
+		mergedServiceSpec.Scalers = requestServiceSpec.GetScalers()
+	} else if regionTarget.GetScalers() != nil {
+		mergedServiceSpec.Scalers = regionTarget.GetScalers()
 	}
 
 	// merge HealthCheck (request > resource default)
 	if requestServiceSpec.GetHealthCheck() != nil {
-		mergedServiceSpec.HealthCheck = requestServiceSpec.HealthCheck
+		mergedServiceSpec.HealthCheck = requestServiceSpec.GetHealthCheck()
 	} else if resourceServiceSpec.GetHealthCheck() != nil {
-		mergedServiceSpec.HealthCheck = resourceServiceSpec.HealthCheck
+		mergedServiceSpec.HealthCheck = resourceServiceSpec.GetHealthCheck()
 	}
 
 	// wrap merged ServiceDeploymentSpec in DeploymentSpec oneof

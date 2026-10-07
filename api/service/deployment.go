@@ -355,11 +355,11 @@ func (s *DeploymentServer) GetDeployment(
 ) (*connect.Response[deploymentv1.GetDeploymentResponse], error) {
 	r := req.Msg
 
-	deploymentID := uuid.MustParse(r.DeploymentId)
+	deploymentID := uuid.MustParse(r.GetDeploymentId())
 
 	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.GetDeploymentId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
@@ -464,11 +464,11 @@ func (s *DeploymentServer) DeleteDeployment(
 ) (*connect.Response[deploymentv1.DeleteDeploymentResponse], error) {
 	r := req.Msg
 
-	deploymentID := uuid.MustParse(r.DeploymentId)
+	deploymentID := uuid.MustParse(r.GetDeploymentId())
 
 	deployment, err := s.queries.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.GetDeploymentId())
 		return nil, connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
@@ -526,11 +526,11 @@ func (s *DeploymentServer) WatchDeployment(
 ) error {
 	r := req.Msg
 
-	deploymentID := uuid.MustParse(r.DeploymentId)
+	deploymentID := uuid.MustParse(r.GetDeploymentId())
 
 	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
 	if err != nil {
-		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.DeploymentId)
+		slog.WarnContext(ctx, "deployment not found", "deployment_id", r.GetDeploymentId())
 		return connect.NewError(connect.CodeNotFound, ErrDeploymentNotFound)
 	}
 
@@ -723,7 +723,7 @@ func buildResourcesSpec(
 			if deploymentSvc.MaxReplicas != nil && deploymentSvc.GetMaxReplicas() > 0 {
 				maxReplicas = deploymentSvc.GetMaxReplicas()
 			}
-			if deploymentSvc.Scalers != nil {
+			if deploymentSvc.GetScalers() != nil {
 				scalers = deploymentSvc.GetScalers()
 			}
 		}

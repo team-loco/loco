@@ -118,7 +118,7 @@ func doCreateDeployment(
 		return err
 	}
 
-	deploymentID := resp.Msg.DeploymentId
+	deploymentID := resp.Msg.GetDeploymentId()
 	logf(fmt.Sprintf("Created deployment with version: %s", deploymentID))
 
 	if wait {
@@ -135,9 +135,9 @@ func doCreateDeployment(
 
 		for stream.Receive() {
 			event := stream.Msg()
-			logf(fmt.Sprintf("[%s] %s", event.Status, event.Message))
-			if event.Status == deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED && event.Message != "" {
-				return errors.New(event.Message)
+			logf(fmt.Sprintf("[%s] %s", event.GetStatus(), event.GetMessage()))
+			if event.GetStatus() == deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED && event.GetMessage() != "" {
+				return errors.New(event.GetMessage())
 			}
 		}
 

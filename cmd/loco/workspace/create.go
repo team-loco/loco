@@ -80,7 +80,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 				return fmt.Errorf("failed to create workspace: %w", err)
 			}
 
-			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %s)\n", name, resp.Msg.WorkspaceId)
+			fmt.Fprintf(deps.Output, "Workspace %q created successfully (ID: %s)\n", name, resp.Msg.GetWorkspaceId())
 			return nil
 		},
 	}

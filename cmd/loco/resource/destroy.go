@@ -108,11 +108,11 @@ Examples:
 				return fmt.Errorf("service '%s' not found: %w", name, err)
 			}
 
-			resource := resourceResp.Msg.Resource
-			slog.Debug("destroying service", "resource_id", resource.Id, "name", name)
+			resource := resourceResp.Msg.GetResource()
+			slog.Debug("destroying service", "resource_id", resource.GetId(), "name", name)
 
 			deleteReq := connect.NewRequest(&resourcev1.DeleteResourceRequest{
-				ResourceId: resource.Id,
+				ResourceId: resource.GetId(),
 			})
 			deleteReq.Header().Set("Authorization", authHeader)
 

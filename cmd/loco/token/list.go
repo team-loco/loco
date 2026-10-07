@@ -103,7 +103,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 				return fmt.Errorf("failed to list tokens: %w", err)
 			}
 
-			tokens := resp.Msg.Tokens
+			tokens := resp.Msg.GetTokens()
 			if len(tokens) == 0 {
 				fmt.Fprintln(deps.Output, "No tokens found.")
 				return nil
@@ -113,8 +113,8 @@ func newListCmd(deps listDeps) *cobra.Command {
 
 			for _, t := range tokens {
 				expiresAt := "never"
-				if t.ExpiresAt != nil {
-					exp := t.ExpiresAt.AsTime()
+				if t.GetExpiresAt() != nil {
+					exp := t.GetExpiresAt().AsTime()
 					if exp.Before(time.Now()) {
 						expiresAt = fmt.Sprintf("%s (expired)", exp.Format(time.DateOnly))
 					} else {
@@ -122,8 +122,8 @@ func newListCmd(deps listDeps) *cobra.Command {
 					}
 				}
 
-				scopes := formatScopes(t.Scopes)
-				fmt.Fprintf(deps.Output, "  - %s (scopes: %s, expires: %s)\n", t.Name, scopes, expiresAt)
+				scopes := formatScopes(t.GetScopes())
+				fmt.Fprintf(deps.Output, "  - %s (scopes: %s, expires: %s)\n", t.GetName(), scopes, expiresAt)
 			}
 
 			return nil
@@ -149,7 +149,7 @@ func getCurrentUserID(
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
-	return whoAmIResp.Msg.User.Id, nil
+	return whoAmIResp.Msg.GetUser().GetId(), nil
 }
 
 func formatScopes(scopes []*tokenv1.EntityScope) string {
@@ -159,7 +159,7 @@ func formatScopes(scopes []*tokenv1.EntityScope) string {
 
 	var scopeNames []string
 	for _, s := range scopes {
-		switch s.Scope {
+		switch s.GetScope() {
 		case tokenv1.Scope_SCOPE_READ:
 			scopeNames = append(scopeNames, "read")
 		case tokenv1.Scope_SCOPE_WRITE:
