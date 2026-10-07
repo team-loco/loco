@@ -59,7 +59,8 @@ test_n03_public_image_deploys() {
         return 1
     fi
     assert_contains "The CLI waited for the deployment to run" "\[running\]" cat "$nobuild_dir/image.out"
-    assert_contains "The deployed app runs the public image" "$nobuild_public_image" \
+    local repository=${nobuild_public_image%%:*}
+    assert_contains "The deployed app runs the public image, pinned by digest" "${repository}@sha256:" \
         nk -n "ws-${cli_workspace_id}" get deployments \
         -o jsonpath='{.items[*].spec.template.spec.containers[*].image}'
 }
