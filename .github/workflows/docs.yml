@@ -1,0 +1,59 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/docs.yml"
+      - ".github/actions/setup-tools/**"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/docs.yml"
+      - ".github/actions/setup-tools/**"
+  merge_group:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Documentation Changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changes.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: changes
+        uses: ./.github/actions/merge-queue-changes
+
+  docs:
+    name: Documentation Tests
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-tools
+      - name: Test production and staging builds
+        run: mise run test:docs
+      - name: Install browser
+        run: uv run --frozen --project docs playwright install --with-deps chromium
+      - name: Check navigation, search and page actions
+        env:
+          DOCS_SCREENSHOT_DIR: ${{ runner.temp }}/docs-screenshots
+        run: mise run docs:check:browser
+      - name: Save theme screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-screenshots
+          path: ${{ runner.temp }}/docs-screenshots
+          if-no-files-found: ignore

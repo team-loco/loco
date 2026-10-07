@@ -1,0 +1,5 @@
+{
+  "profile": "documentation",
+  "sourceRoots": ["content", "overrides"],
+  "locale": "en"
+}

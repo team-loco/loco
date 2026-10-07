@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block extrahead %}
+  {{ super() }}
+  {% if config.extra.environment == "staging" %}
+    <meta name="robots" content="noindex, nofollow">
+  {% endif %}
+{% endblock %}
+{% block announce %}
+  {% if config.extra.environment == "staging" %}
+    Staging documentation · <a href="https://docs.loco.build/">Read production docs</a>
+  {% endif %}
+{% endblock %}
