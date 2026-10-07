@@ -20,7 +20,7 @@ function oauthErrorFrom(state: unknown): string | null {
 }
 
 export function Splash() {
-	const { isAuthenticated, isLoading } = useAuth();
+	const { isAuthenticated, isPending } = useAuth();
 	const location = useLocation();
 	const oauthError = oauthErrorFrom(location.state);
 	const [loginModalOpen, setLoginModalOpen] = useState(oauthError !== null);
@@ -29,7 +29,7 @@ export function Splash() {
 		return <Navigate to="/dashboard" replace />;
 	}
 
-	if (isLoading) {
+	if (isPending) {
 		return <AppLoading />;
 	}
 

@@ -18,7 +18,7 @@ interface ProtectedLayoutProps {
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { orgId: orgParam } = useParams();
 	const { user } = useAuth();
-	const { isLoading, error } = useQuery(whoAmI, {});
+	const { isPending, error } = useQuery(whoAmI, {});
 
 	const { data: orgsRes } = useQuery(
 		listUserOrgs,
@@ -42,7 +42,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		return <Navigate to="/login" replace />;
 	}
 
-	if (isLoading) {
+	if (isPending) {
 		return <AppLoading />;
 	}
 

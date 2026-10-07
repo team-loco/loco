@@ -8,7 +8,7 @@ import type { User } from "@gen/loco/user/v1/user_pb";
 interface AuthContextType {
 	user: User | null;
 	isAuthenticated: boolean;
-	isLoading: boolean;
+	isPending: boolean;
 	error: Error | null;
 	logout: () => Promise<void>;
 }
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			value={{
 				user: user?.user ?? null,
 				isAuthenticated: !unauthenticated && !!user?.user,
-				isLoading: isPending,
+				isPending,
 				error: error instanceof Error ? error : null,
 				logout,
 			}}
