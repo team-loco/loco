@@ -71,7 +71,7 @@ export function nodeKey(entityType: EntityType, id: string): string {
 	return `${entityType.toString()}:${id}`;
 }
 
-function kindOf(entityType: EntityType): NodeKind {
+export function kindOf(entityType: EntityType): NodeKind {
 	switch (entityType) {
 		case EntityType.ORGANIZATION:
 			return "org";

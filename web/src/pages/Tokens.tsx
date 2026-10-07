@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
 import type { CreateDraft } from "./tokens/CreateTokenDialog";
 import { ownerIcon } from "./tokens/icons";
-import { heldLevel, matchesQuery, tokenGrants, tokenStatus } from "./tokens/model";
+import { heldLevel, kindLabel, kindOf, matchesQuery, tokenGrants, tokenStatus } from "./tokens/model";
 import type { Level, OwnerKey } from "./tokens/model";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { SecretDialog } from "./tokens/SecretDialog";
@@ -100,6 +100,8 @@ export function Tokens() {
 		return tokens.length > 0 ? "No tokens match." : "No tokens yet.";
 	})();
 
+	const ownerKind = kindOf(owner.entityType);
+	const ownerEntityLabel = kindLabel(ownerKind).toLowerCase();
 	const ownerEmpty = owner.canList && !current.isLoading && (listError === null || listError === undefined) && tokens.length === 0;
 	const newTokenButton = (
 		<Button
@@ -164,7 +166,7 @@ export function Tokens() {
 			>
 				{ownerEmpty ? (
 					<section className="rounded-lg border border-line bg-background">
-						<EmptyState icon={<KeyRoundIcon />} title={`No tokens for ${owner.label} yet`} action={newTokenButton}>
+						<EmptyState icon={<KeyRoundIcon />} title={`No tokens for ${ownerEntityLabel} yet`} action={newTokenButton}>
 							Tokens let CI, scripts and the CLI call the Loco API with exactly the access you grant.
 						</EmptyState>
 					</section>
