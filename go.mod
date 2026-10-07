@@ -2,28 +2,10 @@ module github.com/team-loco/loco
 
 go 1.27.0
 
-require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2
-	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.0.10
-	charm.land/fang/v2 v2.0.1
-	charm.land/lipgloss/v2 v2.0.6
-	connectrpc.com/connect v1.21.0
-	github.com/BurntSushi/toml v1.6.0
-	github.com/containerd/errdefs v1.0.0
-	github.com/docker/docker v28.5.2+incompatible
-	github.com/goccy/go-json v0.11.1
-	github.com/joho/godotenv v1.5.1
-	github.com/moby/go-archive v0.3.3
-	github.com/rogpeppe/go-internal v1.14.1
-	github.com/spf13/cobra v1.10.2
-	github.com/zalando/go-keyring v0.2.8
-	golang.org/x/mod v0.41.0
-	google.golang.org/protobuf v1.36.12
-	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-)
+replace github.com/team-loco/loco/sdk/go => ./sdk/go
 
 require (
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -52,7 +34,6 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/mattn/go-runewidth v0.0.29 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/patternmatcher v0.6.1 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/moby/sys/sequential v0.7.0 // indirect
 	github.com/moby/sys/user v0.4.1 // indirect
@@ -92,6 +73,27 @@ tool (
 	google.golang.org/protobuf/cmd/protoc-gen-go
 )
 
-require github.com/team-loco/loco/gen/go v0.1.0
+require (
+	charm.land/bubbles/v2 v2.2.1
+	charm.land/bubbletea/v2 v2.0.10
+	charm.land/fang/v2 v2.0.1
+	charm.land/lipgloss/v2 v2.0.6
+	connectrpc.com/connect v1.21.0
+	github.com/BurntSushi/toml v1.6.0
+	github.com/containerd/errdefs v1.0.0
+	github.com/docker/docker v28.5.2+incompatible
+	github.com/goccy/go-json v0.11.1
+	github.com/joho/godotenv v1.5.1
+	github.com/moby/go-archive v0.3.3
+	github.com/moby/patternmatcher v0.6.1
+	github.com/rogpeppe/go-internal v1.14.1
+	github.com/spf13/cobra v1.10.2
+	github.com/team-loco/loco/gen/go v0.1.0
+	github.com/team-loco/loco/sdk/go v0.0.0
+	github.com/zalando/go-keyring v0.2.8
+	golang.org/x/mod v0.41.0
+	google.golang.org/protobuf v1.36.12
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+)
 
 replace github.com/team-loco/loco/gen/go => ./gen/go

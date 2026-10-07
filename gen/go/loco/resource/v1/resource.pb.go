@@ -972,6 +972,11 @@ type Resource struct {
 	CreatedBy     string                 `protobuf:"bytes,11,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,14,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	StackName     string                 `protobuf:"bytes,15,opt,name=stack_name,json=stackName,proto3" json:"stack_name,omitempty"`
+	StackId       string                 `protobuf:"bytes,16,opt,name=stack_id,json=stackId,proto3" json:"stack_id,omitempty"`
+	ServiceKey    string                 `protobuf:"bytes,17,opt,name=service_key,json=serviceKey,proto3" json:"service_key,omitempty"`
+	VariableKeys  []string               `protobuf:"bytes,18,rep,name=variable_keys,json=variableKeys,proto3" json:"variable_keys,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1097,6 +1102,41 @@ func (x *Resource) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Resource) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *Resource) GetStackName() string {
+	if x != nil {
+		return x.StackName
+	}
+	return ""
+}
+
+func (x *Resource) GetStackId() string {
+	if x != nil {
+		return x.StackId
+	}
+	return ""
+}
+
+func (x *Resource) GetServiceKey() string {
+	if x != nil {
+		return x.ServiceKey
+	}
+	return ""
+}
+
+func (x *Resource) GetVariableKeys() []string {
+	if x != nil {
+		return x.VariableKeys
+	}
+	return nil
+}
+
 // RegionConfig represents a region deployment intent for a resource.
 type RegionConfig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1175,6 +1215,8 @@ type CreateResourceRequest struct {
 	Domain        *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
 	Spec          *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
 	Description   *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	EnvironmentId string                 `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	StackName     string                 `protobuf:"bytes,8,opt,name=stack_name,json=stackName,proto3" json:"stack_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1251,6 +1293,20 @@ func (x *CreateResourceRequest) GetDescription() string {
 	return ""
 }
 
+func (x *CreateResourceRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *CreateResourceRequest) GetStackName() string {
+	if x != nil {
+		return x.StackName
+	}
+	return ""
+}
+
 // CreateResourceResponse is the response containing the created resource ID.
 type CreateResourceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1299,6 +1355,7 @@ func (x *CreateResourceResponse) GetResourceId() string {
 // GetResourceNameKey is used to lookup a resource by name within a workspace.
 type GetResourceNameKey struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,3,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1333,6 +1390,13 @@ func (x *GetResourceNameKey) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetResourceNameKey.ProtoReflect.Descriptor instead.
 func (*GetResourceNameKey) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetResourceNameKey) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
 }
 
 func (x *GetResourceNameKey) GetWorkspaceId() string {
@@ -1480,6 +1544,7 @@ func (x *GetResourceResponse) GetResource() *Resource {
 // ListWorkspaceResourcesRequest is the request to list resources.
 type ListWorkspaceResourcesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,4,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // default: 50, max: 200
 	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // cursor from previous page (base64-encoded timestamp+id)
@@ -1515,6 +1580,13 @@ func (x *ListWorkspaceResourcesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListWorkspaceResourcesRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkspaceResourcesRequest) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListWorkspaceResourcesRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
 }
 
 func (x *ListWorkspaceResourcesRequest) GetWorkspaceId() string {
@@ -2696,7 +2768,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x05cache\x18\x03 \x01(\v2\x1b.loco.resource.v1.CacheSpecH\x00R\x05cache\x123\n" +
 	"\x05queue\x18\x04 \x01(\v2\x1b.loco.resource.v1.QueueSpecH\x00R\x05queue\x120\n" +
 	"\x04blob\x18\x05 \x01(\v2\x1a.loco.resource.v1.BlobSpecH\x00R\x04blobB\x06\n" +
-	"\x04spec\"\xfa\x04\n" +
+	"\x04spec\"\x8b\x06\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -2714,9 +2786,16 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\a\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
+	"\x0eenvironment_id\x18\x0e \x01(\tR\renvironmentId\x12\x1d\n" +
+	"\n" +
+	"stack_name\x18\x0f \x01(\tR\tstackName\x12\x19\n" +
+	"\bstack_id\x18\x10 \x01(\tR\astackId\x12\x1f\n" +
+	"\vservice_key\x18\x11 \x01(\tR\n" +
+	"serviceKey\x12#\n" +
+	"\rvariable_keys\x18\x12 \x03(\tR\fvariableKeysB\a\n" +
 	"\x05_specB\x0e\n" +
-	"\f_descriptionJ\x04\b\x0e\x10\x0fR\x0eenvironment_id\"\xb6\x01\n" +
+	"\f_description\"\xb6\x01\n" +
 	"\fRegionConfig\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x12\x1d\n" +
 	"\n" +
@@ -2724,7 +2803,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\x0e2$.loco.resource.v1.RegionIntentStatusR\x06status\x12\"\n" +
 	"\n" +
 	"last_error\x18\x04 \x01(\tH\x00R\tlastError\x88\x01\x01B\r\n" +
-	"\v_last_error\"\xf9\x02\n" +
+	"\v_last_error\"\xb3\x03\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12>\n" +
@@ -2732,13 +2811,17 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04type\x128\n" +
 	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputH\x00R\x06domain\x88\x01\x01\x12:\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
-	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\t\n" +
+	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12/\n" +
+	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x1d\n" +
+	"\n" +
+	"stack_name\x18\b \x01(\tR\tstackNameB\t\n" +
 	"\a_domainB\x0e\n" +
-	"\f_descriptionJ\x04\b\a\x10\bR\x0eenvironment_id\"9\n" +
+	"\f_description\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
-	"resourceId\"^\n" +
-	"\x12GetResourceNameKey\x12+\n" +
+	"resourceId\"\x8f\x01\n" +
+	"\x12GetResourceNameKey\x12/\n" +
+	"\x0eenvironment_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\x81\x01\n" +
 	"\x12GetResourceRequest\x12!\n" +
@@ -2747,8 +2830,9 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\bname_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceNameKeyH\x00R\anameKeyB\x05\n" +
 	"\x03key\"M\n" +
 	"\x13GetResourceResponse\x126\n" +
-	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\x94\x01\n" +
-	"\x1dListWorkspaceResourcesRequest\x12+\n" +
+	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\xc8\x01\n" +
+	"\x1dListWorkspaceResourcesRequest\x122\n" +
+	"\x0eenvironment_id\x18\x04 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +

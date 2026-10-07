@@ -14,7 +14,7 @@ export interface AccessItem {
 	level: Level;
 }
 
-const KIND_RANK = { user: 0, org: 1, ws: 2, res: 3, system: 4 } as const;
+const KIND_RANK = { user: 0, org: 1, ws: 2, env: 3, res: 4, system: 5 } as const;
 const MAX_RESULTS = 40;
 
 export function AccessPicker({
@@ -78,7 +78,9 @@ export function AccessPicker({
 			case "org":
 				return "Organization";
 			case "ws":
-				return `Workspace · ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
+				return `Workspace · ${(tree.childCount.get(n.key) ?? 0).toString()} environments`;
+			case "env":
+				return `Environment · ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
 			case "res": {
 				const cov = coveredBy(n, 1);
 				if (cov !== null) return `Included in ${cov}`;
@@ -97,7 +99,9 @@ export function AccessPicker({
 			case "org":
 				return "Organization · everything in it";
 			case "ws":
-				return `Workspace · all ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
+				return `Workspace · all ${(tree.childCount.get(n.key) ?? 0).toString()} environments`;
+			case "env":
+				return `Environment · ${(tree.childCount.get(n.key) ?? 0).toString()} resources`;
 			case "res": {
 				const parentKey = n.parent;
 				return parentKey === null ? "Resource" : (tree.nodes.get(parentKey)?.label ?? "Resource");
@@ -142,9 +146,9 @@ export function AccessPicker({
 							if (first !== undefined) add(first);
 						}
 					}}
-					placeholder="Add a workspace or resource"
+					placeholder="Add a workspace, environment or resource"
 					autoComplete="off"
-					aria-label="Add a workspace or resource"
+					aria-label="Add a workspace, environment or resource"
 					className="min-w-0 flex-1 border-0 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-fg4"
 				/>
 			</div>

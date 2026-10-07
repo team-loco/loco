@@ -103,6 +103,8 @@ export function useTeamData(orgId: string, meId: string, myScopes: EntityScope[]
 				if (r) addScope(mine, { kind: "resource", id: s.entityId, label: r.name, parent: r.workspace }, name);
 				break;
 			}
+			case EntityType.ENVIRONMENT:
+				break;
 			case EntityType.USER:
 				break;
 			case EntityType.UNSPECIFIED:
