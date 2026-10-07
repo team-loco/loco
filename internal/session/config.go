@@ -1,12 +1,15 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
+
+var errEmptyScopeName = errors.New("scope name cannot be empty")
 
 const (
 	ConfigFileName = "config.toml"
@@ -128,7 +131,7 @@ func (c *SessionConfig) GetScope() (*Scope, error) {
 // and persists the config.
 func (c *SessionConfig) SetScope(scopeName string, org SimpleOrg, wks SimpleWorkspace) error {
 	if scopeName == "" {
-		return fmt.Errorf("scope name cannot be empty")
+		return errEmptyScopeName
 	}
 
 	if c.Scopes == nil {

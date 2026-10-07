@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -101,7 +102,7 @@ Tokens can be scoped to different entity types:
 			} else if entityIDInt == 0 {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 			} else {
-				entityID = fmt.Sprintf("%d", entityIDInt)
+				entityID = strconv.FormatInt(entityIDInt, 10)
 			}
 
 			scopeStrs, err := cmd.Flags().GetStringSlice("scope")

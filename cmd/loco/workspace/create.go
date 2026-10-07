@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
@@ -65,7 +66,7 @@ func newCreateCmd(deps createDeps) *cobra.Command {
 			}
 
 			createReq := &workspacev1.CreateWorkspaceRequest{
-				OrgId: fmt.Sprintf("%d", orgIDInt),
+				OrgId: strconv.FormatInt(orgIDInt, 10),
 				Name:  name,
 			}
 			if description != "" {

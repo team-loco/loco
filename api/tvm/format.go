@@ -3,7 +3,7 @@ package tvm
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
+	"encoding/hex"
 	"strings"
 
 	"github.com/google/uuid"
@@ -29,7 +29,7 @@ func generateToken(prefix string) (token string, hash string) {
 // hashToken returns the SHA-256 hex digest of a token string.
 func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
-	return fmt.Sprintf("%x", sum)
+	return hex.EncodeToString(sum[:])
 }
 
 // tokenPrefix returns the prefix of the token, or empty string if unrecognized.

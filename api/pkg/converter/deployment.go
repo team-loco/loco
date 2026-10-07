@@ -11,7 +11,14 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-var errEmptySpecBytes = errors.New("spec bytes cannot be empty")
+var (
+	errNilResourceSpec          = errors.New("resourceSpec cannot be nil")
+	errNilRequestSpec           = errors.New("requestSpec cannot be nil")
+	errRegionRequired           = errors.New("region is required")
+	errResourceSpecNotService   = errors.New("resourceSpec must contain a service spec")
+	errDeploymentSpecNotService = errors.New("deployment spec must contain a service spec")
+	errEmptySpecBytes           = errors.New("spec bytes cannot be empty")
+)
 
 // DeserializeResourceSpec deserializes a ResourceSpec from JSON bytes (as stored in DB).
 func DeserializeResourceSpec(specBytes []byte, resourceType genDb.ResourceType) (*resourcev1.ResourceSpec, error) {
@@ -116,25 +123,25 @@ func MergeDeploymentSpec(
 	region string,
 ) (*deploymentv1.DeploymentSpec, error) {
 	if resourceSpec == nil {
-		return nil, fmt.Errorf("resourceSpec cannot be nil")
+		return nil, errNilResourceSpec
 	}
 	if requestSpec == nil {
-		return nil, fmt.Errorf("requestSpec cannot be nil")
+		return nil, errNilRequestSpec
 	}
 	if region == "" {
-		return nil, fmt.Errorf("region is required")
+		return nil, errRegionRequired
 	}
 
 	// extract ServiceSpec from resourceSpec oneof
 	resourceServiceSpec := resourceSpec.GetService()
 	if resourceServiceSpec == nil {
-		return nil, fmt.Errorf("resourceSpec must contain a service spec")
+		return nil, errResourceSpecNotService
 	}
 
 	// extract ServiceDeploymentSpec from requestSpec oneof
 	requestServiceSpec := requestSpec.GetService()
 	if requestServiceSpec == nil {
-		return nil, fmt.Errorf("deployment spec must contain a service spec")
+		return nil, errDeploymentSpecNotService
 	}
 
 	// find requested region in resource spec

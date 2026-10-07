@@ -2,6 +2,7 @@ package loco
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -19,6 +20,8 @@ import (
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
 )
+
+var errConfigExists = errors.New("loco.toml already exists. Use --force to overwrite")
 
 func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -48,7 +51,7 @@ func initCmdFunc(cmd *cobra.Command) error {
 
 	if _, statErr := os.Stat("loco.toml"); statErr == nil && !force {
 		if appName != "" {
-			return fmt.Errorf("loco.toml already exists. Use --force to overwrite")
+			return errConfigExists
 		}
 		overwrite, askErr := ui.AskYesNo("A loco.toml file already exists. Do you want to overwrite it?")
 		if askErr != nil {

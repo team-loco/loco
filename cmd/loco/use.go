@@ -1,6 +1,7 @@
 package loco
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,12 @@ import (
 	"github.com/team-loco/loco/internal/client"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
+)
+
+var (
+	errNoWorkspaces        = errors.New("no workspaces found")
+	errUnexpectedSelection = errors.New("unexpected selection type")
+	errInvalidScopeFormat  = errors.New("invalid format - expected <org-name>/<workspace-name>")
 )
 
 func newUseCmd() *cobra.Command {
@@ -103,7 +110,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(options) == 0 {
-			return fmt.Errorf("no workspaces found")
+			return errNoWorkspaces
 		}
 
 		selected, selErr := ui.SelectFromList("Select a scope", options)
@@ -113,7 +120,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 		scope, ok := selected.(scopeOption)
 		if !ok {
-			return fmt.Errorf("unexpected selection type")
+			return errUnexpectedSelection
 		}
 
 		if err := cfg.SetDefaultScope(
@@ -129,7 +136,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 
 	parts := strings.Split(args[0], "/")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid format - expected <org-name>/<workspace-name>")
+		return errInvalidScopeFormat
 	}
 	orgName = parts[0]
 	workspaceName = parts[1]

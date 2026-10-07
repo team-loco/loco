@@ -2,12 +2,15 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var errDatabaseURLMissing = errors.New("DATABASE_URL not set")
 
 // DB wraps the connection pool
 type DB struct {
@@ -17,7 +20,7 @@ type DB struct {
 // NewDB creates a new database connection pool
 func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 	if databaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL not set")
+		return nil, errDatabaseURLMissing
 	}
 
 	cfg, err := pgxpool.ParseConfig(databaseURL)

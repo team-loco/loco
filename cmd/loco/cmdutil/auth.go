@@ -15,7 +15,10 @@ import (
 	"github.com/team-loco/loco/internal/keychain"
 )
 
-var ErrLoginRequired = errors.New("login required - please run 'loco login'")
+var (
+	errTokenExpired  = errors.New("token is expired. Please re-login via `loco login`")
+	ErrLoginRequired = errors.New("login required - please run 'loco login'")
+)
 
 const refreshWindow = 5 * time.Minute
 
@@ -62,7 +65,7 @@ func FreshToken(ctx context.Context, host string, store keychain.TokenStore) (*k
 
 	slog.Debug("token is expired or will expire soon", "expires_at", locoToken.ExpiresAt)
 	if locoToken.RefreshToken == "" {
-		return nil, fmt.Errorf("token is expired. Please re-login via `loco login`")
+		return nil, errTokenExpired
 	}
 	slog.Debug("attempting silent token refresh")
 	refreshed, err := refreshLocoToken(ctx, host, locoToken.RefreshToken, store)

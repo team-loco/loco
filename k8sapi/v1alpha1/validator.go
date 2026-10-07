@@ -1,11 +1,34 @@
 package v1alpha1
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+)
+
+var (
+	errNilApplicationSpec     = errors.New("applicationSpec cannot be nil")
+	errResourceIDMissing      = errors.New("resourceId must be set")
+	errWorkspaceIDMissing     = errors.New("workspaceId must be set")
+	errTypeMissing            = errors.New("type must be set")
+	errServiceSpecMissing     = errors.New("serviceSpec must be set for SERVICE type")
+	errDatabaseValidationTODO = errors.New("database resource type validation: TODO")
+	errCacheValidationTODO    = errors.New("cache resource type validation: TODO")
+	errQueueValidationTODO    = errors.New("queue resource type validation: TODO")
+	errBlobValidationTODO     = errors.New("blob resource type validation: TODO")
+	errNilServiceSpec         = errors.New("serviceSpec cannot be nil")
+	errDeploymentMissing      = errors.New("serviceSpec.deployment must be set")
+	errNilDeployment          = errors.New("deployment cannot be nil")
+	errImageMissing           = errors.New("image must be set")
+	errHealthPathMissing      = errors.New("healthCheck.path must be set")
+	errHealthPathNoSlash      = errors.New("healthCheck.path must start with '/'")
+	errMetricsPathNoSlash     = errors.New("metrics.path must start with '/'")
+	errHostnameMissing        = errors.New("routing.hostname must be set")
+	errPathPrefixNoSlash      = errors.New("routing.pathPrefix must start with '/'")
+	errNegativeIdleTimeout    = errors.New("routing.idleTimeout cannot be negative")
 )
 
 var (
@@ -16,35 +39,35 @@ var (
 // ValidateApplicationSpec validates the entire ApplicationSpec
 func (spec *ApplicationSpec) Validate() error {
 	if spec == nil {
-		return fmt.Errorf("applicationSpec cannot be nil")
+		return errNilApplicationSpec
 	}
 
 	if spec.ResourceID == "" {
-		return fmt.Errorf("resourceId must be set")
+		return errResourceIDMissing
 	}
 
 	if spec.WorkspaceID == "" {
-		return fmt.Errorf("workspaceId must be set")
+		return errWorkspaceIDMissing
 	}
 
 	if spec.Type == "" {
-		return fmt.Errorf("type must be set")
+		return errTypeMissing
 	}
 
 	switch spec.Type {
 	case "SERVICE":
 		if spec.ServiceSpec == nil {
-			return fmt.Errorf("serviceSpec must be set for SERVICE type")
+			return errServiceSpecMissing
 		}
 		return validateServiceSpec(spec.ServiceSpec)
 	case "DATABASE":
-		return fmt.Errorf("database resource type validation: TODO")
+		return errDatabaseValidationTODO
 	case "CACHE":
-		return fmt.Errorf("cache resource type validation: TODO")
+		return errCacheValidationTODO
 	case "QUEUE":
-		return fmt.Errorf("queue resource type validation: TODO")
+		return errQueueValidationTODO
 	case "BLOB":
-		return fmt.Errorf("blob resource type validation: TODO")
+		return errBlobValidationTODO
 	default:
 		return fmt.Errorf("unknown resource type: %s", spec.Type)
 	}
@@ -53,11 +76,11 @@ func (spec *ApplicationSpec) Validate() error {
 // validateServiceSpec validates the ServiceSpec
 func validateServiceSpec(spec *ServiceSpec) error {
 	if spec == nil {
-		return fmt.Errorf("serviceSpec cannot be nil")
+		return errNilServiceSpec
 	}
 
 	if spec.Deployment == nil {
-		return fmt.Errorf("serviceSpec.deployment must be set")
+		return errDeploymentMissing
 	}
 
 	if err := validateServiceDeploymentSpec(spec.Deployment); err != nil {
@@ -88,12 +111,12 @@ func validateServiceSpec(spec *ServiceSpec) error {
 // validateServiceDeploymentSpec validates the ServiceDeploymentSpec
 func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 	if spec == nil {
-		return fmt.Errorf("deployment cannot be nil")
+		return errNilDeployment
 	}
 
 	// Image validation (required)
 	if spec.Image == "" {
-		return fmt.Errorf("image must be set")
+		return errImageMissing
 	}
 	if !dockerImagePattern.MatchString(spec.Image) {
 		return fmt.Errorf("image format invalid: %q (must include registry, image name, and tag/digest)", spec.Image)
@@ -184,10 +207,10 @@ func validateHealthCheckSpec(spec *HealthCheckSpec) error {
 
 	// Path validation
 	if spec.Path == "" {
-		return fmt.Errorf("healthCheck.path must be set")
+		return errHealthPathMissing
 	}
 	if !strings.HasPrefix(spec.Path, "/") {
-		return fmt.Errorf("healthCheck.path must start with '/'")
+		return errHealthPathNoSlash
 	}
 
 	// Startup grace period (max 3 minutes = 180 seconds)
@@ -289,7 +312,7 @@ func validateObsSpec(spec *ObsSpec) error {
 	// Metrics validation (optional)
 	if spec.Metrics.Enabled {
 		if spec.Metrics.Path != "" && !strings.HasPrefix(spec.Metrics.Path, "/") {
-			return fmt.Errorf("metrics.path must start with '/'")
+			return errMetricsPathNoSlash
 		}
 		if spec.Metrics.Port < 1024 || spec.Metrics.Port > 65535 {
 			return fmt.Errorf("metrics.port must be between 1024 and 65535, got %d", spec.Metrics.Port)
@@ -306,15 +329,15 @@ func validateRoutingSpec(spec *RoutingSpec) error {
 	}
 
 	if spec.HostName == "" {
-		return fmt.Errorf("routing.hostname must be set")
+		return errHostnameMissing
 	}
 
 	if spec.PathPrefix != "" && !strings.HasPrefix(spec.PathPrefix, "/") {
-		return fmt.Errorf("routing.pathPrefix must start with '/'")
+		return errPathPrefixNoSlash
 	}
 
 	if spec.IdleTimeout < 0 {
-		return fmt.Errorf("routing.idleTimeout cannot be negative")
+		return errNegativeIdleTimeout
 	}
 
 	return nil

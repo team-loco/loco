@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	"connectrpc.com/connect"
 	"github.com/spf13/cobra"
@@ -74,7 +75,7 @@ func buildListCmd() *cobra.Command {
 
 			if orgIDInt != 0 {
 				req := connect.NewRequest(&workspacev1.ListOrgWorkspacesRequest{
-					OrgId: fmt.Sprintf("%d", orgIDInt),
+					OrgId: strconv.FormatInt(orgIDInt, 10),
 				})
 				req.Header().Set("Authorization", authHeader)
 

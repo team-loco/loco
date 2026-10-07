@@ -53,7 +53,7 @@ func newDeleteCmd(deps deleteDeps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("invalid workspace ID: %w", err)
 			}
-			id := fmt.Sprintf("%d", idInt)
+			id := strconv.FormatInt(idInt, 10)
 
 			host, err := cmdutil.GetHost(cmd)
 			if err != nil {

@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/team-loco/loco/internal/config"
 	"github.com/team-loco/loco/internal/ui"
 )
+
+var errNilConfig = errors.New("config cannot be nil")
 
 // buildAndPushImage builds (or validates a pre-built) Docker image and pushes it to the registry.
 func buildAndPushImage(
@@ -110,7 +113,7 @@ func buildAndPushImage(
 // configToResourceSpec converts a LocoConfig to a proto ResourceSpec.
 func configToResourceSpec(cfg *config.LocoConfig, version string) (*resourcev1.ResourceSpec, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("config cannot be nil")
+		return nil, errNilConfig
 	}
 
 	switch version {

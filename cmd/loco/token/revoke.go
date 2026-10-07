@@ -11,6 +11,8 @@ import (
 	"github.com/team-loco/loco/internal/ui"
 )
 
+var errNotLoggedIn = errors.New("not logged in - nothing to revoke")
+
 type revokeDeps struct {
 	Tokens   func() (keychain.TokenStore, error)
 	AskYesNo func(prompt string) (bool, error)
@@ -52,7 +54,7 @@ func newRevokeCmd(deps revokeDeps) *cobra.Command {
 
 			t, err := store.Get()
 			if errors.Is(err, keychain.ErrNotFound) {
-				return fmt.Errorf("not logged in - nothing to revoke")
+				return errNotLoggedIn
 			}
 			if err != nil {
 				return fmt.Errorf("failed to read token from keychain: %w", err)
