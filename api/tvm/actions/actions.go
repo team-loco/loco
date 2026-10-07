@@ -20,12 +20,12 @@ var (
 
 	// ListResources requires workspace:read
 	ListResources = Action{
-		entityType: db.EntityTypeWorkspace,
+		entityType: db.EntityTypeEnvironment,
 		scope:      db.ScopeRead,
 	}
 	// CreateResource requires workspace:write.
 	CreateResource = Action{
-		entityType: db.EntityTypeWorkspace,
+		entityType: db.EntityTypeEnvironment,
 		scope:      db.ScopeWrite,
 	}
 	// GetResource requires resource:read.
@@ -293,17 +293,17 @@ var (
 	}
 	// GetEnvironment requires workspace:read (looked up via env's workspace_id).
 	GetEnvironment = Action{
-		entityType: db.EntityTypeWorkspace,
+		entityType: db.EntityTypeEnvironment,
 		scope:      db.ScopeRead,
 	}
 	// UpdateEnvironment requires workspace:write.
 	UpdateEnvironment = Action{
-		entityType: db.EntityTypeWorkspace,
+		entityType: db.EntityTypeEnvironment,
 		scope:      db.ScopeWrite,
 	}
 	// DeleteEnvironment requires workspace:admin.
 	DeleteEnvironment = Action{
-		entityType: db.EntityTypeWorkspace,
+		entityType: db.EntityTypeEnvironment,
 		scope:      db.ScopeAdmin,
 	}
 

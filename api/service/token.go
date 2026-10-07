@@ -67,7 +67,7 @@ func (s *TokenServer) CreateToken(
 	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
-	if !ok {
+	if !ok || entity.Type != genDb.EntityTypeUser {
 		slog.ErrorContext(ctx, "entity not found in context")
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
 	}
@@ -122,7 +122,7 @@ func (s *TokenServer) CreateToken(
 	}
 
 	duration := time.Duration(r.GetExpiresInSec()) * time.Second
-	token, err := s.tvm.Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
+	token, err := s.tvm.Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration, r.GetStackName())
 	if err != nil {
 		if errors.Is(err, tvm.ErrInsufficentPermissions) {
 			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())
@@ -502,6 +502,8 @@ func protoEntityTypeToDb(et tokenv1.EntityType) genDb.EntityType {
 		return genDb.EntityTypeOrganization
 	case tokenv1.EntityType_ENTITY_TYPE_WORKSPACE:
 		return genDb.EntityTypeWorkspace
+	case tokenv1.EntityType_ENTITY_TYPE_ENVIRONMENT:
+		return genDb.EntityTypeEnvironment
 	case tokenv1.EntityType_ENTITY_TYPE_RESOURCE:
 		return genDb.EntityTypeResource
 	case tokenv1.EntityType_ENTITY_TYPE_USER:
@@ -519,6 +521,8 @@ func dbEntityTypeToProto(et genDb.EntityType) tokenv1.EntityType {
 		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION
 	case genDb.EntityTypeWorkspace:
 		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE
+	case genDb.EntityTypeEnvironment:
+		return tokenv1.EntityType_ENTITY_TYPE_ENVIRONMENT
 	case genDb.EntityTypeResource:
 		return tokenv1.EntityType_ENTITY_TYPE_RESOURCE
 	case genDb.EntityTypeUser:

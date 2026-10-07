@@ -47,7 +47,8 @@ Tokens can be scoped to different entity types:
   - user (default): Personal tokens for your account
   - org: Organization-level tokens
   - workspace: Workspace-scoped tokens
-  - resource: Resource-specific tokens`,
+  - resource: Resource-specific tokens
+  - environment: Environment-scoped tokens; --stack restricts them to one stack`,
 		Args: cobra.ExactArgs(1),
 		Example: `  # Create a personal API token with read access
   loco token create my-ci-token --scope read
@@ -56,10 +57,10 @@ Tokens can be scoped to different entity types:
   loco token create deploy-token --scope write --expires 7d
 
   # Create an organization-scoped token
-  loco token create org-deploy-token --entity-type org --entity-id 123 --scope write
+  loco token create org-deploy-token --entity-type org --entity-id ORG_UUID --scope write
 
   # Create a workspace-scoped token
-  loco token create ws-token --entity-type workspace --entity-id 456 --scope admin`,
+  loco token create ws-token --entity-type workspace --entity-id WORKSPACE_UUID --scope admin`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -82,7 +83,7 @@ Tokens can be scoped to different entity types:
 			if err != nil {
 				return fmt.Errorf("failed to get entity-type flag: %w", err)
 			}
-			entityIDInt, err := cmd.Flags().GetInt64("entity-id")
+			entityIDInput, err := cmd.Flags().GetString("entity-id")
 			if err != nil {
 				return fmt.Errorf("failed to get entity-id flag: %w", err)
 			}
@@ -93,15 +94,15 @@ Tokens can be scoped to different entity types:
 			}
 
 			var entityID string
-			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInt == 0 {
+			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInput == "" {
 				entityID, err = getCurrentUserID(ctx, userClient, authHeader)
 				if err != nil {
 					return err
 				}
-			} else if entityIDInt == 0 {
+			} else if entityIDInput == "" {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 			} else {
-				entityID = fmt.Sprintf("%d", entityIDInt)
+				entityID = entityIDInput
 			}
 
 			scopeStrs, err := cmd.Flags().GetStringSlice("scope")
@@ -130,7 +131,12 @@ Tokens can be scoped to different entity types:
 				return err
 			}
 
+			stackName, stackErr := cmd.Flags().GetString("stack")
+			if stackErr != nil {
+				return stackErr
+			}
 			req := connect.NewRequest(&tokenv1.CreateTokenRequest{
+				StackName:    stackName,
 				Name:         name,
 				EntityType:   entityType,
 				EntityId:     entityID,
@@ -155,11 +161,12 @@ Tokens can be scoped to different entity types:
 		},
 	}
 
+	cmd.Flags().String("stack", "", "Restrict an environment token to one named stack")
 	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().StringSlice("scope", []string{"read"}, "Token scopes: read, write, admin")
 	cmd.Flags().String("expires", "30d", "Token expiration (e.g., 1d, 7d, 30d)")
-	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
-	cmd.Flags().Int64("entity-id", 0, "Entity ID (required for non-user entity types)")
+	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, environment, resource")
+	cmd.Flags().String("entity-id", "", "Entity ID (required for non-user entity types)")
 
 	return cmd
 }
@@ -168,15 +175,21 @@ func parseEntityType(s string) (tokenv1.EntityType, error) {
 	switch strings.ToLower(s) {
 	case "user":
 		return tokenv1.EntityType_ENTITY_TYPE_USER, nil
-	case "org", "organization":
+	case "org":
 		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, nil
-	case "workspace", "ws":
+	case "organization":
+		return tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, nil
+	case "workspace":
 		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, nil
+	case "ws":
+		return tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, nil
+	case "environment":
+		return tokenv1.EntityType_ENTITY_TYPE_ENVIRONMENT, nil
 	case "resource":
 		return tokenv1.EntityType_ENTITY_TYPE_RESOURCE, nil
 	default:
 		return tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED, fmt.Errorf(
-			"invalid entity type %q: must be user, org, workspace, or resource",
+			"invalid entity type %q: must be user, org, workspace, environment, or resource",
 			s,
 		)
 	}

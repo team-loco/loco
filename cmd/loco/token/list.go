@@ -70,7 +70,7 @@ func newListCmd(deps listDeps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get entity-type flag: %w", err)
 			}
-			entityIDInt, err := cmd.Flags().GetInt64("entity-id")
+			entityIDInput, err := cmd.Flags().GetString("entity-id")
 			if err != nil {
 				return fmt.Errorf("failed to get entity-id flag: %w", err)
 			}
@@ -81,15 +81,15 @@ func newListCmd(deps listDeps) *cobra.Command {
 			}
 
 			var entityID string
-			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInt == 0 {
+			if entityType == tokenv1.EntityType_ENTITY_TYPE_USER && entityIDInput == "" {
 				entityID, err = getCurrentUserID(ctx, userClient, authHeader)
 				if err != nil {
 					return err
 				}
-			} else if entityIDInt == 0 {
+			} else if entityIDInput == "" {
 				return fmt.Errorf("--entity-id is required for entity type %q", entityTypeStr)
 			} else {
-				entityID = fmt.Sprintf("%d", entityIDInt)
+				entityID = entityIDInput
 			}
 
 			req := connect.NewRequest(&tokenv1.ListTokensRequest{
@@ -131,8 +131,8 @@ func newListCmd(deps listDeps) *cobra.Command {
 	}
 
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, resource")
-	cmd.Flags().Int64("entity-id", 0, "Entity ID (defaults to current user for user type)")
+	cmd.Flags().String("entity-type", "user", "Entity type: user, org, workspace, environment, resource")
+	cmd.Flags().String("entity-id", "", "Entity ID (defaults to current user for user type)")
 
 	return cmd
 }
