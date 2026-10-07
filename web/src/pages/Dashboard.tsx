@@ -192,7 +192,7 @@ export function Dashboard() {
 				<Section>
 					<EmptyState
 						icon={<BoxIcon />}
-						title={`Nothing in ${active.name} yet`}
+						title="Nothing in this environment yet"
 						action={
 							<Button onClick={openNew}>
 								<PlusIcon />
