@@ -20,6 +20,8 @@ import (
 	"github.com/team-loco/loco/observability-proxy/service"
 )
 
+const readHeaderTimeout = 10 * time.Second
+
 func main() {
 	cfg := config.Load()
 
@@ -86,9 +88,10 @@ func main() {
 	protocols.SetUnencryptedHTTP2(true)
 
 	server := &http.Server{
-		Addr:      fmt.Sprintf(":%d", cfg.Port),
-		Handler:   mux,
-		Protocols: protocols,
+		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Handler:           mux,
+		Protocols:         protocols,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
 	// Graceful shutdown

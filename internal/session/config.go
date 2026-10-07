@@ -59,7 +59,7 @@ func GetConfigPath() (string, error) {
 		return "", err
 	}
 
-	if err = os.MkdirAll(locoDir, 0o755); err != nil {
+	if err = os.MkdirAll(locoDir, 0o700); err != nil {
 		return "", fmt.Errorf("failed to create .loco directory: %w", err)
 	}
 
