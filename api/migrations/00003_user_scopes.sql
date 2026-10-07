@@ -1,10 +1,10 @@
 -- +goose Up
-CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'resource', 'user');
+CREATE TYPE entity_type AS ENUM ('system', 'organization', 'workspace', 'environment', 'resource', 'user');
 
 CREATE TABLE user_scopes (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     scope TEXT NOT NULL, -- e.g. 'read', 'write', 'admin'
-    entity_type entity_type NOT NULL, -- e.g. 'organization', 'workspace', 'resource', will never be 'user' since users cannot have scopes on themselves
+    entity_type entity_type NOT NULL, -- e.g. 'organization', 'workspace', 'environment', 'resource', will never be 'user' since users cannot have scopes on themselves
     entity_id UUID NOT NULL, -- e.g. organization_id or workspace_id
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (user_id, scope, entity_type, entity_id)
@@ -45,6 +45,7 @@ CREATE TABLE api_tokens (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     token_hash TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
+    stack_name TEXT NOT NULL DEFAULT '',
     entity_type entity_type NOT NULL,
     entity_id UUID NOT NULL,
     scopes JSONB NOT NULL,

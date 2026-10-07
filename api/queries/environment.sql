@@ -14,7 +14,7 @@ SELECT * FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC;
 
 -- name: UpdateEnvironment :one
 UPDATE environments
-SET name = $2, description = $3, environment_type = $4, updated_at = NOW()
+SET name = $2, description = $3, environment_type = $4, intent_revision = intent_revision + 1, updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 
@@ -23,3 +23,7 @@ DELETE FROM environments WHERE id = $1;
 
 -- name: CountDeploymentsByEnvironment :one
 SELECT COUNT(*) FROM deployments WHERE environment_id = $1;
+
+-- name: GetEnvironmentHierarchy :one
+SELECT e.workspace_id, w.org_id FROM environments e
+JOIN workspaces w ON w.id = e.workspace_id WHERE e.id = $1;

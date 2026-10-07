@@ -48,13 +48,15 @@ CREATE TABLE
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
+        intent_revision BIGINT NOT NULL DEFAULT 0,
         environment_type TEXT NOT NULL DEFAULT 'production' CHECK (
             environment_type IN ('dev', 'staging', 'production')
         ),
         created_by UUID NOT NULL REFERENCES users (id),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (workspace_id, name)
+        UNIQUE (workspace_id, name),
+        UNIQUE (id, workspace_id)
     );
 
 CREATE INDEX IF NOT EXISTS idx_environments_workspace_id_created_at ON environments (workspace_id, created_at);
@@ -109,19 +111,35 @@ CREATE TABLE
     );
 
 -- Resources table
+CREATE TABLE infra_stacks (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    environment_id UUID NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    manifest JSONB,
+    UNIQUE (environment_id, name),
+    UNIQUE (id, environment_id)
+);
+
 CREATE TABLE
     resources (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
+        environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
+        stack_id UUID NOT NULL REFERENCES infra_stacks (id) ON DELETE CASCADE,
+        service_key TEXT NOT NULL,
         name TEXT NOT NULL,
         type resource_type NOT NULL,
         description TEXT NOT NULL,
         status resource_status NOT NULL,
         spec JSONB NOT NULL,
+        variable_values BYTEA,
         spec_version INT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (workspace_id, name)
+        UNIQUE (environment_id, name),
+        UNIQUE (stack_id, service_key),
+        FOREIGN KEY (environment_id, workspace_id) REFERENCES environments (id, workspace_id),
+        FOREIGN KEY (stack_id, environment_id) REFERENCES infra_stacks (id, environment_id)
     );
 
 CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources (workspace_id, created_at DESC, id DESC);
@@ -262,6 +280,7 @@ DROP TABLE IF EXISTS resource_regions;
 DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS platform_domains;
 DROP TABLE IF EXISTS clusters;
+DROP TABLE IF EXISTS infra_stacks;
 DROP TABLE IF EXISTS environments;
 DROP TYPE IF EXISTS region_intent_status;
 DROP TYPE IF EXISTS domain_source;

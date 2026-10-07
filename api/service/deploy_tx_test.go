@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"net/url"
 	"os"
@@ -13,9 +14,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/migrations"
+	planner "github.com/team-loco/loco/api/pkg/infra"
 )
 
 type deployFixture struct {
+	cipher       *planner.Cipher
 	pool         *pgxpool.Pool
 	queries      *genDb.Queries
 	clusterID    uuid.UUID
@@ -25,6 +28,8 @@ type deployFixture struct {
 }
 
 const testAgentToken = "test-agent-token"
+
+const deploymentTestRegion = "us-east-1"
 
 func newDeployFixture(t *testing.T) *deployFixture {
 	t.Helper()
@@ -72,7 +77,11 @@ func newDeployFixture(t *testing.T) *deployFixture {
 		}
 	})
 
-	f := &deployFixture{pool: pool, queries: genDb.New(pool)}
+	cipher, err := planner.NewCipher(base64.StdEncoding.EncodeToString(make([]byte, 32)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &deployFixture{pool: pool, queries: genDb.New(pool), cipher: cipher}
 	agentTokenHash := hashToken(testAgentToken)
 	row := pool.QueryRow(ctx, `
 WITH u AS (
@@ -89,16 +98,19 @@ WITH u AS (
 ), c2 AS (
     INSERT INTO clusters (name, region, provider, is_active, is_default)
     VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
+), st AS (
+    INSERT INTO infra_stacks(environment_id, name) SELECT e.id, 'test' FROM e RETURNING id
 ), r AS (
-    INSERT INTO resources (workspace_id, name, type, description, status, spec, spec_version)
-    SELECT w.id, 'svc', 'service', '', 'healthy', '{}', 1 FROM w RETURNING id
+    INSERT INTO resources (workspace_id, environment_id, stack_id, service_key, name,
+        type, description, status, spec, spec_version)
+    SELECT w.id, e.id, st.id, 'svc', 'svc', 'service', '', 'healthy', '{}', 1 FROM w, e, st RETURNING id
 ), rr AS (
     INSERT INTO resource_regions (resource_id, region, is_primary, status)
     SELECT r.id, 'us-east-1', true, 'active' FROM r RETURNING id
 )
 SELECT c.id, c2.id, r.id, e.id FROM c, c2, r, e, rr`, agentTokenHash)
-	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {
-		t.Fatalf("seed: %v", err)
+	if scanErr := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); scanErr != nil {
+		t.Fatalf("seed: %v", scanErr)
 	}
 	return f
 }
@@ -107,7 +119,7 @@ func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentPar
 	return genDb.CreateDeploymentParams{
 		ResourceID:    f.resourceID,
 		ClusterID:     clusterID,
-		Region:        "us-east-1",
+		Region:        deploymentTestRegion,
 		Replicas:      1,
 		Status:        genDb.DeploymentStatusPending,
 		IsActive:      true,
@@ -133,7 +145,7 @@ func (f *deployFixture) deployTo(
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, f.paramsFor(clusterID), buildSpec)
+		id, deployErr = createDeploymentWithCleanup(ctx, qtx, f.paramsFor(clusterID), buildSpec, f.cipher)
 		return deployErr
 	})
 	return id, err

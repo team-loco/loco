@@ -107,6 +107,7 @@ const (
 	EntityTypeSystem       EntityType = "system"
 	EntityTypeOrganization EntityType = "organization"
 	EntityTypeWorkspace    EntityType = "workspace"
+	EntityTypeEnvironment  EntityType = "environment"
 	EntityTypeResource     EntityType = "resource"
 	EntityTypeUser         EntityType = "user"
 )
@@ -287,6 +288,7 @@ type ApiToken struct {
 	ID         uuid.UUID     `json:"id"`
 	TokenHash  string        `json:"tokenHash"`
 	Name       string        `json:"name"`
+	StackName  string        `json:"stackName"`
 	EntityType EntityType    `json:"entityType"`
 	EntityID   uuid.UUID     `json:"entityId"`
 	Scopes     []EntityScope `json:"scopes"`
@@ -343,10 +345,47 @@ type Environment struct {
 	WorkspaceID     uuid.UUID `json:"workspaceId"`
 	Name            string    `json:"name"`
 	Description     *string   `json:"description"`
+	IntentRevision  int64     `json:"intentRevision"`
 	EnvironmentType string    `json:"environmentType"`
 	CreatedBy       uuid.UUID `json:"createdBy"`
 	CreatedAt       time.Time `json:"createdAt"`
 	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type InfraApply struct {
+	ID            uuid.UUID   `json:"id"`
+	PlanID        uuid.UUID   `json:"planId"`
+	DeploymentIds []uuid.UUID `json:"deploymentIds"`
+	CreatedAt     time.Time   `json:"createdAt"`
+}
+
+type InfraPlan struct {
+	ID               uuid.UUID `json:"id"`
+	WorkspaceID      uuid.UUID `json:"workspaceId"`
+	EnvironmentID    uuid.UUID `json:"environmentId"`
+	StackName        string    `json:"stackName"`
+	ExpectedRevision int64     `json:"expectedRevision"`
+	ManifestDigest   string    `json:"manifestDigest"`
+	SourceDigest     string    `json:"sourceDigest"`
+	Payload          []byte    `json:"payload"`
+	Plan             []byte    `json:"plan"`
+	ExpiresAt        time.Time `json:"expiresAt"`
+	CreatedAt        time.Time `json:"createdAt"`
+}
+
+type InfraSecretVersion struct {
+	ID            uuid.UUID `json:"id"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Name          string    `json:"name"`
+	Ciphertext    []byte    `json:"ciphertext"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
+type InfraStack struct {
+	ID            uuid.UUID `json:"id"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Name          string    `json:"name"`
+	Manifest      []byte    `json:"manifest"`
 }
 
 type Organization struct {
@@ -387,16 +426,20 @@ type PlatformDomain struct {
 }
 
 type Resource struct {
-	ID          uuid.UUID      `json:"id"`
-	WorkspaceID uuid.UUID      `json:"workspaceId"`
-	Name        string         `json:"name"`
-	Type        ResourceType   `json:"type"`
-	Description string         `json:"description"`
-	Status      ResourceStatus `json:"status"`
-	Spec        []byte         `json:"spec"`
-	SpecVersion int32          `json:"specVersion"`
-	CreatedAt   time.Time      `json:"createdAt"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
+	ID             uuid.UUID      `json:"id"`
+	WorkspaceID    uuid.UUID      `json:"workspaceId"`
+	EnvironmentID  uuid.UUID      `json:"environmentId"`
+	StackID        uuid.UUID      `json:"stackId"`
+	ServiceKey     string         `json:"serviceKey"`
+	Name           string         `json:"name"`
+	Type           ResourceType   `json:"type"`
+	Description    string         `json:"description"`
+	Status         ResourceStatus `json:"status"`
+	Spec           []byte         `json:"spec"`
+	VariableValues []byte         `json:"variableValues"`
+	SpecVersion    int32          `json:"specVersion"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
 }
 
 type ResourceDomain struct {
