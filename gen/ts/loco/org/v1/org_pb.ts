@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/org/v1/org.proto.
  */
 export const file_loco_org_v1_org: GenFile = /*@__PURE__*/
-  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIpwBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInAKEFdvcmtzcGFjZVN1bW1hcnkSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIk8KDUdldE9yZ1JlcXVlc3QSGgoGb3JnX2lkGAEgASgJQgi6SAVyA7ABAUgAEhsKCG9yZ19uYW1lGAIgASgJQge6SARyAhABSABCBQoDa2V5IkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJjChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImIKE0xpc3RPcmdVc2Vyc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJRChRMaXN0T3JnVXNlcnNSZXNwb25zZRIgCgV1c2VycxgBIAMoCzIRLmxvY28ub3JnLnYxLlVzZXISFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIkMKBFVzZXISCgoCaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEbmFtZRgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJImcKGExpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJImcKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMQoKd29ya3NwYWNlcxgBIAMoCzIdLmxvY28ub3JnLnYxLldvcmtzcGFjZVN1bW1hcnkSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIoQBChBVcGRhdGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhwKBG5hbWUYAyABKAlCCbpIBnIEEAEYZEgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoCSIsChBEZWxldGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiEwoRRGVsZXRlT3JnUmVzcG9uc2UijgIKCU9yZ0RvbWFpbhIKCgJpZBgBIAEoCRIOCgZkb21haW4YAiABKAkSEAoIdmVyaWZpZWQYAyABKAgSIAoYdmVyaWZpY2F0aW9uX3JlY29yZF9uYW1lGAQgASgJEiEKGXZlcmlmaWNhdGlvbl9yZWNvcmRfdmFsdWUYBSABKAkSLQoPYXV0b19qb2luX3Njb3BlGAYgASgOMhQubG9jby50b2tlbi52MS5TY29wZRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgt2ZXJpZmllZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiSwoTQWRkT3JnRG9tYWluUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhoKBmRvbWFpbhgCIAEoCUIKukgHcgUY/QFoASI+ChRBZGRPcmdEb21haW5SZXNwb25zZRImCgZkb21haW4YASABKAsyFi5sb2NvLm9yZy52MS5PcmdEb21haW4iMQoVTGlzdE9yZ0RvbWFpbnNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiQQoWTGlzdE9yZ0RvbWFpbnNSZXNwb25zZRInCgdkb21haW5zGAEgAygLMhYubG9jby5vcmcudjEuT3JnRG9tYWluIk8KFlZlcmlmeU9yZ0RvbWFpblJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIkEKF1ZlcmlmeU9yZ0RvbWFpblJlc3BvbnNlEiYKBmRvbWFpbhgBIAEoCzIWLmxvY28ub3JnLnYxLk9yZ0RvbWFpbiKDAQobU2V0T3JnRG9tYWluQXV0b0pvaW5SZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGwoJZG9tYWluX2lkGAIgASgJQgi6SAVyA7ABARItCgVzY29wZRgDIAEoDjIULmxvY28udG9rZW4udjEuU2NvcGVCCLpIBYIBAhABIlsKHFNldE9yZ0RvbWFpbkF1dG9Kb2luUmVzcG9uc2USJgoGZG9tYWluGAEgASgLMhYubG9jby5vcmcudjEuT3JnRG9tYWluEhMKC3VzZXJzX2FkZGVkGAIgASgFIk8KFkRlbGV0ZU9yZ0RvbWFpblJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIhkKF0RlbGV0ZU9yZ0RvbWFpblJlc3BvbnNlMpoICgpPcmdTZXJ2aWNlEkoKCUNyZWF0ZU9yZxIdLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5DcmVhdGVPcmdSZXNwb25zZRJBCgZHZXRPcmcSGi5sb2NvLm9yZy52MS5HZXRPcmdSZXF1ZXN0GhsubG9jby5vcmcudjEuR2V0T3JnUmVzcG9uc2USSgoJVXBkYXRlT3JnEh0ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLlVwZGF0ZU9yZ1Jlc3BvbnNlEkoKCURlbGV0ZU9yZxIdLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1JlcXVlc3QaHi5sb2NvLm9yZy52MS5EZWxldGVPcmdSZXNwb25zZRJTCgxMaXN0VXNlck9yZ3MSIC5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdFVzZXJPcmdzUmVzcG9uc2USUwoMTGlzdE9yZ1VzZXJzEiAubG9jby5vcmcudjEuTGlzdE9yZ1VzZXJzUmVxdWVzdBohLmxvY28ub3JnLnYxLkxpc3RPcmdVc2Vyc1Jlc3BvbnNlEmIKEUxpc3RPcmdXb3Jrc3BhY2VzEiUubG9jby5vcmcudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXF1ZXN0GiYubG9jby5vcmcudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXNwb25zZRJTCgxBZGRPcmdEb21haW4SIC5sb2NvLm9yZy52MS5BZGRPcmdEb21haW5SZXF1ZXN0GiEubG9jby5vcmcudjEuQWRkT3JnRG9tYWluUmVzcG9uc2USWQoOTGlzdE9yZ0RvbWFpbnMSIi5sb2NvLm9yZy52MS5MaXN0T3JnRG9tYWluc1JlcXVlc3QaIy5sb2NvLm9yZy52MS5MaXN0T3JnRG9tYWluc1Jlc3BvbnNlElwKD1ZlcmlmeU9yZ0RvbWFpbhIjLmxvY28ub3JnLnYxLlZlcmlmeU9yZ0RvbWFpblJlcXVlc3QaJC5sb2NvLm9yZy52MS5WZXJpZnlPcmdEb21haW5SZXNwb25zZRJrChRTZXRPcmdEb21haW5BdXRvSm9pbhIoLmxvY28ub3JnLnYxLlNldE9yZ0RvbWFpbkF1dG9Kb2luUmVxdWVzdBopLmxvY28ub3JnLnYxLlNldE9yZ0RvbWFpbkF1dG9Kb2luUmVzcG9uc2USXAoPRGVsZXRlT3JnRG9tYWluEiMubG9jby5vcmcudjEuRGVsZXRlT3JnRG9tYWluUmVxdWVzdBokLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ0RvbWFpblJlc3BvbnNlQjRaMmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_token_v1_token]);
+  fileDesc("ChVsb2NvL29yZy92MS9vcmcucHJvdG8SC2xvY28ub3JnLnYxIpwBCgxPcmdhbml6YXRpb24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInAKEFdvcmtzcGFjZVN1bW1hcnkSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRISCgpjcmVhdGVkX2J5GAMgASgJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjkKEENyZWF0ZU9yZ1JlcXVlc3QSHAoEbmFtZRgBIAEoCUIJukgGcgQQARhkSACIAQFCBwoFX25hbWUiIwoRQ3JlYXRlT3JnUmVzcG9uc2USDgoGb3JnX2lkGAEgASgJIk8KDUdldE9yZ1JlcXVlc3QSGgoGb3JnX2lkGAEgASgJQgi6SAVyA7ABAUgAEhsKCG9yZ19uYW1lGAIgASgJQge6SARyAhABSABCBQoDa2V5IkEKDkdldE9yZ1Jlc3BvbnNlEi8KDG9yZ2FuaXphdGlvbhgBIAEoCzIZLmxvY28ub3JnLnYxLk9yZ2FuaXphdGlvbiJjChNMaXN0VXNlck9yZ3NSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJIlgKFExpc3RVc2VyT3Jnc1Jlc3BvbnNlEicKBG9yZ3MYASADKAsyGS5sb2NvLm9yZy52MS5Pcmdhbml6YXRpb24SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJImIKE0xpc3RPcmdVc2Vyc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJRChRMaXN0T3JnVXNlcnNSZXNwb25zZRIgCgV1c2VycxgBIAMoCzIRLmxvY28ub3JnLnYxLlVzZXISFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIkMKBFVzZXISCgoCaWQYASABKAkSDQoFZW1haWwYAiABKAkSDAoEbmFtZRgDIAEoCRISCgphdmF0YXJfdXJsGAQgASgJImcKGExpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJImcKGUxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USMQoKd29ya3NwYWNlcxgBIAMoCzIdLmxvY28ub3JnLnYxLldvcmtzcGFjZVN1bW1hcnkSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIoQBChBVcGRhdGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhwKBG5hbWUYAyABKAlCCbpIBnIEEAEYZEgAiAEBQgcKBV9uYW1lIiMKEVVwZGF0ZU9yZ1Jlc3BvbnNlEg4KBm9yZ19pZBgBIAEoCSIsChBEZWxldGVPcmdSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiEwoRRGVsZXRlT3JnUmVzcG9uc2UijgIKCU9yZ0RvbWFpbhIKCgJpZBgBIAEoCRIOCgZkb21haW4YAiABKAkSEAoIdmVyaWZpZWQYAyABKAgSIAoYdmVyaWZpY2F0aW9uX3JlY29yZF9uYW1lGAQgASgJEiEKGXZlcmlmaWNhdGlvbl9yZWNvcmRfdmFsdWUYBSABKAkSLQoPYXV0b19qb2luX3Njb3BlGAYgASgOMhQubG9jby50b2tlbi52MS5TY29wZRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgt2ZXJpZmllZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiSwoTQWRkT3JnRG9tYWluUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhoKBmRvbWFpbhgCIAEoCUIKukgHcgUY/QFoASI+ChRBZGRPcmdEb21haW5SZXNwb25zZRImCgZkb21haW4YASABKAsyFi5sb2NvLm9yZy52MS5PcmdEb21haW4iMQoVTGlzdE9yZ0RvbWFpbnNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiQQoWTGlzdE9yZ0RvbWFpbnNSZXNwb25zZRInCgdkb21haW5zGAEgAygLMhYubG9jby5vcmcudjEuT3JnRG9tYWluIk8KFlZlcmlmeU9yZ0RvbWFpblJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIkEKF1ZlcmlmeU9yZ0RvbWFpblJlc3BvbnNlEiYKBmRvbWFpbhgBIAEoCzIWLmxvY28ub3JnLnYxLk9yZ0RvbWFpbiKDAQobU2V0T3JnRG9tYWluQXV0b0pvaW5SZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESGwoJZG9tYWluX2lkGAIgASgJQgi6SAVyA7ABARItCgVzY29wZRgDIAEoDjIULmxvY28udG9rZW4udjEuU2NvcGVCCLpIBYIBAhABIlsKHFNldE9yZ0RvbWFpbkF1dG9Kb2luUmVzcG9uc2USJgoGZG9tYWluGAEgASgLMhYubG9jby5vcmcudjEuT3JnRG9tYWluEhMKC3VzZXJzX2FkZGVkGAIgASgFIk8KFkRlbGV0ZU9yZ0RvbWFpblJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIhkKF0RlbGV0ZU9yZ0RvbWFpblJlc3BvbnNlIjgKD1NlcnZpY2VQcm92aWRlchIUCgxtZXRhZGF0YV91cmwYASABKAkSDwoHYWNzX3VybBgCIAEoCSJ1CgZPcmdTU08SFQoNY29ubmVjdGlvbl9pZBgBIAEoCRITCgtyZXF1aXJlX3NzbxgCIAEoCBIPCgdkb21haW5zGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIiwKEEdldE9yZ1NTT1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABASKpAQoRR2V0T3JnU1NPUmVzcG9uc2USEQoJYXZhaWxhYmxlGAEgASgIEjYKEHNlcnZpY2VfcHJvdmlkZXIYAiABKAsyHC5sb2NvLm9yZy52MS5TZXJ2aWNlUHJvdmlkZXISJQoDc3NvGAMgASgLMhMubG9jby5vcmcudjEuT3JnU1NPSACIAQESGgoSc2lnbmVkX2luX3dpdGhfc3NvGAQgASgIQgYKBF9zc28imQEKFkNvbmZpZ3VyZU9yZ1NTT1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARItCgxtZXRhZGF0YV91cmwYAiABKAlCFbpIEnIQGIAQOghodHRwczovL4gBAUgAEiMKDG1ldGFkYXRhX3htbBgDIAEoCUILukgIcgYQARiAgBBIAEIRCghtZXRhZGF0YRIFukgCCAEiOwoXQ29uZmlndXJlT3JnU1NPUmVzcG9uc2USIAoDc3NvGAEgASgLMhMubG9jby5vcmcudjEuT3JnU1NPIkgKF1NldE9yZ1JlcXVpcmVTU09SZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESEwoLcmVxdWlyZV9zc28YAiABKAgiPAoYU2V0T3JnUmVxdWlyZVNTT1Jlc3BvbnNlEiAKA3NzbxgBIAEoCzITLmxvY28ub3JnLnYxLk9yZ1NTTyIvChNEZWxldGVPcmdTU09SZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQEiFgoURGVsZXRlT3JnU1NPUmVzcG9uc2Uy+goKCk9yZ1NlcnZpY2USSgoJQ3JlYXRlT3JnEh0ubG9jby5vcmcudjEuQ3JlYXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkNyZWF0ZU9yZ1Jlc3BvbnNlEkEKBkdldE9yZxIaLmxvY28ub3JnLnYxLkdldE9yZ1JlcXVlc3QaGy5sb2NvLm9yZy52MS5HZXRPcmdSZXNwb25zZRJKCglVcGRhdGVPcmcSHS5sb2NvLm9yZy52MS5VcGRhdGVPcmdSZXF1ZXN0Gh4ubG9jby5vcmcudjEuVXBkYXRlT3JnUmVzcG9uc2USSgoJRGVsZXRlT3JnEh0ubG9jby5vcmcudjEuRGVsZXRlT3JnUmVxdWVzdBoeLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1Jlc3BvbnNlElMKDExpc3RVc2VyT3JncxIgLmxvY28ub3JnLnYxLkxpc3RVc2VyT3Jnc1JlcXVlc3QaIS5sb2NvLm9yZy52MS5MaXN0VXNlck9yZ3NSZXNwb25zZRJTCgxMaXN0T3JnVXNlcnMSIC5sb2NvLm9yZy52MS5MaXN0T3JnVXNlcnNSZXF1ZXN0GiEubG9jby5vcmcudjEuTGlzdE9yZ1VzZXJzUmVzcG9uc2USYgoRTGlzdE9yZ1dvcmtzcGFjZXMSJS5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QaJi5sb2NvLm9yZy52MS5MaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlElMKDEFkZE9yZ0RvbWFpbhIgLmxvY28ub3JnLnYxLkFkZE9yZ0RvbWFpblJlcXVlc3QaIS5sb2NvLm9yZy52MS5BZGRPcmdEb21haW5SZXNwb25zZRJZCg5MaXN0T3JnRG9tYWlucxIiLmxvY28ub3JnLnYxLkxpc3RPcmdEb21haW5zUmVxdWVzdBojLmxvY28ub3JnLnYxLkxpc3RPcmdEb21haW5zUmVzcG9uc2USXAoPVmVyaWZ5T3JnRG9tYWluEiMubG9jby5vcmcudjEuVmVyaWZ5T3JnRG9tYWluUmVxdWVzdBokLmxvY28ub3JnLnYxLlZlcmlmeU9yZ0RvbWFpblJlc3BvbnNlEmsKFFNldE9yZ0RvbWFpbkF1dG9Kb2luEigubG9jby5vcmcudjEuU2V0T3JnRG9tYWluQXV0b0pvaW5SZXF1ZXN0GikubG9jby5vcmcudjEuU2V0T3JnRG9tYWluQXV0b0pvaW5SZXNwb25zZRJcCg9EZWxldGVPcmdEb21haW4SIy5sb2NvLm9yZy52MS5EZWxldGVPcmdEb21haW5SZXF1ZXN0GiQubG9jby5vcmcudjEuRGVsZXRlT3JnRG9tYWluUmVzcG9uc2USSgoJR2V0T3JnU1NPEh0ubG9jby5vcmcudjEuR2V0T3JnU1NPUmVxdWVzdBoeLmxvY28ub3JnLnYxLkdldE9yZ1NTT1Jlc3BvbnNlElwKD0NvbmZpZ3VyZU9yZ1NTTxIjLmxvY28ub3JnLnYxLkNvbmZpZ3VyZU9yZ1NTT1JlcXVlc3QaJC5sb2NvLm9yZy52MS5Db25maWd1cmVPcmdTU09SZXNwb25zZRJfChBTZXRPcmdSZXF1aXJlU1NPEiQubG9jby5vcmcudjEuU2V0T3JnUmVxdWlyZVNTT1JlcXVlc3QaJS5sb2NvLm9yZy52MS5TZXRPcmdSZXF1aXJlU1NPUmVzcG9uc2USUwoMRGVsZXRlT3JnU1NPEiAubG9jby5vcmcudjEuRGVsZXRlT3JnU1NPUmVxdWVzdBohLmxvY28ub3JnLnYxLkRlbGV0ZU9yZ1NTT1Jlc3BvbnNlQjRaMmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vb3JnL3YxO29yZ3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp, file_loco_token_v1_token]);
 
 /**
  * Organization represents a top-level organization container for users, workspaces, and resources.
@@ -1219,6 +1219,375 @@ export const DeleteOrgDomainResponseSchema: GenMessage<DeleteOrgDomainResponse, 
   messageDesc(file_loco_org_v1_org, 27);
 
 /**
+ * @generated from message loco.org.v1.ServiceProvider
+ */
+export type ServiceProvider = Message<"loco.org.v1.ServiceProvider"> & {
+  /**
+   * @generated from field: string metadata_url = 1;
+   */
+  metadataUrl: string;
+
+  /**
+   * @generated from field: string acs_url = 2;
+   */
+  acsUrl: string;
+};
+
+/**
+ * @generated from message loco.org.v1.ServiceProvider
+ */
+export type ServiceProviderJson = {
+  /**
+   * @generated from field: string metadata_url = 1;
+   */
+  metadataUrl?: string;
+
+  /**
+   * @generated from field: string acs_url = 2;
+   */
+  acsUrl?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.ServiceProvider.
+ * Use `create(ServiceProviderSchema)` to create a new message.
+ */
+export const ServiceProviderSchema: GenMessage<ServiceProvider, {jsonType: ServiceProviderJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 28);
+
+/**
+ * @generated from message loco.org.v1.OrgSSO
+ */
+export type OrgSSO = Message<"loco.org.v1.OrgSSO"> & {
+  /**
+   * @generated from field: string connection_id = 1;
+   */
+  connectionId: string;
+
+  /**
+   * @generated from field: bool require_sso = 2;
+   */
+  requireSso: boolean;
+
+  /**
+   * @generated from field: repeated string domains = 3;
+   */
+  domains: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 4;
+   */
+  createdAt?: Timestamp | undefined;
+};
+
+/**
+ * @generated from message loco.org.v1.OrgSSO
+ */
+export type OrgSSOJson = {
+  /**
+   * @generated from field: string connection_id = 1;
+   */
+  connectionId?: string;
+
+  /**
+   * @generated from field: bool require_sso = 2;
+   */
+  requireSso?: boolean;
+
+  /**
+   * @generated from field: repeated string domains = 3;
+   */
+  domains?: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 4;
+   */
+  createdAt?: TimestampJson;
+};
+
+/**
+ * Describes the message loco.org.v1.OrgSSO.
+ * Use `create(OrgSSOSchema)` to create a new message.
+ */
+export const OrgSSOSchema: GenMessage<OrgSSO, {jsonType: OrgSSOJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 29);
+
+/**
+ * @generated from message loco.org.v1.GetOrgSSORequest
+ */
+export type GetOrgSSORequest = Message<"loco.org.v1.GetOrgSSORequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+};
+
+/**
+ * @generated from message loco.org.v1.GetOrgSSORequest
+ */
+export type GetOrgSSORequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.GetOrgSSORequest.
+ * Use `create(GetOrgSSORequestSchema)` to create a new message.
+ */
+export const GetOrgSSORequestSchema: GenMessage<GetOrgSSORequest, {jsonType: GetOrgSSORequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 30);
+
+/**
+ * @generated from message loco.org.v1.GetOrgSSOResponse
+ */
+export type GetOrgSSOResponse = Message<"loco.org.v1.GetOrgSSOResponse"> & {
+  /**
+   * @generated from field: bool available = 1;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: loco.org.v1.ServiceProvider service_provider = 2;
+   */
+  serviceProvider?: ServiceProvider | undefined;
+
+  /**
+   * @generated from field: optional loco.org.v1.OrgSSO sso = 3;
+   */
+  sso?: OrgSSO | undefined;
+
+  /**
+   * @generated from field: bool signed_in_with_sso = 4;
+   */
+  signedInWithSso: boolean;
+};
+
+/**
+ * @generated from message loco.org.v1.GetOrgSSOResponse
+ */
+export type GetOrgSSOResponseJson = {
+  /**
+   * @generated from field: bool available = 1;
+   */
+  available?: boolean;
+
+  /**
+   * @generated from field: loco.org.v1.ServiceProvider service_provider = 2;
+   */
+  serviceProvider?: ServiceProviderJson;
+
+  /**
+   * @generated from field: optional loco.org.v1.OrgSSO sso = 3;
+   */
+  sso?: OrgSSOJson;
+
+  /**
+   * @generated from field: bool signed_in_with_sso = 4;
+   */
+  signedInWithSso?: boolean;
+};
+
+/**
+ * Describes the message loco.org.v1.GetOrgSSOResponse.
+ * Use `create(GetOrgSSOResponseSchema)` to create a new message.
+ */
+export const GetOrgSSOResponseSchema: GenMessage<GetOrgSSOResponse, {jsonType: GetOrgSSOResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 31);
+
+/**
+ * @generated from message loco.org.v1.ConfigureOrgSSORequest
+ */
+export type ConfigureOrgSSORequest = Message<"loco.org.v1.ConfigureOrgSSORequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from oneof loco.org.v1.ConfigureOrgSSORequest.metadata
+   */
+  metadata: {
+    /**
+     * @generated from field: string metadata_url = 2;
+     */
+    value: string;
+    case: "metadataUrl";
+  } | {
+    /**
+     * @generated from field: string metadata_xml = 3;
+     */
+    value: string;
+    case: "metadataXml";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * @generated from message loco.org.v1.ConfigureOrgSSORequest
+ */
+export type ConfigureOrgSSORequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string metadata_url = 2;
+   */
+  metadataUrl?: string;
+
+  /**
+   * @generated from field: string metadata_xml = 3;
+   */
+  metadataXml?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.ConfigureOrgSSORequest.
+ * Use `create(ConfigureOrgSSORequestSchema)` to create a new message.
+ */
+export const ConfigureOrgSSORequestSchema: GenMessage<ConfigureOrgSSORequest, {jsonType: ConfigureOrgSSORequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 32);
+
+/**
+ * @generated from message loco.org.v1.ConfigureOrgSSOResponse
+ */
+export type ConfigureOrgSSOResponse = Message<"loco.org.v1.ConfigureOrgSSOResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.OrgSSO sso = 1;
+   */
+  sso?: OrgSSO | undefined;
+};
+
+/**
+ * @generated from message loco.org.v1.ConfigureOrgSSOResponse
+ */
+export type ConfigureOrgSSOResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgSSO sso = 1;
+   */
+  sso?: OrgSSOJson;
+};
+
+/**
+ * Describes the message loco.org.v1.ConfigureOrgSSOResponse.
+ * Use `create(ConfigureOrgSSOResponseSchema)` to create a new message.
+ */
+export const ConfigureOrgSSOResponseSchema: GenMessage<ConfigureOrgSSOResponse, {jsonType: ConfigureOrgSSOResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 33);
+
+/**
+ * @generated from message loco.org.v1.SetOrgRequireSSORequest
+ */
+export type SetOrgRequireSSORequest = Message<"loco.org.v1.SetOrgRequireSSORequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: bool require_sso = 2;
+   */
+  requireSso: boolean;
+};
+
+/**
+ * @generated from message loco.org.v1.SetOrgRequireSSORequest
+ */
+export type SetOrgRequireSSORequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: bool require_sso = 2;
+   */
+  requireSso?: boolean;
+};
+
+/**
+ * Describes the message loco.org.v1.SetOrgRequireSSORequest.
+ * Use `create(SetOrgRequireSSORequestSchema)` to create a new message.
+ */
+export const SetOrgRequireSSORequestSchema: GenMessage<SetOrgRequireSSORequest, {jsonType: SetOrgRequireSSORequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 34);
+
+/**
+ * @generated from message loco.org.v1.SetOrgRequireSSOResponse
+ */
+export type SetOrgRequireSSOResponse = Message<"loco.org.v1.SetOrgRequireSSOResponse"> & {
+  /**
+   * @generated from field: loco.org.v1.OrgSSO sso = 1;
+   */
+  sso?: OrgSSO | undefined;
+};
+
+/**
+ * @generated from message loco.org.v1.SetOrgRequireSSOResponse
+ */
+export type SetOrgRequireSSOResponseJson = {
+  /**
+   * @generated from field: loco.org.v1.OrgSSO sso = 1;
+   */
+  sso?: OrgSSOJson;
+};
+
+/**
+ * Describes the message loco.org.v1.SetOrgRequireSSOResponse.
+ * Use `create(SetOrgRequireSSOResponseSchema)` to create a new message.
+ */
+export const SetOrgRequireSSOResponseSchema: GenMessage<SetOrgRequireSSOResponse, {jsonType: SetOrgRequireSSOResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 35);
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgSSORequest
+ */
+export type DeleteOrgSSORequest = Message<"loco.org.v1.DeleteOrgSSORequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+};
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgSSORequest
+ */
+export type DeleteOrgSSORequestJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+};
+
+/**
+ * Describes the message loco.org.v1.DeleteOrgSSORequest.
+ * Use `create(DeleteOrgSSORequestSchema)` to create a new message.
+ */
+export const DeleteOrgSSORequestSchema: GenMessage<DeleteOrgSSORequest, {jsonType: DeleteOrgSSORequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 36);
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgSSOResponse
+ */
+export type DeleteOrgSSOResponse = Message<"loco.org.v1.DeleteOrgSSOResponse"> & {
+};
+
+/**
+ * @generated from message loco.org.v1.DeleteOrgSSOResponse
+ */
+export type DeleteOrgSSOResponseJson = {
+};
+
+/**
+ * Describes the message loco.org.v1.DeleteOrgSSOResponse.
+ * Use `create(DeleteOrgSSOResponseSchema)` to create a new message.
+ */
+export const DeleteOrgSSOResponseSchema: GenMessage<DeleteOrgSSOResponse, {jsonType: DeleteOrgSSOResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_org_v1_org, 37);
+
+/**
  * OrgService manages organizations.
  *
  * @generated from service loco.org.v1.OrgService
@@ -1333,6 +1702,38 @@ export const OrgService: GenService<{
     methodKind: "unary";
     input: typeof DeleteOrgDomainRequestSchema;
     output: typeof DeleteOrgDomainResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.GetOrgSSO
+   */
+  getOrgSSO: {
+    methodKind: "unary";
+    input: typeof GetOrgSSORequestSchema;
+    output: typeof GetOrgSSOResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.ConfigureOrgSSO
+   */
+  configureOrgSSO: {
+    methodKind: "unary";
+    input: typeof ConfigureOrgSSORequestSchema;
+    output: typeof ConfigureOrgSSOResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.SetOrgRequireSSO
+   */
+  setOrgRequireSSO: {
+    methodKind: "unary";
+    input: typeof SetOrgRequireSSORequestSchema;
+    output: typeof SetOrgRequireSSOResponseSchema;
+  },
+  /**
+   * @generated from rpc loco.org.v1.OrgService.DeleteOrgSSO
+   */
+  deleteOrgSSO: {
+    methodKind: "unary";
+    input: typeof DeleteOrgSSORequestSchema;
+    output: typeof DeleteOrgSSOResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_org_v1_org, 0);

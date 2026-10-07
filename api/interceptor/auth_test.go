@@ -10,7 +10,7 @@ import (
 )
 
 func TestAuthenticateSkipsPublicProcedures(t *testing.T) {
-	i := NewAuthInterceptor(nil, nil, nil)
+	i := NewAuthInterceptor(nil, nil, nil, nil)
 	ctx, err := i.authenticate(t.Context(), oauthv1connect.OAuthServiceRefreshTokenProcedure, http.Header{})
 	if err != nil {
 		t.Fatalf("authenticate public procedure: %v", err)
@@ -21,7 +21,7 @@ func TestAuthenticateSkipsPublicProcedures(t *testing.T) {
 }
 
 func TestAuthenticateRejectsMissingToken(t *testing.T) {
-	i := NewAuthInterceptor(nil, nil, nil)
+	i := NewAuthInterceptor(nil, nil, nil, nil)
 	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, http.Header{})
 	if code := connect.CodeOf(err); code != connect.CodeUnauthenticated {
 		t.Fatalf("code = %v, want Unauthenticated", code)

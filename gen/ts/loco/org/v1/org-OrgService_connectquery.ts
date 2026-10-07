@@ -77,3 +77,23 @@ export const setOrgDomainAutoJoin = OrgService.method.setOrgDomainAutoJoin;
  * @generated from rpc loco.org.v1.OrgService.DeleteOrgDomain
  */
 export const deleteOrgDomain = OrgService.method.deleteOrgDomain;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.GetOrgSSO
+ */
+export const getOrgSSO = OrgService.method.getOrgSSO;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.ConfigureOrgSSO
+ */
+export const configureOrgSSO = OrgService.method.configureOrgSSO;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.SetOrgRequireSSO
+ */
+export const setOrgRequireSSO = OrgService.method.setOrgRequireSSO;
+
+/**
+ * @generated from rpc loco.org.v1.OrgService.DeleteOrgSSO
+ */
+export const deleteOrgSSO = OrgService.method.deleteOrgSSO;

@@ -284,16 +284,17 @@ func (ns NullResourceType) Value() (driver.Value, error) {
 }
 
 type ApiToken struct {
-	ID         uuid.UUID     `json:"id"`
-	TokenHash  string        `json:"tokenHash"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
-	LastUsedAt *time.Time    `json:"lastUsedAt"`
+	ID              uuid.UUID     `json:"id"`
+	TokenHash       string        `json:"tokenHash"`
+	Name            string        `json:"name"`
+	EntityType      EntityType    `json:"entityType"`
+	EntityID        uuid.UUID     `json:"entityId"`
+	Scopes          []EntityScope `json:"scopes"`
+	CreatedBy       uuid.UUID     `json:"createdBy"`
+	SsoConnectionID *string       `json:"ssoConnectionId"`
+	CreatedAt       time.Time     `json:"createdAt"`
+	ExpiresAt       time.Time     `json:"expiresAt"`
+	LastUsedAt      *time.Time    `json:"lastUsedAt"`
 }
 
 type Cluster struct {
@@ -386,6 +387,16 @@ type OrgDomain struct {
 	CreatedAt         time.Time  `json:"createdAt"`
 }
 
+type OrgSso struct {
+	OrgID        uuid.UUID  `json:"orgId"`
+	ConnectionID string     `json:"connectionId"`
+	Issuer       string     `json:"issuer"`
+	RequireSso   bool       `json:"requireSso"`
+	CreatedBy    *uuid.UUID `json:"createdBy"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+}
+
 type Organization struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
@@ -465,6 +476,7 @@ type SessionToken struct {
 	RefreshTokenHash string      `json:"refreshTokenHash"`
 	UserID           uuid.UUID   `json:"userId"`
 	IdentityID       *uuid.UUID  `json:"identityId"`
+	SsoConnectionID  *string     `json:"ssoConnectionId"`
 	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	LastUsedAt       time.Time   `json:"lastUsedAt"`

@@ -30,6 +30,7 @@ type Querier interface {
 	CreateIdentity(ctx context.Context, arg CreateIdentityParams) (Identity, error)
 	CreateOrg(ctx context.Context, arg CreateOrgParams) (Organization, error)
 	CreateOrgDomain(ctx context.Context, arg CreateOrgDomainParams) (OrgDomain, error)
+	CreateOrgSSO(ctx context.Context, arg CreateOrgSSOParams) (OrgSso, error)
 	// Organization queries
 	CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error)
 	CreatePlatformDomain(ctx context.Context, arg CreatePlatformDomainParams) (uuid.UUID, error)
@@ -58,6 +59,7 @@ type Querier interface {
 	DeleteExpiredSessionTokens(ctx context.Context) error
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
 	DeleteOrgDomain(ctx context.Context, arg DeleteOrgDomainParams) (int64, error)
+	DeleteOrgSSO(ctx context.Context, orgID uuid.UUID) (int64, error)
 	DeleteOrganization(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
@@ -88,6 +90,7 @@ type Querier interface {
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
 	GetOrgDomain(ctx context.Context, arg GetOrgDomainParams) (OrgDomain, error)
+	GetOrgSSO(ctx context.Context, orgID uuid.UUID) (OrgSso, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
@@ -144,9 +147,11 @@ type Querier interface {
 	ListResourceRegions(ctx context.Context, resourceID uuid.UUID) ([]ResourceRegion, error)
 	ListResourceRegionsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ResourceRegion, error)
 	ListResourcesForWorkspace(ctx context.Context, arg ListResourcesForWorkspaceParams) ([]Resource, error)
+	ListSSOGatedEntities(ctx context.Context, arg ListSSOGatedEntitiesParams) ([]ListSSOGatedEntitiesRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
 	ListUsersWithVerifiedEmailDomain(ctx context.Context, email *string) ([]uuid.UUID, error)
+	ListVerifiedOrgDomainNames(ctx context.Context, orgID uuid.UUID) ([]string, error)
 	ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error)
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspacesForOrg(ctx context.Context, arg ListWorkspacesForOrgParams) ([]ListWorkspacesForOrgRow, error)
@@ -168,10 +173,12 @@ type Querier interface {
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
+	SSOConnectionCoversDomain(ctx context.Context, arg SSOConnectionCoversDomainParams) (bool, error)
 	SetClusterAgentToken(ctx context.Context, arg SetClusterAgentTokenParams) error
 	SetClusterGatewayHostname(ctx context.Context, arg SetClusterGatewayHostnameParams) error
 	SetClusterObservabilityEndpoint(ctx context.Context, arg SetClusterObservabilityEndpointParams) error
 	SetOrgDomainAutoJoin(ctx context.Context, arg SetOrgDomainAutoJoinParams) (OrgDomain, error)
+	SetOrgRequireSSO(ctx context.Context, arg SetOrgRequireSSOParams) (OrgSso, error)
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	TouchAPITokenLastUsed(ctx context.Context, id uuid.UUID) error

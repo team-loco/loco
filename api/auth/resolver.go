@@ -26,6 +26,10 @@ func NewResolver(pool *pgxpool.Pool, policy SignupPolicy) *Resolver {
 }
 
 func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error) {
+	id, err := r.trustSSOEmail(ctx, id)
+	if err != nil {
+		return genDb.User{}, err
+	}
 	user, err := r.existing(ctx, id)
 	if err == nil {
 		return user, nil
@@ -39,6 +43,28 @@ func (r *Resolver) Resolve(ctx context.Context, id Identity) (genDb.User, error)
 		return r.existing(ctx, id)
 	}
 	return user, err
+}
+
+func (r *Resolver) trustSSOEmail(ctx context.Context, id Identity) (Identity, error) {
+	connection := id.SSOConnection()
+	if connection == nil || !id.EmailVerified {
+		return id, nil
+	}
+	covered, err := r.queries.SSOConnectionCoversDomain(ctx, genDb.SSOConnectionCoversDomainParams{
+		ConnectionID: *connection,
+		Issuer:       id.Issuer,
+		Domain:       emailDomain(id.Email),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check the sso connection's domains", "error", err)
+		return id, ErrResolve
+	}
+	if !covered {
+		slog.WarnContext(ctx, "sso login asserted an email outside its organization's domains",
+			"connection", *connection, "issuer", id.Issuer)
+		id.EmailVerified = false
+	}
+	return id, nil
 }
 
 func (r *Resolver) existing(ctx context.Context, id Identity) (genDb.User, error) {

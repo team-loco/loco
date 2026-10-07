@@ -32,6 +32,11 @@ service OrgService {
   rpc VerifyOrgDomain(VerifyOrgDomainRequest) returns (VerifyOrgDomainResponse);
   rpc SetOrgDomainAutoJoin(SetOrgDomainAutoJoinRequest) returns (SetOrgDomainAutoJoinResponse);
   rpc DeleteOrgDomain(DeleteOrgDomainRequest) returns (DeleteOrgDomainResponse);
+
+  rpc GetOrgSSO(GetOrgSSORequest) returns (GetOrgSSOResponse);
+  rpc ConfigureOrgSSO(ConfigureOrgSSORequest) returns (ConfigureOrgSSOResponse);
+  rpc SetOrgRequireSSO(SetOrgRequireSSORequest) returns (SetOrgRequireSSOResponse);
+  rpc DeleteOrgSSO(DeleteOrgSSORequest) returns (DeleteOrgSSOResponse);
 }
 
 // Organization represents a top-level organization container for users, workspaces, and resources.
@@ -213,3 +218,61 @@ message DeleteOrgDomainRequest {
 }
 
 message DeleteOrgDomainResponse {}
+
+message ServiceProvider {
+  string metadata_url = 1;
+  string acs_url = 2;
+}
+
+message OrgSSO {
+  string connection_id = 1;
+  bool require_sso = 2;
+  repeated string domains = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message GetOrgSSORequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetOrgSSOResponse {
+  bool available = 1;
+  ServiceProvider service_provider = 2;
+  optional OrgSSO sso = 3;
+  bool signed_in_with_sso = 4;
+}
+
+message ConfigureOrgSSORequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  oneof metadata {
+    option (buf.validate.oneof).required = true;
+    string metadata_url = 2 [(buf.validate.field).string = {
+      uri: true
+      prefix: "https://"
+      max_len: 2048
+    }];
+    string metadata_xml = 3 [(buf.validate.field).string = {
+      min_len: 1
+      max_len: 262144
+    }];
+  }
+}
+
+message ConfigureOrgSSOResponse {
+  OrgSSO sso = 1;
+}
+
+message SetOrgRequireSSORequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+  bool require_sso = 2;
+}
+
+message SetOrgRequireSSOResponse {
+  OrgSSO sso = 1;
+}
+
+message DeleteOrgSSORequest {
+  string org_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteOrgSSOResponse {}

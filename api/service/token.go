@@ -127,7 +127,11 @@ func (s *TokenServer) CreateToken(
 	}
 
 	duration := time.Duration(r.GetExpiresInSec()) * time.Second
-	token, err := s.tvm.Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
+	var ssoConnection *string
+	if connection, ok := ctx.Value(contextkeys.SSOConnectionKey).(string); ok {
+		ssoConnection = &connection
+	}
+	token, err := s.tvm.Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration, ssoConnection)
 	if err != nil {
 		if errors.Is(err, tvm.ErrInsufficentPermissions) {
 			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())

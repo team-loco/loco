@@ -21,18 +21,42 @@ type authInterceptor struct {
 	machine  *tvm.VendingMachine
 	verifier *auth.Verifier
 	resolver *auth.Resolver
+	gate     *auth.SSOGate
 }
 
 func NewAuthInterceptor(
 	machine *tvm.VendingMachine,
 	verifier *auth.Verifier,
 	resolver *auth.Resolver,
+	gate *auth.SSOGate,
 ) *authInterceptor {
 	return &authInterceptor{
 		machine:  machine,
 		verifier: verifier,
 		resolver: resolver,
+		gate:     gate,
 	}
+}
+
+func (i *authInterceptor) withCaller(
+	ctx context.Context,
+	entity genDb.Entity,
+	scopes []genDb.EntityScope,
+	connection *string,
+	token string,
+) (context.Context, error) {
+	allowed, err := i.gate.Filter(ctx, scopes, connection)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to apply sso requirements", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve)
+	}
+	c := context.WithValue(ctx, contextkeys.EntityKey, entity)
+	c = context.WithValue(c, contextkeys.EntityScopesKey, allowed)
+	c = context.WithValue(c, contextkeys.TokenKey, token)
+	if connection != nil {
+		c = context.WithValue(c, contextkeys.SSOConnectionKey, *connection)
+	}
+	return c, nil
 }
 
 func extractToken(header http.Header) (string, error) {
@@ -92,29 +116,13 @@ func (i *authInterceptor) authenticate(
 		return i.authenticateProviderToken(ctx, procedure, token)
 	}
 
-	entity, scopes, err := i.machine.GetToken(ctx, token)
+	caller, err := i.machine.Authenticate(ctx, token)
 	if err != nil {
 		slog.WarnContext(ctx, "token rejected", "procedure", procedure, "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 
-	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
-		Type: entity.Type,
-		ID:   entity.ID,
-	})
-	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
-	c = context.WithValue(c, contextkeys.TokenKey, token)
-
-	slog.DebugContext(
-		c,
-		"claims validated; populating ctx",
-		"entityId",
-		entity.ID.String(),
-		"entityType",
-		entity.Type,
-	)
-
-	return c, nil
+	return i.withCaller(ctx, caller.Entity, caller.Scopes, caller.SSOConnection, token)
 }
 
 func (i *authInterceptor) authenticateProviderToken(
@@ -144,14 +152,12 @@ func (i *authInterceptor) authenticateProviderToken(
 		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve)
 	}
 
-	c := context.WithValue(ctx, contextkeys.EntityKey, genDb.Entity{
-		Type: genDb.EntityTypeUser,
-		ID:   user.ID,
-	})
-	c = context.WithValue(c, contextkeys.EntityScopesKey, scopes)
-	c = context.WithValue(c, contextkeys.TokenKey, token)
-	c = context.WithValue(c, contextkeys.IdentityKey, identity)
-	return c, nil
+	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID}
+	c, err := i.withCaller(ctx, entity, scopes, identity.SSOConnection(), token)
+	if err != nil {
+		return nil, err
+	}
+	return context.WithValue(c, contextkeys.IdentityKey, identity), nil
 }
 
 func (i *authInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {

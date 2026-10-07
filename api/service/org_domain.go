@@ -197,6 +197,9 @@ func (s *OrgServer) VerifyOrgDomain(
 		return nil, err
 	}
 	if row.VerifiedAt != nil {
+		if syncErr := s.syncVerifiedDomains(ctx, row.OrgID); syncErr != nil {
+			return nil, syncErr
+		}
 		return connect.NewResponse(&orgv1.VerifyOrgDomainResponse{Domain: orgDomainToProto(row)}), nil
 	}
 	records, lookupErr := s.lookupTXT(ctx, verificationPrefix+row.Domain)
@@ -229,6 +232,9 @@ func (s *OrgServer) VerifyOrgDomain(
 		SubjectID:   new(row.ID),
 		Data:        map[string]any{events.FieldDomain: row.Domain},
 	})
+	if syncErr := s.syncVerifiedDomains(ctx, row.OrgID); syncErr != nil {
+		return nil, syncErr
+	}
 	return connect.NewResponse(&orgv1.VerifyOrgDomainResponse{Domain: orgDomainToProto(verified)}), nil
 }
 
@@ -312,6 +318,11 @@ func (s *OrgServer) DeleteOrgDomain(
 	row, err := s.loadDomain(ctx, req.Msg.GetOrgId(), req.Msg.GetDomainId())
 	if err != nil {
 		return nil, err
+	}
+	if row.VerifiedAt != nil {
+		if ssoErr := s.releaseSSODomain(ctx, row); ssoErr != nil {
+			return nil, ssoErr
+		}
 	}
 	if _, err := s.queries.DeleteOrgDomain(ctx, genDb.DeleteOrgDomainParams{ID: row.ID, OrgID: row.OrgID}); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("%w: %w", ErrDB, err))

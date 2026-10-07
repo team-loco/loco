@@ -23,6 +23,7 @@ func (tvm *VendingMachine) Issue(
 	entity queries.Entity,
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
+	ssoConnection *string,
 ) (string, error) {
 	if duration > tvm.Cfg.MaxAPITokenDuration {
 		return "", ErrDurationExceedsMaxAllowed
@@ -47,7 +48,7 @@ func (tvm *VendingMachine) Issue(
 		}
 	}
 
-	return tvm.issueAPITokenNoCheck(ctx, name, userUUID, entity, entityScopes, duration)
+	return tvm.issueAPITokenNoCheck(ctx, name, userUUID, entity, entityScopes, duration, ssoConnection)
 }
 
 // IssueWithSessionToken issues an API token using a session token for authentication.
@@ -60,14 +61,14 @@ func (tvm *VendingMachine) IssueWithSessionToken(
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
 ) (string, error) {
-	entity2, _, err := tvm.GetToken(ctx, sessionToken)
+	caller, err := tvm.Authenticate(ctx, sessionToken)
 	if err != nil {
 		return "", ErrInvalidExpiredToken
 	}
-	if entity2.Type != queries.EntityTypeUser {
+	if caller.Entity.Type != queries.EntityTypeUser {
 		return "", ErrImproperUsage
 	}
-	return tvm.Issue(ctx, name, entity2.ID.String(), entity, entityScopes, duration)
+	return tvm.Issue(ctx, name, caller.Entity.ID.String(), entity, entityScopes, duration, caller.SSOConnection)
 }
 
 // issueAPITokenNoCheck issues an API token without checking permissions.
@@ -78,18 +79,20 @@ func (tvm *VendingMachine) issueAPITokenNoCheck(
 	entity queries.Entity,
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
+	ssoConnection *string,
 ) (string, error) {
 	token, hash := generateToken(prefixAPIKey)
 
 	if err := tvm.queries.CreateAPIToken(ctx, queries.CreateAPITokenParams{
-		ID:         uuid.Must(uuid.NewV7()),
-		TokenHash:  hash,
-		Name:       name,
-		EntityType: entity.Type,
-		EntityID:   entity.ID,
-		Scopes:     entityScopes,
-		CreatedBy:  createdBy,
-		ExpiresAt:  time.Now().Add(duration),
+		ID:              uuid.Must(uuid.NewV7()),
+		TokenHash:       hash,
+		Name:            name,
+		EntityType:      entity.Type,
+		EntityID:        entity.ID,
+		Scopes:          entityScopes,
+		CreatedBy:       createdBy,
+		ExpiresAt:       time.Now().Add(duration),
+		SsoConnectionID: ssoConnection,
 	}); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {

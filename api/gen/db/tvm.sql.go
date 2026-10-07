@@ -36,19 +36,20 @@ func (q *Queries) AddUserScope(ctx context.Context, arg AddUserScopeParams) erro
 
 const createAPIToken = `-- name: CreateAPIToken :exec
 
-INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at, sso_connection_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateAPITokenParams struct {
-	ID         uuid.UUID     `json:"id"`
-	TokenHash  string        `json:"tokenHash"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
+	ID              uuid.UUID     `json:"id"`
+	TokenHash       string        `json:"tokenHash"`
+	Name            string        `json:"name"`
+	EntityType      EntityType    `json:"entityType"`
+	EntityID        uuid.UUID     `json:"entityId"`
+	Scopes          []EntityScope `json:"scopes"`
+	CreatedBy       uuid.UUID     `json:"createdBy"`
+	ExpiresAt       time.Time     `json:"expiresAt"`
+	SsoConnectionID *string       `json:"ssoConnectionId"`
 }
 
 // -----------------------------------------------------------------------------
@@ -64,14 +65,15 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 		arg.Scopes,
 		arg.CreatedBy,
 		arg.ExpiresAt,
+		arg.SsoConnectionID,
 	)
 	return err
 }
 
 const createSessionToken = `-- name: CreateSessionToken :exec
 
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id, sso_connection_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type CreateSessionTokenParams struct {
@@ -84,6 +86,7 @@ type CreateSessionTokenParams struct {
 	IpAddress        *netip.Addr `json:"ipAddress"`
 	UserAgent        *string     `json:"userAgent"`
 	IdentityID       *uuid.UUID  `json:"identityId"`
+	SsoConnectionID  *string     `json:"ssoConnectionId"`
 }
 
 // -----------------------------------------------------------------------------
@@ -100,6 +103,7 @@ func (q *Queries) CreateSessionToken(ctx context.Context, arg CreateSessionToken
 		arg.IpAddress,
 		arg.UserAgent,
 		arg.IdentityID,
+		arg.SsoConnectionID,
 	)
 	return err
 }
@@ -198,21 +202,22 @@ func (q *Queries) DeleteSessionTokensForIdentity(ctx context.Context, identityID
 }
 
 const getAPIToken = `-- name: GetAPIToken :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, sso_connection_id
 FROM api_tokens
 WHERE token_hash = $1 AND expires_at > NOW()
 `
 
 type GetAPITokenRow struct {
-	ID         uuid.UUID     `json:"id"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
-	LastUsedAt *time.Time    `json:"lastUsedAt"`
+	ID              uuid.UUID     `json:"id"`
+	Name            string        `json:"name"`
+	EntityType      EntityType    `json:"entityType"`
+	EntityID        uuid.UUID     `json:"entityId"`
+	Scopes          []EntityScope `json:"scopes"`
+	CreatedBy       uuid.UUID     `json:"createdBy"`
+	CreatedAt       time.Time     `json:"createdAt"`
+	ExpiresAt       time.Time     `json:"expiresAt"`
+	LastUsedAt      *time.Time    `json:"lastUsedAt"`
+	SsoConnectionID *string       `json:"ssoConnectionId"`
 }
 
 func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error) {
@@ -228,6 +233,7 @@ func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPIToke
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
+		&i.SsoConnectionID,
 	)
 	return i, err
 }
@@ -339,6 +345,7 @@ SELECT
     st.id,
     st.user_id,
     st.last_used_at,
+    st.sso_connection_id,
     COALESCE(
         (
             SELECT JSON_AGG(
@@ -358,10 +365,11 @@ WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW()
 `
 
 type GetSessionWithScopesByAccessTokenRow struct {
-	ID         uuid.UUID `json:"id"`
-	UserID     uuid.UUID `json:"userId"`
-	LastUsedAt time.Time `json:"lastUsedAt"`
-	Scopes     []byte    `json:"scopes"`
+	ID              uuid.UUID `json:"id"`
+	UserID          uuid.UUID `json:"userId"`
+	LastUsedAt      time.Time `json:"lastUsedAt"`
+	SsoConnectionID *string   `json:"ssoConnectionId"`
+	Scopes          []byte    `json:"scopes"`
 }
 
 func (q *Queries) GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error) {
@@ -371,6 +379,7 @@ func (q *Queries) GetSessionWithScopesByAccessToken(ctx context.Context, accessT
 		&i.ID,
 		&i.UserID,
 		&i.LastUsedAt,
+		&i.SsoConnectionID,
 		&i.Scopes,
 	)
 	return i, err

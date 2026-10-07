@@ -49,6 +49,9 @@ const (
 	OrgDomainVerified    = "org_domain.verified"
 	OrgDomainAutoJoin    = "org_domain.auto_join_changed"
 	OrgDomainRemoved     = "org_domain.removed"
+	OrgSSOConfigured     = "org_sso.configured"
+	OrgSSORequireChanged = "org_sso.require_changed"
+	OrgSSORemoved        = "org_sso.removed"
 )
 
 const (
@@ -67,12 +70,14 @@ const (
 	SubjectPlatformDomain = "platform_domain"
 	SubjectToken          = "token"
 	SubjectCluster        = "cluster"
+	SubjectSSOConnection  = "sso_connection"
 )
 
 const (
-	FieldName   = "name"
-	FieldAction = "action"
-	FieldDomain = "domain"
+	FieldName       = "name"
+	FieldAction     = "action"
+	FieldDomain     = "domain"
+	FieldConnection = "connectionId"
 )
 
 type Event struct {

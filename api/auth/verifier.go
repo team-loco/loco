@@ -184,3 +184,15 @@ func mapString(m map[string]any, key string) string {
 	}
 	return s
 }
+
+const MethodSAML = "sso/saml"
+
+func (id Identity) SSOConnection() *string {
+	for _, m := range id.Methods {
+		if m.Method == MethodSAML && m.Provider != "" {
+			provider := m.Provider
+			return &provider
+		}
+	}
+	return nil
+}
