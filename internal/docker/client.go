@@ -184,7 +184,7 @@ func (c *DockerClient) BuildImage(ctx context.Context, logf func(string)) error 
 
 	response, err := c.dockerClient.ImageBuild(ctx, buildContext, options)
 	if err != nil {
-		return fmt.Errorf("build error: %v", err)
+		return fmt.Errorf("build error: %w", err)
 	}
 	defer response.Body.Close()
 
@@ -200,7 +200,7 @@ func (c *DockerClient) PushImage(ctx context.Context, logf func(string), usernam
 
 	encodedJSON, err := json.Marshal(authConfig)
 	if err != nil {
-		return fmt.Errorf("error when encoding authConfig: %v", err)
+		return fmt.Errorf("error when encoding authConfig: %w", err)
 	}
 
 	authStr := base64.URLEncoding.EncodeToString(encodedJSON)
@@ -210,7 +210,7 @@ func (c *DockerClient) PushImage(ctx context.Context, logf func(string), usernam
 	}
 	rc, err := c.dockerClient.ImagePush(ctx, c.ImageName, pushOptions)
 	if err != nil {
-		return fmt.Errorf("error when pushing image: %v", err)
+		return fmt.Errorf("error when pushing image: %w", err)
 	}
 	defer rc.Close()
 

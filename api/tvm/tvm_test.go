@@ -394,7 +394,7 @@ func TestUser1Permissions(t *testing.T) {
 			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -405,7 +405,7 @@ func TestUser1Permissions(t *testing.T) {
 			EntityID:   ws1UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -427,7 +427,7 @@ func TestUser1Permissions(t *testing.T) {
 			EntityID:   user2UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -480,7 +480,7 @@ func TestUser2Permissions(t *testing.T) {
 			EntityID:   ws3UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -491,7 +491,7 @@ func TestUser2Permissions(t *testing.T) {
 			EntityID:   org2UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -513,7 +513,7 @@ func TestUser2Permissions(t *testing.T) {
 			EntityID:   res3UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -555,7 +555,7 @@ func TestUser3Permissions(t *testing.T) {
 			EntityID:   org1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error for org 1 admin, got: %v", err)
 		}
 	})
@@ -588,7 +588,7 @@ func TestUser3Permissions(t *testing.T) {
 			EntityID:   ws3UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -610,7 +610,7 @@ func TestUser3Permissions(t *testing.T) {
 			EntityID:   res3UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -621,7 +621,7 @@ func TestUser3Permissions(t *testing.T) {
 			EntityID:   org2UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -652,7 +652,7 @@ func TestUser4Permissions(t *testing.T) {
 			EntityID:   ws1UUID,
 			Scope:      queries.ScopeWrite,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error for workspace 1 write, got: %v", err)
 		}
 	})
@@ -663,7 +663,7 @@ func TestUser4Permissions(t *testing.T) {
 			EntityID:   ws1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error for workspace 1 admin, got: %v", err)
 		}
 	})
@@ -674,7 +674,7 @@ func TestUser4Permissions(t *testing.T) {
 			EntityID:   ws2UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -685,7 +685,7 @@ func TestUser4Permissions(t *testing.T) {
 			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -707,7 +707,7 @@ func TestUser4Permissions(t *testing.T) {
 			EntityID:   res1UUID,
 			Scope:      queries.ScopeWrite,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error for resource 1 write, got: %v", err)
 		}
 	})
@@ -718,7 +718,7 @@ func TestUser4Permissions(t *testing.T) {
 			EntityID:   res2UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -771,7 +771,7 @@ func TestUser5Permissions(t *testing.T) {
 			EntityID:   ws1UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -782,7 +782,7 @@ func TestUser5Permissions(t *testing.T) {
 			EntityID:   org1UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -793,7 +793,7 @@ func TestUser5Permissions(t *testing.T) {
 			EntityID:   org2UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -804,7 +804,7 @@ func TestUser5Permissions(t *testing.T) {
 			EntityID:   org2UUID,
 			Scope:      queries.ScopeAdmin,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -815,7 +815,7 @@ func TestUser5Permissions(t *testing.T) {
 			EntityID:   org1UUID,
 			Scope:      queries.ScopeAdmin,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})
@@ -859,7 +859,7 @@ func TestUser5Permissions(t *testing.T) {
 			EntityID:   res1UUID,
 			Scope:      queries.ScopeRead,
 		})
-		if err != tvm.ErrInsufficentPermissions {
+		if !errors.Is(err, tvm.ErrInsufficentPermissions) {
 			t.Errorf("expected insufficient permissions error, got: %v", err)
 		}
 	})

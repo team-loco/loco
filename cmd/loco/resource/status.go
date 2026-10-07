@@ -1,7 +1,6 @@
 package resource
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,7 +16,10 @@ import (
 	"github.com/team-loco/loco/internal/httputil"
 	"github.com/team-loco/loco/internal/session"
 	"github.com/team-loco/loco/internal/ui"
+	"google.golang.org/protobuf/encoding/protojson"
 )
+
+var statusJSON = protojson.MarshalOptions{Multiline: true, Indent: "  "}
 
 type statusDeps struct {
 	LoadSessionConfig func() (*session.SessionConfig, error)
@@ -111,9 +113,12 @@ Examples:
 			}
 
 			if output == outputJSON {
-				encoder := json.NewEncoder(deps.Stdout)
-				encoder.SetIndent("", "  ")
-				return encoder.Encode(resp.Msg)
+				out, err := statusJSON.Marshal(resp.Msg)
+				if err != nil {
+					return fmt.Errorf("failed to encode service status: %w", err)
+				}
+				_, err = fmt.Fprintln(deps.Stdout, string(out))
+				return err
 			}
 
 			// Render table view

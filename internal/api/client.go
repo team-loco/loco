@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -55,13 +56,15 @@ func (e *APIError) Error() string {
 	}
 }
 
-func (c *Client) doRequest(method, path string, body io.Reader, headers map[string]string) ([]byte, error) {
-	req, err := http.NewRequest(method, c.BaseURL+path, body)
+func (c *Client) doRequest(
+	ctx context.Context,
+	method, path string,
+	body io.Reader,
+	headers map[string]string,
+) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, body)
 	if err != nil {
-		return nil, &APIError{
-			StatusCode: 0,
-			Body:       fmt.Sprintf("failed to create request: %v", err),
-		}
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	if headers == nil {
@@ -74,10 +77,7 @@ func (c *Client) doRequest(method, path string, body io.Reader, headers map[stri
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, &APIError{
-			StatusCode: 0,
-			Body:       fmt.Sprintf("request failed: %v", err),
-		}
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -99,16 +99,16 @@ func (c *Client) doRequest(method, path string, body io.Reader, headers map[stri
 	return respBody, nil
 }
 
-func (c *Client) Get(path string, headers map[string]string) ([]byte, error) {
-	return c.doRequest(http.MethodGet, path, nil, headers)
+func (c *Client) Get(ctx context.Context, path string, headers map[string]string) ([]byte, error) {
+	return c.doRequest(ctx, http.MethodGet, path, nil, headers)
 }
 
-func (c *Client) Post(path string, body any, headers map[string]string) ([]byte, error) {
+func (c *Client) Post(ctx context.Context, path string, body any, headers map[string]string) ([]byte, error) {
 	buf, err := structToBuffer(body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert request body to buffer: %v", err)
+		return nil, fmt.Errorf("failed to convert request body to buffer: %w", err)
 	}
-	return c.doRequest(http.MethodPost, path, buf, headers)
+	return c.doRequest(ctx, http.MethodPost, path, buf, headers)
 }
 
 func structToBuffer(s any) (*bytes.Buffer, error) {
