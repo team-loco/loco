@@ -77,7 +77,6 @@ type Querier interface {
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
-	GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
@@ -85,6 +84,7 @@ type Querier interface {
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	// todo: eventually remove
 	GetFirstActiveCluster(ctx context.Context) (GetFirstActiveClusterRow, error)
+	GetObservabilityClustersForWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]GetObservabilityClustersForWorkspaceRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgByName(ctx context.Context, name string) (Organization, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (Organization, error)

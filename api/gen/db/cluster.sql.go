@@ -116,32 +116,46 @@ func (q *Queries) GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterB
 	return i, err
 }
 
-const getClustersByWorkspaceDeployments = `-- name: GetClustersByWorkspaceDeployments :many
-SELECT DISTINCT c.id, c.name, c.region, c.observability_proxy_endpoint
+const getObservabilityClustersForWorkspace = `-- name: GetObservabilityClustersForWorkspace :many
+SELECT c.id, c.name, c.region, c.observability_proxy_endpoint
 FROM clusters c
-INNER JOIN deployments d ON d.cluster_id = c.id
-INNER JOIN resources r ON r.id = d.resource_id
-WHERE r.workspace_id = $1
-  AND c.is_active = true
-  AND d.is_active = true
+WHERE c.is_active = true
+  AND (
+    EXISTS (
+      SELECT 1
+      FROM deployments d
+      INNER JOIN resources r ON r.id = d.resource_id
+      WHERE d.cluster_id = c.id
+        AND d.is_active = true
+        AND r.workspace_id = $1
+    )
+    OR EXISTS (
+      SELECT 1
+      FROM builds b
+      INNER JOIN resources r ON r.id = b.resource_id
+      WHERE b.cluster_id = c.id
+        AND r.workspace_id = $1
+    )
+  )
+ORDER BY c.region, c.id
 `
 
-type GetClustersByWorkspaceDeploymentsRow struct {
+type GetObservabilityClustersForWorkspaceRow struct {
 	ID                         uuid.UUID `json:"id"`
 	Name                       string    `json:"name"`
 	Region                     string    `json:"region"`
 	ObservabilityProxyEndpoint *string   `json:"observabilityProxyEndpoint"`
 }
 
-func (q *Queries) GetClustersByWorkspaceDeployments(ctx context.Context, workspaceID uuid.UUID) ([]GetClustersByWorkspaceDeploymentsRow, error) {
-	rows, err := q.db.Query(ctx, getClustersByWorkspaceDeployments, workspaceID)
+func (q *Queries) GetObservabilityClustersForWorkspace(ctx context.Context, workspaceID uuid.UUID) ([]GetObservabilityClustersForWorkspaceRow, error) {
+	rows, err := q.db.Query(ctx, getObservabilityClustersForWorkspace, workspaceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetClustersByWorkspaceDeploymentsRow
+	var items []GetObservabilityClustersForWorkspaceRow
 	for rows.Next() {
-		var i GetClustersByWorkspaceDeploymentsRow
+		var i GetObservabilityClustersForWorkspaceRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
