@@ -27,6 +27,7 @@ var (
 
 	errNameRequired       = errors.New("name is required")
 	errEntityTypeRequired = errors.New("entity_type is required")
+	errCheckPermission    = errors.New("failed to check permission")
 )
 
 // TokenServer implements the TokenService gRPC server
@@ -447,8 +448,12 @@ func (s *TokenServer) CheckPermission(
 	}
 
 	_, scopes, err := s.tvm.GetToken(ctx, r.GetToken())
-	if err != nil {
+	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return connect.NewResponse(&tokenv1.CheckPermissionResponse{Allowed: false}), nil
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to resolve token for permission check", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, errCheckPermission)
 	}
 
 	allowed := s.tvm.VerifyWithGivenEntityScopes(ctx, scopes, genDb.EntityScope{

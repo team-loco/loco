@@ -120,7 +120,7 @@ func newLoginCmd(env Env) *cobra.Command {
 				Scope:    "read:user user:email",
 			}
 
-			req, err := c.Post("/login/device/code", payload, map[string]string{
+			req, err := c.Post(ctx, "/login/device/code", payload, map[string]string{
 				"Accept":       contentTypeJSON,
 				"Content-Type": contentTypeJSON,
 			})
@@ -404,7 +404,7 @@ func pollAuthToken(
 		case <-wait:
 		}
 
-		resp, err := c.Post("/login/oauth/access_token", authTokenRequest, headers)
+		resp, err := c.Post(ctx, "/login/oauth/access_token", authTokenRequest, headers)
 		if err != nil {
 			apiError, ok := errors.AsType[*api.APIError](err)
 			if !ok {

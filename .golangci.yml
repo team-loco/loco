@@ -38,6 +38,7 @@ linters:
     - dupl
     - durationcheck
     - errchkjson
+    - errorlint
     - exptostd
     - fatcontext
     - ginkgolinter
@@ -50,8 +51,12 @@ linters:
     - makezero
     - mirror
     - misspell
+    - musttag
     - nakedret
+    - nilerr
     - nilnesserr
+    - noctx
+    - nolintlint
     - nosprintfhostport
     - prealloc
     - predeclared
@@ -98,6 +103,9 @@ linters:
 
     misspell:
       locale: US
+
+    nolintlint:
+      require-specific: true
 
     revive:
       rules:

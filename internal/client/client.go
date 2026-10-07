@@ -1,15 +1,11 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
-
-	json "github.com/goccy/go-json"
 
 	"connectrpc.com/connect"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -348,62 +344,4 @@ func (c *Client) GetEvents(ctx context.Context, appID string, limit *int32) ([]*
 	}
 
 	return resp.Msg.Events, nil
-}
-
-// APIError represents an HTTP API error
-type APIError struct {
-	Body       string
-	RequestID  string
-	StatusCode int
-}
-
-func (e *APIError) Error() string {
-	if e.StatusCode == 0 {
-		return e.Body
-	}
-
-	var msg string
-	var payload map[string]string
-	if err := json.Unmarshal([]byte(e.Body), &payload); err == nil {
-		msg = payload["message"]
-	}
-	if msg == "" {
-		msg = e.Body
-	}
-
-	return fmt.Sprintf("HTTP %d: %s", e.StatusCode, msg)
-}
-
-// Post makes a POST request (for OAuth flow)
-func (c *Client) Post(path string, payload any, headers map[string]string) ([]byte, error) {
-	jsonData, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload: %w", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, c.host+path, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, &APIError{Body: fmt.Sprintf("failed to create request: %v", err)}
-	}
-
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, &APIError{Body: fmt.Sprintf("request failed: %v", err)}
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, &APIError{Body: fmt.Sprintf("failed to read response: %v", err)}
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
-	}
-
-	return body, nil
 }
