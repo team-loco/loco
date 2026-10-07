@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -96,12 +98,24 @@ func (s *AgentServer) Register(
 	agentVersion := r.GetAgentVersion()
 	cpuCores := r.GetCapacity().GetCpuMillicoresTotal()
 	memBytes := r.GetCapacity().GetMemoryBytesTotal()
-	err = s.queries.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
-		ID:                    cluster.ID,
-		AgentVersion:          &agentVersion,
-		CapacityCpuMillicores: &cpuCores,
-		CapacityMemoryBytes:   &memBytes,
-		BuildsEnabled:         r.GetBuildsEnabled(),
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if updateErr := qtx.UpdateClusterAgentInfo(ctx, genDb.UpdateClusterAgentInfoParams{
+			ID:                    cluster.ID,
+			AgentVersion:          &agentVersion,
+			CapacityCpuMillicores: &cpuCores,
+			CapacityMemoryBytes:   &memBytes,
+			BuildsEnabled:         r.GetBuildsEnabled(),
+		}); updateErr != nil {
+			return updateErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.ClusterRegistered,
+			ActorType:   "agent",
+			ActorID:     new(cluster.ID),
+			SubjectType: events.SubjectCluster,
+			SubjectID:   new(cluster.ID),
+			Data:        map[string]any{events.FieldName: cluster.Name},
+		})
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update cluster agent info", "error", err, "cluster_id", cluster.ID)

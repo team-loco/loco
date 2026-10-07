@@ -1,9 +1,12 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -16,6 +19,14 @@ var (
 	errDatabase             = errors.New("database error")
 	errCloneServiceSpec     = errors.New("failed to clone service spec")
 )
+
+func txError(ctx context.Context, msg string, err error) error {
+	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
+		return connectErr
+	}
+	slog.ErrorContext(ctx, msg, "error", err)
+	return connect.NewError(connect.CodeInternal, ErrDB)
+}
 
 // isPgConstraintViolation checks if an error is a PostgreSQL unique constraint violation
 func isPgConstraintViolation(err error) bool {

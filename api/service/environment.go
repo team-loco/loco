@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -68,19 +70,32 @@ func (s *EnvironmentServer) CreateEnvironment(
 	envType := protoEnvTypeToString(r.GetType())
 
 	desc := r.GetDescription()
-	env, err := s.queries.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
-		WorkspaceID:     workspaceID,
-		Name:            r.GetName(),
-		Description:     &desc,
-		EnvironmentType: envType,
-		CreatedBy:       entity.ID,
+	var env genDb.Environment
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		created, createErr := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
+			WorkspaceID:     workspaceID,
+			Name:            r.GetName(),
+			Description:     &desc,
+			EnvironmentType: envType,
+			CreatedBy:       entity.ID,
+		})
+		if isPgConstraintViolation(createErr) {
+			return connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
+		}
+		if createErr != nil {
+			return createErr
+		}
+		env = created
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.EnvironmentCreated,
+			WorkspaceID: new(workspaceID),
+			SubjectType: events.SubjectEnvironment,
+			SubjectID:   new(env.ID),
+			Data:        map[string]any{events.FieldName: env.Name},
+		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to create environment", "error", err)
-		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
-		}
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to create environment", err)
 	}
 
 	return connect.NewResponse(&environmentv1.CreateEnvironmentResponse{
@@ -208,18 +223,28 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		envType = protoEnvTypeToString(r.GetType())
 	}
 
-	_, err = s.queries.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
-		ID:              envID,
-		Name:            name,
-		Description:     description,
-		EnvironmentType: envType,
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		_, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
+			ID:              envID,
+			Name:            name,
+			Description:     description,
+			EnvironmentType: envType,
+		})
+		if isPgConstraintViolation(updateErr) {
+			return connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
+		}
+		if updateErr != nil {
+			return updateErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.EnvironmentUpdated,
+			WorkspaceID: new(existing.WorkspaceID),
+			SubjectType: events.SubjectEnvironment,
+			SubjectID:   new(envID),
+		})
 	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to update environment", "error", err)
-		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrEnvironmentNameNotUnique)
-		}
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to update environment", err)
 	}
 
 	return connect.NewResponse(&environmentv1.UpdateEnvironmentResponse{
@@ -274,9 +299,19 @@ func (s *EnvironmentServer) DeleteEnvironment(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrEnvironmentInUse)
 	}
 
-	if err := s.queries.DeleteEnvironment(ctx, envID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete environment", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if deleteErr := qtx.DeleteEnvironment(ctx, envID); deleteErr != nil {
+			return deleteErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.EnvironmentDeleted,
+			WorkspaceID: new(existing.WorkspaceID),
+			SubjectType: events.SubjectEnvironment,
+			SubjectID:   new(envID),
+		})
+	})
+	if err != nil {
+		return nil, txError(ctx, "failed to delete environment", err)
 	}
 
 	return connect.NewResponse(&environmentv1.DeleteEnvironmentResponse{}), nil

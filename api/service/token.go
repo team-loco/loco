@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -125,7 +127,16 @@ func (s *TokenServer) CreateToken(
 	}
 
 	duration := time.Duration(r.GetExpiresInSec()) * time.Second
-	token, err := s.tvm.Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
+	var token string
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var issueErr error
+		token, issueErr = s.tvm.WithQueries(qtx).
+			Issue(ctx, r.GetName(), entity.ID.String(), targetEntity, dbScopes, duration)
+		if issueErr != nil {
+			return issueErr
+		}
+		return events.Record(ctx, qtx, tokenEvent(events.TokenCreated, targetEntity, r.GetName()))
+	})
 	if err != nil {
 		if errors.Is(err, tvm.ErrInsufficentPermissions) {
 			slog.WarnContext(ctx, "user lacks permissions for requested scopes", "user_id", entity.ID.String())
@@ -378,10 +389,15 @@ func (s *TokenServer) RevokeToken(
 		)
 	}
 
-	if err := s.queries.DeleteAPITokenByNameAndEntity(ctx, genDb.DeleteAPITokenByNameAndEntityParams{
-		Name:       r.GetName(),
-		EntityType: targetEntity.Type,
-		EntityID:   targetEntity.ID,
+	if err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if deleteErr := qtx.DeleteAPITokenByNameAndEntity(ctx, genDb.DeleteAPITokenByNameAndEntityParams{
+			Name:       r.GetName(),
+			EntityType: targetEntity.Type,
+			EntityID:   targetEntity.ID,
+		}); deleteErr != nil {
+			return deleteErr
+		}
+		return events.Record(ctx, qtx, tokenEvent(events.TokenRevoked, targetEntity, r.GetName()))
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete token", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("failed to revoke token"))
@@ -559,4 +575,27 @@ func dbScopeToProto(s genDb.Scope) tokenv1.Scope {
 	default:
 		return tokenv1.Scope_SCOPE_UNSPECIFIED
 	}
+}
+
+func tokenEvent(eventType string, target genDb.Entity, name string) events.Event {
+	ev := events.Event{
+		Type:        eventType,
+		SubjectType: events.SubjectToken,
+		Data: map[string]any{
+			events.FieldName: name,
+			"entityType":     string(target.Type),
+			"entityId":       target.ID.String(),
+		},
+	}
+	switch target.Type {
+	case genDb.EntityTypeOrganization:
+		ev.OrgID = new(target.ID)
+	case genDb.EntityTypeWorkspace:
+		ev.WorkspaceID = new(target.ID)
+	case genDb.EntityTypeResource:
+		ev.ResourceID = new(target.ID)
+	case genDb.EntityTypeUser:
+	case genDb.EntityTypeSystem:
+	}
+	return ev
 }

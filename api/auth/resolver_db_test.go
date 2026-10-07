@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -442,5 +443,27 @@ func TestResolveProviderConfirmedEmailChangeMovesTheAccountEmail(t *testing.T) {
 	}
 	if confirmed.ID != user.ID || confirmed.Email != newAccountEmail {
 		t.Fatalf("resolved user = %s %s, want %s %s", confirmed.ID, confirmed.Email, user.ID, newAccountEmail)
+	}
+}
+
+func TestResolveRecordsTheAccountEmailMove(t *testing.T) {
+	pool := authtest.NewPool(t)
+	r := NewResolver(pool, open(t))
+
+	user, err := r.Resolve(t.Context(), identity("mover", oldAccountEmail, true))
+	if err != nil {
+		t.Fatalf("signup: %v", err)
+	}
+	if _, moveErr := r.Resolve(t.Context(), identity("mover", newAccountEmail, true)); moveErr != nil {
+		t.Fatalf("sign-in with a changed email: %v", moveErr)
+	}
+	var recorded int
+	if err := pool.QueryRow(t.Context(),
+		`SELECT COUNT(*) FROM events WHERE type = $1 AND subject_id = $2 AND data->>'email' = $3`,
+		events.UserUpdated, user.ID, newAccountEmail).Scan(&recorded); err != nil {
+		t.Fatalf("count events: %v", err)
+	}
+	if recorded != 1 {
+		t.Fatalf("account email change events = %d, want 1", recorded)
 	}
 }

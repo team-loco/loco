@@ -332,6 +332,15 @@ var (
 	}
 
 	// Token management actions are dynamically defined.
+
+	ListOrgEvents = Action{
+		entityType: db.EntityTypeOrganization,
+		scope:      db.ScopeAdmin,
+	}
+	StreamEvents = Action{
+		entityType: db.EntityTypeSystem,
+		scope:      db.ScopeAdmin,
+	}
 )
 
 func New(a Action, entityID string) db.EntityScope {

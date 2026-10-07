@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/events"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -140,6 +142,16 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
+	if err := events.Record(ctx, qtx, events.Event{
+		Type:        events.OrgCreated,
+		OrgID:       new(org.ID),
+		SubjectType: events.SubjectOrg,
+		SubjectID:   new(org.ID),
+		Data:        map[string]any{events.FieldName: org.Name},
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to record org creation", "error", err)
+		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		slog.ErrorContext(ctx, "failed to commit organization creation", "error", err)
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
@@ -296,9 +308,8 @@ func (s *OrgServer) UpdateOrg(
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
+	orgID := uuid.MustParse(r.GetOrgId())
 	if r.GetName() != "" {
-		orgID := uuid.MustParse(r.GetOrgId())
-
 		isUnique, err := s.queries.IsOrgNameUnique(ctx, genDb.IsOrgNameUniqueParams{
 			Name:      r.GetName(),
 			ExcludeID: &orgID,
@@ -312,21 +323,33 @@ func (s *OrgServer) UpdateOrg(
 			slog.WarnContext(ctx, "org name already exists", "name", r.GetName())
 			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
 		}
+	}
 
-		_, err = s.queries.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
-			ID:   orgID,
-			Name: r.GetName(),
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if r.GetName() != "" {
+			_, updateErr := qtx.UpdateOrgName(ctx, genDb.UpdateOrgNameParams{
+				ID:   orgID,
+				Name: r.GetName(),
+			})
+			if isPgConstraintViolation(updateErr) {
+				return connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
+			}
+			if errors.Is(updateErr, pgx.ErrNoRows) {
+				return connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
+			}
+			if updateErr != nil {
+				return updateErr
+			}
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.OrgUpdated,
+			OrgID:       new(orgID),
+			SubjectType: events.SubjectOrg,
+			SubjectID:   new(orgID),
 		})
-		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrOrgNameNotUnique)
-		}
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, connect.NewError(connect.CodeNotFound, ErrOrgNotFound)
-		}
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update org", "error", err)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
-		}
+	})
+	if err != nil {
+		return nil, txError(ctx, "failed to update org", err)
 	}
 
 	return connect.NewResponse(&orgv1.UpdateOrgResponse{
@@ -369,10 +392,19 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, ErrOrgHasWorkspacesWithResources)
 	}
 
-	err = s.queries.DeleteOrg(ctx, orgID)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if deleteErr := qtx.DeleteOrg(ctx, orgID); deleteErr != nil {
+			return deleteErr
+		}
+		return events.Record(ctx, qtx, events.Event{
+			Type:        events.OrgDeleted,
+			OrgID:       new(orgID),
+			SubjectType: events.SubjectOrg,
+			SubjectID:   new(orgID),
+		})
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to delete org", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
+		return nil, txError(ctx, "failed to delete org", err)
 	}
 
 	return connect.NewResponse(&orgv1.DeleteOrgResponse{}), nil
