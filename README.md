@@ -7,7 +7,7 @@ Loco is a container orchestration platform that simplifies application deploymen
 ## Features
 
 - **Simple deployments** - Expose your app to the internet with just `loco deploy`!
-- **Simple Configuration** - Configure all app settings with a `loco.toml` file. A sample spec with sensible defaults can be generated via `loco init`.
+- **Go infrastructure** - Define an environment’s services, regions, routing and secret references in `.loco/main.go`.
 - **HTTPS by default** - Automatic SSL certificate management, powered by Let's Encrypt and Certificate Manager.
 - **Fast and Secure** - Envoy Gateway API serves HTTP3 traffic, handles TLS termination, and routing.
 
@@ -26,8 +26,8 @@ If `~/.local/bin` is not already on your `PATH`, the installer prints the comman
 Run `loco update` to replace the installed binary with the latest release.
 
 2. **Log in with `loco login`.** It uses the GitHub device flow.
-3. **Run `loco init` to create a `loco.toml` file**, and `loco validate` to check it.
-4. **Deploy your app via `loco deploy <app-name>`**
+3. **Run `loco init` to create `.loco/main.go` and its Go module.** Run `cd .loco && go mod tidy`, then `loco validate` from your application directory.
+4. **Deploy with `loco deploy --workspace <workspace> --environment <environment>`.** Select one service with `loco deploy <service-key>`.
 
 Apps run under Kubernetes' `restricted` Pod Security profile, so the image must run as a numeric non-root user (for example `USER 10001` in the Dockerfile).
 
@@ -43,9 +43,11 @@ loco completion zsh
 
 ## Examples
 
-Every `loco.toml` field, with its default and whether it is required: [`examples/loco_example.toml`](./examples/loco_example.toml)
+Authoring, context, plan/apply, secrets and Git workflows: [Go infrastructure guide](./docs/go-infrastructure.md).
 
-Deployable sample apps, each with its own `loco.toml`:
+Architecture, repository audit and implementation plan: [HTML TDD](./docs/tdd/go-infrastructure-as-code.html).
+
+Deployable sample apps with Go infrastructure definitions:
 
 - [`examples/test-api`](./examples/test-api/): a `backend`, `auth` and `frontend` service
 - [`examples/metrics-validation`](./examples/metrics-validation/): generates CPU, memory, network and disk load to check metrics
@@ -97,7 +99,7 @@ That installs the pinned tools, the web dependencies and the git hooks, then run
 
 Builds, tests, code generation, linting and the local environment are mise tasks, which CI and the hooks run as well. `mise tasks` lists them.
 
-Copy `.env.example` to `.env` and fill in the GitHub OAuth app and GitLab registry credentials. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
+Copy `.env.example` to `.env` and fill in the GitHub OAuth app and GitLab registry credentials. Generate `INFRA_ENCRYPTION_KEY` with `openssl rand -base64 32`; keep the same key across API replicas and retain it with database backups. `mise run tilt` then brings up the local environment, with the API on `http://localhost:8000` and the web UI on `http://localhost:5173`. The CLI talks to `https://api.loco.build`, and `loco web` opens `https://loco.build`, unless told otherwise. `loco login --host` saves the host it logged in to, and later commands use it; the session belongs to that host, so switching back to production means logging in there again:
 
 ```bash
 mise run build
