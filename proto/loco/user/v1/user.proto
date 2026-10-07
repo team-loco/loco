@@ -10,8 +10,6 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/user/v1;userv1";
 
 // UserService manages user accounts and operations.
 service UserService {
-  // CreateUser creates a new user account.
-  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
   // GetUser retrieves a user by ID or email.
   rpc GetUser(GetUserRequest) returns (GetUserResponse);
   // WhoAmI retrieves the current authenticated user.
@@ -28,26 +26,15 @@ service UserService {
 
 // User represents a user account with OAuth identity and profile information.
 message User {
+  reserved 2;
+  reserved "external_id";
+
   string id = 1;
-  string external_id = 2;
   string email = 3;
   string avatar_url = 4;
   string name = 5;
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
-}
-
-// CreateUserRequest is the request to create a new user.
-message CreateUserRequest {
-  string external_id = 1 [(buf.validate.field).string.min_len = 1];
-  string email = 2 [(buf.validate.field).string.email = true];
-  optional string name = 3 [(buf.validate.field).string.max_len = 200];
-  optional string avatar_url = 4 [(buf.validate.field).string.uri = true];
-}
-
-// CreateUserResponse is the response containing the created user ID.
-message CreateUserResponse {
-  string user_id = 1;
 }
 
 // GetUserRequest is the request to retrieve a user.

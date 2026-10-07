@@ -87,7 +87,6 @@ func renderCardString(usr *userv1.User, currentOrg, currentWorkspace string) str
 
 	rows := []string{
 		row("Email", usr.GetEmail()),
-		row("External ID", usr.GetExternalId()),
 		row("Context", fmt.Sprintf("%s/%s", currentOrg, currentWorkspace)),
 	}
 

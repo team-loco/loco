@@ -1,8 +1,7 @@
 -- Test user
-INSERT INTO users (id, external_id, email, name)
+INSERT INTO users (id, email, name)
 VALUES (
     '00000000-0000-7000-8000-000000000001',
-    'github:e2e-test-user',
     'e2e@test.local',
     'E2E Test User'
 ) ON CONFLICT DO NOTHING;

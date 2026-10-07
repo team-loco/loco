@@ -44,11 +44,6 @@ sql:
               import: ""
               type: "Scope"
 
-          - column: "user_with_scopes_view.scopes"
-            go_type:
-              import: ""
-              type: "[]EntityScope"
-
           - column: "api_tokens.scopes"
             go_type:
               import: ""

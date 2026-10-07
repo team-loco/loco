@@ -76,7 +76,7 @@ func newDeployFixture(t *testing.T) *deployFixture {
 	agentTokenHash := hashToken(testAgentToken)
 	row := pool.QueryRow(ctx, `
 WITH u AS (
-    INSERT INTO users (external_id, email) VALUES ('github:test', 'test@example.com') RETURNING id
+    INSERT INTO users (email) VALUES ('test@example.com') RETURNING id
 ), o AS (
     INSERT INTO organizations (name, created_by) SELECT 'org', id FROM u RETURNING id
 ), w AS (

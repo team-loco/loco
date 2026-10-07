@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -127,17 +126,18 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 	}
 }
 
-func (tq *TestingQueries) GetUserByExternalID(ctx context.Context, externalID string) (queries.User, error) {
-	email, ok := strings.CutPrefix(externalID, "github:")
-	if !ok {
+func (tq *TestingQueries) GetUserByIdentity(
+	ctx context.Context,
+	params queries.GetUserByIdentityParams,
+) (queries.User, error) {
+	if params.Issuer != providers.GithubIssuer || params.Subject == "" {
 		return queries.User{}, pgx.ErrNoRows
 	}
-	user, err := tq.GetUserByEmail(ctx, email+"@loco-testing.com")
-	if err != nil {
-		return queries.User{}, err
-	}
-	user.ExternalID = externalID
-	return user, nil
+	return tq.GetUserByEmail(ctx, params.Subject+"@loco-testing.com")
+}
+
+func (*TestingQueries) TouchIdentity(_ context.Context, _ queries.TouchIdentityParams) error {
+	return nil
 }
 
 func (tq *TestingQueries) UpdateUserEmail(
@@ -353,21 +353,21 @@ func (*TestingQueries) DeleteAPITokenByNameAndEntity(
 func TestingGithubProvider(_ context.Context, token string) providers.EmailResponse {
 	switch token {
 	case "github-token-user1":
-		return providers.NewEmailResponse("github:user1", "user1@loco-testing.com", nil)
+		return providers.NewEmailResponse(providers.GithubIssuer, "user1", "user1@loco-testing.com", true, nil)
 	case "github-token-user2":
-		return providers.NewEmailResponse("github:user2", "user2@loco-testing.com", nil)
+		return providers.NewEmailResponse(providers.GithubIssuer, "user2", "user2@loco-testing.com", true, nil)
 	case "github-token-user3":
-		return providers.NewEmailResponse("github:user3", "user3@loco-testing.com", nil)
+		return providers.NewEmailResponse(providers.GithubIssuer, "user3", "user3@loco-testing.com", true, nil)
 	case "github-token-user4":
-		return providers.NewEmailResponse("github:user4", "user4@loco-testing.com", nil)
+		return providers.NewEmailResponse(providers.GithubIssuer, "user4", "user4@loco-testing.com", true, nil)
 	case "github-token-user5":
-		return providers.NewEmailResponse("github:user5", "user5@loco-testing.com", nil)
+		return providers.NewEmailResponse(providers.GithubIssuer, "user5", "user5@loco-testing.com", true, nil)
 	case "github-token-unknown":
-		return providers.NewEmailResponse("github:unknown", "unknown@loco-testing.com", nil)
+		return providers.NewEmailResponse(providers.GithubIssuer, "unknown", "unknown@loco-testing.com", true, nil)
 	case "github-token-db-error":
-		return providers.NewEmailResponse("github:db-error", dbErrorEmail, nil)
+		return providers.NewEmailResponse(providers.GithubIssuer, "db-error", dbErrorEmail, true, nil)
 	}
-	return providers.NewEmailResponse("", "", tvm.ErrUserNotFound)
+	return providers.NewEmailResponse(providers.GithubIssuer, "", "", false, tvm.ErrUserNotFound)
 }
 
 func testConfig() tvm.Config {
@@ -888,10 +888,10 @@ func TestExchangeUserLookupFailure(t *testing.T) {
 	}
 }
 
-func TestExchangeMatchesByExternalIDAndSyncsEmail(t *testing.T) {
+func TestExchangeMatchesByIdentityAndSyncsEmail(t *testing.T) {
 	tq := newTestingQueries()
 	machine := tvm.NewVendingMachine(nil, tq, testConfig())
-	identity := providers.NewEmailResponse("github:user1", "renamed@loco-testing.com", nil)
+	identity := providers.NewEmailResponse(providers.GithubIssuer, "user1", "renamed@loco-testing.com", true, nil)
 
 	user, _, _, err := machine.Exchange(t.Context(), identity, "", "")
 	if err != nil {

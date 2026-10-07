@@ -73,35 +73,6 @@ func logRequestID(ctx context.Context, err error, msg string) {
 	slog.ErrorContext(ctx, msg, requestIDHeaderName, headerValue, "error", err)
 }
 
-func (c *Client) CreateUser(ctx context.Context, externalID, email, avatarURL string) (*userv1.User, error) {
-	req := connect.NewRequest(&userv1.CreateUserRequest{
-		ExternalId: externalID,
-		Email:      email,
-		AvatarUrl:  &avatarURL,
-	})
-	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	resp, err := c.User.CreateUser(ctx, req)
-	if err != nil {
-		logRequestID(ctx, err, "failed to create user")
-		return nil, err
-	}
-
-	// CreateUser now returns only the user ID, so we need to fetch the full user
-	getReq := connect.NewRequest(&userv1.GetUserRequest{
-		Key: &userv1.GetUserRequest_UserId{UserId: resp.Msg.GetUserId()},
-	})
-	getReq.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	getResp, err := c.User.GetUser(ctx, getReq)
-	if err != nil {
-		logRequestID(ctx, err, "failed to get created user")
-		return nil, err
-	}
-
-	return getResp.Msg.GetUser(), nil
-}
-
 func (c *Client) GetCurrentUser(ctx context.Context) (*userv1.User, error) {
 	req := connect.NewRequest(&userv1.WhoAmIRequest{})
 	req.Header().Set("Authorization", fmt.Sprintf("Bearer %s", c.token))

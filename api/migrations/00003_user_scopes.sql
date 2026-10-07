@@ -59,31 +59,8 @@ CREATE INDEX api_tokens_entity_idx ON api_tokens (entity_type, entity_id);
 CREATE INDEX api_tokens_expires_idx ON api_tokens (expires_at);
 CREATE INDEX api_tokens_created_by_idx ON api_tokens (created_by);
 
-CREATE VIEW user_with_scopes_view AS
-SELECT
-    u.id,
-    u.external_id,
-    u.email,
-    u.name,
-    u.avatar_url,
-    u.created_at,
-    u.updated_at,
-    COALESCE(
-        JSON_AGG(
-            JSON_BUILD_OBJECT(
-                'scope', us.scope,
-                'entity_type', us.entity_type,
-                'entity_id', us.entity_id
-            )
-        ) FILTER (WHERE us.user_id IS NOT NULL),
-        '[]'
-    ) AS scopes
-FROM users u
-LEFT JOIN user_scopes us ON u.id = us.user_id
-GROUP BY u.id, u.external_id, u.email, u.name, u.avatar_url, u.created_at, u.updated_at;
 
 -- +goose Down
-DROP VIEW IF EXISTS user_with_scopes_view;
 DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS session_tokens;
 DROP TABLE IF EXISTS user_scopes;

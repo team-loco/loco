@@ -44,92 +44,6 @@ func NewUserServer(
 	return &UserServer{db: db, queries: queries, tvm: vendingMachine, secureCookies: secureCookies}
 }
 
-// CreateUser handles user creation with auto-org and workspace setup
-func (s *UserServer) CreateUser(
-	ctx context.Context,
-	req *connect.Request[userv1.CreateUserRequest],
-) (*connect.Response[userv1.CreateUserResponse], error) {
-	r := req.Msg
-
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to begin transaction", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-	defer tx.Rollback(ctx)
-
-	existingUserByEmail, err := s.queries.GetUserByEmail(ctx, r.GetEmail())
-	if err == nil {
-		if existingUserByEmail.ExternalID == r.GetExternalId() {
-			if commitErr := tx.Commit(ctx); commitErr != nil {
-				return nil, connect.NewError(connect.CodeInternal, ErrDB)
-			}
-			return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByEmail.ID.String()}), nil
-		}
-
-		slog.WarnContext(ctx, "email already registered with different provider", "email", r.GetEmail())
-		return nil, connect.NewError(connect.CodeAlreadyExists, ErrEmailAlreadyRegistered)
-	}
-
-	existingUserByExtID, err := s.queries.GetUserByExternalID(ctx, r.GetExternalId())
-	if err == nil {
-		if commitErr := tx.Commit(ctx); commitErr != nil {
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
-		}
-		return connect.NewResponse(&userv1.CreateUserResponse{UserId: existingUserByExtID.ID.String()}), nil
-	}
-
-	// Create new user
-	var name *string
-	if n := r.GetName(); n != "" {
-		name = &n
-	}
-	var avatarURL *string
-	if a := r.GetAvatarUrl(); a != "" {
-		avatarURL = &a
-	}
-
-	qtx, ok := s.queries.(*genDb.Queries)
-	if !ok {
-		slog.ErrorContext(ctx, "failed to cast queries to *genDb.Queries")
-		return nil, connect.NewError(connect.CodeInternal, errDatabase)
-	}
-	qtx = qtx.WithTx(tx)
-
-	user, err := qtx.CreateUser(ctx, genDb.CreateUserParams{
-		ExternalID: r.GetExternalId(),
-		Email:      r.GetEmail(),
-		Name:       name,
-		AvatarUrl:  avatarURL,
-	})
-	if err != nil {
-		if isPgConstraintViolation(err) {
-			return nil, connect.NewError(connect.CodeAlreadyExists, ErrUserAlreadyExists)
-		}
-		slog.ErrorContext(ctx, "failed to create user", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	// Grant self-scopes in the same transaction so user+scopes are atomic.
-	for _, es := range []genDb.AddUserScopeParams{
-		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeRead},
-		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeWrite},
-		{UserID: user.ID, EntityType: genDb.EntityTypeUser, EntityID: user.ID, Scope: genDb.ScopeAdmin},
-	} {
-		if err := qtx.AddUserScope(ctx, es); err != nil {
-			slog.ErrorContext(ctx, "failed to grant user scope", "error", err, "userId", user.ID)
-			return nil, connect.NewError(connect.CodeInternal, ErrDB)
-		}
-	}
-
-	if commitErr := tx.Commit(ctx); commitErr != nil {
-		slog.ErrorContext(ctx, "failed to commit transaction", "error", commitErr)
-		return nil, connect.NewError(connect.CodeInternal, ErrDB)
-	}
-
-	return connect.NewResponse(&userv1.CreateUserResponse{UserId: user.ID.String()}), nil
-}
-
 // GetUser retrieves a user by ID or email
 func (s *UserServer) GetUser(
 	ctx context.Context,
@@ -413,12 +327,11 @@ func (s *UserServer) getUserByID(ctx context.Context, id string) (*userv1.User, 
 
 func dbUserToProto(user genDb.User) *userv1.User {
 	return &userv1.User{
-		Id:         user.ID.String(),
-		ExternalId: user.ExternalID,
-		Email:      user.Email,
-		Name:       derefString(user.Name),
-		AvatarUrl:  derefString(user.AvatarUrl),
-		CreatedAt:  timeutil.ParsePostgresTimestamp(user.CreatedAt),
-		UpdatedAt:  timeutil.ParsePostgresTimestamp(user.UpdatedAt),
+		Id:        user.ID.String(),
+		Email:     user.Email,
+		Name:      derefString(user.Name),
+		AvatarUrl: derefString(user.AvatarUrl),
+		CreatedAt: timeutil.ParsePostgresTimestamp(user.CreatedAt),
+		UpdatedAt: timeutil.ParsePostgresTimestamp(user.UpdatedAt),
 	}
 }
