@@ -1,9 +1,11 @@
 import { AuthProvider } from "@/auth/AuthProvider";
+import { PageTitle } from "@/components/PageTitle";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/design/Sonner";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Login } from "@/pages/Login";
 import { OAuthCallback } from "@/pages/OAuthCallback";
+import { ResourceTitle } from "@/pages/resource/ResourceTitle";
 import { Splash } from "@/pages/Splash";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
@@ -90,20 +92,20 @@ function AppRoutes() {
 
 				<Route element={<ProtectedRoute />}>
 					<Route path="/dashboard" element={<DashboardRedirect />} />
-					<Route path="/organizations" element={<Organizations />} />
-					<Route path="/profile" element={<Profile />} />
-					<Route path="/tokens" element={<Tokens />} />
+					<Route path="/organizations" element={<><PageTitle title="Organizations" /><Organizations /></>} />
+					<Route path="/profile" element={<><PageTitle title="Profile" /><Profile /></>} />
+					<Route path="/tokens" element={<><PageTitle title="Tokens" /><Tokens /></>} />
 					<Route path="/team" element={<OrgRedirect to="team" />} />
-					<Route path="/org/:orgId/team" element={<Team />} />
+					<Route path="/org/:orgId/team" element={<><PageTitle title="Team" /><Team /></>} />
 					<Route path="/org/:orgId/settings" element={<OrgRedirect to="settings" />} />
 
 					<Route path="/org/:orgId/wks/:workspaceId">
-						<Route path="" element={<Dashboard />} />
+						<Route path="" element={<><PageTitle title="Dashboard" /><Dashboard /></>} />
 						<Route path="dashboard" element={<Navigate to=".." relative="path" replace />} />
-						<Route path="resource/:resourceId" element={<Resource />} />
+						<Route path="resource/:resourceId" element={<><ResourceTitle /><Resource /></>} />
 						<Route path="observability" element={<Observability />} />
 						<Route path="events" element={<Navigate to="../observability?view=events" relative="path" replace />} />
-						<Route path="settings" element={<Settings />} />
+						<Route path="settings" element={<><PageTitle title="Settings" /><Settings /></>} />
 					</Route>
 				</Route>
 
