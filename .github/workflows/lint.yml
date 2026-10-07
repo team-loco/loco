@@ -8,6 +8,7 @@ on:
     paths:
       - "api/**"
       - "cmd/**"
+      - "internal/**"
       - "controller/**"
       - "agent/**"
       - "k8sapi/**"
@@ -25,6 +26,7 @@ on:
     paths:
       - "api/**"
       - "cmd/**"
+      - "internal/**"
       - "controller/**"
       - "agent/**"
       - "k8sapi/**"
