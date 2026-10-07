@@ -210,6 +210,7 @@ start_api() {
     DEFAULT_PLATFORM_DOMAIN="e2e.test.local" \
     APP_ENV="test" \
     LOG_LEVEL="-4" \
+    INFRA_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
         "$BIN_DIR/loco-api" \
         >"$LOG_DIR/api.log" 2>&1 &
 

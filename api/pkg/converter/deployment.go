@@ -291,6 +291,9 @@ func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSp
 }
 
 func ProtoToRoutingSpec(routing *resourcev1.RoutingConfig, hostname string) *locoControllerV1.RoutingSpec {
+	if hostname == "" {
+		return nil
+	}
 	if routing == nil {
 		return nil
 	}

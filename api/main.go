@@ -27,6 +27,7 @@ import (
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
+	planner "github.com/team-loco/loco/api/pkg/infra"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -62,6 +63,7 @@ type APIConfig struct {
 	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
 	DefaultPlatformDomain string   // Default platform domain returned by the config service
 	MinCLIVersion         string
+	InfraEncryptionKey    string
 	PprofAddr             string
 }
 
@@ -104,6 +106,7 @@ func newAPIConfig() *APIConfig {
 		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
 		MinCLIVersion:         os.Getenv("MIN_CLI_VERSION"),
 		PprofAddr:             os.Getenv("PPROF_ADDR"),
+		InfraEncryptionKey:    os.Getenv("INFRA_ENCRYPTION_KEY"),
 	}
 }
 
@@ -239,8 +242,13 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine)
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine)
+	placementCipher, cipherErr := planner.NewCipher(ac.InfraEncryptionKey)
+	if cipherErr != nil {
+		slog.Error("initialize placement encryption", "error", cipherErr)
+		os.Exit(1)
+	}
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, placementCipher)
+	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, placementCipher)
 	domainServiceHandler := service.NewDomainServer(pool, queries, machine)
 	tokenServiceHandler := service.NewTokenServer(pool, queries, machine)
 	registryServiceHandler := service.NewRegistryServer(
@@ -254,7 +262,7 @@ func main() {
 		machine,
 	)
 
-	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier)
+	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, placementCipher)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
 	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion)
