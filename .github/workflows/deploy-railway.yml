@@ -48,9 +48,8 @@ jobs:
           fi
           api="$REGISTRY-api:sha-$COMMIT"
           ui="$REGISTRY-ui:sha-$COMMIT$ui_suffix"
-          docs="$REGISTRY-docs:sha-$COMMIT$ui_suffix"
 
-          for image in "$api" "$ui" "$docs"; do
+          for image in "$api" "$ui"; do
             if ! docker manifest inspect "$image" > /dev/null; then
               echo "::error::$image does not exist; only commits built by build.yml can be deployed"
               exit 1
@@ -60,7 +59,6 @@ jobs:
           {
             echo "api=$api"
             echo "ui=$ui"
-            echo "docs=$docs"
           } >> "$GITHUB_OUTPUT"
 
       - name: Apply
@@ -80,9 +78,3 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           IMAGE: ${{ steps.images.outputs.ui }}
         run: mise run railway:wait loco::cp-ui "$IMAGE"
-
-      - name: Wait for Docs
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          IMAGE: ${{ steps.images.outputs.docs }}
-        run: mise run railway:wait loco::cp-docs "$IMAGE"

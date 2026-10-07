@@ -2,7 +2,8 @@
 host = "::"
 port = 8080
 root = "/public"
-page-fallback = "/public/index.html"
+page404 = "/public/docs/404.html"
+health = true
 log-level = "info"
 
 compression = true
@@ -23,6 +24,7 @@ X-Frame-Options = "SAMEORIGIN"
 Referrer-Policy = "strict-origin-when-cross-origin"
 X-XSS-Protection = "1; mode=block"
 Vary = "Accept-Encoding"
+Cache-Control = "no-cache"
 Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https:; manifest-src 'self'"
 
 [[advanced.headers]]
@@ -40,3 +42,20 @@ source = "/install.sh"
 [advanced.headers.headers]
 Content-Type = "text/plain; charset=utf-8"
 Cache-Control = "no-cache"
+
+[[advanced.headers]]
+source = "/{docs/**,assets/loco.css,assets/favicon.svg}"
+[advanced.headers.headers]
+Cache-Control = "no-cache"
+
+[[advanced.virtual-hosts]]
+host = "docs.loco.build"
+root = "/public/docs"
+
+[[advanced.rewrites]]
+source = "/{dashboard,login,oauth,onboarding,organizations,org,profile,tokens,team}"
+destination = "/index.html"
+
+[[advanced.rewrites]]
+source = "/{dashboard,login,oauth,onboarding,organizations,org,profile,tokens,team}/**"
+destination = "/index.html"

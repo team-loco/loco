@@ -6,9 +6,10 @@ on:
       - main
     paths:
       - "docs/**"
-      - "web/Dockerfile"
-      - "web/public/favicon.svg"
-      - "web/src/components/design/logo-strokes.ts"
+      - "web/**"
+      - "gen/ts/**"
+      - "package.json"
+      - "bun.lock"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/docs.yml"
@@ -16,9 +17,10 @@ on:
   pull_request:
     paths:
       - "docs/**"
-      - "web/Dockerfile"
-      - "web/public/favicon.svg"
-      - "web/src/components/design/logo-strokes.ts"
+      - "web/**"
+      - "gen/ts/**"
+      - "package.json"
+      - "bun.lock"
       - "mise.toml"
       - "mise.lock"
       - ".github/workflows/docs.yml"
@@ -73,5 +75,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - name: Check production and staging HTTP behavior
+      - name: Install browser
+        run: uv run --frozen --project docs playwright install --with-deps chromium
+      - name: Check shared UI and docs hosting
+        env:
+          DOCS_SCREENSHOT_DIR: ${{ runner.temp }}/hosted-docs-screenshots
         run: mise run docs:check:container
+      - name: Save hosted documentation screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hosted-docs-screenshots
+          path: ${{ runner.temp }}/hosted-docs-screenshots
+          if-no-files-found: ignore

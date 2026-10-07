@@ -252,5 +252,5 @@ dir = ".railway"
 run = "go test ./..."
 
 [tasks."docs:check:container"]
-description = "Build and check both documentation containers, including health and 404 responses"
+description = "Check combined UI and documentation images in production and staging"
 run = "uv run --frozen --project docs python docs/tests/container.py"

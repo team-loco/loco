@@ -61,10 +61,6 @@ jobs:
             context: .
             dockerfile: ./api/Dockerfile
 
-          - name: Docs
-            context: .
-            dockerfile: ./docs/Dockerfile
-
           - name: UI
             context: .
             dockerfile: ./web/Dockerfile

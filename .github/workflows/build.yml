@@ -41,23 +41,11 @@ jobs:
             image: agent
             dockerfile: ./agent/Dockerfile
 
-          - name: Docs
-            image: docs
-            dockerfile: ./docs/Dockerfile
-            build_args: |
-              DOCS_ENVIRONMENT=production
-
-          - name: Staging Docs
-            image: docs
-            dockerfile: ./docs/Dockerfile
-            tag_suffix: ",suffix=-staging"
-            build_args: |
-              DOCS_ENVIRONMENT=staging
-
           - name: UI
             image: ui
             dockerfile: ./web/Dockerfile
             build_args: |
+              DOCS_ENVIRONMENT=production
               VITE_API_URL=https://api.loco.build
               VITE_APP_ENV=PRODUCTION
 
@@ -66,6 +54,7 @@ jobs:
             dockerfile: ./web/Dockerfile
             tag_suffix: ",suffix=-staging"
             build_args: |
+              DOCS_ENVIRONMENT=staging
               VITE_API_URL=https://api.staging.loco.build
               VITE_APP_ENV=PRODUCTION
     uses: ./.github/workflows/build-push.yml

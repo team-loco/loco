@@ -64,7 +64,7 @@ Avenir Next with Segoe UI fallback gives headings a distinct display face. Body 
 
 ## Layout
 
-The 76rem grid contains desktop navigation, article, and a table of contents on wide screens. Sections expand by default. Neither scrolling nor changing pages hides desktop navigation. Below the upstream drawer breakpoint, Zensical owns the mobile navigation drawer. Tables and code scroll horizontally within their content containers.
+One UI container serves the docs at their canonical hostname and at the dashboard’s `/docs/` path. Relative navigation preserves the active entry point. The 76rem grid contains desktop navigation, article, and a table of contents on wide screens. Sections expand by default. Neither scrolling nor changing pages hides desktop navigation. Below the upstream drawer breakpoint, Zensical owns the mobile navigation drawer. Tables and code scroll horizontally within their content containers.
 
 ## Elevation & Depth
 

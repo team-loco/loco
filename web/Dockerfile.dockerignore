@@ -22,7 +22,16 @@ observability-proxy/
 proto/
 charts/
 dashboards/
-docs/
+docs/**
+!docs/pyproject.toml
+!docs/uv.lock
+!docs/zensical.toml
+!docs/scripts/
+!docs/scripts/**
+!docs/content/
+!docs/content/**
+!docs/overrides/
+!docs/overrides/**
 env/
 examples/
 experiments/
