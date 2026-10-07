@@ -76,6 +76,9 @@ func storeResourceVariables(
 	values map[string]string,
 	cipher *planner.Cipher,
 ) error {
+	if cipher == nil {
+		return errors.New("resource variable encryption is required")
+	}
 	data, err := json.Marshal(values)
 	if err != nil {
 		return err
@@ -93,6 +96,9 @@ func storeResourceVariables(
 func loadResourceVariables(resource db.Resource, cipher *planner.Cipher) (map[string]string, error) {
 	if len(resource.VariableValues) == 0 {
 		return nil, nil
+	}
+	if cipher == nil {
+		return nil, errors.New("resource variable encryption is required")
 	}
 	data, err := cipher.Open(resource.VariableValues, []byte(resource.ID.String()+"/variables"))
 	if err != nil {

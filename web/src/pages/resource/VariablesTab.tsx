@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { Section } from "@/components/design/Page";
-import { toastConnectError } from "@/lib/error-handler";
+import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 
 import { validateEnv, type EnvPair } from "./env";
 import type { Notice } from "./model";
@@ -34,6 +34,7 @@ export function VariablesTab({ resourceId, resourceName, variableKeys, regionNam
 }) {
  const [draft, setDraft] = useState<DraftRow[] | null>(null);
  const [error, setError] = useState<string | undefined>();
+ const [saveError, setSaveError] = useState<string | undefined>();
  const [invalid, setInvalid] = useState<number | undefined>();
  const save = useMutation(updateResourceEnv);
  const keys = [...variableKeys].sort((a, b) => a.localeCompare(b));
@@ -43,6 +44,7 @@ export function VariablesTab({ resourceId, resourceName, variableKeys, regionNam
   event.preventDefault();
   if (save.isPending) return;
   const pairs: EnvPair[] = (draft ?? []).map((row) => [row.key.trim(), row.value]);
+  setSaveError(undefined);
   const problem = validateEnv(pairs);
   setError(problem);
   if (problem !== undefined) {
@@ -58,7 +60,8 @@ export function VariablesTab({ resourceId, resourceName, variableKeys, regionNam
     cancel(); onSaved();
     onNotice({ tone: "info", title: `Updating variables on ${resourceName}`, message: `New deployments scheduled in ${regionNames.join(", ")}. Existing variables keep their values unless replaced.` });
    },
-   onError: (failure) => { toastConnectError(failure, "Failed to update variables"); },
+   onError: (failure) => { setSaveError(getErrorMessage(failure, "Failed to update variables"));
+    toastConnectError(failure, "Failed to update variables"); },
   });
  };
  return (
@@ -85,6 +88,7 @@ export function VariablesTab({ resourceId, resourceName, variableKeys, regionNam
        <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove draft variable" onClick={() => { setDraft((rows) => rows?.filter((item) => item.id !== row.id) ?? null); }}><Trash2Icon /></Button>
       </div>
      ))}
+     {saveError !== undefined && <p role="alert" className="text-sm text-bad-fg">{saveError}</p>}
      {error !== undefined && <p id="variable-error" role="alert" className="text-sm text-bad-fg">{error}</p>}
      <div className="flex flex-wrap items-center gap-2">
       <Button type="button" variant="ghost" onClick={() => { setDraft((rows) => [...(rows ?? []), newRow()]); }}><PlusIcon />Add variable</Button>

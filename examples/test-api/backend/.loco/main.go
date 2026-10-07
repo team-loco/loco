@@ -14,7 +14,7 @@ func main() {
 				Build:         &loco.DockerBuild{Context: ".", Dockerfile: "Dockerfile"},
 				Routing:       loco.Routing{Port: 8000},
 				PrimaryRegion: "us-east-1",
-				Health:        loco.Health{Path: "/"},
+				Health:        loco.Health{Path: "/api/health"},
 				Domain:        &loco.PlatformDomain{Hostname: "backend-" + ctx.Environment + ".onloco.app"},
 				Regions: map[string]loco.Region{
 					"us-east-1": {CPU: "100m", Memory: "256Mi", ReplicasMin: replicas, ReplicasMax: replicas},

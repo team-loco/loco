@@ -142,6 +142,10 @@ func newContextCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			module, discoverErr := definition.Discover(cwd, "", "")
+			if discoverErr == nil {
+				cwd = module.ProjectRoot
+			}
 			selected.AuthorContext.ProjectRoot = cwd
 			return json.NewEncoder(cmd.OutOrStdout()).Encode(selected.AuthorContext)
 		},
