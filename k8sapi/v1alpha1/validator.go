@@ -28,7 +28,10 @@ var (
 	errMetricsPathNoSlash     = errors.New("metrics.path must start with '/'")
 	errHostnameMissing        = errors.New("routing.hostname must be set")
 	errPathPrefixNoSlash      = errors.New("routing.pathPrefix must start with '/'")
-	errNegativeIdleTimeout    = errors.New("routing.idleTimeout cannot be negative")
+	errIdleTimeoutNotPositive = errors.New("routing.idleTimeout must be positive")
+	errResourcesMissing       = errors.New("serviceSpec.resources must be set")
+	errCPUMissing             = errors.New("cpu must be set")
+	errMemoryMissing          = errors.New("memory must be set")
 )
 
 var (
@@ -89,10 +92,11 @@ func validateServiceSpec(spec *ServiceSpec) error {
 		return fmt.Errorf("invalid deployment: %w", err)
 	}
 
-	if spec.Resources != nil {
-		if err := validateResourcesSpec(spec.Resources); err != nil {
-			return fmt.Errorf("invalid resources: %w", err)
-		}
+	if spec.Resources == nil {
+		return errResourcesMissing
+	}
+	if err := spec.Resources.Validate(); err != nil {
+		return fmt.Errorf("invalid resources: %w", err)
 	}
 
 	if spec.Obs != nil {
@@ -228,6 +232,10 @@ func validateHealthCheckSpec(spec *HealthCheckSpec) error {
 		return fmt.Errorf("healthCheck.interval must be at least 5 seconds, got %d", spec.Interval)
 	}
 
+	if spec.Timeout < 1 {
+		return fmt.Errorf("healthCheck.timeout must be at least 1 second, got %d", spec.Timeout)
+	}
+
 	// Timeout (max 1 minute = 60 seconds)
 	if spec.Timeout > 60 {
 		return fmt.Errorf("healthCheck.timeout cannot exceed 60 seconds, got %d", spec.Timeout)
@@ -241,24 +249,24 @@ func validateHealthCheckSpec(spec *HealthCheckSpec) error {
 	return nil
 }
 
-// validateResourcesSpec validates the ResourcesSpec
-func validateResourcesSpec(spec *ResourcesSpec) error {
+// Validate validates the ResourcesSpec
+func (spec *ResourcesSpec) Validate() error {
 	if spec == nil {
 		return nil
 	}
 
-	// CPU validation
-	if spec.CPU != "" {
-		if err := validateCPUQuantity(spec.CPU); err != nil {
-			return fmt.Errorf("cpu: %w", err)
-		}
+	if spec.CPU == "" {
+		return errCPUMissing
+	}
+	if err := validateCPUQuantity(spec.CPU); err != nil {
+		return fmt.Errorf("cpu: %w", err)
 	}
 
-	// Memory validation
-	if spec.Memory != "" {
-		if err := validateMemoryQuantity(spec.Memory); err != nil {
-			return fmt.Errorf("memory: %w", err)
-		}
+	if spec.Memory == "" {
+		return errMemoryMissing
+	}
+	if err := validateMemoryQuantity(spec.Memory); err != nil {
+		return fmt.Errorf("memory: %w", err)
 	}
 
 	// Replicas validation
@@ -268,7 +276,7 @@ func validateResourcesSpec(spec *ResourcesSpec) error {
 	if spec.Replicas.Max > 10 {
 		return fmt.Errorf("replicas.max cannot exceed 10, got %d", spec.Replicas.Max)
 	}
-	if spec.Replicas.Max > 0 && spec.Replicas.Min > 0 && spec.Replicas.Max < spec.Replicas.Min {
+	if spec.Replicas.Max < spec.Replicas.Min {
 		return fmt.Errorf("replicas.max (%d) must be >= replicas.min (%d)", spec.Replicas.Max, spec.Replicas.Min)
 	}
 
@@ -334,12 +342,12 @@ func validateRoutingSpec(spec *RoutingSpec) error {
 		return errHostnameMissing
 	}
 
-	if spec.PathPrefix != "" && !strings.HasPrefix(spec.PathPrefix, "/") {
+	if !strings.HasPrefix(spec.PathPrefix, "/") {
 		return errPathPrefixNoSlash
 	}
 
-	if spec.IdleTimeout < 0 {
-		return errNegativeIdleTimeout
+	if spec.IdleTimeout < 1 {
+		return errIdleTimeoutNotPositive
 	}
 
 	return nil

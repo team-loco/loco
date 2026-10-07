@@ -68,10 +68,6 @@ spec:
                   deployment:
                     description: Deployment info (current or requested)
                     properties:
-                      cpu:
-                        description: Deployment-time resource overrides (takes precedence
-                          over ResourcesSpec)
-                        type: string
                       env:
                         additionalProperties:
                           type: string
@@ -82,43 +78,40 @@ spec:
                         properties:
                           failThreshold:
                             format: int32
+                            minimum: 1
                             type: integer
                           interval:
                             format: int32
+                            minimum: 1
                             type: integer
                           path:
+                            minLength: 1
                             type: string
                           startupGracePeriod:
                             format: int32
+                            minimum: 0
                             type: integer
                           timeout:
                             format: int32
+                            minimum: 1
                             type: integer
+                        required:
+                        - failThreshold
+                        - interval
+                        - path
+                        - timeout
                         type: object
                       image:
+                        minLength: 1
                         type: string
-                      maxReplicas:
-                        format: int32
-                        type: integer
-                      memory:
-                        type: string
-                      minReplicas:
-                        format: int32
-                        type: integer
                       port:
                         format: int32
+                        maximum: 65535
+                        minimum: 1
                         type: integer
-                      scalers:
-                        properties:
-                          cpuTarget:
-                            format: int32
-                            type: integer
-                          enabled:
-                            type: boolean
-                          memoryTarget:
-                            format: int32
-                            type: integer
-                        type: object
+                    required:
+                    - image
+                    - port
                     type: object
                   obs:
                     description: Observability configuration (logging, metrics, tracing)
@@ -156,21 +149,27 @@ spec:
                         type: object
                     type: object
                   resources:
-                    description: Resources (CPU, Memory, Replicas, Scalers) - global
-                      defaults
+                    description: Resources (CPU, Memory, Replicas, Scalers)
                     properties:
                       cpu:
+                        minLength: 1
                         type: string
                       memory:
+                        minLength: 1
                         type: string
                       replicas:
                         properties:
                           max:
                             format: int32
+                            minimum: 1
                             type: integer
                           min:
                             format: int32
+                            minimum: 1
                             type: integer
+                        required:
+                        - max
+                        - min
                         type: object
                       scalers:
                         properties:
@@ -183,18 +182,32 @@ spec:
                             format: int32
                             type: integer
                         type: object
+                    required:
+                    - cpu
+                    - memory
+                    - replicas
                     type: object
                   routing:
                     description: Routing configuration (port, domain, subdomain, etc)
                     properties:
                       hostName:
+                        minLength: 1
                         type: string
                       idleTimeout:
                         format: int32
+                        minimum: 1
                         type: integer
                       pathPrefix:
+                        minLength: 1
                         type: string
+                    required:
+                    - hostName
+                    - idleTimeout
+                    - pathPrefix
                     type: object
+                required:
+                - deployment
+                - resources
                 type: object
               type:
                 description: |-

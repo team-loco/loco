@@ -23,7 +23,7 @@ func getResourceByName(
 	t.Helper()
 	machine := tvm.NewVendingMachine(f.pool, f.queries, tvm.Config{LastUsedUpdateInterval: time.Minute})
 	t.Cleanup(machine.Close)
-	server := NewResourceServer(f.pool, f.queries, machine)
+	server := NewResourceServer(f.pool, f.queries, machine, testServiceDefaults())
 	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, scopes)
 	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: workspaceID.String(), Name: name}
 	req := connect.NewRequest(&resourcev1.GetResourceRequest{

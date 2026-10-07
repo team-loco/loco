@@ -25,16 +25,26 @@ import (
 
 // ResourcesSpec contains CPU, Memory, replicas, and autoscaling
 type ResourcesSpec struct {
-	CPU    string `json:"cpu,omitempty"`
-	Memory string `json:"memory,omitempty"`
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	CPU string `json:"cpu"`
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Memory string `json:"memory"`
 
-	Replicas ReplicasSpec `json:"replicas,omitempty"`
-	Scalers  ScalersSpec  `json:"scalers,omitempty"`
+	// +required
+	Replicas ReplicasSpec `json:"replicas"`
+	// +optional
+	Scalers ScalersSpec `json:"scalers,omitzero"`
 }
 
 type ReplicasSpec struct {
-	Min int32 `json:"min,omitempty"`
-	Max int32 `json:"max,omitempty"`
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	Min int32 `json:"min"`
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	Max int32 `json:"max"`
 }
 
 type ScalersSpec struct {
@@ -45,11 +55,21 @@ type ScalersSpec struct {
 
 // HealthCheckSpec describes readiness/liveness checks
 type HealthCheckSpec struct {
-	Path               string `json:"path,omitempty"`
-	Interval           int32  `json:"interval,omitempty"` // seconds
-	Timeout            int32  `json:"timeout,omitempty"`  // seconds
-	FailThreshold      int32  `json:"failThreshold,omitempty"`
-	StartupGracePeriod int32  `json:"startupGracePeriod,omitempty"` // seconds
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Path string `json:"path"`
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	Interval int32 `json:"interval"` // seconds
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	Timeout int32 `json:"timeout"` // seconds
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	FailThreshold int32 `json:"failThreshold"`
+	// +optional
+	// +kubebuilder:validation:Minimum=0
+	StartupGracePeriod int32 `json:"startupGracePeriod,omitempty"` // seconds
 }
 
 // MetricsSpec defines metrics scraping info
@@ -80,9 +100,15 @@ type TracingSpec struct {
 
 // RoutingSpec contains subdomain, path prefix, port, idle timeout
 type RoutingSpec struct {
-	HostName    string `json:"hostName,omitempty"`
-	PathPrefix  string `json:"pathPrefix,omitempty"`
-	IdleTimeout int32  `json:"idleTimeout,omitempty"` // seconds
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	HostName string `json:"hostName"`
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	PathPrefix string `json:"pathPrefix"`
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	IdleTimeout int32 `json:"idleTimeout"` // seconds
 }
 
 // ApplicationSpec defines the desired state of Application
@@ -114,10 +140,12 @@ type ApplicationSpec struct {
 // ServiceSpec contains service-specific deployment and resource configuration
 type ServiceSpec struct {
 	// Deployment info (current or requested)
-	Deployment *ServiceDeploymentSpec `json:"deployment,omitempty"`
+	// +required
+	Deployment *ServiceDeploymentSpec `json:"deployment"`
 
-	// Resources (CPU, Memory, Replicas, Scalers) - global defaults
-	Resources *ResourcesSpec `json:"resources,omitempty"`
+	// Resources (CPU, Memory, Replicas, Scalers)
+	// +required
+	Resources *ResourcesSpec `json:"resources"`
 
 	// Routing configuration (port, domain, subdomain, etc)
 	Routing *RoutingSpec `json:"routing,omitempty"`
@@ -127,17 +155,14 @@ type ServiceSpec struct {
 }
 
 // ServiceDeploymentSpec contains service deployment-specific configuration
-// Includes deployment-time resource overrides that take precedence over ResourcesSpec
 type ServiceDeploymentSpec struct {
-	Image string `json:"image,omitempty"`
-	Port  int32  `json:"port,omitempty"`
-
-	// Deployment-time resource overrides (takes precedence over ResourcesSpec)
-	CPU         string       `json:"cpu,omitempty"`
-	Memory      string       `json:"memory,omitempty"`
-	MinReplicas int32        `json:"minReplicas,omitempty"`
-	MaxReplicas int32        `json:"maxReplicas,omitempty"`
-	Scalers     *ScalersSpec `json:"scalers,omitempty"`
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Image string `json:"image"`
+	// +required
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port int32 `json:"port"`
 
 	HealthCheck *HealthCheckSpec  `json:"healthCheck,omitempty"`
 	Env         map[string]string `json:"env,omitempty"`

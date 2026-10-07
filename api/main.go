@@ -30,6 +30,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
@@ -55,6 +56,8 @@ var (
 	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
 
 	errInvalidForcePathStyle = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
+	errInvalidInt32          = errors.New("is not a 32-bit integer")
+	errInvalidServiceDefault = errors.New("invalid service default")
 )
 
 const (
@@ -63,6 +66,13 @@ const (
 	cacheTypeMemory       = "in-memory"
 	defaultSourceMaxBytes = 200 * 1024 * 1024
 	imageResolveTimeout   = 15 * time.Second
+
+	defaultServiceCPU         = "100m"
+	defaultServiceMemory      = "256Mi"
+	defaultServiceMinReplicas = 1
+	defaultServiceMaxReplicas = 1
+	defaultServicePathPrefix  = "/"
+	defaultServiceIdleTimeout = 60
 )
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
@@ -82,6 +92,7 @@ type APIConfig struct {
 	SourceMaxBytes        int64
 	RegistryHost          string
 	RegistryPrefix        string
+	ServiceDefaults       servicedefaults.Defaults
 }
 
 func newAPIConfig() *APIConfig {
@@ -146,6 +157,18 @@ func newAPIConfig() *APIConfig {
 		}
 	}
 
+	serviceDefaults := servicedefaults.Defaults{
+		CPU:         stringEnv("LOCO_DEFAULT_CPU", defaultServiceCPU),
+		Memory:      stringEnv("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
+		MinReplicas: int32Env("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
+		MaxReplicas: int32Env("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
+		PathPrefix:  stringEnv("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
+		IdleTimeout: int32Env("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
+	}
+	if err := serviceDefaults.Validate(); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))
+	}
+
 	return &APIConfig{
 		Env:                   os.Getenv("APP_ENV"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
@@ -161,7 +184,27 @@ func newAPIConfig() *APIConfig {
 		SourceMaxBytes:        sourceMaxBytes,
 		RegistryHost:          os.Getenv("LOCO_REGISTRY_HOST"),
 		RegistryPrefix:        os.Getenv("LOCO_REGISTRY_PREFIX"),
+		ServiceDefaults:       serviceDefaults,
 	}
+}
+
+func stringEnv(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
+}
+
+func int32Env(name string, fallback int32) int32 {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt32))
+	}
+	return int32(parsed)
 }
 
 func newSourceBucket(cfg sourcebucket.Config) (service.SourceBucket, error) {
@@ -320,7 +363,7 @@ func main() {
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
-	resourceServiceHandler := service.NewResourceServer(pool, queries, machine)
+	resourceServiceHandler := service.NewResourceServer(pool, queries, machine, ac.ServiceDefaults)
 	sourceBucket, bucketErr := newSourceBucket(ac.SourceBucket)
 	if bucketErr != nil {
 		log.Fatal(bucketErr)
@@ -334,7 +377,14 @@ func main() {
 	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 
-	deploymentServiceHandler := service.NewDeploymentServer(pool, queries, machine, imageResolver, ac.RegistryHost)
+	deploymentServiceHandler := service.NewDeploymentServer(
+		pool,
+		queries,
+		machine,
+		imageResolver,
+		ac.RegistryHost,
+		ac.ServiceDefaults,
+	)
 	buildServiceHandler := service.NewBuildServer(pool, queries, machine, sourceBucket, service.BuildConfig{
 		RegistryHost:   ac.RegistryHost,
 		RegistryPrefix: ac.RegistryPrefix,
@@ -345,7 +395,7 @@ func main() {
 	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, sourceBucket)
 	observabilityAccessHandler := service.NewObservabilityAccessServer(pool, queries, machine)
 	environmentServiceHandler := service.NewEnvironmentServer(pool, queries, machine)
-	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion)
+	configServiceHandler := service.NewConfigServer(ac.DefaultPlatformDomain, ac.MinCLIVersion, ac.ServiceDefaults)
 
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
 	oauthPath, oauthHandler := oauthv1connect.NewOAuthServiceHandler(oAuthServiceHandler, httpInterceptors)

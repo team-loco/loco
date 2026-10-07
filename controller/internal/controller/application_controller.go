@@ -67,16 +67,14 @@ const (
 	phaseFailed                  = "Failed"
 	phaseReady                   = "Ready"
 	servicePort                  = int32(80)
-	defaultContainerPort         = int32(8080)
-	defaultCPURequest            = "100m"
-	defaultCPULimit              = "500m"
-	defaultMemoryRequest         = "128Mi"
-	defaultMemoryLimit           = "512Mi"
 	deployingRequeue             = 15 * time.Second
 	maxConcurrentReconciles      = 4
 )
 
-var errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
+var (
+	errPullSecretWithoutNamespace = errors.New("a registry pull secret requires the loco namespace")
+	errNoResources                = errors.New("serviceSpec.resources is required")
+)
 
 // LocoResourceReconciler reconciles a Application object
 type LocoResourceReconciler struct {
@@ -216,7 +214,7 @@ func (r *LocoResourceReconciler) reconcileResources(
 	}
 
 	// aggregate deployment status into our status
-	replicas := desiredReplicas(locoRes.Spec.ServiceSpec)
+	replicas := locoRes.Spec.ServiceSpec.Resources.Replicas.Min
 	if !deploymentReady(dep, replicas) {
 		setPhase(locoRes, phaseDeploying, "Waiting for pods to be ready...")
 		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
@@ -535,7 +533,7 @@ func (r *LocoResourceReconciler) ensureRoleAndBinding(ctx context.Context, locoR
 func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *locov1alpha1.Application) error {
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
-	containerPort := appPort(locoRes)
+	containerPort := locoRes.Spec.ServiceSpec.Deployment.Port
 
 	slog.DebugContext(ctx, "ensuring service", "namespace", namespace, "name", name, "containerPort", containerPort)
 
@@ -564,46 +562,14 @@ func (r *LocoResourceReconciler) ensureService(ctx context.Context, locoRes *loc
 	return nil
 }
 
-func appPort(locoRes *locov1alpha1.Application) int32 {
-	if locoRes.Spec.ServiceSpec.Deployment.Port > 0 {
-		return locoRes.Spec.ServiceSpec.Deployment.Port
-	}
-	return defaultContainerPort
-}
-
-func desiredReplicas(spec *locov1alpha1.ServiceSpec) int32 {
-	if spec.Resources != nil && spec.Resources.Replicas.Min > 0 {
-		return spec.Resources.Replicas.Min
-	}
-	if spec.Deployment != nil && spec.Deployment.MinReplicas > 0 {
-		return spec.Deployment.MinReplicas
-	}
-	return 1
-}
-
-func containerResources(spec *locov1alpha1.ServiceSpec) (*corev1ac.ResourceRequirementsApplyConfiguration, error) {
-	cpuRequest := defaultCPURequest
-	cpuLimit := defaultCPULimit
-	memoryRequest := defaultMemoryRequest
-	memoryLimit := defaultMemoryLimit
-	if spec.Resources != nil && spec.Resources.CPU != "" {
-		cpuRequest = spec.Resources.CPU
-		cpuLimit = spec.Resources.CPU
-	}
-	if spec.Resources != nil && spec.Resources.Memory != "" {
-		memoryRequest = spec.Resources.Memory
-		memoryLimit = spec.Resources.Memory
-	}
-
-	requests, err := parseResourceList(cpuRequest, memoryRequest)
+func containerResources(
+	resources *locov1alpha1.ResourcesSpec,
+) (*corev1ac.ResourceRequirementsApplyConfiguration, error) {
+	quantities, err := parseResourceList(resources.CPU, resources.Memory)
 	if err != nil {
-		return nil, fmt.Errorf("requests: %w", err)
+		return nil, err
 	}
-	limits, err := parseResourceList(cpuLimit, memoryLimit)
-	if err != nil {
-		return nil, fmt.Errorf("limits: %w", err)
-	}
-	return corev1ac.ResourceRequirements().WithRequests(requests).WithLimits(limits), nil
+	return corev1ac.ResourceRequirements().WithRequests(quantities).WithLimits(quantities), nil
 }
 
 func parseResourceList(cpu, memory string) (corev1.ResourceList, error) {
@@ -650,20 +616,12 @@ func systemEnvVars(locoRes *locov1alpha1.Application) []*corev1ac.EnvVarApplyCon
 func healthProbe(hc *locov1alpha1.HealthCheckSpec, port int32) *corev1ac.ProbeApplyConfiguration {
 	probePort := intstr.FromInt32(port)
 	httpGet := corev1ac.HTTPGetAction().WithPath(hc.Path).WithPort(probePort)
-	probe := corev1ac.Probe().WithHTTPGet(httpGet)
-	if hc.StartupGracePeriod > 0 {
-		probe.WithInitialDelaySeconds(hc.StartupGracePeriod)
-	}
-	if hc.Timeout > 0 {
-		probe.WithTimeoutSeconds(hc.Timeout)
-	}
-	if hc.Interval > 0 {
-		probe.WithPeriodSeconds(hc.Interval)
-	}
-	if hc.FailThreshold > 0 {
-		probe.WithFailureThreshold(hc.FailThreshold)
-	}
-	return probe
+	return corev1ac.Probe().
+		WithHTTPGet(httpGet).
+		WithInitialDelaySeconds(hc.StartupGracePeriod).
+		WithTimeoutSeconds(hc.Timeout).
+		WithPeriodSeconds(hc.Interval).
+		WithFailureThreshold(hc.FailThreshold)
 }
 
 func desiredDeployment(
@@ -673,10 +631,13 @@ func desiredDeployment(
 	name := getName(locoRes)
 	namespace := getNamespace(locoRes)
 	spec := locoRes.Spec.ServiceSpec
-	containerPort := appPort(locoRes)
-	replicas := desiredReplicas(spec)
+	if spec.Resources == nil {
+		return nil, errNoResources
+	}
+	containerPort := spec.Deployment.Port
+	replicas := spec.Resources.Replicas.Min
 
-	resources, err := containerResources(spec)
+	resources, err := containerResources(spec.Resources)
 	if err != nil {
 		return nil, fmt.Errorf("resources: %w", err)
 	}
@@ -801,11 +762,6 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 
 	slog.DebugContext(ctx, "ensuring HTTPRoute", "namespace", namespace, "name", routeName)
 
-	pathValue := "/"
-	if routing.PathPrefix != "" {
-		pathValue = routing.PathPrefix
-	}
-
 	// todo: remove the hardooded gateway name and namespace.
 	gatewayNamespace := v1Gateway.Namespace(r.LocoNamespace)
 	parentRef := gatewayac.ParentReference().
@@ -813,7 +769,7 @@ func (r *LocoResourceReconciler) ensureHTTPRoute(ctx context.Context, locoRes *l
 		WithNamespace(gatewayNamespace)
 	pathMatch := gatewayac.HTTPPathMatch().
 		WithType(v1Gateway.PathMatchPathPrefix).
-		WithValue(pathValue)
+		WithValue(routing.PathPrefix)
 	match := gatewayac.HTTPRouteMatch().WithPath(pathMatch)
 	backendRef := gatewayac.HTTPBackendRef().
 		WithKind("Service").

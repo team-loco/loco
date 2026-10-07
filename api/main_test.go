@@ -6,9 +6,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 )
 
-const configuredOrigin = "https://app.loco.build"
+const (
+	configuredOrigin = "https://app.loco.build"
+	maxReplicasEnv   = "LOCO_DEFAULT_MAX_REPLICAS"
+)
 
 func preflightAllowed(t *testing.T, h http.Handler, origin string) bool {
 	t.Helper()
@@ -77,6 +82,12 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY", "")
 	t.Setenv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE", "")
+	t.Setenv("LOCO_DEFAULT_CPU", "")
+	t.Setenv("LOCO_DEFAULT_MEMORY", "")
+	t.Setenv("LOCO_DEFAULT_MIN_REPLICAS", "")
+	t.Setenv(maxReplicasEnv, "")
+	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "")
+	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -87,6 +98,39 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 	if ac.SourceMaxBytes != defaultSourceMaxBytes {
 		t.Errorf("source max bytes = %d, want %d", ac.SourceMaxBytes, defaultSourceMaxBytes)
+	}
+	want := servicedefaults.Defaults{
+		CPU:         defaultServiceCPU,
+		Memory:      defaultServiceMemory,
+		MinReplicas: defaultServiceMinReplicas,
+		MaxReplicas: defaultServiceMaxReplicas,
+		PathPrefix:  defaultServicePathPrefix,
+		IdleTimeout: defaultServiceIdleTimeout,
+	}
+	if ac.ServiceDefaults != want {
+		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
+	}
+}
+
+func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_DEFAULT_CPU", "250m")
+	t.Setenv("LOCO_DEFAULT_MEMORY", "512Mi")
+	t.Setenv("LOCO_DEFAULT_MIN_REPLICAS", "2")
+	t.Setenv(maxReplicasEnv, "4")
+	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "/app")
+	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "120")
+	ac := newAPIConfig()
+	want := servicedefaults.Defaults{
+		CPU:         "250m",
+		Memory:      "512Mi",
+		MinReplicas: 2,
+		MaxReplicas: 4,
+		PathPrefix:  "/app",
+		IdleTimeout: 120,
+	}
+	if ac.ServiceDefaults != want {
+		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
 	}
 }
 
@@ -104,6 +148,36 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"non-boolean force path style",
 			map[string]string{"LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE": "sometimes"},
 			errInvalidForcePathStyle,
+		},
+		{"invalid default cpu", map[string]string{"LOCO_DEFAULT_CPU": "lots"}, errInvalidServiceDefault},
+		{"invalid default memory", map[string]string{"LOCO_DEFAULT_MEMORY": "-1Gi"}, errInvalidServiceDefault},
+		{"zero default replicas", map[string]string{"LOCO_DEFAULT_MIN_REPLICAS": "0"}, errInvalidServiceDefault},
+		{"non-numeric default replicas", map[string]string{maxReplicasEnv: "many"}, errInvalidInt32},
+		{
+			"default max below min",
+			map[string]string{"LOCO_DEFAULT_MIN_REPLICAS": "3", maxReplicasEnv: "2"},
+			errInvalidServiceDefault,
+		},
+		{
+			"relative default path prefix",
+			map[string]string{"LOCO_DEFAULT_PATH_PREFIX": "app"},
+			errInvalidServiceDefault,
+		},
+		{"zero default idle timeout", map[string]string{"LOCO_DEFAULT_IDLE_TIMEOUT": "0"}, errInvalidServiceDefault},
+		{
+			"default cpu below the controller minimum",
+			map[string]string{"LOCO_DEFAULT_CPU": "50m"},
+			errInvalidServiceDefault,
+		},
+		{
+			"default memory above the controller maximum",
+			map[string]string{"LOCO_DEFAULT_MEMORY": "8Gi"},
+			errInvalidServiceDefault,
+		},
+		{
+			"default max replicas above the controller maximum",
+			map[string]string{maxReplicasEnv: "12"},
+			errInvalidServiceDefault,
 		},
 	}
 	for _, tt := range tests {

@@ -176,7 +176,7 @@ func (r *LocoResourceReconciler) gatewayIngressPolicy(
 		labelGatewayNamespace: r.LocoNamespace,
 	}
 	gatewayPeer := namespacedPodPeer(r.LocoNamespace, gatewayLabels)
-	containerPort := appPort(locoRes)
+	containerPort := locoRes.Spec.ServiceSpec.Deployment.Port
 	port := tcpPort(containerPort)
 	rule := networkingv1ac.NetworkPolicyIngressRule().WithFrom(gatewayPeer).WithPorts(port)
 	spec := networkingv1ac.NetworkPolicySpec().

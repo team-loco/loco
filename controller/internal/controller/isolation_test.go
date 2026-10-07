@@ -32,11 +32,11 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 					Port:  8000,
 				},
 				Resources: &locov1alpha1.ResourcesSpec{
-					CPU:      defaultCPURequest,
+					CPU:      testCPU,
 					Memory:   "64Mi",
 					Replicas: locov1alpha1.ReplicasSpec{Min: 1, Max: 1},
 				},
-				Routing: &locov1alpha1.RoutingSpec{HostName: testHostName, PathPrefix: "/"},
+				Routing: testRouting(),
 			},
 		},
 	}
@@ -164,7 +164,7 @@ var _ = Describe("Workspace isolation", func() {
 		err := k8sClient.Get(ctx, key, &networkingv1.NetworkPolicy{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
-		app.Spec.ServiceSpec.Routing = &locov1alpha1.RoutingSpec{HostName: testHostName}
+		app.Spec.ServiceSpec.Routing = testRouting()
 		Expect(reconciler.ensureGatewayIngressPolicy(ctx, app)).To(Succeed())
 		Expect(reconciler.deleteAppObjects(ctx, app)).To(Succeed())
 		err = k8sClient.Get(ctx, key, &networkingv1.NetworkPolicy{})

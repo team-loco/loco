@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -116,13 +117,14 @@ func DeserializeResourceSpecByType(specBytes []byte, resourceType string) (*reso
 	}
 }
 
-// MergeDeploymentSpec merges a request DeploymentSpec with resource defaults from ResourceSpec.
-// The request spec takes precedence; missing fields are filled from the resource's primary region.
+// MergeDeploymentSpec merges a request DeploymentSpec with the resource's region target and the
+// API's configured defaults. The request takes precedence, then the region target, then the defaults.
 // This is the API's single source of truth for deployment defaults.
 func MergeDeploymentSpec(
 	resourceSpec *resourcev1.ResourceSpec,
 	requestSpec *deploymentv1.DeploymentSpec,
 	region string,
+	defaults servicedefaults.Defaults,
 ) (*deploymentv1.DeploymentSpec, error) {
 	if resourceSpec == nil {
 		return nil, errNilResourceSpec
@@ -162,33 +164,17 @@ func MergeDeploymentSpec(
 		Env:   requestServiceSpec.GetEnv(),
 	}
 
-	// merge CPU (request > resource default)
-	if requestServiceSpec.GetCpu() != "" {
-		mergedServiceSpec.Cpu = requestServiceSpec.Cpu
-	} else {
-		mergedServiceSpec.Cpu = &regionTarget.Cpu
+	cpu := firstSet(requestServiceSpec.GetCpu(), regionTarget.GetCpu(), defaults.CPU)
+	memory := firstSet(requestServiceSpec.GetMemory(), regionTarget.GetMemory(), defaults.Memory)
+	minReplicas := firstSet(requestServiceSpec.GetMinReplicas(), regionTarget.GetMinReplicas(), defaults.MinReplicas)
+	maxReplicas := firstSet(requestServiceSpec.GetMaxReplicas(), regionTarget.GetMaxReplicas())
+	if maxReplicas == 0 {
+		maxReplicas = max(defaults.MaxReplicas, minReplicas)
 	}
-
-	// merge Memory (request > resource default)
-	if requestServiceSpec.GetMemory() != "" {
-		mergedServiceSpec.Memory = requestServiceSpec.Memory
-	} else {
-		mergedServiceSpec.Memory = &regionTarget.Memory
-	}
-
-	// merge MinReplicas (request > resource default)
-	if requestServiceSpec.GetMinReplicas() != 0 {
-		mergedServiceSpec.MinReplicas = requestServiceSpec.MinReplicas
-	} else {
-		mergedServiceSpec.MinReplicas = &regionTarget.MinReplicas
-	}
-
-	// merge MaxReplicas (request > resource default)
-	if requestServiceSpec.GetMaxReplicas() != 0 {
-		mergedServiceSpec.MaxReplicas = requestServiceSpec.MaxReplicas
-	} else {
-		mergedServiceSpec.MaxReplicas = &regionTarget.MaxReplicas
-	}
+	mergedServiceSpec.Cpu = &cpu
+	mergedServiceSpec.Memory = &memory
+	mergedServiceSpec.MinReplicas = &minReplicas
+	mergedServiceSpec.MaxReplicas = &maxReplicas
 
 	// merge Scalers (request > resource default)
 	if requestServiceSpec.GetScalers() != nil {
@@ -214,6 +200,16 @@ func MergeDeploymentSpec(
 	return mergedSpec, nil
 }
 
+func firstSet[T comparable](values ...T) T {
+	var zero T
+	for _, value := range values {
+		if value != zero {
+			return value
+		}
+	}
+	return zero
+}
+
 // ProtoToServiceDeploymentSpec converts a proto DeploymentSpec to a controller ServiceDeploymentSpec
 // This is the canonical conversion from proto (source of truth) to controller CRD types
 func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoControllerV1.ServiceDeploymentSpec {
@@ -225,15 +221,6 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 	serviceSpec := spec.GetService()
 	if serviceSpec == nil {
 		return &locoControllerV1.ServiceDeploymentSpec{}
-	}
-
-	var scalers *locoControllerV1.ScalersSpec
-	if serviceSpec.GetScalers() != nil {
-		scalers = &locoControllerV1.ScalersSpec{
-			Enabled:      serviceSpec.GetScalers().GetEnabled(),
-			CPUTarget:    serviceSpec.GetScalers().GetCpuTarget(),
-			MemoryTarget: serviceSpec.GetScalers().GetMemoryTarget(),
-		}
 	}
 
 	var healthCheck *locoControllerV1.HealthCheckSpec
@@ -250,11 +237,6 @@ func ProtoToServiceDeploymentSpec(spec *deploymentv1.DeploymentSpec) *locoContro
 	return &locoControllerV1.ServiceDeploymentSpec{
 		Image:       serviceSpec.GetBuild().GetImage(),
 		Port:        serviceSpec.GetPort(),
-		CPU:         serviceSpec.GetCpu(),
-		Memory:      serviceSpec.GetMemory(),
-		MinReplicas: serviceSpec.GetMinReplicas(),
-		MaxReplicas: serviceSpec.GetMaxReplicas(),
-		Scalers:     scalers,
 		HealthCheck: healthCheck,
 		Env:         serviceSpec.GetEnv(),
 	}
@@ -300,14 +282,37 @@ func ProtoToObsSpec(obs *resourcev1.ObservabilityConfig) *locoControllerV1.ObsSp
 	}
 }
 
-func ProtoToRoutingSpec(routing *resourcev1.RoutingConfig, hostname string) *locoControllerV1.RoutingSpec {
+func ProtoToRoutingSpec(
+	routing *resourcev1.RoutingConfig,
+	hostname string,
+	defaults servicedefaults.Defaults,
+) *locoControllerV1.RoutingSpec {
 	if routing == nil {
 		return nil
 	}
 
 	return &locoControllerV1.RoutingSpec{
 		HostName:    hostname,
-		PathPrefix:  routing.GetPathPrefix(),
-		IdleTimeout: routing.GetIdleTimeout(),
+		PathPrefix:  firstSet(routing.GetPathPrefix(), defaults.PathPrefix),
+		IdleTimeout: firstSet(routing.GetIdleTimeout(), defaults.IdleTimeout),
 	}
+}
+
+func ProtoToResourcesSpec(service *deploymentv1.ServiceDeploymentSpec) *locoControllerV1.ResourcesSpec {
+	resources := &locoControllerV1.ResourcesSpec{
+		CPU:    service.GetCpu(),
+		Memory: service.GetMemory(),
+		Replicas: locoControllerV1.ReplicasSpec{
+			Min: service.GetMinReplicas(),
+			Max: service.GetMaxReplicas(),
+		},
+	}
+	if scalers := service.GetScalers(); scalers != nil {
+		resources.Scalers = locoControllerV1.ScalersSpec{
+			Enabled:      scalers.GetEnabled(),
+			CPUTarget:    scalers.GetCpuTarget(),
+			MemoryTarget: scalers.GetMemoryTarget(),
+		}
+	}
+	return resources
 }
