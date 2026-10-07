@@ -381,7 +381,7 @@ func (c *Client) Post(path string, payload any, headers map[string]string) ([]by
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", c.host+path, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPost, c.host+path, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, &APIError{Body: fmt.Sprintf("failed to create request: %v", err)}
 	}

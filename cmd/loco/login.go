@@ -412,10 +412,10 @@ func pollAuthToken(
 				return nil, fmt.Errorf("network error: %w", err)
 			}
 			switch apiError.StatusCode {
-			case 400:
+			case http.StatusBadRequest:
 				slog.Debug("authorization pending", "status_code", apiError.StatusCode)
 				continue
-			case 403:
+			case http.StatusForbidden:
 				slog.Debug("access denied or rate limited", "status_code", apiError.StatusCode, "error", err)
 				return nil, fmt.Errorf("access denied or rate limited: %w", err)
 			default:

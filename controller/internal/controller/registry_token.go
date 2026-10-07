@@ -142,7 +142,7 @@ func (r *LocoResourceReconciler) createGitlabDeployToken(
 		return nil, fmt.Errorf("create http request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("PRIVATE-TOKEN", r.gitlabPAT)
+	req.Header.Set("Private-Token", r.gitlabPAT)
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
@@ -170,7 +170,7 @@ func (r *LocoResourceReconciler) revokeGitlabDeployToken(ctx context.Context, to
 	if err != nil {
 		return fmt.Errorf("create http request: %w", err)
 	}
-	req.Header.Set("PRIVATE-TOKEN", r.gitlabPAT)
+	req.Header.Set("Private-Token", r.gitlabPAT)
 
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
