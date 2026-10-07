@@ -1,0 +1,96 @@
+[project]
+site_name = "Loco docs"
+site_description = "Deploy and operate applications on Kubernetes with Loco."
+site_url = "https://docs.loco.build/"
+repo_name = "team-loco/loco"
+repo_url = "https://github.com/team-loco/loco"
+edit_uri = "edit/main/docs/content/"
+docs_dir = "content"
+site_dir = "site"
+extra_css = ["assets/loco.css"]
+nav = [
+  { "Overview" = "index.md" },
+  { "Get started" = [
+    { "Install the CLI" = "getting-started/install.md" },
+    { "Connect to Loco" = "getting-started/connect.md" },
+  ] },
+  { "Deploy" = [
+    { "Deployment modes" = "deployment/modes.md" },
+    { "Go infrastructure" = "deployment/go-infrastructure.md" },
+    { "Environments" = "deployment/environments.md" },
+  ] },
+  { "Operate" = [
+    { "Applications" = "operations/applications.md" },
+    { "Self-hosting" = "operations/self-hosting.md" },
+  ] },
+  { "Reference" = [
+    { "Architecture" = "reference/architecture.md" },
+    { "CLI and API" = "reference/cli-api.md" },
+    { "Use with AI" = "reference/ai.md" },
+  ] },
+  { "Contribute" = [
+    { "Local development" = "contributing/development.md" },
+    { "Documentation" = "contributing/documentation.md" },
+  ] },
+]
+
+[project.theme]
+variant = "modern"
+custom_dir = "overrides"
+font = false
+favicon = "assets/favicon.svg"
+logo = "assets/logo.svg"
+features = [
+  "navigation.sections",
+  "navigation.expand",
+  "navigation.path",
+  "navigation.footer",
+  "navigation.top",
+  "toc.follow",
+  "search.highlight",
+  "content.action.copy",
+  "content.action.edit",
+  "content.action.view",
+  "content.code.copy",
+  "content.code.select",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle = { icon = "lucide/sun", name = "Switch to dark mode" }
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle = { icon = "lucide/moon", name = "Switch to light mode" }
+
+[project.plugins.search]
+
+[project.plugins.llmstxt]
+full_output = "llms-full.txt"
+markdown_description = "Go infrastructure documentation describes the unreleased Go authoring workflow. Check the release notice before using those commands."
+
+[project.plugins.llmstxt.sections]
+Overview = ["index.md"]
+"Get started" = ["getting-started/*.md"]
+Deployment = ["deployment/*.md"]
+Operations = ["operations/*.md"]
+Reference = ["reference/*.md"]
+Contributing = ["contributing/*.md"]
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.superfences]
+[project.markdown_extensions.pymdownx.highlight]
+[project.markdown_extensions.toc]
+permalink = true
+
+[project.extra]
+environment = "production"

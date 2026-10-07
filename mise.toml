@@ -3,6 +3,8 @@ min_version = "2026.9.15"
 [tools]
 go = "1.27.1"
 bun = "1.4.2"
+uv = "0.9.28"
+python = "3.13.16"
 
 buf = "1.73.0"
 "github:sqlc-dev/sqlc" = "1.31.1"
@@ -223,3 +225,23 @@ run = "./e2e/run.sh --no-teardown"
 description = "Tear down the end-to-end infrastructure"
 env = { _.file = ".env" }
 run = "./e2e/run.sh --teardown-only"
+
+[tasks."docs:build"]
+description = "Build production documentation with strict validation"
+run = "uv run --frozen --project docs python docs/scripts/build.py build production"
+
+[tasks."docs:build:staging"]
+description = "Build staging documentation with staging URLs and noindex"
+run = "uv run --frozen --project docs python docs/scripts/build.py build staging"
+
+[tasks."docs:serve"]
+description = "Preview documentation at http://127.0.0.1:8001"
+run = "uv run --frozen --project docs python docs/scripts/build.py serve"
+
+[tasks."test:docs"]
+description = "Test production and staging documentation builds"
+run = "uv run --frozen --project docs python -m unittest discover -s docs/tests"
+
+[tasks."docs:check:browser"]
+description = "Check documentation navigation, search, themes and Markdown copying in Chromium"
+run = "uv run --frozen --project docs python docs/tests/browser.py"
