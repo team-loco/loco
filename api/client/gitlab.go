@@ -54,7 +54,7 @@ func (c *GitlabClient) CreateDeployToken(
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("PRIVATE-TOKEN", personalAccessToken)
+	req.Header.Set("Private-Token", personalAccessToken)
 
 	resp, err := c.client.Do(req)
 	if err != nil {

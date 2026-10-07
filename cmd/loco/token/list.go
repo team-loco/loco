@@ -116,9 +116,9 @@ func newListCmd(deps listDeps) *cobra.Command {
 				if t.ExpiresAt != nil {
 					exp := t.ExpiresAt.AsTime()
 					if exp.Before(time.Now()) {
-						expiresAt = fmt.Sprintf("%s (expired)", exp.Format("2006-01-02"))
+						expiresAt = fmt.Sprintf("%s (expired)", exp.Format(time.DateOnly))
 					} else {
-						expiresAt = exp.Format("2006-01-02")
+						expiresAt = exp.Format(time.DateOnly)
 					}
 				}
 

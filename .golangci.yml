@@ -1,4 +1,3 @@
-# pulled from fiber's golangci, may need to update this.
 version: "2"
 output:
   formats:
@@ -27,29 +26,56 @@ linters:
       - { linters: [staticcheck], text: "ST1005", path: "internal/docker/" }
       - { linters: [lll], source: "^\\s*// \\+kubebuilder:" }
       - { linters: [lll], source: "^\\s*// https?://\\S+$" }
+      - { linters: [fatcontext], path: "suite_test\\.go$" }
   default: standard
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
     - copyloopvar
     - dupl
+    - durationcheck
+    - errchkjson
+    - exptostd
+    - fatcontext
     - ginkgolinter
+    - gocheckcompilerdirectives
     - goconst
     - gocyclo
+    - intrange
     - lll
+    - loggercheck
+    - makezero
+    - mirror
     - misspell
     - nakedret
+    - nilnesserr
+    - nosprintfhostport
     - prealloc
+    - predeclared
+    - reassign
+    - recvcheck
     - revive
+    - rowserrcheck
+    - sloglint
+    - spancheck
+    - sqlclosecheck
+    - testifylint
+    - thelper
     - unconvert
     - unparam
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
   settings:
     errcheck:
       check-type-assertions: true
       check-blank: true
       exclude-functions:
         - "(*bytes.Buffer).Write"
-        - "(*github.com/valyala/bytebufferpool.ByteBuffer).Write"
-        - "(*github.com/valyala/bytebufferpool.ByteBuffer).WriteByte"
-        - "(*github.com/valyala/bytebufferpool.ByteBuffer).WriteString"
         - "fmt.Print"
         - "fmt.Println"
         - "fmt.Printf"
@@ -63,46 +89,8 @@ linters:
     errchkjson:
       report-no-exported: true
 
-    exhaustive:
-      default-signifies-exhaustive: true
-
-    forbidigo:
-      analyze-types: true
-    gocritic:
-      # TODO: Uncomment the following lines
-      enabled-tags:
-        - diagnostic
-      #   - style
-      #   - performance
-      #   - experimental
-      #   - opinionated
-      settings:
-        captLocal:
-          paramsOnly: false
-        elseif:
-          skipBalanced: false
-        underef:
-          skipRecvDeref: false
-        # NOTE: Set this option to false if other projects rely on this project's code
-        # unnamedResult:
-        # checkExported: false
-
-    gosec:
-      excludes:
-        - G104 # TODO: Enable this again. Mostly provided by errcheck
-      config:
-        global:
-          # show-ignored: true # TODO: Enable this
-          audit: true
-
     govet:
       enable-all: true
-
-    grouper:
-      # const-require-grouping: true # TODO: Enable this
-      import-require-single-import: true
-      import-require-grouping: true
-      # var-require-grouping: true # TODO: Conflicts with gofumpt
 
     loggercheck:
       require-string-key: true
@@ -110,24 +98,6 @@ linters:
 
     misspell:
       locale: US
-
-    nolintlint:
-      require-explanation: true
-      require-specific: true
-
-    nonamedreturns:
-      report-error-in-defer: true
-
-    perfsprint:
-      err-error: true
-
-    promlinter:
-      strict: true
-
-    # TODO: Enable this
-    # reassign:
-    # patterns:
-    # - '.*'
 
     revive:
       rules:
@@ -138,31 +108,14 @@ linters:
         - name: unused-parameter
         - name: unused-receiver
 
-    tagalign:
-      strict: true
-
-    tagliatelle:
-      case:
-        rules:
-          json: snake
-
     testifylint:
       enable-all: true
 
-    testpackage:
-      skip-regexp: "^$"
-
     unparam:
-      # NOTE: Set this option to false if other projects rely on this project's code
       check-exported: false
 
     unused:
-      # TODO: Uncomment these two lines
-      # parameters-are-used: false
-      # local-variables-are-used: false
-      # NOTE: Set these options to true if other projects rely on this project's code
       field-writes-are-uses: true
-      # exported-is-used: true # TODO: Fix issues with this option (upstream)
       exported-fields-are-used: true
 
     usestdlibvars:

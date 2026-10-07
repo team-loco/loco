@@ -148,7 +148,6 @@ func (s *AgentServer) Heartbeat(
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", cluster.ID)
 		}
-
 	}
 }
 
