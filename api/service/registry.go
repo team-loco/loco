@@ -9,11 +9,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/client"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
 )
 
@@ -21,6 +22,7 @@ import (
 type RegistryServer struct {
 	db                *pgxpool.Pool
 	queries           db.Querier
+	authz             *authz.Authorizer
 	gitlabURL         string
 	gitlabPAT         string
 	gitlabProjectID   string
@@ -43,6 +45,7 @@ func NewRegistryServer(
 	return &RegistryServer{
 		db:                dbPool,
 		queries:           queries,
+		authz:             authz.New(dbPool, queries),
 		gitlabURL:         gitlabURL,
 		gitlabPAT:         gitlabPAT,
 		gitlabProjectID:   gitlabProjectID,
@@ -71,7 +74,7 @@ func (s *RegistryServer) GetGitlabToken(
 	}
 
 	entityIDStr := entity.ID.String()
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		entityScopes,
 		actions.New(actions.GetGitlabToken, entityIDStr),

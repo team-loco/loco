@@ -11,10 +11,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/tvm/actions"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -99,7 +99,7 @@ func (s *OrgServer) requireOrgAdmin(ctx context.Context, orgID string) (genDb.En
 	if !ok {
 		return genDb.Entity{}, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ManageOrgDomains, orgID),
@@ -258,7 +258,7 @@ func (s *OrgServer) SetOrgDomainAutoJoin(
 		if !scopesOK {
 			return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 		}
-		if verifyErr := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, genDb.EntityScope{
+		if verifyErr := s.authz.Check(ctx, scopes, genDb.EntityScope{
 			EntityType: genDb.EntityTypeOrganization, EntityID: row.OrgID, Scope: parsed,
 		}); verifyErr != nil {
 			return nil, connect.NewError(connect.CodePermissionDenied, verifyErr)

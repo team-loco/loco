@@ -21,6 +21,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/pkg/cache"
@@ -259,7 +260,13 @@ func newSSOStack(t *testing.T) (*ssoStack, *OrgServer) {
 	orgs.UseSSO(sso, conformanceSupabase)
 	authServer := NewAuthServer(queries, machine, store, admins, conformanceSite)
 	verifier := auth.NewVerifier(http.DefaultClient, issuers, admins)
-	gate := interceptor.NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy), auth.NewSSOGate(queries))
+	gate := interceptor.NewAuthInterceptor(
+		machine,
+		verifier,
+		auth.NewResolver(pool, policy),
+		auth.NewSSOGate(queries),
+		authz.New(pool, queries),
+	)
 
 	mux := http.NewServeMux()
 	mux.Handle(orgv1connect.NewOrgServiceHandler(orgs, connect.WithInterceptors(gate)))

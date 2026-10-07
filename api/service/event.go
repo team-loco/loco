@@ -8,10 +8,11 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -25,12 +26,13 @@ const (
 
 type EventServer struct {
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	machine *tvm.VendingMachine
 	poll    time.Duration
 }
 
 func NewEventServer(queries genDb.Querier, machine *tvm.VendingMachine) *EventServer {
-	return &EventServer{queries: queries, machine: machine, poll: streamPollInterval}
+	return &EventServer{queries: queries, machine: machine, poll: streamPollInterval, authz: authz.New(nil, queries)}
 }
 
 func uuidString(id *uuid.UUID) string {
@@ -68,7 +70,7 @@ func (s *EventServer) verify(ctx context.Context, scope genDb.EntityScope) error
 	if !ok {
 		return connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
-	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, scope); err != nil {
+	if err := s.authz.Check(ctx, scopes, scope); err != nil {
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 	return nil

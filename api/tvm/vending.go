@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
 type VendingMachine struct {
 	pool       *pgxpool.Pool
 	queries    queries.Querier
+	authz      *authz.Authorizer
 	Cfg        Config
 	cancelFunc context.CancelFunc
 }
@@ -56,6 +58,7 @@ func NewVendingMachine(pool *pgxpool.Pool, q queries.Querier, cfg Config) *Vendi
 	return &VendingMachine{
 		pool:       pool,
 		queries:    q,
+		authz:      authz.New(pool, q),
 		Cfg:        cfg,
 		cancelFunc: cancel,
 	}

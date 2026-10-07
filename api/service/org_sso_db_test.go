@@ -260,7 +260,7 @@ func TestOrgSSORequiresOrgAdmin(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("grant: %v", err)
 	}
-	memberCtx := scoped(t, f.machine, member)
+	memberCtx := scoped(t, f.queries, member)
 	if _, err := f.orgs.GetOrgSSO(memberCtx, connect.NewRequest(&orgv1.GetOrgSSORequest{
 		OrgId: f.orgID,
 	})); codeOf(err) != connect.CodePermissionDenied {

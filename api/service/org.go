@@ -14,11 +14,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
@@ -34,6 +35,7 @@ var (
 type OrgServer struct {
 	db        *pgxpool.Pool
 	queries   genDb.Querier
+	authz     *authz.Authorizer
 	machine   *tvm.VendingMachine
 	lookupTXT TXTLookup
 	sso       auth.SSOAdmin
@@ -47,7 +49,13 @@ func (s *OrgServer) UseSSO(admin auth.SSOAdmin, issuer string) {
 
 // NewOrgServer creates a new OrgServer instance
 func NewOrgServer(db *pgxpool.Pool, queries genDb.Querier, machine *tvm.VendingMachine) *OrgServer {
-	return &OrgServer{db: db, queries: queries, machine: machine, lookupTXT: net.DefaultResolver.LookupTXT}
+	return &OrgServer{
+		db:        db,
+		queries:   queries,
+		machine:   machine,
+		lookupTXT: net.DefaultResolver.LookupTXT,
+		authz:     authz.New(db, queries),
+	}
 }
 
 // CreateOrg creates a new organization
@@ -73,7 +81,7 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.CreateOrg, entity.ID.String()),
@@ -133,7 +141,7 @@ func (s *OrgServer) CreateOrg(
 		return nil, connect.NewError(connect.CodeInternal, ErrDB)
 	}
 
-	err = tvm.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
+	err = authz.ApplyRoles(ctx, qtx, entity.ID, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeRead},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeOrganization, EntityID: org.ID, Scope: genDb.ScopeAdmin},
@@ -208,7 +216,7 @@ func (s *OrgServer) GetOrg(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetOrg, org.ID.String()),
@@ -242,7 +250,7 @@ func (s *OrgServer) ListUserOrgs(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListUserOrgs, r.GetUserId()),
@@ -309,7 +317,7 @@ func (s *OrgServer) UpdateOrg(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateOrg, r.GetOrgId()),
@@ -375,7 +383,7 @@ func (s *OrgServer) DeleteOrg(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.DeleteOrg, r.GetOrgId()),
@@ -425,7 +433,7 @@ func (s *OrgServer) ListOrgUsers(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListOrgMembers, r.GetOrgId()),
@@ -491,7 +499,7 @@ func (s *OrgServer) ListOrgWorkspaces(
 	}
 
 	// Check authorization
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListWorkspaces, r.GetOrgId()),

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -29,9 +30,9 @@ type eventFixture struct {
 	orgID   string
 }
 
-func scoped(t *testing.T, machine *tvm.VendingMachine, userID uuid.UUID) context.Context {
+func scoped(t *testing.T, q genDb.Querier, userID uuid.UUID) context.Context {
 	t.Helper()
-	scopes, err := machine.UserScopes(t.Context(), userID)
+	scopes, err := authz.New(nil, q).UserScopes(t.Context(), userID)
 	if err != nil {
 		t.Fatalf("scopes: %v", err)
 	}
@@ -59,7 +60,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	ownerCtx := scoped(t, machine, owner.ID)
+	ownerCtx := scoped(t, queries, owner.ID)
 	created, err := NewOrgServer(pool, queries, machine).CreateOrg(ownerCtx, connect.NewRequest(&orgv1.CreateOrgRequest{
 		Name: new("acme"),
 	}))
@@ -70,7 +71,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 		queries: queries,
 		machine: machine,
 		events:  NewEventServer(queries, machine),
-		owner:   scoped(t, machine, owner.ID),
+		owner:   scoped(t, queries, owner.ID),
 		orgID:   created.Msg.GetOrgId(),
 	}
 }
@@ -140,7 +141,7 @@ func TestListOrgEventsAuthorizationPagingAndFilter(t *testing.T) {
 	}); grantErr != nil {
 		t.Fatalf("grant: %v", grantErr)
 	}
-	_, err = f.events.ListOrgEvents(scoped(t, f.machine, outsider.ID), connect.NewRequest(&eventv1.ListOrgEventsRequest{
+	_, err = f.events.ListOrgEvents(scoped(t, f.queries, outsider.ID), connect.NewRequest(&eventv1.ListOrgEventsRequest{
 		OrgId: f.orgID,
 	}))
 	if codeOf(err) != connect.CodePermissionDenied {

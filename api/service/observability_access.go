@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/team-loco/loco/api/authz"
+
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,6 +21,7 @@ import (
 type ObservabilityAccessServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	tvm     *tvm.VendingMachine
 }
 
@@ -27,7 +30,7 @@ func NewObservabilityAccessServer(
 	queries genDb.Querier,
 	vendingMachine *tvm.VendingMachine,
 ) *ObservabilityAccessServer {
-	return &ObservabilityAccessServer{db: db, queries: queries, tvm: vendingMachine}
+	return &ObservabilityAccessServer{db: db, queries: queries, tvm: vendingMachine, authz: authz.New(db, queries)}
 }
 
 // GetObservabilityAccess returns the regional proxy endpoints for the workspace.
@@ -52,7 +55,7 @@ func (s *ObservabilityAccessServer) GetObservabilityAccess(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid workspace_id: %w", err))
 	}
 
-	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, genDb.EntityScope{
+	if verifyErr := s.authz.Check(ctx, entityScopes, genDb.EntityScope{
 		EntityType: genDb.EntityTypeWorkspace,
 		EntityID:   workspaceID,
 		Scope:      genDb.ScopeRead,

@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -53,11 +54,17 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 		},
 	}}, admins)
 	return &providerFixture{
-		pool:        pool,
-		queries:     queries,
-		machine:     machine,
-		issuer:      issuer,
-		interceptor: NewAuthInterceptor(machine, verifier, auth.NewResolver(pool, policy), auth.NewSSOGate(queries)),
+		pool:    pool,
+		queries: queries,
+		machine: machine,
+		issuer:  issuer,
+		interceptor: NewAuthInterceptor(
+			machine,
+			verifier,
+			auth.NewResolver(pool, policy),
+			auth.NewSSOGate(queries),
+			authz.New(pool, queries),
+		),
 	}
 }
 

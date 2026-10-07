@@ -15,12 +15,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -69,6 +70,7 @@ type ResourceServer struct {
 	resourcev1connect.UnimplementedResourceServiceHandler
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	machine *tvm.VendingMachine
 }
 
@@ -81,6 +83,7 @@ func NewResourceServer(
 	return &ResourceServer{
 		db:      db,
 		queries: queries,
+		authz:   authz.New(db, queries),
 		machine: machine,
 	}
 }
@@ -98,7 +101,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.CreateResource, r.GetWorkspaceId()),
@@ -306,7 +309,7 @@ func (s *ResourceServer) GetResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetResource, resourceIDStr),
@@ -359,7 +362,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ListResources, r.GetWorkspaceId()),
@@ -447,7 +450,7 @@ func (s *ResourceServer) UpdateResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateResource, r.GetResourceId()),
@@ -495,7 +498,7 @@ func (s *ResourceServer) DeleteResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.DeleteResource, r.GetResourceId()),
@@ -550,7 +553,7 @@ func (s *ResourceServer) GetResourceStatus(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.GetResourceStatus, r.GetResourceId()),
@@ -651,7 +654,7 @@ func (s *ResourceServer) ScaleResource(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.ScaleResource, r.GetResourceId()),
@@ -755,7 +758,7 @@ func (s *ResourceServer) UpdateResourceEnv(
 		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
-	if err := s.machine.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		scopes,
 		actions.New(actions.UpdateResourceEnv, r.GetResourceId()),

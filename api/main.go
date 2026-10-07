@@ -24,6 +24,7 @@ import (
 	"connectrpc.com/validate"
 	"github.com/rs/cors"
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/db"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -339,7 +340,7 @@ func main() {
 	httpInterceptors := connect.WithInterceptors(
 		deadlineInterceptor,
 		interceptor.NewContextInterceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver, auth.NewSSOGate(queries)),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver, auth.NewSSOGate(queries), authz.New(pool, queries)),
 		validate.NewInterceptor(),
 	)
 

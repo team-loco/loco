@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/tvm"
 )
 
 func AutoJoin(ctx context.Context, q genDb.Querier, userID uuid.UUID, email string) (bool, error) {
@@ -48,10 +48,10 @@ func grantOrgScope(
 		}
 	}
 	grants := make([]genDb.EntityScope, 0, 3)
-	for _, s := range tvm.ScopesUpTo(scope) {
+	for _, s := range authz.ScopesUpTo(scope) {
 		grants = append(grants, genDb.EntityScope{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: s})
 	}
-	if err := tvm.ApplyRoles(ctx, q, userID, grants, nil); err != nil {
+	if err := authz.ApplyRoles(ctx, q, userID, grants, nil); err != nil {
 		return false, fmt.Errorf("grant auto-join scopes: %w", err)
 	}
 	if err := events.RecordWith(ctx, q, events.Event{

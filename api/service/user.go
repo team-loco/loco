@@ -12,11 +12,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/contextkeys"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/timeutil"
 	"github.com/team-loco/loco/api/tvm"
-	"github.com/team-loco/loco/api/tvm/actions"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
@@ -33,6 +34,7 @@ var (
 type UserServer struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
+	authz   *authz.Authorizer
 	tvm     *tvm.VendingMachine
 	admins  auth.Admins
 }
@@ -44,7 +46,7 @@ func NewUserServer(
 	vendingMachine *tvm.VendingMachine,
 	admins auth.Admins,
 ) *UserServer {
-	return &UserServer{db: db, queries: queries, tvm: vendingMachine, admins: admins}
+	return &UserServer{db: db, queries: queries, tvm: vendingMachine, admins: admins, authz: authz.New(db, queries)}
 }
 
 // GetUser retrieves a user by ID or email
@@ -79,7 +81,7 @@ func (s *UserServer) GetUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if verifyErr := s.tvm.VerifyWithGivenEntityScopes(
+	if verifyErr := s.authz.Check(
 		ctx,
 		entityScopes,
 		actions.New(actions.GetUser, targetUserID),
@@ -114,7 +116,7 @@ func (s *UserServer) WhoAmI(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID.String()))
+	err := s.authz.Check(ctx, entityScopes, actions.New(actions.GetCurrentUser, entity.ID.String()))
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to verify token", "error", err)
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
@@ -148,7 +150,7 @@ func (s *UserServer) UpdateUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		entityScopes,
 		actions.New(actions.UpdateUser, r.GetUserId()),
@@ -194,7 +196,7 @@ func (s *UserServer) ListUsers(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(ctx, entityScopes, actions.NewSystem(actions.ListUsers)); err != nil {
+	if err := s.authz.Check(ctx, entityScopes, actions.NewSystem(actions.ListUsers)); err != nil {
 		slog.WarnContext(ctx, "unauthorized to list users")
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
@@ -248,7 +250,7 @@ func (s *UserServer) DeleteUser(
 		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
-	if err := s.tvm.VerifyWithGivenEntityScopes(
+	if err := s.authz.Check(
 		ctx,
 		entityScopes,
 		actions.New(actions.DeleteUser, r.GetUserId()),

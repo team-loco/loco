@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
+	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -60,13 +61,13 @@ func newDomainFixture(t *testing.T) *domainFixture {
 		return records, nil
 	}
 	owner := f.signUp(t, "owner", "owner@corp.test", true)
-	ownerCtx := scoped(t, machine, owner)
+	ownerCtx := scoped(t, queries, owner)
 	created, err := f.orgs.CreateOrg(ownerCtx, connect.NewRequest(&orgv1.CreateOrgRequest{Name: new("corp")}))
 	if err != nil {
 		t.Fatalf("org: %v", err)
 	}
 	f.orgID = created.Msg.GetOrgId()
-	f.owner = scoped(t, machine, owner)
+	f.owner = scoped(t, queries, owner)
 	return f
 }
 
@@ -83,7 +84,7 @@ func (f *domainFixture) signUp(t *testing.T, sub, email string, verified bool) u
 
 func (f *domainFixture) orgScopes(t *testing.T, userID uuid.UUID) []genDb.Scope {
 	t.Helper()
-	scopes, err := f.machine.UserScopes(t.Context(), userID)
+	scopes, err := authz.New(nil, f.queries).UserScopes(t.Context(), userID)
 	if err != nil {
 		t.Fatalf("scopes: %v", err)
 	}
@@ -151,12 +152,12 @@ func TestOrgDomainVerification(t *testing.T) {
 	}
 
 	rival := f.signUp(t, "rival", "rival@rival.test", true)
-	rivalCtx := scoped(t, f.machine, rival)
+	rivalCtx := scoped(t, f.queries, rival)
 	rivalOrg, err := f.orgs.CreateOrg(rivalCtx, connect.NewRequest(&orgv1.CreateOrgRequest{Name: new("rival")}))
 	if err != nil {
 		t.Fatalf("rival org: %v", err)
 	}
-	rivalCtx = scoped(t, f.machine, rival)
+	rivalCtx = scoped(t, f.queries, rival)
 	claim, err := f.orgs.AddOrgDomain(rivalCtx, connect.NewRequest(&orgv1.AddOrgDomainRequest{
 		OrgId: rivalOrg.Msg.GetOrgId(), Domain: corpDomain,
 	}))
