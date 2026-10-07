@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"regexp"
 	"strconv"
@@ -9,8 +10,11 @@ import (
 )
 
 const (
-	registry = "ghcr.io/team-loco"
-	region   = "us-east4-eqdc4a"
+	registry           = "ghcr.io/team-loco"
+	region             = "us-east4-eqdc4a"
+	authPort           = 9999
+	hookSecret         = "AUTH_HOOK_SECRET"
+	accessTokenSeconds = "600"
 )
 
 var commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -94,6 +98,37 @@ func ui(env environment) railway.Service {
 	})
 }
 
+func (env environment) webURL() string {
+	return "https://" + env.domainPrefix + "loco.build"
+}
+
+func (env environment) apiURL() string {
+	return "https://api." + env.domainPrefix + "loco.build"
+}
+
+func (env environment) authURL() string {
+	return "https://auth." + env.domainPrefix + "loco.build"
+}
+
+func (env environment) authIssuers() string {
+	issuers := []map[string]any{{
+		"issuer":   env.authURL(),
+		"audience": "authenticated",
+		"claims": map[string]any{
+			"emailVerified": "user_metadata.email_verified",
+			"name":          "user_metadata.full_name",
+			"avatarUrl":     "user_metadata.avatar_url",
+		},
+		"web":   map[string]any{"adapter": "supabase"},
+		"admin": map[string]any{"type": "supabase", "tokenEnv": "AUTH_SUPABASE_SERVICE_KEY"},
+	}}
+	raw, err := json.Marshal(issuers)
+	if err != nil {
+		panic(err)
+	}
+	return string(raw)
+}
+
 func api(env environment) railway.Service {
 	apiEnv := preserved(
 		"APP_ENV",
@@ -110,7 +145,19 @@ func api(env environment) railway.Service {
 		"GITLAB_URL",
 		"LOG_LEVEL",
 		"REGISTRY_TAG",
+		"AUTH_SIGNUP_MODE",
+		"AUTH_SIGNUP_DOMAINS",
+		"AUTH_SUPABASE_SERVICE_KEY",
+		hookSecret,
+		"SMTP_FROM",
+		"SMTP_HOST",
+		"SMTP_PASSWORD",
+		"SMTP_PORT",
+		"SMTP_TLS",
+		"SMTP_USERNAME",
 	)
+	apiEnv["AUTH_ISSUERS"] = env.authIssuers()
+	apiEnv["WEB_URL"] = env.webURL()
 	apiEnv["MIN_CLI_VERSION"] = "v0.0.61"
 	apiEnv["PORT"] = "8000"
 	apiEnv["RAILWAY_DEPLOYMENT_DRAINING_SECONDS"] = "40"
@@ -129,6 +176,61 @@ func api(env environment) railway.Service {
 			},
 		},
 		"env": apiEnv,
+	})
+}
+
+func auth(env environment, api railway.Service, db railway.Resource) railway.Service {
+	authEnv := preserved(
+		"GOTRUE_JWT_KEYS",
+		"GOTRUE_JWT_SECRET",
+		"GOTRUE_SAML_PRIVATE_KEY",
+		"GOTRUE_EXTERNAL_GITHUB_CLIENT_ID",
+		"GOTRUE_EXTERNAL_GITHUB_SECRET",
+	)
+	hooks := env.apiURL() + "/auth/hooks/"
+	for name, value := range map[string]any{
+		"API_EXTERNAL_URL":                        env.authURL(),
+		"DATABASE_URL":                            railway.Ref(db, "DATABASE_URL"),
+		"GOTRUE_API_HOST":                         "0.0.0.0",
+		"GOTRUE_DB_DRIVER":                        "postgres",
+		"GOTRUE_EXTERNAL_EMAIL_ENABLED":           "true",
+		"GOTRUE_EXTERNAL_GITHUB_ENABLED":          "true",
+		"GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI":     env.authURL() + "/callback",
+		"GOTRUE_HOOK_BEFORE_USER_CREATED_ENABLED": "true",
+		"GOTRUE_HOOK_BEFORE_USER_CREATED_SECRETS": api.Env(hookSecret),
+		"GOTRUE_HOOK_BEFORE_USER_CREATED_URI":     hooks + "before-user-created",
+		"GOTRUE_HOOK_SEND_EMAIL_ENABLED":          "true",
+		"GOTRUE_HOOK_SEND_EMAIL_SECRETS":          api.Env(hookSecret),
+		"GOTRUE_HOOK_SEND_EMAIL_URI":              hooks + "send-email",
+		"GOTRUE_JWT_ADMIN_ROLES":                  "service_role",
+		"GOTRUE_JWT_AUD":                          "authenticated",
+		"GOTRUE_JWT_DEFAULT_GROUP_NAME":           "authenticated",
+		"GOTRUE_JWT_EXP":                          accessTokenSeconds,
+		"GOTRUE_JWT_ISSUER":                       env.authURL(),
+		"GOTRUE_MAILER_AUTOCONFIRM":               "false",
+		"GOTRUE_SAML_ENABLED":                     "true",
+		"GOTRUE_SITE_URL":                         env.webURL(),
+		"GOTRUE_URI_ALLOW_LIST":                   env.webURL() + "/**",
+		"PORT":                                    strconv.Itoa(authPort),
+		"RAILWAY_DEPLOYMENT_DRAINING_SECONDS":     "40",
+	} {
+		authEnv[name] = value
+	}
+	deploy := limits(0.5, 500000000)
+	deploy["healthcheckPath"] = "/health"
+	deploy["healthcheckTimeout"] = 300
+	return railway.ServiceNamed("loco::cp-auth", railway.ServiceConfig{
+		"source":   image("loco-supabase-auth", "sha-"+env.commit),
+		"build":    dockerBuild("/images/supabase-auth/Dockerfile"),
+		"replicas": map[string]any{region: 1},
+		"deploy":   deploy,
+		"networking": map[string]any{
+			"privateNetworkEndpoint": "auth",
+			"customDomains": map[string]any{
+				"auth." + env.domainPrefix + "loco.build": map[string]any{"port": authPort},
+			},
+		},
+		"env": authEnv,
 	})
 }
 
@@ -190,7 +292,11 @@ func Railway(ctx railway.Context) railway.Project {
 	env := environmentFor(ctx)
 	cacheData := volume("valkey-volume")
 	dbData := volume("postgres-18-ssl-volume")
-	resources := []any{ui(env), api(env), cache(cacheData), cacheData, dbData}
+	apiService := api(env)
+	authDB := railway.Postgres("loco::cp-auth-db", map[string]any{"region": region})
+	resources := []any{
+		ui(env), apiService, auth(env, apiService, authDB), authDB, cache(cacheData), cacheData, dbData,
+	}
 	if ctx.IsEnvironment("staging") {
 		resources = append(resources, railway.Postgres("loco::cp-db-staging", map[string]any{"region": region}))
 	} else {
