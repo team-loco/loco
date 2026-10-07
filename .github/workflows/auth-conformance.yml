@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - "api/auth/**"
+      - "api/migrations/**"
+      - "api/queries/**"
       - "env/conformance/**"
       - "env/local/auth-db.sql"
       - "mise-tasks/test/auth-conformance"
@@ -13,10 +15,13 @@ on:
   pull_request:
     paths:
       - "api/auth/**"
+      - "api/migrations/**"
+      - "api/queries/**"
       - "env/conformance/**"
       - "env/local/auth-db.sql"
       - "mise-tasks/test/auth-conformance"
       - ".github/workflows/auth-conformance.yml"
+  merge_group:
   workflow_dispatch:
 
 concurrency:
@@ -27,7 +32,20 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Auth Conformance Changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changes.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: changes
+        uses: ./.github/actions/merge-queue-changes
+
   conformance:
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
     name: Auth Conformance
     runs-on: ubuntu-latest
 

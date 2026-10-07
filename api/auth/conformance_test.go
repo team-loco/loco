@@ -21,6 +21,8 @@ import (
 	"github.com/team-loco/loco/api/auth/supabase"
 )
 
+const fieldPassword = "password"
+
 type tokenFunc func(t *testing.T) string
 
 type account struct {
@@ -36,13 +38,29 @@ type conformanceProvider struct {
 	accounts []account
 }
 
-func postForm(t *testing.T, endpoint string, form url.Values, field string) string {
+func post(t *testing.T, endpoint, contentType, body string) (int, []byte) {
 	t.Helper()
-	res, err := http.PostForm(endpoint, form)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, endpoint, strings.NewReader(body))
 	if err != nil {
 		t.Fatalf("token request: %v", err)
 	}
-	return decodeToken(t, res, field)
+	req.Header.Set("Content-Type", contentType)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("token request: %v", err)
+	}
+	defer res.Body.Close()
+	raw, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("read token response: %v", err)
+	}
+	return res.StatusCode, raw
+}
+
+func postForm(t *testing.T, endpoint string, form url.Values, field string) string {
+	t.Helper()
+	status, raw := post(t, endpoint, "application/x-www-form-urlencoded", form.Encode())
+	return decodeToken(t, status, raw, field)
 }
 
 func postJSON(t *testing.T, endpoint string, body any, field string) string {
@@ -51,22 +69,14 @@ func postJSON(t *testing.T, endpoint string, body any, field string) string {
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	res, err := http.Post(endpoint, "application/json", strings.NewReader(string(raw)))
-	if err != nil {
-		t.Fatalf("token request: %v", err)
-	}
-	return decodeToken(t, res, field)
+	status, response := post(t, endpoint, "application/json", string(raw))
+	return decodeToken(t, status, response, field)
 }
 
-func decodeToken(t *testing.T, res *http.Response, field string) string {
+func decodeToken(t *testing.T, status int, body []byte, field string) string {
 	t.Helper()
-	defer res.Body.Close()
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatalf("read token response: %v", err)
-	}
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("token request: status %d: %s", res.StatusCode, body)
+	if status != http.StatusOK {
+		t.Fatalf("token request: status %d: %s", status, body)
 	}
 	var tokens map[string]any
 	if err := json.Unmarshal(body, &tokens); err != nil {
@@ -81,12 +91,13 @@ func decodeToken(t *testing.T, res *http.Response, field string) string {
 
 func passwordGrant(endpoint, clientID, clientSecret, username, password string) tokenFunc {
 	return func(t *testing.T) string {
+		t.Helper()
 		form := url.Values{
-			"grant_type": {"password"},
-			"client_id":  {clientID},
-			"username":   {username},
-			"password":   {password},
-			"scope":      {"openid email profile"},
+			"grant_type":  {fieldPassword},
+			"client_id":   {clientID},
+			"username":    {username},
+			fieldPassword: {password},
+			"scope":       {"openid email profile"},
 		}
 		if clientSecret != "" {
 			form.Set("client_secret", clientSecret)
@@ -145,10 +156,11 @@ func tokenField(t *testing.T, tokens map[string]any, field string) string {
 
 func supabaseSignup(base, email string) tokenFunc {
 	return func(t *testing.T) string {
+		t.Helper()
 		return postJSON(t, base+"/signup", map[string]any{
-			"email":    email,
-			"password": supabasePassword,
-			"data":     map[string]any{"full_name": "Dana Supabase"},
+			"email":       email,
+			fieldPassword: supabasePassword,
+			"data":        map[string]any{"full_name": "Dana Supabase"},
 		}, "access_token")
 	}
 }
@@ -297,14 +309,21 @@ func TestProviderConformance(t *testing.T) {
 						t.Fatalf("email verified = %v, want %v", id.EmailVerified, a.emailVerified)
 					}
 
-					if _, tamperErr := verifier.Verify(t.Context(), tamper(token)); !errors.Is(tamperErr, auth.ErrInvalidToken) {
+					if _, tamperErr := verifier.Verify(
+						t.Context(),
+						tamper(token),
+					); !errors.Is(
+						tamperErr,
+						auth.ErrInvalidToken,
+					) {
 						t.Fatalf("tampered token: %v", tamperErr)
 					}
 
 					first, err := resolver.Resolve(t.Context(), id)
 					if !a.emailVerified {
 						if !errors.Is(err, auth.ErrEmailUnverified) {
-							t.Fatalf("resolve an unverified email = %+v %v, want %v", first, err, auth.ErrEmailUnverified)
+							t.Fatalf("resolve an unverified email = %+v %v, want %v",
+								first, err, auth.ErrEmailUnverified)
 						}
 						return
 					}

@@ -12,7 +12,7 @@ services:
     volumes:
       - ../local/auth-db.sql:/docker-entrypoint-initdb.d/auth-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U loco_test -d loco_auth"]
+      test: ["CMD-SHELL", "psql -h 127.0.0.1 -U loco_test -d loco_auth -tAc 'select 1'"]
       interval: 1s
       timeout: 3s
       retries: 30
