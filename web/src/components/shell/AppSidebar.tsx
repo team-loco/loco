@@ -166,13 +166,13 @@ export function AppSidebar() {
 
 	return (
 		<Sidebar collapsible="icon" onMouseEnter={peek.onEnter} onMouseLeave={peek.onLeave}>
-			<SidebarHeader className="h-[52px] shrink-0 items-center justify-center border-b border-line px-5 py-0">
+			<SidebarHeader className="h-[52px] shrink-0 items-center justify-center border-b border-line px-5 py-0 transition-[padding] duration-150 group-data-[collapsible=icon]:px-0">
 				<Link
 					to={wsBase ?? "/dashboard"}
 					aria-label="Loco dashboard"
 					className="flex w-fit items-center rounded-sm outline-none [--logo:var(--logo-sidebar)] focus-visible:ring-2 focus-visible:ring-sidebar-ring"
 				>
-					<LocoLogo className="w-[46px] transition-opacity duration-150 group-data-[collapsible=icon]:opacity-0" />
+					<LocoLogo className="w-[46px] transition-[width] duration-150 group-data-[collapsible=icon]:w-8" />
 				</Link>
 			</SidebarHeader>
 
