@@ -89,6 +89,10 @@ func (p SignupPolicy) Check(id Identity) error {
 	}
 }
 
+func (p SignupPolicy) CheckEmail(email string) error {
+	return p.Check(Identity{Email: strings.ToLower(strings.TrimSpace(email)), EmailVerified: true})
+}
+
 func emailDomain(email string) string {
 	at := strings.LastIndex(email, "@")
 	if at < 0 || at == len(email)-1 {

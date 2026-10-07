@@ -9,7 +9,7 @@ func testConfig(ti *authtest.Issuer) IssuerConfig {
 		Audience: "authenticated",
 		Claims: ClaimPaths{
 			Subject:       "sub",
-			Email:         "email",
+			Email:         claimEmail,
 			EmailVerified: "email_verified",
 			Name:          "user_metadata.full_name",
 			AvatarURL:     "user_metadata.avatar_url",

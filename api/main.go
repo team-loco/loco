@@ -84,6 +84,7 @@ type APIConfig struct {
 	AuthIssuers           string
 	AuthSignupMode        string
 	AuthSignupDomains     string
+	AuthHookSecret        string
 }
 
 func newAPIConfig() *APIConfig {
@@ -156,6 +157,7 @@ func newAPIConfig() *APIConfig {
 		AuthIssuers:           os.Getenv("AUTH_ISSUERS"),
 		AuthSignupMode:        os.Getenv("AUTH_SIGNUP_MODE"),
 		AuthSignupDomains:     os.Getenv("AUTH_SIGNUP_DOMAINS"),
+		AuthHookSecret:        os.Getenv("AUTH_HOOK_SECRET"),
 	}
 }
 
@@ -211,6 +213,17 @@ func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) ht
 		middleware := cors.New(opts)
 		return middleware.Handler(h)
 	}
+}
+
+func registerAuthHooks(mux *http.ServeMux, secret string, policy auth.SignupPolicy) {
+	if secret == "" {
+		return
+	}
+	webhook, err := auth.ParseWebhookSecrets(secret)
+	if err != nil {
+		log.Fatalf("AUTH_HOOK_SECRET: %v", err)
+	}
+	auth.NewHooks(webhook, policy).Register(mux)
 }
 
 func newPprofServer(addr string) *http.Server {
@@ -290,6 +303,7 @@ func main() {
 	mux := http.NewServeMux()
 	verifier := auth.NewVerifier(newOutboundHTTPClient(), issuers)
 	resolver := auth.NewResolver(pool, signupPolicy)
+	registerAuthHooks(mux, ac.AuthHookSecret, signupPolicy)
 
 	httpInterceptors := connect.WithInterceptors(
 		deadlineInterceptor,
