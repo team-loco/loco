@@ -57,7 +57,7 @@ func AskForString(prompt string) (string, error) {
 
 	m, ok := model.(inputModel)
 	if !ok {
-		return "", fmt.Errorf("internal error: unexpected model type")
+		return "", errUnexpectedModel
 	}
 	return m.textInput.Value(), m.err
 }

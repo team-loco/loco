@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"errors"
 	"fmt"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -10,10 +11,12 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+var errEmptySpecBytes = errors.New("spec bytes cannot be empty")
+
 // DeserializeResourceSpec deserializes a ResourceSpec from JSON bytes (as stored in DB).
 func DeserializeResourceSpec(specBytes []byte, resourceType genDb.ResourceType) (*resourcev1.ResourceSpec, error) {
 	if len(specBytes) == 0 {
-		return nil, fmt.Errorf("spec bytes cannot be empty")
+		return nil, errEmptySpecBytes
 	}
 
 	switch resourceType {
@@ -34,7 +37,7 @@ func DeserializeResourceSpec(specBytes []byte, resourceType genDb.ResourceType) 
 // The specBytes should contain only the inner deployment spec (ServiceDeploymentSpec, etc.), not the wrapper.
 func DeserializeDeploymentSpec(specBytes []byte, resourceType string) (*deploymentv1.DeploymentSpec, error) {
 	if len(specBytes) == 0 {
-		return nil, fmt.Errorf("spec bytes cannot be empty")
+		return nil, errEmptySpecBytes
 	}
 
 	switch resourceType {
@@ -55,7 +58,7 @@ func DeserializeDeploymentSpec(specBytes []byte, resourceType string) (*deployme
 // The specBytes should contain only the inner spec (ServiceSpec, DatabaseSpec, etc.), not the wrapper.
 func DeserializeResourceSpecByType(specBytes []byte, resourceType string) (*resourcev1.ResourceSpec, error) {
 	if len(specBytes) == 0 {
-		return nil, fmt.Errorf("spec bytes cannot be empty")
+		return nil, errEmptySpecBytes
 	}
 
 	switch resourceType {

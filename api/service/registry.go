@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -62,13 +61,13 @@ func (s *RegistryServer) GetGitlabToken(
 	entity, ok := ctx.Value(contextkeys.EntityKey).(db.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("unauthorized"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]db.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("unauthorized"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityIDStr := entity.ID.String()
@@ -115,7 +114,7 @@ func (s *RegistryServer) GetImageRepository(
 ) (*connect.Response[registryv1.GetImageRepositoryResponse], error) {
 	if _, ok := ctx.Value(contextkeys.EntityKey).(db.Entity); !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("unauthorized"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	if s.registryBaseImage == "" {

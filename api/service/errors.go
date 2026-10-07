@@ -10,6 +10,11 @@ import (
 var (
 	ErrImproperUsage = errors.New("improper usage of the api")
 	ErrDB            = errors.New(http.StatusText(http.StatusInternalServerError))
+	ErrUnauthorized  = errors.New("unauthorized")
+
+	errEntityScopesNotFound = errors.New("entity scopes not found in context")
+	errDatabase             = errors.New("database error")
+	errCloneServiceSpec     = errors.New("failed to clone service spec")
 )
 
 // isPgConstraintViolation checks if an error is a PostgreSQL unique constraint violation

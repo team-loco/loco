@@ -24,7 +24,9 @@ var (
 	ErrTokenAlreadyExists   = errors.New("token with this name already exists for the entity")
 	ErrInvalidTokenDuration = errors.New("invalid token duration")
 	ErrInvalidScopes        = errors.New("invalid scopes")
-	ErrTokenUnauthorized    = errors.New("unauthorized")
+
+	errNameRequired       = errors.New("name is required")
+	errEntityTypeRequired = errors.New("entity_type is required")
 )
 
 // TokenServer implements the TokenService gRPC server
@@ -48,12 +50,12 @@ func (s *TokenServer) CreateToken(
 
 	if r.GetName() == "" {
 		slog.ErrorContext(ctx, "invalid request: name is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
 	}
 
 	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("entity_type is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	if r.GetExpiresInSec() <= 0 || r.GetExpiresInSec() > int64(s.tvm.Cfg.MaxAPITokenDuration.Seconds()) {
@@ -69,13 +71,13 @@ func (s *TokenServer) CreateToken(
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityID, err := uuid.Parse(r.GetEntityId())
@@ -177,13 +179,13 @@ func (s *TokenServer) ListTokens(
 
 	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("entity_type is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityID, err := uuid.Parse(r.GetEntityId())
@@ -246,18 +248,18 @@ func (s *TokenServer) GetToken(
 
 	if r.GetName() == "" {
 		slog.ErrorContext(ctx, "invalid request: name is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
 	}
 
 	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("entity_type is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityID, err := uuid.Parse(r.GetEntityId())
@@ -319,24 +321,24 @@ func (s *TokenServer) RevokeToken(
 
 	if r.GetName() == "" {
 		slog.ErrorContext(ctx, "invalid request: name is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errNameRequired)
 	}
 
 	if r.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		slog.ErrorContext(ctx, "invalid request: entity_type is required")
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("entity_type is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
 
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityID, err := uuid.Parse(r.GetEntityId())
@@ -406,13 +408,13 @@ func (*TokenServer) GetScopes(
 	entity, ok := ctx.Value(contextkeys.EntityKey).(genDb.Entity)
 	if !ok {
 		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	entityScopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrTokenUnauthorized)
+		return nil, connect.NewError(connect.CodeUnauthenticated, ErrUnauthorized)
 	}
 
 	protoScopes := make([]*tokenv1.EntityScope, len(entityScopes))

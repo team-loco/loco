@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -15,6 +15,11 @@ import (
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
 	"github.com/team-loco/loco/observability-proxy/pkg/guardrails"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+var (
+	errMissingToken = errors.New("missing token")
+	errQueryFailed  = errors.New("query failed")
 )
 
 var _ observabilityv1connect.ObservabilityProxyServiceHandler = (*ObservabilityService)(nil)
@@ -35,7 +40,7 @@ func (s *ObservabilityService) QueryLogs(
 ) (*connect.Response[observabilityv1.QueryLogsResponse], error) {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken)
 	}
 
 	msg := req.Msg
@@ -72,7 +77,7 @@ func (s *ObservabilityService) QueryLogs(
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryLogs failed", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("query failed"))
+		return nil, connect.NewError(connect.CodeInternal, errQueryFailed)
 	}
 
 	return connect.NewResponse(&observabilityv1.QueryLogsResponse{
@@ -88,7 +93,7 @@ func (s *ObservabilityService) TailLogs(
 ) error {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token"))
+		return connect.NewError(connect.CodeUnauthenticated, errMissingToken)
 	}
 
 	msg := req.Msg
@@ -180,7 +185,7 @@ func (s *ObservabilityService) QueryMetrics(
 ) (*connect.Response[observabilityv1.QueryMetricsResponse], error) {
 	token, ok := auth.TokenFromContext(ctx)
 	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("missing token"))
+		return nil, connect.NewError(connect.CodeUnauthenticated, errMissingToken)
 	}
 
 	msg := req.Msg
@@ -212,7 +217,7 @@ func (s *ObservabilityService) QueryMetrics(
 	)
 	if err != nil {
 		slog.ErrorContext(ctx, "QueryMetrics failed", "error", err)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("query failed"))
+		return nil, connect.NewError(connect.CodeInternal, errQueryFailed)
 	}
 
 	return connect.NewResponse(&observabilityv1.QueryMetricsResponse{

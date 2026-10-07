@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/observability-proxy/pkg/cache"
 )
+
+var errPermissionDenied = errors.New("permission denied")
 
 // Validator checks token permissions by calling CheckPermission on the control plane.
 type Validator struct {
@@ -51,7 +54,7 @@ func (v *Validator) CheckPermission(
 
 	if allowed, ok := getPermission(ctx, v.cache, cacheKey); ok {
 		if !allowed {
-			return fmt.Errorf("permission denied")
+			return errPermissionDenied
 		}
 		return nil
 	}
@@ -73,7 +76,7 @@ func (v *Validator) CheckPermission(
 	setPermission(ctx, v.cache, cacheKey, resp.Msg.GetAllowed())
 
 	if !resp.Msg.GetAllowed() {
-		return fmt.Errorf("permission denied")
+		return errPermissionDenied
 	}
 	return nil
 }

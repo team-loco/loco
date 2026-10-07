@@ -46,7 +46,7 @@ func (s *DomainServer) CreatePlatformDomain(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -154,7 +154,7 @@ func (s *DomainServer) UpdatePlatformDomain(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -193,7 +193,7 @@ func (s *DomainServer) DeletePlatformDomain(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -225,7 +225,7 @@ func (s *DomainServer) ListLocoOwnedDomains(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -269,7 +269,7 @@ func (s *DomainServer) CreateResourceDomain(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -351,13 +351,13 @@ func (s *DomainServer) UpdateResourceDomain(
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	// verify user has access to this resource
@@ -448,7 +448,7 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if err := s.machine.VerifyWithGivenEntityScopes(
@@ -514,13 +514,13 @@ func (s *DomainServer) DeleteResourceDomain(
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("domain not found"))
+		return nil, connect.NewError(connect.CodeNotFound, ErrDomainNotFound)
 	}
 
 	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]genDb.EntityScope)
 	if !ok {
 		slog.ErrorContext(ctx, "entity scopes not found in context")
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("entity scopes not found in context"))
+		return nil, connect.NewError(connect.CodeInternal, errEntityScopesNotFound)
 	}
 
 	if verifyErr := s.machine.VerifyWithGivenEntityScopes(

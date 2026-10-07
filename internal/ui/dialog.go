@@ -52,7 +52,7 @@ func AskYesNo(question string) (bool, error) {
 
 	m, ok := model.(YesNoModel)
 	if !ok {
-		return false, fmt.Errorf("internal error: unexpected model type")
+		return false, errUnexpectedModel
 	}
 	return m.Choice == "yes", nil
 }
