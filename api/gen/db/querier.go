@@ -144,7 +144,7 @@ type Querier interface {
 	ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error)
 	ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error)
 	ListOrgDomains(ctx context.Context, orgID uuid.UUID) ([]OrgDomain, error)
-	ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]Event, error)
+	ListOrgEvents(ctx context.Context, arg ListOrgEventsParams) ([]ListOrgEventsRow, error)
 	ListOrgUsersWithDetails(ctx context.Context, arg ListOrgUsersWithDetailsParams) ([]ListOrgUsersWithDetailsRow, error)
 	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]Placement, error)
