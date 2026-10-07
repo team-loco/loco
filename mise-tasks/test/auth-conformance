@@ -12,7 +12,7 @@ set +a
 if [ "${KEEP:-}" = "" ]; then
 	trap '"${compose[@]}" down -v >/dev/null 2>&1' EXIT
 fi
-"${compose[@]}" up -d --wait
+"${compose[@]}" up -d --wait --build
 for url in http://localhost:55556/dex/.well-known/openid-configuration \
 	http://localhost:58081/simplesaml/saml2/idp/metadata.php; do
 	for _ in $(seq 1 60); do

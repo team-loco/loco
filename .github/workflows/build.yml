@@ -41,6 +41,10 @@ jobs:
             image: agent
             dockerfile: ./agent/Dockerfile
 
+          - name: Supabase Auth
+            image: supabase-auth
+            dockerfile: ./images/supabase-auth/Dockerfile
+
           - name: UI
             image: ui
             dockerfile: ./web/Dockerfile

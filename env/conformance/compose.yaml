@@ -9,18 +9,30 @@ services:
       POSTGRES_DB: loco_test
     ports:
       - "${CONFORMANCE_POSTGRES_PORT:-55440}:5432"
-    volumes:
-      - ../local/auth-db.sql:/docker-entrypoint-initdb.d/auth-db.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "psql -h 127.0.0.1 -U loco_test -d loco_auth -tAc 'select 1'"]
+      test: ["CMD-SHELL", "psql -h 127.0.0.1 -U loco_test -d loco_test -tAc 'select 1'"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  auth-db:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: railway
+    healthcheck:
+      test: ["CMD-SHELL", "psql -h 127.0.0.1 -U postgres -d railway -tAc 'select 1'"]
       interval: 1s
       timeout: 3s
       retries: 30
 
   supabase:
-    image: supabase/gotrue:v2.197.0
+    build:
+      context: ../..
+      dockerfile: images/supabase-auth/Dockerfile
     depends_on:
-      postgres:
+      auth-db:
         condition: service_healthy
     ports:
       - "59999:9999"
@@ -29,7 +41,7 @@ services:
       PORT: "9999"
       API_EXTERNAL_URL: http://localhost:59999
       GOTRUE_DB_DRIVER: postgres
-      DATABASE_URL: postgres://supabase_auth_admin:supabase_auth_admin@postgres:5432/loco_auth
+      DATABASE_URL: postgres://postgres:postgres@auth-db:5432/railway
       GOTRUE_SITE_URL: http://localhost:5173
       GOTRUE_JWT_ISSUER: http://localhost:59999
       GOTRUE_JWT_KEYS: ${GOTRUE_JWT_KEYS:?run through mise run test:auth-conformance}

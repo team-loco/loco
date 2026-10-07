@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"testing"
 
 	railway "github.com/railwayapp/railway-go-sdk"
@@ -64,5 +65,28 @@ func TestDocumentationSharesTheUIService(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAPIIssuerTakesEmailVerificationFromTheProvider(t *testing.T) {
+	for _, env := range []environment{{domainPrefix: ""}, {domainPrefix: "staging."}} {
+		var issuers []struct {
+			Audience          string         `json:"audience"`
+			EmailVerification string         `json:"emailVerification"`
+			Claims            map[string]any `json:"claims"`
+		}
+		if err := json.Unmarshal([]byte(env.authIssuers()), &issuers); err != nil {
+			t.Fatalf("AUTH_ISSUERS: %v", err)
+		}
+		if len(issuers) != 1 {
+			t.Fatalf("issuers = %+v", issuers)
+		}
+		issuer := issuers[0]
+		if issuer.Audience == "" || issuer.EmailVerification != "admin" {
+			t.Fatalf("issuer = %+v, want an audience and admin email verification", issuer)
+		}
+		if _, ok := issuer.Claims["emailVerified"]; ok {
+			t.Fatalf("issuer maps emailVerified to a token claim: %v", issuer.Claims)
+		}
 	}
 }

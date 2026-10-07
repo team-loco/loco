@@ -48,8 +48,9 @@ jobs:
           fi
           api="$REGISTRY-api:sha-$COMMIT"
           ui="$REGISTRY-ui:sha-$COMMIT$ui_suffix"
+          auth="$REGISTRY-supabase-auth:sha-$COMMIT"
 
-          for image in "$api" "$ui"; do
+          for image in "$api" "$ui" "$auth"; do
             if ! docker manifest inspect "$image" > /dev/null; then
               echo "::error::$image does not exist; only commits built by build.yml can be deployed"
               exit 1
@@ -59,6 +60,7 @@ jobs:
           {
             echo "api=$api"
             echo "ui=$ui"
+            echo "auth=$auth"
           } >> "$GITHUB_OUTPUT"
 
       - name: Apply
@@ -78,3 +80,9 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           IMAGE: ${{ steps.images.outputs.ui }}
         run: mise run railway:wait loco::cp-ui "$IMAGE"
+
+      - name: Wait for Supabase Auth
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          IMAGE: ${{ steps.images.outputs.auth }}
+        run: mise run railway:wait loco::cp-auth "$IMAGE"
