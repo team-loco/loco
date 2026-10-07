@@ -7,6 +7,7 @@
 package registryv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -21,7 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GetGitlabTokenRequest is the request to get a GitLab token for pulling container images.
 type GetGitlabTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -114,6 +114,9 @@ func (x *GetGitlabTokenResponse) GetToken() string {
 // GetImageRepositoryRequest is the request for the repository deployment images are pushed to.
 type GetImageRepositoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	StackName     string                 `protobuf:"bytes,2,opt,name=stack_name,json=stackName,proto3" json:"stack_name,omitempty"`
+	ServiceKey    string                 `protobuf:"bytes,3,opt,name=service_key,json=serviceKey,proto3" json:"service_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -148,12 +151,33 @@ func (*GetImageRepositoryRequest) Descriptor() ([]byte, []int) {
 	return file_loco_registry_v1_registry_proto_rawDescGZIP(), []int{2}
 }
 
-// GetImageRepositoryResponse names the repository deployment images are pushed to.
+func (x *GetImageRepositoryRequest) GetEnvironmentId() string {
+	if x != nil {
+		return x.EnvironmentId
+	}
+	return ""
+}
+
+func (x *GetImageRepositoryRequest) GetStackName() string {
+	if x != nil {
+		return x.StackName
+	}
+	return ""
+}
+
+func (x *GetImageRepositoryRequest) GetServiceKey() string {
+	if x != nil {
+		return x.ServiceKey
+	}
+	return ""
+}
+
 type GetImageRepositoryResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Repository    string                 `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Repository     string                 `protobuf:"bytes,1,opt,name=repository,proto3" json:"repository,omitempty"`
+	PushRepository string                 `protobuf:"bytes,2,opt,name=push_repository,json=pushRepository,proto3" json:"push_repository,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetImageRepositoryResponse) Reset() {
@@ -193,23 +217,36 @@ func (x *GetImageRepositoryResponse) GetRepository() string {
 	return ""
 }
 
+func (x *GetImageRepositoryResponse) GetPushRepository() string {
+	if x != nil {
+		return x.PushRepository
+	}
+	return ""
+}
+
 var File_loco_registry_v1_registry_proto protoreflect.FileDescriptor
 
 const file_loco_registry_v1_registry_proto_rawDesc = "" +
 	"\n" +
-	"\x1floco/registry/v1/registry.proto\x12\x10loco.registry.v1\"\x17\n" +
+	"\x1floco/registry/v1/registry.proto\x12\x10loco.registry.v1\x1a\x1bbuf/validate/validate.proto\"\x17\n" +
 	"\x15GetGitlabTokenRequest\"J\n" +
 	"\x16GetGitlabTokenResponse\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x14\n" +
-	"\x05token\x18\x02 \x01(\tR\x05token\"\x1b\n" +
-	"\x19GetImageRepositoryRequest\"<\n" +
+	"\x05token\x18\x02 \x01(\tR\x05token\"\xca\x01\n" +
+	"\x19GetImageRepositoryRequest\x12/\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12<\n" +
+	"\n" +
+	"stack_name\x18\x02 \x01(\tB\x1d\xbaH\x1ar\x182\x16^[a-z][a-z0-9-]{0,62}$R\tstackName\x12>\n" +
+	"\vservice_key\x18\x03 \x01(\tB\x1d\xbaH\x1ar\x182\x16^[a-z][a-z0-9-]{0,62}$R\n" +
+	"serviceKey\"e\n" +
 	"\x1aGetImageRepositoryResponse\x12\x1e\n" +
 	"\n" +
 	"repository\x18\x01 \x01(\tR\n" +
-	"repository2\xeb\x01\n" +
+	"repository\x12'\n" +
+	"\x0fpush_repository\x18\x02 \x01(\tR\x0epushRepository2\xe9\x01\n" +
 	"\x0fRegistryService\x12e\n" +
-	"\x0eGetGitlabToken\x12'.loco.registry.v1.GetGitlabTokenRequest\x1a(.loco.registry.v1.GetGitlabTokenResponse\"\x00\x12q\n" +
-	"\x12GetImageRepository\x12+.loco.registry.v1.GetImageRepositoryRequest\x1a,.loco.registry.v1.GetImageRepositoryResponse\"\x00B>Z<github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1b\x06proto3"
+	"\x0eGetGitlabToken\x12'.loco.registry.v1.GetGitlabTokenRequest\x1a(.loco.registry.v1.GetGitlabTokenResponse\"\x00\x12o\n" +
+	"\x12GetImageRepository\x12+.loco.registry.v1.GetImageRepositoryRequest\x1a,.loco.registry.v1.GetImageRepositoryResponseB>Z<github.com/team-loco/loco/gen/go/loco/registry/v1;registryv1b\x06proto3"
 
 var (
 	file_loco_registry_v1_registry_proto_rawDescOnce sync.Once

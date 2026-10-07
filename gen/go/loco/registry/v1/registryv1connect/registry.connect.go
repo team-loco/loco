@@ -43,9 +43,7 @@ const (
 
 // RegistryServiceClient is a client for the loco.registry.v1.RegistryService service.
 type RegistryServiceClient interface {
-	// GetGitlabToken retrieves GitLab registry credentials.
 	GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error)
-	// GetImageRepository returns the repository the CLI pushes deployment images to.
 	GetImageRepository(context.Context, *connect.Request[v1.GetImageRepositoryRequest]) (*connect.Response[v1.GetImageRepositoryResponse], error)
 }
 
@@ -93,9 +91,7 @@ func (c *registryServiceClient) GetImageRepository(ctx context.Context, req *con
 
 // RegistryServiceHandler is an implementation of the loco.registry.v1.RegistryService service.
 type RegistryServiceHandler interface {
-	// GetGitlabToken retrieves GitLab registry credentials.
 	GetGitlabToken(context.Context, *connect.Request[v1.GetGitlabTokenRequest]) (*connect.Response[v1.GetGitlabTokenResponse], error)
-	// GetImageRepository returns the repository the CLI pushes deployment images to.
 	GetImageRepository(context.Context, *connect.Request[v1.GetImageRepositoryRequest]) (*connect.Response[v1.GetImageRepositoryResponse], error)
 }
 

@@ -6,46 +6,62 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/contextkeys"
 	"github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/tvm"
 	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
 )
 
-func authenticatedContext() context.Context {
-	entity := db.Entity{Type: db.EntityTypeUser, ID: uuid.Must(uuid.NewV7())}
-	return context.WithValue(context.Background(), contextkeys.EntityKey, entity)
+const registryTestServiceKey = "api"
+
+func registryFixture(t *testing.T) (*RegistryServer, context.Context, *registryv1.GetImageRepositoryRequest) {
+	t.Helper()
+	machine := tvm.NewVendingMachine(nil, registryTestQueries{}, tvm.Config{})
+	t.Cleanup(machine.Close)
+	environment := uuid.New()
+	ctx := context.WithValue(context.Background(), contextkeys.EntityScopesKey, []db.EntityScope{
+		{EntityType: db.EntityTypeEnvironment, EntityID: environment, Scope: db.ScopeWrite},
+	})
+	server := NewRegistryServer(nil, nil, machine, "", "", "", "registry.example.com/loco/images", nil)
+	request := &registryv1.GetImageRepositoryRequest{
+		EnvironmentId: environment.String(), StackName: "storefront", ServiceKey: registryTestServiceKey,
+	}
+	return server, ctx, request
 }
 
-func TestGetImageRepositoryReturnsConfiguredRepository(t *testing.T) {
-	const repository = "registry.example.com/loco/images"
-	server := NewRegistryServer(nil, nil, "", "", "", repository, nil, nil)
-	req := connect.NewRequest(&registryv1.GetImageRepositoryRequest{})
-
-	resp, err := server.GetImageRepository(authenticatedContext(), req)
+func TestGetImageRepositoryIsEnvironmentScoped(t *testing.T) {
+	server, ctx, request := registryFixture(t)
+	response, err := server.GetImageRepository(ctx, connect.NewRequest(request))
 	if err != nil {
-		t.Fatalf("GetImageRepository: %v", err)
+		t.Fatal(err)
 	}
-	if got := resp.Msg.GetRepository(); got != repository {
-		t.Fatalf("repository = %q, want %q", got, repository)
-	}
-}
-
-func TestGetImageRepositoryWithoutRepositoryConfigured(t *testing.T) {
-	server := NewRegistryServer(nil, nil, "", "", "", "", nil, nil)
-	req := connect.NewRequest(&registryv1.GetImageRepositoryRequest{})
-
-	_, err := server.GetImageRepository(authenticatedContext(), req)
-	if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
-		t.Fatalf("code = %v, want %v (err %v)", code, connect.CodeFailedPrecondition, err)
+	expected := "registry.example.com/loco/images/" + request.EnvironmentId + "/storefront.api"
+	if response.Msg.GetRepository() != expected {
+		t.Fatalf("repository = %q", response.Msg.GetRepository())
 	}
 }
 
-func TestGetImageRepositoryRequiresAnEntity(t *testing.T) {
-	server := NewRegistryServer(nil, nil, "", "", "", "registry.example.com/loco/images", nil, nil)
-	req := connect.NewRequest(&registryv1.GetImageRepositoryRequest{})
-
-	_, err := server.GetImageRepository(context.Background(), req)
-	if code := connect.CodeOf(err); code != connect.CodeUnauthenticated {
-		t.Fatalf("code = %v, want %v (err %v)", code, connect.CodeUnauthenticated, err)
+func TestGetImageRepositoryRejectsForeignEnvironment(t *testing.T) {
+	server, ctx, request := registryFixture(t)
+	request.EnvironmentId = uuid.NewString()
+	ctx = context.WithValue(ctx, contextkeys.EntityScopesKey, []db.EntityScope{})
+	_, err := server.GetImageRepository(ctx, connect.NewRequest(request))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("expected permission denied, got %v", err)
 	}
+}
+
+func TestGetImageRepositoryRequiresAuthentication(t *testing.T) {
+	server, _, request := registryFixture(t)
+	_, err := server.GetImageRepository(context.Background(), connect.NewRequest(request))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("expected unauthenticated, got %v", err)
+	}
+}
+
+type registryTestQueries struct{ db.Querier }
+
+func (registryTestQueries) GetEnvironmentHierarchy(context.Context, uuid.UUID) (db.GetEnvironmentHierarchyRow, error) {
+	return db.GetEnvironmentHierarchyRow{}, pgx.ErrNoRows
 }

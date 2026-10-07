@@ -260,12 +260,12 @@ func main() {
 	registryServiceHandler := service.NewRegistryServer(
 		pool,
 		queries,
+		machine,
 		ac.GitlabURL,
 		ac.GitlabPAT,
 		ac.ProjectID,
 		ac.RegistryTag,
 		httpClient,
-		machine,
 	)
 
 	agentServiceHandler := service.NewAgentServer(pool, queries, placementNotifier, placementCipher)
@@ -407,6 +407,7 @@ func main() {
 	mux.Handle(grpcreflect.NewHandlerV1(reflector))
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
+	mux.Handle("/v2/", registryServiceHandler.ProxyHandler())
 	mux.Handle(infraPath, infraHandler)
 	mux.Handle(configPath, configHandler)
 	mux.Handle(oauthPath, oauthHandler)

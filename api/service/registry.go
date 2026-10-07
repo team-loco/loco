@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/client"
 	"github.com/team-loco/loco/api/contextkeys"
@@ -18,7 +21,6 @@ import (
 	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
 )
 
-// RegistryServer implements the RegistryService
 type RegistryServer struct {
 	db                *pgxpool.Pool
 	queries           db.Querier
@@ -28,33 +30,59 @@ type RegistryServer struct {
 	registryBaseImage string
 	httpClient        *http.Client
 	machine           *tvm.VendingMachine
+	proxyMutex        sync.Mutex
+	proxyTokens       map[string]registryToken
 }
 
-// NewRegistryServer creates a new RegistryServer instance
 func NewRegistryServer(
-	dbPool *pgxpool.Pool,
-	queries db.Querier,
-	gitlabURL string,
-	gitlabPAT string,
-	gitlabProjectID string,
-	registryBaseImage string,
-	httpClient *http.Client,
-	machine *tvm.VendingMachine,
+	pool *pgxpool.Pool, queries db.Querier, machine *tvm.VendingMachine,
+	gitlabURL, gitlabPAT, gitlabProjectID, registryBaseImage string, httpClient *http.Client,
 ) *RegistryServer {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
 	return &RegistryServer{
-		db:                dbPool,
-		queries:           queries,
-		gitlabURL:         gitlabURL,
-		gitlabPAT:         gitlabPAT,
-		gitlabProjectID:   gitlabProjectID,
-		registryBaseImage: registryBaseImage,
-		httpClient:        httpClient,
-		machine:           machine,
+		db: pool, queries: queries, machine: machine,
+		gitlabURL: gitlabURL, gitlabPAT: gitlabPAT, gitlabProjectID: gitlabProjectID,
+		registryBaseImage: strings.TrimSuffix(registryBaseImage, "/"), httpClient: httpClient,
+		proxyTokens: make(map[string]registryToken),
 	}
 }
 
-// GetGitlabToken generates a short-lived deploy token for Docker registry authentication
-// Requires authenticated request (user must have valid token in context)
+func (s *RegistryServer) GetImageRepository(
+	ctx context.Context, req *connect.Request[registryv1.GetImageRepositoryRequest],
+) (*connect.Response[registryv1.GetImageRepositoryResponse], error) {
+	r := req.Msg
+	scopes, ok := ctx.Value(contextkeys.EntityScopesKey).([]db.EntityScope)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authentication is required"))
+	}
+	environmentID, err := uuid.Parse(r.GetEnvironmentId())
+	if err != nil || !infraSecretName.MatchString(r.GetStackName()) || !infraSecretName.MatchString(r.GetServiceKey()) {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			errors.New("valid environment, stack and service key are required"),
+		)
+	}
+	if err := s.machine.VerifyWithGivenEntityScopes(ctx, scopes, db.EntityScope{
+		EntityType: db.EntityTypeEnvironment, EntityID: environmentID, Scope: db.ScopeWrite,
+	}); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	if stackErr := tvm.VerifyStackTarget(ctx, environmentID, r.GetStackName()); stackErr != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, stackErr)
+	}
+	if s.registryBaseImage == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("no image repository is configured"))
+	}
+	virtual := "loco/" + environmentID.String() + "/" + r.GetStackName() + "/" + r.GetServiceKey()
+	physical := environmentID.String() + "/" + r.GetStackName() + "." + r.GetServiceKey()
+	return connect.NewResponse(&registryv1.GetImageRepositoryResponse{
+		Repository:     s.registryBaseImage + "/" + physical,
+		PushRepository: virtual,
+	}), nil
+}
+
 func (s *RegistryServer) GetGitlabToken(
 	ctx context.Context,
 	_ *connect.Request[registryv1.GetGitlabTokenRequest],
@@ -107,23 +135,4 @@ func (s *RegistryServer) GetGitlabToken(
 		slog.String("entityId", entityIDStr),
 	)
 	return res, nil
-}
-
-func (s *RegistryServer) GetImageRepository(
-	ctx context.Context,
-	_ *connect.Request[registryv1.GetImageRepositoryRequest],
-) (*connect.Response[registryv1.GetImageRepositoryResponse], error) {
-	if _, ok := ctx.Value(contextkeys.EntityKey).(db.Entity); !ok {
-		slog.ErrorContext(ctx, "entity not found in context")
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("unauthorized"))
-	}
-
-	if s.registryBaseImage == "" {
-		slog.ErrorContext(ctx, "REGISTRY_TAG is not set")
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("no image repository is configured"))
-	}
-
-	return connect.NewResponse(&registryv1.GetImageRepositoryResponse{
-		Repository: s.registryBaseImage,
-	}), nil
 }
