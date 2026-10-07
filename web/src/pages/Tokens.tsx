@@ -166,7 +166,7 @@ export function Tokens() {
 			>
 				{ownerEmpty ? (
 					<section className="rounded-lg border border-line bg-background">
-						<EmptyState icon={<KeyRoundIcon />} title={`No tokens for ${ownerEntityLabel} yet`} action={newTokenButton}>
+						<EmptyState icon={<KeyRoundIcon />} title={`No tokens for this ${ownerEntityLabel} yet`} action={newTokenButton}>
 							Tokens let CI, scripts and the CLI call the Loco API with exactly the access you grant.
 						</EmptyState>
 					</section>
