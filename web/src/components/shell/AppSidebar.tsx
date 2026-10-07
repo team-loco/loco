@@ -170,7 +170,7 @@ export function AppSidebar() {
 				<Link
 					to={wsBase ?? "/dashboard"}
 					aria-label="Loco dashboard"
-					className="flex w-fit items-center rounded-sm outline-none [--logo:var(--logo-sidebar)] focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+					className="flex w-fit items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
 				>
 					<LocoLogo className="w-[46px] transition-[width] duration-150 group-data-[collapsible=icon]:w-8" />
 				</Link>
