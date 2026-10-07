@@ -303,6 +303,9 @@ func (s *UserServer) Logout(
 		slog.WarnContext(ctx, "token not found in context")
 		return res, nil
 	}
+	if !tvm.IsLocoToken(token) {
+		return res, nil
+	}
 	err := s.tvm.Revoke(ctx, token)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to revoke token", "error", err)

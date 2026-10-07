@@ -95,3 +95,16 @@ func (q *Queries) TouchIdentity(ctx context.Context, arg TouchIdentityParams) er
 	)
 	return err
 }
+
+const userHasUnverifiedIdentity = `-- name: UserHasUnverifiedIdentity :one
+SELECT EXISTS (
+    SELECT 1 FROM identities WHERE user_id = $1 AND NOT email_verified
+)
+`
+
+func (q *Queries) UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, userHasUnverifiedIdentity, userID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}

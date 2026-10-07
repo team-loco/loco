@@ -14,3 +14,8 @@ UPDATE identities
 SET email = $3, email_verified = $4, last_login_at = NOW()
 WHERE issuer = $1 AND subject = $2;
 
+
+-- name: UserHasUnverifiedIdentity :one
+SELECT EXISTS (
+    SELECT 1 FROM identities WHERE user_id = $1 AND NOT email_verified
+);
