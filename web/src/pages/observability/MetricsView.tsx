@@ -13,7 +13,7 @@ import { timeRangeMs } from "@/lib/obs";
 import { formatClock, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
-import { fitRange, selectedResources, useObs, type ObsResource } from "./context";
+import { fitRange, QUERY_MAX_RANGE, selectedResources, useObs, type ObsResource } from "./context";
 import { MetricCard, MetricChart, type ChartMarker, type ChartSeries } from "./MetricChart";
 import { ObsGate } from "./ObsGate";
 import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
@@ -39,55 +39,53 @@ export function MetricsView() {
 	const visible = sel.filter((r) => !hiddenNames.has(r.name));
 
 	return (
-		<>
+		<ObsGate kind="metrics">
 			<div className="flex flex-wrap items-center gap-2">
 				<ResourceMenu />
 				<div className="flex-1" />
-				<TimeRangeMenu maxRange="24h" />
+				<TimeRangeMenu maxRange={QUERY_MAX_RANGE} />
 			</div>
-			<ObsGate>
-				<div className="flex flex-col gap-5">
-					<div className="flex flex-wrap items-center gap-3">
-						<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-							{sel.map((r) => {
-								const off = hiddenNames.has(r.name);
-								return (
-									<button
-										key={r.id}
-										type="button"
-										title={off ? "Show" : "Hide"}
-										onClick={() => {
-											setHidden(off ? hidden.filter((x) => x !== r.name) : [...hidden, r.name]);
-										}}
-										className={cn(
-											"flex h-[30px] cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-foreground hover:border-fg4",
-											off ? "border-line bg-transparent opacity-50" : "border-line2 bg-background",
-										)}
-									>
-										<span className="h-[3px] w-2.5 rounded-[2px]" style={{ background: r.color }} />
-										<span className="font-medium">{r.name}</span>
-									</button>
-								);
-							})}
-						</div>
-						<div className="flex items-center gap-2">
-							<span className="text-sm text-fg3">Split by</span>
-							<ToggleGroup variant="segmented" value={["service"]}>
-								<ToggleGroupItem value="service" className="h-[26px]! text-sm">
-									Service
-								</ToggleGroupItem>
-								<ToggleGroupItem value="replica" disabled className="h-[26px]! gap-1.5 text-sm">
-									Replica
-									<SoonTag />
-								</ToggleGroupItem>
-							</ToggleGroup>
-						</div>
+			<div className="flex flex-col gap-5">
+				<div className="flex flex-wrap items-center gap-3">
+					<div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+						{sel.map((r) => {
+							const off = hiddenNames.has(r.name);
+							return (
+								<button
+									key={r.id}
+									type="button"
+									title={off ? "Show" : "Hide"}
+									onClick={() => {
+										setHidden(off ? hidden.filter((x) => x !== r.name) : [...hidden, r.name]);
+									}}
+									className={cn(
+										"flex h-[30px] cursor-pointer items-center gap-2 rounded-lg border px-2.5 text-foreground hover:border-fg4",
+										off ? "border-line bg-transparent opacity-50" : "border-line2 bg-background",
+									)}
+								>
+									<span className="h-[3px] w-2.5 rounded-[2px]" style={{ background: r.color }} />
+									<span className="font-medium">{r.name}</span>
+								</button>
+							);
+						})}
 					</div>
-					<TrafficSection />
-					<ComputeSection visible={visible} />
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-fg3">Split by</span>
+						<ToggleGroup variant="segmented" value={["service"]}>
+							<ToggleGroupItem value="service" className="h-[26px]! text-sm">
+								Service
+							</ToggleGroupItem>
+							<ToggleGroupItem value="replica" disabled className="h-[26px]! gap-1.5 text-sm">
+								Replica
+								<SoonTag />
+							</ToggleGroupItem>
+						</ToggleGroup>
+					</div>
 				</div>
-			</ObsGate>
-		</>
+				<TrafficSection />
+				<ComputeSection visible={visible} />
+			</div>
+		</ObsGate>
 	);
 }
 

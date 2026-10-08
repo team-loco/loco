@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ArrowUpIcon, PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react";
+import { ArrowUpIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, ScrollTextIcon, SearchXIcon, XIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
+import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useNow } from "@/hooks/useNow";
@@ -12,17 +13,18 @@ import { formatCount } from "@/lib/format";
 import { timeRangeMs } from "@/lib/obs";
 import { cn } from "@/lib/utils";
 
-import { RANGES, useObs } from "./context";
+import { QUERY_MAX_RANGE, RANGES, useObs } from "./context";
 import { fmtTs } from "./format";
 import { LogDetail } from "./LogDetail";
 import { LogFacets } from "./LogFacets";
 import { LogTable } from "./LogTable";
-import { buildBackendQuery, LEVELS, type FieldKey } from "./query";
+import { buildBackendQuery, LEVELS, queryStr, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
 import { toRows, type LogRow } from "./rows";
 import { Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
-import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
 import { ObsGate } from "./ObsGate";
+import { WidenRangeButton } from "./ObsEmpty";
+import { LiveTailButton, TimeRangeMenu } from "./Toolbar";
 
 const BATCH = 1000;
 const WHITESPACE = /\s+/;
@@ -45,7 +47,10 @@ export function LogsView() {
 		clusters,
 		range,
 		tokens,
+		setTokens,
+		setText,
 		appliedText,
+		setAppliedText,
 		logFocusTs,
 		setLogFocusTs,
 	} = useObs();
@@ -178,12 +183,19 @@ export function LogsView() {
 	const rangeLabel = RANGES.find((r) => r.key === range)?.key ?? range;
 	const matched = `${formatCount(rows.length)}${truncated ? "+" : ""} lines`;
 	const error = logs.errors[0];
+	const query = queryStr(tokens, appliedText);
+	const widen = range === QUERY_MAX_RANGE ? undefined : <WidenRangeButton max={QUERY_MAX_RANGE} />;
+	const clearSearch = () => {
+		setTokens([]);
+		setText("");
+		setAppliedText("");
+	};
 
 	return (
-		<>
+		<ObsGate kind="logs">
 			<div className="flex flex-wrap items-center gap-2">
 				<QueryBar valueCounts={valueCounts} />
-				<TimeRangeMenu maxRange="24h" />
+				<TimeRangeMenu maxRange={QUERY_MAX_RANGE} />
 				<LiveTailButton
 					on={tail}
 					rate={rate}
@@ -195,148 +207,170 @@ export function LogsView() {
 					}}
 				/>
 			</div>
-			<ObsGate>
-				<div
-					className="grid items-start"
-					style={{
-						gridTemplateColumns: [showFacets ? "200px" : null, "minmax(0,1fr)", panelOpen ? "minmax(360px,420px)" : null]
-							.filter(Boolean)
-							.join(" "),
-						gap: showFacets || panelOpen ? 20 : 0,
-					}}
-				>
-					{showFacets && <LogFacets rows={rows} />}
-					<div className="flex min-w-0 flex-col gap-4">
-						<section className="rounded-lg border border-line bg-background">
-							<div className="flex items-center gap-2.5 border-b border-line px-4 py-2.5">
-								<Button
-									variant="ghost"
-									size="icon-sm"
-									title={facetsOpen ? "Hide filters" : "Show filters"}
-									onClick={() => {
-										setFacetsOpen(!facetsOpen);
-									}}
-									className="-ml-1.5 text-fg3 hover:text-foreground"
-								>
-									{facetsOpen ? <PanelLeftCloseIcon className="size-[15px]" /> : <PanelLeftOpenIcon className="size-[15px]" />}
-								</Button>
-								{isLoading ? <Skeleton className="h-4 w-20" /> : <span className="font-semibold">{matched}</span>}
-								<span className="text-fg3">last {rangeLabel}</span>
-								<div className="flex-1" />
-								<span className="flex items-center gap-3 text-sm text-fg3">
-									<span className="flex items-center gap-[5px]">
-										<span className="size-2 rounded-[2px] bg-err" />
-										Error
-									</span>
-									<span className="flex items-center gap-[5px]">
-										<span className="size-2 rounded-[2px] bg-warn" />
-										Warn
-									</span>
-									<span className="flex items-center gap-[5px]">
-										<span className="size-2 rounded-[2px] bg-info" />
-										Info · Debug
-									</span>
+			<div
+				className="grid items-start"
+				style={{
+					gridTemplateColumns: [showFacets ? "200px" : null, "minmax(0,1fr)", panelOpen ? "minmax(360px,420px)" : null]
+						.filter(Boolean)
+						.join(" "),
+					gap: showFacets || panelOpen ? 20 : 0,
+				}}
+			>
+				{showFacets && <LogFacets rows={rows} />}
+				<div className="flex min-w-0 flex-col gap-4">
+					<section className="rounded-lg border border-line bg-background">
+						<div className="flex items-center gap-2.5 border-b border-line px-4 py-2.5">
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								title={facetsOpen ? "Hide filters" : "Show filters"}
+								onClick={() => {
+									setFacetsOpen(!facetsOpen);
+								}}
+								className="-ml-1.5 text-fg3 hover:text-foreground"
+							>
+								{facetsOpen ? <PanelLeftCloseIcon className="size-[15px]" /> : <PanelLeftOpenIcon className="size-[15px]" />}
+							</Button>
+							{isLoading ? <Skeleton className="h-4 w-20" /> : <span className="font-semibold">{matched}</span>}
+							<span className="text-fg3">last {rangeLabel}</span>
+							<div className="flex-1" />
+							<span className="flex items-center gap-3 text-sm text-fg3">
+								<span className="flex items-center gap-[5px]">
+									<span className="size-2 rounded-[2px] bg-err" />
+									Error
 								</span>
-							</div>
-							<Histogram buckets={histo} from={fmtTs(from)} height={84} />
-						</section>
+								<span className="flex items-center gap-[5px]">
+									<span className="size-2 rounded-[2px] bg-warn" />
+									Warn
+								</span>
+								<span className="flex items-center gap-[5px]">
+									<span className="size-2 rounded-[2px] bg-info" />
+									Info · Debug
+								</span>
+							</span>
+						</div>
+						<Histogram buckets={histo} from={fmtTs(from)} height={84} />
+					</section>
 
-						<section className="overflow-hidden rounded-lg border border-line bg-background">
-							{held > 0 && (
-								<button
-									type="button"
-									onClick={() => {
-										setFreezeTs(allTail[0]?.ts ?? nowMs);
-										setPage(0);
-									}}
-									className="flex h-[30px] w-full cursor-pointer items-center justify-center gap-1.5 border-b border-line bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
-								>
-									<ArrowUpIcon className="size-[13px]" />
-									{held} {held === 1 ? "new line" : "new lines"}
-								</button>
-							)}
-							<div className="overflow-x-auto">
-								<div className="min-w-[640px]">
-									<LogTable
-										rows={pageRows}
-										compact={panelOpen}
-										selectedKey={selRow?.key ?? null}
-										words={freeWords}
-										highlightAfter={tail ? nowMs - 1800 : null}
-										onSelect={(key) => {
-											select(key === selRow?.key ? null : key);
-										}}
-									/>
-									{isLoading && <LoadingRows />}
-									{!isLoading && error !== undefined && (
-										<div className="px-4 py-6 text-bad-fg">{getErrorMessage(error, "Failed to load logs")}</div>
-									)}
-									{!isLoading && error === undefined && rows.length === 0 && (
-										<div className="px-4 py-6 text-fg3">
-											{tail ? "Waiting for new logs…" : "No logs match."}
-										</div>
-									)}
-								</div>
-							</div>
-							<Pager
-								className="bg-bg2"
-								label={
-									rows.length > 0
-										? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""}`
-										: "0"
-								}
-								pageSizes={PAGE_SIZES}
-								pageSize={size}
-								onPageSize={(n) => {
-									setSize(n);
+					<section className="overflow-hidden rounded-lg border border-line bg-background">
+						{held > 0 && (
+							<button
+								type="button"
+								onClick={() => {
+									setFreezeTs(allTail[0]?.ts ?? nowMs);
 									setPage(0);
 								}}
-								prevLabel="Newer"
-								nextLabel="Older"
-								onPrev={
-									canNewer
-										? () => {
-												setLogFocusTs(null);
-												if (curPage > 0) setPage(curPage - 1);
-												else {
-													setCursors(cursors.slice(0, -1));
-													setPage(0);
+								className="flex h-[30px] w-full cursor-pointer items-center justify-center gap-1.5 border-b border-line bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
+							>
+								<ArrowUpIcon className="size-[13px]" />
+								{held} {held === 1 ? "new line" : "new lines"}
+							</button>
+						)}
+						<div className="overflow-x-auto">
+							<div className="min-w-[640px]">
+								<LogTable
+									rows={pageRows}
+									compact={panelOpen}
+									selectedKey={selRow?.key ?? null}
+									words={freeWords}
+									highlightAfter={tail ? nowMs - 1800 : null}
+									onSelect={(key) => {
+										select(key === selRow?.key ? null : key);
+									}}
+								/>
+								{isLoading && <LoadingRows />}
+								{!isLoading && error !== undefined && (
+									<div className="px-4 py-6 text-bad-fg">{getErrorMessage(error, "Failed to load logs")}</div>
+								)}
+								{!isLoading && error === undefined && rows.length === 0 && tail && (
+									<div className="px-4 py-6 text-fg3">Waiting for new logs…</div>
+								)}
+								{!isLoading && error === undefined && rows.length === 0 && !tail && (
+									<div className="border-b border-line">
+										{query === "" ? (
+											<EmptyState
+												icon={<ScrollTextIcon />}
+												title={`No logs in the last ${range}`}
+												action={widen}
+											/>
+										) : (
+											<EmptyState
+												icon={<SearchXIcon />}
+												title="No logs match"
+												query={query}
+												action={
+													<>
+														<Button variant="outline" onClick={clearSearch}>
+															<XIcon />
+															Clear search
+														</Button>
+														{widen}
+													</>
 												}
-											}
-										: null
-								}
-								onNext={
-									canOlder
-										? () => {
-												setLogFocusTs(null);
-												if (curPage < pages - 1) setPage(curPage + 1);
-												else if (cutoffCursor !== null) {
-													setTail(false);
-													setCursors([...cursors, cutoffCursor]);
-													setPage(0);
-												}
-											}
-										: null
-								}
-							/>
-						</section>
-					</div>
-					{selRow !== undefined && (
-						<LogDetail
-							key={selRow.key}
-							row={selRow}
-							words={freeWords}
-							nowMs={nowMs}
-							onPrev={selIdx > 0 ? () => { select(rows[selIdx - 1]?.key ?? null); } : null}
-							onNext={selIdx < rows.length - 1 ? () => { select(rows[selIdx + 1]?.key ?? null); } : null}
-							onClose={() => {
-								select(null);
+											/>
+										)}
+									</div>
+								)}
+							</div>
+						</div>
+						<Pager
+							className="bg-bg2"
+							label={
+								rows.length > 0
+									? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""}`
+									: "0"
+							}
+							pageSizes={PAGE_SIZES}
+							pageSize={size}
+							onPageSize={(n) => {
+								setSize(n);
+								setPage(0);
 							}}
+							prevLabel="Newer"
+							nextLabel="Older"
+							onPrev={
+								canNewer
+									? () => {
+											setLogFocusTs(null);
+											if (curPage > 0) setPage(curPage - 1);
+											else {
+												setCursors(cursors.slice(0, -1));
+												setPage(0);
+											}
+										}
+									: null
+							}
+							onNext={
+								canOlder
+									? () => {
+											setLogFocusTs(null);
+											if (curPage < pages - 1) setPage(curPage + 1);
+											else if (cutoffCursor !== null) {
+												setTail(false);
+												setCursors([...cursors, cutoffCursor]);
+												setPage(0);
+											}
+										}
+									: null
+							}
 						/>
-					)}
+					</section>
 				</div>
-			</ObsGate>
-		</>
+				{selRow !== undefined && (
+					<LogDetail
+						key={selRow.key}
+						row={selRow}
+						words={freeWords}
+						nowMs={nowMs}
+						onPrev={selIdx > 0 ? () => { select(rows[selIdx - 1]?.key ?? null); } : null}
+						onNext={selIdx < rows.length - 1 ? () => { select(rows[selIdx + 1]?.key ?? null); } : null}
+						onClose={() => {
+							select(null);
+						}}
+					/>
+				)}
+			</div>
+		</ObsGate>
 	);
 }
 

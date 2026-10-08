@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { ChevronDownIcon } from "lucide-react";
+import { ActivityIcon, ChevronDownIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { listResourceEvents } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import type { Event } from "@gen/loco/resource/v1/resource_pb";
@@ -51,7 +51,15 @@ function severityBadge(s: Severity): { label: string; tone: BadgeTone } {
 	}
 }
 
-export function EventsSection({ resourceId, multiRegion }: { resourceId: string; multiRegion: boolean }) {
+export function EventsSection({
+	resourceId,
+	resourceName,
+	multiRegion,
+}: {
+	resourceId: string;
+	resourceName: string;
+	multiRegion: boolean;
+}) {
 	const [query, setQuery] = useState("");
 	const [type, setType] = useState<TypeFilter>("all");
 	const [page, setPage] = useState(0);
@@ -204,9 +212,26 @@ export function EventsSection({ resourceId, multiRegion }: { resourceId: string;
 							);
 						})}
 					{!isLoading && error === null && filtered.length === 0 && (
-						<div className="px-4 py-5 text-fg3">
-							{events.length === 0 ? "No events recorded for this resource." : "No events match these filters."}
-						</div>
+						<EmptyState
+							icon={hasFilters ? <SearchXIcon /> : <ActivityIcon />}
+							title={hasFilters ? "No events match" : `No events for ${resourceName}`}
+							query={query.trim()}
+							action={
+								hasFilters ? (
+									<Button
+										variant="outline"
+										onClick={() => {
+											setQuery("");
+											setType("all");
+											setPage(0);
+										}}
+									>
+										<XIcon />
+										Clear filters
+									</Button>
+								) : undefined
+							}
+						/>
 					)}
 				</div>
 			</div>

@@ -1,7 +1,5 @@
-import { BoxIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -15,6 +13,7 @@ import { ArchitectureDiagram, type DiagramService } from "@/pages/dashboard/Arch
 import { AttentionSection, buildAttention } from "@/pages/dashboard/AttentionSection";
 import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
 import { DraftDrawer } from "@/pages/dashboard/DraftDrawer";
+import { FirstServiceEmpty } from "@/pages/dashboard/FirstServiceEmpty";
 import { DRAFT_DEFAULTS, nameFromImage, uniqueName, useDrafts } from "@/pages/dashboard/drafts";
 import { EnvironmentMenu } from "@/pages/dashboard/EnvironmentMenu";
 import { NewServiceDialog } from "@/pages/dashboard/NewServiceDialog";
@@ -44,7 +43,7 @@ function DashboardSkeleton() {
 }
 
 export function Dashboard() {
-	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
+	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
 	const { environments, active, setActive, isLoading: envsLoading } = useEnvironments();
 	const data = useDashboardData(activeWorkspaceId, active);
 	const drafts = useDrafts(activeWorkspaceId, active?.id);
@@ -75,10 +74,13 @@ export function Dashboard() {
 		setDrawerOpen(true);
 	};
 
+	const defaultRegion = data.regions.find((r) => r.isDefault)?.region ?? data.regions[0]?.region ?? "";
+	const workspaceName = workspaces.find((w) => w.id === activeWorkspaceId)?.name ?? "";
+	const otherEnv = environments.find((e) => e.id !== active?.id);
+
 	const addDraft = (image: string) => {
 		const taken = new Set([...data.resources.map((r) => r.name), ...drafts.drafts.map((d) => d.name)]);
 		const name = uniqueName(nameFromImage(image), taken);
-		const defaultRegion = data.regions.find((r) => r.isDefault)?.region ?? data.regions[0]?.region ?? "";
 		const id = `d${Date.now().toString(36)}`;
 		drafts.add({
 			id,
@@ -137,7 +139,7 @@ export function Dashboard() {
 		<PageHeader
 			title="Overview"
 			actions={
-				loading || isEmpty ? undefined : (
+				loading ? undefined : (
 					<CreateResourceMenu
 						disabled={!canCreate}
 						onService={openNew}
@@ -189,20 +191,15 @@ export function Dashboard() {
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
 			) : isEmpty ? (
-				<Section>
-					<EmptyState
-						icon={<BoxIcon />}
-						title="Nothing in this environment yet"
-						action={
-							<Button onClick={openNew}>
-								<PlusIcon />
-								New service
-							</Button>
-						}
-					>
-						Deploy a container image to see its architecture, status and deployments here.
-					</EmptyState>
-				</Section>
+				<FirstServiceEmpty
+					scope={`${workspaceName} / ${active.name}`}
+					region={defaultRegion}
+					otherEnvName={otherEnv?.name ?? null}
+					onSwitchEnv={() => {
+						if (otherEnv !== undefined) setActive(otherEnv);
+					}}
+					onImage={addDraft}
+				/>
 			) : (
 				<>
 					<AttentionSection items={attention} />

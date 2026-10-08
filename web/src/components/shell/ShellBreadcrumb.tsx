@@ -74,14 +74,9 @@ function Slash() {
 	return <BreadcrumbSeparator className="px-0.5 text-lg font-light text-line2">/</BreadcrumbSeparator>;
 }
 
-function Initial({ name, strong }: { name: string; strong?: boolean }) {
+function Initial({ name }: { name: string }) {
 	return (
-		<span
-			className={cn(
-				"flex shrink-0 items-center justify-center rounded-sm font-semibold",
-				strong === true ? "size-5 bg-foreground text-[11px] text-background" : "size-[18px] bg-bg3 text-[10px] text-fg2",
-			)}
-		>
+		<span className="flex size-[18px] shrink-0 items-center justify-center rounded-sm bg-bg3 text-[10px] font-semibold text-fg2">
 			{(name[0] ?? "?").toUpperCase()}
 		</span>
 	);
@@ -95,7 +90,7 @@ function CrumbMenu({
 	children,
 }: {
 	title: string;
-	icon: ReactNode;
+	icon?: ReactNode;
 	label: string;
 	heading: string;
 	children: ReactNode;
@@ -144,7 +139,7 @@ export function ShellBreadcrumb() {
 		<Breadcrumb className="min-w-0 overflow-hidden">
 			<BreadcrumbList className="gap-0 sm:gap-0">
 				{org !== undefined && (
-					<CrumbMenu title="Organization" heading="Organizations" label={org.name} icon={<Initial name={org.name} strong />}>
+					<CrumbMenu title="Organization" heading="Organizations" label={org.name}>
 						{orgs.map((o) => (
 							<DropdownMenuItem
 								key={o.id}

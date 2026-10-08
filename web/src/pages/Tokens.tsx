@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { KeyRoundIcon, PlusIcon } from "lucide-react";
+import { KeyRoundIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { toast } from "sonner";
@@ -8,10 +8,12 @@ import type { Token } from "@gen/loco/token/v1/token_pb";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 
 import { Button } from "@/components/design/Button";
+import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Page, PageHeader } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useNow } from "@/hooks/useNow";
 import { getErrorMessage } from "@/lib/error-handler";
 import { tsMs } from "@/lib/time";
@@ -20,7 +22,8 @@ import { cn } from "@/lib/utils";
 import { CreateTokenDialog } from "./tokens/CreateTokenDialog";
 import type { CreateDraft } from "./tokens/CreateTokenDialog";
 import { ownerIcon } from "./tokens/icons";
-import { heldLevel, kindLabel, kindOf, matchesQuery, tokenGrants, tokenStatus } from "./tokens/model";
+import { LockArt } from "./tokens/LockArt";
+import { heldLevel, matchesQuery, tokenGrants, tokenStatus } from "./tokens/model";
 import type { Level, OwnerKey } from "./tokens/model";
 import { RevokeDialog } from "./tokens/RevokeDialog";
 import { SecretDialog } from "./tokens/SecretDialog";
@@ -41,6 +44,7 @@ export function Tokens() {
 	const [params, setParams] = useSearchParams();
 	const ownerKey = parseOwner(params.get("owner"));
 	const data = useTokenData();
+	const { orgs, activeOrgId } = useOrgWorkspace();
 	const queryClient = useQueryClient();
 	const now = useNow(60_000).getTime();
 	const [q, setQ] = useState("");
@@ -94,114 +98,150 @@ export function Tokens() {
 	};
 
 	const listError = current.error ?? data.scopesError;
-	const emptyLabel = (() => {
-		if (!owner.canList) return data.scopesLoading ? "" : `You don't have access to ${owner.label} tokens.`;
-		if (listError !== null && listError !== undefined) return getErrorMessage(listError, "Failed to load tokens");
-		return tokens.length > 0 ? "No tokens match." : "No tokens yet.";
-	})();
-
-	const ownerKind = kindOf(owner.entityType);
-	const ownerEntityLabel = kindLabel(ownerKind).toLowerCase();
-	const ownerEmpty = owner.canList && !current.isLoading && (listError === null || listError === undefined) && tokens.length === 0;
+	const hasListError = listError !== null && listError !== undefined;
+	const openCreate = () => {
+		setDraft({ name: "", items: [] });
+	};
+	const createTitle = owner.canCreate ? undefined : `You need write access to ${owner.label} to create tokens`;
 	const newTokenButton = (
-		<Button
-			size="lg"
-			disabled={!owner.canCreate}
-			title={owner.canCreate ? undefined : `You need write access to ${owner.label} to create tokens`}
-			onClick={() => {
-				setDraft({ name: "", items: [] });
-			}}
-			className="px-3.5"
-		>
+		<Button size="lg" disabled={!owner.canCreate} title={createTitle} onClick={openCreate} className="px-3.5">
 			<PlusIcon />
 			New token
 		</Button>
 	);
 
+	const listable = OWNER_KEYS.map((k) => data.owners[k]).filter((o) => o.owner.canList);
+	const allEmpty =
+		!data.scopesLoading &&
+		(data.scopesError === null || data.scopesError === undefined) &&
+		listable.length > 0 &&
+		listable.every((o) => !o.isLoading && (o.error === null || o.error === undefined) && o.tokens.length === 0);
+	const orgName = orgs.find((o) => o.id === activeOrgId)?.name;
+
+	const listEmpty = (() => {
+		if (!owner.canList) {
+			if (data.scopesLoading) return null;
+			return <div className="px-4 py-7 text-fg3">{`You don't have access to ${owner.label} tokens.`}</div>;
+		}
+		if (hasListError) return <div className="px-4 py-7 text-fg3">{getErrorMessage(listError, "Failed to load tokens")}</div>;
+		if (tokens.length > 0) {
+			return (
+				<EmptyState
+					icon={<SearchXIcon />}
+					title="No tokens match"
+					query={q.trim()}
+					action={
+						<Button
+							variant="outline"
+							onClick={() => {
+								setQ("");
+							}}
+						>
+							<XIcon />
+							Clear search
+						</Button>
+					}
+				/>
+			);
+		}
+		return (
+			<EmptyState
+				icon={<KeyRoundIcon />}
+				title={`No tokens for ${owner.label}`}
+				action={
+					<Button disabled={!owner.canCreate} title={createTitle} onClick={openCreate}>
+						<PlusIcon />
+						Create token
+					</Button>
+				}
+			/>
+		);
+	})();
+
 	return (
 		<Page className="max-w-[1360px] gap-[18px]">
-			<PageHeader title="Tokens" actions={ownerEmpty ? undefined : newTokenButton} />
-			<div className="flex flex-wrap items-center gap-2.5">
-				<ToggleGroup
-					variant="segmented"
-					value={[ownerKey]}
-					onValueChange={(v: string[]) => {
-						const next = OWNER_KEYS.find((k) => k === v[0]);
-						if (next !== undefined) setOwner(next);
-					}}
-				>
-					{OWNER_KEYS.map((k) => {
-						const o = data.owners[k];
-						const count = o.owner.canList && !o.isLoading ? o.tokens.length.toString() : "";
-						return (
-							<ToggleGroupItem
-								key={k}
-								value={k}
-								title={o.owner.kind}
-								className="h-7! gap-1.5 px-3 text-[12.5px] [&_svg]:size-[13px]"
-							>
-								{ownerIcon(k)}
-								{o.owner.label}
-								{count !== "" && <span className="text-xs font-normal text-fg3">{count}</span>}
-							</ToggleGroupItem>
-						);
-					})}
-				</ToggleGroup>
-				<div className="flex-1" />
-				<SearchInput
-					value={q}
-					onChange={(e) => {
-						setQ(e.target.value);
-					}}
-					placeholder="Search"
-					aria-label="Search tokens"
-					className="w-60"
-				/>
-			</div>
-			<div
-				className={cn(
-					"grid items-start gap-5",
-					selectedToken === undefined ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]",
-				)}
-			>
-				{ownerEmpty ? (
-					<section className="rounded-lg border border-line bg-background">
-						<EmptyState icon={<KeyRoundIcon />} title={`No tokens for this ${ownerEntityLabel} yet`} action={newTokenButton}>
-							Tokens let CI, scripts and the CLI call the Loco API with exactly the access you grant.
-						</EmptyState>
-					</section>
-				) : (
-					<TokenList
-						tokens={owner.canList ? rows : []}
-						tree={data.tree}
-						now={now}
-						selected={activeName}
-						onSelect={(name) => {
-							setSelected(name === null ? null : { owner: ownerKey, name });
-						}}
-						isLoading={current.isLoading}
-						emptyLabel={emptyLabel}
-					/>
-				)}
-				{selectedToken !== undefined && (
-					<TokenPanel
-						key={selectedToken.name}
-						token={selectedToken}
-						owner={owner}
-						tree={data.tree}
-						now={now}
-						onClose={() => {
-							setSelected(null);
-						}}
-						onDuplicate={() => {
-							duplicate(selectedToken);
-						}}
-						onRevoke={() => {
-							setRevoking(selectedToken);
-						}}
-					/>
-				)}
-			</div>
+			<PageHeader title="Tokens" actions={allEmpty ? undefined : newTokenButton} />
+			{allEmpty ? (
+				<EmptyHero art={<LockArt />} title="No tokens yet" subtitle={orgName}>
+					{newTokenButton}
+				</EmptyHero>
+			) : (
+				<>
+					<div className="flex flex-wrap items-center gap-2.5">
+						<ToggleGroup
+							variant="segmented"
+							value={[ownerKey]}
+							onValueChange={(v: string[]) => {
+								const next = OWNER_KEYS.find((k) => k === v[0]);
+								if (next !== undefined) setOwner(next);
+							}}
+						>
+							{OWNER_KEYS.map((k) => {
+								const o = data.owners[k];
+								const count = o.owner.canList && !o.isLoading ? o.tokens.length.toString() : "";
+								return (
+									<ToggleGroupItem
+										key={k}
+										value={k}
+										title={o.owner.kind}
+										className="h-7! gap-1.5 px-3 text-[12.5px] [&_svg]:size-[13px]"
+									>
+										{ownerIcon(k)}
+										{o.owner.label}
+										{count !== "" && <span className="text-xs font-normal text-fg3">{count}</span>}
+									</ToggleGroupItem>
+								);
+							})}
+						</ToggleGroup>
+						<div className="flex-1" />
+						<SearchInput
+							value={q}
+							onChange={(e) => {
+								setQ(e.target.value);
+							}}
+							placeholder="Search"
+							aria-label="Search tokens"
+							className="w-60"
+						/>
+					</div>
+					<div
+						className={cn(
+							"grid items-start gap-5",
+							selectedToken === undefined ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]",
+						)}
+					>
+						<TokenList
+							tokens={owner.canList ? rows : []}
+							tree={data.tree}
+							now={now}
+							selected={activeName}
+							onSelect={(name) => {
+								setSelected(name === null ? null : { owner: ownerKey, name });
+							}}
+							isLoading={current.isLoading}
+							empty={listEmpty}
+						/>
+						{selectedToken !== undefined && (
+							<TokenPanel
+								key={selectedToken.name}
+								token={selectedToken}
+								owner={owner}
+								tree={data.tree}
+								now={now}
+								onClose={() => {
+									setSelected(null);
+								}}
+								onDuplicate={() => {
+									duplicate(selectedToken);
+								}}
+								onRevoke={() => {
+									setRevoking(selectedToken);
+								}}
+							/>
+						)}
+					</div>
+				</>
+			)}
 			<CreateTokenDialog
 				draft={draft}
 				owner={owner}

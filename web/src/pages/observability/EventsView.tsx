@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { BellIcon } from "lucide-react";
+import { ActivityIcon, SearchXIcon, XIcon } from "lucide-react";
 
+import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Pager } from "@/components/design/Pager";
 import { SearchInput } from "@/components/design/SearchInput";
@@ -15,10 +16,12 @@ import { pageRangeLabel, pageSlice } from "@/lib/paging";
 import { formatClock, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-import { selectedResources, useObs } from "./context";
+import { EVENTS_MAX_RANGE, selectedResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
 import { groupEvents, severityOf, severityStyle, type Severity } from "./events";
 import { fmtTs } from "./format";
+import { ObsGate } from "./ObsGate";
+import { WidenRangeButton } from "./ObsEmpty";
 import { Dot, Histogram, PAGE_SIZES, type HistoBucket } from "./shared";
 import { ResourceMenu, TimeRangeMenu } from "./Toolbar";
 
@@ -108,22 +111,17 @@ export function EventsView() {
 		</div>
 	);
 
-	if (!resourcesLoading && resources.length === 0) {
-		return (
-			<>
-				{toolbar}
-				<section className="rounded-lg border border-dashed border-line2">
-					<EmptyState icon={<BellIcon />} title="No events yet">
-						This workspace has no resources. Deploy one and its Kubernetes events show up here.
-					</EmptyState>
-				</section>
-			</>
-		);
-	}
+	const filtering = q !== "" || type !== "all";
+	const widen = range === EVENTS_MAX_RANGE ? undefined : <WidenRangeButton max={EVENTS_MAX_RANGE} />;
+	const clearFilters = () => {
+		setQuery("");
+		setType("all");
+		setPage(0);
+	};
 
 	if (!loading && unavailable) {
 		return (
-			<>
+			<ObsGate kind="events">
 				{toolbar}
 				<section className="rounded-lg border border-line bg-background">
 					<EmptyState
@@ -137,12 +135,12 @@ export function EventsView() {
 						Kubernetes events for your resources will show up here once the API supports them.
 					</EmptyState>
 				</section>
-			</>
+			</ObsGate>
 		);
 	}
 
 	return (
-		<>
+		<ObsGate kind="events">
 			{toolbar}
 			<div className="grid items-start gap-5" style={{ gridTemplateColumns: open ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)" }}>
 				<div className="flex min-w-0 flex-col gap-3">
@@ -255,7 +253,28 @@ export function EventsView() {
 								{!loading && error !== null && (
 									<div className="px-4 py-6 text-bad-fg">{getErrorMessage(error, "Failed to load events")}</div>
 								)}
-								{!loading && error === null && items.length === 0 && <div className="px-4 py-6 text-fg3">No events match.</div>}
+								{!loading && error === null && items.length === 0 && (
+									<div className="border-b border-line">
+										{filtering ? (
+											<EmptyState
+												icon={<SearchXIcon />}
+												title="No events match"
+												query={query.trim()}
+												action={
+													<>
+														<Button variant="outline" onClick={clearFilters}>
+															<XIcon />
+															Clear filters
+														</Button>
+														{widen}
+													</>
+												}
+											/>
+										) : (
+											<EmptyState icon={<ActivityIcon />} title={`No events in the last ${range}`} action={widen} />
+										)}
+									</div>
+								)}
 							</div>
 						</div>
 						<Pager
@@ -284,6 +303,6 @@ export function EventsView() {
 					/>
 				)}
 			</div>
-		</>
+		</ObsGate>
 	);
 }
