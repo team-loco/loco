@@ -21,7 +21,13 @@ import (
 	"github.com/team-loco/loco/api/auth/supabase"
 )
 
-const fieldPassword = "password"
+const (
+	fieldPassword     = "password"
+	fieldEmail        = "email"
+	fieldClientID     = "client_id"
+	accountVerified   = "verified"
+	accountUnverified = "unverified"
+)
 
 type tokenFunc func(t *testing.T) string
 
@@ -36,6 +42,7 @@ type conformanceProvider struct {
 	name     string
 	issuers  string
 	accounts []account
+	setup    func(t *testing.T) (string, []account)
 }
 
 func post(t *testing.T, endpoint, contentType, body string) (int, []byte) {
@@ -94,7 +101,7 @@ func passwordGrant(endpoint, clientID, clientSecret, username, password string) 
 		t.Helper()
 		form := url.Values{
 			"grant_type":  {fieldPassword},
-			"client_id":   {clientID},
+			fieldClientID: {clientID},
 			"username":    {username},
 			fieldPassword: {password},
 			"scope":       {"openid email profile"},
@@ -158,7 +165,7 @@ func supabaseSignup(base, email string) tokenFunc {
 	return func(t *testing.T) string {
 		t.Helper()
 		return postJSON(t, base+"/signup", map[string]any{
-			"email":       email,
+			fieldEmail:    email,
 			fieldPassword: supabasePassword,
 			"data":        map[string]any{"full_name": "Dana Supabase"},
 		}, "access_token")
@@ -177,7 +184,7 @@ func supabaseSelfAssertedVerification(base, email string) tokenFunc {
 		user := supabaseCall(t, http.MethodGet, base+"/user", access, nil)
 		userID := tokenField(t, user, "id")
 		supabaseCall(t, http.MethodPut, base+"/admin/users/"+userID, serviceKey, map[string]any{
-			"email":         email,
+			fieldEmail:      email,
 			"email_confirm": false,
 		})
 		supabaseCall(t, http.MethodPut, base+"/user", access, map[string]any{
@@ -236,14 +243,15 @@ func providers() []conformanceProvider {
 			name:    "keycloak",
 			issuers: `[{"issuer":"http://localhost:58080/realms/loco","audience":"loco"}]`,
 			accounts: []account{
-				{"verified", "alice@keycloak.test", true, passwordGrant(
+				{accountVerified, "alice@keycloak.test", true, passwordGrant(
 					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "loco", "", "alice", "alicepw",
 				)},
-				{"unverified", "bob@keycloak.test", false, passwordGrant(
+				{accountUnverified, "bob@keycloak.test", false, passwordGrant(
 					"http://localhost:58080/realms/loco/protocol/openid-connect/token", "loco", "", "bob", "bobpw",
 				)},
 			},
 		},
+		{name: "zitadel", setup: zitadelProvider},
 		{
 			name:    "dex",
 			issuers: `[{"issuer":"http://localhost:55556/dex","audience":"loco"}]`,
@@ -271,6 +279,9 @@ func tamper(token string) string {
 func TestProviderConformance(t *testing.T) {
 	for _, p := range providers() {
 		t.Run(p.name, func(t *testing.T) {
+			if p.setup != nil {
+				p.issuers, p.accounts = p.setup(t)
+			}
 			issuers, err := auth.ParseIssuers(p.issuers)
 			if err != nil {
 				t.Fatalf("AUTH_ISSUERS: %v", err)
