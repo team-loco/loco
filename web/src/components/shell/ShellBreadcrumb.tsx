@@ -1,9 +1,13 @@
-import { useQuery } from "@connectrpc/connect-query";
-import { Building2Icon, CheckIcon, ChevronDownIcon, LayersIcon, PlusIcon } from "lucide-react";
+import { createQueryOptions, useQuery, useTransport } from "@connectrpc/connect-query";
+import { useQueries } from "@tanstack/react-query";
+import { CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { matchPath, useLocation, useNavigate } from "react-router";
 
+import type { Organization } from "@gen/loco/org/v1/org_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import { listOrgWorkspaces } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import {
 	Breadcrumb,
@@ -12,6 +16,7 @@ import {
 	BreadcrumbPage,
 	BreadcrumbSeparator,
 } from "@/components/design/Breadcrumb";
+import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -84,13 +89,11 @@ function Initial({ name }: { name: string }) {
 
 function CrumbMenu({
 	title,
-	icon,
 	label,
 	heading,
 	children,
 }: {
 	title: string;
-	icon?: ReactNode;
 	label: string;
 	heading: string;
 	children: ReactNode;
@@ -100,7 +103,6 @@ function CrumbMenu({
 		<BreadcrumbItem className="min-w-0">
 			<DropdownMenu onOpenChange={peek.lock}>
 				<DropdownMenuTrigger title={title} className={cn(TRIGGER, "max-w-[280px]")}>
-					{icon}
 					<span className="truncate">{label}</span>
 					<ChevronDownIcon className="size-3.5 shrink-0 text-fg4" />
 				</DropdownMenuTrigger>
@@ -115,10 +117,118 @@ function CrumbMenu({
 	);
 }
 
-export function ShellBreadcrumb() {
+function orgSettingsPath(orgId: string, workspaceId: string): string {
+	return `${workspacePath(orgId, workspaceId, "settings")}?tab=org`;
+}
+
+function ScopeSwitcher({
+	org,
+	workspace,
+	onCreate,
+}: {
+	org: Organization;
+	workspace: Workspace | undefined;
+	onCreate: (kind: ScopeKind) => void;
+}) {
 	const { pathname, search } = useLocation();
 	const navigate = useNavigate();
-	const { orgs, workspaces, activeOrgId, activeWorkspaceId, setActiveOrg } = useOrgWorkspace();
+	const peek = useSidebarPeek();
+	const transport = useTransport();
+	const { orgs, activeWorkspaceId } = useOrgWorkspace();
+	const [open, setOpen] = useState(false);
+	const results = useQueries({
+		queries: orgs.map((o) => createQueryOptions(listOrgWorkspaces, { orgId: o.id }, { transport })),
+	});
+
+	const go = (to: string) => {
+		setOpen(false);
+		void navigate(to);
+	};
+
+	return (
+		<BreadcrumbItem className="min-w-0">
+			<DropdownMenu
+				open={open}
+				onOpenChange={(next: boolean) => {
+					setOpen(next);
+					peek.lock(next);
+				}}
+			>
+				<DropdownMenuTrigger title="Switch workspace" className={cn(TRIGGER, "max-w-[360px] text-fg2")}>
+					<span className="truncate">{org.name}</span>
+					{workspace !== undefined && (
+						<>
+							<span className="text-fg4">/</span>
+							<span className="truncate font-medium text-foreground">{workspace.name}</span>
+						</>
+					)}
+					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent className="w-[264px]" align="start">
+					{orgs.map((o, i) => {
+						const orgWorkspaces = results[i]?.data?.workspaces ?? [];
+						const first = orgWorkspaces[0];
+						return (
+							<DropdownMenuGroup key={o.id}>
+								<DropdownMenuLabel className="flex items-center justify-between pr-1">
+									<span className="truncate">{o.name}</span>
+									{first !== undefined && (
+										<Button
+											variant="ghost"
+											size="icon-xs"
+											title="Organization settings"
+											aria-label={`${o.name} settings`}
+											className="text-fg3"
+											onClick={() => {
+												go(orgSettingsPath(o.id, first.id));
+											}}
+										>
+											<SettingsIcon />
+										</Button>
+									)}
+								</DropdownMenuLabel>
+								{orgWorkspaces.map((w) => (
+									<DropdownMenuItem
+										key={w.id}
+										className={cn(w.id === activeWorkspaceId && "bg-bg3")}
+										onClick={() => {
+											if (w.id !== activeWorkspaceId) void navigate(switchWorkspacePath(pathname, search, o.id, w.id));
+										}}
+									>
+										<Initial name={w.name} />
+										<span className="flex-1 truncate">{w.name}</span>
+										{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuGroup>
+						);
+					})}
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						onClick={() => {
+							onCreate("workspace");
+						}}
+					>
+						<PlusIcon className="text-fg3" />
+						New workspace
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onClick={() => {
+							onCreate("org");
+						}}
+					>
+						<PlusIcon className="text-fg3" />
+						New organization
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</BreadcrumbItem>
+	);
+}
+
+export function ShellBreadcrumb() {
+	const { pathname, search } = useLocation();
+	const { orgs, workspaces, activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { environments, active: env, setActive: setEnv } = useEnvironments();
 	const [creating, setCreating] = useState<ScopeKind | null>(null);
 
@@ -139,71 +249,13 @@ export function ShellBreadcrumb() {
 		<Breadcrumb className="min-w-0 overflow-hidden">
 			<BreadcrumbList className="gap-0 sm:gap-0">
 				{org !== undefined && (
-					<CrumbMenu title="Organization" heading="Organizations" label={org.name}>
-						{orgs.map((o) => (
-							<DropdownMenuItem
-								key={o.id}
-								onClick={() => {
-									if (o.id !== activeOrgId) setActiveOrg(o.id);
-								}}
-							>
-								<Initial name={o.name} />
-								<span className="flex-1 truncate">{o.name}</span>
-								{o.id === activeOrgId && <CheckIcon className="size-3.5" />}
-							</DropdownMenuItem>
-						))}
-						<DropdownMenuSeparator />
-						<DropdownMenuItem
-							onClick={() => {
-								void navigate("/organizations");
-							}}
-						>
-							<Building2Icon className="text-fg3" />
-							Manage organizations
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => {
-								setCreating("org");
-							}}
-						>
-							<PlusIcon className="text-fg3" />
-							New organization
-						</DropdownMenuItem>
-					</CrumbMenu>
-				)}
-
-				{inWorkspace && org !== undefined && workspace !== undefined && (
-					<>
-						<Slash />
-						<CrumbMenu
-							title="Workspace"
-							heading={`Workspaces in ${org.name}`}
-							label={workspace.name}
-							icon={<LayersIcon className="size-3.5 shrink-0 text-fg3" />}
-						>
-							{workspaces.map((w) => (
-								<DropdownMenuItem
-									key={w.id}
-									onClick={() => {
-										if (w.id !== activeWorkspaceId) void navigate(switchWorkspacePath(pathname, search, org.id, w.id));
-									}}
-								>
-									<Initial name={w.name} />
-									<span className="flex-1 truncate">{w.name}</span>
-									{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
-								</DropdownMenuItem>
-							))}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={() => {
-									setCreating("workspace");
-								}}
-							>
-								<PlusIcon className="text-fg3" />
-								New workspace
-							</DropdownMenuItem>
-						</CrumbMenu>
-					</>
+					<ScopeSwitcher
+						org={org}
+						workspace={workspace}
+						onCreate={(kind) => {
+							setCreating(kind);
+						}}
+					/>
 				)}
 
 				{showEnv && env !== undefined && (
