@@ -15,8 +15,8 @@ func TestParseIssuersAppliesDefaults(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 	ic := issuers[0]
-	if ic.JWKSURL != testIssuerURL+"/.well-known/jwks.json" {
-		t.Errorf("jwks = %q", ic.JWKSURL)
+	if ic.JWKSURL != "" {
+		t.Errorf("jwks = %q, want discovery", ic.JWKSURL)
 	}
 	if ic.Claims.Subject != "sub" || ic.Claims.Email != claimEmail || ic.Claims.EmailVerified != claimEmailVerified {
 		t.Errorf("claims = %+v", ic.Claims)
@@ -109,24 +109,10 @@ func TestSignupPolicy(t *testing.T) {
 	}
 }
 
-func TestSupabasePreset(t *testing.T) {
-	issuers, err := ParseIssuers(
-		`[{"issuer":"http://localhost:9999","audience":"authenticated","preset":"supabase",` +
-			`"web":{"adapter":"supabase"}}]`,
-	)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
-	ic := issuers[0]
-	if ic.Claims.EmailVerified != claimEmailVerified {
-		t.Fatalf("preset maps email verification to %q, which users can set themselves", ic.Claims.EmailVerified)
-	}
-	if ic.Claims.Name != "user_metadata.full_name" || ic.Claims.AvatarURL != "user_metadata.avatar_url" {
-		t.Fatalf("preset = %+v", ic)
-	}
-	_, err = ParseIssuers(`[{"issuer":"http://localhost:9999","audience":"authenticated","preset":"nope"}]`)
+func TestParseIssuersRejectsUnknownFields(t *testing.T) {
+	_, err := ParseIssuers(`[{"issuer":"http://localhost:9999","audience":"loco","preset":"supabase"}]`)
 	if err == nil {
-		t.Fatal("unknown preset accepted")
+		t.Fatal("unknown field accepted")
 	}
 }
 

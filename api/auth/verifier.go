@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 )
@@ -19,11 +20,6 @@ var (
 	ErrMissingClaim  = errors.New("token is missing a required claim")
 )
 
-type AuthMethod struct {
-	Method   string
-	Provider string
-}
-
 type Identity struct {
 	Issuer        string
 	Subject       string
@@ -31,7 +27,6 @@ type Identity struct {
 	EmailVerified bool
 	Name          string
 	AvatarURL     string
-	Methods       []AuthMethod
 }
 
 type issuerVerifier struct {
@@ -47,7 +42,12 @@ func NewVerifier(httpClient *http.Client, issuers []IssuerConfig) *Verifier {
 	ctx := oidc.ClientContext(context.Background(), httpClient)
 	v := &Verifier{issuers: make(map[string]*issuerVerifier, len(issuers))}
 	for _, ic := range issuers {
-		keys := oidc.NewRemoteKeySet(ctx, ic.JWKSURL)
+		var keys oidc.KeySet
+		if ic.JWKSURL != "" {
+			keys = oidc.NewRemoteKeySet(ctx, ic.JWKSURL)
+		} else {
+			keys = &discoveredKeySet{ctx: ctx, client: httpClient, issuer: ic.Issuer}
+		}
 		v.issuers[ic.Issuer] = &issuerVerifier{
 			config: ic,
 			verifier: oidc.NewVerifier(ic.Issuer, keys, &oidc.Config{
@@ -84,8 +84,8 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (Identity, error) {
 		return Identity{}, fmt.Errorf("%w: %w", ErrInvalidToken, err)
 	}
 	var claims map[string]any
-	if err := tok.Claims(&claims); err != nil {
-		return Identity{}, fmt.Errorf("%w: %w", ErrInvalidToken, err)
+	if claimsErr := tok.Claims(&claims); claimsErr != nil {
+		return Identity{}, fmt.Errorf("%w: %w", ErrInvalidToken, claimsErr)
 	}
 	return identityFromClaims(iv.config, claims)
 }
@@ -120,7 +120,6 @@ func identityFromClaims(ic IssuerConfig, claims map[string]any) (Identity, error
 		EmailVerified: emailVerifiedFromClaims(ic, claims),
 		Name:          claimString(claims, ic.Claims.Name),
 		AvatarURL:     claimString(claims, ic.Claims.AvatarURL),
-		Methods:       authMethods(claims["amr"]),
 	}
 	if id.Email == "" {
 		id.EmailVerified = false
@@ -166,27 +165,41 @@ func claimBool(claims map[string]any, path string) bool {
 	}
 }
 
-func authMethods(raw any) []AuthMethod {
-	list, ok := raw.([]any)
-	if !ok {
-		return nil
-	}
-	methods := make([]AuthMethod, 0, len(list))
-	for _, item := range list {
-		switch v := item.(type) {
-		case string:
-			methods = append(methods, AuthMethod{Method: v})
-		case map[string]any:
-			methods = append(methods, AuthMethod{Method: mapString(v, "method"), Provider: mapString(v, "provider")})
-		}
-	}
-	return methods
+type discoveredKeySet struct {
+	ctx    context.Context
+	client *http.Client
+	issuer string
+	mu     sync.Mutex
+	keys   oidc.KeySet
 }
 
-func mapString(m map[string]any, key string) string {
-	s, ok := m[key].(string)
-	if !ok {
-		return ""
+func (d *discoveredKeySet) VerifySignature(ctx context.Context, jwt string) ([]byte, error) {
+	keys, err := d.load(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return s
+	return keys.VerifySignature(ctx, jwt)
+}
+
+func (d *discoveredKeySet) load(ctx context.Context) (oidc.KeySet, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.keys != nil {
+		return d.keys, nil
+	}
+	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, d.client), d.issuer)
+	if err != nil {
+		return nil, fmt.Errorf("discover %s: %w", d.issuer, err)
+	}
+	var meta struct {
+		JWKSURI string `json:"jwks_uri"`
+	}
+	if err := provider.Claims(&meta); err != nil {
+		return nil, fmt.Errorf("discover %s: %w", d.issuer, err)
+	}
+	if meta.JWKSURI == "" {
+		return nil, fmt.Errorf("discover %s: %w", d.issuer, errNoJWKSURI)
+	}
+	d.keys = oidc.NewRemoteKeySet(d.ctx, meta.JWKSURI)
+	return d.keys, nil
 }

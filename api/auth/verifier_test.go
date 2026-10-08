@@ -1,8 +1,10 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -14,10 +16,6 @@ func TestVerifyMapsNestedClaims(t *testing.T) {
 	v := NewVerifier(http.DefaultClient, []IssuerConfig{testConfig(ti)})
 
 	claims := ti.Claims("user-1", "Dev@Example.test", true)
-	claims["amr"] = []any{
-		map[string]any{"method": "sso/saml", "provider": "conn-1"},
-		"pwd",
-	}
 	id, err := v.Verify(t.Context(), ti.Sign("k1", claims))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
@@ -30,10 +28,6 @@ func TestVerifyMapsNestedClaims(t *testing.T) {
 	}
 	if id.Name != "Test User" || id.AvatarURL != "https://example.com/a.png" {
 		t.Fatalf("profile = %q %q", id.Name, id.AvatarURL)
-	}
-	want := []AuthMethod{{Method: "sso/saml", Provider: "conn-1"}, {Method: "pwd"}}
-	if len(id.Methods) != len(want) || id.Methods[0] != want[0] || id.Methods[1] != want[1] {
-		t.Fatalf("methods = %+v", id.Methods)
 	}
 }
 
@@ -165,5 +159,39 @@ func TestLooksLikeJWT(t *testing.T) {
 		if got := LooksLikeJWT(token); got != want {
 			t.Errorf("LooksLikeJWT(%q) = %v, want %v", token, got, want)
 		}
+	}
+}
+
+func TestVerifyDiscoversKeys(t *testing.T) {
+	ti := authtest.NewIssuer(t)
+	config := testConfig(ti)
+	config.JWKSURL = ""
+	v := NewVerifier(http.DefaultClient, []IssuerConfig{config})
+	id, err := v.Verify(t.Context(), ti.Sign("k1", ti.Claims("user-1", "dev@example.test", true)))
+	if err != nil || id.Subject != "user-1" {
+		t.Fatalf("verify through discovery = %+v (%v)", id, err)
+	}
+}
+
+func TestVerifyRefusesDiscoveryForAnotherIssuer(t *testing.T) {
+	ti := authtest.NewIssuer(t)
+	impostor := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"issuer":   ti.URL(),
+			"jwks_uri": ti.URL() + "/keys",
+		}); err != nil {
+			t.Errorf("encode: %v", err)
+		}
+	}))
+	t.Cleanup(impostor.Close)
+	config := testConfig(ti)
+	config.Issuer = impostor.URL
+	config.JWKSURL = ""
+	v := NewVerifier(http.DefaultClient, []IssuerConfig{config})
+	claims := ti.Claims("user-1", "dev@example.test", true)
+	claims["iss"] = impostor.URL
+	if _, err := v.Verify(t.Context(), ti.Sign("k1", claims)); !errors.Is(err, ErrInvalidToken) {
+		t.Fatalf("verify with a mismatched discovery document = %v", err)
 	}
 }

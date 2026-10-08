@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#MISE description="Run the auth contract against Supabase Auth, Keycloak and Dex"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+compose=(docker compose -f "$root/env/conformance/compose.yaml")
+keys=$(go run ./tools/authkeys)
+set -a
+eval "$keys"
+set +a
+if [ "${KEEP:-}" = "" ]; then
+	trap '"${compose[@]}" down -v >/dev/null 2>&1' EXIT
+fi
+"${compose[@]}" up -d --wait
+for _ in $(seq 1 60); do
+	curl -sf -o /dev/null http://localhost:55556/dex/.well-known/openid-configuration && break
+	sleep 1
+done
+cd api
+LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:${CONFORMANCE_POSTGRES_PORT:-55440}/loco_test?sslmode=disable" \
+	go test -tags conformance -count=1 -run TestProviderConformance -v ./auth/ "$@"
