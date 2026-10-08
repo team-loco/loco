@@ -14,6 +14,8 @@ func TestBuildSourceImagePattern(t *testing.T) {
 		"ghcr.io/team-loco/app:v1",
 		"registry.example.com:5000/acme/app:v1",
 		"localhost:5001/app" + digest,
+		"nginxinc/nginx-unprivileged:1.31.6-alpine" + digest,
+		"localhost:5001/app:v1" + digest,
 	}
 	for _, image := range valid {
 		source := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: image}
@@ -25,6 +27,10 @@ func TestBuildSourceImagePattern(t *testing.T) {
 		"Registry/App:v1",
 		"registry:port/app:v1",
 		"app@sha256:short",
+		"app:v1@sha256:short",
+		"app" + digest + ":v1",
+		"app:v1:v2",
+		"app:v1" + digest + digest,
 	}
 	for _, image := range invalid {
 		source := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: image}

@@ -56,6 +56,55 @@ services:
         mkdir -p "/data/$$SOURCE_BUCKET"
         exec versitygw posix /data
 
+  auth-db:
+    image: postgres:18.6-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *postgres-env
+      PGHOST: postgres
+    volumes:
+      - ./env/local/auth-db.sql:/auth-db.sql:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - PGUSER="$$POSTGRES_USER" PGPASSWORD="$$POSTGRES_PASSWORD" PGDATABASE="$$POSTGRES_DB" psql -q -v ON_ERROR_STOP=1 -f /auth-db.sql
+
+  auth:
+    image: supabase/gotrue:v2.197.0
+    depends_on:
+      auth-db:
+        condition: service_completed_successfully
+    ports:
+      - "${AUTH_PORT:-9999}:9999"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      PORT: "9999"
+      API_EXTERNAL_URL: http://localhost:${AUTH_PORT:-9999}
+      GOTRUE_DB_DRIVER: postgres
+      DATABASE_URL: postgres://supabase_auth_admin:supabase_auth_admin@postgres:5432/loco_auth
+      GOTRUE_SITE_URL: ${WEB_URL:-http://localhost:5173}
+      GOTRUE_URI_ALLOW_LIST: ${WEB_URL:-http://localhost:5173}/**
+      GOTRUE_JWT_ISSUER: http://localhost:${AUTH_PORT:-9999}
+      GOTRUE_JWT_KEYS: ${GOTRUE_JWT_KEYS:-}
+      GOTRUE_JWT_SECRET: ${GOTRUE_JWT_SECRET:-}
+      GOTRUE_JWT_EXP: "600"
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "false"
+      GOTRUE_EXTERNAL_GITHUB_ENABLED: ${AUTH_GITHUB_ENABLED:-true}
+      GOTRUE_EXTERNAL_GITHUB_CLIENT_ID: ${GH_OAUTH_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_GITHUB_SECRET: ${GH_OAUTH_CLIENT_SECRET:-}
+      GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI: http://localhost:${AUTH_PORT:-9999}/callback
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9999/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   seed:
     image: postgres:18.6-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     profiles: [tools]

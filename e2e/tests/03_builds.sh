@@ -137,19 +137,6 @@ digest_valid() {
     [[ $1 =~ $builds_digest_pattern ]]
 }
 
-registry_manifest_status() {
-    local user=$1 repository=$2 digest=$3
-    local auth=()
-    if [ -n "$user" ]; then
-        auth=(-u "$user")
-    fi
-    curl -s -o /dev/null -w '%{http_code}' ${auth[@]+"${auth[@]}"} \
-        -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
-        -H 'Accept: application/vnd.oci.image.index.v1+json' \
-        -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-        "http://localhost:${E2E_REGISTRY_PORT}/v2/${repository}/manifests/${digest}"
-}
-
 test_b01_build_app() {
     local url
     url=$(upload_source e2e-app-1 build-app)
@@ -198,7 +185,7 @@ test_b03_image_pullable_with_nodes_account() {
     local digest
     digest=$(cat "$builds_dir/app.image" 2>/dev/null)
     assert "nodes account pulls the image by digest" \
-        test "$(registry_manifest_status nodes:loco-dev-nodes e2e/build-app "$digest")" = 200
+        test "$(registry_manifest_status "$E2E_REGISTRY_NODES_USER" e2e/build-app "$digest")" = 200
     assert "anonymous pull is refused" \
         test "$(registry_manifest_status "" e2e/build-app "$digest")" = 401
 }

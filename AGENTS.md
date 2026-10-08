@@ -47,7 +47,7 @@ Builds, tests, code generation, linting and the local environment are mise tasks
   without one. The charts have no default tag for Loco images.
 - **One source per value.** Don't repeat a chart value as a Go default or a script constant.
 - **Read configuration once at startup** into a config struct, like `newAPIConfig()` in
-  `api/main.go`; no `os.Getenv` elsewhere. Invalid configuration panics. Tunable limits,
+  `api/config.go`, with the typed env readers in `api/env.go`; no `os.Getenv` elsewhere. Invalid configuration panics. Tunable limits,
   timeouts and defaults are config fields, not literals in the code.
 
 ## Code Style

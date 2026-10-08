@@ -10,6 +10,9 @@ const (
 	BuildPhaseSucceeded = "Succeeded"
 	BuildPhaseFailed    = "Failed"
 	BuildPhaseCanceled  = "Canceled"
+
+	BuildImageTagPrefix = "build-"
+	BuildCacheTagPrefix = "buildcache-"
 )
 
 type BuildSpec struct {

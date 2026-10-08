@@ -360,6 +360,7 @@ type Build struct {
 	StartedAt       *time.Time  `json:"startedAt"`
 	FinishedAt      *time.Time  `json:"finishedAt"`
 	SourceDeletedAt *time.Time  `json:"sourceDeletedAt"`
+	ImageDeletedAt  *time.Time  `json:"imageDeletedAt"`
 }
 
 type Cluster struct {

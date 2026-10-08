@@ -3,6 +3,8 @@ import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { nonEmpty } from "@/lib/utils";
 
+import { authAdapter } from "./adapter";
+
 const BASE_URL = nonEmpty(import.meta.env.VITE_API_URL, "http://localhost:8000");
 const APP_ENV = nonEmpty(import.meta.env.VITE_APP_ENV, "DEVELOPMENT");
 
@@ -39,7 +41,21 @@ export const createTransport = (baseUrl: string = BASE_URL) => {
 		interceptors: [
 			(next) => async (req) => {
 				// Skip retry logic for OAuth endpoints to avoid recursion.
-				if (req.url.includes("/OAuthService/")) return await next(req);
+				if (req.url.includes("/OAuthService/") || req.url.includes("/ConfigService/")) return await next(req);
+				const adapter = await authAdapter();
+				if (adapter !== null) {
+					const token = await adapter.getAccessToken();
+					if (token !== null) req.header.set("Authorization", `Bearer ${token}`);
+					try {
+						return await next(req);
+					} catch (err) {
+						if (!(err instanceof ConnectError) || err.code !== Code.Unauthenticated || token === null) throw err;
+						const fresh = await adapter.getAccessToken(true);
+						if (fresh === null) throw err;
+						req.header.set("Authorization", `Bearer ${fresh}`);
+						return await next(req);
+					}
+				}
 				try {
 					return await next(req);
 				} catch (err) {

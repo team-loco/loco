@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const advisoryUnlock = `-- name: AdvisoryUnlock :one
+SELECT pg_advisory_unlock($1::bigint)
+`
+
+func (q *Queries) AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error) {
+	row := q.db.QueryRow(ctx, advisoryUnlock, lockKey)
+	var pg_advisory_unlock bool
+	err := row.Scan(&pg_advisory_unlock)
+	return pg_advisory_unlock, err
+}
+
 const cancelBuild = `-- name: CancelBuild :one
 UPDATE builds
 SET status = 'canceled',
@@ -86,7 +97,7 @@ func (q *Queries) CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherAc
 const createBuild = `-- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, created_by)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8)
-RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at
+RETURNING id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
 `
 
 type CreateBuildParams struct {
@@ -130,6 +141,7 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.SourceDeletedAt,
+		&i.ImageDeletedAt,
 	)
 	return i, err
 }
@@ -300,7 +312,7 @@ func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (Finis
 }
 
 const getBuildByID = `-- name: GetBuildByID :one
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at FROM builds WHERE id = $1
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
 `
 
 func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -324,6 +336,7 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.SourceDeletedAt,
+		&i.ImageDeletedAt,
 	)
 	return i, err
 }
@@ -400,8 +413,45 @@ func (q *Queries) ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]
 	return items, nil
 }
 
+const listBuildTagStates = `-- name: ListBuildTagStates :many
+SELECT id, resource_id, status, finished_at FROM builds
+WHERE id = ANY($1::uuid[])
+`
+
+type ListBuildTagStatesRow struct {
+	ID         uuid.UUID   `json:"id"`
+	ResourceID uuid.UUID   `json:"resourceId"`
+	Status     BuildStatus `json:"status"`
+	FinishedAt *time.Time  `json:"finishedAt"`
+}
+
+func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error) {
+	rows, err := q.db.Query(ctx, listBuildTagStates, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBuildTagStatesRow
+	for rows.Next() {
+		var i ListBuildTagStatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.Status,
+			&i.FinishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBuildsForResource = `-- name: ListBuildsForResource :many
-SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at FROM builds b
+SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
 WHERE b.resource_id = $1
   AND ($3::text IS NULL
        OR (b.created_at, b.id) < (
@@ -445,7 +495,152 @@ func (q *Queries) ListBuildsForResource(ctx context.Context, arg ListBuildsForRe
 			&i.StartedAt,
 			&i.FinishedAt,
 			&i.SourceDeletedAt,
+			&i.ImageDeletedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeletableBuildImages = `-- name: ListDeletableBuildImages :many
+WITH ranked AS (
+  SELECT b.id,
+         b.resource_id,
+         b.image_repository,
+         b.image_digest,
+         b.cache_digest,
+         b.finished_at,
+         b.image_deleted_at,
+         row_number() OVER (PARTITION BY b.resource_id ORDER BY b.finished_at DESC, b.id DESC) AS position
+  FROM builds b
+  WHERE b.status = 'succeeded'
+    AND ($2::uuid IS NULL
+         OR b.resource_id = (SELECT o.resource_id FROM builds o WHERE o.id = $2::uuid))
+)
+SELECT c.id,
+       c.resource_id,
+       c.image_repository,
+       c.image_digest::text AS image_digest,
+       c.cache_digest
+FROM ranked c
+WHERE c.position > $1::int
+  AND c.image_deleted_at IS NULL
+  AND ($2::uuid IS NULL OR c.id = $2::uuid)
+  AND NOT EXISTS (
+    SELECT 1 FROM ranked k
+    WHERE k.resource_id = c.resource_id
+      AND k.position <= $1::int
+      AND (k.image_digest IN (c.image_digest, c.cache_digest)
+           OR k.cache_digest IN (c.image_digest, c.cache_digest))
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM deployments d
+    WHERE d.resource_id = c.resource_id
+      AND d.is_active
+      AND strpos(d.spec::text, c.image_digest) > 0
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM placements p
+    WHERE p.resource_id = c.resource_id
+      AND NOT p.desired_deleted
+      AND strpos(p.desired_spec::text, c.image_digest) > 0
+  )
+ORDER BY c.finished_at, c.id
+LIMIT $3
+`
+
+type ListDeletableBuildImagesParams struct {
+	Keep      int32      `json:"keep"`
+	BuildID   *uuid.UUID `json:"buildId"`
+	MaxBuilds int32      `json:"maxBuilds"`
+}
+
+type ListDeletableBuildImagesRow struct {
+	ID              uuid.UUID `json:"id"`
+	ResourceID      uuid.UUID `json:"resourceId"`
+	ImageRepository string    `json:"imageRepository"`
+	ImageDigest     string    `json:"imageDigest"`
+	CacheDigest     *string   `json:"cacheDigest"`
+}
+
+func (q *Queries) ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error) {
+	rows, err := q.db.Query(ctx, listDeletableBuildImages, arg.Keep, arg.BuildID, arg.MaxBuilds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDeletableBuildImagesRow
+	for rows.Next() {
+		var i ListDeletableBuildImagesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.ImageRepository,
+			&i.ImageDigest,
+			&i.CacheDigest,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExistingResourceIDs = `-- name: ListExistingResourceIDs :many
+SELECT id FROM resources WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listExistingResourceIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLiveBuildDigests = `-- name: ListLiveBuildDigests :many
+SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
+WHERE resource_id = ANY($1::uuid[])
+  AND status = 'succeeded'
+  AND image_deleted_at IS NULL
+`
+
+type ListLiveBuildDigestsRow struct {
+	ResourceID  uuid.UUID `json:"resourceId"`
+	ImageDigest string    `json:"imageDigest"`
+	CacheDigest *string   `json:"cacheDigest"`
+}
+
+func (q *Queries) ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error) {
+	rows, err := q.db.Query(ctx, listLiveBuildDigests, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLiveBuildDigestsRow
+	for rows.Next() {
+		var i ListLiveBuildDigestsRow
+		if err := rows.Scan(&i.ResourceID, &i.ImageDigest, &i.CacheDigest); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -469,6 +664,7 @@ SELECT b.id,
          WHERE p.resource_id = b.resource_id
            AND p.status = 'succeeded'
            AND p.cache_digest IS NOT NULL
+           AND p.image_deleted_at IS NULL
            AND p.image_repository = b.image_repository
          ORDER BY p.finished_at DESC, p.id DESC
          LIMIT 1
@@ -550,6 +746,28 @@ func (q *Queries) ListUndeletedBuildSources(ctx context.Context, maxBuilds int32
 	return items, nil
 }
 
+const lockBuildImageForDelete = `-- name: LockBuildImageForDelete :one
+SELECT image_deleted_at FROM builds WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error) {
+	row := q.db.QueryRow(ctx, lockBuildImageForDelete, id)
+	var image_deleted_at *time.Time
+	err := row.Scan(&image_deleted_at)
+	return image_deleted_at, err
+}
+
+const lockBuildImageForDeploy = `-- name: LockBuildImageForDeploy :one
+SELECT image_deleted_at FROM builds WHERE id = $1 FOR SHARE
+`
+
+func (q *Queries) LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error) {
+	row := q.db.QueryRow(ctx, lockBuildImageForDeploy, id)
+	var image_deleted_at *time.Time
+	err := row.Scan(&image_deleted_at)
+	return image_deleted_at, err
+}
+
 const lockResourceForBuild = `-- name: LockResourceForBuild :one
 SELECT id FROM resources WHERE id = $1 FOR UPDATE
 `
@@ -559,6 +777,21 @@ func (q *Queries) LockResourceForBuild(ctx context.Context, id uuid.UUID) (uuid.
 	var id_2 uuid.UUID
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const markBuildImageDeleted = `-- name: MarkBuildImageDeleted :execrows
+UPDATE builds
+SET image_deleted_at = NOW()
+WHERE id = $1
+  AND image_deleted_at IS NULL
+`
+
+func (q *Queries) MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, markBuildImageDeleted, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const markBuildRunning = `-- name: MarkBuildRunning :execrows
@@ -620,26 +853,15 @@ func (q *Queries) QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, 
 	return result.RowsAffected(), nil
 }
 
-const tryLockSourceSweep = `-- name: TryLockSourceSweep :one
+const tryAdvisoryLock = `-- name: TryAdvisoryLock :one
 SELECT pg_try_advisory_lock($1::bigint)
 `
 
-func (q *Queries) TryLockSourceSweep(ctx context.Context, lockKey int64) (bool, error) {
-	row := q.db.QueryRow(ctx, tryLockSourceSweep, lockKey)
+func (q *Queries) TryAdvisoryLock(ctx context.Context, lockKey int64) (bool, error) {
+	row := q.db.QueryRow(ctx, tryAdvisoryLock, lockKey)
 	var pg_try_advisory_lock bool
 	err := row.Scan(&pg_try_advisory_lock)
 	return pg_try_advisory_lock, err
-}
-
-const unlockSourceSweep = `-- name: UnlockSourceSweep :one
-SELECT pg_advisory_unlock($1::bigint)
-`
-
-func (q *Queries) UnlockSourceSweep(ctx context.Context, lockKey int64) (bool, error) {
-	row := q.db.QueryRow(ctx, unlockSourceSweep, lockKey)
-	var pg_advisory_unlock bool
-	err := row.Scan(&pg_advisory_unlock)
-	return pg_advisory_unlock, err
 }
 
 const updateQueuedBuildMessage = `-- name: UpdateQueuedBuildMessage :execrows
