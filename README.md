@@ -87,7 +87,7 @@ You must first reach out to me, nikumar1206, if you would like to deploy on this
 
 ## Contributing
 
-Every tool the repository uses (Go, bun, the linters, code generators, helm, kind, terraform and so on) is pinned in [`mise.toml`](./mise.toml), with exact versions and checksums for each platform in `mise.lock`. CI installs from the same files. Install [mise](https://mise.jdx.dev/getting-started.html), then from the repository root:
+Every tool the repository uses (Go, bun, the linters, code generators, helm, kind and so on) is pinned in [`mise.toml`](./mise.toml), with exact versions and checksums for each platform in `mise.lock`. CI installs from the same files. Install [mise](https://mise.jdx.dev/getting-started.html), then from the repository root:
 
 ```bash
 mise run setup

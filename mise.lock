@@ -161,56 +161,6 @@ url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-darwin-x6
 checksum = "sha256:bad5bbd6cf14d0980d115f5954c9ff904df619d5e994d2da1ffccd3f316300b0"
 url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-darwin-x64-baseline.zip"
 
-[[tools.doctl]]
-version = "1.177.0"
-backend = "aqua:digitalocean/doctl"
-specifiers = ["1.177.0"]
-
-[tools.doctl."platforms.linux-arm64"]
-checksum = "sha256:3adfe5bb667c2cdee15eb3501d53b57d8f04dfa945ddd4584f6f760834506992"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603786033"
-
-[tools.doctl."platforms.linux-arm64-musl"]
-checksum = "sha256:3adfe5bb667c2cdee15eb3501d53b57d8f04dfa945ddd4584f6f760834506992"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-linux-arm64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603786033"
-
-[tools.doctl."platforms.linux-x64"]
-checksum = "sha256:34d3954721bfb8cdb42032e78d98274f157426fa6332511ae356edcce59dade3"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603785957"
-
-[tools.doctl."platforms.linux-x64-baseline"]
-checksum = "sha256:34d3954721bfb8cdb42032e78d98274f157426fa6332511ae356edcce59dade3"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603785957"
-
-[tools.doctl."platforms.linux-x64-musl"]
-checksum = "sha256:34d3954721bfb8cdb42032e78d98274f157426fa6332511ae356edcce59dade3"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603785957"
-
-[tools.doctl."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:34d3954721bfb8cdb42032e78d98274f157426fa6332511ae356edcce59dade3"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-linux-amd64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603785957"
-
-[tools.doctl."platforms.macos-arm64"]
-checksum = "sha256:8fd0046662e8421684349458c5c23de5b1beacbfd9d2b0cd8309dc190a12bc34"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-darwin-arm64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603786020"
-
-[tools.doctl."platforms.macos-x64"]
-checksum = "sha256:58b5e6d4aba30bcda8b05a9c8781b090d4c475546d4269380f355a476a3dbd89"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-darwin-amd64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603785954"
-
-[tools.doctl."platforms.macos-x64-baseline"]
-checksum = "sha256:58b5e6d4aba30bcda8b05a9c8781b090d4c475546d4269380f355a476a3dbd89"
-url = "https://github.com/digitalocean/doctl/releases/download/v1.177.0/doctl-1.177.0-darwin-amd64.tar.gz"
-url_api = "https://api.github.com/repos/digitalocean/doctl/releases/assets/603785954"
-
 [[tools."github:kubernetes-sigs/controller-tools"]]
 version = "0.22.0"
 backend = "github:kubernetes-sigs/controller-tools"
@@ -969,47 +919,6 @@ provenance = "github-attestations"
 checksum = "sha256:b4dad38ba6a344555ccb71a1b08caad0a6c0dda88c5803658bc95bd7f04e9f5c"
 url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261003/cpython-3.13.16+20261003-x86_64-apple-darwin-install_only_stripped.tar.gz"
 provenance = "github-attestations"
-
-[[tools.terraform]]
-version = "1.16.4"
-backend = "aqua:hashicorp/terraform"
-specifiers = ["1.16.4"]
-
-[tools.terraform."platforms.linux-arm64"]
-checksum = "sha256:8263f301cb1a24489a4adeed147bf28504053f77237b3ea97a0ef2972659de30"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_arm64.zip"
-
-[tools.terraform."platforms.linux-arm64-musl"]
-checksum = "sha256:8263f301cb1a24489a4adeed147bf28504053f77237b3ea97a0ef2972659de30"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_arm64.zip"
-
-[tools.terraform."platforms.linux-x64"]
-checksum = "sha256:dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip"
-
-[tools.terraform."platforms.linux-x64-baseline"]
-checksum = "sha256:dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip"
-
-[tools.terraform."platforms.linux-x64-musl"]
-checksum = "sha256:dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip"
-
-[tools.terraform."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:dc94af0eef1147718ad7c8daea792ed199e3e0492eec180d0adafa2a65a879df"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_linux_amd64.zip"
-
-[tools.terraform."platforms.macos-arm64"]
-checksum = "sha256:42cfdf97ad722f79085fe2279b06d4b8680172de3534b22eeddd9a0fbbe7b8f1"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_darwin_arm64.zip"
-
-[tools.terraform."platforms.macos-x64"]
-checksum = "sha256:2ee4b62064086e4b24b0d6cf2e61718fbaf0556feba990f708a5e32557554b3b"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_darwin_amd64.zip"
-
-[tools.terraform."platforms.macos-x64-baseline"]
-checksum = "sha256:2ee4b62064086e4b24b0d6cf2e61718fbaf0556feba990f708a5e32557554b3b"
-url = "https://releases.hashicorp.com/terraform/1.16.4/terraform_1.16.4_darwin_amd64.zip"
 
 [[tools.tilt]]
 version = "0.37.8"

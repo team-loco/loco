@@ -32,10 +32,6 @@ go.work.sum
 tmp/*
 **/bin/**
 
-# terraform
-*.tfstate
-terraform/.terraform/*
-
 # local certs and keys
 *.pem
 
@@ -73,6 +69,5 @@ docs/
 env/
 examples/
 references/
-terraform/
 web/
 README.md
