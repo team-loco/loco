@@ -12,7 +12,9 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.47.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.7
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.1
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
+	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/google/go-containerregistry v0.22.1
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0

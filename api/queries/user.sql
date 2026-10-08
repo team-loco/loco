@@ -21,6 +21,17 @@ SET email = $2, updated_at = NOW()
 WHERE id = $1
 RETURNING id, email, name, avatar_url, created_at, updated_at;
 
+-- name: MoveAccountEmail :one
+UPDATE users u
+SET email = sqlc.arg('email'), updated_at = NOW()
+WHERE u.id = sqlc.arg('user_id')
+    AND u.email <> sqlc.arg('email')
+    AND NOT EXISTS (
+        SELECT 1 FROM identities i
+        WHERE i.user_id = u.id AND i.email_verified AND i.email = u.email
+    )
+RETURNING id, email, name, avatar_url, created_at, updated_at;
+
 -- name: UpdateUserAvatarURL :one
 UPDATE users
 SET avatar_url = $2, updated_at = NOW()

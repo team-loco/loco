@@ -24,25 +24,38 @@ import (
 )
 
 const (
-	namePrefix       = "build-"
-	fieldOwner       = "loco-agent"
-	labelManagedBy   = "app.kubernetes.io/managed-by"
-	labelBuildID     = "loco.io/build-id"
-	managedByValue   = "loco-agent"
-	maxMessageLength = 4000
-	truncatedPrefix  = "..."
+	namePrefix        = "build-"
+	fieldOwner        = "loco-agent"
+	labelManagedBy    = "app.kubernetes.io/managed-by"
+	labelBuildID      = "loco.io/build-id"
+	managedByValue    = "loco-agent"
+	maxMessageLength  = 4000
+	truncatedPrefix   = "..."
+	createRetryFactor = 2
+	createRetryJitter = 0.1
 )
 
-var ErrInvalidBuild = errors.New("invalid build")
+var (
+	ErrInvalidBuild   = errors.New("invalid build")
+	errCacheNotSynced = errors.New("build cache did not sync")
+)
+
+type Config struct {
+	Namespace           string
+	Retention           time.Duration
+	CreateRetryDelay    time.Duration
+	CreateRetryAttempts int
+}
 
 type Sink func(*agentv1.BuildStatus)
 
 type Watcher struct {
-	client    client.Client
-	reader    client.Reader
-	namespace string
-	retention time.Duration
-	now       func() time.Time
+	client        client.Client
+	reader        client.Reader
+	namespace     string
+	retention     time.Duration
+	createBackoff wait.Backoff
+	now           func() time.Time
 
 	order    sync.Mutex
 	mu       sync.Mutex
@@ -51,24 +64,24 @@ type Watcher struct {
 	sinkID   uint64
 }
 
-func Start(ctx context.Context, cfg *rest.Config, namespace string, retention time.Duration) (*Watcher, error) {
+func Start(ctx context.Context, restConfig *rest.Config, cfg Config) (*Watcher, error) {
 	scheme := runtime.NewScheme()
 	if err := locoControllerV1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add loco types to scheme: %w", err)
 	}
-	c, err := cache.New(cfg, cache.Options{
+	c, err := cache.New(restConfig, cache.Options{
 		Scheme:            scheme,
-		DefaultNamespaces: map[string]cache.Config{namespace: {}},
+		DefaultNamespaces: map[string]cache.Config{cfg.Namespace: {}},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Build cache: %w", err)
 	}
-	writer, err := client.New(cfg, client.Options{Scheme: scheme})
+	writer, err := client.New(restConfig, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Build client: %w", err)
 	}
 
-	w := New(writer, c, namespace, retention)
+	w := New(writer, c, cfg)
 	informer, err := c.GetInformer(ctx, &locoControllerV1.Build{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Build informer: %w", err)
@@ -88,19 +101,26 @@ func Start(ctx context.Context, cfg *rest.Config, namespace string, retention ti
 		}
 	}()
 	if !c.WaitForCacheSync(ctx) {
-		return nil, errors.New("build cache did not sync")
+		return nil, errCacheNotSynced
 	}
 	return w, nil
 }
 
-func New(writer client.Client, reader client.Reader, namespace string, retention time.Duration) *Watcher {
+func New(writer client.Client, reader client.Reader, cfg Config) *Watcher {
+	createBackoff := wait.Backoff{
+		Duration: cfg.CreateRetryDelay,
+		Factor:   createRetryFactor,
+		Jitter:   createRetryJitter,
+		Steps:    cfg.CreateRetryAttempts,
+	}
 	return &Watcher{
-		client:    writer,
-		reader:    reader,
-		namespace: namespace,
-		retention: retention,
-		now:       time.Now,
-		statuses:  make(map[string]*agentv1.BuildStatus),
+		client:        writer,
+		reader:        reader,
+		namespace:     cfg.Namespace,
+		retention:     cfg.Retention,
+		createBackoff: createBackoff,
+		now:           time.Now,
+		statuses:      make(map[string]*agentv1.BuildStatus),
 	}
 }
 
@@ -363,13 +383,6 @@ func (w *Watcher) RunCollector(ctx context.Context, interval time.Duration) {
 	}
 }
 
-var createBackoff = wait.Backoff{
-	Duration: time.Second,
-	Factor:   2,
-	Jitter:   0.1,
-	Steps:    5,
-}
-
 func retriable(err error) bool {
 	return !errors.Is(err, ErrInvalidBuild) && !apierrors.IsForbidden(err)
 }
@@ -396,7 +409,7 @@ func (w *Watcher) handleStart(ctx context.Context, start *agentv1.StartBuild, re
 		"resource_id", start.GetResourceId(),
 		"cache_ref", start.GetCacheRef(),
 	)
-	err := retry.OnError(createBackoff, retriable, func() error {
+	err := retry.OnError(w.createBackoff, retriable, func() error {
 		return w.Create(ctx, start)
 	})
 	if err == nil {

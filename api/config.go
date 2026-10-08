@@ -75,6 +75,9 @@ type APIConfig struct {
 	ImageSweep            service.ImageSweepConfig
 	SourceSweep           service.SourceSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
+	AuthIssuers           string
+	AuthSignupMode        string
+	AuthSignupDomains     string
 }
 
 func newAPIConfig() *APIConfig {
@@ -114,6 +117,9 @@ func newAPIConfig() *APIConfig {
 		ImageSweep:            imageSweep,
 		SourceSweep:           sourceSweep,
 		ServiceDefaults:       serviceDefaults,
+		AuthIssuers:           stringEnv("AUTH_ISSUERS", ""),
+		AuthSignupMode:        stringEnv("AUTH_SIGNUP_MODE", ""),
+		AuthSignupDomains:     stringEnv("AUTH_SIGNUP_DOMAINS", ""),
 	}
 }
 
