@@ -1,0 +1,47 @@
+name: Observability Chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "charts/loco-obs/**"
+      - "mise-tasks/test/obs-retention"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/obs-chart.yml"
+      - ".github/actions/setup-tools/**"
+  pull_request:
+    paths:
+      - "charts/loco-obs/**"
+      - "mise-tasks/test/obs-retention"
+      - "mise.toml"
+      - "mise.lock"
+      - ".github/workflows/obs-chart.yml"
+      - ".github/actions/setup-tools/**"
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Observability Chart Changes
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.changes.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: changes
+        uses: ./.github/actions/merge-queue-changes
+
+  retention:
+    name: Observability Retention
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-tools
+      - name: Check that every ClickHouse table the chart creates has a TTL
+        run: mise run test:obs-retention

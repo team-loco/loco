@@ -9,6 +9,12 @@ clickhouse:
   defaultUser:
     password: ""
 
+otel-col-deploy:
+  config:
+    exporters:
+      clickhouse:
+        ttl: 720h
+
 obsProxy:
   enabled: true
   controlPlane:
