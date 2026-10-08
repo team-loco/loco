@@ -101,6 +101,7 @@ type Build struct {
 	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	StartedAt       *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
 	FinishedAt      *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=finished_at,json=finishedAt,proto3,oneof" json:"finished_at,omitempty"`
+	ImageDeletedAt  *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=image_deleted_at,json=imageDeletedAt,proto3,oneof" json:"image_deleted_at,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -236,6 +237,13 @@ func (x *Build) GetStartedAt() *timestamppb.Timestamp {
 func (x *Build) GetFinishedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.FinishedAt
+	}
+	return nil
+}
+
+func (x *Build) GetImageDeletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ImageDeletedAt
 	}
 	return nil
 }
@@ -776,7 +784,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x05\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x06\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -802,11 +810,13 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampH\x02R\tstartedAt\x88\x01\x01\x12@\n" +
 	"\vfinished_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampH\x03R\n" +
-	"finishedAt\x88\x01\x01B\r\n" +
+	"finishedAt\x88\x01\x01\x12I\n" +
+	"\x10image_deleted_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampH\x04R\x0eimageDeletedAt\x88\x01\x01B\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +
-	"\f_finished_at\"\x13\n" +
+	"\f_finished_atB\x13\n" +
+	"\x11_image_deleted_at\"\x13\n" +
 	"\x11BuildsUnavailable\"\x9e\x01\n" +
 	"\x12CreateBuildRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
@@ -894,26 +904,27 @@ var file_loco_build_v1_build_proto_depIdxs = []int32{
 	13, // 1: loco.build.v1.Build.created_at:type_name -> google.protobuf.Timestamp
 	13, // 2: loco.build.v1.Build.started_at:type_name -> google.protobuf.Timestamp
 	13, // 3: loco.build.v1.Build.finished_at:type_name -> google.protobuf.Timestamp
-	13, // 4: loco.build.v1.CreateBuildResponse.upload_expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 5: loco.build.v1.StartBuildResponse.build:type_name -> loco.build.v1.Build
-	1,  // 6: loco.build.v1.GetBuildResponse.build:type_name -> loco.build.v1.Build
-	1,  // 7: loco.build.v1.ListBuildsResponse.builds:type_name -> loco.build.v1.Build
-	1,  // 8: loco.build.v1.CancelBuildResponse.build:type_name -> loco.build.v1.Build
-	3,  // 9: loco.build.v1.BuildService.CreateBuild:input_type -> loco.build.v1.CreateBuildRequest
-	5,  // 10: loco.build.v1.BuildService.StartBuild:input_type -> loco.build.v1.StartBuildRequest
-	7,  // 11: loco.build.v1.BuildService.GetBuild:input_type -> loco.build.v1.GetBuildRequest
-	9,  // 12: loco.build.v1.BuildService.ListBuilds:input_type -> loco.build.v1.ListBuildsRequest
-	11, // 13: loco.build.v1.BuildService.CancelBuild:input_type -> loco.build.v1.CancelBuildRequest
-	4,  // 14: loco.build.v1.BuildService.CreateBuild:output_type -> loco.build.v1.CreateBuildResponse
-	6,  // 15: loco.build.v1.BuildService.StartBuild:output_type -> loco.build.v1.StartBuildResponse
-	8,  // 16: loco.build.v1.BuildService.GetBuild:output_type -> loco.build.v1.GetBuildResponse
-	10, // 17: loco.build.v1.BuildService.ListBuilds:output_type -> loco.build.v1.ListBuildsResponse
-	12, // 18: loco.build.v1.BuildService.CancelBuild:output_type -> loco.build.v1.CancelBuildResponse
-	14, // [14:19] is the sub-list for method output_type
-	9,  // [9:14] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	13, // 4: loco.build.v1.Build.image_deleted_at:type_name -> google.protobuf.Timestamp
+	13, // 5: loco.build.v1.CreateBuildResponse.upload_expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 6: loco.build.v1.StartBuildResponse.build:type_name -> loco.build.v1.Build
+	1,  // 7: loco.build.v1.GetBuildResponse.build:type_name -> loco.build.v1.Build
+	1,  // 8: loco.build.v1.ListBuildsResponse.builds:type_name -> loco.build.v1.Build
+	1,  // 9: loco.build.v1.CancelBuildResponse.build:type_name -> loco.build.v1.Build
+	3,  // 10: loco.build.v1.BuildService.CreateBuild:input_type -> loco.build.v1.CreateBuildRequest
+	5,  // 11: loco.build.v1.BuildService.StartBuild:input_type -> loco.build.v1.StartBuildRequest
+	7,  // 12: loco.build.v1.BuildService.GetBuild:input_type -> loco.build.v1.GetBuildRequest
+	9,  // 13: loco.build.v1.BuildService.ListBuilds:input_type -> loco.build.v1.ListBuildsRequest
+	11, // 14: loco.build.v1.BuildService.CancelBuild:input_type -> loco.build.v1.CancelBuildRequest
+	4,  // 15: loco.build.v1.BuildService.CreateBuild:output_type -> loco.build.v1.CreateBuildResponse
+	6,  // 16: loco.build.v1.BuildService.StartBuild:output_type -> loco.build.v1.StartBuildResponse
+	8,  // 17: loco.build.v1.BuildService.GetBuild:output_type -> loco.build.v1.GetBuildResponse
+	10, // 18: loco.build.v1.BuildService.ListBuilds:output_type -> loco.build.v1.ListBuildsResponse
+	12, // 19: loco.build.v1.BuildService.CancelBuild:output_type -> loco.build.v1.CancelBuildResponse
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_loco_build_v1_build_proto_init() }

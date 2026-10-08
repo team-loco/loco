@@ -283,6 +283,7 @@ CREATE TABLE
         started_at TIMESTAMPTZ,
         finished_at TIMESTAMPTZ,
         source_deleted_at TIMESTAMPTZ,
+        image_deleted_at TIMESTAMPTZ,
         CHECK (
             status <> 'succeeded'
             OR image_digest IS NOT NULL
@@ -303,6 +304,10 @@ CREATE INDEX idx_builds_source_undeleted ON builds (finished_at, id)
 WHERE
     source_deleted_at IS NULL
     AND status IN ('succeeded', 'failed', 'canceled');
+
+CREATE INDEX idx_builds_succeeded_resource ON builds (resource_id, finished_at DESC, id DESC)
+WHERE
+    status = 'succeeded';
 
 -- +goose Down
 DROP TABLE IF EXISTS builds;

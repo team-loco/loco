@@ -546,6 +546,7 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 	createdAt := timeutil.ParsePostgresTimestamp(b.CreatedAt)
 	startedAt := timeutil.ParsePostgresTimestampPtr(b.StartedAt)
 	finishedAt := timeutil.ParsePostgresTimestampPtr(b.FinishedAt)
+	imageDeletedAt := timeutil.ParsePostgresTimestampPtr(b.ImageDeletedAt)
 
 	out := &buildv1.Build{
 		Id:              id,
@@ -562,6 +563,7 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 		CreatedAt:       createdAt,
 		StartedAt:       startedAt,
 		FinishedAt:      finishedAt,
+		ImageDeletedAt:  imageDeletedAt,
 	}
 	if b.ClusterID != nil {
 		clusterID := b.ClusterID.String()

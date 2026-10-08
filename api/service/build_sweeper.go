@@ -12,16 +12,19 @@ import (
 )
 
 const (
-	sourceSweepInterval        = 10 * time.Minute
-	sourceUploadGrace          = time.Hour
-	sourceOrphanMinAge         = 24 * time.Hour
-	sourceSweepBatch           = 100
-	sourceOrphanPageSize       = 1000
-	sourceOrphanMaxPages       = 5
-	sourceSweepLockKey   int64 = 0x6c6f636f0001
-	sourceUploadExpired        = "source upload expired"
-	sourceUnlockTimeout        = 5 * time.Second
+	sourceSweepLockKey    int64 = 0x6c6f636f0001
+	sourceUploadExpired         = "source upload expired"
+	advisoryUnlockTimeout       = 5 * time.Second
 )
+
+type SourceSweepConfig struct {
+	Interval       time.Duration
+	UploadGrace    time.Duration
+	OrphanMinAge   time.Duration
+	BuildBatch     int32
+	OrphanPageSize int32
+	OrphanMaxPages int
+}
 
 type SourceSweepResult struct {
 	Ran            bool
@@ -34,20 +37,27 @@ type SourceSweeper struct {
 	db      *pgxpool.Pool
 	queries genDb.Querier
 	bucket  SourceBucket
+	config  SourceSweepConfig
 	now     func() time.Time
 }
 
-func NewSourceSweeper(db *pgxpool.Pool, queries genDb.Querier, bucket SourceBucket) *SourceSweeper {
+func NewSourceSweeper(
+	db *pgxpool.Pool,
+	queries genDb.Querier,
+	bucket SourceBucket,
+	config SourceSweepConfig,
+) *SourceSweeper {
 	return &SourceSweeper{
 		db:      db,
 		queries: queries,
 		bucket:  bucket,
+		config:  config,
 		now:     time.Now,
 	}
 }
 
 func (s *SourceSweeper) Run(ctx context.Context) {
-	ticker := time.NewTicker(sourceSweepInterval)
+	ticker := time.NewTicker(s.config.Interval)
 	defer ticker.Stop()
 	for {
 		result, err := s.Sweep(ctx)
@@ -76,7 +86,7 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 		return result, fmt.Errorf("acquire connection: %w", err)
 	}
 	lockQueries := genDb.New(conn)
-	locked, err := lockQueries.TryLockSourceSweep(ctx, sourceSweepLockKey)
+	locked, err := lockQueries.TryAdvisoryLock(ctx, sourceSweepLockKey)
 	if err != nil {
 		conn.Release()
 		return result, fmt.Errorf("lock source sweep: %w", err)
@@ -85,7 +95,7 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 		conn.Release()
 		return result, nil
 	}
-	defer unlockSourceSweep(ctx, conn, lockQueries)
+	defer unlockAdvisory(ctx, conn, lockQueries, sourceSweepLockKey)
 	result.Ran = true
 
 	expired, err := s.expireUploads(ctx)
@@ -105,29 +115,32 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 	return result, err
 }
 
-func unlockSourceSweep(ctx context.Context, conn *pgxpool.Conn, lockQueries *genDb.Queries) {
+func unlockAdvisory(ctx context.Context, conn *pgxpool.Conn, lockQueries *genDb.Queries, lockKey int64) {
 	detached := context.WithoutCancel(ctx)
-	unlockCtx, cancel := context.WithTimeout(detached, sourceUnlockTimeout)
+	unlockCtx, cancel := context.WithTimeout(detached, advisoryUnlockTimeout)
 	defer cancel()
-	unlocked, err := lockQueries.UnlockSourceSweep(unlockCtx, sourceSweepLockKey)
+	unlocked, err := lockQueries.AdvisoryUnlock(unlockCtx, lockKey)
 	if err == nil && unlocked {
 		conn.Release()
 		return
 	}
-	slog.WarnContext(ctx, "failed to release the source sweep lock, closing its connection", "error", err)
+	slog.WarnContext(ctx, "failed to release an advisory lock, closing its connection",
+		"lockKey", lockKey,
+		"error", err,
+	)
 	raw := conn.Hijack()
 	if closeErr := raw.Close(unlockCtx); closeErr != nil {
-		slog.WarnContext(ctx, "failed to close the source sweep connection", "error", closeErr)
+		slog.WarnContext(ctx, "failed to close the advisory lock connection", "lockKey", lockKey, "error", closeErr)
 	}
 }
 
 func (s *SourceSweeper) expireUploads(ctx context.Context) (int, error) {
 	now := s.now()
-	cutoff := now.Add(-(buildUploadURLTTL + sourceUploadGrace))
+	cutoff := now.Add(-(buildUploadURLTTL + s.config.UploadGrace))
 	ids, err := s.queries.ExpireAwaitingUploadBuilds(ctx, genDb.ExpireAwaitingUploadBuildsParams{
 		Message:       sourceUploadExpired,
 		CreatedBefore: cutoff,
-		MaxBuilds:     sourceSweepBatch,
+		MaxBuilds:     s.config.BuildBatch,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("expire awaiting uploads: %w", err)
@@ -136,7 +149,7 @@ func (s *SourceSweeper) expireUploads(ctx context.Context) (int, error) {
 }
 
 func (s *SourceSweeper) deleteFinishedSources(ctx context.Context) (int, error) {
-	rows, err := s.queries.ListUndeletedBuildSources(ctx, sourceSweepBatch)
+	rows, err := s.queries.ListUndeletedBuildSources(ctx, s.config.BuildBatch)
 	if err != nil {
 		return 0, fmt.Errorf("list undeleted sources: %w", err)
 	}
@@ -153,11 +166,11 @@ func (s *SourceSweeper) deleteFinishedSources(ctx context.Context) (int, error) 
 
 func (s *SourceSweeper) deleteOrphans(ctx context.Context) (int, error) {
 	now := s.now()
-	cutoff := now.Add(-sourceOrphanMinAge)
+	cutoff := now.Add(-s.config.OrphanMinAge)
 	deleted := 0
 	after := ""
-	for range sourceOrphanMaxPages {
-		objects, more, err := s.bucket.List(ctx, buildSourcePrefix, after, sourceOrphanPageSize)
+	for range s.config.OrphanMaxPages {
+		objects, more, err := s.bucket.List(ctx, buildSourcePrefix, after, s.config.OrphanPageSize)
 		if err != nil {
 			return deleted, fmt.Errorf("list sources: %w", err)
 		}

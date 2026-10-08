@@ -12,8 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"slices"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -28,11 +26,8 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
-	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
-	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -51,191 +46,12 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var (
-	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
-	errUnknownCacheType   = errors.New("unknown cache type")
-	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
-
-	errInvalidForcePathStyle = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
-	errInvalidInt32          = errors.New("is not a 32-bit integer")
-	errInvalidServiceDefault = errors.New("invalid service default")
-)
-
 const (
-	envProduction         = "PRODUCTION"
-	cacheTypeValkey       = "valkey"
-	cacheTypeMemory       = "in-memory"
-	defaultSourceMaxBytes = 200 * 1024 * 1024
-	imageResolveTimeout   = 15 * time.Second
-
-	defaultServiceCPU         = "100m"
-	defaultServiceMemory      = "256Mi"
-	defaultServiceMinReplicas = 1
-	defaultServiceMaxReplicas = 1
-	defaultServicePathPrefix  = "/"
-	defaultServiceIdleTimeout = 60
+	envProduction       = "PRODUCTION"
+	imageResolveTimeout = 15 * time.Second
 )
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
-
-type APIConfig struct {
-	Env                   string // Environment (e.g., dev, prod)
-	DatabaseURL           string // PostgreSQL connection string
-	LogLevel              slog.Level
-	Port                  string
-	CacheType             string   // Cache backend type: "in-memory" or "valkey"
-	CacheAddr             string   // Valkey address (when CacheType is "valkey")
-	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
-	DefaultPlatformDomain string   // Default platform domain returned by the config service
-	MinCLIVersion         string
-	PprofAddr             string
-	SourceBucket          sourcebucket.Config
-	SourceMaxBytes        int64
-	RegistryHost          string
-	RegistryPrefix        string
-	ServiceDefaults       servicedefaults.Defaults
-	AuthIssuers           string
-	AuthSignupMode        string
-	AuthSignupDomains     string
-}
-
-func newAPIConfig() *APIConfig {
-	logLevelStr := os.Getenv("LOG_LEVEL")
-	logLevel := slog.LevelInfo
-	if logLevelStr != "" {
-		if parsed, err := strconv.Atoi(logLevelStr); err == nil {
-			logLevel = slog.Level(parsed)
-		}
-	}
-
-	cacheType := os.Getenv("CACHE_TYPE")
-	if cacheType == "" {
-		cacheType = cacheTypeMemory
-	}
-	cacheAddr := os.Getenv("CACHE_ADDR")
-	if cacheType != cacheTypeValkey && cacheType != cacheTypeMemory {
-		panic(fmt.Errorf("%w: %q", errUnknownCacheType, cacheType))
-	}
-	if cacheType == cacheTypeValkey && cacheAddr == "" {
-		panic(errCacheAddrMissing)
-	}
-
-	corsOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
-	corsOrigins := []string{}
-	if corsOriginsStr != "" {
-		corsOrigins = strings.Split(corsOriginsStr, ",")
-		for i := range corsOrigins {
-			corsOrigins[i] = strings.TrimSpace(corsOrigins[i])
-		}
-	}
-
-	sourceMaxBytes := int64(defaultSourceMaxBytes)
-	if raw := os.Getenv("LOCO_SOURCE_MAX_BYTES"); raw != "" {
-		parsed, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil || parsed <= 0 {
-			panic(fmt.Errorf("%w: %q", errInvalidSourceBytes, raw))
-		}
-		sourceMaxBytes = parsed
-	}
-
-	forcePathStyle := false
-	if raw := os.Getenv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE"); raw != "" {
-		parsed, err := strconv.ParseBool(raw)
-		if err != nil {
-			panic(fmt.Errorf("%w: %q", errInvalidForcePathStyle, raw))
-		}
-		forcePathStyle = parsed
-	}
-
-	sourceBucket := sourcebucket.Config{
-		Endpoint:        os.Getenv("LOCO_SOURCE_BUCKET_ENDPOINT"),
-		Bucket:          os.Getenv("LOCO_SOURCE_BUCKET"),
-		Region:          os.Getenv("LOCO_SOURCE_BUCKET_REGION"),
-		AccessKeyID:     os.Getenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID"),
-		SecretAccessKey: os.Getenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"),
-		ForcePathStyle:  forcePathStyle,
-	}
-	if sourceBucket.Bucket != "" {
-		if err := sourceBucket.Validate(); err != nil {
-			panic(err)
-		}
-	}
-
-	serviceDefaults := servicedefaults.Defaults{
-		CPU:         stringEnv("LOCO_DEFAULT_CPU", defaultServiceCPU),
-		Memory:      stringEnv("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
-		MinReplicas: int32Env("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
-		MaxReplicas: int32Env("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
-		PathPrefix:  stringEnv("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
-		IdleTimeout: int32Env("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
-	}
-	if err := serviceDefaults.Validate(); err != nil {
-		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))
-	}
-
-	return &APIConfig{
-		Env:                   os.Getenv("APP_ENV"),
-		DatabaseURL:           os.Getenv("DATABASE_URL"),
-		Port:                  os.Getenv("APP_PORT"),
-		LogLevel:              logLevel,
-		CacheType:             cacheType,
-		CacheAddr:             cacheAddr,
-		CORSAllowedOrigins:    corsOrigins,
-		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
-		MinCLIVersion:         os.Getenv("MIN_CLI_VERSION"),
-		PprofAddr:             os.Getenv("PPROF_ADDR"),
-		SourceBucket:          sourceBucket,
-		SourceMaxBytes:        sourceMaxBytes,
-		RegistryHost:          os.Getenv("LOCO_REGISTRY_HOST"),
-		RegistryPrefix:        os.Getenv("LOCO_REGISTRY_PREFIX"),
-		ServiceDefaults:       serviceDefaults,
-		AuthIssuers:           os.Getenv("AUTH_ISSUERS"),
-		AuthSignupMode:        os.Getenv("AUTH_SIGNUP_MODE"),
-		AuthSignupDomains:     os.Getenv("AUTH_SIGNUP_DOMAINS"),
-	}
-}
-
-func stringEnv(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func int32Env(name string, fallback int32) int32 {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseInt(raw, 10, 32)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt32))
-	}
-	return int32(parsed)
-}
-
-func newSourceBucket(cfg sourcebucket.Config) (service.SourceBucket, error) {
-	if cfg.Bucket == "" {
-		slog.Warn("LOCO_SOURCE_BUCKET is not set; builds are disabled")
-		return nil, nil
-	}
-	bucket, err := sourcebucket.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("source bucket: %w", err)
-	}
-	return bucket, nil
-}
-
-func newCache(cacheType, cacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
-	switch cacheType {
-	case cacheTypeValkey:
-		return cache.NewValkey(cacheAddr, defaultTTL)
-	case cacheTypeMemory:
-		return cache.NewMemory(defaultTTL)
-	default:
-		return nil, fmt.Errorf("%w: %q", errUnknownCacheType, cacheType)
-	}
-}
 
 func isLoopbackOrigin(origin string) bool {
 	u, err := url.Parse(origin)
@@ -378,7 +194,15 @@ func main() {
 
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	secureCookies := ac.Env == envProduction
-	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache, secureCookies)
+	oAuthServiceHandler := service.NewOAuthServer(
+		pool,
+		queries,
+		httpClient,
+		machine,
+		oauthStateCache,
+		secureCookies,
+		ac.GithubOAuth,
+	)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
@@ -391,8 +215,16 @@ func main() {
 		slog.Warn("LOCO_REGISTRY_HOST is not set; builds are disabled")
 	}
 	if sourceBucket != nil {
-		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket)
+		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 		go sourceSweeper.Run(shutdownCtx)
+	}
+	imageRegistry, registryErr := newImageRegistry(ac.Registry, ac.ImageSweep.Retention)
+	if registryErr != nil {
+		log.Fatal(registryErr)
+	}
+	if imageRegistry != nil {
+		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
+		go imageSweeper.Run(shutdownCtx)
 	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 
