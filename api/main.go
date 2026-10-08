@@ -12,8 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"slices"
-	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -27,12 +25,8 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
-	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
-	"github.com/team-loco/loco/api/pkg/registryclient"
-	"github.com/team-loco/loco/api/pkg/servicedefaults"
-	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -51,305 +45,12 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var (
-	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
-	errUnknownCacheType   = errors.New("unknown cache type")
-	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
-
-	errInvalidForcePathStyle = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
-	errInvalidInt32          = errors.New("is not a 32-bit integer")
-	errInvalidServiceDefault = errors.New("invalid service default")
-	errInvalidDuration       = errors.New("is not a duration")
-	errNotPositive           = errors.New("must be positive")
-	errNegative              = errors.New("must not be negative")
-	errRegistryAuthPartial   = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
-	errRegistryAuthNoHost    = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
-	errInvalidRegistry       = errors.New("invalid registry configuration")
-)
-
 const (
-	envProduction         = "PRODUCTION"
-	cacheTypeValkey       = "valkey"
-	cacheTypeMemory       = "in-memory"
-	defaultSourceMaxBytes = 200 * 1024 * 1024
-	imageResolveTimeout   = 15 * time.Second
-
-	defaultServiceCPU         = "100m"
-	defaultServiceMemory      = "256Mi"
-	defaultServiceMinReplicas = 1
-	defaultServiceMaxReplicas = 1
-	defaultServicePathPrefix  = "/"
-	defaultServiceIdleTimeout = 60
-
-	defaultRegistryScheme            = "https://"
-	defaultRegistryTimeout           = 30 * time.Second
-	defaultImageRetention            = 5
-	imageRetentionDisabled           = 0
-	defaultImageSweepInterval        = 10 * time.Minute
-	defaultImageSweepBuildBatch      = 100
-	defaultImageSweepRepositoryBatch = 100
-	defaultImageSweepTagBatch        = 100
-	defaultImageSweepTagMinAge       = time.Hour
-
-	defaultSourceSweepInterval   = 10 * time.Minute
-	defaultSourceUploadGrace     = time.Hour
-	defaultSourceOrphanMinAge    = 24 * time.Hour
-	defaultSourceSweepBuildBatch = 100
-	defaultSourceOrphanPageSize  = 1000
-	defaultSourceOrphanMaxPages  = 5
+	envProduction       = "PRODUCTION"
+	imageResolveTimeout = 15 * time.Second
 )
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
-
-type APIConfig struct {
-	Env                   string // Environment (e.g., dev, prod)
-	DatabaseURL           string // PostgreSQL connection string
-	LogLevel              slog.Level
-	Port                  string
-	CacheType             string   // Cache backend type: "in-memory" or "valkey"
-	CacheAddr             string   // Valkey address (when CacheType is "valkey")
-	CORSAllowedOrigins    []string // CORS allowed origins (e.g., http://localhost:5173)
-	DefaultPlatformDomain string   // Default platform domain returned by the config service
-	MinCLIVersion         string
-	PprofAddr             string
-	SourceBucket          sourcebucket.Config
-	SourceMaxBytes        int64
-	RegistryHost          string
-	RegistryPrefix        string
-	Registry              registryclient.Config
-	ImageSweep            service.ImageSweepConfig
-	SourceSweep           service.SourceSweepConfig
-	ServiceDefaults       servicedefaults.Defaults
-}
-
-func newAPIConfig() *APIConfig {
-	logLevelStr := os.Getenv("LOG_LEVEL")
-	logLevel := slog.LevelInfo
-	if logLevelStr != "" {
-		if parsed, err := strconv.Atoi(logLevelStr); err == nil {
-			logLevel = slog.Level(parsed)
-		}
-	}
-
-	cacheType := os.Getenv("CACHE_TYPE")
-	if cacheType == "" {
-		cacheType = cacheTypeMemory
-	}
-	cacheAddr := os.Getenv("CACHE_ADDR")
-	if cacheType != cacheTypeValkey && cacheType != cacheTypeMemory {
-		panic(fmt.Errorf("%w: %q", errUnknownCacheType, cacheType))
-	}
-	if cacheType == cacheTypeValkey && cacheAddr == "" {
-		panic(errCacheAddrMissing)
-	}
-
-	corsOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
-	corsOrigins := []string{}
-	if corsOriginsStr != "" {
-		corsOrigins = strings.Split(corsOriginsStr, ",")
-		for i := range corsOrigins {
-			corsOrigins[i] = strings.TrimSpace(corsOrigins[i])
-		}
-	}
-
-	sourceMaxBytes := int64(defaultSourceMaxBytes)
-	if raw := os.Getenv("LOCO_SOURCE_MAX_BYTES"); raw != "" {
-		parsed, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil || parsed <= 0 {
-			panic(fmt.Errorf("%w: %q", errInvalidSourceBytes, raw))
-		}
-		sourceMaxBytes = parsed
-	}
-
-	forcePathStyle := false
-	if raw := os.Getenv("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE"); raw != "" {
-		parsed, err := strconv.ParseBool(raw)
-		if err != nil {
-			panic(fmt.Errorf("%w: %q", errInvalidForcePathStyle, raw))
-		}
-		forcePathStyle = parsed
-	}
-
-	sourceBucket := sourcebucket.Config{
-		Endpoint:        os.Getenv("LOCO_SOURCE_BUCKET_ENDPOINT"),
-		Bucket:          os.Getenv("LOCO_SOURCE_BUCKET"),
-		Region:          os.Getenv("LOCO_SOURCE_BUCKET_REGION"),
-		AccessKeyID:     os.Getenv("LOCO_SOURCE_BUCKET_ACCESS_KEY_ID"),
-		SecretAccessKey: os.Getenv("LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"),
-		ForcePathStyle:  forcePathStyle,
-	}
-	if sourceBucket.Bucket != "" {
-		if err := sourceBucket.Validate(); err != nil {
-			panic(err)
-		}
-	}
-
-	serviceDefaults := servicedefaults.Defaults{
-		CPU:         stringEnv("LOCO_DEFAULT_CPU", defaultServiceCPU),
-		Memory:      stringEnv("LOCO_DEFAULT_MEMORY", defaultServiceMemory),
-		MinReplicas: int32Env("LOCO_DEFAULT_MIN_REPLICAS", defaultServiceMinReplicas),
-		MaxReplicas: int32Env("LOCO_DEFAULT_MAX_REPLICAS", defaultServiceMaxReplicas),
-		PathPrefix:  stringEnv("LOCO_DEFAULT_PATH_PREFIX", defaultServicePathPrefix),
-		IdleTimeout: int32Env("LOCO_DEFAULT_IDLE_TIMEOUT", defaultServiceIdleTimeout),
-	}
-	if err := serviceDefaults.Validate(); err != nil {
-		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))
-	}
-
-	registryHost := os.Getenv("LOCO_REGISTRY_HOST")
-	registryPrefix := os.Getenv("LOCO_REGISTRY_PREFIX")
-	registry := newRegistryConfig(registryHost)
-	imageSweep := service.ImageSweepConfig{
-		RegistryHost:    registryHost,
-		RegistryPrefix:  registryPrefix,
-		Retention:       nonNegativeInt32Env("LOCO_IMAGE_RETENTION", defaultImageRetention),
-		Interval:        positiveDurationEnv("LOCO_IMAGE_SWEEP_INTERVAL", defaultImageSweepInterval),
-		BuildBatch:      positiveInt32Env("LOCO_IMAGE_SWEEP_BUILD_BATCH", defaultImageSweepBuildBatch),
-		RepositoryBatch: int(positiveInt32Env("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", defaultImageSweepRepositoryBatch)),
-		TagBatch:        int(positiveInt32Env("LOCO_IMAGE_SWEEP_TAG_BATCH", defaultImageSweepTagBatch)),
-		TagMinAge:       positiveDurationEnv("LOCO_IMAGE_SWEEP_TAG_MIN_AGE", defaultImageSweepTagMinAge),
-	}
-	sourceSweep := service.SourceSweepConfig{
-		Interval:       positiveDurationEnv("LOCO_SOURCE_SWEEP_INTERVAL", defaultSourceSweepInterval),
-		UploadGrace:    positiveDurationEnv("LOCO_SOURCE_SWEEP_UPLOAD_GRACE", defaultSourceUploadGrace),
-		OrphanMinAge:   positiveDurationEnv("LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE", defaultSourceOrphanMinAge),
-		BuildBatch:     positiveInt32Env("LOCO_SOURCE_SWEEP_BUILD_BATCH", defaultSourceSweepBuildBatch),
-		OrphanPageSize: positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", defaultSourceOrphanPageSize),
-		OrphanMaxPages: int(positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", defaultSourceOrphanMaxPages)),
-	}
-
-	return &APIConfig{
-		Env:                   os.Getenv("APP_ENV"),
-		DatabaseURL:           os.Getenv("DATABASE_URL"),
-		Port:                  os.Getenv("APP_PORT"),
-		LogLevel:              logLevel,
-		CacheType:             cacheType,
-		CacheAddr:             cacheAddr,
-		CORSAllowedOrigins:    corsOrigins,
-		DefaultPlatformDomain: os.Getenv("DEFAULT_PLATFORM_DOMAIN"),
-		MinCLIVersion:         os.Getenv("MIN_CLI_VERSION"),
-		PprofAddr:             os.Getenv("PPROF_ADDR"),
-		SourceBucket:          sourceBucket,
-		SourceMaxBytes:        sourceMaxBytes,
-		RegistryHost:          registryHost,
-		RegistryPrefix:        registryPrefix,
-		Registry:              registry,
-		ImageSweep:            imageSweep,
-		SourceSweep:           sourceSweep,
-		ServiceDefaults:       serviceDefaults,
-	}
-}
-
-func newRegistryConfig(registryHost string) registryclient.Config {
-	cfg := registryclient.Config{
-		URL:      stringEnv("LOCO_REGISTRY_URL", defaultRegistryScheme+registryHost),
-		Username: os.Getenv("LOCO_REGISTRY_USERNAME"),
-		Password: os.Getenv("LOCO_REGISTRY_PASSWORD"),
-		Timeout:  positiveDurationEnv("LOCO_REGISTRY_TIMEOUT", defaultRegistryTimeout),
-	}
-	if (cfg.Username == "") != (cfg.Password == "") {
-		panic(errRegistryAuthPartial)
-	}
-	if cfg.Username == "" {
-		return cfg
-	}
-	if registryHost == "" {
-		panic(errRegistryAuthNoHost)
-	}
-	if err := cfg.Validate(); err != nil {
-		panic(fmt.Errorf("%w: %w", errInvalidRegistry, err))
-	}
-	return cfg
-}
-
-func positiveDurationEnv(name string, fallback time.Duration) time.Duration {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	parsed, err := time.ParseDuration(raw)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidDuration))
-	}
-	if parsed <= 0 {
-		panic(fmt.Errorf("%s %q %w", name, raw, errNotPositive))
-	}
-	return parsed
-}
-
-func positiveInt32Env(name string, fallback int32) int32 {
-	value := int32Env(name, fallback)
-	if value <= 0 {
-		panic(fmt.Errorf("%s %d %w", name, value, errNotPositive))
-	}
-	return value
-}
-
-func nonNegativeInt32Env(name string, fallback int32) int32 {
-	value := int32Env(name, fallback)
-	if value < 0 {
-		panic(fmt.Errorf("%s %d %w", name, value, errNegative))
-	}
-	return value
-}
-
-func stringEnv(name, fallback string) string {
-	if value := os.Getenv(name); value != "" {
-		return value
-	}
-	return fallback
-}
-
-func int32Env(name string, fallback int32) int32 {
-	raw := os.Getenv(name)
-	if raw == "" {
-		return fallback
-	}
-	parsed, err := strconv.ParseInt(raw, 10, 32)
-	if err != nil {
-		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidInt32))
-	}
-	return int32(parsed)
-}
-
-func newSourceBucket(cfg sourcebucket.Config) (service.SourceBucket, error) {
-	if cfg.Bucket == "" {
-		slog.Warn("LOCO_SOURCE_BUCKET is not set; builds are disabled")
-		return nil, nil
-	}
-	bucket, err := sourcebucket.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("source bucket: %w", err)
-	}
-	return bucket, nil
-}
-
-func newImageRegistry(cfg registryclient.Config, retention int32) (service.ImageRegistry, error) {
-	if retention == imageRetentionDisabled {
-		slog.Warn("LOCO_IMAGE_RETENTION is 0; image cleanup is disabled by configuration")
-		return nil, nil
-	}
-	if cfg.Username == "" {
-		slog.Warn("LOCO_REGISTRY_USERNAME is not set; build images are never deleted from the registry")
-		return nil, nil
-	}
-	client, err := registryclient.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("registry client: %w", err)
-	}
-	return client, nil
-}
-
-func newCache(cacheType, cacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
-	switch cacheType {
-	case cacheTypeValkey:
-		return cache.NewValkey(cacheAddr, defaultTTL)
-	case cacheTypeMemory:
-		return cache.NewMemory(defaultTTL)
-	default:
-		return nil, fmt.Errorf("%w: %q", errUnknownCacheType, cacheType)
-	}
-}
 
 func isLoopbackOrigin(origin string) bool {
 	u, err := url.Parse(origin)
@@ -480,7 +181,15 @@ func main() {
 
 	oauthStateCache := service.NewOAuthStateCache(appCache)
 	secureCookies := ac.Env == envProduction
-	oAuthServiceHandler := service.NewOAuthServer(pool, queries, httpClient, machine, oauthStateCache, secureCookies)
+	oAuthServiceHandler := service.NewOAuthServer(
+		pool,
+		queries,
+		httpClient,
+		machine,
+		oauthStateCache,
+		secureCookies,
+		ac.GithubOAuth,
+	)
 	userServiceHandler := service.NewUserServer(pool, queries, machine, secureCookies)
 	orgServiceHandler := service.NewOrgServer(pool, queries, machine)
 	workspaceServiceHandler := service.NewWorkspaceServer(pool, queries, machine)
