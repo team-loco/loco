@@ -25,5 +25,5 @@ pre-commit:
       run: mise run lint:docker
 
     - name: lint:versions
-      glob: ["**/Dockerfile", "mise.toml"]
+      glob: ["**/Dockerfile", "**/*compose*.yaml", "**/*compose*.yml", "mise.toml"]
       run: mise run lint:versions
