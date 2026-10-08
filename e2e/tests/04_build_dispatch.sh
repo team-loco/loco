@@ -170,9 +170,9 @@ dump_dispatch() {
             dk -n "$dispatch_ns" logs "job/build-$id" -c "$container" 2>&1 | tail -60
         done
         echo "--- agent"
-        grep -i build "$E2E_ROOT_DIR/e2e/logs/agent.log" | tail -30
+        grep -i build "$E2E_LOG_DIR/agent.log" | tail -30
         echo "--- api"
-        grep -i build "$E2E_ROOT_DIR/e2e/logs/api.log" | tail -30
+        grep -i build "$E2E_LOG_DIR/api.log" | tail -30
     } 2>&1 | sed 's/^/    /'
 }
 

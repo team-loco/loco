@@ -74,21 +74,6 @@ jobs:
       - name: Run the build end-to-end tests
         run: ./e2e/run.sh --no-teardown build
 
-      - name: Show the API, agent and controller logs
-        if: failure()
-        run: |
-          for log in e2e/logs/api.log e2e/logs/agent.log; do
-            echo "::group::$log"
-            tail -n 300 "$log" || true
-            echo "::endgroup::"
-          done
-          for deployment in loco-controller loco-build-controller; do
-            echo "::group::$deployment"
-            KUBECONFIG=e2e/kubeconfig kubectl --context kind-loco-e2e -n loco-system \
-              logs "deployment/$deployment" --tail=300 || true
-            echo "::endgroup::"
-          done
-
   e2e-builds-disabled:
     needs: changes
     if: needs.changes.outputs.run == 'true'
@@ -105,18 +90,3 @@ jobs:
 
       - name: Run the end-to-end tests for an install without builds
         run: ./e2e/run.sh --no-teardown --builds-disabled builds_disabled
-
-      - name: Show the API, agent and controller logs
-        if: failure()
-        run: |
-          for log in e2e/logs/api.log e2e/logs/agent.log; do
-            echo "::group::$log"
-            tail -n 300 "$log" || true
-            echo "::endgroup::"
-          done
-          for deployment in loco-controller loco-build-controller; do
-            echo "::group::$deployment"
-            KUBECONFIG=e2e/kubeconfig kubectl --context kind-loco-e2e -n loco-system \
-              logs "deployment/$deployment" --tail=300 || true
-            echo "::endgroup::"
-          done

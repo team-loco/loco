@@ -7,7 +7,7 @@ cli_session_id='00000000-0000-7000-8000-000000000007'
 
 loco_cli() {
     HOME="$cli_home" LOCO_CREDENTIAL_STORE=file LOCO_HOST="$E2E_API_URL" \
-        "$E2E_ROOT_DIR/e2e/bin/loco" "$@"
+        "$E2E_BIN_DIR/loco" "$@"
 }
 
 cli_seed_session() {

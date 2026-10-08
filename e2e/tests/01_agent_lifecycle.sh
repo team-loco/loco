@@ -23,14 +23,17 @@ test_agent_registered() {
 
 test_binaries_report_their_build_version() {
     assert_contains "API logs the version it was built as" "version=${E2E_VERSION}" \
-        grep "starting loco api" "$E2E_ROOT_DIR/e2e/logs/api.log"
+        grep "starting loco api" "$E2E_LOG_DIR/api.log"
     assert_contains "Observability proxy logs the version it was built as" "\"version\":\"${E2E_VERSION}\"" \
-        grep "starting observability proxy" "$E2E_ROOT_DIR/e2e/logs/obs-proxy.log"
+        grep "starting observability proxy" "$E2E_LOG_DIR/obs-proxy.log"
+}
+
+agent_heartbeat_recorded() {
+    test "$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")" = "t"
 }
 
 test_agent_heartbeat() {
-    # Wait a bit for at least one heartbeat cycle
-    sleep 5
+    wait_for "the agent's first heartbeat" 30 agent_heartbeat_recorded || true
 
     local heartbeat
     heartbeat=$(e2e_psql "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'")

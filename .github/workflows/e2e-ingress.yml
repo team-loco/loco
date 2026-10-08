@@ -67,16 +67,3 @@ jobs:
 
       - name: Run the ingress end-to-end tests
         run: ./e2e/run.sh --no-teardown --builds-disabled ingress
-
-      - name: Show the API, agent and controller logs
-        if: failure()
-        run: |
-          for log in e2e/logs/api.log e2e/logs/agent.log; do
-            echo "::group::$log"
-            tail -n 300 "$log" || true
-            echo "::endgroup::"
-          done
-          echo "::group::loco-controller"
-          KUBECONFIG=e2e/kubeconfig kubectl --context kind-loco-e2e -n loco-system \
-            logs deployment/loco-controller --tail=300 || true
-          echo "::endgroup::"

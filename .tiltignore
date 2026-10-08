@@ -12,6 +12,4 @@ controller/bin/
 # test artifacts
 *.out
 coverage.html
-e2e/bin/
-e2e/logs/
-e2e/pids/
+e2e/runs/

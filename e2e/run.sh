@@ -6,22 +6,42 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BIN_DIR="$SCRIPT_DIR/bin"
-LOG_DIR="$SCRIPT_DIR/logs"
-PID_DIR="$SCRIPT_DIR/pids"
-KUBECONFIG_FILE="$SCRIPT_DIR/kubeconfig"
 
-# Config
-KIND_CLUSTER_NAME="loco-e2e"
-PG_PORT=5433
+ROOT_HASH=$(cksum <<<"$ROOT_DIR" | awk '{print $1}')
+DEFAULT_RUN_ID=$(printf '%08x' "$ROOT_HASH")
+RUN_ID="${E2E_RUN_ID:-$DEFAULT_RUN_ID}"
+RUN_ID_PATTERN='^[a-z0-9]([a-z0-9-]{0,14}[a-z0-9])?$'
+if [[ ! $RUN_ID =~ $RUN_ID_PATTERN ]]; then
+    echo "E2E_RUN_ID must be 1-16 lowercase letters, digits or inner hyphens, got '${RUN_ID}'" >&2
+    exit 1
+fi
+RUN_NAME="loco-e2e-${RUN_ID}"
+RUN_DIR="$SCRIPT_DIR/runs/$RUN_ID"
+BIN_DIR="$RUN_DIR/bin"
+LOG_DIR="$RUN_DIR/logs"
+PID_DIR="$RUN_DIR/pids"
+KUBECONFIG_FILE="$RUN_DIR/kubeconfig"
+
+PORT_RANGE_START=20000
+PORT_BLOCKS=1000
+PORT_BLOCK_SIZE=10
+RUN_HASH=$(cksum <<<"$RUN_ID" | awk '{print $1}')
+PORT_BASE=$((PORT_RANGE_START + RUN_HASH % PORT_BLOCKS * PORT_BLOCK_SIZE))
+API_PORT=$PORT_BASE
+OBS_PROXY_PORT=$((PORT_BASE + 1))
+S3_PORT=$((PORT_BASE + 2))
+UNUSED_CLICKHOUSE_PORT=$((PORT_BASE + 3))
+READY_TIMEOUT=120
+LOG_TAIL_LINES=200
+
+KIND_CLUSTER_NAME="$RUN_NAME"
+KUBE_CONTEXT="kind-${KIND_CLUSTER_NAME}"
 PG_USER="loco_e2e"
 PG_PASS="loco_e2e_pass"
 PG_DB="loco_e2e"
-API_PORT=8877  # avoid conflict with dev API on 8000
-OBS_PROXY_PORT=8878
 E2E_VERSION="e2e"
-CONTROLLER_IMAGE="loco-controller:${E2E_VERSION}"
-BUILDER_IMAGE="loco-builder:${E2E_VERSION}"
+CONTROLLER_REPOSITORY="loco-controller"
+BUILDER_REPOSITORY="loco-builder"
 BUILDKIT_IMAGE=$(yq '.builds.buildkitImage.repository + ":" + .builds.buildkitImage.tag' "$ROOT_DIR/charts/loco-operator/values.yaml")
 GATEWAY_API_VERSION=$(awk '$1 == "sigs.k8s.io/gateway-api" { print $2 }' "$ROOT_DIR/controller/go.mod")
 AGENT_TOKEN="e2e-test-token-do-not-use-in-production"
@@ -29,35 +49,37 @@ USER_TOKEN="loco_s_e2e-test-session-do-not-use-in-production"
 LOCO_NAMESPACE="loco-system"
 IMAGE_RETENTION=1
 IMAGE_SWEEP_INTERVAL=5s
+SEEDED_CLUSTER_ID="00000000-0000-7000-8000-000000000005"
 
 export E2E_ROOT_DIR="$ROOT_DIR"
 export E2E_VERSION
-export E2E_COMPOSE_PROJECT="loco-e2e"
-export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB" POSTGRES_PORT="$PG_PORT"
-export E2E_DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@localhost:${PG_PORT}/${PG_DB}?sslmode=disable"
-export E2E_API_URL="http://localhost:${API_PORT}"
+export E2E_RUN_ID="$RUN_ID"
+export E2E_BIN_DIR="$BIN_DIR"
+export E2E_LOG_DIR="$LOG_DIR"
+export E2E_COMPOSE_PROJECT="$RUN_NAME"
+export POSTGRES_USER="$PG_USER" POSTGRES_PASSWORD="$PG_PASS" POSTGRES_DB="$PG_DB"
+export POSTGRES_PORT="127.0.0.1:" REGISTRY_PORT="127.0.0.1:" S3_PORT
+export E2E_API_URL="http://127.0.0.1:${API_PORT}"
 export E2E_AGENT_TOKEN="$AGENT_TOKEN"
 export E2E_USER_TOKEN="$USER_TOKEN"
 export E2E_KIND_CLUSTER="$KIND_CLUSTER_NAME"
 export E2E_LOCO_NAMESPACE="$LOCO_NAMESPACE"
 export E2E_OBS_PROXY_PORT="$OBS_PROXY_PORT"
-export REGISTRY_PORT=5011 S3_PORT=9011
 export LOCO_SOURCE_BUCKET="loco-e2e-sources"
 export LOCO_SOURCE_BUCKET_ACCESS_KEY_ID="loco-e2e"
 export LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY="loco-e2e-secret"
 export LOCO_SOURCE_BUCKET_REGION="us-east-1"
-export E2E_REGISTRY_PORT="$REGISTRY_PORT"
-export E2E_REGISTRY_ALIAS="loco-e2e-registry"
+export E2E_REGISTRY_ALIAS="${RUN_NAME}-registry"
 export E2E_REGISTRY_HOST="${E2E_REGISTRY_ALIAS}:5000"
-export E2E_REGISTRY_URL="http://localhost:${REGISTRY_PORT}"
 export E2E_REGISTRY_API_USER="api:loco-dev-api"
 export E2E_REGISTRY_NODES_USER="nodes:loco-dev-nodes"
-export E2E_S3_ALIAS="loco-e2e-s3.localhost"
+export E2E_S3_ALIAS="${RUN_NAME}-s3.localhost"
 export E2E_S3_ENDPOINT="http://${E2E_S3_ALIAS}:${S3_PORT}"
 export E2E_BUILD_NAMESPACE="loco-builds"
 export E2E_BUILD_WORK_DIR="$LOG_DIR/builds"
-export E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
-export E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+E2E_AWS_CLI_IMAGE=$(awk '$1 == "FROM" { print $2 }' "$SCRIPT_DIR/fixtures/aws-cli/Dockerfile")
+E2E_PUBLIC_IMAGE=$(awk '$1 == "FROM" { split($2, ref, "@"); print ref[1] }' "$SCRIPT_DIR/fixtures/public-image/Dockerfile")
+export E2E_AWS_CLI_IMAGE E2E_PUBLIC_IMAGE
 
 source "$SCRIPT_DIR/lib.sh"
 
@@ -78,29 +100,41 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+kube() {
+    kubectl --kubeconfig "$KUBECONFIG_FILE" --context "$KUBE_CONTEXT" "$@"
+}
+
+cluster_exists() {
+    kind get clusters 2>/dev/null | grep -qx "$KIND_CLUSTER_NAME"
+}
+
+stop_processes() {
+    kill_pid_file "$PID_DIR/obs-proxy.pid"
+    kill_pid_file "$PID_DIR/agent.pid"
+    kill_pid_file "$PID_DIR/api.pid"
+}
+
 # ─── Teardown ───────────────────────────────────────────────────────────────
 
 teardown() {
-    log_step "Tearing down e2e infrastructure..."
+    log_step "Tearing down e2e run ${RUN_ID}..."
 
-    # Kill processes
-    kill_pid_file "$PID_DIR/obs-proxy.pid"
-    kill_pid_file "$PID_DIR/api.pid"
-    kill_pid_file "$PID_DIR/agent.pid"
+    stop_processes
 
-    # Remove Kind cluster
-    if kind get clusters 2>/dev/null | grep -q "^${KIND_CLUSTER_NAME}$"; then
+    if cluster_exists; then
         log_info "Deleting Kind cluster ${KIND_CLUSTER_NAME}..."
         kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
     fi
-    rm -f "$KUBECONFIG_FILE"
 
-    # Remove Postgres and its volume
-    log_info "Removing Postgres..."
-    e2e_compose down -v >/dev/null 2>&1 || true
+    log_info "Removing compose project ${E2E_COMPOSE_PROJECT}..."
+    e2e_compose --profile tools down -v --remove-orphans >/dev/null 2>&1 || true
 
-    # Clean up dirs
-    rm -rf "$BIN_DIR" "$LOG_DIR" "$PID_DIR"
+    local repository
+    for repository in "$CONTROLLER_REPOSITORY" "$BUILDER_REPOSITORY"; do
+        docker image rm "${repository}:e2e-${RUN_ID}" >/dev/null 2>&1 || true
+    done
+
+    rm -rf "$RUN_DIR"
 
     log_ok "Teardown complete"
 }
@@ -109,6 +143,50 @@ if [ "$TEARDOWN_ONLY" = true ]; then
     teardown
     exit 0
 fi
+
+# ─── Diagnostics ────────────────────────────────────────────────────────────
+
+dump_logs() {
+    local name
+    for name in api agent obs-proxy; do
+        if [ -s "$LOG_DIR/$name.log" ]; then
+            log_group "$name log (last ${LOG_TAIL_LINES} lines)"
+            tail -n "$LOG_TAIL_LINES" "$LOG_DIR/$name.log"
+            log_group_end
+        fi
+    done
+    log_group "compose services"
+    e2e_compose ps -a 2>&1 || true
+    e2e_compose logs --no-color --tail "$LOG_TAIL_LINES" 2>&1 || true
+    log_group_end
+    if [ -s "$KUBECONFIG_FILE" ] && kube get namespace "$LOCO_NAMESPACE" >/dev/null 2>&1; then
+        log_group "${LOCO_NAMESPACE} pods"
+        kube -n "$LOCO_NAMESPACE" get pods -o wide 2>&1 || true
+        log_group_end
+        local deployment
+        for deployment in $(kube -n "$LOCO_NAMESPACE" get deployments -o name 2>/dev/null); do
+            log_group "$deployment"
+            kube -n "$LOCO_NAMESPACE" logs "$deployment" --all-containers --tail "$LOG_TAIL_LINES" 2>&1 || true
+            log_group_end
+        done
+    fi
+}
+
+on_exit() {
+    local status=$?
+    if [ "$status" -ne 0 ]; then
+        log_error "Run ${RUN_ID} failed (exit ${status}); component logs follow"
+        dump_logs
+    fi
+    if [ "$NO_TEARDOWN" = true ]; then
+        log_info "Leaving run ${RUN_ID} running (cluster ${KIND_CLUSTER_NAME}, compose project ${E2E_COMPOSE_PROJECT})."
+        log_info "Rerun against it: ./e2e/run.sh --no-teardown [--skip-build] <test-filter>"
+        log_info "Remove it: E2E_RUN_ID=${RUN_ID} mise run e2e:teardown"
+    else
+        teardown
+    fi
+    exit "$status"
+}
 
 # ─── Prerequisites ──────────────────────────────────────────────────────────
 
@@ -132,50 +210,104 @@ check_prerequisites() {
     log_ok "All prerequisites found"
 }
 
+port_in_use() {
+    (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
+}
+
+require_free_port() {
+    local port=$1 purpose=$2
+    if port_in_use "$port"; then
+        log_error "Port ${port} (${purpose}) is in use; set E2E_RUN_ID to move run ${RUN_ID} to another port block"
+        exit 1
+    fi
+}
+
+check_ports() {
+    log_step "Checking run ${RUN_ID}'s ports ${PORT_BASE}-$((PORT_BASE + PORT_BLOCK_SIZE - 1))..."
+    require_free_port "$API_PORT" "API"
+    require_free_port "$OBS_PROXY_PORT" "observability proxy"
+    require_free_port "$UNUSED_CLICKHOUSE_PORT" "unreachable ClickHouse"
+    if ! e2e_compose port s3 "$S3_PORT" >/dev/null 2>&1; then
+        require_free_port "$S3_PORT" "source bucket"
+    fi
+    log_ok "Ports free"
+}
+
 # ─── Setup ──────────────────────────────────────────────────────────────────
 
 setup_dirs() {
     mkdir -p "$BIN_DIR" "$LOG_DIR" "$PID_DIR"
 }
 
+create_cluster() {
+    kind create cluster --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
+}
+
 setup_kind() {
-    log_step "Setting up Kind cluster..."
-    if kind get clusters 2>/dev/null | grep -q "^${KIND_CLUSTER_NAME}$"; then
-        log_info "Kind cluster ${KIND_CLUSTER_NAME} already exists, reusing"
-    else
-        kind create cluster --config "$SCRIPT_DIR/kind-e2e.yml" --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
+    log_step "Setting up Kind cluster ${KIND_CLUSTER_NAME}..."
+    CLUSTER_REUSED=false
+    if cluster_exists; then
+        kind get kubeconfig --name "$KIND_CLUSTER_NAME" >"$KUBECONFIG_FILE"
+        if kube cluster-info >/dev/null 2>&1; then
+            CLUSTER_REUSED=true
+            log_info "Kind cluster ${KIND_CLUSTER_NAME} already exists, reusing"
+        else
+            log_warn "Kind cluster ${KIND_CLUSTER_NAME} is unreachable, recreating"
+            kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
+        fi
+    fi
+    if [ "$CLUSTER_REUSED" = false ]; then
+        if ! create_cluster; then
+            log_warn "Creating the Kind cluster failed, deleting it and retrying once"
+            kind delete cluster --name "$KIND_CLUSTER_NAME" --kubeconfig "$KUBECONFIG_FILE"
+            create_cluster
+        fi
         log_ok "Kind cluster created"
     fi
 
-    # Point kubectl at the e2e cluster
     kind get kubeconfig --name "$KIND_CLUSTER_NAME" >"$KUBECONFIG_FILE"
     export KUBECONFIG="$KUBECONFIG_FILE"
-    kubectl cluster-info --context "kind-${KIND_CLUSTER_NAME}" >/dev/null 2>&1
-    log_ok "kubectl context set to kind-${KIND_CLUSTER_NAME}"
+    kube cluster-info >/dev/null
+    log_ok "kubectl context set to ${KUBE_CONTEXT}"
+}
+
+compose_host_port() {
+    local published
+    published=$(e2e_compose port "$1" "$2")
+    echo "${published##*:}"
+}
+
+postgres_accepts_queries() {
+    goose -dir "$ROOT_DIR/api/migrations" postgres "$E2E_DATABASE_URL" status
 }
 
 setup_postgres() {
     log_step "Setting up Postgres..."
     e2e_compose up -d --wait postgres
-    log_ok "Postgres ready"
+    local port
+    port=$(compose_host_port postgres 5432)
+    export E2E_DATABASE_URL="postgres://${PG_USER}:${PG_PASS}@127.0.0.1:${port}/${PG_DB}?sslmode=disable"
+    wait_for "Postgres to answer queries from the host" "$READY_TIMEOUT" postgres_accepts_queries
+    log_ok "Postgres ready on port ${port}"
 }
 
 run_migrations() {
-    log_step "Running migrations and seeding test data..."
-    goose -dir "$E2E_ROOT_DIR/api/migrations" postgres "$E2E_DATABASE_URL" up >/dev/null
+    log_step "Resetting the database, running migrations and seeding test data..."
+    e2e_psql "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" >/dev/null
+    goose -dir "$ROOT_DIR/api/migrations" postgres "$E2E_DATABASE_URL" up >/dev/null
     SEED_FILE=api/seed/e2e.sql AGENT_TOKEN="$AGENT_TOKEN" e2e_compose run --rm seed >/dev/null
     log_ok "Migrations applied and test data seeded"
 }
 
 create_namespace() {
     log_step "Creating the ${LOCO_NAMESPACE} namespace..."
-    kubectl create namespace "$LOCO_NAMESPACE" --context "kind-${KIND_CLUSTER_NAME}" 2>/dev/null || true
+    kube create namespace "$LOCO_NAMESPACE" --dry-run=client -o yaml | kube apply -f - >/dev/null
     log_ok "Namespace ready"
 }
 
 install_gateway_api() {
     log_step "Installing the Gateway API CRDs..."
-    kubectl apply --server-side --context "kind-${KIND_CLUSTER_NAME}" \
+    kube apply --server-side \
         -f "https://github.com/kubernetes-sigs/gateway-api/releases/download/${GATEWAY_API_VERSION}/standard-install.yaml" \
         >/dev/null
     log_ok "Gateway API ${GATEWAY_API_VERSION} CRDs installed"
@@ -183,14 +315,46 @@ install_gateway_api() {
 
 setup_registry() {
     log_step "Starting the registry and the source bucket..."
+    if [ "$CLUSTER_REUSED" = true ]; then
+        log_info "Emptying the registry, whose tags are immutable"
+        e2e_compose rm --stop --force registry >/dev/null
+        docker volume rm --force "${E2E_COMPOSE_PROJECT}_registry-data" >/dev/null
+    fi
     e2e_compose up -d --wait registry s3
+    local registry_port
+    registry_port=$(compose_host_port registry 5000)
+    export E2E_REGISTRY_URL="http://127.0.0.1:${registry_port}"
     KIND_CLUSTER="$KIND_CLUSTER_NAME" \
     COMPOSE_PROJECT="$E2E_COMPOSE_PROJECT" \
+    REGISTRY_PORT="$registry_port" \
     REGISTRY_ALIAS="$E2E_REGISTRY_ALIAS" \
     S3_ALIAS="$E2E_S3_ALIAS" \
         mise run cluster:registry >/dev/null
     BUILD_EGRESS_CIDRS=$(COMPOSE_PROJECT="$E2E_COMPOSE_PROJECT" mise run --quiet cluster:build-egress)
-    log_ok "Registry at ${E2E_REGISTRY_HOST}, source bucket at ${E2E_S3_ENDPOINT}, build egress to ${BUILD_EGRESS_CIDRS}"
+    log_ok "Registry at ${E2E_REGISTRY_HOST} (host port ${registry_port}), source bucket at ${E2E_S3_ENDPOINT}, build egress to ${BUILD_EGRESS_CIDRS}"
+}
+
+image_reference() {
+    local repository=$1 dockerfile=$2 run_tag="$1:e2e-${RUN_ID}" id
+    if [ "$SKIP_BUILD" = true ]; then
+        if ! id=$(docker image inspect -f '{{.Id}}' "$run_tag" 2>/dev/null); then
+            log_error "No ${run_tag} image to reuse; run once without --skip-build" >&2
+            return 1
+        fi
+    else
+        id=$(docker build -q -t "$run_tag" --build-arg VERSION="$E2E_VERSION" \
+            -f "$ROOT_DIR/$dockerfile" "$ROOT_DIR")
+    fi
+    id=${id#sha256:}
+    echo "${run_tag}-${id:0:12}"
+}
+
+load_image() {
+    local reference=$1
+    docker tag "${reference%-*}" "$reference"
+    kind load docker-image "$reference" --name "$KIND_CLUSTER_NAME" >/dev/null
+    docker image rm "$reference" >/dev/null
+    KIND_CLUSTER="$KIND_CLUSTER_NAME" mise run --quiet cluster:prune-images "$reference" >/dev/null
 }
 
 build_builder_images() {
@@ -198,35 +362,24 @@ build_builder_images() {
         log_info "Skipping the builder images (--builds-disabled)"
         return 0
     fi
-    if [ "$SKIP_BUILD" = true ]; then
-        log_info "Skipping builder image build (--skip-build)"
-    else
-        log_step "Building the builder image..."
-        docker build -q -t "$BUILDER_IMAGE" --build-arg VERSION="$E2E_VERSION" \
-            -f "$ROOT_DIR/builder/Dockerfile" "$ROOT_DIR" >/dev/null
-        log_ok "Builder image built"
-    fi
+    log_step "Building the builder image..."
+    BUILDER_IMAGE=$(image_reference "$BUILDER_REPOSITORY" builder/Dockerfile)
+    load_image "$BUILDER_IMAGE"
     local image
     for image in "$BUILDKIT_IMAGE" "$E2E_AWS_CLI_IMAGE"; do
         if ! docker image inspect "$image" >/dev/null 2>&1; then
             docker pull -q "$image" >/dev/null
         fi
     done
-    kind load docker-image "$BUILDER_IMAGE" "$BUILDKIT_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
-    log_ok "Builder and BuildKit images loaded into Kind"
+    kind load docker-image "$BUILDKIT_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
+    log_ok "Builder ${BUILDER_IMAGE} and BuildKit images loaded into Kind"
 }
 
 build_controller_image() {
-    if [ "$SKIP_BUILD" = true ]; then
-        log_info "Skipping controller image build (--skip-build)"
-    else
-        log_step "Building the controller image..."
-        docker build -q -t "$CONTROLLER_IMAGE" --build-arg VERSION="$E2E_VERSION" \
-            -f "$ROOT_DIR/controller/Dockerfile" "$ROOT_DIR" >/dev/null
-        log_ok "Controller image built"
-    fi
-    kind load docker-image "$CONTROLLER_IMAGE" --name "$KIND_CLUSTER_NAME" >/dev/null
-    log_ok "Controller image loaded into Kind"
+    log_step "Building the controller image..."
+    CONTROLLER_IMAGE=$(image_reference "$CONTROLLER_REPOSITORY" controller/Dockerfile)
+    load_image "$CONTROLLER_IMAGE"
+    log_ok "Controller image ${CONTROLLER_IMAGE} loaded into Kind"
 }
 
 install_operator() {
@@ -241,7 +394,7 @@ install_operator() {
     fi
     helm upgrade --install loco-operator "$ROOT_DIR/charts/loco-operator" \
         --kubeconfig "$KUBECONFIG_FILE" \
-        --kube-context "kind-${KIND_CLUSTER_NAME}" \
+        --kube-context "$KUBE_CONTEXT" \
         --namespace "$LOCO_NAMESPACE" \
         --values "$SCRIPT_DIR/operator-values.yaml" \
         --set controller.image.repository="${CONTROLLER_IMAGE%%:*}" \
@@ -249,6 +402,25 @@ install_operator() {
         "${build_values[@]}" \
         --wait --timeout 3m >/dev/null
     log_ok "Controllers running in Kind"
+}
+
+reset_cluster_state() {
+    if [ "$CLUSTER_REUSED" = false ]; then
+        return 0
+    fi
+    log_step "Removing the previous run's applications, builds and namespaces..."
+    kube delete applications.infra.loco.io --all --all-namespaces --cascade=foreground --wait >/dev/null
+    if kube get crd builds.infra.loco.io >/dev/null 2>&1; then
+        kube delete builds.infra.loco.io --all --all-namespaces --cascade=foreground --wait >/dev/null
+    fi
+    local namespace namespaces=()
+    while read -r namespace; do
+        namespaces+=("$namespace")
+    done < <(kube get namespaces -o name | grep -E '^namespace/(ws-|e2e-)' || true)
+    if [ ${#namespaces[@]} -gt 0 ]; then
+        kube delete "${namespaces[@]}" --wait >/dev/null
+    fi
+    log_ok "Cluster state reset"
 }
 
 build_binaries() {
@@ -279,7 +451,7 @@ start_api() {
     log_step "Starting API server..."
 
     DATABASE_URL="$E2E_DATABASE_URL" \
-    APP_PORT=":$API_PORT" \
+    APP_PORT="127.0.0.1:$API_PORT" \
     DEFAULT_PLATFORM_DOMAIN="e2e.test.local" \
     APP_ENV="test" \
     LOG_LEVEL=debug \
@@ -296,8 +468,14 @@ start_api() {
 
     echo $! > "$PID_DIR/api.pid"
 
-    wait_for "API health" 15 curl -sf "${E2E_API_URL}/health"
+    wait_for "API health" "$READY_TIMEOUT" curl -sf "${E2E_API_URL}/health"
     log_ok "API server running on port ${API_PORT}"
+}
+
+agent_registered() {
+    local version
+    version=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '${SEEDED_CLUSTER_ID}'")
+    test "$version" = "$E2E_VERSION"
 }
 
 start_agent() {
@@ -331,17 +509,8 @@ start_agent() {
 
     echo $! > "$PID_DIR/agent.pid"
 
-    # Give agent time to register and open streams
-    sleep 3
-
-    # Verify agent registered by checking DB
-    local heartbeat
-    heartbeat=$(e2e_psql "SELECT agent_version FROM clusters WHERE id = '00000000-0000-7000-8000-000000000005'" 2>/dev/null || echo "")
-    if [ "$heartbeat" = "$E2E_VERSION" ]; then
-        log_ok "Agent registered successfully"
-    else
-        log_warn "Agent may not have registered yet (agent_version: '${heartbeat}')"
-    fi
+    wait_for "Agent registration" "$READY_TIMEOUT" agent_registered
+    log_ok "Agent registered"
 }
 
 start_obs_proxy() {
@@ -350,7 +519,7 @@ start_obs_proxy() {
     PORT="$OBS_PROXY_PORT" \
     CONTROL_PLANE_URL="$E2E_API_URL" \
     PROXY_AUTH_TOKEN="$AGENT_TOKEN" \
-    CLICKHOUSE_URL="clickhouse://localhost:9000" \
+    CLICKHOUSE_URL="clickhouse://127.0.0.1:${UNUSED_CLICKHOUSE_PORT}" \
     CLICKHOUSE_DB="default" \
     DEFAULT_LIMIT="100" \
     MAX_LIMIT="1000" \
@@ -365,7 +534,7 @@ start_obs_proxy() {
 
     echo $! > "$PID_DIR/obs-proxy.pid"
 
-    wait_for "Obs proxy health" 10 curl -sf "http://localhost:${OBS_PROXY_PORT}/healthz"
+    wait_for "Obs proxy health" "$READY_TIMEOUT" curl -sf "http://127.0.0.1:${OBS_PROXY_PORT}/healthz"
     log_ok "Observability proxy running on port ${OBS_PROXY_PORT}"
 }
 
@@ -432,17 +601,14 @@ main() {
     echo "║       Loco E2E Test Runner           ║"
     echo "╚══════════════════════════════════════╝"
     echo ""
+    log_info "Run ${RUN_ID}: cluster ${KIND_CLUSTER_NAME}, compose project ${E2E_COMPOSE_PROJECT}, state in ${RUN_DIR}"
 
-    # Ensure clean state on exit (unless --no-teardown)
-    if [ "$NO_TEARDOWN" = false ]; then
-        trap teardown EXIT
-    else
-        log_warn "--no-teardown: infrastructure will persist after tests"
-        trap 'log_info "Leaving infrastructure running. Clean up with: mise run e2e:teardown"' EXIT
-    fi
+    trap on_exit EXIT
 
     export E2E_BUILDS_ENABLED="$BUILDS_ENABLED"
     check_prerequisites
+    stop_processes
+    check_ports
     setup_dirs
     setup_kind
     setup_postgres
@@ -453,6 +619,7 @@ main() {
     build_builder_images
     build_controller_image
     install_operator
+    reset_cluster_state
     build_binaries
     start_api
     start_agent
