@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-#MISE description="Re-wrap the generated CRD as the loco-controller chart template"
+#MISE description="Re-wrap the generated CRDs as loco-controller chart templates"
 set -euo pipefail
 
-chart_crd=charts/loco-controller/templates/crd/applications.infra.loco.io.yaml
-generated_crd=controller/config/crd/bases/infra.loco.io_applications.yaml
-
-{
-	printf '{{- if .Values.crd.enable }}\n'
-	yq -P -I 4 '.' "$generated_crd" | sed '1{/^---$/d;}'
-	printf '{{- end }}\n'
-} > "$chart_crd"
-echo "synced $chart_crd"
+for plural in applications builds; do
+	chart_crd=charts/loco-controller/templates/crd/$plural.infra.loco.io.yaml
+	generated_crd=controller/config/crd/bases/infra.loco.io_$plural.yaml
+	{
+		printf '{{- if .Values.crd.enable }}\n'
+		yq -P -I 4 '.' "$generated_crd" | sed '1{/^---$/d;}'
+		printf '{{- end }}\n'
+	} > "$chart_crd"
+	echo "synced $chart_crd"
+done

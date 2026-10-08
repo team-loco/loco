@@ -4,6 +4,7 @@ import (
 	"context"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -12,9 +13,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
+func CacheOptions(locoNamespace, pullSecretName, buildNamespace string) cache.Options {
 	managedSet := labels.Set{labelManagedBy: managedByValue}
 	managedSelector := labels.SelectorFromSet(managedSet)
 	managed := cache.ByObject{Label: managedSelector}
@@ -30,6 +33,9 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 			},
 		}
 	}
+	buildNamespaceOnly := map[string]cache.Config{buildNamespace: {}}
+	buildObjects := cache.ByObject{Label: managedSelector, Namespaces: buildNamespaceOnly}
+	builds := cache.ByObject{Namespaces: buildNamespaceOnly}
 	stripManagedFields := cache.TransformStripManagedFields()
 	return cache.Options{
 		DefaultTransform: stripManagedFields,
@@ -41,6 +47,9 @@ func CacheOptions(locoNamespace, pullSecretName string) cache.Options {
 			&rbacv1.Role{}:           managed,
 			&rbacv1.RoleBinding{}:    managed,
 			&appsv1.Deployment{}:     managed,
+			&batchv1.Job{}:           buildObjects,
+			&corev1.Pod{}:            buildObjects,
+			&locov1alpha1.Build{}:    builds,
 		},
 	}
 }

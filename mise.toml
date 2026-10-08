@@ -60,6 +60,11 @@ description = "Build the agent into agent/bin"
 dir = "agent"
 run = "go build -o ./bin/loco-agent ."
 
+[tasks."build:builder"]
+description = "Build the image builder into builder/bin"
+dir = "builder"
+run = "go build -o ./bin/loco-builder ."
+
 [tasks."build:obs-proxy"]
 description = "Build the observability proxy into observability-proxy/bin"
 dir = "observability-proxy"
@@ -97,6 +102,11 @@ run = "go test -v -coverprofile=coverage.out ./..."
 [tasks."test:agent"]
 description = "Test the agent"
 dir = "agent"
+run = "go test -v -coverprofile=coverage.out ./..."
+
+[tasks."test:builder"]
+description = "Test the image builder"
+dir = "builder"
 run = "go test -v -coverprofile=coverage.out ./..."
 
 [tasks."test:controller"]
@@ -215,6 +225,11 @@ run = """kubectl -n observability patch clickhouseinstallations.clickhouse.altin
 description = "Run the end-to-end tests (full setup and teardown)"
 env = { _.file = ".env" }
 run = "./e2e/run.sh"
+
+[tasks."e2e:builds"]
+description = "Run only the image build end-to-end tests (full setup and teardown)"
+env = { _.file = ".env" }
+run = "./e2e/run.sh 03_builds"
 
 [tasks."e2e:no-teardown"]
 description = "Run the end-to-end tests and keep the infrastructure running"

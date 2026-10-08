@@ -13,6 +13,8 @@ import (
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
 	networkingv1ac "k8s.io/client-go/applyconfigurations/networking/v1"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -142,6 +144,27 @@ func publicAddressPeers(
 	return []*networkingv1ac.NetworkPolicyPeerApplyConfiguration{ipv4Peer, ipv6Peer}
 }
 
+func denyAllSpec() *networkingv1ac.NetworkPolicySpecApplyConfiguration {
+	return networkingv1ac.NetworkPolicySpec().
+		WithPolicyTypes(networkingv1.PolicyTypeIngress, networkingv1.PolicyTypeEgress)
+}
+
+func dnsEgressSpec() *networkingv1ac.NetworkPolicySpecApplyConfiguration {
+	dnsPortList := dnsPorts()
+	dnsRule := networkingv1ac.NetworkPolicyEgressRule().WithPorts(dnsPortList...)
+	return networkingv1ac.NetworkPolicySpec().
+		WithPolicyTypes(networkingv1.PolicyTypeEgress).
+		WithEgress(dnsRule)
+}
+
+func internetEgressSpec(exclusions egressExclusionSet) *networkingv1ac.NetworkPolicySpecApplyConfiguration {
+	publicPeers := publicAddressPeers(exclusions)
+	internetRule := networkingv1ac.NetworkPolicyEgressRule().WithTo(publicPeers...)
+	return networkingv1ac.NetworkPolicySpec().
+		WithPolicyTypes(networkingv1.PolicyTypeEgress).
+		WithEgress(internetRule)
+}
+
 func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	locoRes *locov1alpha1.Application,
 	exclusions egressExclusionSet,
@@ -151,7 +174,7 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 	ingress := networkingv1.PolicyTypeIngress
 	egress := networkingv1.PolicyTypeEgress
 
-	denyAll := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(ingress, egress)
+	denyAll := denyAllSpec()
 
 	workspaceIngressPeer := sameNamespacePeer()
 	workspaceEgressPeer := sameNamespacePeer()
@@ -162,9 +185,7 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 		WithIngress(workspaceIngress).
 		WithEgress(workspaceEgress)
 
-	dnsPortList := dnsPorts()
-	dnsRule := networkingv1ac.NetworkPolicyEgressRule().WithPorts(dnsPortList...)
-	dnsEgress := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(egress).WithEgress(dnsRule)
+	dnsEgress := dnsEgressSpec()
 
 	telemetryLabels := map[string]string{labelAppKubernetesName: otelCollectorName}
 	obsNamespace := r.telemetryNamespace()
@@ -176,20 +197,18 @@ func (r *LocoResourceReconciler) workspaceNetworkPolicies(
 		WithPorts(grpcPort, httpPort)
 	telemetryEgress := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(egress).WithEgress(telemetryRule)
 
-	publicPeers := publicAddressPeers(exclusions)
-	internetRule := networkingv1ac.NetworkPolicyEgressRule().WithTo(publicPeers...)
-	internetEgress := networkingv1ac.NetworkPolicySpec().WithPolicyTypes(egress).WithEgress(internetRule)
+	internetEgress := internetEgressSpec(exclusions)
 
 	return []*networkingv1ac.NetworkPolicyApplyConfiguration{
-		workspacePolicy(policyDefaultDeny, namespace, labels, denyAll),
-		workspacePolicy(policyWorkspaceAccess, namespace, labels, workspaceAccess),
-		workspacePolicy(policyDNSEgress, namespace, labels, dnsEgress),
-		workspacePolicy(policyTelemetryEgress, namespace, labels, telemetryEgress),
-		workspacePolicy(policyInternetEgress, namespace, labels, internetEgress),
+		namespacePolicy(policyDefaultDeny, namespace, labels, denyAll),
+		namespacePolicy(policyWorkspaceAccess, namespace, labels, workspaceAccess),
+		namespacePolicy(policyDNSEgress, namespace, labels, dnsEgress),
+		namespacePolicy(policyTelemetryEgress, namespace, labels, telemetryEgress),
+		namespacePolicy(policyInternetEgress, namespace, labels, internetEgress),
 	}
 }
 
-func workspacePolicy(
+func namespacePolicy(
 	name string,
 	namespace string,
 	labels map[string]string,
@@ -202,22 +221,30 @@ func workspacePolicy(
 		WithSpec(spec)
 }
 
-func (r *LocoResourceReconciler) ensureWorkspaceNetworkPolicies(
+func applyPolicies(
 	ctx context.Context,
-	locoRes *locov1alpha1.Application,
+	kubeClient client.Client,
+	policies []*networkingv1ac.NetworkPolicyApplyConfiguration,
 ) error {
-	discovered, err := r.clusterAddressRanges(ctx)
-	if err != nil {
-		return fmt.Errorf("discover cluster address ranges: %w", err)
-	}
-	exclusions := egressExclusions(discovered)
 	opts := applyOptions()
-	for _, policy := range r.workspaceNetworkPolicies(locoRes, exclusions) {
-		if err := r.Apply(ctx, policy, opts...); err != nil {
+	for _, policy := range policies {
+		if err := kubeClient.Apply(ctx, policy, opts...); err != nil {
 			return fmt.Errorf("apply network policy %s/%s: %w", *policy.Namespace, *policy.Name, err)
 		}
 	}
 	return nil
+}
+
+func (r *LocoResourceReconciler) ensureWorkspaceNetworkPolicies(
+	ctx context.Context,
+	locoRes *locov1alpha1.Application,
+) error {
+	exclusions, err := discoverEgressExclusions(ctx, r.Client)
+	if err != nil {
+		return err
+	}
+	policies := r.workspaceNetworkPolicies(locoRes, exclusions)
+	return applyPolicies(ctx, r.Client, policies)
 }
 
 func (r *LocoResourceReconciler) gatewayIngressPolicy(

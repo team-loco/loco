@@ -44,6 +44,8 @@ spec:
                     - name: REGISTRY_PULL_SECRET_NAME
                       value: {{ . | quote }}
                     {{- end }}
+                    - name: LOCO_BUILD_CONFIG
+                      value: {{ toJson .Values.builds | quote }}
                     {{- if .Values.manager.env }}
                     {{- toYaml .Values.manager.env | nindent 20 }}
                     {{- end }}

@@ -40,6 +40,58 @@ manager:
 registry:
   pullSecretName: ""
 
+builds:
+  namespace: loco-builds
+  pushSecretName: ""
+  builderImage:
+    repository: ghcr.io/team-loco/loco-builder
+    tag: latest
+    pullPolicy: Always
+  buildkitImage:
+    repository: moby/buildkit
+    tag: v0.33.1-rootless
+    pullPolicy: IfNotPresent
+  timeout: 30m
+  ttlAfterFinished: 10m
+  downloadTimeout: 10m
+  maxSourceSize: 200Mi
+  maxContextSize: 1Gi
+  maxContextFiles: 200000
+  maxImageSize: 1Gi
+  insecureRegistry: false
+  privateEgressCIDRs: []
+  seccompLocalhostProfile: ""
+  runtimeClassName: ""
+  nodeSelector: {}
+  tolerations: []
+  resources:
+    fetch:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: "1"
+        memory: 256Mi
+    build:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    push:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+  storage:
+    workspace: 2Gi
+    cache: 5Gi
+    out: 10Gi
+    buildkit: 10Gi
+
 # Essential RBAC permissions (required for controller operation)
 # These include ServiceAccount, controller permissions, leader election, and metrics access
 # Note: Essential RBAC is always enabled as it's required for the controller to function

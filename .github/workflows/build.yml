@@ -45,6 +45,10 @@ jobs:
             image: registry
             dockerfile: ./registry/Dockerfile
 
+          - name: Builder
+            image: builder
+            dockerfile: ./builder/Dockerfile
+
           - name: UI
             image: ui
             dockerfile: ./web/Dockerfile

@@ -88,6 +88,13 @@ docker_build(
     only=['controller', 'k8sapi'],
 )
 
+docker_build(
+    'loco-builder',
+    '.',
+    dockerfile='builder/Dockerfile',
+    only=['builder'],
+)
+
 control_plane_url = 'http://host.docker.internal:${APP_PORT##*:}'
 
 
@@ -206,6 +213,11 @@ helm_release(
         'repository': 'manager.image.repository',
         'tag': 'manager.image.tag',
         'pull_policy': 'manager.image.pullPolicy',
+    }, {
+        'name': 'loco-builder',
+        'repository': 'builds.builderImage.repository',
+        'tag': 'builds.builderImage.tag',
+        'pull_policy': 'builds.builderImage.pullPolicy',
     }],
     values=[],
     deps=['charts/loco-controller/', 'env/local/controller-chart.yaml.gotmpl'],

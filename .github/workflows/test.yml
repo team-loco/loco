@@ -10,6 +10,7 @@ on:
       - "internal/**"
       - "controller/**"
       - "agent/**"
+      - "builder/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -23,6 +24,7 @@ on:
       - "internal/**"
       - "controller/**"
       - "agent/**"
+      - "builder/**"
       - "main.go"
       - "go.mod"
       - "go.sum"
@@ -124,6 +126,11 @@ jobs:
           - component: Agent
             working-directory: agent
             test-command: mise run test:agent
+            timeout: 10
+
+          - component: Builder
+            working-directory: builder
+            test-command: mise run test:builder
             timeout: 10
 
     steps:

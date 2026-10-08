@@ -5,3 +5,10 @@ manager:
     pullPolicy: Never
 registry:
   pullSecretName: loco-registry
+builds:
+  pushSecretName: loco-registry-push
+  insecureRegistry: true
+  builderImage:
+    repository: loco-builder
+    tag: latest
+    pullPolicy: Never

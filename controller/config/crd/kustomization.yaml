@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
   - bases/infra.loco.io_applications.yaml
+  - bases/infra.loco.io_builds.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

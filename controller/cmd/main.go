@@ -174,7 +174,13 @@ func main() {
 
 	locoNamespace := os.Getenv(controller.EnvLocoNamespace)
 	pullSecretName := os.Getenv(controller.EnvRegistryPullSecretName)
-	cacheOptions := controller.CacheOptions(locoNamespace, pullSecretName)
+	rawBuildConfig := os.Getenv(controller.EnvBuildConfig)
+	buildConfig, err := controller.ParseBuildConfig(rawBuildConfig)
+	if err != nil {
+		setupLog.Error(err, "invalid build configuration")
+		os.Exit(1)
+	}
+	cacheOptions := controller.CacheOptions(locoNamespace, pullSecretName, buildConfig.Namespace)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Cache:                  cacheOptions,
@@ -206,6 +212,18 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Application")
+		os.Exit(1)
+	}
+	apiReader := mgr.GetAPIReader()
+	if err := (&controller.BuildReconciler{
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		APIReader:      apiReader,
+		Config:         buildConfig,
+		LocoNamespace:  locoNamespace,
+		PullSecretName: pullSecretName,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Build")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
