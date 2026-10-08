@@ -86,6 +86,15 @@ const (
 	defaultImageSweepInterval        = 10 * time.Minute
 	defaultImageSweepBuildBatch      = 100
 	defaultImageSweepRepositoryBatch = 100
+	defaultImageSweepTagBatch        = 100
+	defaultImageSweepTagMinAge       = time.Hour
+
+	defaultSourceSweepInterval   = 10 * time.Minute
+	defaultSourceUploadGrace     = time.Hour
+	defaultSourceOrphanMinAge    = 24 * time.Hour
+	defaultSourceSweepBuildBatch = 100
+	defaultSourceOrphanPageSize  = 1000
+	defaultSourceOrphanMaxPages  = 5
 )
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
@@ -107,6 +116,7 @@ type APIConfig struct {
 	RegistryPrefix        string
 	Registry              registryclient.Config
 	ImageSweep            service.ImageSweepConfig
+	SourceSweep           service.SourceSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
 }
 
@@ -194,6 +204,16 @@ func newAPIConfig() *APIConfig {
 		Interval:        positiveDurationEnv("LOCO_IMAGE_SWEEP_INTERVAL", defaultImageSweepInterval),
 		BuildBatch:      positiveInt32Env("LOCO_IMAGE_SWEEP_BUILD_BATCH", defaultImageSweepBuildBatch),
 		RepositoryBatch: int(positiveInt32Env("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", defaultImageSweepRepositoryBatch)),
+		TagBatch:        int(positiveInt32Env("LOCO_IMAGE_SWEEP_TAG_BATCH", defaultImageSweepTagBatch)),
+		TagMinAge:       positiveDurationEnv("LOCO_IMAGE_SWEEP_TAG_MIN_AGE", defaultImageSweepTagMinAge),
+	}
+	sourceSweep := service.SourceSweepConfig{
+		Interval:       positiveDurationEnv("LOCO_SOURCE_SWEEP_INTERVAL", defaultSourceSweepInterval),
+		UploadGrace:    positiveDurationEnv("LOCO_SOURCE_SWEEP_UPLOAD_GRACE", defaultSourceUploadGrace),
+		OrphanMinAge:   positiveDurationEnv("LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE", defaultSourceOrphanMinAge),
+		BuildBatch:     positiveInt32Env("LOCO_SOURCE_SWEEP_BUILD_BATCH", defaultSourceSweepBuildBatch),
+		OrphanPageSize: positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", defaultSourceOrphanPageSize),
+		OrphanMaxPages: int(positiveInt32Env("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", defaultSourceOrphanMaxPages)),
 	}
 
 	return &APIConfig{
@@ -213,6 +233,7 @@ func newAPIConfig() *APIConfig {
 		RegistryPrefix:        registryPrefix,
 		Registry:              registry,
 		ImageSweep:            imageSweep,
+		SourceSweep:           sourceSweep,
 		ServiceDefaults:       serviceDefaults,
 	}
 }
@@ -458,7 +479,7 @@ func main() {
 		slog.Warn("LOCO_REGISTRY_HOST is not set; builds are disabled")
 	}
 	if sourceBucket != nil {
-		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket)
+		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 		go sourceSweeper.Run(shutdownCtx)
 	}
 	imageRegistry, registryErr := newImageRegistry(ac.Registry)

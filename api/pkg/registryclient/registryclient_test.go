@@ -116,7 +116,7 @@ func TestDeleteManifestByDigestToleratesMissing(t *testing.T) {
 	}
 }
 
-func TestManifestDigestsAndRepositories(t *testing.T) {
+func TestTagsDigestsAndRepositories(t *testing.T) {
 	reg := newTestRegistry(t)
 	image := reg.push(t, testRepo, "build-1")
 	if again := reg.push(t, testRepo, "build-2"); again == image {
@@ -126,12 +126,23 @@ func TestManifestDigestsAndRepositories(t *testing.T) {
 	client := reg.client(t)
 	ctx := context.Background()
 
-	digests, err := client.ManifestDigests(ctx, testRepo)
+	tags, err := client.Tags(ctx, testRepo)
 	if err != nil {
-		t.Fatalf("manifest digests: %v", err)
+		t.Fatalf("tags: %v", err)
 	}
-	if len(digests) != 2 || !slices.Contains(digests, image) {
-		t.Fatalf("digests = %v, want two including %s", digests, image)
+	slices.Sort(tags)
+	if !slices.Equal(tags, []string{"build-1", "build-2"}) {
+		t.Fatalf("tags = %v, want [build-1 build-2]", tags)
+	}
+	digest, err := client.TagDigest(ctx, testRepo, "build-1")
+	if err != nil {
+		t.Fatalf("tag digest: %v", err)
+	}
+	if digest != image {
+		t.Fatalf("build-1 digest = %s, want %s", digest, image)
+	}
+	if _, missingErr := client.TagDigest(ctx, testRepo, "build-9"); !errors.Is(missingErr, ErrTagNotFound) {
+		t.Fatalf("digest of a missing tag: %v, want %v", missingErr, ErrTagNotFound)
 	}
 
 	repos, err := client.Repositories(ctx, "", 1)
@@ -149,12 +160,12 @@ func TestManifestDigestsAndRepositories(t *testing.T) {
 		t.Fatalf("catalog query = %v, want last=%s and n=1", last, testRepo)
 	}
 
-	missing, err := client.ManifestDigests(ctx, "builds/ws-1/missing")
+	missing, err := client.Tags(ctx, "builds/ws-1/missing")
 	if err != nil {
-		t.Fatalf("manifest digests of a missing repository: %v", err)
+		t.Fatalf("tags of a missing repository: %v", err)
 	}
 	if len(missing) != 0 {
-		t.Fatalf("missing repository digests = %v, want none", missing)
+		t.Fatalf("missing repository tags = %v, want none", missing)
 	}
 }
 

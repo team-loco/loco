@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -13,7 +14,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/registryclient"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -22,32 +25,67 @@ const (
 	testSweepBuildBatch = 100
 	testRepoBatch       = 2
 	testBuildSpacing    = time.Hour
+	testTagBatch        = 100
+	testTagMinAge       = time.Hour
+	testTagOld          = 2 * time.Hour
+	testTagRecent       = 10 * time.Minute
+	uuidVersionBits     = 0x70
+	uuidVariantBits     = 0x80
+	uuidVersionByte     = 6
+	uuidVariantByte     = 8
+	uuidLowNibble       = 0x0f
+	uuidVariantMask     = 0x3f
+	uuidTimestampBytes  = 6
+	bitsPerByte         = 8
 )
 
 var errFakeRegistry = errors.New("fake registry failure")
 
 type fakeRegistry struct {
 	mu          sync.Mutex
-	manifests   map[string][]string
+	tags        map[string]map[string]string
 	deleted     []string
 	deleteFails map[string]int
 	onDelete    func(digest string)
 }
 
 func newFakeRegistry() *fakeRegistry {
-	return &fakeRegistry{manifests: map[string][]string{}, deleteFails: map[string]int{}}
+	return &fakeRegistry{tags: map[string]map[string]string{}, deleteFails: map[string]int{}}
+}
+
+func (r *fakeRegistry) tag(path, tag, digest string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	tags, ok := r.tags[path]
+	if !ok {
+		tags = map[string]string{}
+		r.tags[path] = tags
+	}
+	tags[tag] = digest
 }
 
 func (r *fakeRegistry) push(path string, digests ...string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.manifests[path] = append(r.manifests[path], digests...)
+	for _, digest := range digests {
+		r.tag(path, "tag-"+digest, digest)
+	}
 }
 
 func (r *fakeRegistry) has(path, digest string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return slices.Contains(r.manifests[path], digest)
+	for _, tagged := range r.tags[path] {
+		if tagged == digest {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *fakeRegistry) hasTag(path, tag string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	_, ok := r.tags[path][tag]
+	return ok
 }
 
 func (r *fakeRegistry) deleteCount(digest string) int {
@@ -76,7 +114,7 @@ func (r *fakeRegistry) DeleteManifest(_ context.Context, path, digest string) er
 		return errFakeRegistry
 	}
 	r.deleted = append(r.deleted, path+"@"+digest)
-	r.manifests[path] = slices.DeleteFunc(r.manifests[path], func(d string) bool { return d == digest })
+	maps.DeleteFunc(r.tags[path], func(_, tagged string) bool { return tagged == digest })
 	return nil
 }
 
@@ -84,7 +122,7 @@ func (r *fakeRegistry) Repositories(_ context.Context, after string, limit int) 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var repos []string
-	for path := range r.manifests {
+	for path := range r.tags {
 		if path > after {
 			repos = append(repos, path)
 		}
@@ -96,10 +134,22 @@ func (r *fakeRegistry) Repositories(_ context.Context, after string, limit int) 
 	return repos, nil
 }
 
-func (r *fakeRegistry) ManifestDigests(_ context.Context, path string) ([]string, error) {
+func (r *fakeRegistry) Tags(_ context.Context, path string) ([]string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return slices.Clone(r.manifests[path]), nil
+	tags := slices.Collect(maps.Keys(r.tags[path]))
+	slices.Sort(tags)
+	return tags, nil
+}
+
+func (r *fakeRegistry) TagDigest(_ context.Context, path, tag string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	digest, ok := r.tags[path][tag]
+	if !ok {
+		return "", registryclient.ErrTagNotFound
+	}
+	return digest, nil
 }
 
 type imageSweepFixture struct {
@@ -138,6 +188,10 @@ func newImageSweepFixture(t *testing.T, retention int32) *imageSweepFixture {
 }
 
 func (f *imageSweepFixture) newSweeper(retention int32) *ImageSweeper {
+	return f.newSweeperWith(retention, testTagBatch)
+}
+
+func (f *imageSweepFixture) newSweeperWith(retention int32, tagBatch int) *ImageSweeper {
 	return NewImageSweeper(f.pool, f.queries, f.registry, ImageSweepConfig{
 		RegistryHost:    testRegistryHost,
 		RegistryPrefix:  testRegistryPrefix,
@@ -145,6 +199,8 @@ func (f *imageSweepFixture) newSweeper(retention int32) *ImageSweeper {
 		Interval:        testSweepInterval,
 		BuildBatch:      testSweepBuildBatch,
 		RepositoryBatch: testRepoBatch,
+		TagBatch:        tagBatch,
+		TagMinAge:       testTagMinAge,
 	})
 }
 
@@ -182,7 +238,8 @@ VALUES ($1, $2, $3, 'succeeded', 'upload', $4, 10, 'Dockerfile', $5, $6, $7, $8,
 	); err != nil {
 		t.Fatalf("insert build: %v", err)
 	}
-	f.registry.push(f.repoPath, image, cache)
+	f.registry.tag(f.repoPath, locoControllerV1.BuildImageTagPrefix+id.String(), image)
+	f.registry.tag(f.repoPath, locoControllerV1.BuildCacheTagPrefix+id.String(), cache)
 	return sweptBuild{id: id.String(), image: image, cache: cache}
 }
 
@@ -411,7 +468,7 @@ func TestImageSweepPurgesOrphanedRepositories(t *testing.T) {
 	}
 
 	purged := 0
-	for range len(f.registry.manifests) {
+	for range len(f.registry.tags) {
 		result := f.sweep(t)
 		purged += result.OrphanManifests
 	}
@@ -555,4 +612,127 @@ func TestDeployWaitsForAnImageDeleteInFlight(t *testing.T) {
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments were created for a deleted image, want 0", n)
 	}
+}
+
+func uuidV7At(t *testing.T, at time.Time) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	ms := uint64(at.UnixMilli())
+	for i := range uuidTimestampBytes {
+		shift := uint((uuidTimestampBytes - 1 - i) * bitsPerByte)
+		id[i] = byte(ms >> shift)
+	}
+	id[uuidVersionByte] = id[uuidVersionByte]&uuidLowNibble | uuidVersionBits
+	id[uuidVariantByte] = id[uuidVariantByte]&uuidVariantMask | uuidVariantBits
+	return id
+}
+
+type taggedBuild struct {
+	id    uuid.UUID
+	image string
+	cache string
+}
+
+func (f *imageSweepFixture) tagBuild(id uuid.UUID) taggedBuild {
+	f.built++
+	b := taggedBuild{id: id, image: fakeDigest("bbbb", f.built), cache: fakeDigest("dddd", f.built)}
+	f.registry.tag(f.repoPath, locoControllerV1.BuildImageTagPrefix+id.String(), b.image)
+	f.registry.tag(f.repoPath, locoControllerV1.BuildCacheTagPrefix+id.String(), b.cache)
+	return b
+}
+
+func (f *imageSweepFixture) unfinishedBuild(t *testing.T, status genDb.BuildStatus, finished *time.Time) taggedBuild {
+	t.Helper()
+	id := uuid.Must(uuid.NewV7())
+	key := buildSourceKey(id)
+	repository := testRegistryHost + "/" + f.repoPath
+	if _, err := f.pool.Exec(f.ctx, `
+INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
+                    dockerfile_path, image_repository, created_by, finished_at)
+VALUES ($1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7, $8)`,
+		id, f.resourceID, f.clusterID, status, key, repository, uuid.New(), finished,
+	); err != nil {
+		t.Fatalf("insert build: %v", err)
+	}
+	return f.tagBuild(id)
+}
+
+func (f *imageSweepFixture) wantTagsGone(t *testing.T, builds ...taggedBuild) {
+	t.Helper()
+	for _, b := range builds {
+		if f.registry.has(f.repoPath, b.image) || f.registry.has(f.repoPath, b.cache) {
+			t.Errorf("build %s still has its tags", b.id)
+		}
+	}
+}
+
+func (f *imageSweepFixture) wantTagsKept(t *testing.T, builds ...taggedBuild) {
+	t.Helper()
+	for _, b := range builds {
+		imageTag := locoControllerV1.BuildImageTagPrefix + b.id.String()
+		cacheTag := locoControllerV1.BuildCacheTagPrefix + b.id.String()
+		if !f.registry.hasTag(f.repoPath, imageTag) || !f.registry.hasTag(f.repoPath, cacheTag) {
+			t.Errorf("build %s lost its tags", b.id)
+		}
+	}
+}
+
+func TestImageSweepDeletesTagsOfUnfinishedBuilds(t *testing.T) {
+	f := newImageSweepFixture(t, 1)
+	kept := f.succeeded(t)
+	now := time.Now()
+	old := now.Add(-testTagOld)
+	recent := now.Add(-testTagRecent)
+
+	failed := f.unfinishedBuild(t, genDb.BuildStatusFailed, &old)
+	canceled := f.unfinishedBuild(t, genDb.BuildStatusCanceled, &old)
+	recentlyCanceled := f.unfinishedBuild(t, genDb.BuildStatusCanceled, &recent)
+	running := f.unfinishedBuild(t, genDb.BuildStatusRunning, nil)
+	vanished := f.tagBuild(uuidV7At(t, old))
+	vanishedRecently := f.tagBuild(uuidV7At(t, recent))
+
+	sharedID := uuid.Must(uuid.NewV7())
+	if _, err := f.pool.Exec(f.ctx, `
+INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
+                    dockerfile_path, image_repository, created_by, finished_at)
+VALUES ($1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfile', $5, $6, $7)`,
+		sharedID, f.resourceID, f.clusterID, buildSourceKey(sharedID), testRegistryHost+"/"+f.repoPath,
+		uuid.New(), old,
+	); err != nil {
+		t.Fatalf("insert build: %v", err)
+	}
+	sharedTag := locoControllerV1.BuildImageTagPrefix + sharedID.String()
+	f.registry.tag(f.repoPath, sharedTag, kept.image)
+	f.registry.tag(f.repoPath, "latest", fakeDigest("eeee", 1))
+
+	result := f.sweep(t)
+	if result.StaleTags != 6 {
+		t.Fatalf("deleted %d stale tags, want 6", result.StaleTags)
+	}
+	f.wantTagsGone(t, failed, canceled, vanished)
+	f.wantTagsKept(t, recentlyCanceled, running, vanishedRecently)
+	f.wantKept(t, kept)
+	if !f.registry.hasTag(f.repoPath, sharedTag) {
+		t.Fatal("a failed build's tag that shares a kept build's digest was deleted")
+	}
+	if !f.registry.hasTag(f.repoPath, "latest") {
+		t.Fatal("a tag outside the build tag layout was deleted")
+	}
+}
+
+func TestImageSweepBoundsTagDeletesPerRun(t *testing.T) {
+	f := newImageSweepFixture(t, 1)
+	f.succeeded(t)
+	old := time.Now().Add(-testTagOld)
+	first := f.unfinishedBuild(t, genDb.BuildStatusFailed, &old)
+	second := f.unfinishedBuild(t, genDb.BuildStatusFailed, &old)
+	f.sweeper = f.newSweeperWith(1, 1)
+
+	if result := f.sweep(t); result.StaleTags != 1 {
+		t.Fatalf("first run deleted %d stale tags, want 1", result.StaleTags)
+	}
+	f.sweep(t)
+	f.sweep(t)
+	f.sweep(t)
+	f.wantTagsGone(t, first, second)
 }

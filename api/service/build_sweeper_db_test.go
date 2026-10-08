@@ -20,6 +20,15 @@ const (
 	testDeleteFailures = 2
 )
 
+var testSourceSweep = SourceSweepConfig{
+	Interval:       10 * time.Minute,
+	UploadGrace:    time.Hour,
+	OrphanMinAge:   24 * time.Hour,
+	BuildBatch:     100,
+	OrphanPageSize: 1000,
+	OrphanMaxPages: 5,
+}
+
 type sweepFixture struct {
 	*buildFixture
 	sweeper *SourceSweeper
@@ -28,7 +37,7 @@ type sweepFixture struct {
 func newSweepFixture(t *testing.T) *sweepFixture {
 	t.Helper()
 	f := newBuildFixture(t)
-	sweeper := NewSourceSweeper(f.pool, f.queries, f.bucket)
+	sweeper := NewSourceSweeper(f.pool, f.queries, f.bucket, testSourceSweep)
 	return &sweepFixture{buildFixture: f, sweeper: sweeper}
 }
 
@@ -79,7 +88,7 @@ func TestSweepExpiresAbandonedUploads(t *testing.T) {
 	uploadedID := f.create(t, testSourceSize).GetBuildId()
 	f.uploadFor(t, uploadedID, testSourceSize)
 
-	expiry := buildUploadURLTTL + sourceUploadGrace
+	expiry := buildUploadURLTTL + testSourceSweep.UploadGrace
 	start := time.Now()
 	f.sweeper.now = func() time.Time { return start.Add(expiry - testSweepSkew) }
 	if result := f.sweep(t); result.Expired != 0 {
@@ -234,7 +243,7 @@ func TestConcurrentSweepsRunOnce(t *testing.T) {
 		t.Fatal("the first sweep never reached the bucket")
 	}
 
-	other := NewSourceSweeper(f.pool, f.queries, f.bucket)
+	other := NewSourceSweeper(f.pool, f.queries, f.bucket, testSourceSweep)
 	second, err := other.Sweep(context.Background())
 	if err != nil {
 		t.Fatalf("second sweep: %v", err)

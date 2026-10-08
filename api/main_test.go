@@ -107,6 +107,14 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv("LOCO_IMAGE_SWEEP_INTERVAL", "")
 	t.Setenv("LOCO_IMAGE_SWEEP_BUILD_BATCH", "")
 	t.Setenv("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", "")
+	t.Setenv("LOCO_IMAGE_SWEEP_TAG_BATCH", "")
+	t.Setenv("LOCO_IMAGE_SWEEP_TAG_MIN_AGE", "")
+	t.Setenv("LOCO_SOURCE_SWEEP_INTERVAL", "")
+	t.Setenv("LOCO_SOURCE_SWEEP_UPLOAD_GRACE", "")
+	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE", "")
+	t.Setenv("LOCO_SOURCE_SWEEP_BUILD_BATCH", "")
+	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE", "")
+	t.Setenv("LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES", "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -134,9 +142,22 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 		Interval:        defaultImageSweepInterval,
 		BuildBatch:      defaultImageSweepBuildBatch,
 		RepositoryBatch: defaultImageSweepRepositoryBatch,
+		TagBatch:        defaultImageSweepTagBatch,
+		TagMinAge:       defaultImageSweepTagMinAge,
 	}
 	if ac.ImageSweep != wantSweep {
 		t.Errorf("image sweep = %+v, want %+v", ac.ImageSweep, wantSweep)
+	}
+	wantSource := service.SourceSweepConfig{
+		Interval:       defaultSourceSweepInterval,
+		UploadGrace:    defaultSourceUploadGrace,
+		OrphanMinAge:   defaultSourceOrphanMinAge,
+		BuildBatch:     defaultSourceSweepBuildBatch,
+		OrphanPageSize: defaultSourceOrphanPageSize,
+		OrphanMaxPages: defaultSourceOrphanMaxPages,
+	}
+	if ac.SourceSweep != wantSource {
+		t.Errorf("source sweep = %+v, want %+v", ac.SourceSweep, wantSource)
 	}
 	if ac.Registry.Username != "" {
 		t.Errorf("registry username = %q, want none so image cleanup is off", ac.Registry.Username)
@@ -153,6 +174,8 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 	t.Setenv("LOCO_IMAGE_SWEEP_INTERVAL", "30s")
 	t.Setenv("LOCO_IMAGE_SWEEP_BUILD_BATCH", "10")
 	t.Setenv("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", "20")
+	t.Setenv("LOCO_IMAGE_SWEEP_TAG_BATCH", "30")
+	t.Setenv("LOCO_IMAGE_SWEEP_TAG_MIN_AGE", "2h")
 	ac := newAPIConfig()
 	wantRegistry := registryclient.Config{
 		URL:      "https://" + testRegistryHost,
@@ -170,6 +193,8 @@ func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
 		Interval:        30 * time.Second,
 		BuildBatch:      10,
 		RepositoryBatch: 20,
+		TagBatch:        30,
+		TagMinAge:       2 * time.Hour,
 	}
 	if ac.ImageSweep != wantSweep {
 		t.Errorf("image sweep = %+v, want %+v", ac.ImageSweep, wantSweep)
@@ -256,6 +281,18 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 		{"negative sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "-1m"}, errNotPositive},
 		{"zero build batch", map[string]string{"LOCO_IMAGE_SWEEP_BUILD_BATCH": "0"}, errNotPositive},
 		{"zero repository batch", map[string]string{"LOCO_IMAGE_SWEEP_REPOSITORY_BATCH": "0"}, errNotPositive},
+		{"zero tag batch", map[string]string{"LOCO_IMAGE_SWEEP_TAG_BATCH": "0"}, errNotPositive},
+		{"zero tag min age", map[string]string{"LOCO_IMAGE_SWEEP_TAG_MIN_AGE": "0s"}, errNotPositive},
+		{
+			"non-duration source sweep interval",
+			map[string]string{"LOCO_SOURCE_SWEEP_INTERVAL": "5"},
+			errInvalidDuration,
+		},
+		{"zero upload grace", map[string]string{"LOCO_SOURCE_SWEEP_UPLOAD_GRACE": "0s"}, errNotPositive},
+		{"negative orphan min age", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MIN_AGE": "-1h"}, errNotPositive},
+		{"zero source build batch", map[string]string{"LOCO_SOURCE_SWEEP_BUILD_BATCH": "0"}, errNotPositive},
+		{"zero orphan page size", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_PAGE_SIZE": "0"}, errNotPositive},
+		{"non-numeric orphan max pages", map[string]string{"LOCO_SOURCE_SWEEP_ORPHAN_MAX_PAGES": "x"}, errInvalidInt32},
 		{"zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
 		{
 			"registry username without password",

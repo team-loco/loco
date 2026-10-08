@@ -413,6 +413,43 @@ func (q *Queries) ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]
 	return items, nil
 }
 
+const listBuildTagStates = `-- name: ListBuildTagStates :many
+SELECT id, resource_id, status, finished_at FROM builds
+WHERE id = ANY($1::uuid[])
+`
+
+type ListBuildTagStatesRow struct {
+	ID         uuid.UUID   `json:"id"`
+	ResourceID uuid.UUID   `json:"resourceId"`
+	Status     BuildStatus `json:"status"`
+	FinishedAt *time.Time  `json:"finishedAt"`
+}
+
+func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error) {
+	rows, err := q.db.Query(ctx, listBuildTagStates, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListBuildTagStatesRow
+	for rows.Next() {
+		var i ListBuildTagStatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.Status,
+			&i.FinishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBuildsForResource = `-- name: ListBuildsForResource :many
 SELECT id, resource_id, cluster_id, status, source_type, source_key, source_size, dockerfile_path, image_repository, image_digest, cache_digest, message, created_by, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
 WHERE b.resource_id = $1
@@ -574,6 +611,39 @@ func (q *Queries) ListExistingResourceIDs(ctx context.Context, ids []uuid.UUID) 
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLiveBuildDigests = `-- name: ListLiveBuildDigests :many
+SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
+WHERE resource_id = ANY($1::uuid[])
+  AND status = 'succeeded'
+  AND image_deleted_at IS NULL
+`
+
+type ListLiveBuildDigestsRow struct {
+	ResourceID  uuid.UUID `json:"resourceId"`
+	ImageDigest string    `json:"imageDigest"`
+	CacheDigest *string   `json:"cacheDigest"`
+}
+
+func (q *Queries) ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error) {
+	rows, err := q.db.Query(ctx, listLiveBuildDigests, resourceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLiveBuildDigestsRow
+	for rows.Next() {
+		var i ListLiveBuildDigestsRow
+		if err := rows.Scan(&i.ResourceID, &i.ImageDigest, &i.CacheDigest); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

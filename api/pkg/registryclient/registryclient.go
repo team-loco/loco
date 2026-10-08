@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -25,6 +24,7 @@ var (
 	ErrUsernameMissing    = errors.New("registry username is required")
 	ErrPasswordMissing    = errors.New("registry password is required")
 	ErrTimeoutNotPositive = errors.New("registry timeout must be positive")
+	ErrTagNotFound        = errors.New("tag not found")
 )
 
 type Config struct {
@@ -146,7 +146,7 @@ func (c *Client) Repositories(ctx context.Context, after string, limit int) ([]s
 	return repos, nil
 }
 
-func (c *Client) ManifestDigests(ctx context.Context, path string) ([]string, error) {
+func (c *Client) Tags(ctx context.Context, path string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	repo, err := c.repository(path)
@@ -161,20 +161,24 @@ func (c *Client) ManifestDigests(ctx context.Context, path string) ([]string, er
 	if err != nil {
 		return nil, fmt.Errorf("list tags of %s: %w", repo, err)
 	}
-	var digests []string
-	for _, tag := range tags {
-		ref := repo.Tag(tag)
-		desc, headErr := remote.Head(ref, opts...)
-		if isNotFound(headErr) {
-			continue
-		}
-		if headErr != nil {
-			return nil, fmt.Errorf("resolve %s: %w", ref, headErr)
-		}
-		digest := desc.Digest.String()
-		if !slices.Contains(digests, digest) {
-			digests = append(digests, digest)
-		}
+	return tags, nil
+}
+
+func (c *Client) TagDigest(ctx context.Context, path, tag string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	repo, err := c.repository(path)
+	if err != nil {
+		return "", err
 	}
-	return digests, nil
+	ref := repo.Tag(tag)
+	opts := c.options(ctx)
+	desc, err := remote.Head(ref, opts...)
+	if isNotFound(err) {
+		return "", ErrTagNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("resolve %s: %w", ref, err)
+	}
+	return desc.Digest.String(), nil
 }

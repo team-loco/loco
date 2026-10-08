@@ -12,12 +12,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/registryclient"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	imageSweepLockKey   int64 = 0x6c6f636f0002
-	workspacePathPrefix       = "ws-"
-	repositoryPathParts       = 2
+	imageSweepLockKey      int64 = 0x6c6f636f0002
+	workspacePathPrefix          = "ws-"
+	repositoryPathParts          = 2
+	uuidVersionTimeOrdered       = 7
 )
 
 var (
@@ -30,7 +33,8 @@ var (
 type ImageRegistry interface {
 	DeleteManifest(ctx context.Context, path, digest string) error
 	Repositories(ctx context.Context, after string, limit int) ([]string, error)
-	ManifestDigests(ctx context.Context, path string) ([]string, error)
+	Tags(ctx context.Context, path string) ([]string, error)
+	TagDigest(ctx context.Context, path, tag string) (string, error)
 }
 
 type ImageSweepConfig struct {
@@ -40,6 +44,8 @@ type ImageSweepConfig struct {
 	Interval        time.Duration
 	BuildBatch      int32
 	RepositoryBatch int
+	TagBatch        int
+	TagMinAge       time.Duration
 }
 
 type ImageSweepResult struct {
@@ -47,6 +53,7 @@ type ImageSweepResult struct {
 	ImagesDeleted      int
 	OrphanRepositories int
 	OrphanManifests    int
+	StaleTags          int
 }
 
 type ImageSweeper struct {
@@ -55,6 +62,7 @@ type ImageSweeper struct {
 	registry ImageRegistry
 	config   ImageSweepConfig
 	cursor   string
+	now      func() time.Time
 }
 
 func NewImageSweeper(
@@ -68,6 +76,7 @@ func NewImageSweeper(
 		queries:  queries,
 		registry: registry,
 		config:   config,
+		now:      time.Now,
 	}
 }
 
@@ -79,11 +88,12 @@ func (s *ImageSweeper) Run(ctx context.Context) {
 		if err != nil && ctx.Err() == nil {
 			slog.ErrorContext(ctx, "image sweep failed", "error", err)
 		}
-		if result.ImagesDeleted+result.OrphanManifests > 0 {
+		if result.ImagesDeleted+result.OrphanManifests+result.StaleTags > 0 {
 			slog.InfoContext(ctx, "image sweep finished",
 				"imagesDeleted", result.ImagesDeleted,
 				"orphanRepositories", result.OrphanRepositories,
 				"orphanManifests", result.OrphanManifests,
+				"staleTags", result.StaleTags,
 			)
 		}
 		select {
@@ -119,9 +129,7 @@ func (s *ImageSweeper) Sweep(ctx context.Context) (ImageSweepResult, error) {
 		return result, err
 	}
 
-	repositories, manifests, err := s.deleteOrphanRepositories(ctx)
-	result.OrphanRepositories = repositories
-	result.OrphanManifests = manifests
+	err = s.sweepRepositories(ctx, &result)
 	return result, err
 }
 
@@ -194,10 +202,10 @@ func (s *ImageSweeper) deleteBuildImage(ctx context.Context, buildID uuid.UUID) 
 	return removed, err
 }
 
-func (s *ImageSweeper) deleteOrphanRepositories(ctx context.Context) (int, int, error) {
+func (s *ImageSweeper) sweepRepositories(ctx context.Context, result *ImageSweepResult) error {
 	repos, err := s.registry.Repositories(ctx, s.cursor, s.config.RepositoryBatch)
 	if err != nil {
-		return 0, 0, fmt.Errorf("list repositories: %w", err)
+		return fmt.Errorf("list repositories: %w", err)
 	}
 	s.cursor = ""
 	if len(repos) == s.config.RepositoryBatch {
@@ -217,47 +225,225 @@ func (s *ImageSweeper) deleteOrphanRepositories(ctx context.Context) (int, int, 
 		byResource[resourceID] = append(byResource[resourceID], repo)
 	}
 	if len(ids) == 0 {
-		return 0, 0, nil
+		return nil
 	}
 	existing, err := s.queries.ListExistingResourceIDs(ctx, ids)
 	if err != nil {
-		return 0, 0, fmt.Errorf("list existing resources: %w", err)
+		return fmt.Errorf("list existing resources: %w", err)
 	}
+	live := map[uuid.UUID][]string{}
 	for _, id := range existing {
+		live[id] = byResource[id]
 		delete(byResource, id)
 	}
 
-	orphanRepos := 0
-	orphanManifests := 0
 	for _, paths := range byResource {
 		for _, path := range paths {
 			n, purgeErr := s.purgeRepository(ctx, path)
-			orphanManifests += n
+			result.OrphanManifests += n
 			if purgeErr != nil {
 				slog.WarnContext(ctx, "failed to purge orphaned repository", "repository", path, "error", purgeErr)
 				continue
 			}
 			if n > 0 {
-				orphanRepos++
+				result.OrphanRepositories++
 			}
 		}
 	}
-	return orphanRepos, orphanManifests, nil
+
+	stale, err := s.deleteStaleTags(ctx, live)
+	result.StaleTags = stale
+	return err
 }
 
 func (s *ImageSweeper) purgeRepository(ctx context.Context, path string) (int, error) {
-	digests, err := s.registry.ManifestDigests(ctx, path)
+	tags, err := s.registry.Tags(ctx, path)
 	if err != nil {
 		return 0, err
 	}
-	deleted := 0
-	for _, digest := range digests {
-		if deleteErr := s.registry.DeleteManifest(ctx, path, digest); deleteErr != nil {
-			return deleted, deleteErr
+	deleted := map[string]struct{}{}
+	for _, tag := range tags {
+		digest, digestErr := s.registry.TagDigest(ctx, path, tag)
+		if errors.Is(digestErr, registryclient.ErrTagNotFound) {
+			continue
 		}
-		deleted++
+		if digestErr != nil {
+			return len(deleted), digestErr
+		}
+		if _, done := deleted[digest]; done {
+			continue
+		}
+		if deleteErr := s.registry.DeleteManifest(ctx, path, digest); deleteErr != nil {
+			return len(deleted), deleteErr
+		}
+		deleted[digest] = struct{}{}
+	}
+	return len(deleted), nil
+}
+
+type buildTag struct {
+	path       string
+	tag        string
+	buildID    uuid.UUID
+	resourceID uuid.UUID
+}
+
+func parseBuildTag(tag string) (uuid.UUID, bool) {
+	rawID, ok := strings.CutPrefix(tag, locoControllerV1.BuildCacheTagPrefix)
+	if !ok {
+		rawID, ok = strings.CutPrefix(tag, locoControllerV1.BuildImageTagPrefix)
+	}
+	if !ok {
+		return uuid.UUID{}, false
+	}
+	id, err := uuid.Parse(rawID)
+	if err != nil {
+		return uuid.UUID{}, false
+	}
+	return id, true
+}
+
+func (s *ImageSweeper) listBuildTags(ctx context.Context, live map[uuid.UUID][]string) ([]buildTag, error) {
+	var tags []buildTag
+	for resourceID, paths := range live {
+		for _, path := range paths {
+			names, err := s.registry.Tags(ctx, path)
+			if err != nil {
+				return nil, fmt.Errorf("list tags of %s: %w", path, err)
+			}
+			for _, name := range names {
+				buildID, ok := parseBuildTag(name)
+				if !ok {
+					continue
+				}
+				tags = append(tags, buildTag{path: path, tag: name, buildID: buildID, resourceID: resourceID})
+			}
+		}
+	}
+	return tags, nil
+}
+
+func (s *ImageSweeper) deleteStaleTags(ctx context.Context, live map[uuid.UUID][]string) (int, error) {
+	if len(live) == 0 {
+		return 0, nil
+	}
+	tags, err := s.listBuildTags(ctx, live)
+	if err != nil {
+		return 0, err
+	}
+	if len(tags) == 0 {
+		return 0, nil
+	}
+	buildIDs := make([]uuid.UUID, 0, len(tags))
+	for _, tag := range tags {
+		buildIDs = append(buildIDs, tag.buildID)
+	}
+	states, err := s.queries.ListBuildTagStates(ctx, buildIDs)
+	if err != nil {
+		return 0, fmt.Errorf("list build states: %w", err)
+	}
+	byID := make(map[uuid.UUID]genDb.ListBuildTagStatesRow, len(states))
+	for _, state := range states {
+		byID[state.ID] = state
+	}
+	resourceIDs := make([]uuid.UUID, 0, len(live))
+	for id := range live {
+		resourceIDs = append(resourceIDs, id)
+	}
+	protected, err := s.protectedDigests(ctx, resourceIDs)
+	if err != nil {
+		return 0, err
+	}
+
+	now := s.now()
+	cutoff := now.Add(-s.config.TagMinAge)
+	budget := s.config.TagBatch
+	deleted := 0
+	for _, tag := range tags {
+		if budget == 0 {
+			break
+		}
+		state, found := byID[tag.buildID]
+		if !tagExpired(tag, state, found, cutoff) {
+			continue
+		}
+		budget--
+		removed, deleteErr := s.deleteTag(ctx, tag, protected[tag.resourceID])
+		if deleteErr != nil {
+			slog.WarnContext(ctx, "failed to delete stale build tag",
+				"repository", tag.path,
+				"tag", tag.tag,
+				"error", deleteErr,
+			)
+			continue
+		}
+		if removed {
+			deleted++
+		}
 	}
 	return deleted, nil
+}
+
+func (s *ImageSweeper) protectedDigests(
+	ctx context.Context,
+	resourceIDs []uuid.UUID,
+) (map[uuid.UUID]map[string]struct{}, error) {
+	rows, err := s.queries.ListLiveBuildDigests(ctx, resourceIDs)
+	if err != nil {
+		return nil, fmt.Errorf("list live build digests: %w", err)
+	}
+	protected := map[uuid.UUID]map[string]struct{}{}
+	for _, row := range rows {
+		digests, ok := protected[row.ResourceID]
+		if !ok {
+			digests = map[string]struct{}{}
+			protected[row.ResourceID] = digests
+		}
+		digests[row.ImageDigest] = struct{}{}
+		if row.CacheDigest != nil {
+			digests[*row.CacheDigest] = struct{}{}
+		}
+	}
+	return protected, nil
+}
+
+func tagExpired(tag buildTag, state genDb.ListBuildTagStatesRow, found bool, cutoff time.Time) bool {
+	if !found {
+		if tag.buildID.Version() != uuidVersionTimeOrdered {
+			return false
+		}
+		sec, nsec := tag.buildID.Time().UnixTime()
+		created := time.Unix(sec, nsec)
+		return created.Before(cutoff)
+	}
+	if state.ResourceID != tag.resourceID || state.FinishedAt == nil {
+		return false
+	}
+	switch state.Status {
+	case genDb.BuildStatusFailed:
+		return state.FinishedAt.Before(cutoff)
+	case genDb.BuildStatusCanceled:
+		return state.FinishedAt.Before(cutoff)
+	default:
+		return false
+	}
+}
+
+func (s *ImageSweeper) deleteTag(ctx context.Context, tag buildTag, protected map[string]struct{}) (bool, error) {
+	digest, err := s.registry.TagDigest(ctx, tag.path, tag.tag)
+	if errors.Is(err, registryclient.ErrTagNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if _, ok := protected[digest]; ok {
+		return false, nil
+	}
+	if deleteErr := s.registry.DeleteManifest(ctx, tag.path, digest); deleteErr != nil {
+		return false, deleteErr
+	}
+	return true, nil
 }
 
 func registryPath(registryHost, imageRepository string) (string, error) {

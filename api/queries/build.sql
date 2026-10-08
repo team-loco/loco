@@ -227,3 +227,13 @@ WHERE id = $1
 
 -- name: ListExistingResourceIDs :many
 SELECT id FROM resources WHERE id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: ListBuildTagStates :many
+SELECT id, resource_id, status, finished_at FROM builds
+WHERE id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: ListLiveBuildDigests :many
+SELECT resource_id, image_digest::text AS image_digest, cache_digest FROM builds
+WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+  AND status = 'succeeded'
+  AND image_deleted_at IS NULL;
