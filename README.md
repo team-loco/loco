@@ -106,6 +106,8 @@ mise run build
 cd examples/test-api/backend && ../../../bin/loco deploy backend --image <public image reference>
 ```
 
+Builds push to a local [zot](https://zotregistry.dev) registry on `localhost:5001` and upload sources to a local S3 bucket on `localhost:9000`, both from `compose.yaml`; the `LOCO_REGISTRY_*` and `LOCO_SOURCE_BUCKET_*` values in `.env.example` point the API at them. The registry uses the dev-only accounts in `registry/local/htpasswd`: `builder` (push), `nodes` (pull) and `api` (pull, delete), each with the password `loco-dev-<name>`. `mise run cluster:registry` lets the kind nodes pull from it and stores the `nodes` credential as the `loco-registry` pull secret in `loco-system`. A cluster created before the registry existed has to be recreated once, with `mise run cluster:down && mise run cluster:up`.
+
 ---
 
 **Note:** This project is primarily educational, created so I can learn more about Kubernetes, networking, and security.

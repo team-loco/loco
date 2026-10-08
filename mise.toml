@@ -140,11 +140,11 @@ env = { _.file = ".env" }
 run = "tilt up"
 
 [tasks."infra:up"]
-description = "Start Postgres and Valkey from compose.yaml and wait until both are healthy"
-run = "docker compose up -d --wait postgres valkey"
+description = "Start Postgres, Valkey, the image registry and the source bucket from compose.yaml and wait until they are up"
+run = "docker compose up -d --wait postgres valkey registry s3"
 
 [tasks."infra:down"]
-description = "Stop Postgres and Valkey; the database is kept in the postgres-data volume"
+description = "Stop the compose services; the database, images and sources are kept in their volumes"
 run = "docker compose down"
 
 [tasks."db:migrate"]

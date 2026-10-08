@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#MISE description="Let the kind nodes pull from the compose registry at localhost:$REGISTRY_PORT, and store the nodes pull secret in loco-system"
+set -euo pipefail
+
+cluster=${KIND_CLUSTER:-loco-cluster-local}
+project=${COMPOSE_PROJECT:-loco-dev}
+port=${REGISTRY_PORT:-5001}
+alias=loco-registry
+secret=loco-registry
+namespace=loco-system
+username=nodes
+password=loco-dev-nodes
+
+container=$(docker ps -q \
+	--filter "label=com.docker.compose.project=$project" \
+	--filter "label=com.docker.compose.service=registry")
+if [ -z "$container" ]; then
+	echo "the $project registry container is not running" >&2
+	exit 1
+fi
+if ! docker inspect -f '{{json .NetworkSettings.Networks}}' "$container" | jq -e '.kind' >/dev/null; then
+	docker network connect --alias "$alias" kind "$container"
+fi
+
+hosts_dir="/etc/containerd/certs.d/localhost:$port"
+for node in $(kind get nodes --name "$cluster"); do
+	if ! docker exec "$node" containerd config dump 2>/dev/null | grep -q "config_path = '/etc/containerd/certs.d'"; then
+		echo "$node predates the registry config in env/local/kind-cluster.yml; recreate it with: mise run cluster:down && mise run cluster:up" >&2
+		exit 1
+	fi
+	docker exec "$node" mkdir -p "$hosts_dir"
+	printf '[host."http://%s:5000"]\n  capabilities = ["pull", "resolve"]\n' "$alias" |
+		docker exec -i "$node" tee "$hosts_dir/hosts.toml" >/dev/null
+done
+
+kubectl --context "kind-$cluster" -n "$namespace" create secret docker-registry "$secret" \
+	--docker-server="localhost:$port" \
+	--docker-username="$username" \
+	--docker-password="$password" \
+	--dry-run=client -o yaml |
+	kubectl --context "kind-$cluster" apply -f -

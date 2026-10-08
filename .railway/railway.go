@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	registry = "ghcr.io/team-loco"
-	region   = "us-east4-eqdc4a"
-	uiPort   = 8080
+	registry     = "ghcr.io/team-loco"
+	region       = "us-east4-eqdc4a"
+	uiPort       = 8080
+	bucketRegion = "iad"
 )
 
 var commitPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -60,6 +61,10 @@ func volume(name string) railway.Resource {
 	})
 }
 
+func bucket(name string) railway.Resource {
+	return railway.Bucket(name, map[string]any{"region": bucketRegion})
+}
+
 func limits(cpu float64, memoryBytes int) map[string]any {
 	return map[string]any{
 		"limitOverride": map[string]any{
@@ -99,7 +104,7 @@ func ui(env environment) railway.Service {
 	})
 }
 
-func api(env environment) railway.Service {
+func api(env environment, sources railway.Resource) railway.Service {
 	apiEnv := preserved(
 		"APP_ENV",
 		"APP_PORT",
@@ -114,6 +119,12 @@ func api(env environment) railway.Service {
 	apiEnv["MIN_CLI_VERSION"] = "v0.0.61"
 	apiEnv["PORT"] = "8000"
 	apiEnv["RAILWAY_DEPLOYMENT_DRAINING_SECONDS"] = "40"
+	apiEnv["LOCO_REGISTRY_HOST"] = registryDomain(env)
+	apiEnv["LOCO_SOURCE_BUCKET"] = sources.Env("BUCKET")
+	apiEnv["LOCO_SOURCE_BUCKET_ENDPOINT"] = sources.Env("ENDPOINT")
+	apiEnv["LOCO_SOURCE_BUCKET_REGION"] = sources.Env("REGION")
+	apiEnv["LOCO_SOURCE_BUCKET_ACCESS_KEY_ID"] = sources.Env("ACCESS_KEY_ID")
+	apiEnv["LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY"] = sources.Env("SECRET_ACCESS_KEY")
 	deploy := limits(1, 2000000000)
 	deploy["healthcheckPath"] = "/health"
 	deploy["healthcheckTimeout"] = 300
@@ -129,6 +140,29 @@ func api(env environment) railway.Service {
 			},
 		},
 		"env": apiEnv,
+	})
+}
+
+func registryDomain(env environment) string {
+	return "registry." + env.domainPrefix + "loco.build"
+}
+
+func imageRegistry(env environment, storage railway.Resource) railway.Service {
+	registryEnv := preserved("ZOT_HTPASSWD")
+	registryEnv["S3_BUCKET"] = storage.Env("BUCKET")
+	registryEnv["S3_ENDPOINT"] = storage.Env("ENDPOINT")
+	registryEnv["S3_REGION"] = storage.Env("REGION")
+	registryEnv["AWS_ACCESS_KEY_ID"] = storage.Env("ACCESS_KEY_ID")
+	registryEnv["AWS_SECRET_ACCESS_KEY"] = storage.Env("SECRET_ACCESS_KEY")
+	deploy := limits(1, 1000000000)
+	deploy["healthcheckPath"] = "/readyz"
+	deploy["healthcheckTimeout"] = 120
+	return railway.ServiceNamed("loco::registry", railway.ServiceConfig{
+		"source":   image("loco-registry", "sha-"+env.commit),
+		"build":    dockerBuild("/registry/Dockerfile"),
+		"replicas": map[string]any{region: 1},
+		"deploy":   deploy,
+		"env":      registryEnv,
 	})
 }
 
@@ -190,7 +224,18 @@ func Railway(ctx railway.Context) railway.Project {
 	env := environmentFor(ctx)
 	cacheData := volume("valkey-volume")
 	dbData := volume("postgres-18-ssl-volume")
-	resources := []any{ui(env), api(env), cache(cacheData), cacheData, dbData}
+	registryStorage := bucket("registry-storage")
+	buildSources := bucket("build-sources")
+	resources := []any{
+		ui(env),
+		api(env, buildSources),
+		imageRegistry(env, registryStorage),
+		cache(cacheData),
+		cacheData,
+		dbData,
+		registryStorage,
+		buildSources,
+	}
 	if ctx.IsEnvironment("staging") {
 		resources = append(resources, railway.Postgres("loco::cp-db-staging", map[string]any{"region": region}))
 	} else {

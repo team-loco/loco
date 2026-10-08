@@ -112,13 +112,24 @@ def helm_release(name, namespace, images, values, deps, resource_deps):
 
 
 # ---------------------------------------------------------------------------
-# Infrastructure: Postgres and Valkey from compose.yaml
+# Infrastructure: Postgres, Valkey, the image registry and the source bucket from compose.yaml
 # ---------------------------------------------------------------------------
 
 docker_compose('compose.yaml', project_name='loco-dev')
 
 dc_resource('postgres', resource_deps=['doctor'], labels=['infrastructure'])
 dc_resource('valkey', resource_deps=['doctor'], labels=['infrastructure'])
+dc_resource('registry', resource_deps=['doctor'], labels=['infrastructure'])
+dc_resource('s3', resource_deps=['doctor'], labels=['infrastructure'])
+
+local_resource(
+    'cluster-registry',
+    cmd='mise run cluster:registry',
+    resource_deps=['kind-cluster', 'registry', 'helm-namespaces'],
+    deps=['mise-tasks/cluster/registry'],
+    allow_parallel=True,
+    labels=['infrastructure'],
+)
 
 # ---------------------------------------------------------------------------
 # Infrastructure: DB migrations + seed data, applied from a container
@@ -198,7 +209,7 @@ helm_release(
     }],
     values=[],
     deps=['charts/loco-controller/', 'env/local/controller-chart.yaml.gotmpl'],
-    resource_deps=['loco-core'],
+    resource_deps=['loco-core', 'cluster-registry'],
 )
 
 # ---------------------------------------------------------------------------
@@ -228,7 +239,7 @@ local_resource(
     cmd='mise run build:api',
     serve_cmd='api/bin/loco-api',
     deps=['api/', 'gen/go/', 'k8sapi/', 'go.mod', 'go.sum'],
-    resource_deps=['db-migrate', 'valkey'],
+    resource_deps=['db-migrate', 'valkey', 's3'],
     allow_parallel=True,
     labels=['services'],
 )
