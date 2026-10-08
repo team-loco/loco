@@ -6,12 +6,15 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
+	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"golang.org/x/mod/semver"
 )
 
 var (
@@ -25,6 +28,11 @@ var (
 	errRegistryAuthNoHost     = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
 	errInvalidRegistry        = errors.New("invalid registry configuration")
 	errInvalidWebhooksPrivate = errors.New("WEBHOOK_ALLOW_PRIVATE_NETWORKS is not a boolean")
+	errInvalidInstallWebhooks = errors.New("INSTALL_WEBHOOKS is invalid")
+	errInvalidAuthIssuers     = errors.New("AUTH_ISSUERS is invalid")
+	errAdminTokenMissing      = errors.New("AUTH_ISSUERS admin tokenEnv names an unset variable")
+	errInvalidSignupPolicy    = errors.New("AUTH_SIGNUP_MODE is invalid")
+	errInvalidMinCLIVersion   = errors.New("MIN_CLI_VERSION is not a semantic version like v0.0.61")
 )
 
 const (
@@ -55,6 +63,9 @@ const (
 	defaultSourceSweepBuildBatch = 100
 	defaultSourceOrphanPageSize  = 1000
 	defaultSourceOrphanMaxPages  = 5
+
+	day                        = 24 * time.Hour
+	defaultEventsRetentionDays = 90
 )
 
 type APIConfig struct {
@@ -77,16 +88,24 @@ type APIConfig struct {
 	ImageSweep            service.ImageSweepConfig
 	SourceSweep           service.SourceSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
-	AuthIssuers           string
-	AuthSignupMode        string
-	AuthSignupDomains     string
+	AuthIssuers           []auth.IssuerConfig
+	SignupPolicy          auth.SignupPolicy
 	WebURL                string
-	EventsRetentionDays   string
+	EventsRetention       time.Duration
 	WebhooksAllowPrivate  bool
-	InstallWebhooks       string
+	InstallWebhooks       []webhooks.InstallWebhook
+}
+
+type MigrateConfig struct {
+	DatabaseURL string
+}
+
+func newMigrateConfig() MigrateConfig {
+	return MigrateConfig{DatabaseURL: stringEnv("DATABASE_URL", "")}
 }
 
 func newAPIConfig() *APIConfig {
+	migrateConfig := newMigrateConfig()
 	cacheType, cacheAddr := newCacheConfig()
 	registryHost := stringEnv("LOCO_REGISTRY_HOST", "")
 	registryPrefix := stringEnv("LOCO_REGISTRY_PREFIX", "")
@@ -102,18 +121,24 @@ func newAPIConfig() *APIConfig {
 	}
 	corsOrigins := listEnv("CORS_ALLOWED_ORIGINS")
 	webhooksAllowPrivate := boolEnv("WEBHOOK_ALLOW_PRIVATE_NETWORKS", false, errInvalidWebhooksPrivate)
+	installWebhooks := newInstallWebhooks()
+	authIssuers := newAuthIssuers()
+	signupPolicy := newSignupPolicy()
+	minCLIVersion := newMinCLIVersion()
+	eventsRetentionDays := positiveInt32Env("EVENTS_RETENTION_DAYS", defaultEventsRetentionDays)
+	eventsRetention := time.Duration(eventsRetentionDays) * day
 
 	return &APIConfig{
 		Version:               buildinfo.Version(version),
 		Env:                   stringEnv("APP_ENV", ""),
-		DatabaseURL:           stringEnv("DATABASE_URL", ""),
+		DatabaseURL:           migrateConfig.DatabaseURL,
 		Port:                  stringEnv("APP_PORT", ""),
 		LogLevel:              logLevel,
 		CacheType:             cacheType,
 		CacheAddr:             cacheAddr,
 		CORSAllowedOrigins:    corsOrigins,
 		DefaultPlatformDomain: stringEnv("DEFAULT_PLATFORM_DOMAIN", ""),
-		MinCLIVersion:         stringEnv("MIN_CLI_VERSION", ""),
+		MinCLIVersion:         minCLIVersion,
 		PprofAddr:             stringEnv("PPROF_ADDR", ""),
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,
@@ -123,14 +148,58 @@ func newAPIConfig() *APIConfig {
 		ImageSweep:            imageSweep,
 		SourceSweep:           sourceSweep,
 		ServiceDefaults:       serviceDefaults,
-		AuthIssuers:           stringEnv("AUTH_ISSUERS", ""),
-		AuthSignupMode:        stringEnv("AUTH_SIGNUP_MODE", ""),
-		AuthSignupDomains:     stringEnv("AUTH_SIGNUP_DOMAINS", ""),
+		AuthIssuers:           authIssuers,
+		SignupPolicy:          signupPolicy,
 		WebURL:                stringEnv("WEB_URL", ""),
-		EventsRetentionDays:   stringEnv("EVENTS_RETENTION_DAYS", ""),
+		EventsRetention:       eventsRetention,
 		WebhooksAllowPrivate:  webhooksAllowPrivate,
-		InstallWebhooks:       stringEnv("INSTALL_WEBHOOKS", ""),
+		InstallWebhooks:       installWebhooks,
 	}
+}
+
+func newMinCLIVersion() string {
+	minCLIVersion := stringEnv("MIN_CLI_VERSION", "")
+	if minCLIVersion != "" && !semver.IsValid(minCLIVersion) {
+		panic(fmt.Errorf("%w: %q", errInvalidMinCLIVersion, minCLIVersion))
+	}
+	return minCLIVersion
+}
+
+func newInstallWebhooks() []webhooks.InstallWebhook {
+	raw := stringEnv("INSTALL_WEBHOOKS", "")
+	hooks, err := webhooks.ParseInstallWebhooks(raw)
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidInstallWebhooks, err))
+	}
+	return hooks
+}
+
+func newAuthIssuers() []auth.IssuerConfig {
+	raw := stringEnv("AUTH_ISSUERS", "")
+	issuers, err := auth.ParseIssuers(raw)
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidAuthIssuers, err))
+	}
+	for _, ic := range issuers {
+		if ic.Admin == nil {
+			continue
+		}
+		ic.Admin.Token = stringEnv(ic.Admin.TokenEnv, "")
+		if ic.Admin.Token == "" {
+			panic(fmt.Errorf("%w: issuer %s: %q", errAdminTokenMissing, ic.Issuer, ic.Admin.TokenEnv))
+		}
+	}
+	return issuers
+}
+
+func newSignupPolicy() auth.SignupPolicy {
+	mode := stringEnv("AUTH_SIGNUP_MODE", "")
+	domains := stringEnv("AUTH_SIGNUP_DOMAINS", "")
+	policy, err := auth.ParseSignupPolicy(mode, domains)
+	if err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidSignupPolicy, err))
+	}
+	return policy
 }
 
 func newCacheConfig() (string, string) {

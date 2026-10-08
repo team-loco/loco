@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/signal"
 	"slices"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -50,12 +49,13 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	"github.com/team-loco/loco/gen/go/loco/webhook/v1/webhookv1connect"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
-	"golang.org/x/mod/semver"
 )
 
 const (
-	envProduction       = "PRODUCTION"
-	imageResolveTimeout = 15 * time.Second
+	envProduction           = "PRODUCTION"
+	imageResolveTimeout     = 15 * time.Second
+	eventsRetentionInterval = time.Hour
+	migrateCommand          = "migrate"
 )
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
@@ -93,14 +93,6 @@ func withCORS(allowedOrigins []string, allowLoopback bool) func(http.Handler) ht
 	}
 }
 
-func eventsRetention(days string) time.Duration {
-	n, err := strconv.Atoi(days)
-	if err != nil || n <= 0 {
-		return 90 * 24 * time.Hour
-	}
-	return time.Duration(n) * 24 * time.Hour
-}
-
 func newPprofServer(addr string) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
@@ -128,34 +120,22 @@ func newOutboundHTTPClient() *http.Client {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == migrateCommand {
+		migrateConfig := newMigrateConfig()
+		if err := migrations.Up(context.Background(), migrateConfig.DatabaseURL); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	ac := newAPIConfig()
 
 	logger := slog.New(CustomHandler{Handler: getLoggerHandler(ac)})
 	slog.SetDefault(logger)
 	slog.Info("starting loco api", "version", ac.Version)
 
-	if ac.MinCLIVersion != "" && !semver.IsValid(ac.MinCLIVersion) {
-		log.Fatalf("MIN_CLI_VERSION %q is not a semantic version like v0.0.61", ac.MinCLIVersion)
-	}
-
-	issuers, issuersErr := auth.ParseIssuers(ac.AuthIssuers)
-	if issuersErr != nil {
-		log.Fatalf("AUTH_ISSUERS: %v", issuersErr)
-	}
-	signupPolicy, policyErr := auth.ParseSignupPolicy(ac.AuthSignupMode, ac.AuthSignupDomains)
-	if policyErr != nil {
-		log.Fatalf("AUTH_SIGNUP_MODE: %v", policyErr)
-	}
-	installWebhooks, installWebhooksErr := webhooks.ParseInstallWebhooks(ac.InstallWebhooks)
-	if installWebhooksErr != nil {
-		log.Fatalf("INSTALL_WEBHOOKS: %v", installWebhooksErr)
-	}
-
 	if err := migrations.Up(context.Background(), ac.DatabaseURL); err != nil {
 		log.Fatal(err)
-	}
-	if len(os.Args) > 1 && os.Args[1] == "migrate" {
-		return
 	}
 
 	dbConn, err := db.NewDB(context.Background(), ac.DatabaseURL)
@@ -166,7 +146,7 @@ func main() {
 
 	pool := dbConn.Pool()
 	queries := genDb.New(pool)
-	if syncErr := webhooks.SyncInstallWebhooks(context.Background(), pool, installWebhooks); syncErr != nil {
+	if syncErr := webhooks.SyncInstallWebhooks(context.Background(), pool, ac.InstallWebhooks); syncErr != nil {
 		log.Fatalf("INSTALL_WEBHOOKS: %v", syncErr)
 	}
 
@@ -186,17 +166,17 @@ func main() {
 	mux := http.NewServeMux()
 	authClient := newOutboundHTTPClient()
 	adminFactories := auth.AdminFactories{supabase.AdminType: supabase.NewAdmin}
-	admins, adminsErr := auth.NewAdmins(authClient, issuers, os.Getenv, adminFactories)
+	admins, adminsErr := auth.NewAdmins(authClient, ac.AuthIssuers, adminFactories)
 	if adminsErr != nil {
 		log.Fatalf("AUTH_ISSUERS admin: %v", adminsErr)
 	}
-	emailVerifiers, emailVerifiersErr := auth.NewEmailVerifiers(issuers, admins)
+	emailVerifiers, emailVerifiersErr := auth.NewEmailVerifiers(ac.AuthIssuers, admins)
 	if emailVerifiersErr != nil {
 		log.Fatalf("AUTH_ISSUERS email verification: %v", emailVerifiersErr)
 	}
-	verifier := auth.NewVerifier(authClient, issuers)
+	verifier := auth.NewVerifier(authClient, ac.AuthIssuers)
 	emailVerifierOption := auth.WithEmailVerifiers(emailVerifiers)
-	resolver := auth.NewResolver(pool, signupPolicy, emailVerifierOption)
+	resolver := auth.NewResolver(pool, ac.SignupPolicy, emailVerifierOption)
 
 	httpInterceptors := connect.WithInterceptors(
 		deadlineInterceptor,
@@ -227,7 +207,7 @@ func main() {
 	}
 
 	eventServiceHandler := service.NewEventServer(queries, machine)
-	go events.RunRetention(shutdownCtx, queries, eventsRetention(ac.EventsRetentionDays), time.Hour)
+	go events.RunRetention(shutdownCtx, queries, ac.EventsRetention, eventsRetentionInterval)
 	webhookServiceHandler := service.NewWebhookServer(pool, queries, ac.WebhooksAllowPrivate)
 	workspaceWebhookClient := webhooks.NewClient(ac.WebhooksAllowPrivate)
 	installWebhookClient := webhooks.NewClient(true)
@@ -280,7 +260,7 @@ func main() {
 		ac.DefaultPlatformDomain,
 		ac.MinCLIVersion,
 		ac.ServiceDefaults,
-		issuers,
+		ac.AuthIssuers,
 	)
 
 	configPath, configHandler := configv1connect.NewConfigServiceHandler(configServiceHandler, baseInterceptors)
