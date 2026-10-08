@@ -14,7 +14,7 @@ import { AttentionSection, buildAttention } from "@/pages/dashboard/AttentionSec
 import { CreateResourceMenu } from "@/pages/dashboard/CreateResourceMenu";
 import { DraftDrawer } from "@/pages/dashboard/DraftDrawer";
 import { FirstServiceEmpty } from "@/pages/dashboard/FirstServiceEmpty";
-import { DRAFT_DEFAULTS, nameFromImage, uniqueName, useDrafts } from "@/pages/dashboard/drafts";
+import { DRAFT_DEFAULTS, isPrivate, nameFromImage, uniqueName, useDrafts } from "@/pages/dashboard/drafts";
 import { EnvironmentMenu } from "@/pages/dashboard/EnvironmentMenu";
 import { NewServiceDialog } from "@/pages/dashboard/NewServiceDialog";
 import { RecentDeployments } from "@/pages/dashboard/RecentDeployments";
@@ -117,7 +117,7 @@ export function Dashboard() {
 			key: d.id,
 			name: d.name,
 			status: "draft" as const,
-			domain: d.sub !== "" ? d.sub : null,
+			domain: !isPrivate(d) && d.sub !== "" ? d.sub : null,
 			regions: [{ region: d.region, replicas: 0 }],
 			onOpen: () => {
 				openDraft(d.id);
@@ -125,7 +125,9 @@ export function Dashboard() {
 		})),
 	];
 
-	const otherSubs = new Set(drafts.drafts.filter((d) => d.id !== openDraftId).map((d) => d.sub.trim()));
+	const otherSubs = new Set(
+		drafts.drafts.filter((d) => d.id !== openDraftId && !isPrivate(d)).map((d) => d.sub.trim()),
+	);
 	const openDraftValue = drafts.drafts.find((d) => d.id === openDraftId);
 	const attention = buildAttention(data.envResources, hrefFor, nowMs);
 	const loading = envsLoading || data.isLoading;
