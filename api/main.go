@@ -30,6 +30,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
 	"github.com/team-loco/loco/api/service"
@@ -58,6 +59,11 @@ var (
 	errInvalidForcePathStyle = errors.New("LOCO_SOURCE_BUCKET_FORCE_PATH_STYLE is not a boolean")
 	errInvalidInt32          = errors.New("is not a 32-bit integer")
 	errInvalidServiceDefault = errors.New("invalid service default")
+	errInvalidDuration       = errors.New("is not a duration")
+	errNotPositive           = errors.New("must be positive")
+	errRegistryAuthPartial   = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
+	errRegistryAuthNoHost    = errors.New("LOCO_REGISTRY_USERNAME is set without LOCO_REGISTRY_HOST")
+	errInvalidRegistry       = errors.New("invalid registry configuration")
 )
 
 const (
@@ -73,6 +79,13 @@ const (
 	defaultServiceMaxReplicas = 1
 	defaultServicePathPrefix  = "/"
 	defaultServiceIdleTimeout = 60
+
+	defaultRegistryScheme            = "https://"
+	defaultRegistryTimeout           = 30 * time.Second
+	defaultImageRetention            = 5
+	defaultImageSweepInterval        = 10 * time.Minute
+	defaultImageSweepBuildBatch      = 100
+	defaultImageSweepRepositoryBatch = 100
 )
 
 var loopbackHosts = []string{"localhost", "127.0.0.1", "::1"}
@@ -92,6 +105,8 @@ type APIConfig struct {
 	SourceMaxBytes        int64
 	RegistryHost          string
 	RegistryPrefix        string
+	Registry              registryclient.Config
+	ImageSweep            service.ImageSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
 }
 
@@ -169,6 +184,18 @@ func newAPIConfig() *APIConfig {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))
 	}
 
+	registryHost := os.Getenv("LOCO_REGISTRY_HOST")
+	registryPrefix := os.Getenv("LOCO_REGISTRY_PREFIX")
+	registry := newRegistryConfig(registryHost)
+	imageSweep := service.ImageSweepConfig{
+		RegistryHost:    registryHost,
+		RegistryPrefix:  registryPrefix,
+		Retention:       positiveInt32Env("LOCO_IMAGE_RETENTION", defaultImageRetention),
+		Interval:        positiveDurationEnv("LOCO_IMAGE_SWEEP_INTERVAL", defaultImageSweepInterval),
+		BuildBatch:      positiveInt32Env("LOCO_IMAGE_SWEEP_BUILD_BATCH", defaultImageSweepBuildBatch),
+		RepositoryBatch: int(positiveInt32Env("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", defaultImageSweepRepositoryBatch)),
+	}
+
 	return &APIConfig{
 		Env:                   os.Getenv("APP_ENV"),
 		DatabaseURL:           os.Getenv("DATABASE_URL"),
@@ -182,10 +209,57 @@ func newAPIConfig() *APIConfig {
 		PprofAddr:             os.Getenv("PPROF_ADDR"),
 		SourceBucket:          sourceBucket,
 		SourceMaxBytes:        sourceMaxBytes,
-		RegistryHost:          os.Getenv("LOCO_REGISTRY_HOST"),
-		RegistryPrefix:        os.Getenv("LOCO_REGISTRY_PREFIX"),
+		RegistryHost:          registryHost,
+		RegistryPrefix:        registryPrefix,
+		Registry:              registry,
+		ImageSweep:            imageSweep,
 		ServiceDefaults:       serviceDefaults,
 	}
+}
+
+func newRegistryConfig(registryHost string) registryclient.Config {
+	cfg := registryclient.Config{
+		URL:      stringEnv("LOCO_REGISTRY_URL", defaultRegistryScheme+registryHost),
+		Username: os.Getenv("LOCO_REGISTRY_USERNAME"),
+		Password: os.Getenv("LOCO_REGISTRY_PASSWORD"),
+		Timeout:  positiveDurationEnv("LOCO_REGISTRY_TIMEOUT", defaultRegistryTimeout),
+	}
+	if (cfg.Username == "") != (cfg.Password == "") {
+		panic(errRegistryAuthPartial)
+	}
+	if cfg.Username == "" {
+		return cfg
+	}
+	if registryHost == "" {
+		panic(errRegistryAuthNoHost)
+	}
+	if err := cfg.Validate(); err != nil {
+		panic(fmt.Errorf("%w: %w", errInvalidRegistry, err))
+	}
+	return cfg
+}
+
+func positiveDurationEnv(name string, fallback time.Duration) time.Duration {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil {
+		panic(fmt.Errorf("%s %q %w", name, raw, errInvalidDuration))
+	}
+	if parsed <= 0 {
+		panic(fmt.Errorf("%s %q %w", name, raw, errNotPositive))
+	}
+	return parsed
+}
+
+func positiveInt32Env(name string, fallback int32) int32 {
+	value := int32Env(name, fallback)
+	if value <= 0 {
+		panic(fmt.Errorf("%s %d %w", name, value, errNotPositive))
+	}
+	return value
 }
 
 func stringEnv(name, fallback string) string {
@@ -217,6 +291,18 @@ func newSourceBucket(cfg sourcebucket.Config) (service.SourceBucket, error) {
 		return nil, fmt.Errorf("source bucket: %w", err)
 	}
 	return bucket, nil
+}
+
+func newImageRegistry(cfg registryclient.Config) (service.ImageRegistry, error) {
+	if cfg.Username == "" {
+		slog.Warn("LOCO_REGISTRY_USERNAME is not set; build images are never deleted from the registry")
+		return nil, nil
+	}
+	client, err := registryclient.New(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("registry client: %w", err)
+	}
+	return client, nil
 }
 
 func newCache(cacheType, cacheAddr string, defaultTTL time.Duration) (cache.Cache, error) {
@@ -374,6 +460,14 @@ func main() {
 	if sourceBucket != nil {
 		sourceSweeper := service.NewSourceSweeper(pool, queries, sourceBucket)
 		go sourceSweeper.Run(shutdownCtx)
+	}
+	imageRegistry, registryErr := newImageRegistry(ac.Registry)
+	if registryErr != nil {
+		log.Fatal(registryErr)
+	}
+	if imageRegistry != nil {
+		imageSweeper := service.NewImageSweeper(pool, queries, imageRegistry, ac.ImageSweep)
+		go imageSweeper.Run(shutdownCtx)
 	}
 	imageResolver := imageresolver.New(imageResolveTimeout)
 

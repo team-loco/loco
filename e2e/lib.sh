@@ -105,6 +105,19 @@ e2e_psql() {
     e2e_compose exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A -c "$1"
 }
 
+registry_manifest_status() {
+    local user=$1 repository=$2 digest=$3
+    local auth=()
+    if [ -n "$user" ]; then
+        auth=(-u "$user")
+    fi
+    curl -s -o /dev/null -w '%{http_code}' ${auth[@]+"${auth[@]}"} \
+        -H 'Accept: application/vnd.oci.image.manifest.v1+json' \
+        -H 'Accept: application/vnd.oci.image.index.v1+json' \
+        -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+        "http://localhost:${E2E_REGISTRY_PORT}/v2/${repository}/manifests/${digest}"
+}
+
 # Print test summary.
 print_summary() {
     echo ""

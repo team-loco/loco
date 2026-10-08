@@ -4,7 +4,8 @@ fakeapi seed app
 exec loco builds list app
 stdout '^ID +STATUS +CREATED +DURATION +IMAGE DIGEST$'
 stdout '^0199b6c4-5d1e-7f00-8000-0000000000b2 +running '
-stdout '^0199b6c4-5d1e-7f00-8000-0000000000b1 +succeeded +2026-10-07T06:00:00Z +42s +sha256:1111'
+stdout '^0199b6c4-5d1e-7f00-8000-0000000000b1 +succeeded +2026-10-07T06:00:00Z +42s +sha256:1111[0-9]+$'
+stdout '^0199b6c4-5d1e-7f00-8000-0000000000b0 +succeeded +2026-10-07T05:00:00Z +42s +sha256:0000[0-9]+ \(deleted\)$'
 
 cd app
 exec loco builds list
@@ -18,6 +19,13 @@ stdout '"BUILD_STATUS_SUCCEEDED"'
 exec loco builds get 0199b6c4-5d1e-7f00-8000-0000000000b1
 stdout '^Status: +succeeded$'
 stdout '^Image digest: +sha256:1111'
+! stdout 'Image deleted'
+
+exec loco builds get 0199b6c4-5d1e-7f00-8000-0000000000b0
+stdout '^Image deleted: +2026-10-07T06:00:00Z$'
+
+exec loco builds get 0199b6c4-5d1e-7f00-8000-0000000000b0 -o json
+stdout '"imageDeletedAt":"2026-10-07T06:00:00Z"'
 
 exec loco builds get 0199b6c4-5d1e-7f00-8000-0000000000b1 -o json
 stdout '"imageDigest":"sha256:1111'

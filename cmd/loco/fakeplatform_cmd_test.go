@@ -85,16 +85,33 @@ func seedBuild(api *fakeAPI, name string) {
 	})
 	cluster := fakeClusterID
 	digest := fakeImageDigest
+	deletedDigest := fakeDeletedDigest
 	started := time.Date(2026, 10, 7, 6, 0, 0, 0, time.UTC)
 	finished := started.Add(42 * time.Second)
+	earlier := started.Add(-time.Hour)
+	earlierFinished := earlier.Add(42 * time.Second)
 	api.platform.builds = append(api.platform.builds, &buildv1.Build{
+		Id:              "0199b6c4-5d1e-7f00-8000-0000000000b0",
+		ResourceId:      resourceID,
+		ClusterId:       &cluster,
+		Status:          buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED,
+		SourceType:      sourceTypeUpload,
+		SourceSize:      2048,
+		DockerfilePath:  fakeDockerfile,
+		ImageRepository: fakeImageRepo,
+		ImageDigest:     &deletedDigest,
+		CreatedAt:       timestamppb.New(earlier),
+		StartedAt:       timestamppb.New(earlier),
+		FinishedAt:      timestamppb.New(earlierFinished),
+		ImageDeletedAt:  timestamppb.New(started),
+	}, &buildv1.Build{
 		Id:              "0199b6c4-5d1e-7f00-8000-0000000000b1",
 		ResourceId:      resourceID,
 		ClusterId:       &cluster,
 		Status:          buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED,
 		SourceType:      sourceTypeUpload,
 		SourceSize:      2048,
-		DockerfilePath:  "Dockerfile",
+		DockerfilePath:  fakeDockerfile,
 		ImageRepository: fakeImageRepo,
 		ImageDigest:     &digest,
 		CreatedAt:       timestamppb.New(started),
@@ -107,7 +124,7 @@ func seedBuild(api *fakeAPI, name string) {
 		Status:          buildv1.BuildStatus_BUILD_STATUS_RUNNING,
 		SourceType:      sourceTypeUpload,
 		SourceSize:      2048,
-		DockerfilePath:  "Dockerfile",
+		DockerfilePath:  fakeDockerfile,
 		ImageRepository: fakeImageRepo,
 		CreatedAt:       timestamppb.New(finished),
 		StartedAt:       timestamppb.New(finished),

@@ -12,15 +12,15 @@ import (
 )
 
 const (
-	sourceSweepInterval        = 10 * time.Minute
-	sourceUploadGrace          = time.Hour
-	sourceOrphanMinAge         = 24 * time.Hour
-	sourceSweepBatch           = 100
-	sourceOrphanPageSize       = 1000
-	sourceOrphanMaxPages       = 5
-	sourceSweepLockKey   int64 = 0x6c6f636f0001
-	sourceUploadExpired        = "source upload expired"
-	sourceUnlockTimeout        = 5 * time.Second
+	sourceSweepInterval         = 10 * time.Minute
+	sourceUploadGrace           = time.Hour
+	sourceOrphanMinAge          = 24 * time.Hour
+	sourceSweepBatch            = 100
+	sourceOrphanPageSize        = 1000
+	sourceOrphanMaxPages        = 5
+	sourceSweepLockKey    int64 = 0x6c6f636f0001
+	sourceUploadExpired         = "source upload expired"
+	advisoryUnlockTimeout       = 5 * time.Second
 )
 
 type SourceSweepResult struct {
@@ -76,7 +76,7 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 		return result, fmt.Errorf("acquire connection: %w", err)
 	}
 	lockQueries := genDb.New(conn)
-	locked, err := lockQueries.TryLockSourceSweep(ctx, sourceSweepLockKey)
+	locked, err := lockQueries.TryAdvisoryLock(ctx, sourceSweepLockKey)
 	if err != nil {
 		conn.Release()
 		return result, fmt.Errorf("lock source sweep: %w", err)
@@ -85,7 +85,7 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 		conn.Release()
 		return result, nil
 	}
-	defer unlockSourceSweep(ctx, conn, lockQueries)
+	defer unlockAdvisory(ctx, conn, lockQueries, sourceSweepLockKey)
 	result.Ran = true
 
 	expired, err := s.expireUploads(ctx)
@@ -105,19 +105,22 @@ func (s *SourceSweeper) Sweep(ctx context.Context) (SourceSweepResult, error) {
 	return result, err
 }
 
-func unlockSourceSweep(ctx context.Context, conn *pgxpool.Conn, lockQueries *genDb.Queries) {
+func unlockAdvisory(ctx context.Context, conn *pgxpool.Conn, lockQueries *genDb.Queries, lockKey int64) {
 	detached := context.WithoutCancel(ctx)
-	unlockCtx, cancel := context.WithTimeout(detached, sourceUnlockTimeout)
+	unlockCtx, cancel := context.WithTimeout(detached, advisoryUnlockTimeout)
 	defer cancel()
-	unlocked, err := lockQueries.UnlockSourceSweep(unlockCtx, sourceSweepLockKey)
+	unlocked, err := lockQueries.AdvisoryUnlock(unlockCtx, lockKey)
 	if err == nil && unlocked {
 		conn.Release()
 		return
 	}
-	slog.WarnContext(ctx, "failed to release the source sweep lock, closing its connection", "error", err)
+	slog.WarnContext(ctx, "failed to release an advisory lock, closing its connection",
+		"lockKey", lockKey,
+		"error", err,
+	)
 	raw := conn.Hijack()
 	if closeErr := raw.Close(unlockCtx); closeErr != nil {
-		slog.WarnContext(ctx, "failed to close the source sweep connection", "error", closeErr)
+		slog.WarnContext(ctx, "failed to close the advisory lock connection", "lockKey", lockKey, "error", closeErr)
 	}
 }
 

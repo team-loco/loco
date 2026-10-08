@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -55,7 +56,9 @@ func TestPinDockerfileBuild(t *testing.T) {
 	succeededID := uuid.New()
 	runningID := uuid.New()
 	foreignID := uuid.New()
+	deletedID := uuid.New()
 	missingID := uuid.New()
+	deletedAt := time.Now()
 	repository := "registry.loco.test/builds/ws-1/" + resourceID.String()
 	foreignRepository := "registry.loco.test/builds/ws-2/" + otherResourceID.String()
 	digest := testDigest
@@ -82,11 +85,20 @@ func TestPinDockerfileBuild(t *testing.T) {
 			ImageRepository: foreignRepository,
 			ImageDigest:     &digest,
 		},
+		deletedID: {
+			ID:              deletedID,
+			ResourceID:      resourceID,
+			Status:          genDb.BuildStatusSucceeded,
+			ImageRepository: repository,
+			ImageDigest:     &digest,
+			ImageDeletedAt:  &deletedAt,
+		},
 	}
 
 	succeededIDStr := succeededID.String()
 	runningIDStr := runningID.String()
 	foreignIDStr := foreignID.String()
+	deletedIDStr := deletedID.String()
 	missingIDStr := missingID.String()
 
 	tests := []struct {
@@ -121,6 +133,11 @@ func TestPinDockerfileBuild(t *testing.T) {
 		{
 			name:     "build not finished",
 			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &runningIDStr},
+			wantCode: connect.CodeFailedPrecondition,
+		},
+		{
+			name:     "build image deleted",
+			src:      &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &deletedIDStr},
 			wantCode: connect.CodeFailedPrecondition,
 		},
 	}

@@ -6,13 +6,22 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/team-loco/loco/api/pkg/registryclient"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/service"
 )
 
 const (
 	configuredOrigin = "https://app.loco.build"
 	maxReplicasEnv   = "LOCO_DEFAULT_MAX_REPLICAS"
+	registryHostEnv  = "LOCO_REGISTRY_HOST"
+	registryUserEnv  = "LOCO_REGISTRY_USERNAME"
+	registryPassEnv  = "LOCO_REGISTRY_PASSWORD"
+	testRegistryHost = "registry.loco.test"
+	testRegistryUser = "api"
+	testRegistryPass = "secret"
 )
 
 func preflightAllowed(t *testing.T, h http.Handler, origin string) bool {
@@ -88,6 +97,16 @@ func clearAPIConfigEnv(t *testing.T) {
 	t.Setenv(maxReplicasEnv, "")
 	t.Setenv("LOCO_DEFAULT_PATH_PREFIX", "")
 	t.Setenv("LOCO_DEFAULT_IDLE_TIMEOUT", "")
+	t.Setenv(registryHostEnv, "")
+	t.Setenv("LOCO_REGISTRY_PREFIX", "")
+	t.Setenv("LOCO_REGISTRY_URL", "")
+	t.Setenv(registryUserEnv, "")
+	t.Setenv(registryPassEnv, "")
+	t.Setenv("LOCO_REGISTRY_TIMEOUT", "")
+	t.Setenv("LOCO_IMAGE_RETENTION", "")
+	t.Setenv("LOCO_IMAGE_SWEEP_INTERVAL", "")
+	t.Setenv("LOCO_IMAGE_SWEEP_BUILD_BATCH", "")
+	t.Setenv("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", "")
 }
 
 func TestNewAPIConfigDefaults(t *testing.T) {
@@ -109,6 +128,58 @@ func TestNewAPIConfigDefaults(t *testing.T) {
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
+	}
+	wantSweep := service.ImageSweepConfig{
+		Retention:       defaultImageRetention,
+		Interval:        defaultImageSweepInterval,
+		BuildBatch:      defaultImageSweepBuildBatch,
+		RepositoryBatch: defaultImageSweepRepositoryBatch,
+	}
+	if ac.ImageSweep != wantSweep {
+		t.Errorf("image sweep = %+v, want %+v", ac.ImageSweep, wantSweep)
+	}
+	if ac.Registry.Username != "" {
+		t.Errorf("registry username = %q, want none so image cleanup is off", ac.Registry.Username)
+	}
+}
+
+func TestNewAPIConfigReadsRegistryCleanup(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(registryHostEnv, testRegistryHost)
+	t.Setenv("LOCO_REGISTRY_PREFIX", "builds")
+	t.Setenv(registryUserEnv, testRegistryUser)
+	t.Setenv(registryPassEnv, testRegistryPass)
+	t.Setenv("LOCO_IMAGE_RETENTION", "2")
+	t.Setenv("LOCO_IMAGE_SWEEP_INTERVAL", "30s")
+	t.Setenv("LOCO_IMAGE_SWEEP_BUILD_BATCH", "10")
+	t.Setenv("LOCO_IMAGE_SWEEP_REPOSITORY_BATCH", "20")
+	ac := newAPIConfig()
+	wantRegistry := registryclient.Config{
+		URL:      "https://" + testRegistryHost,
+		Username: testRegistryUser,
+		Password: testRegistryPass,
+		Timeout:  defaultRegistryTimeout,
+	}
+	if ac.Registry != wantRegistry {
+		t.Errorf("registry = %+v, want %+v", ac.Registry, wantRegistry)
+	}
+	wantSweep := service.ImageSweepConfig{
+		RegistryHost:    testRegistryHost,
+		RegistryPrefix:  "builds",
+		Retention:       2,
+		Interval:        30 * time.Second,
+		BuildBatch:      10,
+		RepositoryBatch: 20,
+	}
+	if ac.ImageSweep != wantSweep {
+		t.Errorf("image sweep = %+v, want %+v", ac.ImageSweep, wantSweep)
+	}
+
+	t.Setenv("LOCO_REGISTRY_URL", "http://localhost:5001")
+	t.Setenv("LOCO_REGISTRY_TIMEOUT", "5s")
+	ac = newAPIConfig()
+	if ac.Registry.URL != "http://localhost:5001" || ac.Registry.Timeout != 5*time.Second {
+		t.Errorf("registry = %+v, want the overridden url and timeout", ac.Registry)
 	}
 }
 
@@ -178,6 +249,38 @@ func TestNewAPIConfigPanicsOnInvalidConfig(t *testing.T) {
 			"default max replicas above the controller maximum",
 			map[string]string{maxReplicasEnv: "12"},
 			errInvalidServiceDefault,
+		},
+		{"zero image retention", map[string]string{"LOCO_IMAGE_RETENTION": "0"}, errNotPositive},
+		{"non-numeric image retention", map[string]string{"LOCO_IMAGE_RETENTION": "all"}, errInvalidInt32},
+		{"non-duration sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "10"}, errInvalidDuration},
+		{"negative sweep interval", map[string]string{"LOCO_IMAGE_SWEEP_INTERVAL": "-1m"}, errNotPositive},
+		{"zero build batch", map[string]string{"LOCO_IMAGE_SWEEP_BUILD_BATCH": "0"}, errNotPositive},
+		{"zero repository batch", map[string]string{"LOCO_IMAGE_SWEEP_REPOSITORY_BATCH": "0"}, errNotPositive},
+		{"zero registry timeout", map[string]string{"LOCO_REGISTRY_TIMEOUT": "0s"}, errNotPositive},
+		{
+			"registry username without password",
+			map[string]string{registryHostEnv: testRegistryHost, registryUserEnv: testRegistryUser},
+			errRegistryAuthPartial,
+		},
+		{
+			"registry password without username",
+			map[string]string{registryHostEnv: testRegistryHost, registryPassEnv: testRegistryPass},
+			errRegistryAuthPartial,
+		},
+		{
+			"registry credentials without host",
+			map[string]string{registryUserEnv: testRegistryUser, registryPassEnv: testRegistryPass},
+			errRegistryAuthNoHost,
+		},
+		{
+			"registry url with a path",
+			map[string]string{
+				registryHostEnv:     testRegistryHost,
+				registryUserEnv:     testRegistryUser,
+				registryPassEnv:     testRegistryPass,
+				"LOCO_REGISTRY_URL": "https://registry.loco.test/v2",
+			},
+			errInvalidRegistry,
 		},
 	}
 	for _, tt := range tests {

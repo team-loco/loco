@@ -49,7 +49,8 @@ seed_session() {
         INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
         VALUES
             ('${dispatch_user_id}', 'read', 'workspace', '${dispatch_workspace_id}'),
-            ('${dispatch_user_id}', 'write', 'workspace', '${dispatch_workspace_id}')
+            ('${dispatch_user_id}', 'write', 'workspace', '${dispatch_workspace_id}'),
+            ('${dispatch_user_id}', 'admin', 'workspace', '${dispatch_workspace_id}')
         ON CONFLICT DO NOTHING;
         INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id,
                                     access_expires_at, refresh_expires_at)
@@ -238,29 +239,40 @@ deployment_running() {
     test "$(deployment_status "$1")" = DEPLOYMENT_PHASE_RUNNING
 }
 
-test_d02_deploy_the_built_image() {
-    local resource_id build_id body deployment_id
+deploy_build() {
+    local resource_id body
     resource_id=$(dispatch_state resource)
-    build_id=$(dispatch_state first.id)
     body=$(json -n "
         .resourceId = \"${resource_id}\" |
         .region = \"us-east-1\" |
         .environmentId = \"${dispatch_environment_id}\" |
         .spec.service.build.type = \"dockerfile\" |
-        .spec.service.build.buildId = \"${build_id}\" |
+        .spec.service.build.buildId = \"$1\" |
         .spec.service.port = 8080
     ")
-    local created
-    created=$(api loco.deployment.v1.DeploymentService/CreateDeployment "$body" 2>&1)
+    api loco.deployment.v1.DeploymentService/CreateDeployment "$body" 2>&1 || true
+}
+
+deploy_and_wait() {
+    local build_id=$1 created deployment_id
+    created=$(deploy_build "$build_id")
     deployment_id=$(field .deploymentId <<<"$created" 2>/dev/null)
-    if ! assert "API created the deployment (${deployment_id})" test -n "$deployment_id"; then
+    if ! assert "API created a deployment of build ${build_id} (${deployment_id})" test -n "$deployment_id"; then
         log_error "  CreateDeployment: ${created}"
         return 1
     fi
 
-    wait_for "the built app to roll out" 240 deployment_running "$deployment_id"
-    if ! assert "Deployment of the built image is RUNNING" deployment_running "$deployment_id"; then
+    wait_for "build ${build_id} to roll out" 240 deployment_running "$deployment_id"
+    if ! assert "Deployment of build ${build_id} is RUNNING" deployment_running "$deployment_id"; then
         dk -n "ws-${dispatch_workspace_id}" describe pods | sed 's/^/    /'
+        return 1
+    fi
+}
+
+test_d02_deploy_the_built_image() {
+    local build_id
+    build_id=$(dispatch_state first.id)
+    if ! deploy_and_wait "$build_id"; then
         return 1
     fi
 
@@ -302,4 +314,60 @@ test_d04_cancel_reaches_the_cluster() {
     wait_for "the agent to delete the canceled Build" 60 build_cr_gone "$id"
     assert "Agent deleted the canceled Build" build_cr_gone "$id"
     assert_fails "API deleted the canceled build's source" source_object_exists "$id"
+}
+
+image_path() {
+    local repository
+    repository=$(get_build "$1" | field .build.imageRepository)
+    echo "${repository#"${E2E_REGISTRY_HOST}/"}"
+}
+
+manifest_status() {
+    registry_manifest_status "$E2E_REGISTRY_NODES_USER" "$1" "$2"
+}
+
+manifest_gone() {
+    test "$(manifest_status "$1" "$2")" = 404
+}
+
+test_d05_retention_deletes_replaced_images() {
+    local first second path first_image first_cache second_image refused
+    first=$(dispatch_state first.id)
+    second=$(dispatch_state second.id)
+    path=$(image_path "$first")
+    first_image=$(get_build "$first" | field .build.imageDigest)
+    first_cache=$(dispatch_state first.cache)
+    second_image=$(get_build "$second" | field .build.imageDigest)
+
+    assert "A newer build exists, but the deployed first build's image is kept" \
+        test "$(manifest_status "$path" "$first_image")" = 200
+    assert "The first build is not reported as deleted while deployed" \
+        test -z "$(get_build "$first" | field .build.imageDeletedAt)"
+
+    if ! deploy_and_wait "$second"; then
+        return 1
+    fi
+    wait_for "image retention to delete the replaced image" 60 manifest_gone "$path" "$first_image"
+    assert "The replaced build's image manifest is gone (404 as the nodes account)" \
+        manifest_gone "$path" "$first_image"
+    assert "The replaced build's cache manifest is gone" manifest_gone "$path" "$first_cache"
+    assert "The deployed build's image is still pullable" \
+        test "$(manifest_status "$path" "$second_image")" = 200
+    assert "GetBuild reports when the replaced build's image was deleted" \
+        test -n "$(get_build "$first" | field .build.imageDeletedAt)"
+    refused=$(deploy_build "$first")
+    assert_contains "Deploying the replaced build is refused before anything is scheduled" \
+        failed_precondition echo "$refused"
+}
+
+test_d06_deleted_resource_images_are_purged() {
+    local resource_id second path second_image
+    resource_id=$(dispatch_state resource)
+    second=$(dispatch_state second.id)
+    path=$(image_path "$second")
+    second_image=$(get_build "$second" | field .build.imageDigest)
+
+    api loco.resource.v1.ResourceService/DeleteResource "{\"resourceId\":\"${resource_id}\"}" >/dev/null
+    wait_for "the deleted resource's images to be purged" 60 manifest_gone "$path" "$second_image"
+    assert "The deleted resource's image is gone from the registry" manifest_gone "$path" "$second_image"
 }
