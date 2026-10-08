@@ -62,6 +62,7 @@ type Querier interface {
 	DeleteExpiredAPITokens(ctx context.Context) error
 	// session is fully dead once the refresh token expires (access expiry alone is not enough)
 	DeleteExpiredSessionTokens(ctx context.Context) error
+	DeleteInstallWebhooksExcept(ctx context.Context, urls []string) (int64, error)
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
 	DeleteOrganization(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
@@ -177,6 +178,7 @@ type Querier interface {
 	ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]Workspace, error)
 	LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*time.Time, error)
 	LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (*time.Time, error)
+	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockResource(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockResourceRegion(ctx context.Context, arg LockResourceRegionParams) (ResourceRegion, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
@@ -223,6 +225,7 @@ type Querier interface {
 	UpdateResourceStatus(ctx context.Context, arg UpdateResourceStatusParams) error
 	UpdateUserAvatarURL(ctx context.Context, arg UpdateUserAvatarURLParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
+	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UserHasUnverifiedIdentity(ctx context.Context, userID uuid.UUID) (bool, error)
 	WorkspaceHasResources(ctx context.Context, workspaceID uuid.UUID) (bool, error)

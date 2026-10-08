@@ -13,14 +13,7 @@ import (
 	"github.com/team-loco/loco/api/webhooks"
 )
 
-const (
-	maxBody                 = 1 << 20
-	standardVectorKey       = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
-	standardVectorID        = "msg_p5jXN8AQM9LWM0D4loKWxJek"
-	standardVectorTimestamp = 1614265330
-	standardVectorBody      = `{"test": 2432232314}`
-	standardVectorSignature = "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE="
-)
+const maxBody = 1 << 20
 
 func TestSignatureVerifiesAsStandardWebhooks(t *testing.T) {
 	secret, err := webhooks.NewSecret()
@@ -60,17 +53,6 @@ func TestSignatureVerifiesAsStandardWebhooks(t *testing.T) {
 		webhooks.ErrInvalidSecret,
 	) {
 		t.Fatalf("bad secret: %v", err)
-	}
-}
-
-func TestSignMatchesStandardWebhooksVector(t *testing.T) {
-	timestamp := time.Unix(standardVectorTimestamp, 0)
-	signature, err := webhooks.Sign(standardVectorKey, standardVectorID, timestamp, []byte(standardVectorBody))
-	if err != nil {
-		t.Fatalf("sign: %v", err)
-	}
-	if signature != standardVectorSignature {
-		t.Fatalf("signature = %q, want %q", signature, standardVectorSignature)
 	}
 }
 

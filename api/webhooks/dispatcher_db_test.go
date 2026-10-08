@@ -190,7 +190,7 @@ func TestEventsFanOutToMatchingWebhooks(t *testing.T) {
 		t.Fatalf("other workspace's webhook deliveries = %d, want 1", got)
 	}
 
-	d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(true))
+	d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(true), webhooks.NewClient(true))
 	sent, err := d.DispatchDue(t.Context())
 	if err != nil || sent != 4 {
 		t.Fatalf("dispatch = %d, %v", sent, err)
@@ -232,7 +232,7 @@ func TestFailedDeliveriesRetryThenGiveUp(t *testing.T) {
 	r.status.Store(http.StatusInternalServerError)
 	f.setURL(t, hook.ID, r.srv.URL)
 	f.record(t, f.workspaceID, events.ResourceUpdated)
-	d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(true))
+	d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(true), webhooks.NewClient(true))
 
 	if _, err := d.DispatchDue(t.Context()); err != nil {
 		t.Fatalf("dispatch: %v", err)
@@ -283,7 +283,7 @@ func TestConcurrentDispatchersDeliverOnce(t *testing.T) {
 	var dispatched atomic.Int64
 	for range 3 {
 		wg.Go(func() {
-			d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(true))
+			d := webhooks.NewDispatcher(f.queries, webhooks.NewClient(true), webhooks.NewClient(true))
 			n, err := d.DispatchDue(context.Background())
 			if err != nil {
 				t.Errorf("dispatch: %v", err)
