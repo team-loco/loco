@@ -12,7 +12,7 @@
   ignorePaths: ["examples/**", "**/node_modules/**", "gen/ts/node_modules/**"],
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
   constraints: {
-    mise: "2026.9.18",
+    mise: "2026.10.5",
   },
   osvVulnerabilityAlerts: true,
   vulnerabilityAlerts: {
